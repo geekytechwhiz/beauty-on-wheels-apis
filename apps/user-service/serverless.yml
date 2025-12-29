@@ -251,3 +251,23 @@ functions:
           startingPosition: LATEST
           functionResponseType: ReportBatchItemFailures
 
+Resources:
+  UserRemindersQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: user-reminders-queue-${self:provider.stage}
+        VisibilityTimeout: 300
+        ReceiveMessageWaitTimeSeconds: 20
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt UserRemindersQueueDLQ.Arn
+          maxReceiveCount: 3
+
+  UserRemindersQueueDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: user-reminders-queue-${self:provider.stage}-dlq
+
+  UserServiceBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: user-service-bus-${self:provider.stage}

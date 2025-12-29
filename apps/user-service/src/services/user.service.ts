@@ -17,27 +17,16 @@ export class UserService {
   }
 
   async createUser(data: Partial<User>, correlationId?: string): Promise<User> {
-        // Validate input using Zod
-        const validation = createUserSchema.safeParse({
-          userId: data.userID,
-          email: data.emailAddress,
-          name: data.fullName ?? data.firstName ?? '',
-        });
-        if (!validation.success) {
-          throw new Error('Validation failed: ' + JSON.stringify(validation.error.issues));
-        }
+    // Validate input using Zod
+    const validation = createUserSchema.safeParse({
+      userId: data.userID,
+      email: data.emailAddress,
+      name: data.fullName ?? data.firstName ?? '',
+    });
+    if (!validation.success) {
+      throw new Error('Validation failed: ' + JSON.stringify(validation.error.issues));
+    }
 
-        // Cognito integration via CognitoService
-        const cognitoService = new CognitoService(
-          process.env.AWS_REGION || 'us-east-1',
-          process.env.COGNITO_USER_POOL_ID || ''
-        );
-        if (data.emailAddress) {
-          const exists = await cognitoService.userExists(data.emailAddress);
-          if (!exists) {
-            await cognitoService.createUser(data.emailAddress);
-          }
-        }
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID });
     logger.info({ event: 'service_createUser_start' });
@@ -47,6 +36,33 @@ export class UserService {
       const existing = await this.repository.getUser(data.userID);
       if (existing) {
         throw new UserAlreadyExistsError(data.userID);
+      }
+
+      // Cognito integration via CognitoService
+      if (data.emailAddress) {
+        try {
+          const cognitoService = new CognitoService(
+            process.env.AWS_REGION || 'us-east-1',
+            process.env.COGNITO_USER_POOL_ID || ''
+          );
+          const exists = await cognitoService.userExists(data.emailAddress);
+          if (!exists) {
+            await cognitoService.createUser(data.emailAddress);
+            logger.info({ event: 'service_createUser_cognito_success', email: data.emailAddress });
+          } else {
+            logger.info({ event: 'service_createUser_cognito_user_exists', email: data.emailAddress });
+          }
+        } catch (err) {
+          logger.error({
+            event: 'service_createUser_cognito_error',
+            email: data.emailAddress,
+            err: serializeError(err),
+            message: 'Failed to create user in Cognito, continuing with DynamoDB user creation',
+          });
+          // In production, you might want to throw here to prevent user creation without Cognito
+          // For now, we'll log and continue to allow graceful degradation
+          // throw err;
+        }
       }
 
         // Build user object with pk/sk and all fields for userCreated

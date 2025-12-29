@@ -33,6 +33,8 @@ provider:
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+    AWS_REGION: ${self:provider.region}
 
   tags:
     Service: ${self:service}
@@ -92,6 +94,17 @@ provider:
         - xray:PutTraceSegments
         - xray:PutTelemetryRecords
       Resource: '*'
+
+    # Cognito Identity Provider
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminCreateUser
+        - cognito-idp:AdminGetUser
+        - cognito-idp:AdminUpdateUserAttributes
+        - cognito-idp:AdminDeleteUser
+        - cognito-idp:ListUsers
+      Resource:
+        - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/*
 
 package:
   individually: true

@@ -93,6 +93,9 @@ provider:
         - xray:PutTelemetryRecords
       Resource: '*'
 
+package:
+  individually: true
+  
 custom:
   esbuild:
     bundle: true

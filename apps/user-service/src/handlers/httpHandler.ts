@@ -23,7 +23,9 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
 
   let body: unknown;
   try {
+    logger.debug({ event: 'createUser_body_received', body: event.body });
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    logger.debug({ event: 'createUser_body_parsed', bodyType: typeof body, hasBody: !!body });
   } catch (err) {
     logger.error({ event: 'createUser_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;

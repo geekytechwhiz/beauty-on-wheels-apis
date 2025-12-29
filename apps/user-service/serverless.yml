@@ -130,7 +130,7 @@ functions:
           method: get
   
   createUser:
-    handler: src/handlers/createUser.handler.main
+    handler: src/handlers/createUser.main
     timeout: 10
     memorySize: 256
     events:
@@ -153,7 +153,7 @@ functions:
             headers: ${self:custom.cors.headers}
 
   updateUser:
-    handler: src/handlers/updateUser.handler.main
+    handler: src/handlers/updateUser.main
     timeout: 10
     memorySize: 256
     events:
@@ -165,7 +165,7 @@ functions:
             headers: ${self:custom.cors.headers}
 
   deleteUser:
-    handler: src/handlers/deleteUser.handler.main
+    handler: src/handlers/deleteUser.main
     timeout: 10
     memorySize: 256
     events:
@@ -177,7 +177,7 @@ functions:
             headers: ${self:custom.cors.headers}
 
   assignUserToOrganization:
-    handler: src/handlers/assignUserToOrganization.handler.main
+    handler: src/handlers/assignUserToOrganization.main
     timeout: 10
     memorySize: 256
     events:
@@ -189,7 +189,7 @@ functions:
             headers: ${self:custom.cors.headers}
 
   listUserOrganizations:
-    handler: src/handlers/listUserOrganizations.handler.main
+    handler: src/handlers/listUserOrganizations.main
     timeout: 5
     memorySize: 256
     events:
@@ -201,7 +201,7 @@ functions:
             headers: ${self:custom.cors.headers}
 
   updateUserMetadata:
-    handler: src/handlers/updateUserMetadata.handler.main
+    handler: src/handlers/updateUserMetadata.main
     timeout: 10
     memorySize: 256
     events:
@@ -213,7 +213,7 @@ functions:
             headers: ${self:custom.cors.headers}
 
   listUserFiles:
-    handler: src/handlers/listUserFiles.handler.main
+    handler: src/handlers/listUserFiles.main
     timeout: 5
     memorySize: 256
     events:
@@ -226,7 +226,7 @@ functions:
 
   # S3 → EventBridge trigger (v3 safe)
   uploadUserFile:
-    handler: src/handlers/s3/uploadUserFile.handler.main
+    handler: src/handlers/s3/uploadUserFile.main
     timeout: 30
     memorySize: 512
     events:
@@ -242,7 +242,7 @@ functions:
                   - user-files-bucket-${self:provider.stage}
 
   userReminderEvent:
-    handler: src/handlers/sqs/userReminderEvent.handler.main
+    handler: src/handlers/sqs/userReminderEvent.main
     timeout: 30
     memorySize: 256
     reservedConcurrentExecutions: 10
@@ -254,7 +254,7 @@ functions:
           functionResponseType: ReportBatchItemFailures
 
   userProfileStreamHandler:
-    handler: src/handlers/stream/userProfileStreamHandler.handler.main
+    handler: src/handlers/stream/userProfileStreamHandler.main
     timeout: 30
     memorySize: 256
     # events:

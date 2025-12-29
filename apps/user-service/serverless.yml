@@ -739,7 +739,7 @@ Resources:
         - ReportBatchItemFailures
       Enabled: true
 
-  # EventBridge Event Bus
+  # This is the EventBridge Event Bus
   UserServiceBus:
     Type: AWS::Events::EventBus
     Properties:

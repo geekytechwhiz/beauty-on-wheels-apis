@@ -66,16 +66,16 @@ provider:
         - arn:aws:s3:::user-files-bucket-${self:provider.stage}/*
 
     # SQS
-    - Effect: Allow
-      Action:
-        - sqs:SendMessage
-        - sqs:ReceiveMessage
-        - sqs:DeleteMessage
-        - sqs:GetQueueAttributes
-        - sqs:GetQueueUrl
-      Resource:
-        - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
-        - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}-dlq
+    # - Effect: Allow
+    #   Action:
+    #     - sqs:SendMessage
+    #     - sqs:ReceiveMessage
+    #     - sqs:DeleteMessage
+    #     - sqs:GetQueueAttributes
+    #     - sqs:GetQueueUrl
+    #   Resource:
+    #     - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
+    #     - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}-dlq
 
     # EventBridge
     - Effect: Allow
@@ -244,11 +244,11 @@ functions:
     handler: src/handlers/sqs/userReminderEvent.handler.main
     timeout: 30
     memorySize: 256
-    events:
-      - sqs:
-          arn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
-          batchSize: 10
-          functionResponseType: ReportBatchItemFailures
+    # events:
+    #   - sqs:
+    #       arn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
+    #       batchSize: 10
+    #       functionResponseType: ReportBatchItemFailures
 
   userProfileStreamHandler:
     handler: src/handlers/stream/userProfileStreamHandler.handler.main
@@ -264,22 +264,22 @@ functions:
     #       functionResponseType: ReportBatchItemFailures
 
 Resources:
-  UserRemindersQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: user-reminders-queue-${self:provider.stage}
-        VisibilityTimeout: 300
-        ReceiveMessageWaitTimeSeconds: 20
-        RedrivePolicy:
-          deadLetterTargetArn: !GetAtt UserRemindersQueueDLQ.Arn
-          maxReceiveCount: 3
+  # UserRemindersQueue:
+  #     Type: AWS::SQS::Queue
+  #     Properties:
+  #       QueueName: user-reminders-queue-${self:provider.stage}
+  #       VisibilityTimeout: 300
+  #       ReceiveMessageWaitTimeSeconds: 20
+  #       RedrivePolicy:
+  #         deadLetterTargetArn: !GetAtt UserRemindersQueueDLQ.Arn
+  #         maxReceiveCount: 3
 
-  UserRemindersQueueDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: user-reminders-queue-${self:provider.stage}-dlq
+  # UserRemindersQueueDLQ:
+  #     Type: AWS::SQS::Queue
+  #     Properties:
+  #       QueueName: user-reminders-queue-${self:provider.stage}-dlq
 
-  UserServiceBus:
-      Type: AWS::Events::EventBus
-      Properties:
-        Name: user-service-bus-${self:provider.stage}
+  # UserServiceBus:
+  #     Type: AWS::Events::EventBus
+  #     Properties:
+  #       Name: user-service-bus-${self:provider.stage}

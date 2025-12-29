@@ -123,7 +123,6 @@ custom:
     excludeStages:
       - production
     swaggerOutputPath: swagger.json
-    definitionsFile: swagger-definitions.yml
     tags:
       - name: Health
         description: Health check endpoints

@@ -669,12 +669,6 @@ functions:
     timeout: 30
     memorySize: 256
     reservedConcurrentExecutions: 10
-    events:
-      - sqs:
-          arn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
-          batchSize: 10
-          maximumBatchingWindowInSeconds: 5
-          functionResponseType: ReportBatchItemFailures
 
   userProfileStreamHandler:
     handler: src/handlers/stream/userProfileStreamHandler.main
@@ -728,6 +722,22 @@ Resources:
           Value: serverless
         - Key: QueueType
           Value: Standard
+
+  # Lambda EventSourceMapping for User Reminders Queue
+  # Created manually to ensure proper dependency ordering - queue must exist first
+  UserReminderEventEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn:
+      - UserRemindersQueue
+      - UserReminderEventLambdaFunction
+    Properties:
+      EventSourceArn: !GetAtt UserRemindersQueue.Arn
+      FunctionName: !GetAtt UserReminderEventLambdaFunction.Arn
+      BatchSize: 10
+      MaximumBatchingWindowInSeconds: 5
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      Enabled: true
 
   # EventBridge Event Bus
   UserServiceBus:

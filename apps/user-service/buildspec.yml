@@ -31,7 +31,7 @@ phases:
           exit 1
         fi
 
-      # 3) push code & rewrite template
+      # 3) push code & rewrite 
       - |
         aws cloudformation package \
           --template-file "$TEMPLATE" \

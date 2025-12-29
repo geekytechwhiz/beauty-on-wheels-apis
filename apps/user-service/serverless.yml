@@ -75,8 +75,8 @@ provider:
         - sqs:GetQueueUrl
         - sqs:ChangeMessageVisibility
       Resource:
-        - !GetAtt UserRemindersQueue.Arn
-        - !GetAtt UserRemindersQueueDLQ.Arn
+        - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
+        - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}-dlq
 
     # EventBridge
     - Effect: Allow

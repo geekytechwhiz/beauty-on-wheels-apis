@@ -1,4 +1,4 @@
-import { SQSEvent, SQSRecord } from 'aws-lambda';
+import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/logger';
 import { sqsEventSchema } from '../../validation/user.validation';
 import { InvalidEventError } from '../../utils/errors';
@@ -11,7 +11,7 @@ interface ReminderMessage {
   correlationId?: string;
 }
 
-export async function userReminderEvent(event: SQSEvent): Promise<void> {
+export async function userReminderEvent(event: SQSEvent): Promise<SQSBatchResponse | void> {
   const correlationId = extractCorrelationId(event as unknown as { headers?: Record<string, string> });
   const logger = createChildLogger(baseLogger, { correlationId });
   logger.info({ event: 'userReminderEvent_received', recordCount: event.Records.length });
@@ -23,6 +23,7 @@ export async function userReminderEvent(event: SQSEvent): Promise<void> {
   }
 
   const processedMessageIds = new Set<string>();
+  const failedMessageIds: string[] = [];
 
   for (const record of event.Records) {
     const messageId = record.messageId;
@@ -41,6 +42,7 @@ export async function userReminderEvent(event: SQSEvent): Promise<void> {
       } catch (err) {
         const recordLogger = createChildLogger(baseLogger, { correlationId, messageId });
         recordLogger.error({ event: 'userReminderEvent_parse_error', err: serializeError(err) });
+        failedMessageIds.push(messageId);
         continue;
       }
 
@@ -60,9 +62,11 @@ export async function userReminderEvent(event: SQSEvent): Promise<void> {
           { event: 'userReminderEvent_invalid_body', body },
           'Invalid reminder message body',
         );
+        failedMessageIds.push(messageId);
         continue;
       }
 
+      // TODO: Add actual reminder processing logic here
       recordLogger.info(
         {
           event: 'userReminderEvent_success',
@@ -76,7 +80,21 @@ export async function userReminderEvent(event: SQSEvent): Promise<void> {
         { event: 'userReminderEvent_error', err: serializeError(err) },
         'Failed to process reminder message',
       );
+      failedMessageIds.push(messageId);
     }
+  }
+
+  // Return batch response with failed message IDs for partial batch failure support
+  if (failedMessageIds.length > 0) {
+    logger.warn(
+      { event: 'userReminderEvent_partial_failure', failedCount: failedMessageIds.length },
+      'Some messages failed to process',
+    );
+    return {
+      batchItemFailures: failedMessageIds.map((messageId) => ({
+        itemIdentifier: messageId,
+      })),
+    };
   }
 }
 

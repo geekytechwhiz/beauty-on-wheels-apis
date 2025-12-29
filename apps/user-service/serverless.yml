@@ -248,7 +248,7 @@ functions:
     reservedConcurrentExecutions: 10
     events:
       - sqs:
-          arn: !GetAtt UserRemindersQueue.Arn
+          arn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
           batchSize: 10
           maximumBatchingWindowInSeconds: 5
           functionResponseType: ReportBatchItemFailures

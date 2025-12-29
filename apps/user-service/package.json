@@ -103,6 +103,7 @@
   },
   "devDependencies": {
     "esbuild-plugin-tsconfig-paths": "^1.0.1",
+    "serverless-auto-swagger": "^3.0.0",
     "serverless-esbuild": "^1.57.0",
     "serverless-offline": "^13.9.0"
   }

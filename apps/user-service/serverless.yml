@@ -5,6 +5,7 @@ frameworkVersion: '3'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
+  - serverless-auto-swagger
   - serverless-offline
 
 provider:
@@ -105,7 +106,33 @@ custom:
       - aws-sdk
   autoswagger:
     title: User Service API
+    description: RESTful API for managing users, organizations, files, and metadata
+    version: 1.0.0
     apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    type: openapi3
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+    swaggerOutputPath: swagger.json
+    definitionsFile: swagger-definitions.yml
+    tags:
+      - name: Health
+        description: Health check endpoints
+      - name: Users
+        description: User management operations
+      - name: Organizations
+        description: User-organization relationship operations
+      - name: Files
+        description: User file management operations
 
   logLevel:
     dev: debug
@@ -128,6 +155,25 @@ functions:
       - http:
           path: /health
           method: get
+          documentation:
+            summary: Health check endpoint
+            description: Returns the health status of the service
+            tags:
+              - Health
+            responses:
+              200:
+                description: Service is healthy
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          example: "ok"
+                        timestamp:
+                          type: string
+                          format: date-time
   
   createUser:
     handler: src/handlers/createUser.main
@@ -140,6 +186,70 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Create a new user
+            description: Creates a new user in the system with the provided information
+            tags:
+              - Users
+            requestBody:
+              description: User creation data
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - userId
+                      - email
+                      - name
+                    properties:
+                      userId:
+                        type: string
+                        format: uuid
+                        description: Unique identifier for the user (UUID format)
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      email:
+                        type: string
+                        format: email
+                        description: User's email address
+                        example: "john.doe@example.com"
+                      name:
+                        type: string
+                        minLength: 1
+                        description: User's full name
+                        example: "John Doe"
+            responses:
+              201:
+                description: User created successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        userID: "550e8400-e29b-41d4-a716-446655440000"
+                        emailAddress: "john.doe@example.com"
+                        fullName: "John Doe"
+                        createdDate: 1699123456789
+                        isActive: true
+                      requestId: "req-123"
+                      message: "User created"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              409:
+                description: User already exists
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+                    example:
+                      type: "about:blank"
+                      title: "User already exists"
+                      status: 409
+                      detail: "User with ID 550e8400-e29b-41d4-a716-446655440000 already exists"
+                      code: "USER_ALREADY_EXISTS"
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   getUser:
     handler: src/handlers/getUser.main
@@ -151,6 +261,51 @@ functions:
           method: get
           cors: 
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Get user by ID
+            description: Retrieves user information by user ID
+            tags:
+              - Users
+            pathParameters:
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User retrieved successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        userID: "550e8400-e29b-41d4-a716-446655440000"
+                        emailAddress: "john.doe@example.com"
+                        fullName: "John Doe"
+                        phoneNumber: "+1234567890"
+                        isActive: true
+                        createdDate: 1699123456789
+                      requestId: "req-123"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+                    example:
+                      type: "about:blank"
+                      title: "User not found"
+                      status: 404
+                      detail: "User with ID 550e8400-e29b-41d4-a716-446655440000 not found"
+                      code: "USER_NOT_FOUND"
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   updateUser:
     handler: src/handlers/updateUser.main
@@ -163,6 +318,61 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Update user information
+            description: Updates user information. Only provided fields will be updated.
+            tags:
+              - Users
+            pathParameters:
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            requestBody:
+              description: User update data (all fields are optional)
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                        description: User's email address
+                        example: "john.doe.updated@example.com"
+                      name:
+                        type: string
+                        minLength: 1
+                        description: User's full name
+                        example: "John Doe Updated"
+            responses:
+              200:
+                description: User updated successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        userID: "550e8400-e29b-41d4-a716-446655440000"
+                        emailAddress: "john.doe.updated@example.com"
+                        fullName: "John Doe Updated"
+                      requestId: "req-123"
+                      message: "User updated"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   deleteUser:
     handler: src/handlers/deleteUser.main
@@ -175,6 +385,40 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Delete a user
+            description: Deletes a user from the system by user ID
+            tags:
+              - Users
+            pathParameters:
+              - name: userId
+                description: Unique identifier of the user to delete (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User deleted successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data: null
+                      requestId: "req-123"
+                      message: "User deleted"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   assignUserToOrganization:
     handler: src/handlers/assignUserToOrganization.main
@@ -187,6 +431,48 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Assign user to organization
+            description: Assigns a user to an organization
+            tags:
+              - Users
+              - Organizations
+            pathParameters:
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "660e8400-e29b-41d4-a716-446655440001"
+            responses:
+              200:
+                description: User assigned to organization successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data: null
+                      requestId: "req-123"
+                      message: "User assigned to organization"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                description: User or organization not found
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   listUserOrganizations:
     handler: src/handlers/listUserOrganizations.main
@@ -199,6 +485,43 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List user organizations
+            description: Retrieves all organizations associated with a user
+            tags:
+              - Users
+              - Organizations
+            pathParameters:
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User organizations retrieved successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        - userId: "550e8400-e29b-41d4-a716-446655440000"
+                          organizationId: "660e8400-e29b-41d4-a716-446655440001"
+                          assignedAt: "2024-01-15T10:30:00Z"
+                      requestId: "req-123"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   updateUserMetadata:
     handler: src/handlers/updateUserMetadata.main
@@ -211,6 +534,68 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Update user metadata
+            description: Updates custom metadata for a user. Metadata can contain any key-value pairs.
+            tags:
+              - Users
+            pathParameters:
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            requestBody:
+              description: User metadata object (key-value pairs)
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - metadata
+                    properties:
+                      metadata:
+                        type: object
+                        description: Custom metadata as key-value pairs. Values can be strings, numbers, booleans, arrays, or objects.
+                        additionalProperties: true
+                        example:
+                          preferences:
+                            theme: "dark"
+                            notifications: true
+                          tags:
+                            - "premium"
+                            - "verified"
+                          customField: "customValue"
+            responses:
+              200:
+                description: User metadata updated successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        userId: "550e8400-e29b-41d4-a716-446655440000"
+                        metadata:
+                          preferences:
+                            theme: "dark"
+                            notifications: true
+                        modifiedDate: "2024-01-15T10:30:00Z"
+                      requestId: "req-123"
+                      message: "User metadata updated"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   listUserFiles:
     handler: src/handlers/listUserFiles.main
@@ -223,6 +608,45 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List user files
+            description: Retrieves all files associated with a user
+            tags:
+              - Users
+              - Files
+            pathParameters:
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User files retrieved successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        - userId: "550e8400-e29b-41d4-a716-446655440000"
+                          fileId: "770e8400-e29b-41d4-a716-446655440002"
+                          fileName: "document.pdf"
+                          s3Key: "users/550e8400-e29b-41d4-a716-446655440000/files/document.pdf"
+                          uploadedAt: "2024-01-15T10:30:00Z"
+                      requestId: "req-123"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      $ref: '#/components/schemas/ProblemDetails'
+              500:
+                $ref: '#/components/responses/InternalServerError'
 
   # S3 → EventBridge trigger (v3 safe)
   uploadUserFile:

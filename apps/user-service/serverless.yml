@@ -12,7 +12,19 @@ provider:
   runtime: nodejs18.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-environment:
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-user-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
     USER_TABLE: user-table-${self:provider.stage}
     USER_FILES_BUCKET: user-files-bucket-${self:provider.stage}
     USER_REMINDERS_QUEUE: user-reminders-queue-${self:provider.stage}
@@ -21,12 +33,12 @@ environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
 
-tags:
+  tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
 
-iamRoleStatements:
+  iamRoleStatements:
     # DynamoDB (table created in infra stack)
     - Effect: Allow
       Action:

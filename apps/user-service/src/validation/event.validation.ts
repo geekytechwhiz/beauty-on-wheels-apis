@@ -10,8 +10,7 @@ export const userCreatedEventSchema = z.object({
 
 export const userProfileUpdatedEventSchema = z.object({
   eventName: z.literal('UserProfileUpdated.v1'),
-  correlationId: z.string(),
-  userId: z.string().uuid(),
+  correlationId: z.string(), 
   changes: z.record(z.string(), z.any()),
 });
 

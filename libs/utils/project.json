@@ -1,0 +1,32 @@
+{
+    "name": "utils",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/utils/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project utils --web",
+    "targets": {
+      "lint": {
+        "executor": "@nx/eslint:lint",
+        "outputs": ["{options.outputFile}"]
+      },
+      "build": {
+        "executor": "@nx/vite:build",
+        "cache": true,
+        "outputs": ["{options.outputPath}"],
+        "defaultConfiguration": "production",
+        "options": {
+          "outputPath": "dist/libs/utils"
+        },
+        "configurations": {
+          "development": {
+            "mode": "development"
+          },
+          "production": {
+            "mode": "production"
+          }
+        }
+      }
+    }
+  }
+  

@@ -1,0 +1,253 @@
+service: user-service
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+environment:
+    USER_TABLE: user-table-${self:provider.stage}
+    USER_FILES_BUCKET: user-files-bucket-${self:provider.stage}
+    USER_REMINDERS_QUEUE: user-reminders-queue-${self:provider.stage}
+    EVENT_BUS: user-service-bus-${self:provider.stage}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+
+tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+iamRoleStatements:
+    # DynamoDB (table created in infra stack)
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-*/index/*
+
+    # S3 (user files)
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+        - s3:ListBucket
+      Resource:
+        - arn:aws:s3:::user-files-bucket-${self:provider.stage}
+        - arn:aws:s3:::user-files-bucket-${self:provider.stage}/*
+
+    # SQS
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+        - sqs:GetQueueUrl
+      Resource:
+        - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
+        - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}-dlq
+
+    # EventBridge
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource:
+        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/user-service-bus-${self:provider.stage}
+
+    # X-Ray
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+  autoswagger:
+    title: User Service API
+    apiType: http
+
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+  
+  createUser:
+    handler: src/handlers/createUser.handler.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  getUser:
+    handler: src/handlers/getUser.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}
+          method: get
+          cors: 
+            headers: ${self:custom.cors.headers}
+
+  updateUser:
+    handler: src/handlers/updateUser.handler.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  deleteUser:
+    handler: src/handlers/deleteUser.handler.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}
+          method: delete
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  assignUserToOrganization:
+    handler: src/handlers/assignUserToOrganization.handler.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  listUserOrganizations:
+    handler: src/handlers/listUserOrganizations.handler.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organizations
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  updateUserMetadata:
+    handler: src/handlers/updateUserMetadata.handler.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/metadata
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  listUserFiles:
+    handler: src/handlers/listUserFiles.handler.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/files
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  # S3 → EventBridge trigger (v3 safe)
+  uploadUserFile:
+    handler: src/handlers/s3/uploadUserFile.handler.main
+    timeout: 30
+    memorySize: 512
+    events:
+      - eventBridge:
+          pattern:
+            source:
+              - aws.s3
+            detail-type:
+              - Object Created
+            detail:
+              bucket:
+                name:
+                  - user-files-bucket-${self:provider.stage}
+
+  userReminderEvent:
+    handler: src/handlers/sqs/userReminderEvent.handler.main
+    timeout: 30
+    memorySize: 256
+    events:
+      - sqs:
+          arn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+  userProfileStreamHandler:
+    handler: src/handlers/stream/userProfileStreamHandler.handler.main
+    timeout: 30
+    memorySize: 256
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::ImportValue: ${self:provider.stage}-UserTableStreamArn
+          batchSize: 10
+          startingPosition: LATEST
+          functionResponseType: ReportBatchItemFailures
+

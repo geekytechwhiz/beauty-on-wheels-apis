@@ -4,10 +4,10 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/user-serive-e2e"
+      "path": "./apps/user-service/tsconfig.app.json"
     },
     {
-      "path": "./apps/user-serive"
+      "path": "./libs/logger"
     }
   ]
 }

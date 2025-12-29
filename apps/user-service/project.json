@@ -1,0 +1,24 @@
+{
+  "name": "user-service",
+  "projectType": "application",
+  "sourceRoot": "apps/user-service/src",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/node:build",
+      "options": {
+        "outputPath": "dist/apps/user-service",
+        "main": "apps/src/user-service/src/index.ts",
+        "tsConfig": "apps/src/user-service/tsconfig.app.json"
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "options": {
+        "jestConfig": "apps/src/user-service/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}
+

@@ -1,347 +1,466 @@
-import winston, { Logger, LoggerOptions, format } from 'winston';
-import { randomUUID } from 'crypto'; 
+import winston from 'winston';
+import { APIGatewayProxyEvent } from 'aws-lambda';
+import { Context } from 'aws-lambda';
 
-const CORRELATION_HEADER = 'X-Correlation-ID';
-const DEFAULT_LOG_LEVEL = 'info';
-
-export interface CorrelationContext {
-  correlationId: string;
-}
-
-export interface CreateLoggerOptions {
-  service: string;
-  level?: string;
-  base?: Record<string, unknown>;
-  winstonOptions?: LoggerOptions;
+/**
+ * Logger options interface
+ */
+export interface LoggerOptions {
+  service?: string;
   redactPII?: boolean;
-  prettyPrint?: boolean;
-  enableSampling?: boolean;
-  sampleRate?: number;
+  [key: string]: unknown;
 }
 
-export interface LogFnArgs {
-  msg: string;
-  data?: Record<string, unknown>;
-  err?: Error;
-}
-
-export interface ApiGatewayEventLike {
-  headers?: Record<string, string | undefined>;
-  requestContext?: {
-    requestId?: string;
-    http?: {
-      method?: string;
-      path?: string;
-    };
-  };
-}
-
-export interface LambdaContextLike {
-  awsRequestId?: string;
-  functionName?: string;
-  functionVersion?: string;
-  invokedFunctionArn?: string;
-  memoryLimitInMB?: string;
-}
-
-export interface PerformanceLog {
-  operation: string;
-  duration: number;
+/**
+ * Logger context interface for structured logging
+ */
+export interface LoggerContext {
   correlationId?: string;
-  metadata?: Record<string, unknown>;
+  awsRequestId?: string;
+  userId?: string;
+  organizationId?: string;
+  requestId?: string;
+  functionName?: string;
+  [key: string]: unknown;
 }
 
-const PII_FIELDS = [
-  'password',
-  'token',
-  'secret',
-  'apiKey',
-  'apikey',
-  'authorization',
-  'auth',
-  'creditCard',
-  'creditcard',
-  'ssn',
-  'socialSecurityNumber',
-  'email',
-  'phone',
-  'phoneNumber',
-  'address',
-  'zipCode',
-  'zipcode',
-  'dateOfBirth',
-  'dateofbirth',
-  'dob',
-];
-
-function shouldRedact(key: string): boolean {
-  const lowerKey = key.toLowerCase();
-  return PII_FIELDS.some((field) => lowerKey.includes(field));
+/**
+ * Log entry interface
+ */
+export interface LogEntry {
+  event?: string;
+  message?: string;
+  err?: unknown;
+  error?: {
+    name: string;
+    message: string;
+    stack?: string;
+    code?: string;
+  };
+  [key: string]: unknown;
 }
 
-function redactValue(value: unknown): unknown {
-  if (typeof value === 'string') {
-    if (value.length > 0 && value.length <= 20) {
-      return '***REDACTED***';
-    }
-    return `${value.substring(0, 4)}***REDACTED***`;
+/**
+ * Performance timer interface
+ */
+export interface PerformanceTimer {
+  end: () => void;
+}
+
+/**
+ * Custom format for error objects
+ */
+const errorFormat = winston.format((info) => {
+  if (info instanceof Error) {
+    return {
+      ...info,
+      message: info.message,
+      stack: info.stack,
+      name: info.name,
+    };
   }
-  return '***REDACTED***';
-}
 
-function redactPII(data: Record<string, unknown>): Record<string, unknown> {
-  const redacted: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (shouldRedact(key)) {
-      redacted[key] = redactValue(value);
-    } else if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Error)) {
-      redacted[key] = redactPII(value as Record<string, unknown>);
-    } else {
-      redacted[key] = value;
-    }
+  if (info.err instanceof Error) {
+    info.error = {
+      name: info.err.name,
+      message: info.err.message,
+      stack: info.err.stack,
+      code: (info.err as { code?: string }).code,
+    };
+    delete info.err;
   }
-  return redacted;
-}
 
-export function extractCorrelationId(event?: ApiGatewayEventLike): string {
-  const existing =
-    event?.headers?.[CORRELATION_HEADER] ||
-    event?.headers?.[CORRELATION_HEADER.toLowerCase()] ||
-    event?.requestContext?.requestId;
-  return existing || randomUUID();
-}
+  if (info.error instanceof Error) {
+    info.error = {
+      name: info.error.name,
+      message: info.error.message,
+      stack: info.error.stack,
+      code: (info.error as { code?: string }).code,
+    };
+  }
 
-export function extractAwsRequestId(context?: LambdaContextLike): string | undefined {
-  return context?.awsRequestId;
-}
+  return info;
+});
 
-export function createLogger(opts: CreateLoggerOptions): Logger {
-  const level = opts.level || process.env.LOG_LEVEL || DEFAULT_LOG_LEVEL;
-  const isLocal = process.env.IS_OFFLINE === 'true' || process.env.NODE_ENV === 'local' || !process.env.NODE_ENV;
-  const shouldPrettyPrint = opts.prettyPrint !== undefined ? opts.prettyPrint : isLocal;
+/**
+ * JSON format for production (CloudWatch/Log aggregation)
+ */
+const jsonFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+  errorFormat(),
+  winston.format.json()
+);
 
-  const baseContext: Record<string, unknown> = {
-    service: opts.service,
-    environment: process.env.STAGE || process.env.NODE_ENV || 'local',
-    ...opts.base,
+/**
+ * Pretty format for development
+ */
+const prettyFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+  errorFormat(),
+  winston.format.colorize({ all: true }),
+  winston.format.printf((info) => {
+    const { timestamp, level, event, message, err, error, ...meta } = info;
+
+    const logMessage = event || message || 'Log entry';
+    let log = `${timestamp} [${level}]: ${logMessage}`;
+
+    if (error && typeof error === 'object') {
+      const err = error as { name?: string; message?: string; stack?: string };
+      if (err.name && err.message) {
+        log += `\n  Error: ${err.name}: ${err.message}`;
+        if (err.stack) {
+          log += `\n  Stack: ${err.stack}`;
+        }
+      }
+    }
+
+    if (err) {
+      log += `\n  Error: ${JSON.stringify(err)}`;
+    }
+
+    if (Object.keys(meta).length > 0) {
+      log += `\n  Metadata: ${JSON.stringify(meta, null, 2)}`;
+    }
+
+    return log;
+  })
+);
+
+/**
+ * Determine log level based on environment
+ */
+const getLogLevel = (): string => {
+  const env = process.env.NODE_ENV || 'development';
+  const logLevel = process.env.LOG_LEVEL?.toLowerCase();
+
+  const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+  if (logLevel && validLevels.includes(logLevel)) {
+    return logLevel;
+  }
+
+  return env === 'production' ? 'info' : 'debug';
+};
+
+/**
+ * Create Winston logger instance
+ */
+const createWinstonLogger = (options?: LoggerOptions): winston.Logger => {
+  const env = process.env.NODE_ENV || 'development';
+  const isProduction = env === 'production';
+  const isTest = env === 'test';
+
+  const defaultMeta = {
+    service: options?.service || 'unknown-service',
+    ...(options && { ...options }),
   };
 
-  const formats = [
-    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-    format.errors({ stack: true }),
-    format((info: winston.Logform.TransformableInfo) => {
-      // Merge base context into log info
-      return { ...baseContext, ...info };
-    })(),
+  const transports: winston.transport[] = [
+    // Console transport (always enabled)
+    new winston.transports.Console({
+      level: getLogLevel(),
+      format: isProduction ? jsonFormat : prettyFormat,
+      silent: isTest, // Silence logs in test environment
+    }),
   ];
 
-  if (shouldPrettyPrint) {
-    formats.push(
-      format.colorize(),
-      format.printf((info: winston.Logform.TransformableInfo) => {
-        const { timestamp, level, message, ...meta } = info;
-        const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-        return `${timestamp} [${level}]: ${message} ${metaStr}`;
-      })
-    );
-  } else {
-    formats.push(format.json());
-  }
-
-  const winstonConfig: LoggerOptions = {
-    level,
-    format: format.combine(...formats),
-    defaultMeta: baseContext,
-    transports: [
+  return winston.createLogger({
+    level: getLogLevel(),
+    defaultMeta,
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.errors({ stack: true })
+    ),
+    transports,
+    // Don't exit on handled exceptions
+    exitOnError: false,
+    // Handle uncaught exceptions
+    exceptionHandlers: [
       new winston.transports.Console({
-        stderrLevels: ['error'],
+        format: isProduction ? jsonFormat : prettyFormat,
       }),
     ],
-    ...opts.winstonOptions,
-  };
+    // Handle unhandled promise rejections
+    rejectionHandlers: [
+      new winston.transports.Console({
+        format: isProduction ? jsonFormat : prettyFormat,
+      }),
+    ],
+  });
+};
 
-  const logger = winston.createLogger(winstonConfig);
+/**
+ * Logger class with convenient methods
+ */
+export class Logger {
+  private logger: winston.Logger;
+  private context?: LoggerContext;
 
-  if (opts.redactPII !== false) {
-    const originalChild = logger.child.bind(logger);
-    logger.child = function (bindings: Record<string, unknown>) {
-      const redactedBindings = redactPII(bindings);
-      return originalChild(redactedBindings);
-    };
+  constructor(winstonLogger: winston.Logger, context?: LoggerContext) {
+    this.logger = winstonLogger;
+    this.context = context;
   }
 
-  return logger;
+  /**
+   * Log error level
+   */
+  error(entry: LogEntry): void {
+    this.logger.error({
+      ...this.context,
+      ...entry,
+    });
+  }
+
+  /**
+   * Log warn level
+   */
+  warn(entry: LogEntry): void {
+    this.logger.warn({
+      ...this.context,
+      ...entry,
+    });
+  }
+
+  /**
+   * Log info level
+   */
+  info(entry: LogEntry): void {
+    this.logger.info({
+      ...this.context,
+      ...entry,
+    });
+  }
+
+  /**
+   * Log HTTP level
+   */
+  http(entry: LogEntry): void {
+    this.logger.http({
+      ...this.context,
+      ...entry,
+    });
+  }
+
+  /**
+   * Log verbose level
+   */
+  verbose(entry: LogEntry): void {
+    this.logger.verbose({
+      ...this.context,
+      ...entry,
+    });
+  }
+
+  /**
+   * Log debug level
+   */
+  debug(entry: LogEntry): void {
+    this.logger.debug({
+      ...this.context,
+      ...entry,
+    });
+  }
 }
 
-export function createChildLogger(
-  parentLogger: Logger,
-  bindings: Record<string, unknown>,
-  shouldRedactPII = true,
-): Logger {
-  const processedBindings = shouldRedactPII ? redactPII(bindings) : bindings;
-  return parentLogger.child(processedBindings);
-}
+/**
+ * Create a logger instance
+ */
+export const createLogger = (options?: LoggerOptions): Logger => {
+  const winstonLogger = createWinstonLogger(options);
+  return new Logger(winstonLogger);
+};
 
-export function withCorrelation<T extends (...args: unknown[]) => unknown>(
-  handler: T,
-  service: string,
-  logger?: Logger,
-  context?: LambdaContextLike,
-): (...handlerArgs: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
-  return async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
-    const event = args[0] as ApiGatewayEventLike | undefined;
-    const correlationId = extractCorrelationId(event);
-    const awsRequestId = extractAwsRequestId(context);
-    const log =
-      logger ||
-      createLogger({
-        service,
-        base: { correlationId, ...(awsRequestId && { awsRequestId }) },
-      });
-
-    const startTime = Date.now();
-    try {
-      log.debug('Incoming event', {
-        correlationId,
-        awsRequestId,
-        eventSummary: summarizeEvent(event),
-      });
-      const result = await Promise.resolve(handler(...args));
-      const duration = Date.now() - startTime;
-      log.debug('Handler success', {
-        correlationId,
-        awsRequestId,
-        duration,
-      });
-      return result as Awaited<ReturnType<T>>;
-    } catch (err: unknown) {
-      const duration = Date.now() - startTime;
-      const errorDetails = serializeError(err);
-      log.error('Handler error', {
-        err: errorDetails,
-        correlationId,
-        awsRequestId,
-        duration,
-      });
-      throw err;
-    }
+/**
+ * Create a child logger with additional context
+ */
+export const createChildLogger = (
+  baseLogger: Logger,
+  context: LoggerContext
+): Logger => {
+  // Access the underlying winston logger
+  const winstonLogger = (baseLogger as unknown as { logger: winston.Logger })
+    .logger;
+  const mergedContext = {
+    ...(baseLogger as unknown as { context?: LoggerContext }).context,
+    ...context,
   };
-}
+  return new Logger(winstonLogger, mergedContext);
+};
 
-export function serializeError(err: unknown): Record<string, unknown> {
+/**
+ * Extract correlation ID from API Gateway event
+ */
+export const extractCorrelationId = (
+  event: APIGatewayProxyEvent | { headers?: Record<string, unknown> }
+): string => {
+  // Try to get from headers
+  if (event.headers) {
+    const correlationId =
+      event.headers['x-correlation-id'] ||
+      event.headers['X-Correlation-Id'] ||
+      event.headers['correlation-id'] ||
+      event.headers['Correlation-Id'];
+
+    if (correlationId && typeof correlationId === 'string') {
+      return correlationId;
+    }
+  }
+
+  // Try to get from request context
+  if ('requestContext' in event && event.requestContext) {
+    const requestId = (event.requestContext as { requestId?: string })
+      .requestId;
+    if (requestId) {
+      return requestId;
+    }
+  }
+
+  // Generate a new correlation ID if not found
+  return `corr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+};
+
+/**
+ * Extract AWS Request ID from Lambda context
+ */
+export const extractAwsRequestId = (context: Context): string => {
+  return context.awsRequestId || 'unknown-request-id';
+};
+
+/**
+ * Serialize error object for logging
+ */
+export const serializeError = (err: unknown): Record<string, unknown> => {
   if (err instanceof Error) {
     return {
       name: err.name,
       message: err.message,
       stack: err.stack,
-      ...(err as { code?: string; statusCode?: number; cause?: unknown }),
+      code: (err as { code?: string }).code,
     };
   }
-  return { error: String(err) };
-}
 
-function summarizeEvent(e?: ApiGatewayEventLike): Record<string, unknown> {
-  if (!e) return {};
+  if (typeof err === 'object' && err !== null) {
+    return {
+      name: 'UnknownError',
+      message: String(err),
+      data: err,
+    };
+  }
+
   return {
-    hasHeaders: !!e.headers,
-    method: e.requestContext?.http?.method,
-    path: e.requestContext?.http?.path,
-    requestId: e.requestContext?.requestId,
+    name: 'UnknownError',
+    message: String(err),
   };
-}
+};
 
-export function logPerformance(
-  logger: Logger,
-  operation: string,
-  startTime: number,
-  metadata?: Record<string, unknown>,
-  correlationId?: string,
-): void {
-  const duration = Date.now() - startTime;
-  logger.info(`Performance: ${operation} took ${duration}ms`, {
-    event: 'performance',
-    operation,
-    duration,
-    correlationId,
-    ...metadata,
-  });
-}
-
-export function createPerformanceTimer(logger: Logger, operation: string, correlationId?: string) {
-  const startTime = Date.now();
-  return {
-    end: (metadata?: Record<string, unknown>) => {
-      logPerformance(logger, operation, startTime, metadata, correlationId);
-    },
-    getDuration: () => Date.now() - startTime,
-  };
-}
-
-export function logHttpRequest(
+/**
+ * Log HTTP request/response
+ */
+export const logHttpRequest = (
   logger: Logger,
   method: string,
   path: string,
   statusCode: number,
   duration: number,
-  correlationId?: string,
-  metadata?: Record<string, unknown>,
-): void {
-  const level = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
-  logger[level](`${method} ${path} ${statusCode} ${duration}ms`, {
+  correlationId?: string
+): void => {
+  const logEntry = {
     event: 'http_request',
     method,
     path,
     statusCode,
     duration,
     correlationId,
-    ...metadata,
-  });
-}
+  };
 
-export function shouldSample(_logger: Logger, sampleRate = 1.0): boolean {
-  if (sampleRate >= 1.0) return true;
-  return Math.random() < sampleRate;
-}
+  if (statusCode >= 500) {
+    logger.error(logEntry);
+  } else if (statusCode >= 400) {
+    logger.warn(logEntry);
+  } else {
+    logger.info(logEntry);
+  }
+};
 
-export function createMockLogger(): Logger {
-  const mockLogger = {
-    debug: () => mockLogger,
-    info: () => mockLogger,
-    warn: () => mockLogger,
-    error: () => mockLogger,
-    fatal: () => mockLogger,
-    trace: () => mockLogger,
-    silent: () => mockLogger,
-    child: () => mockLogger,
-    level: 'info',
-    levels: winston.config.npm.levels,
-    format: winston.format.json(),
-    transports: [],
-    log: () => mockLogger,
-    startTimer: () => ({ done: () => {} }),
-    configure: () => mockLogger,
-    add: () => mockLogger,
-    remove: () => mockLogger,
-    clear: () => mockLogger,
-    close: () => mockLogger,
-    query: () => ({}),
-    stream: () => ({} as NodeJS.ReadableStream),
-    getMaxListeners: () => 10,
-    setMaxListeners: () => mockLogger,
-    emit: () => true,
-    on: () => mockLogger,
-    once: () => mockLogger,
-    off: () => mockLogger,
-    removeListener: () => mockLogger,
-    removeAllListeners: () => mockLogger,
-    listeners: () => [],
-    rawListeners: () => [],
-    listenerCount: () => 0,
-    prependListener: () => mockLogger,
-    prependOnceListener: () => mockLogger,
-    eventNames: () => [],
-  } as unknown as Logger;
-  return mockLogger;
-}
+/**
+ * Create a performance timer
+ */
+export const createPerformanceTimer = (
+  logger: Logger,
+  operation: string,
+  correlationId?: string
+): PerformanceTimer => {
+  const startTime = Date.now();
 
-export const correlationMiddleware = { withCorrelation, extractCorrelationId, extractAwsRequestId };
+  return {
+    end: () => {
+      const duration = Date.now() - startTime;
+      logger.info({
+        event: 'performance_timer',
+        operation,
+        duration,
+        correlationId,
+      });
+    },
+  };
+};
+
+/**
+ * Extract Lambda context from event (for backward compatibility)
+ */
+export const extractLambdaContext = (event: {
+  requestContext?: {
+    requestId?: string;
+    authorizer?: {
+      userId?: string;
+      organizationId?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+  headers?: {
+    'x-request-id'?: string;
+    'x-correlation-id'?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}): LoggerContext => {
+  const context: LoggerContext = {};
+
+  // Extract request ID from Lambda request context
+  if (event.requestContext?.requestId) {
+    context.requestId = event.requestContext.requestId as string;
+  }
+
+  // Extract from headers
+  if (event.headers) {
+    if (event.headers['x-request-id']) {
+      context.requestId = event.headers['x-request-id'] as string;
+    }
+    if (event.headers['x-correlation-id']) {
+      context.correlationId = event.headers['x-correlation-id'] as string;
+    }
+  }
+
+  // Extract user context from authorizer
+  if (event.requestContext?.authorizer) {
+    const authorizer = event.requestContext.authorizer;
+    if (authorizer.userId) {
+      context.userId = authorizer.userId as string;
+    }
+    if (authorizer.organizationId) {
+      context.organizationId = authorizer.organizationId as string;
+    }
+  }
+
+  return context;
+};
+
+/**
+ * Default logger instance
+ */
+export const logger = createLogger();
+
+/**
+ * Export default logger instance
+ */
+export default logger;

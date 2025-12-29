@@ -8,7 +8,7 @@ import {
   assignUserToOrganizationSchema,
   updateUserMetadataSchema,
 } from '../validation/user.validation';
-import { UserNotFoundError, UserAlreadyExistsError, ValidationError } from '../utils/errors';
+import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -23,9 +23,9 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
 
   let body: unknown;
   try {
-    logger.debug({ event: 'createUser_body_received', body: event.body });
+    logger.info({ event: 'createUser_body_received', body: event.body });
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-    logger.debug({ event: 'createUser_body_parsed', bodyType: typeof body, hasBody: !!body });
+    logger.info({ event: 'createUser_body_parsed', bodyType: typeof body, hasBody: !!body });
   } catch (err) {
     logger.error({ event: 'createUser_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
@@ -58,7 +58,14 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   try {
-    const result = await userService.createUser(validation.data, correlationId);
+    const result = await userService.createUser(
+      {
+        userID: validation.data.userId,
+        emailAddress: validation.data.email,
+        fullName: validation.data.name,
+      },
+      correlationId
+    );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
     return created(result, { requestId: correlationId, message: 'User created' });
@@ -369,7 +376,8 @@ export async function listUserOrganizations(event: APIGatewayProxyEvent, context
   try {
     const result = await userService.listUserOrganizations(userId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/organizations`, 200, duration, correlationId, { count: result.length });
+    logger.info({ event: 'listUserOrgs_success', count: result.length });
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/organizations`, 200, duration, correlationId);
     return ok(result, { requestId: correlationId });
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -505,7 +513,8 @@ export async function listUserFiles(event: APIGatewayProxyEvent, context?: Conte
   try {
     const result = await userService.listUserFiles(userId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/files`, 200, duration, correlationId, { count: result.length });
+    logger.info({ event: 'listUserFiles_success', count: result.length });
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/files`, 200, duration, correlationId);
     return ok(result, { requestId: correlationId });
   } catch (err) {
     const duration = Date.now() - startTime;

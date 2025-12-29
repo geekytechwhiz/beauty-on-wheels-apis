@@ -29,7 +29,7 @@ export async function userReminderEvent(event: SQSEvent): Promise<SQSBatchRespon
     const messageId = record.messageId;
 
     if (processedMessageIds.has(messageId)) {
-      logger.warn({ event: 'userReminderEvent_duplicate', messageId }, 'Duplicate message ignored');
+      logger.warn({ event: 'userReminderEvent_duplicate', messageId, message: 'Duplicate message ignored' });
       continue;
     }
 
@@ -49,47 +49,46 @@ export async function userReminderEvent(event: SQSEvent): Promise<SQSBatchRespon
       const messageCorrelationId = body.correlationId || correlationId;
       const recordLogger = createChildLogger(baseLogger, { correlationId: messageCorrelationId, messageId, userId: body.userId });
 
-      recordLogger.info(
-        {
-          event: 'userReminderEvent_processing',
-          reminderType: body.reminderType,
-        },
-        'Processing reminder message',
-      );
+      recordLogger.info({
+        event: 'userReminderEvent_processing',
+        reminderType: body.reminderType,
+        message: 'Processing reminder message',
+      });
 
       if (!body.userId || !body.reminderType) {
-        recordLogger.warn(
-          { event: 'userReminderEvent_invalid_body', body },
-          'Invalid reminder message body',
-        );
+        recordLogger.warn({
+          event: 'userReminderEvent_invalid_body',
+          body,
+          message: 'Invalid reminder message body',
+        });
         failedMessageIds.push(messageId);
         continue;
       }
 
       // TODO: Add actual reminder processing logic here
-      recordLogger.info(
-        {
-          event: 'userReminderEvent_success',
-          reminderType: body.reminderType,
-        },
-        'Reminder processed successfully',
-      );
+      recordLogger.info({
+        event: 'userReminderEvent_success',
+        reminderType: body.reminderType,
+        message: 'Reminder processed successfully',
+      });
     } catch (err) {
       const recordLogger = createChildLogger(baseLogger, { correlationId, messageId });
-      recordLogger.error(
-        { event: 'userReminderEvent_error', err: serializeError(err) },
-        'Failed to process reminder message',
-      );
+      recordLogger.error({
+        event: 'userReminderEvent_error',
+        err: serializeError(err),
+        message: 'Failed to process reminder message',
+      });
       failedMessageIds.push(messageId);
     }
   }
 
   // Return batch response with failed message IDs for partial batch failure support
   if (failedMessageIds.length > 0) {
-    logger.warn(
-      { event: 'userReminderEvent_partial_failure', failedCount: failedMessageIds.length },
-      'Some messages failed to process',
-    );
+    logger.warn({
+      event: 'userReminderEvent_partial_failure',
+      failedCount: failedMessageIds.length,
+      message: 'Some messages failed to process',
+    });
     return {
       batchItemFailures: failedMessageIds.map((messageId) => ({
         itemIdentifier: messageId,

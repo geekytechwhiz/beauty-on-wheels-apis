@@ -15,5 +15,10 @@
       "default": "./dist/index.js"
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "winston": "^3.19.0"
+  },
+  "peerDependencies": {
+    "@types/winston": "^2.4.4"
+  }
 }

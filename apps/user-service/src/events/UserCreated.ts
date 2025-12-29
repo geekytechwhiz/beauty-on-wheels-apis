@@ -9,7 +9,7 @@ const EVENT_BUS = process.env.EVENT_BUS || 'user-service-bus';
 export async function publishUserCreatedEvent(event: unknown): Promise<void> {
   const parsed = userCreatedEventSchema.parse(event);
   const logger = createChildLogger(baseLogger, { correlationId: parsed.correlationId, eventType: parsed.eventName });
-  logger.info('Publishing UserCreated.v1');
+  logger.info({ event: 'publishing_userCreated', message: 'Publishing UserCreated.v1' });
   
   await client.send(new PutEventsCommand({
     Entries: [{

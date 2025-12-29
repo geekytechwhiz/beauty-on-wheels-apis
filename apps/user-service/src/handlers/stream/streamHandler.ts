@@ -14,10 +14,11 @@ export async function userProfileStreamHandler(event: DynamoDBStreamEvent): Prom
   for (const record of event.Records) {
     const sequenceNumber = record.dynamodb?.SequenceNumber;
     if (sequenceNumber && processedSequenceNumbers.has(sequenceNumber)) {
-      logger.warn(
-        { event: 'userProfileStreamHandler_duplicate', sequenceNumber },
-        'Duplicate stream record ignored',
-      );
+      logger.warn({
+        event: 'userProfileStreamHandler_duplicate',
+        sequenceNumber,
+        message: 'Duplicate stream record ignored',
+      });
       continue;
     }
 
@@ -29,7 +30,7 @@ export async function userProfileStreamHandler(event: DynamoDBStreamEvent): Prom
       const eventName = record.eventName;
 
       if (eventName !== 'INSERT' && eventName !== 'MODIFY') {
-        logger.debug({ event: 'userProfileStreamHandler_skipped', eventName }, 'Skipping non-INSERT/MODIFY event');
+        logger.info({ event: 'userProfileStreamHandler_skipped', eventName, message: 'Skipping non-INSERT/MODIFY event' });
         continue;
       }
 
@@ -39,7 +40,7 @@ export async function userProfileStreamHandler(event: DynamoDBStreamEvent): Prom
       } else if (eventName === 'MODIFY' && record.dynamodb?.NewImage) {
         item = unmarshall(record.dynamodb.NewImage as any);
       } else {
-        logger.warn({ event: 'userProfileStreamHandler_no_image', eventName }, 'No image data in record');
+        logger.warn({ event: 'userProfileStreamHandler_no_image', eventName, message: 'No image data in record' });
         continue;
       }
 
@@ -47,39 +48,34 @@ export async function userProfileStreamHandler(event: DynamoDBStreamEvent): Prom
       const userId = item.userId as string;
 
       if (!userId) {
-        logger.warn({ event: 'userProfileStreamHandler_no_userId', itemType }, 'No userId in record');
+        logger.warn({ event: 'userProfileStreamHandler_no_userId', itemType, message: 'No userId in record' });
         continue;
       }
 
       const recordLogger = createChildLogger(baseLogger, { correlationId, userId, itemType, eventName });
-      recordLogger.info(
-        {
-          event: 'userProfileStreamHandler_processing',
-        },
-        'Processing stream record',
-      );
+      recordLogger.info({
+        event: 'userProfileStreamHandler_processing',
+        message: 'Processing stream record',
+      });
 
       if (itemType === 'USER') {
-        recordLogger.info(
-          {
-            event: 'userProfileStreamHandler_audit',
-          },
-          'User profile change detected - audit event',
-        );
+        recordLogger.info({
+          event: 'userProfileStreamHandler_audit',
+          message: 'User profile change detected - audit event',
+        });
       }
 
-      recordLogger.info(
-        {
-          event: 'userProfileStreamHandler_success',
-        },
-        'Stream record processed successfully',
-      );
+      recordLogger.info({
+        event: 'userProfileStreamHandler_success',
+        message: 'Stream record processed successfully',
+      });
     } catch (err) {
       const recordLogger = createChildLogger(baseLogger, { correlationId, sequenceNumber });
-      recordLogger.error(
-        { event: 'userProfileStreamHandler_error', err: serializeError(err) },
-        'Failed to process stream record',
-      );
+      recordLogger.error({
+        event: 'userProfileStreamHandler_error',
+        err: serializeError(err),
+        message: 'Failed to process stream record',
+      });
     }
   }
 }

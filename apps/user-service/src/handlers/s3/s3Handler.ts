@@ -29,7 +29,7 @@ export async function uploadUserFile(event: S3Event): Promise<void> {
 
       const userIdMatch = key.match(/users\/([^/]+)\//);
       if (!userIdMatch || !userIdMatch[1]) {
-        recordLogger.warn({ event: 'uploadUserFile_invalid_key' }, 'S3 key does not contain userId');
+        recordLogger.warn({ event: 'uploadUserFile_invalid_key', message: 'S3 key does not contain userId' });
         continue;
       }
 
@@ -42,7 +42,7 @@ export async function uploadUserFile(event: S3Event): Promise<void> {
       recordLogger.info({ event: 'uploadUserFile_success', userId, fileId, fileName });
     } catch (err) {
       const recordLogger = createChildLogger(baseLogger, { correlationId });
-      recordLogger.error({ event: 'uploadUserFile_error', err: serializeError(err) }, 'Failed to process S3 record');
+      recordLogger.error({ event: 'uploadUserFile_error', err: serializeError(err), message: 'Failed to process S3 record' });
     }
   }
 }

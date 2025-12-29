@@ -9,7 +9,7 @@ const EVENT_BUS = process.env.EVENT_BUS || 'user-service-bus';
 export async function publishUserDeletedEvent(event: unknown): Promise<void> {
   const parsed = userDeletedEventSchema.parse(event);
   const logger = createChildLogger(baseLogger, { correlationId: parsed.correlationId, eventType: parsed.eventName });
-  logger.info({ event: 'publishing_userDeleted' }, 'Publishing UserDeleted.v1');
+  logger.info({ event: 'publishing_userDeleted', message: 'Publishing UserDeleted.v1' });
   await client.send(new PutEventsCommand({
     Entries: [{   
       EventBusName: EVENT_BUS,

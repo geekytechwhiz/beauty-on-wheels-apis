@@ -41,14 +41,14 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId: user.userID });
-      logger.info({ event: 'user_created' }, 'User created');
+      logger.info({ event: 'user_created', message: 'User created' });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
       const logger = createChildLogger(baseLogger, { userId: user.userID });
       if (code === 'ConditionalCheckFailedException') {
         throw new UserAlreadyExistsError(user.userID);
       }
-      logger.error({ event: 'user_create_error', err: serializeError(err) }, 'Failed to create user');
+      logger.error({ event: 'user_create_error', err: serializeError(err), message: 'Failed to create user' });
       throw err;
     }
   }
@@ -72,7 +72,7 @@ export class UserRepository {
       return result.Item as User;
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_get_error', err: serializeError(err) }, 'Failed to get user');
+      logger.error({ event: 'user_get_error', err: serializeError(err), message: 'Failed to get user' });
       throw err;
     }
   }
@@ -112,14 +112,14 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_updated' }, 'User updated');
+      logger.info({ event: 'user_updated', message: 'User updated' });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
       const logger = createChildLogger(baseLogger, { userId });
       if (code === 'ConditionalCheckFailedException') {
         throw new UserNotFoundError(userId);
       }
-      logger.error({ event: 'user_update_error', err: serializeError(err) }, 'Failed to update user');
+      logger.error({ event: 'user_update_error', err: serializeError(err), message: 'Failed to update user' });
       throw err;
     }
   }
@@ -143,14 +143,14 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_deleted' }, 'User deleted');
+      logger.info({ event: 'user_deleted', message: 'User deleted' });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
       const logger = createChildLogger(baseLogger, { userId });
       if (code === 'ConditionalCheckFailedException') {
         throw new UserNotFoundError(userId);
       }
-      logger.error({ event: 'user_delete_error', err: serializeError(err) }, 'Failed to delete user');
+      logger.error({ event: 'user_delete_error', err: serializeError(err), message: 'Failed to delete user' });
       throw err;
     }
   }
@@ -174,13 +174,14 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId, organizationId });
-      logger.info({ event: 'user_org_assigned' }, 'User assigned to organization');
+      logger.info({ event: 'user_org_assigned', message: 'User assigned to organization' });
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId, organizationId });
-      logger.error(
-        { event: 'user_org_assign_error', err: serializeError(err) },
-        'Failed to assign user to organization',
-      );
+      logger.error({
+        event: 'user_org_assign_error',
+        err: serializeError(err),
+        message: 'Failed to assign user to organization',
+      });
       throw err;
     }
   }
@@ -201,7 +202,7 @@ export class UserRepository {
       return result?.Items;
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_orgs_list_error', err: serializeError(err) }, 'Failed to list user organizations');
+      logger.error({ event: 'user_orgs_list_error', err: serializeError(err), message: 'Failed to list user organizations' });
       throw err;
     }
   }
@@ -225,10 +226,10 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_metadata_updated' }, 'User metadata updated');
+      logger.info({ event: 'user_metadata_updated', message: 'User metadata updated' });
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_metadata_update_error', err: serializeError(err) }, 'Failed to update user metadata');
+      logger.error({ event: 'user_metadata_update_error', err: serializeError(err), message: 'Failed to update user metadata' });
       throw err;
     }
   }
@@ -256,7 +257,7 @@ export class UserRepository {
       };
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_metadata_get_error', err: serializeError(err) }, 'Failed to get user metadata');
+      logger.error({ event: 'user_metadata_get_error', err: serializeError(err), message: 'Failed to get user metadata' });
       throw err;
     }
   }
@@ -281,13 +282,14 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId: userFile.userId, fileId: userFile.fileId });
-      logger.info({ event: 'user_file_created' }, 'User file created');
+      logger.info({ event: 'user_file_created', message: 'User file created' });
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId: userFile.userId, fileId: userFile.fileId });
-      logger.error(
-        { event: 'user_file_create_error', err: serializeError(err) },
-        'Failed to create user file',
-      );
+      logger.error({
+        event: 'user_file_create_error',
+        err: serializeError(err),
+        message: 'Failed to create user file',
+      });
       throw err;
     }
   }
@@ -308,7 +310,7 @@ export class UserRepository {
       return result.Items;
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_files_list_error', err: serializeError(err) }, 'Failed to list user files');
+      logger.error({ event: 'user_files_list_error', err: serializeError(err), message: 'Failed to list user files' });
       throw err;
     }
   }

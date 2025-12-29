@@ -50,7 +50,7 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
         },
       }),
     );
-    logger.info('Event published', { event: 'sns_publish_success' });
+    logger.info({ event: 'sns_publish_success', message: 'Event published' });
   } catch (err: unknown) {
     const code = (err as { name?: string; code?: string })?.name || (err as { code?: string })?.code;
     const credentialErrors = [
@@ -68,10 +68,12 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
       });
       return;
     }
-    logger.error(
-      'Failed to publish event',
-      { event: 'sns_publish_error', err: serializeError(err), code }
-    );
+    logger.error({
+      event: 'sns_publish_error',
+      err: serializeError(err),
+      code,
+      message: 'Failed to publish event',
+    });
     throw err;
   }
 }

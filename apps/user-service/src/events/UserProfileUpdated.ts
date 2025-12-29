@@ -10,7 +10,7 @@ export async function publishUserProfileUpdatedEvent(event: any) {
   const parsed = userProfileUpdatedEventSchema.parse(event);
   const logger = createChildLogger(baseLogger, { correlationId: parsed.correlationId, eventType: parsed.eventName });
   
-  logger.info({ event: 'publishUserProfileUpdatedEvent' }, 'Publishing UserProfileUpdated.v1');
+  logger.info({ event: 'publishUserProfileUpdatedEvent', message: 'Publishing UserProfileUpdated.v1' });
   
   await client.send(new PutEventsCommand({
     Entries: [{

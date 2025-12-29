@@ -42,7 +42,7 @@ export class UserService {
       if (data.emailAddress) {
         try {
           const cognitoService = new CognitoService(
-            process.env.AWS_REGION || 'us-east-1',
+            process.env.DEFAULT_AWS_REGION || 'us-east-1',
             process.env.COGNITO_USER_POOL_ID || ''
           );
           const exists = await cognitoService.userExists(data.emailAddress);

@@ -2,7 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
 export const DYNAMODB_CONFIG = {
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.DEFAULT_AWS_REGION || 'us-east-1',
   endpoint: process.env.DYNAMODB_ENDPOINT,
   credentials:
     process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY

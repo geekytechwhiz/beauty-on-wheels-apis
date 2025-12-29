@@ -34,7 +34,7 @@ provider:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
-    AWS_REGION: ${self:provider.region}
+    DEFAULT_AWS_REGION: ${self:provider.region}
 
   tags:
     Service: ${self:service}

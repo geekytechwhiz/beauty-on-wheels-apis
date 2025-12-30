@@ -39,6 +39,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     });
   }
 
+  logger.info({ event: 'createUser_body_debug', bodyType: typeof body, bodyKeys: body && typeof body === 'object' ? Object.keys(body) : undefined });
   const validation = createUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });

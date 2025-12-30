@@ -146,7 +146,6 @@ const getLogLevel = (): string => {
  */
 const createWinstonLogger = (options?: LoggerOptions): winston.Logger => {
   const env = process.env.NODE_ENV || 'development';
-  const isProduction = env === 'production';
   const isTest = env === 'test';
 
   const defaultMeta = {
@@ -158,7 +157,7 @@ const createWinstonLogger = (options?: LoggerOptions): winston.Logger => {
     // Console transport (always enabled)
     new winston.transports.Console({
       level: getLogLevel(),
-      format: isProduction ? jsonFormat : prettyFormat,
+      format: jsonFormat, // Always use JSON format
       silent: isTest, // Silence logs in test environment
     }),
   ];
@@ -176,13 +175,13 @@ const createWinstonLogger = (options?: LoggerOptions): winston.Logger => {
     // Handle uncaught exceptions
     exceptionHandlers: [
       new winston.transports.Console({
-        format: isProduction ? jsonFormat : prettyFormat,
+        format: jsonFormat, // Always use JSON format
       }),
     ],
     // Handle unhandled promise rejections
     rejectionHandlers: [
       new winston.transports.Console({
-        format: isProduction ? jsonFormat : prettyFormat,
+        format: jsonFormat, // Always use JSON format
       }),
     ],
   });

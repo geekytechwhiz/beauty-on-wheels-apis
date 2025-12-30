@@ -4,7 +4,6 @@ import { createLogger, serializeError, createPerformanceTimer, createChildLogger
 import { User, UserMetadata, UserOrganization, UserFile } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
-import { createUserSchema } from '../validation/user.validation';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';

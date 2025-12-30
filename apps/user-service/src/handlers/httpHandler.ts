@@ -20,7 +20,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'createUser_received' });
 
-  let body: unknown;
+  let body: any;
   try {
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
   } catch (err) {
@@ -36,6 +36,14 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     });
   }
 
+  if (!body?.organizationId && (event as any).organizationID) {
+    body.organizationId = (event as any).organizationID;
+  }
+
+  if (!body?.userId && (event as any).userID) {
+    body.userId = (event as any).userID;
+  }	
+  logger.info({ event: 'createUser_organization_check', organizationId: body.organizationId, userId: body.userId });
   const validation = createUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });

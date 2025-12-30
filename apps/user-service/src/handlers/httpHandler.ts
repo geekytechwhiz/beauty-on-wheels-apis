@@ -58,14 +58,29 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   try {
-    const result = await userService.createUser(
-      {
-        userID: validation.data.userId,
-        emailAddress: validation.data.email,
-        fullName: validation.data.name,
-      },
-      correlationId
-    );
+    // Map the validated data to the UserService.createUser expected structure
+    const { userInfo, userRole, userType } = validation.data;
+    const userData = {
+      fullName: userInfo.name,
+      namePrefix: userInfo.namePrefix,
+      profilePic: userInfo.profilePic,
+      licenseNumber: userInfo.licenseNumber,
+      emailAddress: userInfo.contact.email,
+      phoneNumber: userInfo.contact.phone,
+      phoneCode: userInfo.contact.phoneCode,
+      workingHours: userInfo.workingHours,
+      dateOfBirth: userInfo.dateOfBirth,
+      department: userInfo.department,
+      gender: userInfo.gender,
+      specialty: userInfo.specialty,
+      slotDurationInMinutes: userInfo.slotDurationInMinutes,
+      experienceInYears: userInfo.experienceInYears,
+      bio: userInfo.bio,
+      userRole: userRole,
+      userType: userType,
+      // Add more fields as needed
+    };
+    const result = await userService.createUser(userData, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
     return created(result, { requestId: correlationId, message: 'User created' });

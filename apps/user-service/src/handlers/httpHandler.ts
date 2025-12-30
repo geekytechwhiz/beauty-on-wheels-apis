@@ -73,8 +73,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       experienceInYears: userInfo.experienceInYears,
       bio: userInfo.bio,
       userRole: userRole,
-      userType: userType,
-      // Add more fields as needed
+      userType: userType
     };
     const result = await userService.createUser(userData, correlationId);
     const duration = Date.now() - startTime;

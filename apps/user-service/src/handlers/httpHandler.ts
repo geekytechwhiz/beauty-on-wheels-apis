@@ -40,8 +40,8 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     body.organizationId = (event as any).organizationID;
   }
 
-  if (!body?.userId && (event as any).userID) {
-    body.userId = (event as any).userID;
+  if (!body?.userID && (event as any).userID) {
+    body.userID = (event as any).userID;
   }	
   logger.info({ event: 'createUser_organization_check', organizationId: body.organizationId, userId: body.userId });
   const validation = createUserSchema.safeParse(body);

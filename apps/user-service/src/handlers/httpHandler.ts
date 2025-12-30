@@ -36,14 +36,22 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     });
   }
 
-  if (!body?.organizationId && (event as any).organizationID) {
-    body.organizationId = (event as any).organizationID;
+  if (!body?.organizationId) {
+    if ((event as any).organizationID) {
+      body.organizationId = (event as any).organizationID;
+    } else if ((event as any).requestContext?.authorizer?.organizationID) {
+      body.organizationId = (event as any).requestContext.authorizer.organizationID;
+    }
   }
 
-  if (!body?.userID && (event as any).userID) {
-    body.userID = (event as any).userID;
-  }	
-  logger.info({ event: 'createUser_organization_check', organizationId: body.organizationId, userId: body.userId });
+  if (!body?.userID) {
+    if ((event as any).userID) {
+      body.userID = (event as any).userID;
+    } else if ((event as any).requestContext?.authorizer?.userID) {
+      body.userID = (event as any).requestContext.authorizer.userID;
+    }
+  }
+  logger.info({ event: 'createUser_organization_check', organizationId: body.organizationId, userId: body.userID });
   const validation = createUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });

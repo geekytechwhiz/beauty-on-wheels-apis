@@ -20,16 +20,6 @@ export class UserService {
   }
 
   async createUser(data: Partial<User>, correlationId?: string): Promise<User> {
-    // Validate input using Zod
-    const validation = createUserSchema.safeParse({
-      userId: data.userID,
-      email: data.emailAddress,
-      name: data.fullName ?? data.firstName ?? '',
-    });
-    if (!validation.success) {
-      throw new Error('Validation failed: ' + JSON.stringify(validation.error.issues));
-    }
-
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID });
     logger.info({ event: 'service_createUser_start' });

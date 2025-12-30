@@ -7,6 +7,7 @@ import { CognitoService } from './cognito.service';
 import { createUserSchema } from '../validation/user.validation';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
+import { ulid } from 'ulid';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -21,11 +22,14 @@ export class UserService {
 
   async createUser(data: Partial<User>, correlationId?: string): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
+    // Generate ULID if userID is not provided
+    if (!data.userID) {
+      data.userID = ulid();
+    }
     const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID });
     logger.info({ event: 'service_createUser_start' });
 
     try {
-      if (!data.userID) throw new Error('userID is required');
       if (!data.organizationID) throw new Error('organizationID is required');
 
       // Organization existence and status check (DB.organizationDetails logic)

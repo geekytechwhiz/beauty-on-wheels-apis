@@ -51,7 +51,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       body.userID = (event as any).requestContext.authorizer.userID;
     }
   }
-  logger.info({ event: 'createUser_organization_check', organizationId: body.organizationID, userId: body.userID });
+  logger.info({ event: 'createUser_organization_check', organizationID: body.organizationID, userID: body.userID });
   const validation = createUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });

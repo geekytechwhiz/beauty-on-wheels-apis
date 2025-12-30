@@ -27,6 +27,7 @@ provider:
 
   environment:
     USER_TABLE: user-table-${self:provider.stage}
+    OLD_USER_TABLE: ${self:provider.stage}_global_common_user_data
     USER_FILES_BUCKET: user-files-bucket-${self:provider.stage}
     USER_REMINDERS_QUEUE: user-reminders-queue-${self:provider.stage}
     EVENT_BUS: user-service-bus-${self:provider.stage}

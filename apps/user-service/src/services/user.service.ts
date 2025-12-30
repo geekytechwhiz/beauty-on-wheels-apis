@@ -1,4 +1,5 @@
 import { UserRepository } from '../repositories/user.repository';
+import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
@@ -11,9 +12,11 @@ const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 export class UserService {
   private repository: UserRepository;
+  private organizationRepository: OrganizationRepository;
 
   constructor() {
     this.repository = new UserRepository();
+    this.organizationRepository = new OrganizationRepository();
   }
 
   async createUser(data: Partial<User>, correlationId?: string): Promise<User> {
@@ -33,6 +36,18 @@ export class UserService {
 
     try {
       if (!data.userID) throw new Error('userID is required');
+      if (!data.organizationID) throw new Error('organizationID is required');
+
+      // Organization existence and status check (DB.organizationDetails logic)
+      const orgDetails = await this.organizationRepository.getOrganization(data.organizationID);
+      if (!orgDetails) {
+        throw new Error('Organization does not exist');
+      }
+      if (orgDetails.status && ['on_hold', 'disabled', 'not_exist'].includes(String(orgDetails.status).toLowerCase())) {
+        throw new Error('Organization is not available');
+      }
+
+      // Check if user already exists
       const existing = await this.repository.getUser(data.userID);
       if (existing) {
         throw new UserAlreadyExistsError(data.userID);
@@ -59,51 +74,51 @@ export class UserService {
             err: serializeError(err),
             message: 'Failed to create user in Cognito, continuing with DynamoDB user creation',
           });
-          // In production, you might want to throw here to prevent user creation without Cognito
-          // For now, we'll log and continue to allow graceful degradation
-          // throw err;
         }
       }
 
-        // Build user object with pk/sk and all fields for userCreated
-        const now = Date.now();
-        const user: User = {
-          pk: `USER#${data.userID}`,
-          sk: `USER_BASIC_DETAILS#${data.organizationID}`,
-          ...data,
-          createdDate: data.createdDate ?? now,
-          modifiedDate: data.modifiedDate ?? now,
-          isActive: data.isActive ?? true,
-          isLoggedIn: data.isLoggedIn ?? false,
-          isRegisteredCompletely: data.isRegisteredCompletely ?? false,
-          isRpmUser: data.isRpmUser ?? false,
-          isTaskCompleted: data.isTaskCompleted ?? false,
-          changePassword: data.changePassword ?? true,
-          logoutRequired: data.logoutRequired ?? false,
-          itemType: data.itemType ?? 'USER',
-        } as User;
+      // Build user object with correct PK/SK and all fields
+      const now = Date.now();
+      const user: User = {
+        pk: `ORG#${data.organizationID}`,
+        sk: `USER#${data.userID}`,
+        ...data,
+        createdDate: data.createdDate ?? now,
+        modifiedDate: data.modifiedDate ?? now,
+        isActive: data.isActive ?? true,
+        isLoggedIn: data.isLoggedIn ?? false,
+        isRegisteredCompletely: data.isRegisteredCompletely ?? false,
+        isRpmUser: data.isRpmUser ?? false,
+        isTaskCompleted: data.isTaskCompleted ?? false,
+        changePassword: data.changePassword ?? true,
+        logoutRequired: data.logoutRequired ?? false,
+        itemType: data.itemType ?? 'USER',
+      } as User;
 
-        await this.repository.createUser(user);
+      await this.repository.createUser(user);
 
-        await publishEvent(
-          {
-            eventId: randomUUID(),
-            eventType: 'UserCreated.v1',
-            occurredAt: new Date().toISOString(),
-            source: 'user-service',
-            correlationId,
-            data: {
-              userId: user.userID,
-              email: user.emailAddress,
-              name: user.fullName ?? user.firstName ?? '',
-            },
-          },
+      // Add user-organization mapping (future multi-org support)
+      await this.repository.assignUserToOrganization(data.userID, data.organizationID);
+
+      await publishEvent(
+        {
+          eventId: randomUUID(),
+          eventType: 'UserCreated.v1',
+          occurredAt: new Date().toISOString(),
+          source: 'user-service',
           correlationId,
-        );
+          data: {
+            userId: user.userID,
+            email: user.emailAddress,
+            name: user.fullName ?? user.firstName ?? '',
+          },
+        },
+        correlationId,
+      );
 
-        logger.info({ event: 'service_createUser_success' });
-        timer.end();
-        return user;
+      logger.info({ event: 'service_createUser_success' });
+      timer.end();
+      return user;
     } catch (err) {
       logger.error({ event: 'service_createUser_error', err: serializeError(err) });
       timer.end();

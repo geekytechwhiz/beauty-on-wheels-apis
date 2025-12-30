@@ -36,11 +36,11 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     });
   }
 
-  if (!body?.organizationId) {
+  if (!body?.organizationID) {
     if ((event as any).organizationID) {
-      body.organizationId = (event as any).organizationID;
+      body.organizationID = (event as any).organizationID;
     } else if ((event as any).requestContext?.authorizer?.organizationID) {
-      body.organizationId = (event as any).requestContext.authorizer.organizationID;
+      body.organizationID = (event as any).requestContext.authorizer.organizationID;
     }
   }
 

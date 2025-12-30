@@ -58,8 +58,6 @@ export class UserService {
           if (!exists) {
             await cognitoService.createUser(data.emailAddress);
             logger.info({ event: 'service_createUser_cognito_success', email: data.emailAddress });
-          } else {
-            logger.info({ event: 'service_createUser_cognito_user_exists', email: data.emailAddress });
           }
         } catch (err) {
           logger.error({

@@ -18,14 +18,11 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
-  
   logger.info({ event: 'createUser_received' });
 
   let body: unknown;
   try {
-    logger.info({ event: 'createUser_body_received', body: event.body });
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-    logger.info({ event: 'createUser_body_parsed', bodyType: typeof body, hasBody: !!body });
   } catch (err) {
     logger.error({ event: 'createUser_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
@@ -39,7 +36,6 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     });
   }
 
-  logger.info({ event: 'createUser_body_debug', bodyType: typeof body, bodyKeys: body && typeof body === 'object' ? Object.keys(body) : undefined });
   const validation = createUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });
@@ -59,7 +55,6 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   try {
-    // Map the validated data to the UserService.createUser expected structure
     const { userInfo, userRole, userType } = validation.data;
     const userData = {
       fullName: userInfo.name,

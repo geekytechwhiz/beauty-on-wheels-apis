@@ -29,7 +29,7 @@ export class UserService {
     logger.info({ event: 'service_createUser_start' });
 
     try {
-      if (organizationID) throw new Error('organizationID is required');
+      if (!organizationID) throw new Error('organizationID is required');
       data.organizationID = organizationID;
       const orgDetails = await this.organizationRepository.getOrganization(data?.organizationID || '');
       if (!orgDetails) {

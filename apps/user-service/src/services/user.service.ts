@@ -70,8 +70,6 @@ export class UserService {
       // Build user object with correct PK/SK and all fields
       const now = Date.now();
       const user: User = {
-        pk: `ORG#${data.organizationID}`,
-        sk: `USER#${data.userID}`,
         ...data,
         createdDate: data.createdDate ?? now,
         modifiedDate: data.modifiedDate ?? now,
@@ -88,7 +86,7 @@ export class UserService {
       await this.repository.createUser(user);
 
       // Add user-organization mapping (future multi-org support)
-      await this.repository.assignUserToOrganization(data.userID, data.organizationID || '');
+      await this.repository.assignUserToOrganization(user);
 
       await publishEvent(
         {
@@ -231,7 +229,7 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      await this.repository.assignUserToOrganization(userId, organizationId);
+      await this.repository.assignUserToOrganization(existing);
       logger.info({ event: 'service_assignUserToOrg_success' });
       timer.end();
     } catch (err) {

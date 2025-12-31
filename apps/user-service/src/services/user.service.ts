@@ -19,13 +19,13 @@ export class UserService {
     this.organizationRepository = new OrganizationRepository();
   }
 
-  async createUser(data: Partial<User>, organizationID?: string, userID?: string, correlationId?: string): Promise<User> {
+  async createUser(data: Partial<User>, organizationID?: string, inviteBy?: string, correlationId?: string): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     // Generate ULID if userID is not provided
     if (!data.userID) {
       data.userID = ulid();
     }
-    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID });
+    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID, organizationID, inviteBy });
     logger.info({ event: 'service_createUser_start' });
 
     try {

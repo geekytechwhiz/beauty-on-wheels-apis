@@ -6,7 +6,7 @@ const logger = createLogger({ service: 'user-service', redactPII: true });
 export class OrganizationRepository {
   async getOrganization(organizationId: string): Promise<any | null> {
     const pk = 'ORG_LIST';
-    const sk = `ORG_#${organizationId}`;
+    const sk = `ORG#${organizationId}`;
     logger.info({ event: 'Fetching organization details', organizationId });
     try {
       const result = await docClient.send(

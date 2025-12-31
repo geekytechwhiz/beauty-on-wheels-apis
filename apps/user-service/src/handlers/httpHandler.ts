@@ -18,7 +18,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'createUser_received', eventData: JSON.stringify(event) });
+  logger.info({ event: 'createUser_received', eventData: event });
 
   let body: any;
   try {

@@ -76,6 +76,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       fullName: userInfo.name,
       namePrefix: userInfo.namePrefix,
       profilePic: userInfo.profilePic,
+      code: userInfo.code,
       licenseNumber: userInfo.licenseNumber,
       emailAddress: userInfo.contact.email,
       phoneNumber: userInfo.contact.phone,

@@ -19,7 +19,7 @@ export class UserService {
     this.organizationRepository = new OrganizationRepository();
   }
 
-  async createUser(data: Partial<User>, correlationId?: string): Promise<User> {
+  async createUser(data: Partial<User>, organizationID?: string, userID?: string, correlationId?: string): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     // Generate ULID if userID is not provided
     if (!data.userID) {
@@ -29,10 +29,9 @@ export class UserService {
     logger.info({ event: 'service_createUser_start' });
 
     try {
-      if (!data.organizationID) throw new Error('organizationID is required');
-
-      // Organization existence and status check (DB.organizationDetails logic)
-      const orgDetails = await this.organizationRepository.getOrganization(data.organizationID);
+      if (organizationID) throw new Error('organizationID is required');
+      data.organizationID = organizationID;
+      const orgDetails = await this.organizationRepository.getOrganization(data?.organizationID || '');
       if (!orgDetails) {
         throw new Error('Organization does not exist');
       }
@@ -89,7 +88,7 @@ export class UserService {
       await this.repository.createUser(user);
 
       // Add user-organization mapping (future multi-org support)
-      await this.repository.assignUserToOrganization(data.userID, data.organizationID);
+      await this.repository.assignUserToOrganization(data.userID, data.organizationID || '');
 
       await publishEvent(
         {

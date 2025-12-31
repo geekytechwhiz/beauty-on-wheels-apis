@@ -1,10 +1,13 @@
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
+import { createLogger } from '@api-hub/logger';
+const logger = createLogger({ service: 'user-service', redactPII: true });
 
 export class OrganizationRepository {
   async getOrganization(organizationId: string): Promise<any | null> {
-    const pk = `ORG#${organizationId}`;
-    const sk = 'ORG_DETAILS';
+    const pk = 'ORG_LIST';
+    const sk = `ORG_#${organizationId}`;
+    logger.info({ event: 'Fetching organization details', organizationId });
     try {
       const result = await docClient.send(
         new GetCommand({
@@ -14,7 +17,7 @@ export class OrganizationRepository {
       );
       return result.Item || null;
     } catch (err) {
-      // Optionally log error
+      logger.error({ event: 'Error fetching organization details', err: err instanceof Error ? { message: err.message, stack: err.stack, name: err.name } : err, organizationId });
       return null;
     }
   }

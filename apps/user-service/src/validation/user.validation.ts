@@ -4,6 +4,7 @@ export const createUserSchema = z.object({
   userInfo: z.object({
     name: z.string().min(1),
     namePrefix: z.string().optional(),
+    code: z.string().optional(),
     profilePic: z.string().optional(),
     licenseNumber: z.string().optional(),
     contact: z.object({

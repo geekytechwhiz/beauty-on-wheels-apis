@@ -4,9 +4,9 @@ import { createLogger, serializeError, createPerformanceTimer, createChildLogger
 import { User, UserMetadata, UserOrganization, UserFile } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
-import { createUserSchema } from '../validation/user.validation';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
+import { ulid } from 'ulid';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -19,17 +19,19 @@ export class UserService {
     this.organizationRepository = new OrganizationRepository();
   }
 
-  async createUser(data: Partial<User>, correlationId?: string): Promise<User> {
+  async createUser(data: Partial<User>, organizationID?: string, invitedBy?: string, correlationId?: string): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
-    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID });
+    // Generate ULID if userID is not provided
+    if (!data.userID) {
+      data.userID = data.code || ulid();
+    }
+    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID, organizationID, invitedBy });
     logger.info({ event: 'service_createUser_start' });
 
     try {
-      if (!data.userID) throw new Error('userID is required');
-      if (!data.organizationID) throw new Error('organizationID is required');
-
-      // Organization existence and status check (DB.organizationDetails logic)
-      const orgDetails = await this.organizationRepository.getOrganization(data.organizationID);
+      if (!organizationID) throw new Error('organizationID is required');
+      data.organizationID = organizationID;
+      const orgDetails = await this.organizationRepository.getOrganization(data?.organizationID || '');
       if (!orgDetails) {
         throw new Error('Organization does not exist');
       }
@@ -54,8 +56,6 @@ export class UserService {
           if (!exists) {
             await cognitoService.createUser(data.emailAddress);
             logger.info({ event: 'service_createUser_cognito_success', email: data.emailAddress });
-          } else {
-            logger.info({ event: 'service_createUser_cognito_user_exists', email: data.emailAddress });
           }
         } catch (err) {
           logger.error({
@@ -88,7 +88,7 @@ export class UserService {
       await this.repository.createUser(user);
 
       // Add user-organization mapping (future multi-org support)
-      await this.repository.assignUserToOrganization(data.userID, data.organizationID);
+      await this.repository.assignUserToOrganization(data.userID, data.organizationID || '');
 
       await publishEvent(
         {

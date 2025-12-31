@@ -91,7 +91,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       userRole: userRole,
       userType: userType
     };
-    const result = await userService.createUser(userData, correlationId);
+    const result = await userService.createUser(userData, body.organizationID, body.userID, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
     return created(result, { requestId: correlationId, message: 'User created' });

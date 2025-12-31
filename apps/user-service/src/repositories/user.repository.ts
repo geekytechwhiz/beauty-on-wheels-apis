@@ -209,7 +209,7 @@ export class UserRepository {
         }),
       );
 
-      return result?.Items;
+      return (result?.Items ?? []) as UserOrganization[];
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
       logger.error({ event: 'user_orgs_list_error', err: serializeError(err), message: 'Failed to list user organizations' });
@@ -317,7 +317,7 @@ export class UserRepository {
         }),
       );
 
-      return result.Items;
+      return (result.Items ?? []) as UserFile[];
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
       logger.error({ event: 'user_files_list_error', err: serializeError(err), message: 'Failed to list user files' });

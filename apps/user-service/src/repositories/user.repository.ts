@@ -25,7 +25,7 @@ function modifyIndexesUserOrg(user: User): UserDBItem {
   return {
     ...user,
     pk: `USER#${user.userID}`,
-    sk: `USER_ORG#${user.organizationID}`,
+    sk: `ORG#${user.organizationID}`,
   }
 }
 

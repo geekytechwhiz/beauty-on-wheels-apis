@@ -45,24 +45,47 @@ export class UserService {
         throw new UserAlreadyExistsError(data.userID);
       }
 
-      // Cognito integration via CognitoService
-      if (data.emailAddress) {
+      // Cognito integration via CognitoService: check email and phone one-by-one; if any exists in Cognito, throw error
+      const normalizedEmail = data.emailAddress ? String(data.emailAddress).trim().toLowerCase() : '';
+      const normalizedPhone = data.phoneNumber ? String((data.phoneCode || '') + data.phoneNumber).replace(/\s+/g, '') : '';
+
+      if (normalizedEmail || normalizedPhone) {
         try {
           const cognitoService = new CognitoService(
             process.env.DEFAULT_AWS_REGION || 'us-east-1',
             process.env.COGNITO_USER_POOL_ID || ''
           );
-          const exists = await cognitoService.userExists(data.emailAddress);
-          if (!exists) {
-            await cognitoService.createUser(data.emailAddress);
-            logger.info({ event: 'service_createUser_cognito_success', email: data.emailAddress });
+
+          if (normalizedEmail) {
+            const existsEmail = await cognitoService.userExistsIdentifier(normalizedEmail);
+            if (existsEmail) {
+              throw new UserAlreadyExistsError(normalizedEmail);
+            }
           }
+
+          if (normalizedPhone) {
+            const existsPhone = await cognitoService.userExistsIdentifier(normalizedPhone);
+            if (existsPhone) {
+              throw new UserAlreadyExistsError(normalizedPhone);
+            }
+          }
+
+          // Create user in Cognito with attributes (prefer email as username)
+          const username = normalizedEmail || normalizedPhone;
+          await cognitoService.createUser(username, { email: normalizedEmail || undefined, phoneNumber: normalizedPhone || undefined });
+          logger.info({ event: 'service_createUser_cognito_success', email: normalizedEmail, phone: normalizedPhone, username });
         } catch (err) {
+          if (err instanceof UserAlreadyExistsError) {
+            logger.error({ event: 'service_createUser_cognito_error', email: normalizedEmail, phone: normalizedPhone, err: serializeError(err) });
+            throw err;
+          }
+
           logger.error({
             event: 'service_createUser_cognito_error',
-            email: data.emailAddress,
+            email: normalizedEmail,
+            phone: normalizedPhone,
             err: serializeError(err),
-            message: 'Failed to create user in Cognito, continuing with DynamoDB user creation',
+            message: 'Failed to create user in Cognito',
           });
         }
       }

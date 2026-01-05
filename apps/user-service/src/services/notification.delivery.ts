@@ -1,6 +1,7 @@
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import axios from 'axios';
 import { createLogger, serializeError } from '@api-hub/logger';
+import { renderTemplate } from 'api-hub/notifications';
 
 const logger = createLogger({ service: 'notification-delivery', redactPII: true });
 
@@ -47,8 +48,6 @@ export async function sendEmail(options: { email?: string; template?: string; te
     throw err;
   }
 }
-
-import { renderTemplate } from './notification.templates'; // re-exported from libs/notifications
 
 function buildEmailPayload(email: string, template?: string, templateData: Record<string, unknown> = {}) {
   // Use registry renderer when template key is provided and matches our registry
@@ -121,7 +120,7 @@ export async function sendSms(options: { phone?: string; template?: string; temp
       if (options.template) {
         const map: Record<string, any> = { WELCOME: 'WELCOME_USER', WELCOME_USER: 'WELCOME_USER', WELCOME_STAFF: 'WELCOME_STAFF', INVITE: 'INVITE_USER', PROFILE_UPDATED: 'PROFILE_UPDATED' };
         const key = (map[options.template as string] || options.template) as any;
-        const rendered = (await import('./notification.templates')).renderTemplate(key, options.templateData || {});
+        const rendered = renderTemplate(key, options.templateData || {});
         message = rendered.sms || rendered.body || `${options.template}`;
       } else if (options.templateData && Object.keys(options.templateData).length > 0) {
         message = Object.entries(options.templateData).map(([k, v]) => `${k}=${v}`).join(', ');

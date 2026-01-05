@@ -2,12 +2,12 @@
 
 This service publishes `NotificationRequested.v1` events when users should receive email/SMS/push notifications (for example on user creation or profile updates).
 
-## Event: NotificationRequested.v1
+## Event: UserCreatedNotificationRequested
 
 Event payload (envelope.data):
 
 ```ts
-interface NotificationRequestedData {
+interface UserCreatedNotificationRequestedData {
   userId?: string;
   email?: string;
   phone?: string;

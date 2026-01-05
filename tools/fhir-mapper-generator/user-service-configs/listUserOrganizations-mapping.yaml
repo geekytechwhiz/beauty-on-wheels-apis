@@ -12,7 +12,7 @@
 service:
   name: user-service
   baseUrl: ${env:USER_SERVICE_SERVICE_URL, 'http://localhost:3000'}
-  apiEndpoint: /get-user-details?userID={id}
+  apiEndpoint: /user/{id}/organizations
   method: GET
   authRequired: true
   responseType: ListUserOrganizationsDTO
@@ -30,6 +30,9 @@ generation:
     - service-client
     - adapter
     - handler
+    - dto-type
+    - fhir-model
+    - helper-methods
   options:
     addComments: true
     addJSDoc: true

@@ -168,7 +168,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["service-client", "adapter", "handler", "model"]
+            "enum": ["service-client", "adapter", "handler", "model", "dto-type", "fhir-model", "helper-methods"]
           },
           "default": ["service-client", "adapter", "handler"]
         },

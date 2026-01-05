@@ -10,6 +10,13 @@ export class CodeGenerator {
   private templates: Map<string, HandlebarsTemplateDelegate> = new Map();
   private templateDir = '';
 
+  /**
+   * Get template directory path
+   */
+  getTemplateDir(): string {
+    return this.templateDir;
+  }
+
   constructor(templateDir?: string) {
     // Try multiple possible locations for templates
     const possiblePaths = [
@@ -118,6 +125,16 @@ export class CodeGenerator {
       queryParamsList.push(param.name);
     });
 
+    // Process endpoint to replace {id} with ${id} for template
+    const processedEndpoint = config.service.apiEndpoint.replace(/\{(\w+)\}/g, (_match, paramName) => {
+      // If it's the id parameter, use the idParam variable name
+      if (paramName === 'id' || paramName === idParam) {
+        return `\${${idParam}}`;
+      }
+      // Otherwise use the parameter name as-is
+      return `\${${paramName}}`;
+    });
+
     const context = {
       serviceName,
       ServiceName: this.pascalCase(serviceName),
@@ -127,7 +144,7 @@ export class CodeGenerator {
       resource: resourceType.toLowerCase(),
       responseType,
       ResponseType: responseType,
-      apiEndpoint: config.service.apiEndpoint,
+      apiEndpoint: processedEndpoint,
       defaultPort: '3000',
       parameters: parameters.join(', '),
       queryParams: queryParams.map((p) => ({

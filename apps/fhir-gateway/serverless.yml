@@ -170,3 +170,107 @@ functions:
                       detail: "An error occurred while retrieving the user"
                       code: "GET_USER_FAILED"
 
+  listUserOrganizations:
+    handler: src/handlers/listuserorganizations.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/User/{id}/organizations
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List user organizations (FHIR format)
+            description: Retrieves all organizations associated with a user in FHIR R4 format
+            tags:
+              - FHIR
+              - Users
+              - Organizations
+            pathParameters:
+              - name: id
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User organizations retrieved successfully in FHIR format
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              400:
+                description: Bad request
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              500:
+                description: Internal server error
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+
+  listUserFiles:
+    handler: src/handlers/listuserfiles.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/User/{id}/files
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List user files (FHIR format)
+            description: Retrieves all files associated with a user in FHIR R4 format
+            tags:
+              - FHIR
+              - Users
+              - Files
+            pathParameters:
+              - name: id
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User files retrieved successfully in FHIR format
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              400:
+                description: Bad request
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              500:
+                description: Internal server error
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+

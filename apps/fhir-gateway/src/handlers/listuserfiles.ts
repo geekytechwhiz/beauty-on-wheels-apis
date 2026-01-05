@@ -1,11 +1,14 @@
 /**
- * User Handler
- * GET /fhir/User/id
+ * ListUserFiles Handler
+ * GET /fhir/ListUserFiles/id
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda'
-import { toUser } from '@api-hub/fhir'
-import { UserServiceServiceClient } from '../services/user-service.client'
+import { toListUserFiles } from '@api-hub/fhir'
+import {
+  UserServiceServiceClient,
+  ListUserFilesNotFoundError,
+} from '../services/user-service.client'
 import {
   createLogger,
   extractCorrelationId,
@@ -27,10 +30,10 @@ export async function main(
   const startTime = Date.now()
   const correlationId = extractCorrelationId(event)
   const awsRequestId = context ? extractAwsRequestId(context) : undefined
-  const userId = event.pathParameters?.id
+  const listUserFilesId = event.pathParameters?.id
   const authHeader = getAccessTokenFromHeaders(event.headers || {})
 
-  if (!userId) {
+  if (!listUserFilesId) {
     const logger = createChildLogger(baseLogger, {
       correlationId,
       ...(awsRequestId && { awsRequestId }),
@@ -39,7 +42,7 @@ export async function main(
     logHttpRequest(
       logger,
       event.httpMethod || 'GET',
-      event.path || '/fhir/User/id',
+      event.path || '/fhir/ListUserFiles/id',
       400,
       duration,
       correlationId
@@ -47,7 +50,7 @@ export async function main(
     return problem({
       title: 'Invalid request',
       status: 400,
-      detail: 'User ID is required',
+      detail: 'ListUserFiles ID is required',
       correlationId,
       code: 'BAD_REQUEST',
     })
@@ -62,7 +65,7 @@ export async function main(
     logHttpRequest(
       logger,
       event.httpMethod || 'GET',
-      event.path || '/fhir/User/id',
+      event.path || '/fhir/ListUserFiles/id',
       401,
       duration,
       correlationId
@@ -78,23 +81,27 @@ export async function main(
 
   const logger = createChildLogger(baseLogger, {
     correlationId,
-    userId,
+    listUserFilesId,
     ...(awsRequestId && { awsRequestId }),
   })
-  logger.info({ event: 'fhir_user_get_received' })
+  logger.info({ event: 'fhir_listuserfiles_get_received' })
 
   try {
-    const userDTO = await userServiceServiceClient.getUser(userId, correlationId, authHeader)
+    const listUserFilesDTO = await userServiceServiceClient.getListUserFiles(
+      listUserFilesId,
+      correlationId,
+      authHeader
+    )
     const baseUrl = event.requestContext?.domainName
-      ? `https://${event.requestContext.domainName}${event.requestContext.path?.replace(/\/fhir\/User\/.*$/, '') || ''}`
+      ? `https://${event.requestContext.domainName}${event.requestContext.path?.replace(/\/fhir\/ListUserFiles\/.*$/, '') || ''}`
       : undefined
-    const user = toUser(userDTO, baseUrl)
+    const listUserFiles = toListUserFiles(listUserFilesDTO, baseUrl)
 
     const duration = Date.now() - startTime
     logHttpRequest(
       logger,
       event.httpMethod || 'GET',
-      event.path || `/fhir/User/${userId}`,
+      event.path || `/fhir/ListUserFiles/${listUserFilesId}`,
       200,
       duration,
       correlationId
@@ -106,42 +113,42 @@ export async function main(
         'Content-Type': 'application/fhir+json',
         'X-Correlation-Id': correlationId,
       },
-      body: JSON.stringify(user),
+      body: JSON.stringify(listUserFiles),
     }
   } catch (err) {
     const duration = Date.now() - startTime
-    if (err instanceof UserNotFoundError) {
+    if (err instanceof ListUserFilesNotFoundError) {
       logHttpRequest(
         logger,
         event.httpMethod || 'GET',
-        event.path || `/fhir/User/${userId}`,
+        event.path || `/fhir/ListUserFiles/${listUserFilesId}`,
         404,
         duration,
         correlationId
       )
       return problem({
-        title: 'User not found',
+        title: 'ListUserFiles not found',
         status: 404,
         detail: err.message,
         correlationId,
-        code: 'USER_NOT_FOUND',
+        code: 'LISTUSERFILES_NOT_FOUND',
       })
     }
-    logger.error({ event: 'fhir_user_get_error', err: serializeError(err) })
+    logger.error({ event: 'fhir_listuserfiles_get_error', err: serializeError(err) })
     logHttpRequest(
       logger,
       event.httpMethod || 'GET',
-      event.path || `/fhir/User/${userId}`,
+      event.path || `/fhir/ListUserFiles/${listUserFilesId}`,
       500,
       duration,
       correlationId
     )
     return problem({
-      title: 'Failed to get user',
+      title: 'Failed to get listuserfiles',
       status: 500,
       detail: (err as Error)?.message || 'Unknown error',
       correlationId,
-      code: 'GET_USER_FAILED',
+      code: 'GET_LISTUSERFILES_FAILED',
     })
   }
 }

@@ -12,7 +12,7 @@
 service:
   name: user-service
   baseUrl: ${env:USER_SERVICE_SERVICE_URL, 'http://localhost:3000'}
-  apiEndpoint: /get-user-details?userID={id}
+  apiEndpoint: /user/{id}
   method: GET
   authRequired: true
   responseType: UserDTO
@@ -21,15 +21,18 @@ fhirResource:
   category: identity
   path: user
 mappings:
-  - source: userId
+  - source: userID
     target: id
-    transformation: dto.userId
+    transformation: dto.userID
     description: Resource ID mapping
 generation:
   generateFiles:
     - service-client
     - adapter
     - handler
+    - dto-type
+    - fhir-model
+    - helper-methods
   options:
     addComments: true
     addJSDoc: true

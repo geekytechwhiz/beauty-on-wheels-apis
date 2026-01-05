@@ -1,6 +1,6 @@
 # Notification Delivery (consumer)
 
-This service publishes `NotificationRequested.v1` events when users should receive email/SMS/push notifications (for example on user creation or profile updates).
+This service publishes `UserCreatedNotificationRequested` events when users should receive email/SMS/push notifications (for example on user creation or profile updates).
 
 ## Event: UserCreatedNotificationRequested
 

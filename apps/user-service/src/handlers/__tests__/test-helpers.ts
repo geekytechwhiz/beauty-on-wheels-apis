@@ -3,7 +3,10 @@ export function createMockUser() {
   return {
     userId: 'user-1',
     email: 'user@example.com',
+    emailAddress: 'user@example.com',
     name: 'Test User',
+    firstName: 'Test',
+    fullName: 'Test User',
     createdAt: now,
     updatedAt: now,
   };

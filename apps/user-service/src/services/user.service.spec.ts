@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, type Mock } from 'vitest';
 import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
 import { createMockUser } from '../handlers/__tests__/test-helpers';
+import type { UserService } from './user.service';
+import type { UserRepository } from '../repositories/user.repository';
+import type { OrganizationRepository } from '../repositories/organization.repository';
 
 vi.mock('../repositories/user.repository');
 vi.mock('../events/event.publisher');
@@ -25,7 +28,7 @@ vi.mock('@api-hub/logger', () => ({
   serializeError: vi.fn((err) => ({ message: err.message, stack: err.stack })),
 }));
 
-const mockRepo: any = {
+const mockRepo: Partial<UserRepository> = {
   getUser: vi.fn(),
   createUser: vi.fn(),
   updateUser: vi.fn(),
@@ -38,74 +41,78 @@ const mockRepo: any = {
   listUserFiles: vi.fn(),
 };
 
-let service: any;
-let UserRepositoryRef: any;
+let service: UserService;
 
 beforeAll(async () => {
   const mod = await import('../repositories/user.repository');
+  const moduleMod = mod as unknown as { UserRepository: new () => Partial<UserRepository> };
   // Replace exported class with a fake constructor that returns our mockRepo
-  (mod as any).UserRepository = class {
+  moduleMod.UserRepository = class {
     constructor() {
       return mockRepo;
     }
   };
 
   const svcMod = await import('./user.service');
-  service = new (svcMod as any).UserService();
+  const svcCtor = (svcMod as unknown as { UserService: new () => UserService }).UserService;
+  service = new svcCtor();
 });
 
 describe('UserService', () => {
+  const repository = () => (service as unknown as { repository: Partial<UserRepository> }).repository;
+  const orgRepository = () => (service as unknown as { organizationRepository: Partial<OrganizationRepository> }).organizationRepository;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Default organizationRepository behavior for tests
-    (service as any).organizationRepository.getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
+    orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
   });
 
   describe('createUser', () => {
     it('should create user successfully and return user object', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null); // User doesn't exist
-      (service as any).repository.createUser = vi.fn().mockResolvedValue(undefined);
+      repository().getUser = vi.fn().mockResolvedValue(null); // User doesn't exist
+      repository().createUser = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.createUser(
         {
           userID: mockUser.userId,
-          email: mockUser.email,
-          name: mockUser.name,
+          emailAddress: mockUser.email,
+          firstName: mockUser.firstName,
         },
         'test-correlation-id'
       );
 
-      expect((service as any).repository.getUser).toHaveBeenCalledWith(mockUser.userId);
-      expect((service as any).repository.createUser).toHaveBeenCalled();
+      expect(repository().getUser).toHaveBeenCalledWith(mockUser.userId);
+      expect(repository().createUser).toHaveBeenCalled();
       expect(result).toMatchObject({
         userID: mockUser.userId,
         email: mockUser.email,
-        name: mockUser.name,
+        firstName: mockUser.firstName,
       });
     });
 
     it('should throw UserAlreadyExistsError if user already exists', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(mockUser); // User exists
+      repository().getUser = vi.fn().mockResolvedValue(mockUser); // User exists
 
       await expect(
         service.createUser(
           {
             userID: mockUser.userId,
-            email: mockUser.email,
-            name: mockUser.name,
+            emailAddress: mockUser.email,
+            firstName: mockUser.firstName,
           },
           'test-correlation-id'
         )
       ).rejects.toThrow(UserAlreadyExistsError);
 
-      expect((service as any).repository.createUser).not.toHaveBeenCalled();
+      expect(repository().createUser).not.toHaveBeenCalled();
     });
 
     it('should generate MRN for USER when missing', async () => {
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
-      (service as any).repository.createUser = vi.fn().mockResolvedValue(undefined);
+      repository().getUser = vi.fn().mockResolvedValue(null);
+      repository().createUser = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.createUser(
         {
@@ -116,13 +123,13 @@ describe('UserService', () => {
         'org-1'
       );
 
-      expect((service as any).repository.createUser).toHaveBeenCalled();
+      expect(repository().createUser).toHaveBeenCalled();
       expect(result.mrn).toBeDefined();
       expect(String(result.mrn)).toMatch(/^PI-/);
     });
 
     it('should throw when USER missing email and phone', async () => {
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
+      repository().getUser = vi.fn().mockResolvedValue(null);
 
       await expect(
         service.createUser(
@@ -136,7 +143,7 @@ describe('UserService', () => {
     });
 
     it('should throw when STAFF missing email', async () => {
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
+      repository().getUser = vi.fn().mockResolvedValue(null);
 
       await expect(
         service.createUser(
@@ -151,15 +158,16 @@ describe('UserService', () => {
     });
 
     it('should call notifyUser with normalized phone and device token and org data', async () => {
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
-      (service as any).repository.createUser = vi.fn().mockResolvedValue(undefined);
-      (service as any).repository.assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
-      (service as any).organizationRepository.getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
+      repository().getUser = vi.fn().mockResolvedValue(null);
+      repository().createUser = vi.fn().mockResolvedValue(undefined);
+      repository().assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
+      orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
 
-      const notify = (await import('./notification.service')).notifyUser;
-      (notify as any).mockClear?.();
+      const notifyMod = await import('./notification.service');
+      const notify = notifyMod.notifyUser as Mock;
+      notify.mockClear();
 
-      const result = await service.createUser(
+      await service.createUser(
         {
           userID: 'user-nt-1',
           userType: 'USER',
@@ -174,8 +182,8 @@ describe('UserService', () => {
         'corr-1'
       );
 
-      expect((notify as any).mock.calls.length).toBeGreaterThan(0);
-      const callArg = (notify as any).mock.calls[0][0];
+      expect(notify.mock.calls.length).toBeGreaterThan(0);
+      const callArg = notify.mock.calls[0][0];
       expect(callArg.phone).toBe('+919123456789');
       expect(callArg.deviceToken).toBeUndefined();
       expect(callArg.channels).toEqual(expect.arrayContaining(['email','sms']));
@@ -187,16 +195,16 @@ describe('UserService', () => {
   describe('getUser', () => {
     it('should return user when found', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(mockUser);
+      repository().getUser = vi.fn().mockResolvedValue(mockUser);
 
       const result = await service.getUser(mockUser.userId);
 
-      expect((service as any).repository.getUser).toHaveBeenCalledWith(mockUser.userId);
+      expect(repository().getUser).toHaveBeenCalledWith(mockUser.userId);
       expect(result).toEqual(mockUser);
     });
 
     it('should throw UserNotFoundError when user not found', async () => {
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
+      repository().getUser = vi.fn().mockResolvedValue(null);
 
       await expect(service.getUser('non-existent-id')).rejects.toThrow(UserNotFoundError);
     });
@@ -205,21 +213,21 @@ describe('UserService', () => {
   describe('updateUser', () => {
     it('should update user successfully', async () => {
       const mockUser = createMockUser();
-      const updatedUser = { ...mockUser, name: 'Updated Name' };
-      (service as any).repository.getUser = vi
+      const updatedUser = { ...mockUser, fullName: 'Updated Name' };
+      repository().getUser = vi
         .fn()
         .mockResolvedValueOnce(mockUser)
         .mockResolvedValueOnce(updatedUser);
-      (service as any).repository.updateUser = vi.fn().mockResolvedValue(undefined);
+      repository().updateUser = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.updateUser(mockUser.userId, { name: 'Updated Name' }, 'test-correlation-id');
 
-      expect((service as any).repository.updateUser).toHaveBeenCalledWith(mockUser.userId, { name: 'Updated Name' });
-      expect(result.name).toBe('Updated Name');
+      expect(repository().updateUser).toHaveBeenCalledWith(mockUser.userId, { name: 'Updated Name' });
+      expect(result.fullName).toBe('Updated Name');
     });
 
     it('should throw UserNotFoundError when user not found', async () => {
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
+      repository().getUser = vi.fn().mockResolvedValue(null);
 
       await expect(
         service.updateUser('non-existent-id', { name: 'New Name' }, 'test-correlation-id')
@@ -230,17 +238,17 @@ describe('UserService', () => {
   describe('deleteUser', () => {
     it('should delete user successfully', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(mockUser);
-      (service as any).repository.deleteUser = vi.fn().mockResolvedValue(undefined);
+      repository().getUser = vi.fn().mockResolvedValue(mockUser);
+      repository().deleteUser = vi.fn().mockResolvedValue(undefined);
 
       await service.deleteUser(mockUser.userId, 'test-correlation-id');
 
-      expect((service as any).repository.getUser).toHaveBeenCalledWith(mockUser.userId);
-      expect((service as any).repository.deleteUser).toHaveBeenCalledWith(mockUser.userId);
+      expect(repository().getUser).toHaveBeenCalledWith(mockUser.userId);
+      expect(repository().deleteUser).toHaveBeenCalledWith(mockUser.userId);
     });
 
     it('should throw UserNotFoundError when user not found', async () => {
-      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
+      repository().getUser = vi.fn().mockResolvedValue(null);
 
       await expect(service.deleteUser('non-existent-id', 'test-correlation-id')).rejects.toThrow(
         UserNotFoundError

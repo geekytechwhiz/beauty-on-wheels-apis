@@ -146,23 +146,42 @@ export class UserService {
       try {
         const isStaff = String(user.userType || '').toUpperCase() === 'STAFF';
         const template = isStaff ? 'WELCOME_STAFF' : 'WELCOME_USER';
+
+        // Normalize phone for notifications (ensure international format when country code present)
+        let notifyPhone: string | undefined = undefined;
+        if (user.phoneNumber) {
+          const pc = String(user.phoneCode || '').trim();
+          const pn = String(user.phoneNumber || '').trim();
+          if (pc) {
+            notifyPhone = pc.startsWith('+') ? `${pc}${pn}` : `+${pc}${pn}`;
+          } else {
+            notifyPhone = pn;
+          }
+        }
+
+        const deviceToken = (user as any).deviceToken || (user as any).device || undefined;
+
+        const channels = [
+          ...(user.emailAddress ? ['email'] : []),
+          ...(notifyPhone ? ['sms'] : []),
+          ...(deviceToken ? ['push'] : []),
+        ];
+
         await notifyUser({
           userId: user.userID,
           email: user.emailAddress,
-          phone: user.phoneNumber ? `${user.phoneCode || ''}${user.phoneNumber}` : undefined,
+          phone: notifyPhone,
           name: user.fullName ?? user.firstName ?? '',
-          channels: [
-            ...(user.emailAddress ? ['email'] : []),
-            ...(user.phoneNumber ? ['sms'] : []),
-          ],
+          deviceToken,
+          channels,
           template,
           templateData: {
             userType: user.userType,
             mrn: (user as any).mrn,
-            ORG_NAME: '',
+            ORG_NAME: orgDetails?.name || '',
             STAFF_FIRST_NAME: user.firstName,
             PORTAL_LINK: process.env.PORTAL_LINK || '',
-            ORG_INFO: '',
+            ORG_INFO: orgDetails?.info || orgDetails?.description || '',
           },
           correlationId,
         });

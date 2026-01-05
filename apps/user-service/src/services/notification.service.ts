@@ -1,8 +1,3 @@
-/*
-  Notification helper: publish a NotificationRequested.v1 event describing channels (email/sms/push), template and data.
-  The actual delivery is delegated to a downstream consumer which may reuse logic from
-  Common-Backend invite_module / sign_up modules (sendMemberEmail / sendSMS implementations).
-*/
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
@@ -30,6 +25,8 @@ export async function notifyUser(payload: {
   email?: string;
   phone?: string;
   name?: string;
+  deviceToken?: string;
+  device?: unknown;
   channels?: string[];
   template?: string;
   templateData?: Record<string, unknown>;

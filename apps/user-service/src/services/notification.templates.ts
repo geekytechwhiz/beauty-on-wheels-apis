@@ -1,1 +1,1 @@
-export * from '../../../libs/notifications/src';
+export * from '../../../../libs/notifications/src';

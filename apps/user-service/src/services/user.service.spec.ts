@@ -1,62 +1,75 @@
-import { UserService } from './user.service';
-import { UserRepository } from '../repositories/user.repository';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
 import { createMockUser } from '../handlers/__tests__/test-helpers';
 
-jest.mock('../repositories/user.repository');
-jest.mock('../events/event.publisher');
-jest.mock('@api-hub/logger', () => ({
-  createLogger: jest.fn(() => ({
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+vi.mock('../repositories/user.repository');
+vi.mock('../events/event.publisher');
+vi.mock('./notification.service', () => ({ notifyUser: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@api-hub/logger', () => ({
+  createLogger: vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   })),
-  createChildLogger: jest.fn(() => ({
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+  createChildLogger: vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   })),
-  createPerformanceTimer: jest.fn(() => ({
-    end: jest.fn(),
-    getDuration: jest.fn(() => 100),
+  createPerformanceTimer: vi.fn(() => ({
+    end: vi.fn(),
+    getDuration: vi.fn(() => 100),
   })),
-  serializeError: jest.fn((err) => ({ message: err.message, stack: err.stack })),
+  serializeError: vi.fn((err) => ({ message: err.message, stack: err.stack })),
 }));
 
-const mockRepo = {
-  getUser: jest.fn(),
-  createUser: jest.fn(),
-  updateUser: jest.fn(),
-  deleteUser: jest.fn(),
-  assignUserToOrganization: jest.fn(),
-  listUserOrganizations: jest.fn(),
-  updateUserMetadata: jest.fn(),
-  getUserMetadata: jest.fn(),
-  createUserFile: jest.fn(),
-  listUserFiles: jest.fn(),
-} as jest.Mocked<UserRepository>;
+const mockRepo: any = {
+  getUser: vi.fn(),
+  createUser: vi.fn(),
+  updateUser: vi.fn(),
+  deleteUser: vi.fn(),
+  assignUserToOrganization: vi.fn(),
+  listUserOrganizations: vi.fn(),
+  updateUserMetadata: vi.fn(),
+  getUserMetadata: vi.fn(),
+  createUserFile: vi.fn(),
+  listUserFiles: vi.fn(),
+};
 
-// Mock the UserRepository constructor to return our mock
-jest.spyOn(UserRepository.prototype, 'constructor' as any).mockImplementation(() => mockRepo);
+let service: any;
+let UserRepositoryRef: any;
 
-const service = new UserService();
+beforeAll(async () => {
+  const mod = await import('../repositories/user.repository');
+  // Replace exported class with a fake constructor that returns our mockRepo
+  (mod as any).UserRepository = class {
+    constructor() {
+      return mockRepo;
+    }
+  };
+
+  const svcMod = await import('./user.service');
+  service = new (svcMod as any).UserService();
+});
 
 describe('UserService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+    // Default organizationRepository behavior for tests
+    (service as any).organizationRepository.getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
   });
 
   describe('createUser', () => {
     it('should create user successfully and return user object', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(null); // User doesn't exist
-      (service as any).repository.createUser = jest.fn().mockResolvedValue(undefined);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null); // User doesn't exist
+      (service as any).repository.createUser = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.createUser(
         {
-          userId: mockUser.userId,
+          userID: mockUser.userId,
           email: mockUser.email,
           name: mockUser.name,
         },
@@ -66,7 +79,7 @@ describe('UserService', () => {
       expect((service as any).repository.getUser).toHaveBeenCalledWith(mockUser.userId);
       expect((service as any).repository.createUser).toHaveBeenCalled();
       expect(result).toMatchObject({
-        userId: mockUser.userId,
+        userID: mockUser.userId,
         email: mockUser.email,
         name: mockUser.name,
       });
@@ -74,12 +87,12 @@ describe('UserService', () => {
 
     it('should throw UserAlreadyExistsError if user already exists', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(mockUser); // User exists
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(mockUser); // User exists
 
       await expect(
         service.createUser(
           {
-            userId: mockUser.userId,
+            userID: mockUser.userId,
             email: mockUser.email,
             name: mockUser.name,
           },
@@ -91,8 +104,8 @@ describe('UserService', () => {
     });
 
     it('should generate MRN for USER when missing', async () => {
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
-      (service as any).repository.createUser = jest.fn().mockResolvedValue(undefined);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
+      (service as any).repository.createUser = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.createUser(
         {
@@ -109,7 +122,7 @@ describe('UserService', () => {
     });
 
     it('should throw when USER missing email and phone', async () => {
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
 
       await expect(
         service.createUser(
@@ -123,7 +136,7 @@ describe('UserService', () => {
     });
 
     it('should throw when STAFF missing email', async () => {
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
 
       await expect(
         service.createUser(
@@ -136,12 +149,45 @@ describe('UserService', () => {
         )
       ).rejects.toThrow('STAFF must have an email address');
     });
+
+    it('should call notifyUser with normalized phone and device token and org data', async () => {
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
+      (service as any).repository.createUser = vi.fn().mockResolvedValue(undefined);
+      (service as any).repository.assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
+      (service as any).organizationRepository.getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
+
+      const notify = (await import('./notification.service')).notifyUser;
+      (notify as any).mockClear?.();
+
+      const result = await service.createUser(
+        {
+          userID: 'user-nt-1',
+          userType: 'USER',
+          emailAddress: 'user@example.com',
+          phoneCode: '91',
+          phoneNumber: '9123456789',
+          firstName: 'John',
+          mrn: 'MRN-1',
+        },
+        'org-1',
+        undefined,
+        'corr-1'
+      );
+
+      expect((notify as any).mock.calls.length).toBeGreaterThan(0);
+      const callArg = (notify as any).mock.calls[0][0];
+      expect(callArg.phone).toBe('+919123456789');
+      expect(callArg.deviceToken).toBeUndefined();
+      expect(callArg.channels).toEqual(expect.arrayContaining(['email','sms']));
+      expect(callArg.templateData.ORG_NAME).toBe('Acme Hospital');
+      expect(callArg.templateData.ORG_INFO).toBe('Acme Info');
+    });
   });
 
   describe('getUser', () => {
     it('should return user when found', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(mockUser);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(mockUser);
 
       const result = await service.getUser(mockUser.userId);
 
@@ -150,7 +196,7 @@ describe('UserService', () => {
     });
 
     it('should throw UserNotFoundError when user not found', async () => {
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
 
       await expect(service.getUser('non-existent-id')).rejects.toThrow(UserNotFoundError);
     });
@@ -160,11 +206,11 @@ describe('UserService', () => {
     it('should update user successfully', async () => {
       const mockUser = createMockUser();
       const updatedUser = { ...mockUser, name: 'Updated Name' };
-      (service as any).repository.getUser = jest
+      (service as any).repository.getUser = vi
         .fn()
         .mockResolvedValueOnce(mockUser)
         .mockResolvedValueOnce(updatedUser);
-      (service as any).repository.updateUser = jest.fn().mockResolvedValue(undefined);
+      (service as any).repository.updateUser = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.updateUser(mockUser.userId, { name: 'Updated Name' }, 'test-correlation-id');
 
@@ -173,7 +219,7 @@ describe('UserService', () => {
     });
 
     it('should throw UserNotFoundError when user not found', async () => {
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
 
       await expect(
         service.updateUser('non-existent-id', { name: 'New Name' }, 'test-correlation-id')
@@ -184,8 +230,8 @@ describe('UserService', () => {
   describe('deleteUser', () => {
     it('should delete user successfully', async () => {
       const mockUser = createMockUser();
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(mockUser);
-      (service as any).repository.deleteUser = jest.fn().mockResolvedValue(undefined);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(mockUser);
+      (service as any).repository.deleteUser = vi.fn().mockResolvedValue(undefined);
 
       await service.deleteUser(mockUser.userId, 'test-correlation-id');
 
@@ -194,7 +240,7 @@ describe('UserService', () => {
     });
 
     it('should throw UserNotFoundError when user not found', async () => {
-      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+      (service as any).repository.getUser = vi.fn().mockResolvedValue(null);
 
       await expect(service.deleteUser('non-existent-id', 'test-correlation-id')).rejects.toThrow(
         UserNotFoundError

@@ -3,19 +3,33 @@ import axios from 'axios';
 
 vi.mock('axios');
 
+// Mock logger to avoid module resolution issues
+vi.mock('@api-hub/logger', () => ({
+  createLogger: vi.fn(() => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() })),
+  serializeError: vi.fn((err) => ({ message: err.message, stack: err.stack })),
+}));
+
 // Mock SecretsManagerClient
+// Ensure secret name is set for getSecrets
+process.env.NOTIFICATION_SECRET_NAME = process.env.NOTIFICATION_SECRET_NAME || 'test-secret';
+
 vi.mock('@aws-sdk/client-secrets-manager', async () => {
   const actual = await vi.importActual<any>('@aws-sdk/client-secrets-manager');
+  class MockSecretsManagerClient {
+    constructor() {}
+    async send() {
+      return { SecretString: JSON.stringify({ EMAIL_API_URL: 'https://email.test', AUTHORIZATION_KEY: 'auth', SMS_API_URL: 'https://sms.test', DLT_COTENT_ID: 'dlt-123' }) };
+    }
+  }
+  class MockGetSecretValueCommand { constructor() {} }
   return {
     ...actual,
-    SecretsManagerClient: vi.fn().mockImplementation(() => ({
-      send: vi.fn().mockResolvedValue({ SecretString: JSON.stringify({ EMAIL_API_URL: 'https://email.test', AUTHORIZATION_KEY: 'auth', SMS_API_URL: 'https://sms.test', DLT_COTENT_ID: 'dlt-123' }) }),
-    })),
-    GetSecretValueCommand: actual.GetSecretValueCommand,
+    SecretsManagerClient: MockSecretsManagerClient,
+    GetSecretValueCommand: MockGetSecretValueCommand,
   };
 });
 
-import { sendEmail, sendSms } from '../notification.delivery';
+import { sendEmail, sendSms, sendPush } from '../notification.delivery';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -39,5 +53,10 @@ describe('notification.delivery', () => {
     const call = (axios as any).mock.calls[0][0];
     expect(call.url).toBe('https://sms.test');
     expect(call.data.phoneNumber).toBe('+919123456789');
+  });
+
+  it('sendPush currently returns not implemented', async () => {
+    const res = await sendPush({ deviceToken: 'dev-123', template: 'WELCOME' });
+    expect(res).toEqual({ success: false, reason: 'not_implemented' });
   });
 });

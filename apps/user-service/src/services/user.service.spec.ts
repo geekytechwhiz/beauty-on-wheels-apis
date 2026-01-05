@@ -89,6 +89,53 @@ describe('UserService', () => {
 
       expect((service as any).repository.createUser).not.toHaveBeenCalled();
     });
+
+    it('should generate MRN for USER when missing', async () => {
+      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+      (service as any).repository.createUser = jest.fn().mockResolvedValue(undefined);
+
+      const result = await service.createUser(
+        {
+          userID: 'user-123',
+          userType: 'USER',
+          emailAddress: 'patient@example.com',
+        },
+        'org-1'
+      );
+
+      expect((service as any).repository.createUser).toHaveBeenCalled();
+      expect(result.mrn).toBeDefined();
+      expect(String(result.mrn)).toMatch(/^PI-/);
+    });
+
+    it('should throw when USER missing email and phone', async () => {
+      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+
+      await expect(
+        service.createUser(
+          {
+            userID: 'user-345',
+            userType: 'USER',
+          },
+          'org-1'
+        )
+      ).rejects.toThrow('Either email or phone number is required for USER/FNF');
+    });
+
+    it('should throw when STAFF missing email', async () => {
+      (service as any).repository.getUser = jest.fn().mockResolvedValue(null);
+
+      await expect(
+        service.createUser(
+          {
+            userID: 'staff-1',
+            userType: 'STAFF',
+            phoneNumber: '9876543210'
+          },
+          'org-1'
+        )
+      ).rejects.toThrow('STAFF must have an email address');
+    });
   });
 
   describe('getUser', () => {

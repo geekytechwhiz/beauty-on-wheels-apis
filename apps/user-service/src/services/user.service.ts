@@ -9,6 +9,16 @@ import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+function generateSortableId() {
+  const now = Date.now();
+  const timePart = now.toString(36).toUpperCase().padStart(6, '0');
+  const randomPart = Math.floor(Math.random() * 1_000_000).toString().padStart(6, '0');
+  return `${timePart}${randomPart}`;
+}
+
+function generateMRN() {
+  return `PI-${generateSortableId()}`;
+}
 
 export class UserService {
   private repository: UserRepository;
@@ -45,9 +55,30 @@ export class UserService {
         throw new UserAlreadyExistsError(data.userID);
       }
 
+      // Normalize legacy aliases
+      if (!data.emailAddress && (data as any).email) data.emailAddress = (data as any).email;
+      if (!data.phoneNumber && (data as any).phone_number) data.phoneNumber = String((data as any).phone_number).trim();
+
       // Cognito integration via CognitoService: check email and phone one-by-one; if any exists in Cognito, throw error
       const normalizedEmail = data.emailAddress ? String(data.emailAddress).trim().toLowerCase() : '';
       const normalizedPhone = data.phoneNumber ? String((data.phoneCode || '') + data.phoneNumber).replace(/\s+/g, '') : '';
+
+      const userTypeUpper = String(data.userType || '').toUpperCase();
+
+      // STAFF: email required
+      if (userTypeUpper === 'STAFF' && !normalizedEmail) {
+        throw new Error('STAFF must have an email address');
+      }
+
+      // USER / FNF must have at least one identifier
+      if ((userTypeUpper === 'USER' || userTypeUpper === 'FNF') && !normalizedEmail && !normalizedPhone) {
+        throw new Error('Either email or phone number is required for USER/FNF');
+      }
+
+      // If user is a patient (USER) ensure MRN exists (generate if missing)
+      if ((userTypeUpper === 'USER' || String(data.itemType || '').toUpperCase() === 'USER') && !(data as any).mrn) {
+        (data as any).mrn = generateMRN();
+      }
 
       if (normalizedEmail || normalizedPhone) {
         try {

@@ -114,7 +114,7 @@ export class UserService {
       await publishEvent(
         {
           eventId: randomUUID(),
-          eventType: 'UserCreated.v1',
+          eventType: 'UserCreated',
           occurredAt: new Date().toISOString(),
           source: 'user-service',
           correlationId,

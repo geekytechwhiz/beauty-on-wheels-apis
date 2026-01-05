@@ -29,8 +29,6 @@ vi.mock('@aws-sdk/client-secrets-manager', async () => {
   };
 });
 
-import { sendEmail, sendSms, sendPush } from '../notification.delivery';
-
 beforeEach(() => {
   vi.clearAllMocks();
 });

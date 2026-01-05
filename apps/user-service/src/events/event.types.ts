@@ -8,10 +8,15 @@ export interface EventEnvelope<T = unknown> {
   data: T;
 }
 
-export interface UserCreatedData {
-  userId: string;
-  email: string;
-  name: string;
+export interface UserCreatedNotificationRequestedData {
+  userId?: string;
+  email?: string;
+  phone?: string;
+  deviceToken?: string;
+  name?: string;
+  channels: string[];
+  template?: string; // e.g. 'WELCOME', 'PASSWORD_RESET'
+  templateData?: Record<string, unknown>;
 }
 
 export interface UserProfileUpdatedData {

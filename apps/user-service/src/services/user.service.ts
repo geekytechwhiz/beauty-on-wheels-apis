@@ -7,6 +7,7 @@ import { CognitoService } from './cognito.service';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
+import { notifyUser } from './notification.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 function generateSortableId() {
@@ -142,21 +143,32 @@ export class UserService {
       // Add user-organization mapping (future multi-org support)
       await this.repository.assignUserToOrganization(user);
 
-      await publishEvent(
-        {
-          eventId: randomUUID(),
-          eventType: 'UserCreated',
-          occurredAt: new Date().toISOString(),
-          source: 'user-service',
-          correlationId,
-          data: {
-            userId: user.userID,
-            email: user.emailAddress,
-            name: user.fullName ?? user.firstName ?? '',
+      try {
+        const isStaff = String(user.userType || '').toUpperCase() === 'STAFF';
+        const template = isStaff ? 'WELCOME_STAFF' : 'WELCOME_USER';
+        await notifyUser({
+          userId: user.userID,
+          email: user.emailAddress,
+          phone: user.phoneNumber ? `${user.phoneCode || ''}${user.phoneNumber}` : undefined,
+          name: user.fullName ?? user.firstName ?? '',
+          channels: [
+            ...(user.emailAddress ? ['email'] : []),
+            ...(user.phoneNumber ? ['sms'] : []),
+          ],
+          template,
+          templateData: {
+            userType: user.userType,
+            mrn: (user as any).mrn,
+            ORG_NAME: '',
+            STAFF_FIRST_NAME: user.firstName,
+            PORTAL_LINK: process.env.PORTAL_LINK || '',
+            ORG_INFO: '',
           },
-        },
-        correlationId,
-      );
+          correlationId,
+        });
+      } catch (notifyErr) {
+        logger.warn({ event: 'service_createUser_notification_failed', err: serializeError(notifyErr) });
+      }
 
       logger.info({ event: 'service_createUser_success' });
       timer.end();
@@ -210,21 +222,21 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      await publishEvent(
-        {
-          eventId: randomUUID(),
-          eventType: 'UserProfileUpdated.v1',
-          occurredAt: new Date().toISOString(),
-          source: 'user-service',
+
+      // Best-effort notification that profile changed
+      try {
+        await notifyUser({
+          userId: updated.userID,
+          email: updates.email ?? updated.emailAddress,
+          name: updates.name ?? updated.fullName ?? updated.firstName,
+          channels: updates.email ? ['email'] : [],
+          template: 'PROFILE_UPDATED',
+          templateData: updates,
           correlationId,
-          data: {
-            userId: updated.userID,
-            email: updates.email,
-            name: updates.name,
-          },
-        },
-        correlationId,
-      );
+        });
+      } catch (notifyErr) {
+        logger.warn({ event: 'service_updateUser_notification_failed', err: serializeError(notifyErr) });
+      }
 
       logger.info({ event: 'service_updateUser_success' });
       timer.end();

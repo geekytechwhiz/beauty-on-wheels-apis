@@ -1,7 +1,7 @@
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import axios from 'axios';
 import { createLogger, serializeError } from '@api-hub/logger';
-import { renderTemplate } from 'api-hub/notifications';
+import { renderTemplate } from '@api-hub/utils';
 
 const logger = createLogger({ service: 'notification-delivery', redactPII: true });
 

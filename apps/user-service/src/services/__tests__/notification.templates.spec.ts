@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderTemplate } from 'api-hub/notifications';
+import { renderTemplate } from '@api-hub/utils';
 
 describe('notification.templates', () => {
   it('renders welcome user correctly', () => {

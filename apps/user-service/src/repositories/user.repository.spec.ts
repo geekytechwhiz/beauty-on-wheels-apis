@@ -1,38 +1,44 @@
-import { UserRepository } from './user.repository';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
 import { createMockUser } from '../handlers/__tests__/test-helpers';
 
-jest.mock('../utils/db.config', () => ({
+vi.mock('../utils/db.config', () => ({
   docClient: {
-    send: jest.fn(),
+    send: vi.fn(),
   },
 }));
 
-jest.mock('@api-hub/logger', () => ({
-  createLogger: jest.fn(() => ({
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+vi.mock('@api-hub/logger', () => ({
+  createLogger: vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   })),
-  createChildLogger: jest.fn(() => ({
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+  createChildLogger: vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   })),
-  serializeError: jest.fn((err) => ({ message: err.message, stack: err.stack })),
+  serializeError: vi.fn((err) => ({ message: err.message, stack: err.stack })),
 }));
 
 import { docClient } from '../utils/db.config';
 
-const mockSend = (docClient.send as jest.Mock);
-const repo = new UserRepository();
+const mockSend = (docClient.send as any);
+let repo: any;
 
 describe('UserRepository', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+  });
+
+  beforeAll(async () => {
+    const mod = await import('./user.repository');
+    const { UserRepository } = mod as any;
+    repo = new UserRepository();
   });
 
   describe('createUser', () => {

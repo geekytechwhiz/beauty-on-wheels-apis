@@ -7,8 +7,19 @@ import { CognitoService } from './cognito.service';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
+import { notifyUser } from './notification.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+function generateSortableId() {
+  const now = Date.now();
+  const timePart = now.toString(36).toUpperCase().padStart(6, '0');
+  const randomPart = Math.floor(Math.random() * 1_000_000).toString().padStart(6, '0');
+  return `${timePart}${randomPart}`;
+}
+
+function generateMRN() {
+  return `PI-${generateSortableId()}`;
+}
 
 export class UserService {
   private repository: UserRepository;
@@ -45,9 +56,30 @@ export class UserService {
         throw new UserAlreadyExistsError(data.userID);
       }
 
+      // Normalize legacy aliases
+      if (!data.emailAddress && (data as any).email) data.emailAddress = (data as any).email;
+      if (!data.phoneNumber && (data as any).phone_number) data.phoneNumber = String((data as any).phone_number).trim();
+
       // Cognito integration via CognitoService: check email and phone one-by-one; if any exists in Cognito, throw error
       const normalizedEmail = data.emailAddress ? String(data.emailAddress).trim().toLowerCase() : '';
       const normalizedPhone = data.phoneNumber ? String((data.phoneCode || '') + data.phoneNumber).replace(/\s+/g, '') : '';
+
+      const userTypeUpper = String(data.userType || '').toUpperCase();
+
+      // STAFF: email required
+      if (userTypeUpper === 'STAFF' && !normalizedEmail) {
+        throw new Error('STAFF must have an email address');
+      }
+
+      // USER / FNF must have at least one identifier
+      if ((userTypeUpper === 'USER' || userTypeUpper === 'FNF') && !normalizedEmail && !normalizedPhone) {
+        throw new Error('Either email or phone number is required for USER/FNF');
+      }
+
+      // If user is a patient (USER) ensure MRN exists (generate if missing)
+      if ((userTypeUpper === 'USER' || String(data.itemType || '').toUpperCase() === 'USER') && !(data as any).mrn) {
+        (data as any).mrn = generateMRN();
+      }
 
       if (normalizedEmail || normalizedPhone) {
         try {
@@ -111,21 +143,51 @@ export class UserService {
       // Add user-organization mapping (future multi-org support)
       await this.repository.assignUserToOrganization(user);
 
-      await publishEvent(
-        {
-          eventId: randomUUID(),
-          eventType: 'UserCreated',
-          occurredAt: new Date().toISOString(),
-          source: 'user-service',
-          correlationId,
-          data: {
-            userId: user.userID,
-            email: user.emailAddress,
-            name: user.fullName ?? user.firstName ?? '',
+      try {
+        const isStaff = String(user.userType || '').toUpperCase() === 'STAFF';
+        const template = isStaff ? 'WELCOME_STAFF' : 'WELCOME_USER';
+
+        // Normalize phone for notifications (ensure international format when country code present)
+        let notifyPhone: string | undefined = undefined;
+        if (user.phoneNumber) {
+          const pc = String(user.phoneCode || '').trim();
+          const pn = String(user.phoneNumber || '').trim();
+          if (pc) {
+            notifyPhone = pc.startsWith('+') ? `${pc}${pn}` : `+${pc}${pn}`;
+          } else {
+            notifyPhone = pn;
+          }
+        }
+
+        const deviceToken = (user as any).deviceToken || (user as any).device || undefined;
+
+        const channels = [
+          ...(user.emailAddress ? ['email'] : []),
+          ...(notifyPhone ? ['sms'] : []),
+          ...(deviceToken ? ['push'] : []),
+        ];
+
+        await notifyUser({
+          userId: user.userID,
+          email: user.emailAddress,
+          phone: notifyPhone,
+          name: user.fullName ?? user.firstName ?? '',
+          deviceToken,
+          channels,
+          template,
+          templateData: {
+            userType: user.userType,
+            mrn: (user as any).mrn,
+            ORG_NAME: orgDetails?.name || '',
+            STAFF_FIRST_NAME: user.firstName,
+            PORTAL_LINK: process.env.PORTAL_LINK || '',
+            ORG_INFO: orgDetails?.info || orgDetails?.description || '',
           },
-        },
-        correlationId,
-      );
+          correlationId,
+        });
+      } catch (notifyErr) {
+        logger.warn({ event: 'service_createUser_notification_failed', err: serializeError(notifyErr) });
+      }
 
       logger.info({ event: 'service_createUser_success' });
       timer.end();
@@ -179,21 +241,21 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      await publishEvent(
-        {
-          eventId: randomUUID(),
-          eventType: 'UserProfileUpdated.v1',
-          occurredAt: new Date().toISOString(),
-          source: 'user-service',
+
+      // Best-effort notification that profile changed
+      try {
+        await notifyUser({
+          userId: updated.userID,
+          email: updates.email ?? updated.emailAddress,
+          name: updates.name ?? updated.fullName ?? updated.firstName,
+          channels: updates.email ? ['email'] : [],
+          template: 'PROFILE_UPDATED',
+          templateData: updates,
           correlationId,
-          data: {
-            userId: updated.userID,
-            email: updates.email,
-            name: updates.name,
-          },
-        },
-        correlationId,
-      );
+        });
+      } catch (notifyErr) {
+        logger.warn({ event: 'service_updateUser_notification_failed', err: serializeError(notifyErr) });
+      }
 
       logger.info({ event: 'service_updateUser_success' });
       timer.end();

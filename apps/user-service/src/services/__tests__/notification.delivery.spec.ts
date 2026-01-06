@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-
+const { sendEmail, sendSms, sendPush } = await import('../notification.delivery');
 vi.mock('axios');
 
 // Mock logger to avoid module resolution issues
@@ -32,6 +32,12 @@ vi.mock('@aws-sdk/client-secrets-manager', async () => {
 beforeEach(() => {
   vi.clearAllMocks();
 });
+
+vi.mock('@api-hub/utils', async () => {
+  const util = await vi.importActual<any>('@api-hub/utils');
+  return { renderTemplate: util.renderTemplate };
+});
+
 
 describe('notification.delivery', () => {
   it('sendEmail should call external email API', async () => {

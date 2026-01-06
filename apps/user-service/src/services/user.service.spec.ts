@@ -87,7 +87,7 @@ describe('UserService', () => {
       expect(repository().createUser).toHaveBeenCalled();
       expect(result).toMatchObject({
         userID: mockUser.userId,
-        email: mockUser.email,
+        emailAddress: mockUser.email,
         firstName: mockUser.firstName,
       });
     });
@@ -189,6 +189,70 @@ describe('UserService', () => {
       expect(callArg.channels).toEqual(expect.arrayContaining(['email','sms']));
       expect(callArg.templateData.ORG_NAME).toBe('Acme Hospital');
       expect(callArg.templateData.ORG_INFO).toBe('Acme Info');
+    });
+
+    it('should call notifyUser with STAFF template and STAFF-specific keys', async () => {
+      process.env.PORTAL_LINK = 'https://portal.test';
+      repository().getUser = vi.fn().mockResolvedValue(null);
+      repository().createUser = vi.fn().mockResolvedValue(undefined);
+      repository().assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
+      orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', contactInfo: 'Contact Info', organizationAddress: '123 Main St' });
+
+      const notifyMod = await import('./notification.service');
+      const notify = notifyMod.notifyUser as Mock;
+      notify.mockClear();
+
+      await service.createUser(
+        {
+          userID: 'staff-1',
+          userType: 'STAFF',
+          emailAddress: 'staff@example.com',
+          firstName: 'Alice',
+        },
+        'org-1'
+      );
+
+      expect(notify.mock.calls.length).toBeGreaterThan(0);
+      const callArg = notify.mock.calls[0][0];
+      expect(callArg.template).toBe('WELCOME_STAFF');
+      expect(callArg.templateData.STAFF_FIRST_NAME).toBe('Alice');
+      expect(callArg.templateData.PORTAL_LINK).toBe('https://portal.test');
+      expect(callArg.templateData.ORG_ADDRESS).toBe('123 Main St');
+
+      delete process.env.PORTAL_LINK;
+    });
+
+    it('should call notifyUser with FNF template-data keys (WEB_DNS_URL, HOSPITAL_ID, FNF_FIRST_NAME)', async () => {
+      process.env.WEB_URL = 'https://app.test';
+      repository().getUser = vi.fn().mockResolvedValue(null);
+      repository().createUser = vi.fn().mockResolvedValue(undefined);
+      repository().assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
+      orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', contactInfo: 'Contact Info', organizationAddress: '123 Main St', organizationID: 'org-1' });
+
+      const notifyMod = await import('./notification.service');
+      const notify = notifyMod.notifyUser as Mock;
+      notify.mockClear();
+
+      await service.createUser(
+        {
+          userID: 'fnf-1',
+          userType: 'FNF',
+          emailAddress: 'fnf@example.com',
+          firstName: 'Bob',
+          fullName: 'Bob Friend',
+        },
+        'org-1'
+      );
+
+      expect(notify.mock.calls.length).toBeGreaterThan(0);
+      const callArg = notify.mock.calls[0][0];
+      expect(callArg.template).toBe('WELCOME_USER');
+      expect(callArg.templateData.FNF_FIRST_NAME).toBe('Bob');
+      expect(callArg.templateData.WEB_DNS_URL).toBe('https://app.test');
+      expect(callArg.templateData.HOSPITAL_ID).toBe('org-1');
+      expect(callArg.templateData.USER_NAME).toBe('Bob Friend');
+
+      delete process.env.WEB_URL;
     });
   });
 

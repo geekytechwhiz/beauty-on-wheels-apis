@@ -144,10 +144,10 @@ export class UserService {
       await this.repository.assignUserToOrganization(user);
 
       try {
-        const isStaff = String(user.userType || '').toUpperCase() === 'STAFF';
+        const userTypeUpper = String(user.userType || '').toUpperCase();
+        const isStaff = userTypeUpper === 'STAFF';
         const template = isStaff ? 'WELCOME_STAFF' : 'WELCOME_USER';
 
-        // Normalize phone for notifications (ensure international format when country code present)
         let notifyPhone: string | undefined = undefined;
         if (user.phoneNumber) {
           const pc = String(user.phoneCode || '').trim();
@@ -167,6 +167,49 @@ export class UserService {
           ...(deviceToken ? ['push'] : []),
         ];
 
+        // Organization fields
+        const orgAddress = orgDetails?.organizationAddress || orgDetails?.address || '';
+        const orgInfo = orgDetails?.contactInfo || orgDetails?.info || orgDetails?.description || '';
+
+        // Base template data
+        const baseTemplateData: Record<string, unknown> = {
+          userType: user.userType,
+          mrn: (user as any).mrn,
+          ORG_NAME: orgDetails?.name || '',
+          ORG_INFO: orgInfo,
+        };
+
+        // Extend templateData based on user type (STAFF / USER / FNF)
+        const templateData: Record<string, unknown> = { ...baseTemplateData };
+
+        if (userTypeUpper === 'STAFF') {
+          Object.assign(templateData, {
+            STAFF_FIRST_NAME: user.firstName,
+            PORTAL_LINK: process.env.PORTAL_LINK || '',
+            ORG_ADDRESS: orgAddress,
+          });
+        } else if (userTypeUpper === 'FNF') {
+          Object.assign(templateData, {
+            WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
+            HOSPITAL_ID: orgDetails?.organizationID || '',
+            TYPE: channels.includes('email') ? 'email' : channels.includes('sms') ? 'sms' : '',
+            DEVICE: deviceToken ? '&rpm=true' : '',
+            ORG_ADDRESS: orgAddress,
+            FNF_FIRST_NAME: user.firstName,
+            USER_NAME: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          });
+        } else {
+          // default USER and others
+          Object.assign(templateData, {
+            WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
+            HOSPITAL_ID: orgDetails?.organizationID || '',
+            TYPE: channels.includes('email') ? 'email' : channels.includes('sms') ? 'sms' : '',
+            DEVICE: deviceToken ? '&rpm=true' : '',
+            ORG_ADDRESS: orgAddress,
+            USER_FIRST_NAME: user.firstName,
+          });
+        }
+
         await notifyUser({
           userId: user.userID,
           email: user.emailAddress,
@@ -175,14 +218,7 @@ export class UserService {
           deviceToken,
           channels,
           template,
-          templateData: {
-            userType: user.userType,
-            mrn: (user as any).mrn,
-            ORG_NAME: orgDetails?.name || '',
-            STAFF_FIRST_NAME: user.firstName,
-            PORTAL_LINK: process.env.PORTAL_LINK || '',
-            ORG_INFO: orgDetails?.info || orgDetails?.description || '',
-          },
+          templateData,
           correlationId,
         });
       } catch (notifyErr) {

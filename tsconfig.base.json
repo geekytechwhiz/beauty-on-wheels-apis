@@ -21,7 +21,8 @@
     "paths": {
       "@api-hub/logger": ["libs/logger/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"],
-      "@api-hub/fhir": ["libs/fhir/src/index.ts"]
+      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
+      "@api-hub/error-messages": ["libs/error-messages/src/index.ts"]
     }
   }
 }

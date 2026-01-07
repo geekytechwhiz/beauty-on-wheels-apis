@@ -1,0 +1,121 @@
+/**
+ * {{Resource}} Handler
+ * GET /fhir/{{Resource}}/{{id}}
+{{#if hasQueryParams}}
+ * Query Parameters: {{queryParamsList}}
+{{/if}}
+ */
+
+import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { to{{Resource}} } from '@api-hub/fhir';
+import { {{ServiceName}}ServiceClient, {{Resource}}NotFoundError } from '../services/{{serviceName}}.client';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { problem } from '../utils/response';
+import { getAccessTokenFromHeaders } from '../utils/helper';
+
+const baseLogger = createLogger({ service: 'fhir-gateway', redactPII: true });
+const {{serviceNameCamel}}ServiceClient = new {{ServiceName}}ServiceClient();
+
+export async function main(
+  event: APIGatewayProxyEvent,
+  context?: Context
+): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const {{resourceId}} = event.pathParameters?.{{idParam}};
+  {{#if hasQueryParams}}
+  {{#each queryParams}}
+  const {{variableName}} = event.queryStringParameters?.{{name}};
+  {{/each}}
+  {{/if}}
+  const authHeader = getAccessTokenFromHeaders(event.headers || {});
+
+  if (!{{resourceId}}) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/fhir/{{Resource}}/{{id}}', 400, duration, correlationId);
+    return problem({
+      title: 'Invalid request',
+      status: 400,
+      detail: '{{Resource}} ID is required',
+      correlationId,
+      code: 'BAD_REQUEST',
+    });
+  }
+
+  {{#if hasRequiredQueryParams}}
+  {{#each requiredQueryParams}}
+  if (!{{variableName}}) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/fhir/{{Resource}}/{{id}}', 400, duration, correlationId);
+    return problem({
+      title: 'Invalid request',
+      status: 400,
+      detail: '{{description}} is required',
+      correlationId,
+      code: 'BAD_REQUEST',
+    });
+  }
+  {{/each}}
+  {{/if}}
+
+  if (!authHeader) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/fhir/{{Resource}}/{{id}}', 401, duration, correlationId);
+    return problem({
+      title: 'Unauthorized',
+      status: 401,
+      detail: 'Access token is required',
+      correlationId,
+      code: 'UNAUTHORIZED',
+    });
+  }
+
+  const logger = createChildLogger(baseLogger, { correlationId, {{resourceId}}{{#if hasQueryParams}}, {{queryParamsLogList}}{{/if}}, ...(awsRequestId && { awsRequestId }) });
+  logger.info({ event: 'fhir_{{resource}}_get_received' });
+
+  try {
+    const {{dtoVariable}} = await {{serviceNameCamel}}ServiceClient.get{{Resource}}({{resourceId}}{{#if hasQueryParams}}, {{queryParamsCallList}}{{/if}}, correlationId, authHeader);
+    const baseUrl = event.requestContext?.domainName
+      ? `https://${event.requestContext.domainName}${event.requestContext.path?.replace(/\/fhir\/{{Resource}}\/.*$/, '') || ''}`
+      : undefined;
+    const {{resourceVariable}} = to{{Resource}}({{dtoVariable}}{{#if adapterParams}}, {{adapterParamsList}}{{/if}}, baseUrl);
+
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/fhir/{{Resource}}/${ {{resourceId}} }`, 200, duration, correlationId);
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/fhir+json',
+        'X-Correlation-Id': correlationId,
+      },
+      body: JSON.stringify({{resourceVariable}}),
+    };
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if (err instanceof {{Resource}}NotFoundError) {
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/fhir/{{Resource}}/${ {{resourceId}} }`, 404, duration, correlationId);
+      return problem({
+        title: '{{Resource}} not found',
+        status: 404,
+        detail: err.message,
+        correlationId,
+        code: '{{RESOURCE}}_NOT_FOUND',
+      });
+    }
+    logger.error({ event: 'fhir_{{resource}}_get_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/fhir/{{Resource}}/${ {{resourceId}} }`, 500, duration, correlationId);
+    return problem({
+      title: 'Failed to get {{resource}}',
+      status: 500,
+      detail: (err as Error)?.message || 'Unknown error',
+      correlationId,
+      code: 'GET_{{RESOURCE}}_FAILED',
+    });
+  }
+}
+

@@ -1,0 +1,183 @@
+# FHIR Mapping Configuration Example
+# This is a complete, ready-to-use configuration file for generating FHIR mapping code
+# Replace the values with your actual microservice details
+
+service:
+  # Service name in kebab-case (used for file names and class names)
+  name: "medication-service"
+  
+  # Base URL for the service (can use environment variables)
+  baseUrl: "${env:MEDICATION_SERVICE_URL, 'http://localhost:3001'}"
+  
+  # API endpoint path (use {id} or {resourceId} for path parameters)
+  apiEndpoint: "/medications/{id}"
+  
+  # HTTP method
+  method: "GET"
+  
+  # Whether authentication is required
+  authRequired: true
+  
+  # TypeScript type name for the response DTO
+  responseType: "MedicationDTO"
+  
+  # Optional query parameters
+  queryParameters:
+    - name: "includeHistory"
+      type: "boolean"
+      optional: true
+      description: "Include medication history in response"
+
+fhirResource:
+  # FHIR resource type (Patient, Medication, Observation, etc.)
+  resourceType: "Medication"
+  
+  # Category for organizing adapters (identity, medication, observation, etc.)
+  category: "medication"
+  
+  # Path segment for FHIR endpoint (/fhir/{path}/{id})
+  path: "medication"
+
+# Field mappings from your API response to FHIR resource
+mappings:
+  # 1. Direct ID mapping (simple field copy)
+  - source: "medicationId"
+    target: "id"
+    transformation: "dto.medicationId"
+    description: "Medication unique identifier"
+  
+  # 2. Status mapping with custom transformation function
+  - source: "status"
+    target: "status"
+    transformation: "mapMedicationStatus(dto.status)"
+    description: "Map status to FHIR medication status"
+  
+  # 3. CodeableConcept mapping (using utility function)
+  - source: "code"
+    target: "code"
+    transformation: |
+      createCodeableConcept(
+        'http://www.nlm.nih.gov/research/umls/rxnorm',
+        dto.code,
+        dto.codeDisplay
+      )
+    utilityFunctions:
+      - "createCodeableConcept"
+    description: "Medication code using RxNorm coding system"
+  
+  # 4. Optional form mapping with condition
+  - source: "form"
+    target: "form"
+    transformation: |
+      createCodeableConcept(
+        'http://terminology.hl7.org/CodeSystem/v3-orderableDrugForm',
+        dto.form?.toLowerCase().replace(/\s+/g, '-'),
+        dto.form
+      )
+    optional: true
+    condition: "dto.form"
+    utilityFunctions:
+      - "createCodeableConcept"
+    description: "Medication form (tablet, capsule, etc.)"
+  
+  # 5. Reference mapping (ID to FHIR Reference)
+  - source: "manufacturer"
+    target: "manufacturer"
+    transformation: |
+      createReference('Organization', dto.manufacturer.id, dto.manufacturer.name)
+    condition: "dto.manufacturer"
+    utilityFunctions:
+      - "createReference"
+    description: "Manufacturer organization reference"
+  
+  # 6. Array mapping with complex transformation
+  - source: "ingredients"
+    target: "ingredient"
+    transformation: |
+      dto.ingredients?.map(ing => ({
+        item: createReference('Substance', ing.id, ing.name),
+        ...(ing.strength && {
+          strength: {
+            numerator: { 
+              value: parseFloat(ing.strength.split(' ')[0]), 
+              unit: ing.strength.split(' ')[1] || 'mg' 
+            }
+          }
+        })
+      }))
+    optional: true
+    condition: "dto.ingredients && dto.ingredients.length > 0"
+    isArray: true
+    utilityFunctions:
+      - "createReference"
+    description: "Medication ingredients array"
+  
+  # 7. Date transformation example
+  - source: "expirationDate"
+    target: "batch.expirationDate"
+    transformation: "toFhirDate(dto.expirationDate)"
+    optional: true
+    condition: "dto.expirationDate"
+    utilityFunctions:
+      - "toFhirDate"
+    description: "Expiration date in FHIR format"
+  
+  # 8. Nested object mapping
+  - source: "batch"
+    target: "batch"
+    transformation: |
+      dto.batch ? {
+        lotNumber: dto.batch.lotNumber,
+        expirationDate: toFhirDate(dto.batch.expirationDate)
+      } : undefined
+    optional: true
+    condition: "dto.batch"
+    isComplex: true
+    utilityFunctions:
+      - "toFhirDate"
+    description: "Batch information"
+
+# Custom transformation functions
+# These will be included in the generated adapter file
+customTransformations:
+  - name: "mapMedicationStatus"
+    parameters:
+      - name: "status"
+        type: "string"
+    returnType: "'active' | 'inactive' | 'entered-in-error'"
+    description: "Map internal status to FHIR medication status"
+    code: |
+      function mapMedicationStatus(status: string): 'active' | 'inactive' | 'entered-in-error' {
+        const normalized = status?.toLowerCase().trim();
+        if (normalized === 'active' || normalized === 'available') {
+          return 'active';
+        }
+        if (normalized === 'inactive' || normalized === 'discontinued') {
+          return 'inactive';
+        }
+        return 'entered-in-error';
+      }
+
+# Generation options
+generation:
+  # Files to generate
+  generateFiles:
+    - "service-client"  # HTTP client for calling microservice
+    - "adapter"          # DTO to FHIR transformation
+    - "handler"          # Lambda handler function
+  
+  # Generation options
+  options:
+    addComments: true      # Add helpful comments
+    addJSDoc: true         # Add JSDoc documentation
+    includeValidation: true # Include input validation
+    formatCode: true       # Format with Prettier
+
+# AI/LLM configuration (optional - for future AI features)
+ai:
+  enabled: false           # Set to true when AI integration is added
+  model: "gpt-4"
+  temperature: 0.3
+  maxTokens: 2000
+  useForMissingMappings: false
+

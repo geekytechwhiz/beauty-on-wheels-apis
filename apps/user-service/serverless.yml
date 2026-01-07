@@ -27,6 +27,7 @@ provider:
 
   environment:
     USER_TABLE: user-table-${self:provider.stage}
+    OLD_USER_TABLE: ${self:provider.stage}_global_common_user_data
     USER_FILES_BUCKET: user-files-bucket-${self:provider.stage}
     USER_REMINDERS_QUEUE: user-reminders-queue-${self:provider.stage}
     EVENT_BUS: user-service-bus-${self:provider.stage}
@@ -56,6 +57,8 @@ provider:
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-*
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-*/index/*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_user_data
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_user_data/index/*
 
     # S3 (user files)
     - Effect: Allow
@@ -201,6 +204,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Create a new user
             description: Creates a new user in the system with the provided information

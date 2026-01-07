@@ -18,14 +18,11 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
-  
-  logger.info({ event: 'createUser_received' });
+  logger.info({ event: 'createUser_received', eventData: event });
 
-  let body: unknown;
+  let body: any;
   try {
-    logger.info({ event: 'createUser_body_received', body: event.body });
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-    logger.info({ event: 'createUser_body_parsed', bodyType: typeof body, hasBody: !!body });
   } catch (err) {
     logger.error({ event: 'createUser_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
@@ -39,6 +36,22 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     });
   }
 
+  if (!body?.organizationID) {
+    if ((event as any).organizationID) {
+      body.organizationID = (event as any).organizationID;
+    } else if ((event as any).requestContext?.authorizer?.organizationID) {
+      body.organizationID = (event as any).requestContext.authorizer.organizationID;
+    }
+  }
+
+  if (!body?.userID) {
+    if ((event as any).userID) {
+      body.userID = (event as any).userID;
+    } else if ((event as any).requestContext?.authorizer?.userID) {
+      body.userID = (event as any).requestContext.authorizer.userID;
+    }
+  }
+  logger.info({ event: 'createUser_organization_check', organizationID: body.organizationID, userID: body.userID });
   const validation = createUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });
@@ -58,14 +71,28 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   try {
-    const result = await userService.createUser(
-      {
-        userID: validation.data.userId,
-        emailAddress: validation.data.email,
-        fullName: validation.data.name,
-      },
-      correlationId
-    );
+    const { userInfo, userRole, userType } = validation.data;
+    const userData = {
+      fullName: userInfo.name,
+      namePrefix: userInfo.namePrefix,
+      profilePic: userInfo.profilePic,
+      code: userInfo.code,
+      licenseNumber: userInfo.licenseNumber,
+      emailAddress: userInfo.contact.email,
+      phoneNumber: userInfo.contact.phone,
+      phoneCode: userInfo.contact.phoneCode,
+      workingHours: userInfo.workingHours,
+      dateOfBirth: userInfo.dateOfBirth,
+      department: userInfo.department,
+      gender: userInfo.gender,
+      specialty: userInfo.specialty,
+      slotDurationInMinutes: userInfo.slotDurationInMinutes,
+      experienceInYears: userInfo.experienceInYears,
+      bio: userInfo.bio,
+      userRole: userRole,
+      userType: userType
+    };
+    const result = await userService.createUser(userData, body.organizationID, body.userID, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
     return created(result, { requestId: correlationId, message: 'User created' });
@@ -113,7 +140,7 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'getUser_received' });
+  logger.info({ event: 'getUser_received', eventData: event });
 
   try {
     const result = await userService.getUser(userId);
@@ -164,7 +191,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'updateUser_received' });
+  logger.info({ event: 'updateUser_received', eventData: event });
 
   let body: unknown;
   try {
@@ -249,7 +276,7 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'deleteUser_received' });
+  logger.info({ event: 'deleteUser_received', eventData: event });
 
   try {
     await userService.deleteUser(userId, correlationId);
@@ -286,7 +313,7 @@ export async function assignUserToOrganization(event: APIGatewayProxyEvent, cont
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   
-  logger.info({ event: 'assignUserToOrg_received' });
+  logger.info({ event: 'assignUserToOrg_received', eventData: event });
 
   let body: unknown;
   try {
@@ -371,7 +398,7 @@ export async function listUserOrganizations(event: APIGatewayProxyEvent, context
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'listUserOrgs_received' });
+  logger.info({ event: 'listUserOrgs_received', eventData: event });
 
   try {
     const result = await userService.listUserOrganizations(userId);
@@ -423,7 +450,7 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'updateUserMetadata_received' });
+  logger.info({ event: 'updateUserMetadata_received', eventData: event });
 
   let body: unknown;
   try {
@@ -508,7 +535,7 @@ export async function listUserFiles(event: APIGatewayProxyEvent, context?: Conte
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'listUserFiles_received' });
+  logger.info({ event: 'listUserFiles_received', eventData: event });
 
   try {
     const result = await userService.listUserFiles(userId);

@@ -8,6 +8,27 @@ const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 const USER_TABLE_NAME = process.env.USER_TABLE || '';
 
+type UserDBItem = User & {
+  pk: string;
+  sk: string;
+}
+
+function modifyIndexesUsers(user: User): UserDBItem {
+  return {
+    ...user,
+    pk: `ORG#${user.organizationID}`,
+    sk: `USER#${user.userID}`,
+  }
+}
+
+function modifyIndexesUserOrg(user: User): UserDBItem {
+  return {
+    ...user,
+    pk: `USER#${user.userID}`,
+    sk: `ORG#${user.organizationID}`,
+  }
+}
+
 function userPk(userId: string): string {
   return `USER#${userId}`;
 }
@@ -16,9 +37,9 @@ function userDetailsSk(): string {
   return 'USER_DETAILS';
 }
 
-function userOrgSk(organizationId: string): string {
-  return `USER_ORG#${organizationId}`;
-}
+// function userOrgSk(organizationId: string): string {
+//   return `USER_ORG#${organizationId}`;
+// }
 
 function userMetadataSk(): string {
   return 'USER_METADATA';
@@ -30,8 +51,7 @@ function userFileSk(fileId: string): string {
 
 export class UserRepository {
   async createUser(user: User): Promise<void> {
-    // Save all fields from User model for userCreated
-    const item = { ...user };
+    const item = modifyIndexesUsers(user);
     try {
       await docClient.send(
         new PutCommand({
@@ -155,16 +175,8 @@ export class UserRepository {
     }
   }
 
-  async assignUserToOrganization(userId: string, organizationId: string): Promise<void> {
-    const now = new Date().toISOString();
-    const item = {
-      pk: userPk(userId),
-      sk: userOrgSk(organizationId),
-      userId,
-      organizationId,
-      assignedAt: now,
-      itemType: 'USER_ORG',
-    };
+  async assignUserToOrganization(user: User): Promise<void> {
+    const item = modifyIndexesUserOrg(user);
 
     try {
       await docClient.send(
@@ -173,10 +185,8 @@ export class UserRepository {
           Item: item,
         }),
       );
-      const logger = createChildLogger(baseLogger, { userId, organizationId });
-      logger.info({ event: 'user_org_assigned', message: 'User assigned to organization' });
     } catch (err) {
-      const logger = createChildLogger(baseLogger, { userId, organizationId });
+      const logger = createChildLogger(baseLogger, { userId: user.userID, organizationId: user.organizationID });
       logger.error({
         event: 'user_org_assign_error',
         err: serializeError(err),
@@ -199,7 +209,7 @@ export class UserRepository {
         }),
       );
 
-      return result?.Items;
+      return (result?.Items ?? []) as UserOrganization[];
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
       logger.error({ event: 'user_orgs_list_error', err: serializeError(err), message: 'Failed to list user organizations' });
@@ -307,7 +317,7 @@ export class UserRepository {
         }),
       );
 
-      return result.Items;
+      return (result.Items ?? []) as UserFile[];
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
       logger.error({ event: 'user_files_list_error', err: serializeError(err), message: 'Failed to list user files' });

@@ -1,9 +1,78 @@
 import { z } from 'zod';
 
 export const createUserSchema = z.object({
-  userId: z.string().uuid(),
-  email: z.string().email(),
-  name: z.string().min(1),
+  userInfo: z.object({
+    name: z.string().min(1),
+    namePrefix: z.string().optional(),
+    code: z.string().optional(),
+    profilePic: z.string().optional(),
+    licenseNumber: z.string().optional(),
+    contact: z.object({
+      email: z.string().email(),
+      phone: z.string(),
+      phoneCode: z.string().optional(),
+    }),
+    workingHours: z.object({
+      monday: z.object({
+        available: z.boolean(),
+        availableHours: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+        })).optional(),
+      }),
+      tuesday: z.object({
+        available: z.boolean(),
+        availableHours: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+        })).optional(),
+      }),
+      wednesday: z.object({
+        available: z.boolean(),
+        availableHours: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+        })).optional(),
+      }),
+      thursday: z.object({
+        available: z.boolean(),
+        availableHours: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+        })).optional(),
+      }),
+      friday: z.object({
+        available: z.boolean(),
+        availableHours: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+        })).optional(),
+      }),
+      saturday: z.object({
+        available: z.boolean(),
+        availableHours: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+        })).optional(),
+      }),
+      sunday: z.object({
+        available: z.boolean(),
+        availableHours: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+        })).optional(),
+      }),
+    }),
+    dateOfBirth: z.string().optional(),
+    department: z.string().optional(),
+    gender: z.string().optional(),
+    specialty: z.string().optional(),
+    slotDurationInMinutes: z.number().optional(),
+    experienceInYears: z.string().optional(),
+    bio: z.string().optional(),
+  }),
+  userRole: z.array(z.string()),
+  userType: z.string(),
 });
 
 export const updateUserSchema = z.object({

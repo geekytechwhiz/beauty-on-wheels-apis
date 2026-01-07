@@ -1,109 +1,233 @@
 import { UserRepository } from '../repositories/user.repository';
+import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
-import { createUserSchema } from '../validation/user.validation';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
+import { ulid } from 'ulid';
+import { notifyUser } from './notification.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+function generateSortableId() {
+  const now = Date.now();
+  const timePart = now.toString(36).toUpperCase().padStart(6, '0');
+  const randomPart = Math.floor(Math.random() * 1_000_000).toString().padStart(6, '0');
+  return `${timePart}${randomPart}`;
+}
+
+function generateMRN() {
+  return `PI-${generateSortableId()}`;
+}
 
 export class UserService {
   private repository: UserRepository;
+  private organizationRepository: OrganizationRepository;
 
   constructor() {
     this.repository = new UserRepository();
+    this.organizationRepository = new OrganizationRepository();
   }
 
-  async createUser(data: Partial<User>, correlationId?: string): Promise<User> {
-    // Validate input using Zod
-    const validation = createUserSchema.safeParse({
-      userId: data.userID,
-      email: data.emailAddress,
-      name: data.fullName ?? data.firstName ?? '',
-    });
-    if (!validation.success) {
-      throw new Error('Validation failed: ' + JSON.stringify(validation.error.issues));
-    }
-
+  async createUser(data: Partial<User>, organizationID?: string, invitedBy?: string, correlationId?: string): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
-    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID });
+    // Generate ULID if userID is not provided
+    if (!data.userID) {
+      data.userID = data.code || ulid();
+    }
+    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID, organizationID, invitedBy });
     logger.info({ event: 'service_createUser_start' });
 
     try {
-      if (!data.userID) throw new Error('userID is required');
+      if (!organizationID) throw new Error('organizationID is required');
+      data.organizationID = organizationID;
+      const orgDetails = await this.organizationRepository.getOrganization(data?.organizationID || '');
+      if (!orgDetails) {
+        throw new Error('Organization does not exist');
+      }
+      if (orgDetails.status && ['on_hold', 'disabled', 'not_exist'].includes(String(orgDetails.status).toLowerCase())) {
+        throw new Error('Organization is not available');
+      }
+
+      // Check if user already exists
       const existing = await this.repository.getUser(data.userID);
       if (existing) {
         throw new UserAlreadyExistsError(data.userID);
       }
 
-      // Cognito integration via CognitoService
-      if (data.emailAddress) {
+      // Normalize legacy aliases
+      if (!data.emailAddress && (data as any).email) data.emailAddress = (data as any).email;
+      if (!data.phoneNumber && (data as any).phone_number) data.phoneNumber = String((data as any).phone_number).trim();
+
+      // Cognito integration via CognitoService: check email and phone one-by-one; if any exists in Cognito, throw error
+      const normalizedEmail = data.emailAddress ? String(data.emailAddress).trim().toLowerCase() : '';
+      const normalizedPhone = data.phoneNumber ? String((data.phoneCode || '') + data.phoneNumber).replace(/\s+/g, '') : '';
+
+      const userTypeUpper = String(data.userType || '').toUpperCase();
+
+      // STAFF: email required
+      if (userTypeUpper === 'STAFF' && !normalizedEmail) {
+        throw new Error('STAFF must have an email address');
+      }
+
+      // USER / FNF must have at least one identifier
+      if ((userTypeUpper === 'USER' || userTypeUpper === 'FNF') && !normalizedEmail && !normalizedPhone) {
+        throw new Error('Either email or phone number is required for USER/FNF');
+      }
+
+      // If user is a patient (USER) ensure MRN exists (generate if missing)
+      if ((userTypeUpper === 'USER' || String(data.itemType || '').toUpperCase() === 'USER') && !(data as any).mrn) {
+        (data as any).mrn = generateMRN();
+      }
+
+      if (normalizedEmail || normalizedPhone) {
         try {
           const cognitoService = new CognitoService(
             process.env.DEFAULT_AWS_REGION || 'us-east-1',
             process.env.COGNITO_USER_POOL_ID || ''
           );
-          const exists = await cognitoService.userExists(data.emailAddress);
-          if (!exists) {
-            await cognitoService.createUser(data.emailAddress);
-            logger.info({ event: 'service_createUser_cognito_success', email: data.emailAddress });
-          } else {
-            logger.info({ event: 'service_createUser_cognito_user_exists', email: data.emailAddress });
+
+          if (normalizedEmail) {
+            const existsEmail = await cognitoService.userExistsIdentifier(normalizedEmail);
+            if (existsEmail) {
+              throw new UserAlreadyExistsError(normalizedEmail);
+            }
           }
+
+          if (normalizedPhone) {
+            const existsPhone = await cognitoService.userExistsIdentifier(normalizedPhone);
+            if (existsPhone) {
+              throw new UserAlreadyExistsError(normalizedPhone);
+            }
+          }
+
+          // Create user in Cognito with attributes (prefer email as username)
+          const username = normalizedEmail || normalizedPhone;
+          await cognitoService.createUser(username, { email: normalizedEmail || undefined, phoneNumber: normalizedPhone || undefined });
+          logger.info({ event: 'service_createUser_cognito_success', email: normalizedEmail, phone: normalizedPhone, username });
         } catch (err) {
+          if (err instanceof UserAlreadyExistsError) {
+            logger.error({ event: 'service_createUser_cognito_error', email: normalizedEmail, phone: normalizedPhone, err: serializeError(err) });
+            throw err;
+          }
+
           logger.error({
             event: 'service_createUser_cognito_error',
-            email: data.emailAddress,
+            email: normalizedEmail,
+            phone: normalizedPhone,
             err: serializeError(err),
-            message: 'Failed to create user in Cognito, continuing with DynamoDB user creation',
+            message: 'Failed to create user in Cognito',
           });
-          // In production, you might want to throw here to prevent user creation without Cognito
-          // For now, we'll log and continue to allow graceful degradation
-          // throw err;
         }
       }
 
-        // Build user object with pk/sk and all fields for userCreated
-        const now = Date.now();
-        const user: User = {
-          pk: `USER#${data.userID}`,
-          sk: `USER_BASIC_DETAILS#${data.organizationID}`,
-          ...data,
-          createdDate: data.createdDate ?? now,
-          modifiedDate: data.modifiedDate ?? now,
-          isActive: data.isActive ?? true,
-          isLoggedIn: data.isLoggedIn ?? false,
-          isRegisteredCompletely: data.isRegisteredCompletely ?? false,
-          isRpmUser: data.isRpmUser ?? false,
-          isTaskCompleted: data.isTaskCompleted ?? false,
-          changePassword: data.changePassword ?? true,
-          logoutRequired: data.logoutRequired ?? false,
-          itemType: data.itemType ?? 'USER',
-        } as User;
+      // Build user object with correct PK/SK and all fields
+      const now = Date.now();
+      const user: User = {
+        ...data,
+        createdDate: data.createdDate ?? now,
+        modifiedDate: data.modifiedDate ?? now,
+        isActive: data.isActive ?? true,
+        isLoggedIn: data.isLoggedIn ?? false,
+        isRegisteredCompletely: data.isRegisteredCompletely ?? false,
+        isRpmUser: data.isRpmUser ?? false,
+        isTaskCompleted: data.isTaskCompleted ?? false,
+        changePassword: data.changePassword ?? true,
+        logoutRequired: data.logoutRequired ?? false,
+        itemType: data.itemType ?? 'USER',
+      } as User;
 
-        await this.repository.createUser(user);
+      await this.repository.createUser(user);
 
-        await publishEvent(
-          {
-            eventId: randomUUID(),
-            eventType: 'UserCreated.v1',
-            occurredAt: new Date().toISOString(),
-            source: 'user-service',
-            correlationId,
-            data: {
-              userId: user.userID,
-              email: user.emailAddress,
-              name: user.fullName ?? user.firstName ?? '',
-            },
-          },
+      // Add user-organization mapping (future multi-org support)
+      await this.repository.assignUserToOrganization(user);
+
+      try {
+        const userTypeUpper = String(user.userType || '').toUpperCase();
+        const isStaff = userTypeUpper === 'STAFF';
+        const template = isStaff ? 'WELCOME_STAFF' : 'WELCOME_USER';
+
+        let notifyPhone: string | undefined = undefined;
+        if (user.phoneNumber) {
+          const pc = String(user.phoneCode || '').trim();
+          const pn = String(user.phoneNumber || '').trim();
+          if (pc) {
+            notifyPhone = pc.startsWith('+') ? `${pc}${pn}` : `+${pc}${pn}`;
+          } else {
+            notifyPhone = pn;
+          }
+        }
+
+        const deviceToken = (user as any).deviceToken || (user as any).device || undefined;
+
+        const channels = [
+          ...(user.emailAddress ? ['email'] : []),
+          ...(notifyPhone ? ['sms'] : []),
+          ...(deviceToken ? ['push'] : []),
+        ];
+
+        // Organization fields
+        const orgAddress = orgDetails?.organizationAddress || orgDetails?.address || '';
+        const orgInfo = orgDetails?.contactInfo || orgDetails?.info || orgDetails?.description || '';
+
+        // Base template data
+        const baseTemplateData: Record<string, unknown> = {
+          userType: user.userType,
+          mrn: (user as any).mrn,
+          ORG_NAME: orgDetails?.name || '',
+          ORG_INFO: orgInfo,
+        };
+
+        // Extend templateData based on user type (STAFF / USER / FNF)
+        const templateData: Record<string, unknown> = { ...baseTemplateData };
+
+        if (userTypeUpper === 'STAFF') {
+          Object.assign(templateData, {
+            STAFF_FIRST_NAME: user.firstName,
+            PORTAL_LINK: process.env.PORTAL_LINK || '',
+            ORG_ADDRESS: orgAddress,
+          });
+        } else if (userTypeUpper === 'FNF') {
+          Object.assign(templateData, {
+            WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
+            HOSPITAL_ID: orgDetails?.organizationID || '',
+            TYPE: channels.includes('email') ? 'email' : channels.includes('sms') ? 'sms' : '',
+            DEVICE: deviceToken ? '&rpm=true' : '',
+            ORG_ADDRESS: orgAddress,
+            FNF_FIRST_NAME: user.firstName,
+            USER_NAME: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          });
+        } else {
+          // default USER and others
+          Object.assign(templateData, {
+            WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
+            HOSPITAL_ID: orgDetails?.organizationID || '',
+            TYPE: channels.includes('email') ? 'email' : channels.includes('sms') ? 'sms' : '',
+            DEVICE: deviceToken ? '&rpm=true' : '',
+            ORG_ADDRESS: orgAddress,
+            USER_FIRST_NAME: user.firstName,
+          });
+        }
+
+        await notifyUser({
+          userId: user.userID,
+          email: user.emailAddress,
+          phone: notifyPhone,
+          name: user.fullName ?? user.firstName ?? '',
+          deviceToken,
+          channels,
+          template,
+          templateData,
           correlationId,
-        );
+        });
+      } catch (notifyErr) {
+        logger.warn({ event: 'service_createUser_notification_failed', err: serializeError(notifyErr) });
+      }
 
-        logger.info({ event: 'service_createUser_success' });
-        timer.end();
-        return user;
+      logger.info({ event: 'service_createUser_success' });
+      timer.end();
+      return user;
     } catch (err) {
       logger.error({ event: 'service_createUser_error', err: serializeError(err) });
       timer.end();
@@ -153,21 +277,21 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      await publishEvent(
-        {
-          eventId: randomUUID(),
-          eventType: 'UserProfileUpdated.v1',
-          occurredAt: new Date().toISOString(),
-          source: 'user-service',
+
+      // Best-effort notification that profile changed
+      try {
+        await notifyUser({
+          userId: updated.userID,
+          email: updates.email ?? updated.emailAddress,
+          name: updates.name ?? updated.fullName ?? updated.firstName,
+          channels: updates.email ? ['email'] : [],
+          template: 'PROFILE_UPDATED',
+          templateData: updates,
           correlationId,
-          data: {
-            userId: updated.userID,
-            email: updates.email,
-            name: updates.name,
-          },
-        },
-        correlationId,
-      );
+        });
+      } catch (notifyErr) {
+        logger.warn({ event: 'service_updateUser_notification_failed', err: serializeError(notifyErr) });
+      }
 
       logger.info({ event: 'service_updateUser_success' });
       timer.end();
@@ -226,7 +350,7 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      await this.repository.assignUserToOrganization(userId, organizationId);
+      await this.repository.assignUserToOrganization(existing);
       logger.info({ event: 'service_assignUserToOrg_success' });
       timer.end();
     } catch (err) {

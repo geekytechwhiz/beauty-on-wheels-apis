@@ -16,6 +16,7 @@ export interface User {
   bio?: string;
   bloodGroup?: string;
   changePassword?: boolean;
+  code?: string;
   city?: string;
   cloudOpt?: string;
   country?: string;

@@ -31,6 +31,7 @@ provider:
     USER_FILES_BUCKET: user-files-bucket-${self:provider.stage}
     USER_REMINDERS_QUEUE: user-reminders-queue-${self:provider.stage}
     EVENT_BUS: user-service-bus-${self:provider.stage}
+    USER_EVENTS_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
@@ -90,6 +91,13 @@ provider:
         - events:PutEvents
       Resource:
         - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/user-service-bus-${self:provider.stage}
+
+    # SNS (for notification events)
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
 
     # X-Ray
     - Effect: Allow
@@ -777,6 +785,20 @@ Resources:
         - Key: ManagedBy
           Value: serverless
 
+  # SNS Topic for User Notification Events
+  UserEventsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: user-events-topic-${self:provider.stage}
+      DisplayName: User Events Topic
+      Tags:
+        - Key: Service
+          Value: ${self:service}
+        - Key: Stage
+          Value: ${self:provider.stage}
+        - Key: ManagedBy
+          Value: serverless
+
 Outputs:
   UserRemindersQueueUrl:
     Description: URL of the User Reminders Queue
@@ -801,3 +823,9 @@ Outputs:
     Value: !Ref UserServiceBus
     Export:
       Name: ${self:provider.stage}-${self:service}-EventBusName
+
+  UserEventsTopicArn:
+    Description: ARN of the User Events SNS Topic
+    Value: !Ref UserEventsTopic
+    Export:
+      Name: ${self:provider.stage}-${self:service}-UserEventsTopicArn

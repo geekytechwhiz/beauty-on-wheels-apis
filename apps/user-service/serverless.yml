@@ -728,7 +728,7 @@ functions:
     memorySize: 256
     events:
       - sns:
-          arn: !Ref UserEventsTopic
+          arn: ${self:provider.environment.USER_EVENTS_TOPIC_ARN}
 
 resources:
   Resources:

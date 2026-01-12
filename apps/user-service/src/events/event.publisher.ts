@@ -39,6 +39,7 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
   };
 
   const message = JSON.stringify(envelope);
+  logger.info({ event: 'sns_publish_attempt', message: 'Publishing event to SNS', eventEnvelope: envelope });
   try {
     await sns.send(
       new PublishCommand({

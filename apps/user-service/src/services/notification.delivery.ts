@@ -9,7 +9,7 @@ let cachedSecrets: Record<string, any> | null = null;
 
 async function getSecrets(): Promise<Record<string, any>> {
   if (cachedSecrets) return cachedSecrets;
-  const secretName = process.env.NOTIFICATION_SECRET_NAME || process.env.SECRET_MANAGER_NAME;
+  const secretName = process.env.SECRET_MANAGER_NAME;
   const region = process.env.DEFAULT_REGION || process.env.DP_REGION || 'us-east-1';
   if (!secretName) throw new Error('Secret manager name not set (NOTIFICATION_SECRET_NAME or SECRET_MANAGER_NAME)');
 
@@ -113,7 +113,6 @@ export async function sendSms(options: { phone?: string; template?: string; temp
   try {
     const phone = resolvePhoneNumber({ phone: options.phone });
     const formattedPhone = normalizeIndianPhone(phone);
-    const secrets = await getSecrets();
 
     let message = '';
     try {
@@ -132,12 +131,12 @@ export async function sendSms(options: { phone?: string; template?: string; temp
     }
 
     const payload = {
-      dltContentId: secrets.DLT_COTENT_ID || secrets.DLT_CONTENT_ID || '',
+      dltContentId: process.env.DLT_CONTENT_ID || '',
       phoneNumber: formattedPhone,
       message,
     };
 
-    await axios({ method: 'POST', url: secrets.SMS_API_URL, timeout: 5000, headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, data: payload });
+    await axios({ method: 'POST', url: process.env.SMS_API_URL, timeout: 5000, headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, data: payload });
     logger.info({ event: 'send_sms_success', phone: formattedPhone });
     return { success: true };
   } catch (err) {

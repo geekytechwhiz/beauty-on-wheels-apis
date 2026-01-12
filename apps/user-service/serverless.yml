@@ -26,6 +26,8 @@ provider:
   logRetentionInDays: 14
 
   environment:
+    REGION: ${self:provider.region}
+    DEFAULT_TIMEZONE: Asia/Kolkata
     USER_TABLE: user-table-${self:provider.stage}
     OLD_USER_TABLE: ${self:provider.stage}_global_common_user_data
     USER_FILES_BUCKET: user-files-bucket-${self:provider.stage}
@@ -37,6 +39,10 @@ provider:
     DEFAULT_REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     DEFAULT_AWS_REGION: ${self:provider.region}
+    SECRET_STAGE: ${opt:secretStage, 'DEV'}
+    SECRET_MANAGER_NAME: ${opt:secretStage, 'DEV'}_DEMO_SECRETMANAGER 
+    SMS_API_URL: https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev
+    DLT_CONTENT_ID: 1207176413550655404
 
   tags:
     Service: ${self:service}

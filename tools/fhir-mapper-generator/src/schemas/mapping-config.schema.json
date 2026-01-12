@@ -1,0 +1,226 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "service": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Service name in kebab-case (e.g., medication-service)"
+        },
+        "baseUrl": {
+          "type": "string",
+          "description": "Base URL for the service API"
+        },
+        "apiEndpoint": {
+          "type": "string",
+          "description": "API endpoint path (e.g., /medications/{id})"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST"],
+          "default": "GET"
+        },
+        "responseType": {
+          "type": "string",
+          "description": "TypeScript type name for the response DTO"
+        },
+        "authRequired": {
+          "type": "boolean",
+          "default": true
+        },
+        "queryParameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "optional": {
+                "type": "boolean",
+                "default": false
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": ["name", "type"]
+          }
+        }
+      },
+      "required": ["name", "apiEndpoint"]
+    },
+    "fhirResource": {
+      "type": "object",
+      "properties": {
+        "resourceType": {
+          "type": "string",
+          "description": "FHIR resource type (e.g., Patient, Medication)"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category for organizing adapters (e.g., identity, medication)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path segment for FHIR endpoint (e.g., patient, medication)"
+        }
+      },
+      "required": ["resourceType"]
+    },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Source field path in DTO (e.g., userID, firstName)"
+          },
+          "target": {
+            "type": "string",
+            "description": "Target field path in FHIR resource (e.g., id, name[0].given[0])"
+          },
+          "transformation": {
+            "type": "string",
+            "description": "TypeScript code for transformation (optional if direct mapping)"
+          },
+          "optional": {
+            "type": "boolean",
+            "default": false
+          },
+          "condition": {
+            "type": "string",
+            "description": "Condition expression for conditional mapping"
+          },
+          "utilityFunctions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of utility functions required (e.g., createCodeableConcept)"
+          },
+          "description": {
+            "type": "string"
+          },
+          "isArray": {
+            "type": "boolean",
+            "default": false
+          },
+          "isComplex": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": ["source", "target"]
+      }
+    },
+    "customTransformations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": ["name", "type"]
+            }
+          },
+          "returnType": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "isPrivate": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": ["name", "code"]
+      }
+    },
+    "generation": {
+      "type": "object",
+      "properties": {
+        "generateFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["service-client", "adapter", "handler", "model", "dto-type", "fhir-model", "helper-methods"]
+          },
+          "default": ["service-client", "adapter", "handler"]
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "addComments": {
+              "type": "boolean",
+              "default": true
+            },
+            "addJSDoc": {
+              "type": "boolean",
+              "default": true
+            },
+            "includeValidation": {
+              "type": "boolean",
+              "default": true
+            },
+            "formatCode": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
+    },
+    "ai": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "model": {
+          "type": "string",
+          "default": "gpt-4"
+        },
+        "temperature": {
+          "type": "number",
+          "default": 0.3
+        },
+        "maxTokens": {
+          "type": "number",
+          "default": 2000
+        },
+        "useForMissingMappings": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": ["service", "fhirResource", "mappings"]
+}
+

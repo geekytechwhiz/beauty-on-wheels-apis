@@ -1,0 +1,276 @@
+service: fhir-gateway
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-fhir-gateway-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
+    USER_SERVICE_SERVICE_URL: ${env:USER_SERVICE_SERVICE_URL, 'http://localhost:3000'}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+    DEFAULT_AWS_REGION: ${self:provider.region}
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    # X-Ray
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+package:
+  individually: true
+  
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - Accept
+
+functions:
+  getUser:
+    handler: src/handlers/user.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/User/{id}
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Get user by ID (FHIR format)
+            description: Retrieves user information by user ID in FHIR R4 format
+            tags:
+              - FHIR
+              - Users
+            pathParameters:
+              - name: id
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User retrieved successfully in FHIR format
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+                    example:
+                      resourceType: "Person"
+                      id: "550e8400-e29b-41d4-a716-446655440000"
+                      identifier:
+                        - use: "usual"
+                          value: "550e8400-e29b-41d4-a716-446655440000"
+                      name:
+                        - use: "official"
+                          family: "Doe"
+                          given:
+                            - "John"
+                      telecom:
+                        - system: "email"
+                          value: "john.doe@example.com"
+              400:
+                description: Bad request - User ID is required
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+                    example:
+                      type: "about:blank"
+                      title: "Invalid request"
+                      status: 400
+                      detail: "User ID is required"
+                      code: "BAD_REQUEST"
+              401:
+                description: Unauthorized - Access token is required
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+                    example:
+                      type: "about:blank"
+                      title: "Unauthorized"
+                      status: 401
+                      detail: "Access token is required"
+                      code: "UNAUTHORIZED"
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+                    example:
+                      type: "about:blank"
+                      title: "User not found"
+                      status: 404
+                      detail: "User with ID 550e8400-e29b-41d4-a716-446655440000 not found"
+                      code: "USER_NOT_FOUND"
+              500:
+                description: Internal server error
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+                    example:
+                      type: "about:blank"
+                      title: "Failed to get user"
+                      status: 500
+                      detail: "An error occurred while retrieving the user"
+                      code: "GET_USER_FAILED"
+
+  listUserOrganizations:
+    handler: src/handlers/listuserorganizations.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/User/{id}/organizations
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List user organizations (FHIR format)
+            description: Retrieves all organizations associated with a user in FHIR R4 format
+            tags:
+              - FHIR
+              - Users
+              - Organizations
+            pathParameters:
+              - name: id
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User organizations retrieved successfully in FHIR format
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              400:
+                description: Bad request
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              500:
+                description: Internal server error
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+
+  listUserFiles:
+    handler: src/handlers/listuserfiles.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/User/{id}/files
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List user files (FHIR format)
+            description: Retrieves all files associated with a user in FHIR R4 format
+            tags:
+              - FHIR
+              - Users
+              - Files
+            pathParameters:
+              - name: id
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+            responses:
+              200:
+                description: User files retrieved successfully in FHIR format
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              400:
+                description: Bad request
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              404:
+                description: User not found
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+              500:
+                description: Internal server error
+                content:
+                  application/problem+json:
+                    schema:
+                      type: object
+

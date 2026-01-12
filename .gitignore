@@ -43,3 +43,8 @@ Thumbs.db
 
 vite.config.*.timestamp* 
 apps/user-service/.esbuild/
+apps/order-service/.esbuild/
+# Serverless build artifacts
+**/.serverless/
+
+test-output

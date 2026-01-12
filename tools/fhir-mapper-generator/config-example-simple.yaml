@@ -1,0 +1,40 @@
+# Simple Configuration Example
+# Minimal configuration for a basic mapping
+
+service:
+  name: "example-service"
+  apiEndpoint: "/resources/{id}"
+  method: "GET"
+  authRequired: true
+  responseType: "ResourceDTO"
+
+fhirResource:
+  resourceType: "Resource"
+  category: "identity"
+  path: "resource"
+
+# Basic field mappings
+mappings:
+  # Direct mapping
+  - source: "resourceId"
+    target: "id"
+    transformation: "dto.resourceId"
+  
+  # Simple transformation
+  - source: "name"
+    target: "name[0].text"
+    transformation: "dto.name"
+  
+  # Optional field
+  - source: "status"
+    target: "status"
+    transformation: "dto.status"
+    optional: true
+    condition: "dto.status"
+
+generation:
+  generateFiles:
+    - "service-client"
+    - "adapter"
+    - "handler"
+

@@ -1,0 +1,40 @@
+# FHIR Mapping Configuration
+# Generated from serverless.yml: ../../apps/user-service/serverless.yml
+# Function: getUser
+# Path: user/{userId}
+# 
+# ⚠️  This is a template - you need to:
+# 1. Update the apiEndpoint to match your actual microservice endpoint
+# 2. Add field mappings based on your API response structure
+# 3. Add custom transformations if needed
+# 4. Review and adjust FHIR resource type if needed
+
+service:
+  name: user-service
+  baseUrl: ${env:USER_SERVICE_SERVICE_URL, 'http://localhost:3000'}
+  apiEndpoint: /user/{id}
+  method: GET
+  authRequired: true
+  responseType: UserDTO
+fhirResource:
+  resourceType: User
+  category: identity
+  path: user
+mappings:
+  - source: userID
+    target: id
+    transformation: dto.userID
+    description: Resource ID mapping
+generation:
+  generateFiles:
+    - service-client
+    - adapter
+    - handler
+    - dto-type
+    - fhir-model
+    - helper-methods
+  options:
+    addComments: true
+    addJSDoc: true
+    includeValidation: true
+    formatCode: true

@@ -1,0 +1,203 @@
+# Example Mapping Configuration for Medication Service
+# This file demonstrates how to configure the FHIR Mapper Generator
+
+service:
+  name: "medication-service"
+  baseUrl: "${env:MEDICATION_SERVICE_URL, 'http://localhost:3001'}"
+  apiEndpoint: "/medications/{id}"
+  method: "GET"
+  authRequired: true
+  responseType: "MedicationDTO"
+  
+  # Additional API parameters if needed
+  queryParameters:
+    - name: "includeHistory"
+      type: "boolean"
+      optional: true
+
+fhirResource:
+  resourceType: "Medication"
+  category: "medication"  # Used for organizing adapters in libs/fhir/src/adapters/{category}/
+  path: "medication"      # Used in FHIR endpoint path: /fhir/{path}/{id}
+
+sourceSchema:
+  type: "object"
+  properties:
+    medicationId:
+      type: "string"
+      description: "Unique medication identifier"
+    code:
+      type: "string"
+      description: "Medication code"
+    codeDisplay:
+      type: "string"
+      description: "Human-readable medication name"
+    status:
+      type: "string"
+      enum: ["active", "inactive", "discontinued"]
+    form:
+      type: "string"
+      description: "Form of medication (tablet, capsule, etc.)"
+      optional: true
+    strength:
+      type: "string"
+      description: "Strength/dosage"
+      optional: true
+    manufacturer:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+        name:
+          type: "string"
+    ingredients:
+      type: "array"
+      items:
+        type: "object"
+        properties:
+          id:
+            type: "string"
+          name:
+            type: "string"
+          strength:
+            type: "string"
+            optional: true
+    batch:
+      type: "object"
+      optional: true
+      properties:
+        lotNumber:
+          type: "string"
+        expirationDate:
+          type: "string"
+
+# Field mappings from source schema to FHIR resource
+mappings:
+  # Direct ID mapping
+  - source: "medicationId"
+    target: "id"
+    transformation: "dto.medicationId"
+  
+  # Status mapping with transformation function
+  - source: "status"
+    target: "status"
+    transformation: "mapMedicationStatus(dto.status)"
+    customFunction: "mapMedicationStatus"
+  
+  # CodeableConcept for medication code
+  - source: "code"
+    target: "code"
+    transformation: |
+      createCodeableConcept(
+        'http://www.nlm.nih.gov/research/umls/rxnorm',
+        dto.code,
+        dto.codeDisplay
+      )
+    utilityFunctions:
+      - "createCodeableConcept"
+  
+  # Optional form mapping
+  - source: "form"
+    target: "form"
+    transformation: |
+      createCodeableConcept(
+        'http://terminology.hl7.org/CodeSystem/v3-orderableDrugForm',
+        dto.form?.toLowerCase().replace(/\s+/g, '-'),
+        dto.form
+      )
+    optional: true
+    condition: "dto.form"
+    utilityFunctions:
+      - "createCodeableConcept"
+  
+  # Strength as extension or ingredient strength
+  - source: "strength"
+    target: "ingredient[0].strength.numerator"
+    transformation: |
+      dto.strength ? { value: parseFloat(dto.strength.split(' ')[0]), unit: dto.strength.split(' ')[1] || 'mg' } : undefined
+    optional: true
+    condition: "dto.strength"
+  
+  # Manufacturer reference
+  - source: "manufacturer"
+    target: "manufacturer"
+    transformation: |
+      createReference('Organization', dto.manufacturer.id, dto.manufacturer.name)
+    condition: "dto.manufacturer"
+    utilityFunctions:
+      - "createReference"
+  
+  # Ingredients array mapping
+  - source: "ingredients"
+    target: "ingredient"
+    transformation: |
+      dto.ingredients?.map(ing => ({
+        item: createReference('Substance', ing.id, ing.name),
+        ...(ing.strength && {
+          strength: {
+            numerator: { value: parseFloat(ing.strength.split(' ')[0]), unit: ing.strength.split(' ')[1] || 'mg' }
+          }
+        })
+      }))
+    optional: true
+    condition: "dto.ingredients && dto.ingredients.length > 0"
+    utilityFunctions:
+      - "createReference"
+  
+  # Batch information
+  - source: "batch"
+    target: "batch"
+    transformation: |
+      dto.batch ? {
+        lotNumber: dto.batch.lotNumber,
+        expirationDate: toFhirDate(dto.batch.expirationDate)
+      } : undefined
+    optional: true
+    condition: "dto.batch"
+    utilityFunctions:
+      - "toFhirDate"
+
+# Custom transformation functions
+customTransformations:
+  - name: "mapMedicationStatus"
+    parameters:
+      - name: "status"
+        type: "string"
+    returnType: "'active' | 'inactive' | 'entered-in-error'"
+    code: |
+      function mapMedicationStatus(status: string): 'active' | 'inactive' | 'entered-in-error' {
+        const normalized = status?.toLowerCase().trim();
+        if (normalized === 'active' || normalized === 'available') {
+          return 'active';
+        }
+        if (normalized === 'inactive' || normalized === 'discontinued') {
+          return 'inactive';
+        }
+        return 'entered-in-error';
+      }
+
+# Additional configuration
+generation:
+  # Files to generate
+  generateFiles:
+    - "service-client"
+    - "adapter"
+    - "handler"
+    - "model"  # Optional: generate FHIR model if not exists
+  
+  # Options
+  options:
+    addComments: true
+    addJSDoc: true
+    includeValidation: true
+    formatCode: true
+
+# AI/LLM configuration (optional)
+ai:
+  enabled: true
+  model: "gpt-4"  # or "gpt-3.5-turbo", "claude-3-opus", etc.
+  temperature: 0.3
+  maxTokens: 2000
+  # Use AI for complex mappings that aren't explicitly defined
+  useForMissingMappings: true
+

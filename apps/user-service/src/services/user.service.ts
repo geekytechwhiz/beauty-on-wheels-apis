@@ -135,7 +135,7 @@ export class UserService {
         isTaskCompleted: data.isTaskCompleted ?? false,
         changePassword: data.changePassword ?? true,
         logoutRequired: data.logoutRequired ?? false,
-        itemType: data.itemType ?? 'USER',
+        itemType: data.userType ?? 'USER',
       } as User;
 
       await this.repository.createUser(user);

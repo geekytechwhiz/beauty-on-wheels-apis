@@ -29,7 +29,7 @@ interface UserCreatedNotificationRequestedData {
 - `EMAIL_API_URL`
 - `AUTHORIZATION_KEY`
 - `SMS_API_URL`
-- `DLT_COTENT_ID` (or `DLT_CONTENT_ID`)
+- `DLT_CONTENT_ID` (or `DLT_CONTENT_ID`)
 
 ## Tests
 

@@ -722,6 +722,14 @@ functions:
     #       startingPosition: LATEST
     #       functionResponseType: ReportBatchItemFailures
 
+  notificationConsumer:
+    handler: src/consumers/notification.consumer.handler
+    timeout: 30
+    memorySize: 256
+    events:
+      - sns:
+          arn: !Ref UserEventsTopic
+
 resources:
   Resources:
     # Dead Letter Queue for User Reminders

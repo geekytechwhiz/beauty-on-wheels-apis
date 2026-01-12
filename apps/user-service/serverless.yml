@@ -42,7 +42,7 @@ provider:
     SECRET_STAGE: ${opt:secretStage, 'DEV'}
     SECRET_MANAGER_NAME: ${opt:secretStage, 'DEV'}_DEMO_SECRETMANAGER 
     SMS_API_URL: https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev
-    DLT_CONTENT_ID: 1207176413550655404
+    DLT_CONTENT_ID: '1207176413550655404'
 
   tags:
     Service: ${self:service}

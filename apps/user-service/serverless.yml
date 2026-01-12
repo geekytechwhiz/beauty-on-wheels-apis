@@ -716,116 +716,117 @@ functions:
     #       startingPosition: LATEST
     #       functionResponseType: ReportBatchItemFailures
 
-Resources:
-  # Dead Letter Queue for User Reminders
-  UserRemindersQueueDLQ:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: user-reminders-queue-${self:provider.stage}-dlq
-      MessageRetentionPeriod: 1209600  # 14 days
-      SqsManagedSseEnabled: true
-      Tags:
-        - Key: Service
-          Value: ${self:service}
-        - Key: Stage
-          Value: ${self:provider.stage}
-        - Key: ManagedBy
-          Value: serverless
-        - Key: QueueType
-          Value: DLQ
+resources:
+  Resources:
+    # Dead Letter Queue for User Reminders
+    UserRemindersQueueDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: user-reminders-queue-${self:provider.stage}-dlq
+        MessageRetentionPeriod: 1209600  # 14 days
+        SqsManagedSseEnabled: true
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+          - Key: QueueType
+            Value: DLQ
 
-  # Main User Reminders Queue
-  UserRemindersQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: user-reminders-queue-${self:provider.stage}
-      VisibilityTimeout: 180  # 6x Lambda timeout (30s * 6 = 180s)
-      MessageRetentionPeriod: 345600  # 4 days
-      ReceiveMessageWaitTimeSeconds: 20  # Long polling
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt UserRemindersQueueDLQ.Arn
-        maxReceiveCount: 3
-      SqsManagedSseEnabled: true
-      Tags:
-        - Key: Service
-          Value: ${self:service}
-        - Key: Stage
-          Value: ${self:provider.stage}
-        - Key: ManagedBy
-          Value: serverless
-        - Key: QueueType
-          Value: Standard
+    # Main User Reminders Queue
+    UserRemindersQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: user-reminders-queue-${self:provider.stage}
+        VisibilityTimeout: 180  # 6x Lambda timeout (30s * 6 = 180s)
+        MessageRetentionPeriod: 345600  # 4 days
+        ReceiveMessageWaitTimeSeconds: 20  # Long polling
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt UserRemindersQueueDLQ.Arn
+          maxReceiveCount: 3
+        SqsManagedSseEnabled: true
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+          - Key: QueueType
+            Value: Standard
 
-  # Lambda EventSourceMapping for User Reminders Queue
-  # Created manually to ensure proper dependency ordering - queue must exist first
-  UserReminderEventEventSourceMapping:
-    Type: AWS::Lambda::EventSourceMapping
-    DependsOn:
-      - UserRemindersQueue
-      - UserReminderEventLambdaFunction
-    Properties:
-      EventSourceArn: !GetAtt UserRemindersQueue.Arn
-      FunctionName: !GetAtt UserReminderEventLambdaFunction.Arn
-      BatchSize: 10
-      MaximumBatchingWindowInSeconds: 5
-      FunctionResponseTypes:
-        - ReportBatchItemFailures
-      Enabled: true
+    # Lambda EventSourceMapping for User Reminders Queue
+    # Created manually to ensure proper dependency ordering - queue must exist first
+    UserReminderEventEventSourceMapping:
+      Type: AWS::Lambda::EventSourceMapping
+      DependsOn:
+        - UserRemindersQueue
+        - UserReminderEventLambdaFunction
+      Properties:
+        EventSourceArn: !GetAtt UserRemindersQueue.Arn
+        FunctionName: !GetAtt UserReminderEventLambdaFunction.Arn
+        BatchSize: 10
+        MaximumBatchingWindowInSeconds: 5
+        FunctionResponseTypes:
+          - ReportBatchItemFailures
+        Enabled: true
 
-  # This is the EventBridge Event Bus
-  UserServiceBus:
-    Type: AWS::Events::EventBus
-    Properties:
-      Name: user-service-bus-${self:provider.stage}
-      Tags:
-        - Key: Service
-          Value: ${self:service}
-        - Key: Stage
-          Value: ${self:provider.stage}
-        - Key: ManagedBy
-          Value: serverless
+    # This is the EventBridge Event Bus
+    UserServiceBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: user-service-bus-${self:provider.stage}
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
 
-  # SNS Topic for User Notification Events
-  UserEventsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: user-events-topic-${self:provider.stage}
-      DisplayName: User Events Topic
-      Tags:
-        - Key: Service
-          Value: ${self:service}
-        - Key: Stage
-          Value: ${self:provider.stage}
-        - Key: ManagedBy
-          Value: serverless
+    # SNS Topic for User Notification Events
+    UserEventsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: user-events-topic-${self:provider.stage}
+        DisplayName: User Events Topic
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
 
-Outputs:
-  UserRemindersQueueUrl:
-    Description: URL of the User Reminders Queue
-    Value: !Ref UserRemindersQueue
-    Export:
-      Name: ${self:provider.stage}-${self:service}-UserRemindersQueueUrl
+  Outputs:
+    UserRemindersQueueUrl:
+      Description: URL of the User Reminders Queue
+      Value: !Ref UserRemindersQueue
+      Export:
+        Name: ${self:provider.stage}-${self:service}-UserRemindersQueueUrl
 
-  UserRemindersQueueArn:
-    Description: ARN of the User Reminders Queue
-    Value: !GetAtt UserRemindersQueue.Arn
-    Export:
-      Name: ${self:provider.stage}-${self:service}-UserRemindersQueueArn
+    UserRemindersQueueArn:
+      Description: ARN of the User Reminders Queue
+      Value: !GetAtt UserRemindersQueue.Arn
+      Export:
+        Name: ${self:provider.stage}-${self:service}-UserRemindersQueueArn
 
-  UserRemindersQueueDLQArn:
-    Description: ARN of the User Reminders Dead Letter Queue
-    Value: !GetAtt UserRemindersQueueDLQ.Arn
-    Export:
-      Name: ${self:provider.stage}-${self:service}-UserRemindersQueueDLQArn
+    UserRemindersQueueDLQArn:
+      Description: ARN of the User Reminders Dead Letter Queue
+      Value: !GetAtt UserRemindersQueueDLQ.Arn
+      Export:
+        Name: ${self:provider.stage}-${self:service}-UserRemindersQueueDLQArn
 
-  UserServiceBusName:
-    Description: Name of the User Service Event Bus
-    Value: !Ref UserServiceBus
-    Export:
-      Name: ${self:provider.stage}-${self:service}-EventBusName
+    UserServiceBusName:
+      Description: Name of the User Service Event Bus
+      Value: !Ref UserServiceBus
+      Export:
+        Name: ${self:provider.stage}-${self:service}-EventBusName
 
-  UserEventsTopicArn:
-    Description: ARN of the User Events SNS Topic
-    Value: !Ref UserEventsTopic
-    Export:
-      Name: ${self:provider.stage}-${self:service}-UserEventsTopicArn
+    UserEventsTopicArn:
+      Description: ARN of the User Events SNS Topic
+      Value: !Ref UserEventsTopic
+      Export:
+        Name: ${self:provider.stage}-${self:service}-UserEventsTopicArn

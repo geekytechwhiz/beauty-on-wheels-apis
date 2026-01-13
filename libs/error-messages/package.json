@@ -16,7 +16,7 @@
     }
   },
   "dependencies": {
-    "@api-hub/logger": "*"
+    "@api-hub/logger": "workspace:*"
   }
 }
 

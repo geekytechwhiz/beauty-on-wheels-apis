@@ -43,8 +43,12 @@ Thumbs.db
 
 vite.config.*.timestamp* 
 apps/user-service/.esbuild/
+apps/user-service/swagger/
 apps/order-service/.esbuild/
 # Serverless build artifacts
 **/.serverless/
+
+# Swagger generated files
+apps/user-service/swagger
 
 test-output

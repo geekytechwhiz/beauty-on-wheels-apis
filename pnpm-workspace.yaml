@@ -1,6 +1,5 @@
 packages:
   - 'apps/*'
-  - 'user-service'
-  - 'logger'
   - 'libs/*'
+  - 'tools/*'
 autoInstallPeers: true

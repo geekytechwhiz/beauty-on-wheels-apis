@@ -34,9 +34,9 @@ const templates: Record<TemplateKey, { subject?: string; body?: string; sms?: st
   },
 };
 
-function processIfBlocks(input: string, data: Record<string, unknown>) {
+function processIfBlocks(input: string, data: Record<string, unknown>): string {
   // Handles simple {{#if KEY}}...{{/if}} blocks
-  return input.replace(/{{#if\s+([\w.]+)}}([\s\S]*?){{\/if}}/g, (_, key, inner) => {
+  return input.replace(/{{#if\s+([\w.]+)}}([\s\S]*?){{\/if}}/g, (_: string, key: string, inner: string) => {
     const val = data[String(key).trim()];
     if (val) {
       // recursively process inside
@@ -46,13 +46,13 @@ function processIfBlocks(input: string, data: Record<string, unknown>) {
   });
 }
 
-function renderString(input: string, data: Record<string, unknown>) {
+function renderString(input: string, data: Record<string, unknown>): string {
   if (!input) return '';
   // process if blocks first
-  let result = processIfBlocks(input, data);
+  let result: string = processIfBlocks(input, data);
 
   // simple placeholder replacement
-  result = result.replace(/{{(.*?)}}/g, (_, key) => {
+  result = result.replace(/{{(.*?)}}/g, (_: string, key: string) => {
     const val = data[String(key).trim()];
     return typeof val === 'undefined' || val === null ? '' : String(val);
   });

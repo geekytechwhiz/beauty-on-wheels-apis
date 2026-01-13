@@ -17,7 +17,7 @@ async function getSecrets(): Promise<Record<string, any>> {
   const command = new GetSecretValueCommand({ SecretId: secretName });
   const response = await client.send(command);
   if ('SecretString' in response && response.SecretString) {
-    cachedSecrets = JSON.parse(response.SecretString);
+    cachedSecrets = JSON.parse(response.SecretString) as Record<string, any>;
     return cachedSecrets;
   }
   throw new Error('Secret not found or invalid');

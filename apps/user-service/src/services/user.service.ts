@@ -217,13 +217,28 @@ export class UserService {
 
         // Organization fields
         const orgAddress = orgDetails?.organizationAddress || orgDetails?.address || '';
-        const orgInfo = orgDetails?.contactInfo || orgDetails?.info || orgDetails?.description || '';
+        
+        // Construct ORG_INFO matching old implementation logic
+        // If adminDetails exists, use adminName + adminEmail, otherwise use orgEmail + orgPhone
+        const adminInfo = orgDetails?.adminDetails;
+        let orgInfo = '';
+        if (adminInfo) {
+          const adminName = (adminInfo as any)?.adminName || '';
+          const adminEmail = (adminInfo as any)?.emailAddress || '';
+          orgInfo = `${adminName}${adminName && adminEmail ? '<br>' : ''}${adminEmail}`;
+        } else {
+          const orgEmail = orgDetails?.emailAddress || '';
+          const orgPhoneCode = orgDetails?.phoneCode || (orgDetails as any)?.phoneCode || '';
+          const orgPhoneNumber = orgDetails?.phoneNumber || (orgDetails as any)?.phoneNumb || '';
+          const orgPhone = orgPhoneCode && orgPhoneNumber ? `${orgPhoneCode}${orgPhoneNumber}` : (orgPhoneNumber || '');
+          orgInfo = `${orgEmail}${orgEmail && orgPhone ? '<br>' : ''}${orgPhone}`;
+        }
 
         // Base template data
         const baseTemplateData: Record<string, unknown> = {
           userType: user.userType,
           mrn: (user as any).mrn,
-          ORG_NAME: orgDetails?.name || '',
+          ORG_NAME: orgDetails?.name || (orgDetails as any)?.organizationInfo?.organizationName || (orgDetails as any)?.organizationInfo?.name || '',
           ORG_INFO: orgInfo,
         };
 

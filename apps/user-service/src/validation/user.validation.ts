@@ -11,6 +11,17 @@ export const createUserSchema = z.object({
       email: z.string().email(),
       phone: z.string(),
       phoneCode: z.string().optional(),
+      address: z.object({
+        address: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        country: z.string().optional(),
+        postalCode: z.string().optional(),
+        street: z.string().optional(),
+        zip: z.string().optional(),
+        countryCode: z.string().optional(),
+        stateCode: z.string().optional(),
+      }).optional(),
     }),
     workingHours: z.object({
       monday: z.object({
@@ -70,24 +81,35 @@ export const createUserSchema = z.object({
     slotDurationInMinutes: z.number().optional(),
     experienceInYears: z.string().optional(),
     bio: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    country: z.string().optional(),
+    postalCode: z.string().optional(),
+    emergencyContact: z.record(z.string(), z.unknown()).optional(),
+    medicalHistory: z.record(z.string(), z.unknown()).optional(),
+    insuranceDetails: z.record(z.string(), z.unknown()).optional(),
+    workSchedule: z.record(z.string(), z.unknown()).optional(),
+    position: z.string().optional(),
+    userTimeZone: z.string().optional(),
   }),
   userRole: z.array(z.string()),
   userType: z.string(),
 });
 
 export const updateUserSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string(),
   email: z.string().email().optional(),
   name: z.string().min(1).optional(),
 });
 
 export const assignUserToOrganizationSchema = z.object({
-  userId: z.string().uuid(),
-  organizationId: z.string().uuid(),
+  userId: z.string(),
+  organizationId: z.string(),
 });
 
 export const updateUserMetadataSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string(),
   metadata: z.record(
     z.string(),
     z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.object({})]),
@@ -95,8 +117,8 @@ export const updateUserMetadataSchema = z.object({
 });
 
 export const userFileReferenceSchema = z.object({
-  userId: z.string().uuid(),
-  fileId: z.string().uuid(),
+  userId: z.string(),
+  fileId: z.string(),
   fileName: z.string(),
   s3Key: z.string(),
   uploadedAt: z.string(),

@@ -72,7 +72,8 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
 
   try {
     const { userInfo, userRole, userType } = validation.data;
-    const userData = {
+    const contactAddress = (userInfo.contact as any)?.address;
+    const userData: any = {
       fullName: userInfo.name,
       namePrefix: userInfo.namePrefix,
       profilePic: userInfo.profilePic,
@@ -90,8 +91,26 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       experienceInYears: userInfo.experienceInYears,
       bio: userInfo.bio,
       userRole: userRole,
-      userType: userType
+      userType: userType,
+      address: contactAddress?.address || userInfo.address || '',
+      city: contactAddress?.city || userInfo.city || '',
+      state: contactAddress?.state || userInfo.state || '',
+      country: contactAddress?.country || userInfo.country || '',
+      postalCode: contactAddress?.postalCode || userInfo.postalCode || '',
+      street: contactAddress?.street || '',
+      zip: contactAddress?.zip || '',
+      countryCode: contactAddress?.countryCode || '',
+      stateCode: contactAddress?.stateCode || '',
+      emergencyContact: (userInfo as any).emergencyContact || {},
+      medicalHistory: (userInfo as any).medicalHistory || {},
+      insuranceDetails: (userInfo as any).insuranceDetails || {},
+      workSchedule: (userInfo as any).workSchedule || {},
+      position: (userInfo as any).position || '',
+      userTimeZone: (userInfo as any).userTimeZone || '',
     };
+    
+    const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
+    userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
     const result = await userService.createUser(userData, body.organizationID, body.userID, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);

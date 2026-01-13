@@ -60,9 +60,39 @@ export class UserService {
       if (!data.emailAddress && (data as any).email) data.emailAddress = (data as any).email;
       if (!data.phoneNumber && (data as any).phone_number) data.phoneNumber = String((data as any).phone_number).trim();
 
+      // Parse firstName/lastName from fullName if not provided (matching old implementation)
+      if (!data.firstName && !data.lastName && data.fullName) {
+        const fullNameStr = String(data.fullName).trim();
+        const regex = /^(\S+)\s+(.+)/;
+        const match = fullNameStr.match(regex);
+        if (match) {
+          data.firstName = match[1];
+          data.lastName = match[2];
+        } else {
+          data.firstName = fullNameStr;
+          data.lastName = '';
+        }
+      } else if (data.firstName && !data.lastName) {
+        data.lastName = '';
+      }
+
+      // Normalize phone number with + prefix (matching old implementation)
+      const normalizePhone = (p: string, phoneCode?: string): string => {
+        if (!p) return '';
+        const s = String(p).trim();
+        const code = String(phoneCode || '').trim();
+        const composed = code ? `${code}${s}`.trim() : s;
+        // If it already starts with +, leave as-is; otherwise prefix +
+        return composed.startsWith('+') ? composed : `+${composed}`;
+      };
+
       // Cognito integration via CognitoService: check email and phone one-by-one; if any exists in Cognito, throw error
       const normalizedEmail = data.emailAddress ? String(data.emailAddress).trim().toLowerCase() : '';
-      const normalizedPhone = data.phoneNumber ? String((data.phoneCode || '') + data.phoneNumber).replace(/\s+/g, '') : '';
+      const rawPhone = data.phoneNumber ? String(data.phoneNumber).trim() : '';
+      const normalizedPhone = rawPhone ? normalizePhone(rawPhone, data.phoneCode) : '';
+      
+      // Store normalized phone but keep raw phone for DB (matching old implementation)
+      const phoneNumberForDB = rawPhone || '';
 
       const userTypeUpper = String(data.userType || '').toUpperCase();
 
@@ -103,8 +133,25 @@ export class UserService {
           }
 
           // Create user in Cognito with attributes (prefer email as username)
+          // Include custom attributes matching old implementation: userType, userID, organizationID, role, permissions
           const username = normalizedEmail || normalizedPhone;
-          await cognitoService.createUser(username, { email: normalizedEmail || undefined, phoneNumber: normalizedPhone || undefined });
+          const userRole = (data as any).userRole || [];
+          const permissionIds: string[] = []; // Permissions would come from role service
+          
+          await cognitoService.createUser(
+            username,
+            {
+              email: normalizedEmail || undefined,
+              phoneNumber: normalizedPhone || undefined,
+              customAttributes: {
+                userType: String(data.userType || ''),
+                userID: String(data.userID || ''),
+                organizationID: String(organizationID || ''),
+                role: JSON.stringify(userRole),
+                permissions: JSON.stringify(permissionIds),
+              },
+            }
+          );
           logger.info({ event: 'service_createUser_cognito_success', email: normalizedEmail, phone: normalizedPhone, username });
         } catch (err) {
           if (err instanceof UserAlreadyExistsError) {
@@ -123,9 +170,13 @@ export class UserService {
       }
 
       // Build user object with correct PK/SK and all fields
+      // Ensure all fields from old implementation are present
       const now = Date.now();
       const user: User = {
         ...data,
+        // Use raw phone number for DB (matching old implementation)
+        phoneNumber: phoneNumberForDB,
+        emailAddress: normalizedEmail || data.emailAddress || '',
         createdDate: data.createdDate ?? now,
         modifiedDate: data.modifiedDate ?? now,
         isActive: data.isActive ?? true,
@@ -136,6 +187,10 @@ export class UserService {
         changePassword: data.changePassword ?? true,
         logoutRequired: data.logoutRequired ?? false,
         itemType: data.userType ?? 'USER',
+        // Ensure invitedBy is set if provided
+        invitedBy: invitedBy || data.invitedBy || '',
+        // Set srcRegisEntity if not already set
+        srcRegisEntity: data.srcRegisEntity || (normalizedEmail ? 'email' : 'phone_number'),
       } as User;
 
       await this.repository.createUser(user);

@@ -111,9 +111,22 @@ export class CognitoService {
   /**
    * Create a new user in Cognito User Pool
    * @param identifier - Username to use in Cognito (email or phone)
-   * @param options - optional attributes to set (email, phoneNumber)
+   * @param options - optional attributes to set (email, phoneNumber, customAttributes)
    */
-  async createUser(identifier: string, options?: { email?: string; phoneNumber?: string }): Promise<void> {
+  async createUser(
+    identifier: string,
+    options?: {
+      email?: string;
+      phoneNumber?: string;
+      customAttributes?: {
+        userType?: string;
+        userID?: string;
+        organizationID?: string;
+        role?: string;
+        permissions?: string;
+      };
+    }
+  ): Promise<void> {
     if (!this.userPoolId) {
       const error = new Error('Cognito User Pool ID is not configured');
       logger.error({
@@ -127,6 +140,7 @@ export class CognitoService {
 
     try {
       const attrs: Array<{ Name: string; Value: string }> = [];
+      const isEmail = String(identifier).includes('@');      
       if (options?.email) {
         attrs.push({ Name: 'email', Value: String(options.email) });
         attrs.push({ Name: 'email_verified', Value: 'true' });
@@ -137,9 +151,20 @@ export class CognitoService {
       }
 
       // If no explicit attributes passed, attempt to infer email from identifier
-      if (attrs.length === 0 && String(identifier).includes('@')) {
+      if (attrs.length === 0 && isEmail) {
         attrs.push({ Name: 'email', Value: identifier });
         attrs.push({ Name: 'email_verified', Value: 'true' });
+      }
+
+      // Add custom attributes matching old implementation
+      if (options?.customAttributes) {
+        const custom = options.customAttributes;
+        if (custom.userType) attrs.push({ Name: 'custom:userType', Value: String(custom.userType) });
+        if (custom.userID) attrs.push({ Name: 'custom:userID', Value: String(custom.userID) });
+        if (custom.organizationID) attrs.push({ Name: 'custom:organizationID', Value: String(custom.organizationID) });
+        if (custom.role) attrs.push({ Name: 'custom:role', Value: String(custom.role) });
+        if (custom.permissions) attrs.push({ Name: 'custom:permissions', Value: String(custom.permissions) });
+        attrs.push({ Name: 'custom:src', Value: isEmail ? String(identifier).toLowerCase() : String(identifier) });
       }
 
       const cmd = new AdminCreateUserCommand({

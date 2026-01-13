@@ -7,10 +7,9 @@ export type TemplateKey =
 
 const templates: Record<TemplateKey, { subject?: string; body?: string; sms?: string }> = {
   WELCOME_USER: {
-    subject: 'Welcome to {{ORG_NAME}}',
-    body:
-      "Hello,<br><br>Welcome to {{ORG_NAME}}. Your account has been created. Thank you for MyVitalRx.<br><br>This email message was sent from a notification-only address that cannot accept incoming email. Do not reply to this message.",
-    sms: 'Welcome to {{ORG_NAME}}. Your account has been created. Thank you for MyVitalRx.',
+    subject: 'Welcome to {{ORG_NAME}}, {{USER_FIRST_NAME}}!',
+    body: `Dear {{USER_FIRST_NAME}},<br><br>We welcome you to {{ORG_NAME}}, where your health and well-being are our top priorities. To get started and access our services, please sign in by clicking the link below:<br><br><a href="{{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}" target="_blank" style="color: blue; font-weight:bold">Download here</a><br><br>Our entire medical team is committed to providing you with personalized and compassionate care. If you have any questions or need assistance, please do not hesitate to contact us.<br><br>We look forward to being your trusted partner in health.<br><br>Warm regards,<br><br>{{ORG_INFO}}`,
+    sms: 'Welcome to {{ORG_NAME}}! To get started and access our services, please sign in using this link: {{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}',
   },
   WELCOME_STAFF: {
     subject: "Welcome to {{ORG_NAME}}'s Portal, {{STAFF_FIRST_NAME}}",

@@ -76,7 +76,7 @@ export class UserService {
         data.lastName = '';
       }
 
-      // Normalize phone number with + prefix (matching old implementation)
+      // Normalize phone number with + prefix
       const normalizePhone = (p: string, phoneCode?: string): string => {
         if (!p) return '';
         const s = String(p).trim();
@@ -132,8 +132,6 @@ export class UserService {
             }
           }
 
-          // Create user in Cognito with attributes (prefer email as username)
-          // Include custom attributes matching old implementation: userType, userID, organizationID, role, permissions
           const username = normalizedEmail || normalizedPhone;
           const userRole = (data as any).userRole || [];
           const permissionIds: string[] = []; // Permissions would come from role service
@@ -169,12 +167,9 @@ export class UserService {
         }
       }
 
-      // Build user object with correct PK/SK and all fields
-      // Ensure all fields from old implementation are present
       const now = Date.now();
       const user: User = {
         ...data,
-        // Use raw phone number for DB (matching old implementation)
         phoneNumber: phoneNumberForDB,
         emailAddress: normalizedEmail || data.emailAddress || '',
         createdDate: data.createdDate ?? now,
@@ -187,9 +182,7 @@ export class UserService {
         changePassword: data.changePassword ?? true,
         logoutRequired: data.logoutRequired ?? false,
         itemType: data.userType ?? 'USER',
-        // Ensure invitedBy is set if provided
         invitedBy: invitedBy || data.invitedBy || '',
-        // Set srcRegisEntity if not already set
         srcRegisEntity: data.srcRegisEntity || (normalizedEmail ? 'email' : 'phone_number'),
       } as User;
 

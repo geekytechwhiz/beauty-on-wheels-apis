@@ -123,6 +123,15 @@ provider:
       Resource:
         - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/*
 
+    - Effect: Allow
+      Action:
+        - secretsmanager:GetSecretValue
+        - secretsmanager:DescribeSecret
+      Resource:
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:DEV_DEMO_SECRETMANAGER*
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:STG_DEMO_SECRETMANAGER*
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:PRD_DEMO_SECRETMANAGER*
+
 package:
   individually: true
   

@@ -136,7 +136,16 @@ export async function sendSms(options: { phone?: string; template?: string; temp
       message,
     };
 
-    await axios({ method: 'POST', url: process.env.SMS_API_URL, timeout: 5000, headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, data: payload });
+    await axios({ 
+      method: 'POST', 
+      url: process.env.SMS_API_URL, 
+      timeout: 5000, 
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      data: payload 
+    });
     logger.info({ event: 'send_sms_success', phone: formattedPhone });
     return { success: true };
   } catch (err) {

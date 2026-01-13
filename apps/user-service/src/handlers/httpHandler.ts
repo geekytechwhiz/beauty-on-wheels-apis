@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { UserService } from '../services/user.service';
 import { createLogger, extractCorrelationId, serializeError, logHttpRequest, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
-import { ok, created, problem } from '../utils/response';
+import { ok, problem } from '../utils/response';
 import {
   createUserSchema,
   updateUserSchema,
@@ -114,7 +114,19 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     const result = await userService.createUser(userData, body.organizationID, body.userID, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
-    return created(result, { requestId: correlationId, message: 'User created' });
+    
+    const response = {
+      success: true,
+      statusCode: 201,
+      message: 'User created successfully',
+      invitedUser: result.userID,
+    };
+    
+    return {
+      statusCode: 201,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(response),
+    };
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserAlreadyExistsError) {

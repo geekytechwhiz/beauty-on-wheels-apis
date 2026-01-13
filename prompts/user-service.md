@@ -91,11 +91,11 @@ Items:
 
 1) User Profile
    pk = USER#{userId}
-   sk = USER_DETAILS
+   sk = ORG#{organizationId}
 
 2) User → Organization Mapping
-   pk = USER#{userId}
-   sk = USER_ORG#{organizationId}
+   pk = ORG#{organizationId}
+   sk = USER#{userId}
 
 3) User Metadata
    pk = USER#{userId}

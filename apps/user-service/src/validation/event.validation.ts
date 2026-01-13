@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const userCreatedEventSchema = z.object({
   eventName: z.literal('UserCreated.v1'),
   correlationId: z.string(),
-  userId: z.string().uuid(),
-  email: z.string().email(),
+  userId: z.string(),
+  email: z.union([z.email(), z.literal('')]),
   name: z.string(),
 });
 

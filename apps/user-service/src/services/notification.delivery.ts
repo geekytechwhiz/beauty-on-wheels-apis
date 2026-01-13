@@ -136,18 +136,31 @@ export async function sendSms(options: { phone?: string; template?: string; temp
       message,
     };
 
-    await axios({ 
-      method: 'POST', 
-      url: process.env.SMS_API_URL, 
-      timeout: 5000, 
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      data: payload 
-    });
-    logger.info({ event: 'send_sms_success', phone: formattedPhone });
-    return { success: true };
+    try {
+      await axios({ 
+        method: 'POST', 
+        url: process.env.SMS_API_URL, 
+        timeout: 5000, 
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        data: payload 
+      });
+      logger.info({ event: 'send_sms_success', phone: formattedPhone });
+      return { success: true };
+    } catch (axiosErr: any) {
+      // Log detailed error for debugging
+      logger.error({ 
+        event: 'send_sms_api_error', 
+        url: process.env.SMS_API_URL,
+        status: axiosErr?.response?.status,
+        statusText: axiosErr?.response?.statusText,
+        data: axiosErr?.response?.data,
+        err: serializeError(axiosErr) 
+      });
+      throw axiosErr;
+    }
   } catch (err) {
     logger.error({ event: 'send_sms_error', err: serializeError(err) });
     throw err;

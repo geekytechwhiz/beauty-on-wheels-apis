@@ -12,20 +12,12 @@ module.exports = [
       const projectRoot = __dirname;
       const workspaceRoot = resolve(projectRoot, '../..');
 
-      // Map workspace packages to their source files
+      // Map workspace packages to their source files (preferred for bundling)
       const workspacePackages = {
         '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
         '@api-hub/error-messages': resolve(workspaceRoot, 'libs/error-messages/src/index.ts'),
-      };
-
-      // Try built outputs first (for production), fallback to source
-      const workspacePackagesBuilt = {
-        '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/dist/index.js'),
-        '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/dist/index.js'),
-        '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/dist/index.js'),
-        '@api-hub/error-messages': resolve(workspaceRoot, 'libs/error-messages/dist/index.js'),
       };
 
       // Resolve workspace package imports
@@ -34,28 +26,18 @@ module.exports = [
         const packagePath = workspacePackages[packageName];
 
         if (packagePath) {
-          // Prefer built output if it exists, otherwise use source
-          const builtPath = workspacePackagesBuilt[packageName];
-          const resolvedPath = existsSync(builtPath) ? builtPath : packagePath;
-
-          if (existsSync(resolvedPath)) {
-            return { path: resolvedPath };
+          if (existsSync(packagePath)) {
+            return { path: packagePath };
           }
 
-          // If neither exists, log warning but return source path
-          console.warn(
-            `Warning: Workspace package ${packageName} not found at ${resolvedPath} or ${packagePath}`
+          // If source doesn't exist, log error
+          console.error(
+            `Error: Workspace package ${packageName} not found at ${packagePath}`
           );
-          return { path: packagePath };
+          return undefined;
         }
 
         // Let esbuild handle it normally if not a workspace package
-        return undefined;
-      });
-
-      // Handle file extensions for TypeScript files
-      build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
-        // This is handled by esbuild's default loader, but we can add custom logic here if needed
         return undefined;
       });
     },

@@ -733,7 +733,7 @@ functions:
     #       functionResponseType: ReportBatchItemFailures
 
   notificationConsumer:
-    handler: src/consumers/notification.consumer.handler
+    handler: src/consumers/notification.handler
     timeout: 30
     memorySize: 256
     events:

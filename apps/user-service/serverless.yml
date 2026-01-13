@@ -43,6 +43,9 @@ provider:
     SECRET_MANAGER_NAME: ${opt:secretStage, 'DEV'}_DEMO_SECRETMANAGER 
     SMS_API_URL: https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev/send-sms
     DLT_CONTENT_ID: '1207176413550655404'
+    PORTAL_LINK: ${self:custom.stageUrls.${self:provider.stage}.PORTAL_LINK, ''}
+    WEB_URL: ${self:custom.stageUrls.${self:provider.stage}.WEB_URL, ''}
+    WEB_DNS_URL: ${self:custom.stageUrls.${self:provider.stage}.WEB_URL, ''}
 
   tags:
     Service: ${self:service}
@@ -189,6 +192,17 @@ custom:
     dev: debug
     stg: info
     prd: warn
+  
+  stageUrls:
+    dev:
+      WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
+      PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
+    stg:
+      WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
+      PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
+    prd:
+      WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
+      PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
 
   cors:
     origin: ${env:CORS_ORIGIN, '*'}

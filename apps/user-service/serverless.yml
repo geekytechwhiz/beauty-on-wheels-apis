@@ -137,6 +137,13 @@ custom:
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
+    esbuildOptions:
+      alias:
+        '@api-hub/logger': '../../libs/logger/src/index.ts'
+        '@api-hub/utils': '../../libs/utils/src/index.ts'
+        '@api-hub/fhir': '../../libs/fhir/src/index.ts'
+        '@api-hub/error-messages': '../../libs/error-messages/src/index.ts'
+    keepNames: true
   autoswagger:
     title: User Service API
     description: RESTful API for managing users, organizations, files, and metadata

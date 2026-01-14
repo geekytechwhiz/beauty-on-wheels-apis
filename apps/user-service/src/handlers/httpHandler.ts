@@ -85,6 +85,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   try {
     const { userInfo, userRole, userType } = validation.data;
     const contactAddress = (userInfo.contact as any)?.address;
+    const userTypeUpper = String(userType || '').toUpperCase();
     const userData: any = {
       fullName: userInfo.name,
       namePrefix: userInfo.namePrefix,
@@ -94,7 +95,6 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       emailAddress: userInfo.contact.email,
       phoneNumber: userInfo.contact.phone,
       phoneCode: userInfo.contact.phoneCode,
-      workingHours: userInfo.workingHours,
       dateOfBirth: userInfo.dateOfBirth,
       department: userInfo.department,
       gender: userInfo.gender,
@@ -104,6 +104,8 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       bio: userInfo.bio,
       userRole: userRole,
       userType: userType,
+      ...(userTypeUpper === 'STAFF' ? { workingHours: userInfo.workingHours || {} } : 
+          (userInfo.workingHours ? { workingHours: userInfo.workingHours } : {})),
       address: contactAddress?.address || userInfo.address || '',
       city: contactAddress?.city || userInfo.city || '',
       state: contactAddress?.state || userInfo.state || '',

@@ -49,6 +49,10 @@ function userFileSk(fileId: string): string {
   return `USER_FILE#${fileId}`;
 }
 
+const userOrgPk = (organizationId: string): string => {
+  return `ORG#${organizationId}`;
+}
+
 export class UserRepository {
   async createUser(user: User): Promise<void> {
     const item = modifyIndexesUsers(user);
@@ -73,26 +77,33 @@ export class UserRepository {
     }
   }
 
-  async getUser(userId: string): Promise<User | null> {
+  async getUser(userId: string, organizationId: string): Promise<User | null> {  
+    const logger = createChildLogger(baseLogger, { userId, organizationId });
+    logger.info({ event: 'user_get_start', message: 'Getting user'   }); 
     try {
-      const result = await docClient.send(
+      // CRITICAL FIX: User is stored with pk=ORG#orgId, sk=USER#userId
+      // So we must query with the same key structure
+      const result = await docClient.send( 
         new GetCommand({
           TableName: USER_TABLE_NAME,
           Key: {
-            pk: userPk(userId),
-            sk: userDetailsSk(),
+            pk: userOrgPk(organizationId),  // ORG#mhw0zopb17b63195 (matches create)
+            sk: userPk(userId),              // USER#01KEXFMY00ERYN54XMGYH1ZWT2 (matches create)
           },
         }),
       );
 
+      logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
       if (!result.Item || result.Item.deleted === true) {
+        logger.info({ event: 'user_get_not_found', message: 'User not found' });
         return null;
       }
 
+      logger.info({ event: 'user_get_success', message: 'User retrieved successfully' });
       return result.Item as User;
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_get_error', err: serializeError(err), message: 'Failed to get user' });
+      logger.info({ event: 'user_get_error', message: 'Failed to get user' });
       throw err;
     }
   }

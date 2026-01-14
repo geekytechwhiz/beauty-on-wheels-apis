@@ -16,28 +16,30 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  // Path structure: user/organization/{organizationId}/{userId}
+  const organizationId = event.pathParameters?.organizationId;
   const userId = event.pathParameters?.userId;
 
-  if (!userId) {
+  if (!userId || !organizationId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 400, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/user/organization/${organizationId}/${userId}`, 400, duration, correlationId);
     return badRequest(
       {
         title: 'Invalid request',
-        description: 'userId is required',
+        description: 'userId and organizationId are required',
         severity: 'error',
       },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
+      [{ code: 'BAD_REQUEST', message: 'userId and organizationId are required' }],
       { correlationId },
     );
   }
 
-  const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'getUser_received' });
-
+  
   try {
-    const user = await userService.getUser(userId);
+    const user = await userService.getUser(userId, organizationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 200, duration, correlationId);
     return ok(user, 'User retrieved successfully', { requestId: correlationId });

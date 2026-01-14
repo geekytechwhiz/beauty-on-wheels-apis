@@ -1,0 +1,448 @@
+import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { ddbDocClient } from '@api-hub/utils';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { Organization, OrganizationUser, OrganizationDevice, OrganizationMetadata, OrganizationFile } from '../models';
+import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
+import {
+  organizationPk,
+  organizationDetailsSk,
+  organizationUserSk,
+  organizationDeviceSk,
+  organizationMetadataSk,
+  organizationFileSk,
+} from '../utils/helpers';
+
+const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
+
+const ORGANIZATION_TABLE_NAME = process.env.ORGANIZATION_TABLE || '';
+
+type OrganizationDBItem = Organization & {
+  pk: string;
+  sk: string;
+};
+
+export class OrganizationRepository {
+  async createOrganization(organization: Organization): Promise<void> {
+    const item: OrganizationDBItem = {
+      ...organization,
+      pk: organizationPk(organization.organizationId),
+      sk: organizationDetailsSk(),
+    };
+    try {
+      await ddbDocClient.send(
+        new PutCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: item,
+          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId: organization.organizationId });
+      logger.info({ event: 'organization_created', message: 'Organization created' });
+    } catch (err: unknown) {
+      const code = (err as { name?: string })?.name;
+      const logger = createChildLogger(baseLogger, { organizationId: organization.organizationId });
+      if (code === 'ConditionalCheckFailedException') {
+        throw new OrganizationAlreadyExistsError(organization.organizationId);
+      }
+      logger.error({ event: 'organization_create_error', err: serializeError(err), message: 'Failed to create organization' });
+      throw err;
+    }
+  }
+
+  async getOrganization(organizationId: string): Promise<Organization | null> {
+    try {
+      const result = await ddbDocClient.send(
+        new GetCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: organizationPk(organizationId),
+            sk: organizationDetailsSk(),
+          },
+        }),
+      );
+
+      if (!result.Item || result.Item.deleted === true) {
+        return null;
+      }
+
+      return result.Item as Organization;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({ event: 'organization_get_error', err: serializeError(err), message: 'Failed to get organization' });
+      throw err;
+    }
+  }
+
+  async updateOrganization(organizationId: string, updates: Partial<Organization>): Promise<void> {
+    const now = Date.now();
+    const updateParts: string[] = ['modifiedDate = :modifiedDate'];
+    const exprNames: Record<string, string> = {};
+    const exprValues: Record<string, unknown> = {
+      ':modifiedDate': now,
+    };
+
+    if (updates.name !== undefined) {
+      updateParts.push('#name = :name');
+      exprNames['#name'] = 'name';
+      exprValues[':name'] = updates.name;
+    }
+
+    if (updates.email !== undefined) {
+      updateParts.push('email = :email');
+      exprValues[':email'] = updates.email;
+    }
+
+    if (updates.phone !== undefined) {
+      updateParts.push('phone = :phone');
+      exprValues[':phone'] = updates.phone;
+    }
+
+    if (updates.address !== undefined) {
+      updateParts.push('address = :address');
+      exprValues[':address'] = updates.address;
+    }
+
+    if (updates.city !== undefined) {
+      updateParts.push('city = :city');
+      exprValues[':city'] = updates.city;
+    }
+
+    if (updates.state !== undefined) {
+      updateParts.push('#state = :state');
+      exprNames['#state'] = 'state';
+      exprValues[':state'] = updates.state;
+    }
+
+    if (updates.country !== undefined) {
+      updateParts.push('country = :country');
+      exprValues[':country'] = updates.country;
+    }
+
+    if (updates.postalCode !== undefined) {
+      updateParts.push('postalCode = :postalCode');
+      exprValues[':postalCode'] = updates.postalCode;
+    }
+
+    if (updates.status !== undefined) {
+      updateParts.push('#status = :status');
+      exprNames['#status'] = 'status';
+      exprValues[':status'] = updates.status;
+    }
+
+    try {
+      await ddbDocClient.send(
+        new UpdateCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: organizationPk(organizationId),
+            sk: organizationDetailsSk(),
+          },
+          UpdateExpression: `SET ${updateParts.join(', ')}`,
+          ExpressionAttributeNames: Object.keys(exprNames).length > 0 ? exprNames : undefined,
+          ExpressionAttributeValues: exprValues,
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.info({ event: 'organization_updated', message: 'Organization updated' });
+    } catch (err: unknown) {
+      const code = (err as { name?: string })?.name;
+      const logger = createChildLogger(baseLogger, { organizationId });
+      if (code === 'ConditionalCheckFailedException') {
+        throw new OrganizationNotFoundError(organizationId);
+      }
+      logger.error({ event: 'organization_update_error', err: serializeError(err), message: 'Failed to update organization' });
+      throw err;
+    }
+  }
+
+  async deleteOrganization(organizationId: string): Promise<void> {
+    const now = Date.now();
+    try {
+      await ddbDocClient.send(
+        new UpdateCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: organizationPk(organizationId),
+            sk: organizationDetailsSk(),
+          },
+          UpdateExpression: 'SET deleted = :deleted, modifiedDate = :modifiedDate',
+          ExpressionAttributeValues: {
+            ':deleted': true,
+            ':modifiedDate': now,
+          },
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.info({ event: 'organization_deleted', message: 'Organization deleted' });
+    } catch (err: unknown) {
+      const code = (err as { name?: string })?.name;
+      const logger = createChildLogger(baseLogger, { organizationId });
+      if (code === 'ConditionalCheckFailedException') {
+        throw new OrganizationNotFoundError(organizationId);
+      }
+      logger.error({ event: 'organization_delete_error', err: serializeError(err), message: 'Failed to delete organization' });
+      throw err;
+    }
+  }
+
+  async assignUserToOrganization(organizationId: string, userId: string, role?: string): Promise<void> {
+    const now = new Date().toISOString();
+    const item: OrganizationUser = {
+      pk: organizationPk(organizationId),
+      sk: organizationUserSk(userId),
+      organizationId,
+      userId,
+      assignedAt: now,
+      role,
+      status: 'ACTIVE',
+      itemType: 'ORG_USER',
+    };
+
+    try {
+      await ddbDocClient.send(
+        new PutCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: item,
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, userId });
+      logger.info({ event: 'organization_user_assigned', message: 'User assigned to organization' });
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, userId });
+      logger.error({
+        event: 'organization_user_assign_error',
+        err: serializeError(err),
+        message: 'Failed to assign user to organization',
+      });
+      throw err;
+    }
+  }
+
+  async removeUserFromOrganization(organizationId: string, userId: string): Promise<void> {
+    try {
+      await ddbDocClient.send(
+        new DeleteCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: organizationPk(organizationId),
+            sk: organizationUserSk(userId),
+          },
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, userId });
+      logger.info({ event: 'organization_user_removed', message: 'User removed from organization' });
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, userId });
+      logger.error({
+        event: 'organization_user_remove_error',
+        err: serializeError(err),
+        message: 'Failed to remove user from organization',
+      });
+      throw err;
+    }
+  }
+
+  async listOrganizationUsers(organizationId: string): Promise<OrganizationUser[]> {
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+          ExpressionAttributeValues: {
+            ':pk': organizationPk(organizationId),
+            ':skPrefix': 'ORG_USER#',
+          },
+        }),
+      );
+
+      return (result?.Items ?? []) as OrganizationUser[];
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({ event: 'organization_users_list_error', err: serializeError(err), message: 'Failed to list organization users' });
+      throw err;
+    }
+  }
+
+  async assignDeviceToOrganization(organizationId: string, deviceId: string): Promise<void> {
+    const now = new Date().toISOString();
+    const item: OrganizationDevice = {
+      pk: organizationPk(organizationId),
+      sk: organizationDeviceSk(deviceId),
+      organizationId,
+      deviceId,
+      assignedAt: now,
+      status: 'ACTIVE',
+      itemType: 'ORG_DEVICE',
+    };
+
+    try {
+      await ddbDocClient.send(
+        new PutCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: item,
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
+      logger.info({ event: 'organization_device_assigned', message: 'Device assigned to organization' });
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
+      logger.error({
+        event: 'organization_device_assign_error',
+        err: serializeError(err),
+        message: 'Failed to assign device to organization',
+      });
+      throw err;
+    }
+  }
+
+  async removeDeviceFromOrganization(organizationId: string, deviceId: string): Promise<void> {
+    try {
+      await ddbDocClient.send(
+        new DeleteCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: organizationPk(organizationId),
+            sk: organizationDeviceSk(deviceId),
+          },
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
+      logger.info({ event: 'organization_device_removed', message: 'Device removed from organization' });
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
+      logger.error({
+        event: 'organization_device_remove_error',
+        err: serializeError(err),
+        message: 'Failed to remove device from organization',
+      });
+      throw err;
+    }
+  }
+
+  async listOrganizationDevices(organizationId: string): Promise<OrganizationDevice[]> {
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+          ExpressionAttributeValues: {
+            ':pk': organizationPk(organizationId),
+            ':skPrefix': 'ORG_DEVICE#',
+          },
+        }),
+      );
+
+      return (result?.Items ?? []) as OrganizationDevice[];
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({ event: 'organization_devices_list_error', err: serializeError(err), message: 'Failed to list organization devices' });
+      throw err;
+    }
+  }
+
+  async updateOrganizationMetadata(organizationId: string, metadata: Record<string, unknown>): Promise<void> {
+    const now = new Date().toISOString();
+    const item: OrganizationMetadata = {
+      pk: organizationPk(organizationId),
+      sk: organizationMetadataSk(),
+      organizationId,
+      metadata,
+      updatedAt: now,
+      itemType: 'ORG_METADATA',
+    };
+
+    try {
+      await ddbDocClient.send(
+        new PutCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: item,
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.info({ event: 'organization_metadata_updated', message: 'Organization metadata updated' });
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({ event: 'organization_metadata_update_error', err: serializeError(err), message: 'Failed to update organization metadata' });
+      throw err;
+    }
+  }
+
+  async getOrganizationMetadata(organizationId: string): Promise<OrganizationMetadata | null> {
+    try {
+      const result = await ddbDocClient.send(
+        new GetCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: organizationPk(organizationId),
+            sk: organizationMetadataSk(),
+          },
+        }),
+      );
+
+      if (!result.Item) {
+        return null;
+      }
+
+      return result.Item as OrganizationMetadata;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({ event: 'organization_metadata_get_error', err: serializeError(err), message: 'Failed to get organization metadata' });
+      throw err;
+    }
+  }
+
+  async createOrganizationFile(organizationFile: OrganizationFile): Promise<void> {
+    const item = {
+      pk: organizationPk(organizationFile.organizationId),
+      sk: organizationFileSk(organizationFile.fileId),
+      organizationId: organizationFile.organizationId,
+      fileId: organizationFile.fileId,
+      fileName: organizationFile.fileName,
+      s3Key: organizationFile.s3Key,
+      uploadedAt: organizationFile.uploadedAt,
+      itemType: 'ORG_FILE',
+    };
+
+    try {
+      await ddbDocClient.send(
+        new PutCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: item,
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId: organizationFile.organizationId, fileId: organizationFile.fileId });
+      logger.info({ event: 'organization_file_created', message: 'Organization file created' });
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId: organizationFile.organizationId, fileId: organizationFile.fileId });
+      logger.error({
+        event: 'organization_file_create_error',
+        err: serializeError(err),
+        message: 'Failed to create organization file',
+      });
+      throw err;
+    }
+  }
+
+  async listOrganizationFiles(organizationId: string): Promise<OrganizationFile[]> {
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+          ExpressionAttributeValues: {
+            ':pk': organizationPk(organizationId),
+            ':skPrefix': 'ORG_FILE#',
+          },
+        }),
+      );
+
+      return (result.Items ?? []) as OrganizationFile[];
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({ event: 'organization_files_list_error', err: serializeError(err), message: 'Failed to list organization files' });
+      throw err;
+    }
+  }
+}

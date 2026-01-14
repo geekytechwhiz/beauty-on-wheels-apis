@@ -2,6 +2,7 @@ import {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
   AdminCreateUserCommand,
+  AdminSetUserPasswordCommand,
   ListUsersCommand,
   UserNotFoundException,
   UsernameExistsException,
@@ -170,18 +171,34 @@ export class CognitoService {
 
       const usernameForCognito = String(identifier).toLowerCase();
       
+      // Generate password
+      const generatePassword = (): string => {
+        return `Comm@n12${Math.random().toString(36).substring(5)}`;
+      };
+      
+      const temporaryPassword = generatePassword();
       const cmd = new AdminCreateUserCommand({
         UserPoolId: this.userPoolId,
         Username: usernameForCognito,
         UserAttributes: attrs,
-        MessageAction: 'SUPPRESS', // Suppress welcome email
+        MessageAction: 'SUPPRESS',
+        TemporaryPassword: temporaryPassword,
       });
       await this.client.send(cmd);
+      
+      const setPasswordCmd = new AdminSetUserPasswordCommand({
+        UserPoolId: this.userPoolId,
+        Username: usernameForCognito,
+        Password: generatePassword(),
+        Permanent: true,
+      });
+      await this.client.send(setPasswordCmd);
+      
       logger.info({
         event: 'cognito_user_created',
         identifier,
         userPoolId: this.userPoolId,
-        message: 'User created successfully in Cognito',
+        message: 'User created successfully in Cognito with CONFIRMED status',
       });
     } catch (err) {
       if (err instanceof UsernameExistsException) {

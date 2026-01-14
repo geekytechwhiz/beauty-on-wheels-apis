@@ -60,7 +60,6 @@ export class UserService {
       if (!data.emailAddress && (data as any).email) data.emailAddress = (data as any).email;
       if (!data.phoneNumber && (data as any).phone_number) data.phoneNumber = String((data as any).phone_number).trim();
 
-      // Parse firstName/lastName from fullName if not provided (matching old implementation)
       if (!data.firstName && !data.lastName && data.fullName) {
         const fullNameStr = String(data.fullName).trim();
         const regex = /^(\S+)\s+(.+)/;
@@ -111,6 +110,19 @@ export class UserService {
         (data as any).mrn = generateMRN();
       }
 
+      // Extract userRole early for use in Cognito and userCat calculation
+      const userRoleArray = (data as any).userRole || [];
+      
+      let userCat: string[] = [];
+      if (userTypeUpper === 'STAFF') {
+        userCat = ['STAFF'];
+      } else if (userTypeUpper === 'USER') {
+        userCat = ['USER'];
+      } else {
+        // Default based on userType
+        userCat = [userTypeUpper || 'USER'];
+      }
+
       if (normalizedEmail || normalizedPhone) {
         try {
           const cognitoService = new CognitoService(
@@ -132,8 +144,11 @@ export class UserService {
             }
           }
 
-          const username = normalizedEmail || normalizedPhone;
-          const userRole = (data as any).userRole || [];
+          const explicitUsername = (data as any).username && String((data as any).username).trim() !== '' 
+            ? String((data as any).username).trim() 
+            : null;
+          const username = explicitUsername || normalizedEmail || normalizedPhone;
+          
           const permissionIds: string[] = []; // Permissions would come from role service
           
           await cognitoService.createUser(
@@ -145,7 +160,7 @@ export class UserService {
                 userType: String(data.userType || ''),
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
-                role: JSON.stringify(userRole),
+                role: JSON.stringify(userRoleArray),
                 permissions: JSON.stringify(permissionIds),
               },
             }
@@ -168,6 +183,13 @@ export class UserService {
       }
 
       const now = Date.now();
+      
+      // Generate code if not provided
+      const code = (data as any).code || '';
+
+      const devices = (data as any).devices;
+      const isRpmUser = !!(devices && Array.isArray(devices) && devices.length > 0);
+      
       const user: User = {
         ...data,
         phoneNumber: phoneNumberForDB,
@@ -177,13 +199,17 @@ export class UserService {
         isActive: data.isActive ?? true,
         isLoggedIn: data.isLoggedIn ?? false,
         isRegisteredCompletely: data.isRegisteredCompletely ?? false,
-        isRpmUser: data.isRpmUser ?? false,
+        isRpmUser: data.isRpmUser ?? isRpmUser,
         isTaskCompleted: data.isTaskCompleted ?? false,
         changePassword: data.changePassword ?? true,
         logoutRequired: data.logoutRequired ?? false,
         itemType: data.userType ?? 'USER',
         invitedBy: invitedBy || data.invitedBy || '',
         srcRegisEntity: data.srcRegisEntity || (normalizedEmail ? 'email' : 'phone_number'),
+        inviteCode: code ? `INVITE#${code}` : undefined,
+        invitedID: code || undefined,
+        tokenUpdatedAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds (matching old implementation)
+        userCat: userCat,
       } as User;
 
       await this.repository.createUser(user);

@@ -50,8 +50,8 @@ export class UserService {
         throw new Error('Organization is not available');
       }
 
-      // Check if user already exists
-      const existing = await this.repository.getUser(data.userID);
+      // Check if user already exists (must pass organizationId since getUser requires it)
+      const existing = await this.repository.getUser(data.userID, organizationID);
       if (existing) {
         throw new UserAlreadyExistsError(data.userID);
       }
@@ -324,18 +324,18 @@ export class UserService {
     }
   }
 
-  async getUser(userId: string): Promise<User> {
+  async getUser(userId: string, organizationId: string): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'getUser');
     const logger = createChildLogger(baseLogger, { userId });
-    logger.info({ event: 'service_getUser_start' });
+    logger.info({ event: 'service_getUser_start', userId, organizationId });
 
     try {
-      const user = await this.repository.getUser(userId);
+      const user = await this.repository.getUser(userId, organizationId);
       if (!user) {
         throw new UserNotFoundError(userId);
       }
 
-      logger.info({ event: 'service_getUser_success' });
+      logger.info({ event: 'service_getUser_success', user });
       timer.end();
       return user;
     } catch (err) {
@@ -347,6 +347,7 @@ export class UserService {
 
   async updateUser(
     userId: string,
+    organizationId: string,
     updates: { email?: string; name?: string },
     correlationId?: string,
   ): Promise<User> {
@@ -355,13 +356,13 @@ export class UserService {
     logger.info({ event: 'service_updateUser_start' });
 
     try {
-      const existing = await this.repository.getUser(userId);
+      const existing = await this.repository.getUser(userId, organizationId);
       if (!existing) {
         throw new UserNotFoundError(userId);
       }
 
       await this.repository.updateUser(userId, updates);
-      const updated = await this.repository.getUser(userId);
+      const updated = await this.repository.getUser(userId, organizationId);
       if (!updated) {
         throw new UserNotFoundError(userId);
       }
@@ -434,7 +435,7 @@ export class UserService {
     logger.info({ event: 'service_assignUserToOrg_start' });
 
     try {
-      const existing = await this.repository.getUser(userId);
+      const existing = await this.repository.getUser(userId, organizationId);
       if (!existing) {
         throw new UserNotFoundError(userId);
       }

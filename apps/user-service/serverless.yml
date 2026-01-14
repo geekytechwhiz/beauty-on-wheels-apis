@@ -332,7 +332,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: user/{userId}
+          path: user/organization/{organizationId}/{userId}
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -389,7 +389,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: user/{userId}
+          path: user/organization/{organizationId}/{userId}
           method: put
           cors:
             origin: ${self:custom.cors.origin}

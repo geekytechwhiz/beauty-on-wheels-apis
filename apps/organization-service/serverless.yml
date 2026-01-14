@@ -1,0 +1,752 @@
+service: organization-service
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-organization-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
+    REGION: ${self:provider.region}
+    ORGANIZATION_TABLE: organization-table-${self:provider.stage}
+    ORGANIZATION_FILES_BUCKET: organization-files-bucket-${self:provider.stage}
+    ORGANIZATION_EVENTS_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:organization-events-topic-${self:provider.stage}
+    EVENT_BUS: organization-service-bus-${self:provider.stage}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    # DynamoDB
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/organization-table-*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/organization-table-*/index/*
+
+    # S3 (organization files)
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+        - s3:ListBucket
+      Resource:
+        - arn:aws:s3:::organization-files-bucket-${self:provider.stage}
+        - arn:aws:s3:::organization-files-bucket-${self:provider.stage}/*
+
+    # EventBridge
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource:
+        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/organization-service-bus-${self:provider.stage}
+
+    # SNS (for organization events)
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - arn:aws:sns:${self:provider.region}:${aws:accountId}:organization-events-topic-${self:provider.stage}
+
+    # X-Ray
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+package:
+  individually: true
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
+  autoswagger:
+    title: Organization Service API
+    description: RESTful API for managing organizations, users, devices, metadata, and files
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    type: openapi3
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+    swaggerOutputPath: swagger.json
+    tags:
+      - name: Health
+        description: Health check endpoints
+      - name: Organizations
+        description: Organization management operations
+      - name: Users
+        description: Organization-user relationship operations
+      - name: Devices
+        description: Organization-device relationship operations
+      - name: Metadata
+        description: Organization metadata operations
+      - name: Files
+        description: Organization file management operations
+
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          documentation:
+            summary: Health check endpoint
+            description: Returns the health status of the service
+            tags:
+              - Health
+            responses:
+              200:
+                description: Service is healthy
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          example: "ok"
+
+  createOrganization:
+    handler: src/handlers/createOrganization.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Create a new organization
+            description: Creates a new organization in the system
+            tags:
+              - Organizations
+            requestBody:
+              description: Organization creation data
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - name
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 255
+                      email:
+                        type: string
+                        format: email
+                      phone:
+                        type: string
+                      address:
+                        type: string
+                      city:
+                        type: string
+                      state:
+                        type: string
+                      country:
+                        type: string
+                      postalCode:
+                        type: string
+                      status:
+                        type: string
+                        enum: [ACTIVE, INACTIVE, SUSPENDED]
+                        default: ACTIVE
+            responses:
+              201:
+                description: Organization created successfully
+              400:
+                description: Bad request
+              409:
+                description: Organization already exists
+              500:
+                description: Internal server error
+
+  getOrganization:
+    handler: src/handlers/getOrganization.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Get organization by ID
+            description: Retrieves organization information by organization ID
+            tags:
+              - Organizations
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Organization retrieved successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  updateOrganization:
+    handler: src/handlers/updateOrganization.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Update organization information
+            description: Updates organization information. Only provided fields will be updated.
+            tags:
+              - Organizations
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            requestBody:
+              description: Organization update data (all fields are optional)
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 255
+                      email:
+                        type: string
+                        format: email
+                      phone:
+                        type: string
+                      address:
+                        type: string
+                      city:
+                        type: string
+                      state:
+                        type: string
+                      country:
+                        type: string
+                      postalCode:
+                        type: string
+                      status:
+                        type: string
+                        enum: [ACTIVE, INACTIVE, SUSPENDED]
+            responses:
+              200:
+                description: Organization updated successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  deleteOrganization:
+    handler: src/handlers/deleteOrganization.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}
+          method: delete
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Delete an organization
+            description: Deletes an organization from the system by organization ID (soft delete)
+            tags:
+              - Organizations
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization to delete (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Organization deleted successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  assignUserToOrganization:
+    handler: src/handlers/assignUserToOrganization.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/user/{userId}
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Assign user to organization
+            description: Assigns a user to an organization
+            tags:
+              - Organizations
+              - Users
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: User assigned to organization successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  removeUserFromOrganization:
+    handler: src/handlers/removeUserFromOrganization.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/user/{userId}
+          method: delete
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Remove user from organization
+            description: Removes a user from an organization
+            tags:
+              - Organizations
+              - Users
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+              - name: userId
+                description: Unique identifier of the user (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: User removed from organization successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  listOrganizationUsers:
+    handler: src/handlers/listOrganizationUsers.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/users
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List organization users
+            description: Retrieves all users associated with an organization
+            tags:
+              - Organizations
+              - Users
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Organization users retrieved successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  assignDeviceToOrganization:
+    handler: src/handlers/assignDeviceToOrganization.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/device/{deviceId}
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Assign device to organization
+            description: Assigns a device to an organization
+            tags:
+              - Organizations
+              - Devices
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+              - name: deviceId
+                description: Unique identifier of the device (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Device assigned to organization successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  removeDeviceFromOrganization:
+    handler: src/handlers/removeDeviceFromOrganization.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/device/{deviceId}
+          method: delete
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Remove device from organization
+            description: Removes a device from an organization
+            tags:
+              - Organizations
+              - Devices
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+              - name: deviceId
+                description: Unique identifier of the device (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Device removed from organization successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  listOrganizationDevices:
+    handler: src/handlers/listOrganizationDevices.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/devices
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List organization devices
+            description: Retrieves all devices associated with an organization
+            tags:
+              - Organizations
+              - Devices
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Organization devices retrieved successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  updateOrganizationMetadata:
+    handler: src/handlers/updateOrganizationMetadata.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/metadata
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Update organization metadata
+            description: Updates custom metadata for an organization. Metadata can contain any key-value pairs.
+            tags:
+              - Organizations
+              - Metadata
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            requestBody:
+              description: Organization metadata object (key-value pairs)
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - metadata
+                    properties:
+                      metadata:
+                        type: object
+                        description: Custom metadata as key-value pairs
+                        additionalProperties: true
+            responses:
+              200:
+                description: Organization metadata updated successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  listOrganizationFiles:
+    handler: src/handlers/listOrganizationFiles.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/files
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List organization files
+            description: Retrieves all files associated with an organization
+            tags:
+              - Organizations
+              - Files
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID format)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Organization files retrieved successfully
+              400:
+                description: Bad request
+              404:
+                description: Organization not found
+              500:
+                description: Internal server error
+
+  # S3 → EventBridge trigger
+  uploadOrganizationFile:
+    handler: src/handlers/s3/uploadOrganizationFile.main
+    timeout: 30
+    memorySize: 512
+    events:
+      - eventBridge:
+          pattern:
+            source:
+              - aws.s3
+            detail-type:
+              - Object Created
+            detail:
+              bucket:
+                name:
+                  - organization-files-bucket-${self:provider.stage}
+
+  organizationProfileStreamHandler:
+    handler: src/handlers/stream/organizationProfileStreamHandler.main
+    timeout: 30
+    memorySize: 256
+    # events:
+    #   - stream:
+    #       type: dynamodb
+    #       arn:
+    #         Fn::ImportValue: ${self:provider.stage}-OrganizationTableStreamArn
+    #       batchSize: 10
+    #       startingPosition: LATEST
+    #       functionResponseType: ReportBatchItemFailures
+
+resources:
+  Resources:
+    # EventBridge Event Bus
+    OrganizationServiceBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: organization-service-bus-${self:provider.stage}
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+    # SNS Topic for Organization Events
+    OrganizationEventsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: organization-events-topic-${self:provider.stage}
+        DisplayName: Organization Events Topic
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+  Outputs:
+    OrganizationServiceBusName:
+      Description: Name of the Organization Service Event Bus
+      Value: !Ref OrganizationServiceBus
+      Export:
+        Name: ${self:provider.stage}-${self:service}-EventBusName
+
+    OrganizationEventsTopicArn:
+      Description: ARN of the Organization Events SNS Topic
+      Value: !Ref OrganizationEventsTopic
+      Export:
+        Name: ${self:provider.stage}-${self:service}-OrganizationEventsTopicArn

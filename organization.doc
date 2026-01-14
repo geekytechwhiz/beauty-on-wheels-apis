@@ -1,0 +1,1173 @@
+Date: Wed, 14 Jan 2026 04:45:48 +0000 (UTC)
+Message-ID: <1293097889.21.1768365948530@ad507cf2aac3>
+Subject: Exported From Confluence
+MIME-Version: 1.0
+Content-Type: multipart/related; 
+	boundary="----=_Part_20_1602807537.1768365948530"
+
+------=_Part_20_1602807537.1768365948530
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+Content-Location: file:///C:/exported.html
+
+<html xmlns:o=3D'urn:schemas-microsoft-com:office:office'
+      xmlns:w=3D'urn:schemas-microsoft-com:office:word'
+      xmlns:v=3D'urn:schemas-microsoft-com:vml'
+      xmlns=3D'urn:w3-org-ns:HTML'>
+<head>
+    <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dutf-8=
+">
+    <title>Organization-Service: Technical Documentation</title>
+    <!--[if gte mso 9]>
+    <xml>
+        <o:OfficeDocumentSettings>
+            <o:TargetScreenSize>1024x640</o:TargetScreenSize>
+            <o:PixelsPerInch>72</o:PixelsPerInch>
+            <o:AllowPNG/>
+        </o:OfficeDocumentSettings>
+        <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>90</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+    </xml>
+    <![endif]-->
+    <style>
+                <!--
+        @page Section1 {
+            size: 8.5in 11.0in;
+            margin: 1.0in;
+            mso-header-margin: .5in;
+            mso-footer-margin: .5in;
+            mso-paper-source: 0;
+        }
+
+        table {
+            border: solid 1px;
+            border-collapse: collapse;
+        }
+
+        table td, table th {
+            border: solid 1px;
+            padding: 5px;
+        }
+
+        td {
+            page-break-inside: avoid;
+        }
+
+        tr {
+            page-break-after: avoid;
+        }
+
+        div.Section1 {
+            page: Section1;
+        }
+
+        /* Confluence print stylesheet. Common to all themes for print medi=
+a */
+/* Full of !important until we improve batching for print CSS */
+
+@media print {
+    #main {
+        padding-bottom: 1em !important; /* The default padding of 6em is to=
+o much for printouts */
+    }
+
+    body {
+        font: var(--ds-font-body-small, Arial, Helvetica, FreeSans, sans-se=
+rif);
+    }
+
+    body, #full-height-container, #main, #page, #content, .has-personal-sid=
+ebar #content {
+        background: var(--ds-surface, #fff) !important;
+        color: var(--ds-text, #000) !important;
+        border: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+    }
+
+    a, a:link, a:visited, a:focus, a:hover, a:active {
+        color: var(--ds-text, #000);
+    }
+
+    #content h1,
+    #content h2,
+    #content h3,
+    #content h4,
+    #content h5,
+    #content h6 {
+        page-break-after: avoid;
+    }
+
+    pre {
+        font: var(--ds-font-code, Monaco, "Courier New", monospace);
+    }
+
+    #header,
+    .aui-header-inner,
+    #navigation,
+    #sidebar,
+    .sidebar,
+    #personal-info-sidebar,
+    .ia-fixed-sidebar,
+    .page-actions,
+    .navmenu,
+    .ajs-menu-bar,
+    .noprint,
+    .inline-control-link,
+    .inline-control-link a,
+    a.show-labels-editor,
+    .global-comment-actions,
+    .comment-actions,
+    .quick-comment-container,
+    #addcomment {
+        display: none !important;
+    }
+
+    /* CONF-28544 cannot print multiple pages in IE */
+    #splitter-content {
+        position: relative !important;
+    }
+
+    .comment .date::before {
+        content: none !important; /* remove middot for print view */
+    }
+
+    h1.pagetitle img {
+        height: auto;
+        width: auto;
+    }
+
+    .print-only {
+        display: block;
+    }
+
+    #footer {
+        position: relative !important; /* CONF-17506 Place the footer at en=
+d of the content */
+        margin: 0;
+        padding: 0;
+        background: none;
+        clear: both;
+    }
+
+    #poweredby {
+        border-top: none;
+        background: none;
+    }
+
+    #poweredby li.print-only {
+        display: list-item;
+        font-style: italic;
+    }
+
+    #poweredby li.noprint {
+        display: none;
+    }
+
+    /* no width controls in print */
+    .wiki-content .table-wrap,
+    .wiki-content p,
+    .panel .codeContent,
+    .panel .codeContent pre,
+    .image-wrap {
+        overflow: visible !important;
+    }
+
+    /* TODO - should this work? */
+    #children-section,
+    #comments-section .comment,
+    #comments-section .comment .comment-body,
+    #comments-section .comment .comment-content,
+    #comments-section .comment p {
+        page-break-inside: avoid;
+    }
+
+    #page-children a {
+        text-decoration: none;
+    }
+
+    /**
+     hide twixies
+
+     the specificity here is a hack because print styles
+     are getting loaded before the base styles. */
+    #comments-section.pageSection .section-header,
+    #comments-section.pageSection .section-title,
+    #children-section.pageSection .section-header,
+    #children-section.pageSection .section-title,
+    .children-show-hide {
+        padding-left: 0;
+        margin-left: 0;
+    }
+
+    .children-show-hide.icon {
+        display: none;
+    }
+
+    /* personal sidebar */
+    .has-personal-sidebar #content {
+        margin-right: 0px;
+    }
+
+    .has-personal-sidebar #content .pageSection {
+        margin-right: 0px;
+    }
+
+    .no-print, .no-print * {
+        display: none !important;
+    }
+}
+-->
+    </style>
+</head>
+<body>
+    <h1>Organization-Service: Technical Documentation</h1>
+    <div class=3D"Section1">
+        <h3 local-id=3D"d24264f8-69e1-44ab-b577-5e484ae80cfb" id=3D"Organiz=
+ation-Service:TechnicalDocumentation-1.Overview">1. Overview</h3>
+<p local-id=3D"f189e755-9b18-4f0a-90c3-9063f49cd230">The organization-servi=
+ce manages all organization-centric data and operations, including organiza=
+tion creation, updates, deletion, organization-user and organization-device=
+ mappings, and organization metadata. Authentication and roles are handled =
+by dedicated services.</p>
+<h3 local-id=3D"3607c427-e136-44ea-9e01-d83c66a86f42" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-2.OrganizationFlows">2. Organization Flows</h3=
+>
+<h4 local-id=3D"7b577f48-fed7-460b-bac7-d28a99e9bb03" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-a.OrganizationLifecycle">a. Organization Lifec=
+ycle</h4>
+<ul local-id=3D"1b03b0b6-5c6c-422d-8db4-190b0bc5f2b7">
+<li local-id=3D"55ab4519-bb82-4be7-82e2-8c3b5a6b22b5">
+<p local-id=3D"3374c750-1a7d-45c5-a9de-223d01e1ca99"><strong>Create Organiz=
+ation</strong>: Admin or system creates a new organization via API.</p></li=
+>
+<li local-id=3D"8acb6301-379d-4ede-b70f-f0daa152d6bc">
+<p local-id=3D"84536bc2-01c3-42a4-8faa-9a196547c6cd"><strong>Get Organizati=
+on</strong>: Retrieve organization details by organizationId.</p></li>
+<li local-id=3D"d135cca3-6d46-4911-aaa4-4f7652cc34cb">
+<p local-id=3D"5a60588c-ef3c-47c6-a6c8-125160486ef2"><strong>Update Organiz=
+ation</strong>: Update organization profile, settings, or metadata.</p></li=
+>
+<li local-id=3D"f096f745-f916-48cb-bc3f-c09250430bfd">
+<p local-id=3D"c6839027-d0cb-475a-9e63-01cf0b1db13a"><strong>Delete Organiz=
+ation</strong>: Remove an organization (soft or hard delete).</p></li>
+</ul>
+<h4 local-id=3D"f0dc07f6-c85e-47c9-b2fe-561322ec73f2" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-b.Organization-UserMapping">b. Organization-Us=
+er Mapping</h4>
+<ul local-id=3D"7e75412a-b32a-470a-b0bc-4d409778d7e7">
+<li local-id=3D"cd10cdd6-0333-4c3d-9178-94a22346fe2a">
+<p local-id=3D"10757ed3-cf4d-4a6c-9302-7f7890c8fa69"><strong>Assign User to=
+ Organization</strong>: Add a user to an organization.</p></li>
+<li local-id=3D"544cc741-08a1-4533-a254-8e74b40d88bc">
+<p local-id=3D"44ee4093-5e2f-42f7-b979-ba4c424de0b1"><strong>Remove User fr=
+om Organization</strong>: Remove a user from an organization.</p></li>
+<li local-id=3D"3cf4d71c-6193-4249-9e12-6876cc97786d">
+<p local-id=3D"331484f3-cb34-4c41-9317-b50b49547ee6"><strong>List Organizat=
+ion Users</strong>: List all users belonging to an organization.</p></li>
+</ul>
+<h4 local-id=3D"7be2f39c-20bf-4e9f-9197-bbfcd7181283" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-c.Organization-DeviceMapping">c. Organization-=
+Device Mapping</h4>
+<ul local-id=3D"07048d68-2c79-47ee-b8ad-5c6ecd4b2718">
+<li local-id=3D"dd7bba73-794a-4188-ab97-279a90142a1e">
+<p local-id=3D"ce355977-26d9-4a22-9d79-accff9a77e50"><strong>Assign Device =
+to Organization</strong>: Add a device to an organization.</p></li>
+<li local-id=3D"6b231ccd-b2d1-4006-9f8b-9ce343dd2f9b">
+<p local-id=3D"b6143149-1e2c-4cb6-a515-1ec425aaecad"><strong>Remove Device =
+from Organization</strong>: Remove a device from an organization.</p></li>
+<li local-id=3D"606ff866-f5a0-41a9-be33-55162eb9e6e2">
+<p local-id=3D"8deb40e5-8107-46af-ba6f-c2a1bf87876f"><strong>List Organizat=
+ion Devices</strong>: List all devices assigned to an organization.</p></li=
+>
+</ul>
+<h4 local-id=3D"229f59eb-047f-4988-b57e-ab263ead40a1" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-d.OrganizationMetadata&amp;Events">d. Organiza=
+tion Metadata &amp; Events</h4>
+<ul local-id=3D"93aacf4d-4758-438b-9d1f-41232744f02c">
+<li local-id=3D"e5413d99-877b-4264-a683-a58d4176f717">
+<p local-id=3D"6c11248b-1f26-41ef-8e78-2a3bdf1cd875"><strong>Update Metadat=
+a</strong>: Store or update custom organization metadata.</p></li>
+<li local-id=3D"ee440e7c-394f-44dd-8aae-d2a374db933f">
+<p local-id=3D"c8963d20-af11-4a11-b7c3-3b5e0f84dafd"><strong>Organization C=
+hange Events</strong>: DynamoDB Streams trigger audit, analytics, or notifi=
+cation Lambdas.</p></li>
+</ul><span class=3D"confluence-embedded-file-wrapper image-center-wrapper c=
+onfluence-embedded-manual-size"><img class=3D"confluence-embedded-image ima=
+ge-center" alt=3D"image-20251217-105702.png" width=3D"453" loading=3D"lazy"=
+ src=3D"85a83edb7c84f4ffefbcc7f311d15b96dcd7cbe070f0f0683b5098b064bcc6a0" d=
+ata-image-src=3D"https://firminiq.atlassian.net/wiki/download/attachments/3=
+45047041/image-20251217-105702.png?version=3D1&amp;modificationDate=3D17659=
+69025960&amp;cacheVersion=3D1&amp;api=3Dv2" data-height=3D"676" data-width=
+=3D"453" data-unresolved-comment-count=3D"0" data-linked-resource-id=3D"345=
+178113" data-linked-resource-version=3D"1" data-linked-resource-type=3D"att=
+achment" data-linked-resource-default-alias=3D"image-20251217-105702.png" d=
+ata-base-url=3D"https://firminiq.atlassian.net/wiki" data-linked-resource-c=
+ontent-type=3D"image/png" data-linked-resource-container-id=3D"345047041" d=
+ata-linked-resource-container-version=3D"1" data-media-id=3D"7b50d586-cb5f-=
+4066-b886-e8a36eaaf3f7" data-media-type=3D"file" height=3D"674"></span>
+<h3 local-id=3D"f524c1f0-47de-4748-95ab-7c9b84fdf596" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-4.DynamoDBTableDesign&amp;AccessPatterns">4. D=
+ynamoDB Table Design &amp; Access Patterns</h3>
+<h4 local-id=3D"665e58ff-f96b-40dd-8971-51f2310d64d7" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-Table:OrganizationTable">Table: OrganizationTa=
+ble</h4>
+<div class=3D"table-wrap">
+<table data-layout=3D"default" data-local-id=3D"41860bcd-aa17-4294-aef3-7fe=
+e3d5bdeee" class=3D"confluenceTable">
+<tbody>
+<tr ac:local-id=3D"bed7811c-e12a-4caa-9690-a0031bb25c3f">
+<th data-local-id=3D"8dd11d41-667b-4459-afec-d232d58d0f1c" class=3D"conflue=
+nceTh">
+<p local-id=3D"a5353a19-38c3-4c67-9a60-a6527db7ad84"><strong>Partition Key =
+(pk)</strong></p></th>
+<th data-local-id=3D"291fe3c4-9404-4abe-91dc-3ccce1000402" class=3D"conflue=
+nceTh">
+<p local-id=3D"03564788-5b29-4109-9d68-36d35e2aba1a"><strong>Sort Key (sk)<=
+/strong></p></th>
+<th data-local-id=3D"62bb39e9-37ac-4a84-bfee-4af8cf1527bb" class=3D"conflue=
+nceTh">
+<p local-id=3D"249d2af5-a30d-4c72-be7a-806c6cb1da39"><strong>Purpose</stron=
+g></p></th>
+</tr>
+<tr ac:local-id=3D"d700e792-4d7e-4cb8-98da-00a641d7d231">
+<td data-local-id=3D"9ade4a35-83ec-4ca3-b320-ddaa7ce4c52d" class=3D"conflue=
+nceTd">
+<p local-id=3D"d53915ef-e98f-4e2a-bf54-870cb41d6da9">ORG#{organizationId}</=
+p></td>
+<td data-local-id=3D"67f28f06-3f2a-482f-b7a3-a19ca3baafa9" class=3D"conflue=
+nceTd">
+<p local-id=3D"896424fc-59ab-4572-9990-908714d527dc">ORG_DETAILS</p></td>
+<td data-local-id=3D"d5d7dd0a-c44f-4240-93b5-6d4050f102fc" class=3D"conflue=
+nceTd">
+<p local-id=3D"f3ad68b8-2be6-456c-bda3-0ed298876668">Main organization prof=
+ile</p></td>
+</tr>
+<tr ac:local-id=3D"cfb10b8d-cb29-4552-acf9-281666094b12">
+<td data-local-id=3D"c72dc1d3-5542-4725-9737-6d95fc8a7a29" class=3D"conflue=
+nceTd">
+<p local-id=3D"04afb20c-1145-44be-9d3e-8c568467f2de">ORG#{organizationId}</=
+p></td>
+<td data-local-id=3D"c12c6c0d-62ba-4dd3-bc82-d88ad3624336" class=3D"conflue=
+nceTd">
+<p local-id=3D"cc2d8717-427b-4dce-bec3-8de30761fbc1">ORG_USER#{userId}</p><=
+/td>
+<td data-local-id=3D"f3ce7ec8-ceb4-402b-a976-ddc6ecc3913a" class=3D"conflue=
+nceTd">
+<p local-id=3D"1caffe12-2c72-486f-9ed4-dea07cea9216">Organization-user mapp=
+ing</p></td>
+</tr>
+<tr ac:local-id=3D"8d0930ce-2807-4b61-ab9f-fe015cfcaca8">
+<td data-local-id=3D"a686e398-1fe2-4f39-857b-0e4f78bf039d" class=3D"conflue=
+nceTd">
+<p local-id=3D"dbef6592-b742-4510-9be8-d82bb88889c4">ORG#{organizationId}</=
+p></td>
+<td data-local-id=3D"d9065446-9a0b-43b1-bc4c-9ab03aa16466" class=3D"conflue=
+nceTd">
+<p local-id=3D"702f63f9-2b6b-4857-b923-3470279d1a10">ORG_DEVICE#{deviceId}<=
+/p></td>
+<td data-local-id=3D"1c583d44-dea4-4635-8355-049453eefebc" class=3D"conflue=
+nceTd">
+<p local-id=3D"e17fb48b-29a6-4c5e-a887-353648e91fe0">Organization-device ma=
+pping</p></td>
+</tr>
+<tr ac:local-id=3D"96637251-ef56-4793-81d1-cde3f5b98f5a">
+<td data-local-id=3D"d9cf32e7-f8e3-4134-a0b2-ad23dd398c30" class=3D"conflue=
+nceTd">
+<p local-id=3D"e5044d65-0f73-4c3d-94cd-2a6d1878e655">ORG#{organizationId}</=
+p></td>
+<td data-local-id=3D"fb63a317-4d95-454c-89d2-bb1484ca9dca" class=3D"conflue=
+nceTd">
+<p local-id=3D"76b5c732-66a0-4094-87de-1dcbc3e9fe5e">ORG_METADATA</p></td>
+<td data-local-id=3D"29e73d4f-bfdf-498c-b0d9-ce0a62e694f6" class=3D"conflue=
+nceTd">
+<p local-id=3D"199b0157-ffa9-418d-8fac-29ffc2dceb1c">Organization metadata<=
+/p></td>
+</tr>
+<tr ac:local-id=3D"252222f8-657a-4465-b922-698899ccf0c1">
+<td data-local-id=3D"60a7f757-787e-4238-87fe-869bec028855" class=3D"conflue=
+nceTd">
+<p local-id=3D"9165bbf1-3f94-4ad1-898e-bb14c72b1508">ORG#{organizationId}</=
+p></td>
+<td data-local-id=3D"591b66ac-7085-4389-9e02-c8042ac2deb6" class=3D"conflue=
+nceTd">
+<p local-id=3D"8cec21e2-98ab-415f-968e-417e04541a0b">ORG_FILE#{fileId}</p><=
+/td>
+<td data-local-id=3D"65627a3f-4521-465a-afc3-ee63fa66af7e" class=3D"conflue=
+nceTd">
+<p local-id=3D"40c16715-ef59-4fa7-bef3-8f2416c88bdb">Organization file refe=
+rences</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p local-id=3D"88331460-e8e9-499a-b5cc-21903b769c02"></p>
+<h3 local-id=3D"0ac41b41-cbce-40c1-95f6-b67b96cb9eca" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-5.DynamoDBAccessPatterns">5. DynamoDB Access P=
+atterns</h3>
+<div class=3D"table-wrap">
+<table data-layout=3D"default" data-local-id=3D"b84271ea-e23d-4177-a85a-d13=
+9fff4a96a" class=3D"confluenceTable">
+<tbody>
+<tr ac:local-id=3D"4a2b5d02-5e9d-4aa9-be86-48bb159be5f4">
+<th data-local-id=3D"c6d78850-75ef-4158-ba0c-f2344d1858d5" class=3D"conflue=
+nceTh">
+<p local-id=3D"0b74f48b-b83d-4b73-8fc6-55c1f74d6ab5"><strong>Operation</str=
+ong></p></th>
+<th data-local-id=3D"a7e72f9a-699c-4a39-a3fd-e67a6bd16022" class=3D"conflue=
+nceTh">
+<p local-id=3D"05f263ab-97cc-4b7d-bc62-6628e8723e37"><strong>pk</strong></p=
+></th>
+<th data-local-id=3D"5389e4ef-f7c6-4c35-a4f7-750bcd5b5056" class=3D"conflue=
+nceTh">
+<p local-id=3D"ac631d27-0927-4323-b785-41f5a452ed86"><strong>sk</strong></p=
+></th>
+<th data-local-id=3D"e664ec5b-a5ad-4d36-8bed-3645d1639fe3" class=3D"conflue=
+nceTh">
+<p local-id=3D"3ecc5228-8a5d-48b6-8f2f-ec9bfa37c863"><strong>Description</s=
+trong></p></th>
+</tr>
+<tr ac:local-id=3D"f2c326c0-c345-440c-b83c-e656920d0428">
+<td data-local-id=3D"ae0e2402-5b60-4b5e-9347-0eddff0cf962" class=3D"conflue=
+nceTd">
+<p local-id=3D"0c5e7f8d-8559-4b8b-abe7-c332eb816402">Get organization profi=
+le</p></td>
+<td data-local-id=3D"7e40ff63-50e0-46cb-86db-d5240e5f3170" class=3D"conflue=
+nceTd">
+<p local-id=3D"3e105865-02f2-4de6-8cbb-73a663491fda">ORG#{orgId}</p></td>
+<td data-local-id=3D"3a2010e8-4b3f-4820-b792-5a326e4be3c9" class=3D"conflue=
+nceTd">
+<p local-id=3D"56b58c5d-34f3-4975-8d19-a46b33442ed1">ORG_DETAILS</p></td>
+<td data-local-id=3D"f80d11b5-9123-42dc-b05e-46a39453fb68" class=3D"conflue=
+nceTd">
+<p local-id=3D"144b6c6d-8f94-4301-98c0-83d1de8b1218">Fetch main organizatio=
+n profile</p></td>
+</tr>
+<tr ac:local-id=3D"77c2d8c3-5eda-4e6a-a4d2-d425ff2d983c">
+<td data-local-id=3D"1eb09f69-dff3-4334-9ca3-c7460f18a2fb" class=3D"conflue=
+nceTd">
+<p local-id=3D"920617c6-e9b6-481e-bd3d-ab6856cd0eab">List all org users</p>=
+</td>
+<td data-local-id=3D"8547a313-bde6-443b-a121-f8df9f5a619f" class=3D"conflue=
+nceTd">
+<p local-id=3D"2a566571-9f62-424b-99b0-169bf9df3526">ORG#{orgId}</p></td>
+<td data-local-id=3D"9fc57c33-46b1-4477-bfe7-27beb973d261" class=3D"conflue=
+nceTd">
+<p local-id=3D"71062d92-acc5-4412-b02b-533ec63e57f8">begins_with(ORG_USER#)=
+</p></td>
+<td data-local-id=3D"669989c3-e22d-418e-a35d-4d289c961470" class=3D"conflue=
+nceTd">
+<p local-id=3D"353c0343-93bf-4ad3-8f9e-6c77fa34b193">List all users in an o=
+rganization</p></td>
+</tr>
+<tr ac:local-id=3D"6a08094b-eb51-4fd2-ab77-ce9f7a6b9b2f">
+<td data-local-id=3D"de6a5c1b-0f9b-4a2c-8eef-8a6ab482e384" class=3D"conflue=
+nceTd">
+<p local-id=3D"faed1bd6-0efb-4f53-9258-c0777b3a6bd5">List all org devices</=
+p></td>
+<td data-local-id=3D"b64ac16d-af5e-4863-b4da-a10630627c27" class=3D"conflue=
+nceTd">
+<p local-id=3D"df93b88f-f9b3-45ef-88e5-f55ebbd27ba0">ORG#{orgId}</p></td>
+<td data-local-id=3D"5f64864b-fe65-4c78-8214-6c82e4597415" class=3D"conflue=
+nceTd">
+<p local-id=3D"9d68985f-ef87-4a1f-89d7-15b22fe8755d">begins_with(ORG_DEVICE=
+#)</p></td>
+<td data-local-id=3D"c5e06850-3396-41a2-b06f-04a2c5b87301" class=3D"conflue=
+nceTd">
+<p local-id=3D"de450d3a-35d7-409c-9338-4c16cdb84585">List all devices in an=
+ organization</p></td>
+</tr>
+<tr ac:local-id=3D"4303a2df-1d47-4e2e-9988-8e49f0875e95">
+<td data-local-id=3D"da87beaf-8be4-4197-ae4b-f34cdde79ea6" class=3D"conflue=
+nceTd">
+<p local-id=3D"271ff793-686a-497a-a0d5-3c9aa1b44667">Update org metadata</p=
+></td>
+<td data-local-id=3D"7f9d903f-7aa2-40a9-91f3-9fc7ea2b52ab" class=3D"conflue=
+nceTd">
+<p local-id=3D"063d0d27-b9ca-48eb-9017-eadbb85b795c">ORG#{orgId}</p></td>
+<td data-local-id=3D"b80a219c-948c-42c7-bfcc-76357bfc5d03" class=3D"conflue=
+nceTd">
+<p local-id=3D"cc9b1387-bf73-474c-96a3-bae5b0df9216">ORG_METADATA</p></td>
+<td data-local-id=3D"cc83fc82-c22a-4207-9ec3-845e4ffac4aa" class=3D"conflue=
+nceTd">
+<p local-id=3D"ac4be568-1097-4655-87f8-5d1f0049afd1">Update or fetch org me=
+tadata</p></td>
+</tr>
+<tr ac:local-id=3D"a0ec39f7-076f-4da1-ac58-a20e97ab6a09">
+<td data-local-id=3D"3f783d1e-641c-4503-8cb2-088828357d30" class=3D"conflue=
+nceTd">
+<p local-id=3D"debde27d-74dd-4272-b161-5f00b80415d9">Get org files</p></td>
+<td data-local-id=3D"3d5817f8-3a66-4787-b188-bf7138fc854f" class=3D"conflue=
+nceTd">
+<p local-id=3D"3be81135-cf85-4f73-b691-cc0cd5b5f206">ORG#{orgId}</p></td>
+<td data-local-id=3D"67b3ae54-0819-4ffd-8319-e5df451aad74" class=3D"conflue=
+nceTd">
+<p local-id=3D"c985cdce-9b2a-4026-b0dc-a0efeac97d6b">begins_with(ORG_FILE#)=
+</p></td>
+<td data-local-id=3D"4283f1de-6514-46b7-ac7e-3b9eebecc15e" class=3D"conflue=
+nceTd">
+<p local-id=3D"9c361930-4713-4c06-9fc0-01a9bebf24de">List all files uploade=
+d by org</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 local-id=3D"eee98033-11a3-4692-a59a-5ffbe3ffe1f8" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-MethodsandKeyMappings">Methods and Key Mapping=
+s</h3>
+<div class=3D"table-wrap">
+<table data-layout=3D"default" data-local-id=3D"b040a6eb-8144-4f56-b8fc-bae=
+cb790f0a9" class=3D"confluenceTable">
+<tbody>
+<tr ac:local-id=3D"37cf079c-76d4-44b5-b6c1-eefb61e39806">
+<th data-local-id=3D"df30940a-8e1b-43ca-92a8-5a2608fa58ae" class=3D"conflue=
+nceTh">
+<p local-id=3D"cbc0df59-4d47-4d07-848a-87d4c222aeb6"><strong>Method</strong=
+></p></th>
+<th data-local-id=3D"ef2d1245-cdee-4fd5-9512-5347dfbc4658" class=3D"conflue=
+nceTh">
+<p local-id=3D"1a15baa0-8e8c-4d0d-bedc-632ca14007de"><strong>pk</strong></p=
+></th>
+<th data-local-id=3D"c94eaa09-19ab-4fe7-9426-3720d711968d" class=3D"conflue=
+nceTh">
+<p local-id=3D"98e8bde4-bc9a-4cea-876b-d9ebd2be247a"><strong>sk</strong></p=
+></th>
+<th data-local-id=3D"cb1134c3-153e-4498-8c19-8ea0f9ba8301" class=3D"conflue=
+nceTh">
+<p local-id=3D"37f04c0e-ea04-4f29-819d-9ea09e23a5cc"><strong>Integration</s=
+trong></p></th>
+</tr>
+<tr ac:local-id=3D"6cdba2dd-c4e6-48e6-97e6-d3c3b3e658e5">
+<td data-local-id=3D"922e437b-ba15-45d1-9ffd-b968e11c7250" class=3D"conflue=
+nceTd">
+<p local-id=3D"c09dc95f-dc4d-4f22-9b79-f37413d58c42">createOrganization</p>=
+</td>
+<td data-local-id=3D"a5185157-1746-4184-a726-2365b8140202" class=3D"conflue=
+nceTd">
+<p local-id=3D"eac45a7d-93be-405d-8bf2-5e93dd792f4f">ORG#{orgId}</p></td>
+<td data-local-id=3D"7c043af1-efae-4f58-b062-586934b5128f" class=3D"conflue=
+nceTd">
+<p local-id=3D"8c0ed3f2-bf40-4cd4-82a8-43b4f2804be9">ORG_DETAILS</p></td>
+<td data-local-id=3D"c0c1bbe1-be7b-48f1-b516-4b8474ce5fe5" class=3D"conflue=
+nceTd">
+<p local-id=3D"c08ffe6c-969e-4399-b766-70060f669fd1">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"9a389d52-65f8-4b23-a07e-f655d01738b4">
+<td data-local-id=3D"f3bd8aa0-5417-48e5-8dd5-4e224891c0a5" class=3D"conflue=
+nceTd">
+<p local-id=3D"0222ed33-356c-4274-bbef-5d91ca9febbc">getOrganization</p></t=
+d>
+<td data-local-id=3D"f0ea412c-6077-49d8-8831-c13b2613bfb6" class=3D"conflue=
+nceTd">
+<p local-id=3D"09c6c7a7-4cdf-4427-8c3f-9b066079fb3d">ORG#{orgId}</p></td>
+<td data-local-id=3D"c73affe5-0938-4ed8-ab4b-742ed9c389be" class=3D"conflue=
+nceTd">
+<p local-id=3D"88c4de12-c16c-4162-88fc-be857148aac7">ORG_DETAILS</p></td>
+<td data-local-id=3D"96ba42d4-2c3e-4747-8004-1ad71ddcd5a2" class=3D"conflue=
+nceTd">
+<p local-id=3D"0759a21c-ad69-49eb-8891-7e8e03001889">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"3b92203b-694e-406c-a5bf-f1a5694e2774">
+<td data-local-id=3D"43732d77-e93a-4d37-a431-32c6bbdb00a3" class=3D"conflue=
+nceTd">
+<p local-id=3D"8b59257e-77b8-4141-8aec-a3673b619e6b">updateOrganization</p>=
+</td>
+<td data-local-id=3D"8ccd8ae1-f64c-4342-bd4c-ac0890f35b7b" class=3D"conflue=
+nceTd">
+<p local-id=3D"d7808603-4dca-4d6f-a8da-6398d23725a9">ORG#{orgId}</p></td>
+<td data-local-id=3D"09db8a8a-3ffc-49a0-8b4b-95f0702d36df" class=3D"conflue=
+nceTd">
+<p local-id=3D"00c229ba-4f92-4321-8012-d60b3910cc3a">ORG_DETAILS</p></td>
+<td data-local-id=3D"9b50750a-5c38-46c6-a539-d8a9ae2682eb" class=3D"conflue=
+nceTd">
+<p local-id=3D"4416dd7b-e64a-4359-a144-81bb08311fbe">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"5b675a6a-5dbc-4718-a9d6-cecb684480c7">
+<td data-local-id=3D"adc04048-0c97-4196-8a5d-ecb130695f85" class=3D"conflue=
+nceTd">
+<p local-id=3D"6787a270-35f6-42b1-8210-a1f105cea495">deleteOrganization</p>=
+</td>
+<td data-local-id=3D"af64d245-cfcb-4596-934b-cced32516a60" class=3D"conflue=
+nceTd">
+<p local-id=3D"661be050-672f-4498-9239-e48704cb46a6">ORG#{orgId}</p></td>
+<td data-local-id=3D"89409afa-be54-42a8-974e-b38768c0da07" class=3D"conflue=
+nceTd">
+<p local-id=3D"bfbdcb54-be95-4928-9ec2-7e982ee3d092">ORG_DETAILS</p></td>
+<td data-local-id=3D"548d56af-8db2-477a-ab44-b4748d24627c" class=3D"conflue=
+nceTd">
+<p local-id=3D"7f2c0626-3b70-4d12-982b-c28146636b57">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"6086e604-febf-4c69-bbcf-2b6ecf3ddab7">
+<td data-local-id=3D"e26ac834-7eca-4400-88c6-dfdcaff3456a" class=3D"conflue=
+nceTd">
+<p local-id=3D"9446f057-0020-48fa-81bb-3591e18a4a9f">assignUserToOrganizati=
+on</p></td>
+<td data-local-id=3D"38758b14-37f1-4df7-8990-3e33e9944ebc" class=3D"conflue=
+nceTd">
+<p local-id=3D"aa7fca64-f538-45d9-856f-538148181ee1">ORG#{orgId}</p></td>
+<td data-local-id=3D"d29689be-53c2-4950-8916-7aa158100ef0" class=3D"conflue=
+nceTd">
+<p local-id=3D"f28b3d62-2911-46fb-9b0d-8c214d703a36">ORG_USER#{userId}</p><=
+/td>
+<td data-local-id=3D"148fbba7-4248-49bf-815c-642da94e00d8" class=3D"conflue=
+nceTd">
+<p local-id=3D"4d830374-80b4-49a5-b3ac-f5223bdddefe">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"fd217b00-eef8-4b78-a536-6dd0206ad084">
+<td data-local-id=3D"4e873658-47ce-4b3f-854f-6f6ca3c2a61f" class=3D"conflue=
+nceTd">
+<p local-id=3D"e9b43727-ae3a-4cae-afc9-8024ea71e6b6">removeUserFromOrganiza=
+tion</p></td>
+<td data-local-id=3D"51153187-995d-489d-b9f8-2368a0bdbfbe" class=3D"conflue=
+nceTd">
+<p local-id=3D"ea71af18-e91c-40a8-bba4-42de385c4a01">ORG#{orgId}</p></td>
+<td data-local-id=3D"92661b9d-8fc8-4286-aa20-671fb2cd4a00" class=3D"conflue=
+nceTd">
+<p local-id=3D"3e70a62b-8bc1-4756-8fd0-1122fbc8d787">ORG_USER#{userId}</p><=
+/td>
+<td data-local-id=3D"d675a7ac-f517-4800-96f1-cf3753725346" class=3D"conflue=
+nceTd">
+<p local-id=3D"22e4fa42-b684-4ce0-9731-ea9144d50c4c">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"54562e01-9109-4fb6-a58c-15b97ae1c1c2">
+<td data-local-id=3D"62bfbba8-7201-429b-be86-bfa06a09e7f6" class=3D"conflue=
+nceTd">
+<p local-id=3D"3ad722d0-dd32-461c-98ca-0a9c8179c158">listOrganizationUsers<=
+/p></td>
+<td data-local-id=3D"4d981a84-605c-4251-b9b8-62ed43a90352" class=3D"conflue=
+nceTd">
+<p local-id=3D"e515ebe3-7a82-49af-9737-4872f84c8d63">ORG#{orgId}</p></td>
+<td data-local-id=3D"1db99e50-566e-48e2-a87a-5f58a501e3c3" class=3D"conflue=
+nceTd">
+<p local-id=3D"dbd0db19-b643-4e71-a7b4-c27031f676bf">begins_with(ORG_USER#)=
+</p></td>
+<td data-local-id=3D"83be55c7-9bb9-402a-9ecd-4afd514b182e" class=3D"conflue=
+nceTd">
+<p local-id=3D"d7a69d55-e82b-4061-a44f-54bda0129367">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"018333fd-a18b-404c-9e0e-6006b11c004a">
+<td data-local-id=3D"fa4a747c-38ab-4ba2-8f89-4260b014b8dd" class=3D"conflue=
+nceTd">
+<p local-id=3D"47802da5-e117-4586-9e4a-14603ae46449">assignDeviceToOrganiza=
+tion</p></td>
+<td data-local-id=3D"e7558f94-51d2-4a4d-8772-ab312ac4fa84" class=3D"conflue=
+nceTd">
+<p local-id=3D"9ab1e37c-8478-455f-8d31-23b4a8f18725">ORG#{orgId}</p></td>
+<td data-local-id=3D"c7c97c60-8c3d-49b6-9ab8-738e2bb95791" class=3D"conflue=
+nceTd">
+<p local-id=3D"52cdfd93-4548-437d-aa4b-8f3509cdef52">ORG_DEVICE#{deviceId}<=
+/p></td>
+<td data-local-id=3D"2e480c7c-1a10-41a7-8be4-e1744f7ab22c" class=3D"conflue=
+nceTd">
+<p local-id=3D"ca9cc6fd-77ae-4e7c-99c3-2f2a36ed812b">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"09c27723-5f67-4812-b20e-7464b23043e9">
+<td data-local-id=3D"f55e7b75-5250-4267-bf95-d00ed2f27f20" class=3D"conflue=
+nceTd">
+<p local-id=3D"96403db4-3c63-448a-814d-7f64b249e145">removeDeviceFromOrgani=
+zation</p></td>
+<td data-local-id=3D"7f59ec88-e4ba-4a61-864d-b22daf30df20" class=3D"conflue=
+nceTd">
+<p local-id=3D"47e21586-d770-405b-8f37-53752f94726f">ORG#{orgId}</p></td>
+<td data-local-id=3D"40efa0a1-8cad-4a71-8e18-a171e5a26195" class=3D"conflue=
+nceTd">
+<p local-id=3D"4be93900-6aa3-498b-8bc9-cdae041bad2b">ORG_DEVICE#{deviceId}<=
+/p></td>
+<td data-local-id=3D"f5c7a363-2ce4-4dc1-809f-6be86f3d6352" class=3D"conflue=
+nceTd">
+<p local-id=3D"8148c0a0-b946-46bd-b6c0-ec1a6451e18f">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"1a8cfa2d-c63c-4c8e-a2e2-2a58e6b6647e">
+<td data-local-id=3D"c4ceb7cb-4be1-48c7-af03-c094673f0c7e" class=3D"conflue=
+nceTd">
+<p local-id=3D"b4aaa973-9c46-4bb9-8612-be4910358b62">listOrganizationDevice=
+s</p></td>
+<td data-local-id=3D"6ce27efc-7edc-4999-abcb-bc3f258f30e6" class=3D"conflue=
+nceTd">
+<p local-id=3D"e115ed72-ee31-49ae-88c0-bab1191cbe05">ORG#{orgId}</p></td>
+<td data-local-id=3D"82c0a598-8d68-4792-9425-c9e185baf37a" class=3D"conflue=
+nceTd">
+<p local-id=3D"33e0985b-98d8-4750-95e9-fae4286b4b16">begins_with(ORG_DEVICE=
+#)</p></td>
+<td data-local-id=3D"24eaf00d-3dfb-4c1c-ad53-461bd234f710" class=3D"conflue=
+nceTd">
+<p local-id=3D"e9199c9c-77de-4a4b-8a77-52d9c25a0ba8">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"3e265534-2ac4-4a06-befc-2417c3828b80">
+<td data-local-id=3D"0299244e-1a2a-44c0-9e79-4468bef2e60e" class=3D"conflue=
+nceTd">
+<p local-id=3D"d694fd6f-774b-486b-89c2-6cd3ddc19cd6">updateOrganizationMeta=
+data</p></td>
+<td data-local-id=3D"02358f15-754b-4451-bf8a-80bcd5dbb659" class=3D"conflue=
+nceTd">
+<p local-id=3D"e40a74b2-8d8d-40f7-96db-cab1b7cd8f43">ORG#{orgId}</p></td>
+<td data-local-id=3D"7b4a6077-226d-448f-a227-1f8b83b88293" class=3D"conflue=
+nceTd">
+<p local-id=3D"e0111e7f-6625-43a9-94ae-45c31b736522">ORG_METADATA</p></td>
+<td data-local-id=3D"9c4ae93e-ae45-415d-aa31-5a3556386ad0" class=3D"conflue=
+nceTd">
+<p local-id=3D"80c5e359-6d2a-4940-9f7a-d78790a8d306">API Gateway</p></td>
+</tr>
+<tr ac:local-id=3D"c668fa80-7f56-4189-8523-db0938853856">
+<td data-local-id=3D"0db5aa42-21dc-4cf9-9179-63d2202c37a7" class=3D"conflue=
+nceTd">
+<p local-id=3D"ed443bab-6f0d-4df8-8c10-f1b978ebe6bb">uploadOrganizationFile=
+</p></td>
+<td data-local-id=3D"bf47c439-fcd0-43bc-b357-7c80a891342a" class=3D"conflue=
+nceTd">
+<p local-id=3D"e14a2cdd-5c53-48d3-9835-63a8d6bb1eed">ORG#{orgId}</p></td>
+<td data-local-id=3D"93be55f1-e008-4aaf-9adb-c035cac01b4a" class=3D"conflue=
+nceTd">
+<p local-id=3D"8c5e9c28-d7e6-40d8-95ae-9c3524efcfec">ORG_FILE#{fileId}</p><=
+/td>
+<td data-local-id=3D"249ad021-09f6-4277-ab41-8418c96810bd" class=3D"conflue=
+nceTd">
+<p local-id=3D"3cb9387b-105f-46c9-a5ec-19977cc70fad">S3 =E2=86=92 Lambda</p=
+></td>
+</tr>
+<tr ac:local-id=3D"ab06cd81-74d8-4d78-b59c-aaab01d4c06f">
+<td data-local-id=3D"5ab8861d-f2cf-4add-bc07-7350e384ce56" class=3D"conflue=
+nceTd">
+<p local-id=3D"b32b1bb0-6ae4-4fee-80a4-0a42ab4f0a9f">organizationProfileStr=
+eamHandler</p></td>
+<td data-local-id=3D"261f11a5-997b-4092-ba53-af92225e755e" class=3D"conflue=
+nceTd">
+<p local-id=3D"48158a29-a8e6-48a5-a610-7e4d2c94ffa5">ORG#{orgId}</p></td>
+<td data-local-id=3D"4b756759-829c-47ce-b9b2-3713975af3a2" class=3D"conflue=
+nceTd">
+<p local-id=3D"a1ca0ba1-9d4c-46e8-8623-4ed4acbc6ea9">*</p></td>
+<td data-local-id=3D"f284dc80-ef4c-41bd-9bc3-ad132b2bf5f2" class=3D"conflue=
+nceTd">
+<p local-id=3D"c695be50-5eb0-4151-ae9b-6ef2786cd862">DynamoDB Stream</p></t=
+d>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 local-id=3D"95808517-4429-4820-9689-eabd71a41526" id=3D"Organization-Se=
+rvice:TechnicalDocumentation-Summary">Summary</h2>
+<ul local-id=3D"1a8c5db2-119d-4acd-a591-4cfc6f70e8ef">
+<li local-id=3D"bf74ab77-36a1-4b29-b6cb-aaa265d69012">
+<p local-id=3D"8921bf7f-e5d6-4a2a-ae90-f37eff9d1366"><strong>Organization f=
+lows</strong>: CRUD, user/device mapping, metadata, file upload, event-driv=
+en audit.</p></li>
+<li local-id=3D"c3185cf4-b71a-4dbd-8892-49bd5a59a638">
+<p local-id=3D"4422827d-1f87-4974-8bb6-5eab9523a781"><strong>AWS architectu=
+re</strong>: API Gateway =E2=86=92 Lambda =E2=86=92 DynamoDB (OrganizationT=
+able) with Streams, S3, SQS.</p></li>
+<li local-id=3D"3bf6ce7b-ecb2-4406-af8b-d43d9f724b55">
+<p local-id=3D"94eb220b-28e5-4038-8e78-3b4cfb06602d"><strong>DynamoDB</stro=
+ng>: Composite key design for flexible, scalable access patterns.</p></li>
+<li local-id=3D"b37c9a2c-7f67-4cff-a66c-ee9dcc1ecfa5">
+<p local-id=3D"525b9760-3e44-4883-a5b4-e9b32b9ab53a"><strong>Methods</stron=
+g>: CRUD, mapping, event-driven, and file handling, all mapped to clear key=
+ patterns.</p></li>
+</ul>
+    </div>
+</body>
+</html>
+------=_Part_20_1602807537.1768365948530
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Location: file:///C:/85a83edb7c84f4ffefbcc7f311d15b96dcd7cbe070f0f0683b5098b064bcc6a0
+
+iVBORw0KGgoAAAANSUhEUgAAAKgAAAD6CAYAAAA1DQxIAABW10lEQVR4Ae3AA6AkWZbG8f937o3I
+zKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a/aNldd9T8Tlauu+p+LylVX/c9F
+8FzS5uJqoNm8MFOai6sB88KtW+PSeuBfcjROHAwjz4+dZDacjUvLFYfDgLOR2chsZDYyG5mNzEbL
+xoWjJatxJLPRstGy0bLRstGy0bIxtonzh0uGNtGy0bLRstGy0bLRstEyWU8T51drzAu3mhqX1iP/
+ksNx4mCY+JfsrUdWU+NfsrsaGDN5YdLm4mogbV6YMZPd1cC/ZDU19tYj/5KDYeJwnPiXXFqPrKfG
+c6HyXCTRl0C8cCHoS/AvKRJdBP+SEkHYPLf9g4Gv+r5LFEyoMY4jlWQWULIRNIqT4qS4UWgUJ9M4
+Mg/TyxSS4kahUUmKG4Wk0JimkY0KnUyhUUiKkkpS1CgYqTFdusT8vd+OzQffzAtSQnQO/iVVwuJf
+1EVQJP4lXQkC8cII0ZdAiBcmEF0J/iVFoivBv6SGkPgXdRFEiOdC5bkI2Owq/5KQ2Owq/5IaQY3g
+XzIrwfOzu7dmavBx73eG1owE2NxPmMsMwtwvBLYBEABG3M+IKwIwRtzPiGcTELOOCz/40yzvvpfN
+B9/MC9JF0AX/olktvCgWXeFFsdlV/iUSbHaVf0kJsRmVf0lXgo5/2bwWXhQbXeH5oPI/npnPxOZC
+gPjvosWc5Kr/YlT+NzD/A4ir/ssR/C9mm/865qr/clT+NxDP44//+I+54447eNCDHgTAQx7yEHZ2
+dqi1sl6vkcSTn/xkXuIlXoLbb7+druvY3t7mV3/1V3nrt35rlsslj3vc43iJl3gJMpOI4J577uH0
+6dNEBIvFgqv+21H538A8h729PW699Vbe+Z3fmX/4h3/gr//6r7nrrru49957OXnyJEdHR2xtbXH+
+/Hle4iVegttuu42XfumX5h/+4R/4+7//e26++Wbuuusu7r77bv7hH/6BYRjY3t7m2LFjXLhwgdYa
+b/Imb8KZM2e46r8Vwf8G4jksFgsykz/90z/l1ltvRRJ33XUX0zRxeHjIwx/+cPq+59ixY6zXa9br
+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
+gg==
+------=_Part_20_1602807537.1768365948530--

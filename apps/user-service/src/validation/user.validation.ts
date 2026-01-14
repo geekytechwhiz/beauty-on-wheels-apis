@@ -5,7 +5,18 @@ export const createUserSchema = z.object({
     name: z.string().min(1),
     namePrefix: z.string().optional(),
     code: z.string().optional(),
-    profilePic: z.string().optional(),
+    profilePic: z.union([
+      z.string(),
+      z.object({}).passthrough(),
+    ]).optional().transform((val) => {
+      if (!val) return undefined;
+      if (typeof val === 'string') return val;
+      if (typeof val === 'object' && val !== null) {
+        // Extract string value from common object properties
+        return (val as any).url || (val as any).profilePic || (val as any).value || (val as any).src || undefined;
+      }
+      return undefined;
+    }),
     licenseNumber: z.string().optional(),
     contact: z.object({
       email: z.string().email(),
@@ -73,7 +84,7 @@ export const createUserSchema = z.object({
           to: z.string(),
         })).optional(),
       }),
-    }),
+    }).optional(),
     dateOfBirth: z.string().optional(),
     department: z.string().optional(),
     gender: z.string().optional(),

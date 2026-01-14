@@ -763,6 +763,136 @@ functions:
       - sns:
           arn: ${self:provider.environment.USER_EVENTS_TOPIC_ARN}
 
+  # FHIR Endpoints
+  getPatient:
+    handler: src/handlers/fhir/getPatient.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/Patient/{id}
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Get Patient by ID (FHIR)
+            description: Retrieves a Patient resource in FHIR R4 format
+            tags:
+              - FHIR
+            pathParameters:
+              - name: id
+                description: Patient ID (same as user ID)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Patient resource retrieved successfully
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              404:
+                description: Patient not found
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              500:
+                description: Internal server error
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+
+  listUserOrganizationsFhir:
+    handler: src/handlers/fhir/listUserOrganizations.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/Patient/{id}/organizations
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List Patient Organizations (FHIR Bundle)
+            description: Retrieves organizations associated with a patient as a FHIR Bundle
+            tags:
+              - FHIR
+            pathParameters:
+              - name: id
+                description: Patient ID (same as user ID)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Organizations retrieved successfully as FHIR Bundle
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              404:
+                description: Patient not found
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              500:
+                description: Internal server error
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+
+  listUserFilesFhir:
+    handler: src/handlers/fhir/listUserFiles.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: fhir/Patient/{id}/files
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List Patient Files (FHIR Bundle)
+            description: Retrieves files associated with a patient as a FHIR Bundle of DocumentReference resources
+            tags:
+              - FHIR
+            pathParameters:
+              - name: id
+                description: Patient ID (same as user ID)
+                required: true
+                schema:
+                  type: string
+                  format: uuid
+            responses:
+              200:
+                description: Files retrieved successfully as FHIR Bundle
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              404:
+                description: Patient not found
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+              500:
+                description: Internal server error
+                content:
+                  application/fhir+json:
+                    schema:
+                      type: object
+
 resources:
   Resources:
     # Dead Letter Queue for User Reminders

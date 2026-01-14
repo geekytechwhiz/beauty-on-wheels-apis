@@ -34,7 +34,7 @@ export interface MessageObject {
  * }
  */
 export interface JsonApiResponse<T = unknown> {
-  status: boolean;
+  success: boolean;
   message: string | MessageObject;
   data?: T | null;
   errors?: Array<{
@@ -117,7 +117,7 @@ function createSuccessBody<T>(
   options?: SuccessResponseOptions,
 ): JsonApiResponse<T> {
   const body: JsonApiResponse<T> = {
-    status: true,
+    success: true,
     message: message || 'Operation successful',
     data: data ?? null,
   };
@@ -144,7 +144,7 @@ function createErrorBody(
   options?: ErrorResponseOptions,
 ): JsonApiResponse {
   const body: JsonApiResponse = {
-    status: false,
+    success: false,
     message,
     errors,
   };

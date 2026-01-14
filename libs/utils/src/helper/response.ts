@@ -80,7 +80,18 @@ export interface ErrorResponseOptions {
 }
 
 /**
- * Creates a standard HTTP response object
+ * Creates CORS headers for API Gateway responses
+ */
+function getCorsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id,X-Requested-With',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+  };
+}
+
+/**
+ * Creates a standard HTTP response object with CORS headers
  */
 function createResponse(
   statusCode: number,
@@ -91,6 +102,7 @@ function createResponse(
     statusCode,
     headers: {
       'Content-Type': contentType,
+      ...getCorsHeaders(),
     },
     body: JSON.stringify(body),
   };

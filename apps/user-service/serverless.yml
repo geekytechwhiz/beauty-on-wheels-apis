@@ -221,6 +221,9 @@ functions:
       - http:
           path: /health
           method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
           documentation:
             summary: Health check endpoint
             description: Returns the health status of the service
@@ -331,7 +334,8 @@ functions:
       - http:
           path: user/{userId}
           method: get
-          cors: 
+          cors:
+            origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           documentation:
             summary: Get user by ID

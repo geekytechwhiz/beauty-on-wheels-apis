@@ -127,7 +127,12 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     
     return {
       statusCode: 201,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      },
       body: JSON.stringify(response),
     };
   } catch (err) {

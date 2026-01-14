@@ -107,6 +107,9 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       workSchedule: (userInfo as any).workSchedule || {},
       position: (userInfo as any).position || '',
       userTimeZone: (userInfo as any).userTimeZone || '',
+      devices: (userInfo as any).devices || [],
+      assignRoomNo: (userInfo as any).assignRoomNo || undefined,
+      username: (userInfo as any).username || undefined,
     };
     
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');

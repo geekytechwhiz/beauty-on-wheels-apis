@@ -48,7 +48,7 @@ export class CognitoService {
       // Try by username first
       const cmd = new AdminGetUserCommand({
         UserPoolId: this.userPoolId,
-        Username: identifier,
+        Username: String(identifier).toLowerCase(),
       });
       await this.client.send(cmd);
       logger.debug({
@@ -62,7 +62,8 @@ export class CognitoService {
         // Not found as username — fall back to attribute search using ListUsers
         try {
           const isEmail = String(identifier).includes('@');
-          const filter = isEmail ? `email = "${identifier}"` : `phone_number = "${identifier}"`;
+          const searchIdentifier = isEmail ? String(identifier).toLowerCase() : identifier;
+          const filter = isEmail ? `email = "${searchIdentifier}"` : `phone_number = "${searchIdentifier}"`;
           const listCmd = new ListUsersCommand({ UserPoolId: this.userPoolId, Filter: filter, Limit: 1 });
           const res = await this.client.send(listCmd);
           const found = !!(res && (res as any).Users && (res as any).Users.length > 0);
@@ -167,9 +168,11 @@ export class CognitoService {
         attrs.push({ Name: 'custom:src', Value: isEmail ? String(identifier).toLowerCase() : String(identifier) });
       }
 
+      const usernameForCognito = String(identifier).toLowerCase();
+      
       const cmd = new AdminCreateUserCommand({
         UserPoolId: this.userPoolId,
-        Username: identifier,
+        Username: usernameForCognito,
         UserAttributes: attrs,
         MessageAction: 'SUPPRESS', // Suppress welcome email
       });

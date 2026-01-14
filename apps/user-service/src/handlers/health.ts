@@ -16,6 +16,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   
   return {
     statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id,X-Requested-With',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+    },
     body: JSON.stringify({ status: 'ok' }),
   };
 };

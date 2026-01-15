@@ -64,7 +64,13 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   try {
-    const metadata = await organizationService.updateOrganizationMetadata(organizationId, validationResult.data.metadata, correlationId);
+    const metadata = await organizationService.updateOrganizationMetadata(
+      organizationId,
+      validationResult.data.metadata,
+      correlationId,
+      validationResult.data.updatedBy,
+      validationResult.data.version,
+    );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}/metadata`, 200, duration, correlationId);
     return ok(metadata, { requestId: correlationId, message: 'Organization metadata updated' });

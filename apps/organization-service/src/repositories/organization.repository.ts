@@ -1,7 +1,7 @@
 import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { Organization, OrganizationUser, OrganizationDevice, OrganizationMetadata, OrganizationFile } from '../models';
+import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationDevice } from '../models';
 import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
 import {
   organizationPk,
@@ -127,6 +127,37 @@ export class OrganizationRepository {
       updateParts.push('#status = :status');
       exprNames['#status'] = 'status';
       exprValues[':status'] = updates.status;
+    }
+
+    if (updates.website !== undefined) {
+      updateParts.push('website = :website');
+      exprValues[':website'] = updates.website;
+    }
+
+    if (updates.taxId !== undefined) {
+      updateParts.push('taxId = :taxId');
+      exprValues[':taxId'] = updates.taxId;
+    }
+
+    if (updates.registrationNumber !== undefined) {
+      updateParts.push('registrationNumber = :registrationNumber');
+      exprValues[':registrationNumber'] = updates.registrationNumber;
+    }
+
+    if (updates.description !== undefined) {
+      updateParts.push('description = :description');
+      exprValues[':description'] = updates.description;
+    }
+
+    if (updates.industry !== undefined) {
+      updateParts.push('industry = :industry');
+      exprValues[':industry'] = updates.industry;
+    }
+
+    if (updates.size !== undefined) {
+      updateParts.push('#size = :size');
+      exprNames['#size'] = 'size';
+      exprValues[':size'] = updates.size;
     }
 
     try {
@@ -342,7 +373,12 @@ export class OrganizationRepository {
     }
   }
 
-  async updateOrganizationMetadata(organizationId: string, metadata: Record<string, unknown>): Promise<void> {
+  async updateOrganizationMetadata(
+    organizationId: string,
+    metadata: Record<string, unknown>,
+    updatedBy?: string,
+    version?: number,
+  ): Promise<void> {
     const now = new Date().toISOString();
     const item: OrganizationMetadata = {
       pk: organizationPk(organizationId),
@@ -351,6 +387,8 @@ export class OrganizationRepository {
       metadata,
       updatedAt: now,
       itemType: 'ORG_METADATA',
+      ...(updatedBy ? { updatedBy } : {}),
+      ...(version !== undefined ? { version } : {}),
     };
 
     try {
@@ -403,6 +441,11 @@ export class OrganizationRepository {
       s3Key: organizationFile.s3Key,
       uploadedAt: organizationFile.uploadedAt,
       itemType: 'ORG_FILE',
+      ...(organizationFile.fileSize !== undefined ? { fileSize: organizationFile.fileSize } : {}),
+      ...(organizationFile.contentType ? { contentType: organizationFile.contentType } : {}),
+      ...(organizationFile.uploadedBy ? { uploadedBy: organizationFile.uploadedBy } : {}),
+      ...(organizationFile.description ? { description: organizationFile.description } : {}),
+      ...(organizationFile.tags ? { tags: organizationFile.tags } : {}),
     };
 
     try {
@@ -445,4 +488,5 @@ export class OrganizationRepository {
       throw err;
     }
   }
+
 }

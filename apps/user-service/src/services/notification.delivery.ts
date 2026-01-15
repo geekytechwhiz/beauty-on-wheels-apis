@@ -75,10 +75,9 @@ function buildEmailPayload(email: string, template?: string, templateData: Recor
   let html = `<p>${Object.entries(templateData).map(([k, v]) => `${k}: ${v}`).join('<br>')}</p>`;
 
   try {
-    if (template && (template === 'WELCOME' || template === 'WELCOME_USER' || template === 'WELCOME_STAFF' || template === 'INVITE' || template === 'PROFILE_UPDATED' || template === 'GENERIC_NOTIFICATION')) {
+    if (template && ( template === 'WELCOME_USER' || template === 'WELCOME_STAFF' || template === 'INVITE' || template === 'PROFILE_UPDATED' || template === 'GENERIC_NOTIFICATION')) {
       // map common names to registry keys
       const map: Record<string, any> = {
-        WELCOME: 'WELCOME_USER',
         WELCOME_USER: 'WELCOME_USER',
         WELCOME_STAFF: 'WELCOME_STAFF',
         INVITE: 'INVITE_USER',
@@ -91,8 +90,21 @@ function buildEmailPayload(email: string, template?: string, templateData: Recor
       html = rendered.body || html;
     }
   } catch (err) {
-    // fall back to minimal rendering
+    logger.error({ event: 'build_email_payload_error', err: serializeError(err) });
   }
+
+  const customAttributes: Record<string, string[]> = {};
+
+  for (const [key, value] of Object.entries(templateData)) {
+    if (value === undefined || value === null || String(value).trim() === '') continue;
+    customAttributes[key.toUpperCase()] = [String(value)];
+  }
+
+  if (!customAttributes.USER_EMAIL) {
+    customAttributes.USER_EMAIL = [email];
+  }
+
+  customAttributes.CURRENT_YEAR = [String(new Date().getFullYear())];
 
   return {
     emailId: email,
@@ -100,10 +112,7 @@ function buildEmailPayload(email: string, template?: string, templateData: Recor
       subject,
       html,
     },
-    customAttributes: {
-      ...Object.fromEntries(Object.entries(templateData).map(([k, v]) => [k.toUpperCase(), [String(v)]])),
-      CURRENT_YEAR: [new Date().getFullYear()],
-    },
+    customAttributes,
   };
 }
 

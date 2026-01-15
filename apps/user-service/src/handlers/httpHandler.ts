@@ -169,7 +169,8 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const {userId,organizationId} = event.pathParameters;
+  const userId = event.pathParameters?.userId;
+  const organizationId = event.pathParameters?.organizationId;
 
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
@@ -226,7 +227,8 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const {userId,organizationId} = event.pathParameters;
+  const userId = event.pathParameters?.userId;
+  const organizationId = event.pathParameters?.organizationId;
 
   if (!userId || !organizationId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
@@ -246,7 +248,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'updateUser_received', eventData: event });
 
-  let body: unknown;
+  let body: any;
   try {
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
   } catch (err) {
@@ -264,7 +266,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     );
   }
 
-  const validation = updateUserSchema.safeParse({ ...(body as Record<string, unknown>), userId });
+  const validation = updateUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'updateUser_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
@@ -285,7 +287,74 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   try {
-    const result = await userService.updateUser(userId,organizationId, validation.data, correlationId);
+    const { userInfo, userRole, userType } = validation.data;
+    
+    // Build update data object - only include fields that are provided
+    const userData: any = {};
+    
+    if (userInfo) {
+      const contactAddress = (userInfo.contact as any)?.address;
+      
+      if (userInfo.name !== undefined) userData.fullName = userInfo.name;
+      if (userInfo.namePrefix !== undefined) userData.namePrefix = userInfo.namePrefix;
+      if (userInfo.profilePic !== undefined) userData.profilePic = userInfo.profilePic;
+      if (userInfo.code !== undefined) userData.code = userInfo.code;
+      if (userInfo.licenseNumber !== undefined) userData.licenseNumber = userInfo.licenseNumber;
+      
+      if (userInfo.contact) {
+        if (userInfo.contact.email !== undefined) userData.emailAddress = userInfo.contact.email;
+        if (userInfo.contact.phone !== undefined) userData.phoneNumber = userInfo.contact.phone;
+        if (userInfo.contact.phoneCode !== undefined) userData.phoneCode = userInfo.contact.phoneCode;
+      }
+      
+      if (userInfo.workingHours !== undefined) userData.workingHours = userInfo.workingHours;
+      if (userInfo.dateOfBirth !== undefined) userData.dateOfBirth = userInfo.dateOfBirth;
+      if (userInfo.department !== undefined) userData.department = userInfo.department;
+      if (userInfo.gender !== undefined) userData.gender = userInfo.gender;
+      if (userInfo.specialty !== undefined) userData.specialty = userInfo.specialty;
+      if (userInfo.slotDurationInMinutes !== undefined) userData.slotDurationInMinutes = userInfo.slotDurationInMinutes;
+      if (userInfo.experienceInYears !== undefined) userData.experienceInYears = userInfo.experienceInYears;
+      if (userInfo.bio !== undefined) userData.bio = userInfo.bio;
+      
+      if (contactAddress) {
+        if (contactAddress.address !== undefined) userData.address = contactAddress.address || userInfo.address || '';
+        if (contactAddress.city !== undefined) userData.city = contactAddress.city || userInfo.city || '';
+        if (contactAddress.state !== undefined) userData.state = contactAddress.state || userInfo.state || '';
+        if (contactAddress.country !== undefined) userData.country = contactAddress.country || userInfo.country || '';
+        if (contactAddress.postalCode !== undefined) userData.postalCode = contactAddress.postalCode || userInfo.postalCode || '';
+        if (contactAddress.street !== undefined) userData.street = contactAddress.street || '';
+        if (contactAddress.zip !== undefined) userData.zip = contactAddress.zip || '';
+        if (contactAddress.countryCode !== undefined) userData.countryCode = contactAddress.countryCode || '';
+        if (contactAddress.stateCode !== undefined) userData.stateCode = contactAddress.stateCode || '';
+      } else {
+        if (userInfo.address !== undefined) userData.address = userInfo.address;
+        if (userInfo.city !== undefined) userData.city = userInfo.city;
+        if (userInfo.state !== undefined) userData.state = userInfo.state;
+        if (userInfo.country !== undefined) userData.country = userInfo.country;
+        if (userInfo.postalCode !== undefined) userData.postalCode = userInfo.postalCode;
+      }
+      
+      if (userInfo.emergencyContact !== undefined) userData.emergencyContact = userInfo.emergencyContact;
+      if (userInfo.medicalHistory !== undefined) userData.medicalHistory = userInfo.medicalHistory;
+      if (userInfo.insuranceDetails !== undefined) userData.insuranceDetails = userInfo.insuranceDetails;
+      if (userInfo.workSchedule !== undefined) userData.workSchedule = userInfo.workSchedule;
+      if (userInfo.position !== undefined) userData.position = userInfo.position;
+      if (userInfo.userTimeZone !== undefined) userData.userTimeZone = userInfo.userTimeZone;
+      if (userInfo.devices !== undefined) userData.devices = userInfo.devices;
+      if (userInfo.assignRoomNo !== undefined) userData.assignRoomNo = userInfo.assignRoomNo;
+      if (userInfo.username !== undefined) userData.username = userInfo.username;
+      
+      // Update srcRegisEntity if email or phone is being updated
+      if (userInfo.contact?.email !== undefined || userInfo.contact?.phone !== undefined) {
+        const isEmail = userInfo.contact?.email && userInfo.contact.email.includes('@');
+        userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
+      }
+    }
+    
+    if (userRole !== undefined) userData.userRole = userRole;
+    if (userType !== undefined) userData.userType = userType;
+    
+    const result = await userService.updateUser(userId, organizationId, userData, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}`, 200, duration, correlationId);
     return ok(result, 'User updated', { requestId: correlationId });

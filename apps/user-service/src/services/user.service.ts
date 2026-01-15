@@ -348,7 +348,7 @@ export class UserService {
   async updateUser(
     userId: string,
     organizationId: string,
-    updates: { email?: string; name?: string },
+    updates: Partial<User>,
     correlationId?: string,
   ): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'updateUser', correlationId);
@@ -361,20 +361,49 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      await this.repository.updateUser(userId, updates);
+      // Normalize phone number if being updated
+      if (updates.phoneNumber !== undefined) {
+        const rawPhone = String(updates.phoneNumber).trim();
+        updates.phoneNumber = rawPhone; // Keep raw phone for DB
+      }
+
+      // Normalize email if being updated
+      if (updates.emailAddress !== undefined) {
+        updates.emailAddress = String(updates.emailAddress).trim().toLowerCase();
+      }
+
+      // Handle name splitting if fullName is provided
+      if (updates.fullName !== undefined && !updates.firstName && !updates.lastName) {
+        const fullNameStr = String(updates.fullName).trim();
+        const regex = /^(\S+)\s+(.+)/;
+        const match = fullNameStr.match(regex);
+        if (match) {
+          updates.firstName = match[1];
+          updates.lastName = match[2];
+        } else {
+          updates.firstName = fullNameStr;
+          updates.lastName = '';
+        }
+      }
+
+      // Set modifiedDate
+      updates.modifiedDate = Date.now();
+
+      await this.repository.updateUser(userId, organizationId, updates);
       const updated = await this.repository.getUser(userId, organizationId);
       if (!updated) {
         throw new UserNotFoundError(userId);
       }
 
-
       // Best-effort notification that profile changed
       try {
+        const notifyEmail = updates.emailAddress ?? updated.emailAddress;
+        const notifyName = updates.fullName ?? updated.fullName ?? updated.firstName;
         await notifyUser({
           userId: updated.userID,
-          email: updates.email ?? updated.emailAddress,
-          name: updates.name ?? updated.fullName ?? updated.firstName,
-          channels: updates.email ? ['email'] : [],
+          email: notifyEmail,
+          name: notifyName,
+          channels: updates.emailAddress ? ['email'] : [],
           template: 'PROFILE_UPDATED',
           templateData: updates,
           correlationId,

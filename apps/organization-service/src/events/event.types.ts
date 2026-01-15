@@ -56,6 +56,8 @@ export interface OrganizationMetadataUpdatedData {
   organizationId: string;
   metadata: Record<string, unknown>;
   updatedAt: string;
+  updatedBy?: string;
+  version?: number;
 }
 
 export interface OrganizationFileUploadedData {
@@ -64,4 +66,9 @@ export interface OrganizationFileUploadedData {
   fileName: string;
   s3Key: string;
   uploadedAt: string;
+  fileSize?: number;
+  contentType?: string;
+  uploadedBy?: string;
+  description?: string;
+  tags?: string[];
 }

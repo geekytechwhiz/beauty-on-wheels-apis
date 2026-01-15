@@ -92,7 +92,6 @@ export class UserRepository {
           },
         }),
       );
-
       logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
       if (!result.Item || result.Item.deleted === true) {
         logger.info({ event: 'user_get_not_found', message: 'User not found' });
@@ -108,24 +107,36 @@ export class UserRepository {
     }
   }
 
-  async updateUser(userId: string, updates: { email?: string; name?: string }): Promise<void> {
-    const now = new Date().toISOString();
-    const updateParts: string[] = ['updatedAt = :updatedAt'];
+  async updateUser(userId: string, organizationId: string, updates: Partial<User>): Promise<void> {
+    const updateParts: string[] = ['modifiedDate = :modifiedDate'];
     const exprNames: Record<string, string> = {};
     const exprValues: Record<string, unknown> = {
-      ':updatedAt': now,
+      ':modifiedDate': updates.modifiedDate ?? Date.now(),
     };
 
-    if (updates.email !== undefined) {
-      updateParts.push('#email = :email');
-      exprNames['#email'] = 'email';
-      exprValues[':email'] = updates.email;
+    // Dynamically build update expression for all provided fields
+    // Exclude internal fields that shouldn't be updated directly
+    const excludeFields = ['pk', 'sk', 'userID', 'organizationID', 'createdDate', 'modifiedDate'];
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (excludeFields.includes(key) || value === undefined) {
+        continue;
+      }
+
+      // Handle reserved words and special characters in DynamoDB attribute names
+      const attrName = `#${key}`;
+      const attrValue = `:${key}`;
+      
+      updateParts.push(`${attrName} = ${attrValue}`);
+      exprNames[attrName] = key;
+      exprValues[attrValue] = value;
     }
 
-    if (updates.name !== undefined) {
-      updateParts.push('#name = :name');
-      exprNames['#name'] = 'name';
-      exprValues[':name'] = updates.name;
+    if (updateParts.length === 1) {
+      // Only modifiedDate was set, nothing to update
+      const logger = createChildLogger(baseLogger, { userId });
+      logger.warn({ event: 'user_update_no_changes', message: 'No fields to update' });
+      return;
     }
 
     try {
@@ -133,17 +144,17 @@ export class UserRepository {
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
-            pk: userPk(userId),
-            sk: userDetailsSk(),
+            pk: userOrgPk(organizationId),  // ORG#mhw0zopb17b63195 (matches create)
+            sk: userPk(userId),  
           },
           UpdateExpression: `SET ${updateParts.join(', ')}`,
-          ExpressionAttributeNames: Object.keys(exprNames).length > 0 ? exprNames : undefined,
+          ExpressionAttributeNames: exprNames,
           ExpressionAttributeValues: exprValues,
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_updated', message: 'User updated' });
+      logger.info({ event: 'user_updated', message: 'User updated', fields: Object.keys(updates) });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
       const logger = createChildLogger(baseLogger, { userId });

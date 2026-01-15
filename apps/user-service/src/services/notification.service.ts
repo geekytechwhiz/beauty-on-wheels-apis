@@ -9,6 +9,8 @@ function deriveChannelsFromPayload(payload: Partial<UserCreatedNotificationReque
   const channels = new Set<string>();
   if (payload.channels && payload.channels.length > 0) {
     payload.channels.forEach(c => channels.add(String(c).toLowerCase()));
+    if (!payload.email) channels.delete('email');
+    if (!payload.phone) channels.delete('sms');
     return Array.from(channels);
   }
 

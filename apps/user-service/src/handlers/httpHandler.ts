@@ -169,7 +169,8 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const {userId,organizationId} = event.pathParameters;
+  const userId = event.pathParameters?.userId;
+  const organizationId = event.pathParameters?.organizationId;
 
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
@@ -226,7 +227,8 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const {userId,organizationId} = event.pathParameters;
+  const userId = event.pathParameters?.userId;
+  const organizationId = event.pathParameters?.organizationId;
 
   if (!userId || !organizationId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });

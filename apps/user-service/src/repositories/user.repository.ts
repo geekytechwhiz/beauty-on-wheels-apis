@@ -92,7 +92,6 @@ export class UserRepository {
           },
         }),
       );
-
       logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
       if (!result.Item || result.Item.deleted === true) {
         logger.info({ event: 'user_get_not_found', message: 'User not found' });
@@ -108,7 +107,7 @@ export class UserRepository {
     }
   }
 
-  async updateUser(userId: string, updates: { email?: string; name?: string }): Promise<void> {
+  async updateUser(userId: string, organizationId: string, updates: { email?: string; name?: string }): Promise<void> {
     const now = new Date().toISOString();
     const updateParts: string[] = ['updatedAt = :updatedAt'];
     const exprNames: Record<string, string> = {};
@@ -133,8 +132,8 @@ export class UserRepository {
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
-            pk: userPk(userId),
-            sk: userDetailsSk(),
+            pk: userOrgPk(organizationId),  // ORG#mhw0zopb17b63195 (matches create)
+            sk: userPk(userId),  
           },
           UpdateExpression: `SET ${updateParts.join(', ')}`,
           ExpressionAttributeNames: Object.keys(exprNames).length > 0 ? exprNames : undefined,

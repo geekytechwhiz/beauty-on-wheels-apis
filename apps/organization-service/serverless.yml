@@ -246,19 +246,6 @@ functions:
                         type: string
                         enum: [SMALL, MEDIUM, LARGE]
                         default: ACTIVE
-                      website:
-                        type: string
-                      taxId:
-                        type: string
-                      registrationNumber:
-                        type: string
-                      description:
-                        type: string
-                      industry:
-                        type: string
-                      size:
-                        type: string
-                        enum: [SMALL, MEDIUM, LARGE]
             responses:
               201:
                 description: Organization created successfully

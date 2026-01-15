@@ -127,11 +127,15 @@ export class OrganizationRepository {
       updateParts.push('#status = :status');
       exprNames['#status'] = 'status';
       exprValues[':status'] = updates.status;
+      updateParts.push('lsi_status = :lsi_status');
+      exprValues[':lsi_status'] = updates.status;
     }
 
     if (updates.organizationType !== undefined) {
       updateParts.push('organizationType = :organizationType');
       exprValues[':organizationType'] = updates.organizationType;
+      updateParts.push('lsi_organizationType = :lsi_organizationType');
+      exprValues[':lsi_organizationType'] = updates.organizationType;
     }
 
     if (updates.organizationSize !== undefined) {

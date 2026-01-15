@@ -11,11 +11,15 @@ export interface Organization {
   country?: string;
   countryCode?: string;
   postalCode?: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
   createdDate: number;
   modifiedDate: number;
   deleted?: boolean;
   itemType: 'ORG_DETAILS';
+  lsi_createdAt?: number;
+  lsi_entityType?: string;
+  lsi_organizationType?: string;
+  lsi_status?: string;
   organizationType?: string;
   organizationSize?: string;
   noOfBranches?: string;

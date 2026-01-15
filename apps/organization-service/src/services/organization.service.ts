@@ -25,6 +25,8 @@ export class OrganizationService {
       const organization: Organization = {
         pk: `ORG#${organizationId}`,
         sk: 'ORG_DETAILS',
+        gsi1pk: 'ORG_LIST',
+        gsi1sk: `ORG#${organizationId}`,
         organizationId,
         name: data.name || '',
         email: data.email,

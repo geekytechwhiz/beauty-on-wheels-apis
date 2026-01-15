@@ -15,6 +15,7 @@ export type NormalizedOrganizationPayload = {
   description?: string;
   industry?: string;
   size?: 'SMALL' | 'MEDIUM' | 'LARGE';
+  organizationType?: string;
 };
 
 type NormalizationResult = {
@@ -78,7 +79,11 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
 
   const website = normalizeString(input?.website) || normalizeString(organizationInfo?.website);
   const description = normalizeString(input?.description) || normalizeString(organizationInfo?.hospitalBio);
-  const industry = normalizeString(input?.industry) || normalizeString(organizationInfo?.organizationType);
+  const organizationType =
+    normalizeString(input?.organizationType) ||
+    normalizeString(organizationInfo?.organizationType);
+  const industry =
+    normalizeString(input?.industry) || normalizeString(organizationInfo?.industryType);
   const taxId = normalizeString(input?.taxId) || normalizeString(organizationInfo?.taxId);
   const registrationNumber =
     normalizeString(input?.registrationNumber) || normalizeString(organizationInfo?.licenseNumber);
@@ -95,6 +100,9 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   if (organizationInfo && Object.keys(organizationInfo).length > 0) {
     if (!name) {
       errors.push({ field: 'organizationInfo.organizationName', message: 'Organization name is required' });
+    }
+    if (!organizationType) {
+      errors.push({ field: 'organizationInfo.organizationType', message: 'Organization type is required' });
     }
     if (!orgAddress || Object.keys(orgAddress).length === 0) {
       errors.push({ field: 'organizationInfo.organizationAdd', message: 'Organization address is required' });
@@ -119,6 +127,7 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
       country,
       postalCode,
       status: input?.status || organizationInfo?.status,
+      organizationType,
       website,
       taxId,
       registrationNumber,

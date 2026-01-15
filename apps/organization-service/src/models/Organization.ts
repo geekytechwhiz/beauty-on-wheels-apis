@@ -15,6 +15,7 @@ export interface Organization {
   modifiedDate: number;
   deleted?: boolean;
   itemType: 'ORG_DETAILS';
+  organizationType?: string;
   website?: string;
   taxId?: string;
   registrationNumber?: string;

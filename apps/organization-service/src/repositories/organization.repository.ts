@@ -129,6 +129,11 @@ export class OrganizationRepository {
       exprValues[':status'] = updates.status;
     }
 
+    if (updates.organizationType !== undefined) {
+      updateParts.push('organizationType = :organizationType');
+      exprValues[':organizationType'] = updates.organizationType;
+    }
+
     if (updates.website !== undefined) {
       updateParts.push('website = :website');
       exprValues[':website'] = updates.website;

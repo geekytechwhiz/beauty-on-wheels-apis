@@ -39,6 +39,7 @@ export class OrganizationService {
         modifiedDate: now,
         deleted: false,
         itemType: 'ORG_DETAILS',
+        organizationType: data.organizationType,
         website: data.website,
         taxId: data.taxId,
         registrationNumber: data.registrationNumber,

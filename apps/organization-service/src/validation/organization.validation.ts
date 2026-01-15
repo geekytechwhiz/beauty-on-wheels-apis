@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createOrganizationSchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  organizationId: z.string().optional(),
   name: z.string().min(1).max(255),
   email: z.string().email().optional(),
   phone: z.string().optional(),

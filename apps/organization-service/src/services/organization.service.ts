@@ -22,10 +22,41 @@ export class OrganizationService {
 
     try {
       const now = Date.now();
+      const status = data.status || 'PENDING';
+      const traceId = data.traceId || randomUUID();
+      const adminDetails = undefined;
+      const organizationInfo =
+        data.organizationInfo && typeof data.organizationInfo === 'object'
+          ? {
+              ...(data.organizationInfo as Record<string, unknown>),
+              createdDate: now,
+              modifiedDate: now,
+              organizationID: organizationId,
+            }
+          : data.organizationInfo;
+      const searchFields =
+        data.searchFields && typeof data.searchFields === 'object'
+          ? data.searchFields
+          : {
+              name: (data.name || '').toLowerCase(),
+              city: (data.city || '').toLowerCase(),
+              country: (data.country || '').toLowerCase(),
+              countryCode: (data.countryCode || '').toLowerCase(),
+              state: (data.state || '').toLowerCase(),
+              organizationType: data.organizationType?.toLowerCase(),
+            };
+
       const organization: Organization = {
         pk: `ORG#${organizationId}`,
         sk: 'ORG_DETAILS',
+        gsi1pk: 'ORG_LIST',
+        gsi1sk: `ORG#${organizationId}`,
         organizationId,
+        createdAt: now,
+        createdBy: data.createdBy,
+        modifiedBy: data.modifiedBy || 'ROOT_ADMIN',
+        traceId,
+        parentOrgId: data.parentOrgId,
         name: data.name || '',
         email: data.email,
         phone: data.phone,
@@ -33,12 +64,51 @@ export class OrganizationService {
         city: data.city,
         state: data.state,
         country: data.country,
+        countryCode: data.countryCode,
         postalCode: data.postalCode,
-        status: data.status || 'ACTIVE',
+        status,
         createdDate: now,
         modifiedDate: now,
         deleted: false,
         itemType: 'ORG_DETAILS',
+        lsi_createdAt: now,
+        lsi_entityType: 'ORG_DETAILS',
+        lsi_organizationType: data.organizationType,
+        lsi_status: status,
+        organizationType: data.organizationType,
+        organizationSize: data.organizationSize,
+        noOfBranches: data.noOfBranches,
+        phoneCode: data.phoneCode,
+        phoneNumber: data.phoneNumber,
+        hospitalImage: data.hospitalImage,
+        googleMapsLink: data.googleMapsLink,
+        hospitalBio: data.hospitalBio,
+        licenseNumber: data.licenseNumber,
+        scheduleConf: data.scheduleConf,
+        defaultSetting: data.defaultSetting,
+        goals: data.goals,
+        thresholds: data.thresholds,
+        workingHours: data.workingHours,
+        specialization: data.specialization,
+        certifications: data.certifications,
+        servicesOffered: data.servicesOffered,
+        appointmentType: data.appointmentType,
+        facilityType: data.facilityType,
+        equipmentAvailable: data.equipmentAvailable,
+        emergencySupport: data.emergencySupport,
+        industryType: data.industryType,
+        wellnessPrograms: data.wellnessPrograms,
+        onsiteFacilities: data.onsiteFacilities,
+        employeeCoverage: data.employeeCoverage,
+        insurancePartnerships: data.insurancePartnerships,
+        remoteWellnessSupport: data.remoteWellnessSupport,
+        corporateDiscounts: data.corporateDiscounts,
+        adminDetails,
+        modules: data.modules,
+        devices: data.devices,
+        supportedVitals: data.supportedVitals,
+        organizationInfo,
+        searchFields,
         website: data.website,
         taxId: data.taxId,
         registrationNumber: data.registrationNumber,

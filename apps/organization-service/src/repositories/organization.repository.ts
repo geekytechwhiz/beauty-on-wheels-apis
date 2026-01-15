@@ -127,6 +127,185 @@ export class OrganizationRepository {
       updateParts.push('#status = :status');
       exprNames['#status'] = 'status';
       exprValues[':status'] = updates.status;
+      updateParts.push('lsi_status = :lsi_status');
+      exprValues[':lsi_status'] = updates.status;
+    }
+
+    if (updates.organizationType !== undefined) {
+      updateParts.push('organizationType = :organizationType');
+      exprValues[':organizationType'] = updates.organizationType;
+      updateParts.push('lsi_organizationType = :lsi_organizationType');
+      exprValues[':lsi_organizationType'] = updates.organizationType;
+    }
+
+    if (updates.organizationSize !== undefined) {
+      updateParts.push('organizationSize = :organizationSize');
+      exprValues[':organizationSize'] = updates.organizationSize;
+    }
+
+    if (updates.noOfBranches !== undefined) {
+      updateParts.push('noOfBranches = :noOfBranches');
+      exprValues[':noOfBranches'] = updates.noOfBranches;
+    }
+
+    if (updates.phoneCode !== undefined) {
+      updateParts.push('phoneCode = :phoneCode');
+      exprValues[':phoneCode'] = updates.phoneCode;
+    }
+
+    if (updates.phoneNumber !== undefined) {
+      updateParts.push('phoneNumber = :phoneNumber');
+      exprValues[':phoneNumber'] = updates.phoneNumber;
+    }
+
+    if (updates.countryCode !== undefined) {
+      updateParts.push('countryCode = :countryCode');
+      exprValues[':countryCode'] = updates.countryCode;
+    }
+
+    if (updates.hospitalImage !== undefined) {
+      updateParts.push('hospitalImage = :hospitalImage');
+      exprValues[':hospitalImage'] = updates.hospitalImage;
+    }
+
+    if (updates.googleMapsLink !== undefined) {
+      updateParts.push('googleMapsLink = :googleMapsLink');
+      exprValues[':googleMapsLink'] = updates.googleMapsLink;
+    }
+
+    if (updates.hospitalBio !== undefined) {
+      updateParts.push('hospitalBio = :hospitalBio');
+      exprValues[':hospitalBio'] = updates.hospitalBio;
+    }
+
+    if (updates.licenseNumber !== undefined) {
+      updateParts.push('licenseNumber = :licenseNumber');
+      exprValues[':licenseNumber'] = updates.licenseNumber;
+    }
+
+    if (updates.scheduleConf !== undefined) {
+      updateParts.push('scheduleConf = :scheduleConf');
+      exprValues[':scheduleConf'] = updates.scheduleConf;
+    }
+
+    if (updates.defaultSetting !== undefined) {
+      updateParts.push('defaultSetting = :defaultSetting');
+      exprValues[':defaultSetting'] = updates.defaultSetting;
+    }
+
+    if (updates.goals !== undefined) {
+      updateParts.push('goals = :goals');
+      exprValues[':goals'] = updates.goals;
+    }
+
+    if (updates.thresholds !== undefined) {
+      updateParts.push('thresholds = :thresholds');
+      exprValues[':thresholds'] = updates.thresholds;
+    }
+
+    if (updates.workingHours !== undefined) {
+      updateParts.push('workingHours = :workingHours');
+      exprValues[':workingHours'] = updates.workingHours;
+    }
+
+    if (updates.specialization !== undefined) {
+      updateParts.push('specialization = :specialization');
+      exprValues[':specialization'] = updates.specialization;
+    }
+
+    if (updates.certifications !== undefined) {
+      updateParts.push('certifications = :certifications');
+      exprValues[':certifications'] = updates.certifications;
+    }
+
+    if (updates.servicesOffered !== undefined) {
+      updateParts.push('servicesOffered = :servicesOffered');
+      exprValues[':servicesOffered'] = updates.servicesOffered;
+    }
+
+    if (updates.appointmentType !== undefined) {
+      updateParts.push('appointmentType = :appointmentType');
+      exprValues[':appointmentType'] = updates.appointmentType;
+    }
+
+    if (updates.facilityType !== undefined) {
+      updateParts.push('facilityType = :facilityType');
+      exprValues[':facilityType'] = updates.facilityType;
+    }
+
+    if (updates.equipmentAvailable !== undefined) {
+      updateParts.push('equipmentAvailable = :equipmentAvailable');
+      exprValues[':equipmentAvailable'] = updates.equipmentAvailable;
+    }
+
+    if (updates.emergencySupport !== undefined) {
+      updateParts.push('emergencySupport = :emergencySupport');
+      exprValues[':emergencySupport'] = updates.emergencySupport;
+    }
+
+    if (updates.industryType !== undefined) {
+      updateParts.push('industryType = :industryType');
+      exprValues[':industryType'] = updates.industryType;
+    }
+
+    if (updates.wellnessPrograms !== undefined) {
+      updateParts.push('wellnessPrograms = :wellnessPrograms');
+      exprValues[':wellnessPrograms'] = updates.wellnessPrograms;
+    }
+
+    if (updates.onsiteFacilities !== undefined) {
+      updateParts.push('onsiteFacilities = :onsiteFacilities');
+      exprValues[':onsiteFacilities'] = updates.onsiteFacilities;
+    }
+
+    if (updates.employeeCoverage !== undefined) {
+      updateParts.push('employeeCoverage = :employeeCoverage');
+      exprValues[':employeeCoverage'] = updates.employeeCoverage;
+    }
+
+    if (updates.insurancePartnerships !== undefined) {
+      updateParts.push('insurancePartnerships = :insurancePartnerships');
+      exprValues[':insurancePartnerships'] = updates.insurancePartnerships;
+    }
+
+    if (updates.remoteWellnessSupport !== undefined) {
+      updateParts.push('remoteWellnessSupport = :remoteWellnessSupport');
+      exprValues[':remoteWellnessSupport'] = updates.remoteWellnessSupport;
+    }
+
+    if (updates.corporateDiscounts !== undefined) {
+      updateParts.push('corporateDiscounts = :corporateDiscounts');
+      exprValues[':corporateDiscounts'] = updates.corporateDiscounts;
+    }
+
+    if (updates.adminDetails !== undefined) {
+      updateParts.push('adminDetails = :adminDetails');
+      exprValues[':adminDetails'] = updates.adminDetails;
+    }
+
+    if (updates.modules !== undefined) {
+      updateParts.push('modules = :modules');
+      exprValues[':modules'] = updates.modules;
+    }
+
+    if (updates.devices !== undefined) {
+      updateParts.push('devices = :devices');
+      exprValues[':devices'] = updates.devices;
+    }
+
+    if (updates.supportedVitals !== undefined) {
+      updateParts.push('supportedVitals = :supportedVitals');
+      exprValues[':supportedVitals'] = updates.supportedVitals;
+    }
+
+    if (updates.organizationInfo !== undefined) {
+      updateParts.push('organizationInfo = :organizationInfo');
+      exprValues[':organizationInfo'] = updates.organizationInfo;
+    }
+
+    if (updates.searchFields !== undefined) {
+      updateParts.push('searchFields = :searchFields');
+      exprValues[':searchFields'] = updates.searchFields;
     }
 
     if (updates.website !== undefined) {

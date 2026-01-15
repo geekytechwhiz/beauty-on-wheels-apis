@@ -108,6 +108,9 @@
             "enum": ["ACTIVE", "INACTIVE", "SUSPENDED"],
             "default": "ACTIVE"
           },
+          "organizationType": {
+            "type": "string"
+          },
           "website": {
             "type": "string"
           },
@@ -154,6 +157,7 @@
           "country": { "type": "string" },
           "postalCode": { "type": "string" },
           "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "SUSPENDED"] },
+          "organizationType": { "type": "string" },
           "createdDate": { "type": "number" },
           "modifiedDate": { "type": "number" },
           "deleted": { "type": "boolean" },

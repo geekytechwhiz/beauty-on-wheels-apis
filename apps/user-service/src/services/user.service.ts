@@ -360,8 +360,7 @@ export class UserService {
       if (!existing) {
         throw new UserNotFoundError(userId);
       }
-
-      await this.repository.updateUser(userId, updates);
+      await this.repository.updateUser(userId, organizationId, updates);
       const updated = await this.repository.getUser(userId, organizationId);
       if (!updated) {
         throw new UserNotFoundError(userId);

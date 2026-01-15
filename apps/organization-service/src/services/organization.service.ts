@@ -22,12 +22,41 @@ export class OrganizationService {
 
     try {
       const now = Date.now();
+      const status = data.status || 'PENDING';
+      const traceId = data.traceId || randomUUID();
+      const adminDetails = undefined;
+      const organizationInfo =
+        data.organizationInfo && typeof data.organizationInfo === 'object'
+          ? {
+              ...(data.organizationInfo as Record<string, unknown>),
+              createdDate: now,
+              modifiedDate: now,
+              organizationID: organizationId,
+            }
+          : data.organizationInfo;
+      const searchFields =
+        data.searchFields && typeof data.searchFields === 'object'
+          ? data.searchFields
+          : {
+              name: (data.name || '').toLowerCase(),
+              city: (data.city || '').toLowerCase(),
+              country: (data.country || '').toLowerCase(),
+              countryCode: (data.countryCode || '').toLowerCase(),
+              state: (data.state || '').toLowerCase(),
+              organizationType: data.organizationType?.toLowerCase(),
+            };
+
       const organization: Organization = {
         pk: `ORG#${organizationId}`,
         sk: 'ORG_DETAILS',
         gsi1pk: 'ORG_LIST',
         gsi1sk: `ORG#${organizationId}`,
         organizationId,
+        createdAt: now,
+        createdBy: data.createdBy,
+        modifiedBy: data.modifiedBy || 'ROOT_ADMIN',
+        traceId,
+        parentOrgId: data.parentOrgId,
         name: data.name || '',
         email: data.email,
         phone: data.phone,
@@ -37,7 +66,7 @@ export class OrganizationService {
         country: data.country,
         countryCode: data.countryCode,
         postalCode: data.postalCode,
-        status: data.status || 'PENDING',
+        status,
         createdDate: now,
         modifiedDate: now,
         deleted: false,
@@ -45,7 +74,7 @@ export class OrganizationService {
         lsi_createdAt: now,
         lsi_entityType: 'ORG_DETAILS',
         lsi_organizationType: data.organizationType,
-        lsi_status: data.status || 'PENDING',
+        lsi_status: status,
         organizationType: data.organizationType,
         organizationSize: data.organizationSize,
         noOfBranches: data.noOfBranches,
@@ -74,12 +103,12 @@ export class OrganizationService {
         insurancePartnerships: data.insurancePartnerships,
         remoteWellnessSupport: data.remoteWellnessSupport,
         corporateDiscounts: data.corporateDiscounts,
-        adminDetails: data.adminDetails,
+        adminDetails,
         modules: data.modules,
         devices: data.devices,
         supportedVitals: data.supportedVitals,
-        organizationInfo: data.organizationInfo,
-        searchFields: data.searchFields,
+        organizationInfo,
+        searchFields,
         website: data.website,
         taxId: data.taxId,
         registrationNumber: data.registrationNumber,

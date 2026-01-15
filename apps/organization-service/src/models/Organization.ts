@@ -4,6 +4,11 @@ export interface Organization {
   gsi1pk?: string;
   gsi1sk?: string;
   organizationId: string;
+  createdAt?: number;
+  createdBy?: string;
+  modifiedBy?: string;
+  traceId?: string;
+  parentOrgId?: string;
   name: string;
   email?: string;
   phone?: string;

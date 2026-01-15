@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 export const createOrganizationSchema = z.object({
   organizationId: z.string().optional(),
+  parentOrgId: z.string().optional(),
+  createdAt: z.number().optional(),
+  createdBy: z.string().optional(),
+  modifiedBy: z.string().optional(),
+  traceId: z.string().optional(),
   name: z.string().min(1).max(255),
   email: z.string().email().optional(),
   phone: z.string().optional(),
@@ -60,6 +65,11 @@ export const createOrganizationSchema = z.object({
 
 export const updateOrganizationSchema = z.object({
   name: z.string().min(1).max(255).optional(),
+  parentOrgId: z.string().optional(),
+  createdAt: z.number().optional(),
+  createdBy: z.string().optional(),
+  modifiedBy: z.string().optional(),
+  traceId: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   phoneCode: z.string().optional(),

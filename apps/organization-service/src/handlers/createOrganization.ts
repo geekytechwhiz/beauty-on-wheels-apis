@@ -46,9 +46,18 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     });
   }
 
+  const authorizer = (event.requestContext as { authorizer?: Record<string, any> } | undefined)?.authorizer;
+  const creatorId =
+    authorizer?.userId ||
+    authorizer?.userID ||
+    authorizer?.claims?.sub ||
+    authorizer?.claims?.['custom:userID'];
+
   const payload = {
     ...normalized.data,
     organizationId: normalized.data.organizationId || generateOrganizationId(),
+    createdBy: creatorId,
+    adminDetails: undefined,
   };
 
   const validationResult = createOrganizationSchema.safeParse(payload);
@@ -72,7 +81,16 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const organization = await organizationService.createOrganization(validationResult.data, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 201, duration, correlationId);
-    return created(organization, { requestId: correlationId, message: 'Organization created' });
+    return created(
+      {
+        success: true,
+        statusCode: 201,
+        newOrganizationID: organization.organizationId,
+        hospitalImage: organization.hospitalImage,
+        message: 'Organization created',
+      },
+      { requestId: correlationId, message: 'Organization created' },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof OrganizationAlreadyExistsError) {

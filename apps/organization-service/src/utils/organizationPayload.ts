@@ -1,5 +1,10 @@
 export type NormalizedOrganizationPayload = {
   organizationId?: string;
+  parentOrgId?: string;
+  createdAt?: number;
+  createdBy?: string;
+  modifiedBy?: string;
+  traceId?: string;
   name?: string;
   email?: string;
   phone?: string;
@@ -86,6 +91,10 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
     normalizeString(organizationInfo?.orgId) ||
     normalizeString(organizationInfo?.organizationID);
 
+  const parentOrgId =
+    normalizeString(input?.parentOrgId) ||
+    normalizeString(organizationInfo?.parentOrgId);
+
   const name =
     normalizeString(input?.name) ||
     normalizeString(organizationInfo?.organizationName) ||
@@ -134,10 +143,18 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
     normalizeString(input?.registrationNumber) || normalizeString(organizationInfo?.licenseNumber);
   const licenseNumber = normalizeString(organizationInfo?.licenseNumber);
 
-  const organizationSize =
+  const organizationSizeRaw =
     normalizeString(input?.organizationSize) || normalizeString(organizationInfo?.organizationSize);
-  const noOfBranches =
+  const noOfBranchesRaw =
     normalizeString(input?.noOfBranches) || normalizeString(organizationInfo?.noOfBranches);
+  const organizationSize =
+    organizationInfo && Object.keys(organizationInfo).length > 0
+      ? String(organizationSizeRaw ?? null)
+      : organizationSizeRaw;
+  const noOfBranches =
+    organizationInfo && Object.keys(organizationInfo).length > 0
+      ? String(noOfBranchesRaw ?? null)
+      : noOfBranchesRaw;
   const hospitalImage = normalizeString(organizationInfo?.hospitalImage);
   const googleMapsLink = normalizeString(organizationInfo?.googleMapsLink);
   const scheduleConf = organizationInfo?.scheduleConf;
@@ -174,9 +191,6 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
           postalCode: postalCode || '',
           state: state || '',
         },
-        createdDate: Date.now(),
-        organizationID: organizationId,
-        modifiedDate: Date.now(),
         hospitalImage,
         website,
         organizationType,
@@ -252,6 +266,7 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   return {
     data: {
       organizationId,
+      parentOrgId,
       name,
       email,
       phone,

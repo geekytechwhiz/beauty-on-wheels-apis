@@ -733,3 +733,78 @@ export async function listUserFiles(event: APIGatewayProxyEvent, context?: Conte
   }
 }
 
+export async function listOrganizationUsers(
+  event: APIGatewayProxyEvent,
+  context?: Context,
+): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const organizationId = event.pathParameters?.organizationId;
+
+  if (!organizationId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(
+      logger,
+      event.httpMethod || 'GET',
+      event.path || `/organization/${organizationId}/users`,
+      400,
+      duration,
+      correlationId,
+    );
+    return badRequest(
+      {
+        title: 'Invalid request',
+        description: 'organizationId is required',
+        severity: 'error',
+      },
+      [{ code: 'BAD_REQUEST', message: 'organizationId is required' }],
+      { correlationId },
+    );
+  }
+
+  const logger = createChildLogger(baseLogger, {
+    correlationId,
+    organizationId,
+    ...(awsRequestId && { awsRequestId }),
+  });
+  logger.info({ event: 'listOrganizationUsers_received', eventData: event });
+
+  try {
+    const result = await userService.listOrganizationUsers(organizationId);
+    const duration = Date.now() - startTime;
+    logger.info({ event: 'listOrganizationUsers_success', count: result.length });
+    logHttpRequest(
+      logger,
+      event.httpMethod || 'GET',
+      event.path || `/organization/${organizationId}/users`,
+      200,
+      duration,
+      correlationId,
+    );
+    return ok(result, 'Organization users retrieved successfully', { requestId: correlationId });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'listOrganizationUsers_error', err: serializeError(err) });
+    logHttpRequest(
+      logger,
+      event.httpMethod || 'GET',
+      event.path || `/organization/${organizationId}/users`,
+      500,
+      duration,
+      correlationId,
+    );
+    return internalServerError(
+      {
+        title: 'Failed to list organization users',
+        description: (err as Error)?.message || 'Unknown error',
+        severity: 'error',
+      },
+      [{ code: 'LIST_ORG_USERS_FAILED', message: (err as Error)?.message || 'Unknown error' }],
+      { correlationId },
+    );
+  }
+}
+
+

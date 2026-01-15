@@ -724,6 +724,50 @@ functions:
               500:
                 $ref: '#/components/responses/InternalServerError'
 
+  listOrganizationUsers:
+    handler: src/handlers/listOrganizationUsers.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/users
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List organization users
+            description: Retrieves all users associated with an organization
+            tags:
+              - Users
+              - Organizations
+            pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID or ULID)
+                required: true
+                schema:
+                  type: string
+                  example: "660e8400-e29b-41d4-a716-446655440001"
+            responses:
+              200:
+                description: Organization users retrieved successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        - userID: "550e8400-e29b-41d4-a716-446655440000"
+                          organizationID: "660e8400-e29b-41d4-a716-446655440001"
+                          emailAddress: "john.doe@example.com"
+                          fullName: "John Doe"
+                      requestId: "req-123"
+                      message: "Organization users retrieved successfully"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              500:
+                $ref: '#/components/responses/InternalServerError'
+
   # S3 → EventBridge trigger (v3 safe)
   uploadUserFile:
     handler: src/handlers/s3/uploadUserFile.main

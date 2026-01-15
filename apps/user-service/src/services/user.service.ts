@@ -550,6 +550,23 @@ export class UserService {
     }
   }
 
+  async listOrganizationUsers(organizationId: string): Promise<User[]> {
+    const timer = createPerformanceTimer(baseLogger, 'listOrganizationUsers');
+    const logger = createChildLogger(baseLogger, { organizationId });
+    logger.info({ event: 'service_listOrganizationUsers_start' });
+
+    try {
+      const users = await this.repository.listOrganizationUsers(organizationId);
+      logger.info({ event: 'service_listOrganizationUsers_success', count: users.length });
+      timer.end();
+      return users;
+    } catch (err) {
+      logger.error({ event: 'service_listOrganizationUsers_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
   async createUserFile(
     userId: string,
     fileId: string,

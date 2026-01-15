@@ -8,17 +8,22 @@ const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 const USER_TABLE_NAME = process.env.USER_TABLE || '';
 
+// DynamoDB table for users is currently keyed with lowercase `pk` / `sk`
+// We keep uppercase PK/SK only as duplicate attributes on writes (non-key attributes)
+// so all key operations MUST use lowercase `pk` / `sk`.
 type UserDBItem = User & {
   pk: string;
   sk: string;
-}
+  PK?: string;
+  SK?: string;
+};
 
 function modifyIndexesUsers(user: User): UserDBItem {
   return {
     ...user,
     pk: `ORG#${user.organizationID}`,
     sk: `USER#${user.userID}`,
-  }
+  };
 }
 
 function modifyIndexesUserOrg(user: User): UserDBItem {
@@ -26,7 +31,7 @@ function modifyIndexesUserOrg(user: User): UserDBItem {
     ...user,
     pk: `USER#${user.userID}`,
     sk: `ORG#${user.organizationID}`,
-  }
+  };
 }
 
 function userPk(userId: string): string {
@@ -77,19 +82,24 @@ export class UserRepository {
     }
   }
 
-  async getUser(userId: string, organizationId: string): Promise<User | null> {  
+  async getUser(userId: string, organizationId?: string): Promise<User | null> {
     const logger = createChildLogger(baseLogger, { userId, organizationId });
-    logger.info({ event: 'user_get_start', message: 'Getting user'   }); 
+    logger.info({ event: 'user_get_start', message: 'Getting user' });
     try {
-      // CRITICAL FIX: User is stored with pk=ORG#orgId, sk=USER#userId
-      // So we must query with the same key structure
-      const result = await docClient.send( 
+      const result = await docClient.send(
         new GetCommand({
           TableName: USER_TABLE_NAME,
-          Key: {
-            pk: userOrgPk(organizationId),  // ORG#mhw0zopb17b63195 (matches create)
-            sk: userPk(userId),              // USER#01KEXFMY00ERYN54XMGYH1ZWT2 (matches create)
-          },
+          Key: organizationId
+            ? {
+                // New schema layout in this service: pk=ORG#orgId, sk=USER#userId
+                pk: userOrgPk(organizationId),
+                sk: userPk(userId),
+              }
+            : {
+                // Legacy layout: pk=USER#userId, sk=USER_DETAILS
+                pk: userPk(userId),
+                sk: userDetailsSk(),
+              },
         }),
       );
       logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
@@ -144,8 +154,8 @@ export class UserRepository {
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
-            pk: userOrgPk(organizationId),  // ORG#mhw0zopb17b63195 (matches create)
-            sk: userPk(userId),  
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
           },
           UpdateExpression: `SET ${updateParts.join(', ')}`,
           ExpressionAttributeNames: exprNames,
@@ -219,6 +229,16 @@ export class UserRepository {
   }
 
   async listUserOrganizations(userId: string): Promise<UserOrganization[]> {
+    // const logger = createChildLogger(baseLogger, {
+    //   userId,
+    //   pk: userPk(userId),
+    //   skPrefix: 'USER#',
+    // });
+    console.info({
+      event: 'user_orgs_list_start',
+      message: 'Listing user organizations',
+    });
+
     try {
       const result = await docClient.send(
         new QueryCommand({
@@ -226,15 +246,27 @@ export class UserRepository {
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
           ExpressionAttributeValues: {
             ':pk': userPk(userId),
-            ':skPrefix': 'USER_ORG#',
+            ':skPrefix': 'USER#',
           },
         }),
       );
 
-      return (result?.Items ?? []) as UserOrganization[];
+      const items = (result?.Items ?? []) as UserOrganization[];
+      logger.info({
+        event: 'user_orgs_list_success',
+        message: 'Successfully listed user organizations',
+        count: items.length,
+        rawCount: result?.Count,
+        scannedCount: result?.ScannedCount,
+      });
+
+      return items;
     } catch (err) {
-      const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_orgs_list_error', err: serializeError(err), message: 'Failed to list user organizations' });
+      logger.error({
+        event: 'user_orgs_list_error',
+        err: serializeError(err),
+        message: 'Failed to list user organizations',
+      });
       throw err;
     }
   }
@@ -343,6 +375,68 @@ export class UserRepository {
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
       logger.error({ event: 'user_files_list_error', err: serializeError(err), message: 'Failed to list user files' });
+      throw err;
+    }
+  }
+
+  async listOrganizationUsers(organizationId: string): Promise<User[]> {
+    try {
+      console.info( 'listOrganizationUsers', organizationId );
+      console.info( 'userOrgPk(organizationId)', userOrgPk(organizationId) );
+      console.info( 'begins_with(SK, :skPrefix)', 'USER#' );
+      console.info( 'ExpressionAttributeValues', {
+        ':pk': userOrgPk(organizationId),
+        ':skPrefix': 'USER#',
+      } );
+      // First try with lowercase key names (pk/sk)
+      try {
+        const result = await docClient.send(
+          new QueryCommand({
+            TableName: USER_TABLE_NAME,
+            KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+            ExpressionAttributeValues: {
+              ':pk': `ORG#${organizationId}`, // userOrgPk(organizationId),
+              ':skPrefix': 'USER#',
+            },
+          }),
+        );
+
+        return (result.Items ?? []) as User[];
+      } catch (innerErr) {
+        const name = (innerErr as { name?: string }).name;
+        const message = (innerErr as { message?: string }).message || '';
+
+        // If DynamoDB complains that PK is missing, the actual key schema is PK/SK – retry with uppercase keys
+        if (name === 'ValidationException' && message.includes('PK')) {
+          console.info('listOrganizationUsers_retry_with_PK_SK', {
+            organizationId,
+            pk: userOrgPk(organizationId),
+          });
+
+          const fallbackResult = await docClient.send(
+            new QueryCommand({
+              TableName: USER_TABLE_NAME,
+              KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+              ExpressionAttributeValues: {
+                ':pk': userOrgPk(organizationId),
+                ':skPrefix': 'USER#',
+              },
+            }),
+          );
+
+          return (fallbackResult.Items ?? []) as User[];
+        }
+
+        // Any other error, bubble up to outer catch
+        throw innerErr;
+      }
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({
+        event: 'org_users_list_error',
+        err: serializeError(err),
+        message: 'Failed to list organization users',
+      });
       throw err;
     }
   }

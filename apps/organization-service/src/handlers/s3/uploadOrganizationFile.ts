@@ -18,9 +18,15 @@ export const main: EventBridgeHandler<'Object Created', unknown, void> = async (
       return;
     }
 
-    const detail = event.detail as { bucket?: { name?: string }; object?: { key?: string } };
+    const detail = event.detail as {
+      bucket?: { name?: string };
+      object?: { key?: string; size?: number; contentType?: string };
+      'content-type'?: string;
+    };
     const bucketName = detail?.bucket?.name;
     const objectKey = detail?.object?.key;
+    const fileSize = typeof detail?.object?.size === 'number' ? detail?.object?.size : undefined;
+    const contentType = detail?.object?.contentType || detail?.['content-type'];
 
     if (!bucketName || !objectKey) {
       logger.error({ event: 'uploadOrganizationFile_missing_data', bucketName, objectKey });
@@ -38,7 +44,15 @@ export const main: EventBridgeHandler<'Object Created', unknown, void> = async (
     const fileName = keyParts.slice(2).join('/');
     const fileId = randomUUID();
 
-    await organizationService.createOrganizationFile(organizationId, fileId, fileName, objectKey);
+    await organizationService.createOrganizationFile(
+      organizationId,
+      fileId,
+      fileName,
+      objectKey,
+      undefined,
+      fileSize,
+      contentType,
+    );
 
     logger.info({ event: 'uploadOrganizationFile_success', organizationId, fileId, fileName });
   } catch (err) {

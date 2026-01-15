@@ -15,4 +15,10 @@ export interface Organization {
   modifiedDate: number;
   deleted?: boolean;
   itemType: 'ORG_DETAILS';
+  website?: string;
+  taxId?: string;
+  registrationNumber?: string;
+  description?: string;
+  industry?: string;
+  size?: 'SMALL' | 'MEDIUM' | 'LARGE';
 }

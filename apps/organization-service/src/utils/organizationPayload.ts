@@ -129,3 +129,9 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
     errors,
   };
 };
+
+export const generateOrganizationId = (): string => {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(16).slice(2, 10);
+  return `${timestamp}${random}`;
+};

@@ -4,7 +4,7 @@ import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError
 import { created, problem } from '../utils/response';
 import { createOrganizationSchema } from '../validation/organization.validation';
 import { OrganizationAlreadyExistsError } from '../utils/errors';
-import { normalizeOrganizationPayload } from '../utils/organizationPayload';
+import { normalizeOrganizationPayload, generateOrganizationId } from '../utils/organizationPayload';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -46,7 +46,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     });
   }
 
-  const validationResult = createOrganizationSchema.safeParse(normalized.data);
+  const payload = {
+    ...normalized.data,
+    organizationId: normalized.data.organizationId || generateOrganizationId(),
+  };
+
+  const validationResult = createOrganizationSchema.safeParse(payload);
   if (!validationResult.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);

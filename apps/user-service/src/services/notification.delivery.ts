@@ -28,6 +28,13 @@ export async function sendEmail(options: { email?: string; template?: string; te
     if (!options.email) throw new Error('Email not provided');
     const secrets = await getSecrets();
     const data = buildEmailPayload(options.email, options.template, options.templateData || {});
+    logger.info({
+      event: 'send_email_request',
+      url: secrets.EMAIL_API_URL,
+      template: options.template,
+      hasEmail: Boolean(options.email),
+      templateDataKeys: Object.keys(options.templateData || {}),
+    });
 
     const apiData = {
       method: 'POST',

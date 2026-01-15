@@ -16,6 +16,40 @@ export type NormalizedOrganizationPayload = {
   industry?: string;
   size?: 'SMALL' | 'MEDIUM' | 'LARGE';
   organizationType?: string;
+  organizationSize?: string;
+  noOfBranches?: string;
+  phoneCode?: string;
+  phoneNumber?: string;
+  countryCode?: string;
+  hospitalImage?: string;
+  googleMapsLink?: string;
+  hospitalBio?: string;
+  licenseNumber?: string;
+  scheduleConf?: unknown;
+  defaultSetting?: unknown;
+  goals?: unknown;
+  thresholds?: unknown;
+  workingHours?: unknown;
+  specialization?: unknown;
+  certifications?: unknown;
+  servicesOffered?: unknown;
+  appointmentType?: unknown;
+  facilityType?: unknown;
+  equipmentAvailable?: unknown;
+  emergencySupport?: unknown;
+  industryType?: unknown;
+  wellnessPrograms?: unknown;
+  onsiteFacilities?: unknown;
+  employeeCoverage?: unknown;
+  insurancePartnerships?: boolean;
+  remoteWellnessSupport?: boolean;
+  corporateDiscounts?: boolean;
+  adminDetails?: unknown;
+  modules?: unknown;
+  devices?: unknown;
+  supportedVitals?: unknown;
+  organizationInfo?: Record<string, unknown>;
+  searchFields?: Record<string, unknown>;
 };
 
 type NormalizationResult = {
@@ -66,6 +100,14 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
     normalizeString(input?.phone) ||
     buildPhone(organizationInfo?.phoneCode, organizationInfo?.phoneNumber) ||
     buildPhone(adminDetails?.phoneCode, adminDetails?.phoneNumb);
+  const phoneCode =
+    normalizeString(input?.phoneCode) ||
+    normalizeString(organizationInfo?.phoneCode) ||
+    normalizeString(adminDetails?.phoneCode);
+  const phoneNumber =
+    normalizeString(input?.phoneNumber) ||
+    normalizeString(organizationInfo?.phoneNumber) ||
+    normalizeString(adminDetails?.phoneNumb);
 
   const address =
     normalizeString(input?.address) ||
@@ -75,18 +117,110 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   const city = normalizeString(input?.city) || normalizeString(orgAddress?.city);
   const state = normalizeString(input?.state) || normalizeString(orgAddress?.state);
   const country = normalizeString(input?.country) || normalizeString(orgAddress?.country);
+  const countryCode = normalizeString(input?.countryCode) || normalizeString(orgAddress?.countryCode);
   const postalCode = normalizeString(input?.postalCode) || normalizeString(orgAddress?.postalCode);
 
   const website = normalizeString(input?.website) || normalizeString(organizationInfo?.website);
   const description = normalizeString(input?.description) || normalizeString(organizationInfo?.hospitalBio);
+  const hospitalBio = normalizeString(organizationInfo?.hospitalBio);
   const organizationType =
     normalizeString(input?.organizationType) ||
     normalizeString(organizationInfo?.organizationType);
   const industry =
     normalizeString(input?.industry) || normalizeString(organizationInfo?.industryType);
+  const industryType = organizationInfo?.industryType;
   const taxId = normalizeString(input?.taxId) || normalizeString(organizationInfo?.taxId);
   const registrationNumber =
     normalizeString(input?.registrationNumber) || normalizeString(organizationInfo?.licenseNumber);
+  const licenseNumber = normalizeString(organizationInfo?.licenseNumber);
+
+  const organizationSize =
+    normalizeString(input?.organizationSize) || normalizeString(organizationInfo?.organizationSize);
+  const noOfBranches =
+    normalizeString(input?.noOfBranches) || normalizeString(organizationInfo?.noOfBranches);
+  const hospitalImage = normalizeString(organizationInfo?.hospitalImage);
+  const googleMapsLink = normalizeString(organizationInfo?.googleMapsLink);
+  const scheduleConf = organizationInfo?.scheduleConf;
+  const defaultSetting = organizationInfo?.defaultSetting;
+  const goals = organizationInfo?.goals;
+  const thresholds = organizationInfo?.thresholds;
+  const workingHours = organizationInfo?.workingHours;
+  const specialization = organizationInfo?.specialization;
+  const certifications = organizationInfo?.certifications;
+  const servicesOffered = organizationInfo?.servicesOffered;
+  const appointmentType = organizationInfo?.appointmentType;
+  const facilityType = organizationInfo?.facilityType;
+  const equipmentAvailable = organizationInfo?.equipmentAvailable;
+  const emergencySupport = organizationInfo?.emergencySupport;
+  const wellnessPrograms = organizationInfo?.wellnessPrograms;
+  const onsiteFacilities = organizationInfo?.onsiteFacilities;
+  const employeeCoverage = organizationInfo?.employeeCoverage;
+  const insurancePartnerships = organizationInfo?.insurancePartnerships;
+  const remoteWellnessSupport = organizationInfo?.remoteWellnessSupport;
+  const corporateDiscounts = organizationInfo?.corporateDiscounts;
+
+  const modules = input?.modules;
+  const devices = input?.devices;
+  const supportedVitals = input?.supportedVitals;
+
+  const organizationInfoOutput = Object.keys(organizationInfo || {}).length > 0
+    ? {
+        organizationName: name,
+        address: {
+          city: city || '',
+          country: country || '',
+          countryCode: countryCode || '',
+          address: address || '',
+          postalCode: postalCode || '',
+          state: state || '',
+        },
+        createdDate: Date.now(),
+        organizationID: organizationId,
+        modifiedDate: Date.now(),
+        hospitalImage,
+        website,
+        organizationType,
+        organizationSize,
+        noOfBranches,
+        hospitalBio,
+        googleMapsLink,
+        emailAddress: email,
+        phoneCode,
+        phoneNumber,
+        specialization,
+        certifications,
+        servicesOffered,
+        appointmentType,
+        facilityType,
+        equipmentAvailable,
+        emergencySupport,
+        industryType,
+        wellnessPrograms,
+        onsiteFacilities,
+        employeeCoverage,
+        insurancePartnerships,
+        remoteWellnessSupport,
+        corporateDiscounts,
+        licenseNumber,
+        scheduleConf,
+        defaultSetting,
+        goals,
+        thresholds,
+        workingHours,
+      }
+    : undefined;
+
+  const searchFields =
+    organizationInfoOutput
+      ? {
+          name: name?.toLowerCase(),
+          city: city?.toLowerCase() || '',
+          country: country?.toLowerCase() || '',
+          countryCode: countryCode?.toLowerCase() || '',
+          state: state?.toLowerCase() || '',
+          organizationType: organizationType?.toLowerCase(),
+        }
+      : undefined;
 
   const sizeCandidate =
     normalizeString(input?.size) ||
@@ -121,13 +255,47 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
       name,
       email,
       phone,
+      phoneCode,
+      phoneNumber,
       address,
       city,
       state,
       country,
+      countryCode,
       postalCode,
       status: input?.status || organizationInfo?.status,
       organizationType,
+      organizationSize,
+      noOfBranches,
+      hospitalImage,
+      googleMapsLink,
+      hospitalBio,
+      licenseNumber,
+      scheduleConf,
+      defaultSetting,
+      goals,
+      thresholds,
+      workingHours,
+      specialization,
+      certifications,
+      servicesOffered,
+      appointmentType,
+      facilityType,
+      equipmentAvailable,
+      emergencySupport,
+      industryType,
+      wellnessPrograms,
+      onsiteFacilities,
+      employeeCoverage,
+      insurancePartnerships,
+      remoteWellnessSupport,
+      corporateDiscounts,
+      adminDetails: Object.keys(adminDetails || {}).length > 0 ? adminDetails : undefined,
+      modules,
+      devices,
+      supportedVitals,
+      organizationInfo: organizationInfoOutput,
+      searchFields,
       website,
       taxId,
       registrationNumber,

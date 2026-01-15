@@ -4,6 +4,7 @@ import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError
 import { OrganizationNotFoundError } from '../utils/errors';
 import { ok, problem } from '../utils/response';
 import { updateOrganizationSchema } from '../validation/organization.validation';
+import { normalizeOrganizationPayload } from '../utils/organizationPayload';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -46,7 +47,21 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     });
   }
 
-  const validationResult = updateOrganizationSchema.safeParse(body);
+  const normalized = normalizeOrganizationPayload(body);
+  if (normalized.errors.length > 0) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
+    return problem({
+      title: 'Validation error',
+      status: 400,
+      detail: 'Invalid request body',
+      correlationId,
+      code: 'VALIDATION_ERROR',
+      errors: normalized.errors,
+    });
+  }
+
+  const validationResult = updateOrganizationSchema.safeParse(normalized.data);
   if (!validationResult.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
@@ -56,7 +71,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       detail: 'Invalid request body',
       correlationId,
       code: 'VALIDATION_ERROR',
-      errors: validationResult.error.errors.map((err) => ({
+      errors: validationResult.error.issues.map((err) => ({
         field: err.path.join('.'),
         message: err.message,
       })),

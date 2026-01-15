@@ -29,7 +29,7 @@ const config: DynamoDBClientConfig = {
 
 export const ddbClient = new DynamoDBClient(config);
 
-export const docClient = DynamoDBDocumentClient.from(ddbClient, {
+export const ddbDocClient = DynamoDBDocumentClient.from(ddbClient, {
   marshallOptions: {
     removeUndefinedValues: true,
     convertClassInstanceToMap: true,

@@ -1,6 +1,8 @@
 export interface Organization {
   pk: string;
   sk: string;
+  gsi1pk?: string;
+  gsi1sk?: string;
   organizationId: string;
   name: string;
   email?: string;

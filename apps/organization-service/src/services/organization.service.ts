@@ -1,7 +1,7 @@
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { Organization, OrganizationUser, OrganizationDevice, OrganizationMetadata, OrganizationFile } from '../models';
-import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
+import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationDevice } from '../models';
+import { OrganizationNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 
@@ -16,7 +16,7 @@ export class OrganizationService {
 
   async createOrganization(data: Partial<Organization>, correlationId?: string): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'createOrganization', correlationId);
-    const organizationId = randomUUID();
+    const organizationId = data.organizationId || randomUUID();
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
     logger.info({ event: 'service_createOrganization_start' });
 
@@ -39,6 +39,12 @@ export class OrganizationService {
         modifiedDate: now,
         deleted: false,
         itemType: 'ORG_DETAILS',
+        website: data.website,
+        taxId: data.taxId,
+        registrationNumber: data.registrationNumber,
+        description: data.description,
+        industry: data.industry,
+        size: data.size,
       };
 
       await this.repository.createOrganization(organization);
@@ -123,6 +129,12 @@ export class OrganizationService {
       if (updates.country !== undefined) updatedFields.country = updates.country;
       if (updates.postalCode !== undefined) updatedFields.postalCode = updates.postalCode;
       if (updates.status !== undefined) updatedFields.status = updates.status;
+      if (updates.website !== undefined) updatedFields.website = updates.website;
+      if (updates.taxId !== undefined) updatedFields.taxId = updates.taxId;
+      if (updates.registrationNumber !== undefined) updatedFields.registrationNumber = updates.registrationNumber;
+      if (updates.description !== undefined) updatedFields.description = updates.description;
+      if (updates.industry !== undefined) updatedFields.industry = updates.industry;
+      if (updates.size !== undefined) updatedFields.size = updates.size;
 
       await publishEvent(
         {
@@ -388,6 +400,8 @@ export class OrganizationService {
     organizationId: string,
     metadata: Record<string, unknown>,
     correlationId?: string,
+    updatedBy?: string,
+    version?: number,
   ): Promise<OrganizationMetadata> {
     const timer = createPerformanceTimer(baseLogger, 'updateOrganizationMetadata', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
@@ -399,7 +413,7 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
-      await this.repository.updateOrganizationMetadata(organizationId, metadata);
+      await this.repository.updateOrganizationMetadata(organizationId, metadata, updatedBy, version);
       const updated = await this.repository.getOrganizationMetadata(organizationId);
       if (!updated) {
         throw new OrganizationNotFoundError(organizationId);
@@ -416,6 +430,8 @@ export class OrganizationService {
             organizationId,
             metadata,
             updatedAt: updated.updatedAt,
+            ...(updated.updatedBy ? { updatedBy: updated.updatedBy } : {}),
+            ...(updated.version !== undefined ? { version: updated.version } : {}),
           },
         },
         correlationId,
@@ -459,6 +475,11 @@ export class OrganizationService {
     fileName: string,
     s3Key: string,
     correlationId?: string,
+    fileSize?: number,
+    contentType?: string,
+    uploadedBy?: string,
+    description?: string,
+    tags?: string[],
   ): Promise<OrganizationFile> {
     const timer = createPerformanceTimer(baseLogger, 'createOrganizationFile', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId, fileId });
@@ -480,6 +501,11 @@ export class OrganizationService {
         s3Key,
         uploadedAt: now,
         itemType: 'ORG_FILE',
+        fileSize,
+        contentType,
+        uploadedBy,
+        description,
+        tags,
       };
 
       await this.repository.createOrganizationFile(organizationFile);
@@ -497,6 +523,11 @@ export class OrganizationService {
             fileName,
             s3Key,
             uploadedAt: now,
+            ...(fileSize !== undefined ? { fileSize } : {}),
+            ...(contentType ? { contentType } : {}),
+            ...(uploadedBy ? { uploadedBy } : {}),
+            ...(description ? { description } : {}),
+            ...(tags ? { tags } : {}),
           },
         },
         correlationId,

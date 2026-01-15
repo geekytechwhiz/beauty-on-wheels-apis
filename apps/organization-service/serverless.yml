@@ -207,6 +207,9 @@ functions:
                     required:
                       - name
                     properties:
+                      organizationId:
+                        type: string
+                        format: uuid
                       name:
                         type: string
                         minLength: 1
@@ -229,7 +232,33 @@ functions:
                       status:
                         type: string
                         enum: [ACTIVE, INACTIVE, SUSPENDED]
+                      website:
+                        type: string
+                      taxId:
+                        type: string
+                      registrationNumber:
+                        type: string
+                      description:
+                        type: string
+                      industry:
+                        type: string
+                      size:
+                        type: string
+                        enum: [SMALL, MEDIUM, LARGE]
                         default: ACTIVE
+                      website:
+                        type: string
+                      taxId:
+                        type: string
+                      registrationNumber:
+                        type: string
+                      description:
+                        type: string
+                      industry:
+                        type: string
+                      size:
+                        type: string
+                        enum: [SMALL, MEDIUM, LARGE]
             responses:
               201:
                 description: Organization created successfully
@@ -635,6 +664,12 @@ functions:
                         type: object
                         description: Custom metadata as key-value pairs
                         additionalProperties: true
+                      updatedBy:
+                        type: string
+                        description: Identifier of the user or system updating metadata
+                      version:
+                        type: number
+                        description: Optional metadata version number
             responses:
               200:
                 description: Organization metadata updated successfully

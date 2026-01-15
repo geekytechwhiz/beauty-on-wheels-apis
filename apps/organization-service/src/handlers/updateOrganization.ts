@@ -55,6 +55,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (rawBody?.adminDetails !== undefined && normalized.data.adminDetails === undefined) {
     normalized.data.adminDetails = rawBody.adminDetails;
   }
+  if (normalized.data.organizationInfo && typeof normalized.data.organizationInfo === 'object') {
+    normalized.data.organizationInfo = {
+      ...(normalized.data.organizationInfo as Record<string, unknown>),
+      organizationID: organizationId,
+    };
+  }
   if (normalized.errors.length > 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);

@@ -19,7 +19,7 @@ export interface Organization {
   countryCode?: string;
   postalCode?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
-  createdDate: number;
+  createdDate?: number;
   modifiedDate: number;
   deleted?: boolean;
   itemType: 'ORG_DETAILS';

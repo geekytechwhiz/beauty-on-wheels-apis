@@ -29,7 +29,6 @@ export class OrganizationService {
         data.organizationInfo && typeof data.organizationInfo === 'object'
           ? {
               ...(data.organizationInfo as Record<string, unknown>),
-              createdDate: now,
               modifiedDate: now,
               organizationID: organizationId,
             }
@@ -67,7 +66,6 @@ export class OrganizationService {
         countryCode: data.countryCode,
         postalCode: data.postalCode,
         status,
-        createdDate: now,
         modifiedDate: now,
         deleted: false,
         itemType: 'ORG_DETAILS',
@@ -131,7 +129,7 @@ export class OrganizationService {
             name: organization.name,
             email: organization.email,
             status: organization.status,
-            createdDate: organization.createdDate,
+            createdDate: organization.createdAt ?? now,
           },
         },
         correlationId,

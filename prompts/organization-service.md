@@ -236,7 +236,7 @@ VALIDATION RULES
 ----------------------------------------
 
 Organization Profile
-- organizationId: UUID (required)
+- organizationId: required (generated if missing)
 - name: 1–255 chars
 - status: ACTIVE | INACTIVE | SUSPENDED
 

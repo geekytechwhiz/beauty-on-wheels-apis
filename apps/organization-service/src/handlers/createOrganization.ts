@@ -1,9 +1,10 @@
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { OrganizationService } from '../services/organization.service';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
-import { ok, created, problem } from '../utils/response';
+import { created, problem } from '../utils/response';
 import { createOrganizationSchema } from '../validation/organization.validation';
 import { OrganizationAlreadyExistsError } from '../utils/errors';
+import { normalizeOrganizationPayload, generateOrganizationId } from '../utils/organizationPayload';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -31,7 +32,26 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     });
   }
 
-  const validationResult = createOrganizationSchema.safeParse(body);
+  const normalized = normalizeOrganizationPayload(body);
+  if (normalized.errors.length > 0) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
+    return problem({
+      title: 'Validation error',
+      status: 400,
+      detail: 'Invalid request body',
+      correlationId,
+      code: 'VALIDATION_ERROR',
+      errors: normalized.errors,
+    });
+  }
+
+  const payload = {
+    ...normalized.data,
+    organizationId: normalized.data.organizationId || generateOrganizationId(),
+  };
+
+  const validationResult = createOrganizationSchema.safeParse(payload);
   if (!validationResult.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
@@ -41,7 +61,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       detail: 'Invalid request body',
       correlationId,
       code: 'VALIDATION_ERROR',
-      errors: validationResult.error.errors.map((err) => ({
+      errors: validationResult.error.issues.map((err) => ({
         field: err.path.join('.'),
         message: err.message,
       })),

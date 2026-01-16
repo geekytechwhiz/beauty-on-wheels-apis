@@ -34,6 +34,7 @@ provider:
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
+    USER_SERVICE_URL: ${self:custom.userServiceUrl.${self:provider.stage}}
 
   tags:
     Service: ${self:service}
@@ -92,6 +93,10 @@ package:
   individually: true
 
 custom:
+  userServiceUrl:
+    dev: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
+    stg: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
+    prd: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
   esbuild:
     bundle: true
     minify: false

@@ -1,7 +1,8 @@
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { OrganizationService } from '../services/organization.service';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
-import { created, problem } from '../utils/response';
+// import { created, problem } from '../utils/response';
+import { problem } from '../utils/response';
 import { createOrganizationSchema } from '../validation/organization.validation';
 import { OrganizationAlreadyExistsError } from '../utils/errors';
 import { normalizeOrganizationPayload, generateOrganizationId } from '../utils/organizationPayload';
@@ -81,16 +82,22 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const organization = await organizationService.createOrganization(validationResult.data, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 201, duration, correlationId);
-    return created(
-      {
+    return {
+      statusCode: 201,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Correlation-Id',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+      },
+      body: JSON.stringify({
         success: true,
         statusCode: 201,
         newOrganizationID: organization.organizationId,
         hospitalImage: organization.hospitalImage,
-        message: 'Organization created',
-      },
-      { requestId: correlationId, message: 'Organization created' },
-    );
+        message: 'Organization is successfully created',
+      }),
+    };
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof OrganizationAlreadyExistsError) {

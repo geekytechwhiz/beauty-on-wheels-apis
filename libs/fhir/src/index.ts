@@ -28,6 +28,7 @@ export * from './adapters/identity/listuserfiles.adapter';
 export * from './utils/reference';
 export * from './utils/coding';
 export * from './utils/date';
+export * from './utils/http';
 
 // Validation
 export * from './validation/validator';

@@ -389,24 +389,22 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: user/organization/{organizationId}/{userId}
+          path: updateUser
           method: put
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Update user information
-            description: Updates user information. Only provided fields will be updated.
+            description: Updates user information. Only provided fields will be updated. userId and organizationId are extracted from the access token.
             tags:
               - Users
-            pathParameters:
-              - name: userId
-                description: Unique identifier of the user (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-                  example: "550e8400-e29b-41d4-a716-446655440000"
             requestBody:
               description: User update data (all fields are optional)
               required: true

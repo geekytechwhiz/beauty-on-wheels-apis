@@ -125,11 +125,16 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         });
       }
 
+      const existingOrganization = await organizationService.getOrganization(organizationId);
+      const existingAdminDetails = existingOrganization?.adminDetails as Record<string, unknown> | undefined;
+      const existingAdminId =
+        typeof existingAdminDetails?.adminId === 'string' ? existingAdminDetails.adminId.trim() : '';
+      const hasExistingAdmin = existingAdminId.length > 0;
+      const orgStatus = existingOrganization?.status;
+
       let adminId = String(adminDetails.adminId || '').trim();
       if (!adminId) {
-        const existingOrganization = await organizationService.getOrganization(organizationId);
-        const existingAdminDetails = existingOrganization?.adminDetails as Record<string, unknown> | undefined;
-        if (existingAdminDetails && Object.keys(existingAdminDetails).length > 0) {
+        if (hasExistingAdmin) {
           const duration = Date.now() - startTime;
           logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
           return problem({
@@ -209,14 +214,17 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       };
 
       const userServiceBase = userServiceUrl.replace(/\/$/, '');
-      if (rawBody?.adminDetails && !String((rawBody as any).adminDetails?.adminId || '').trim()) {
-        const createUserPayload = {
-          organizationID: organizationId,
-          userID: adminId,
-          userInfo: userInfoPayload,
-          userRole,
-          userType,
-        };
+      const createUserPayload = {
+        organizationID: organizationId,
+        userID: adminId,
+        userInfo: userInfoPayload,
+        userRole,
+        userType,
+      };
+      const isAdminIdProvided = !!String((rawBody as any)?.adminDetails?.adminId || '').trim();
+      const shouldUpdateUser = isAdminIdProvided && orgStatus === 'ACTIVE';
+
+      if (!isAdminIdProvided) {
 
         const createUserResponse = await fetch(userServiceBase, {
           method: 'POST',
@@ -239,13 +247,14 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
             code: 'CREATE_ADMIN_USER_FAILED',
           });
         }
-      } else {
+      } else if (shouldUpdateUser) {
         const updateUserPayload = {
           userInfo: userInfoPayload,
           userRole,
           userType,
         };
 
+        let createdAdminUser = false;
         const updateUserResponse = await fetch(
           `${userServiceBase}/organization/${organizationId}/${adminId}`,
           {
@@ -259,17 +268,60 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         );
 
         if (!updateUserResponse.ok) {
-          const responseText = await updateUserResponse.text();
-          const duration = Date.now() - startTime;
-          logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, updateUserResponse.status, duration, correlationId);
-          return problem({
-            title: 'Failed to update admin user',
-            status: updateUserResponse.status,
-            detail: responseText || 'User service request failed',
-            correlationId,
-            code: 'UPDATE_ADMIN_USER_FAILED',
-          });
+          if (updateUserResponse.status === 404) {
+            if (!hasExistingAdmin) {
+              const createUserResponse = await fetch(userServiceBase, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: authHeader,
+                },
+                body: JSON.stringify(createUserPayload),
+              });
+
+              if (!createUserResponse.ok) {
+                const responseText = await createUserResponse.text();
+                const duration = Date.now() - startTime;
+                logHttpRequest(
+                  logger,
+                  event.httpMethod || 'PUT',
+                  event.path || `/organization/${organizationId}`,
+                  createUserResponse.status,
+                  duration,
+                  correlationId,
+                );
+                return problem({
+                  title: 'Failed to create admin user',
+                  status: createUserResponse.status,
+                  detail: responseText || 'User service request failed',
+                  correlationId,
+                  code: 'CREATE_ADMIN_USER_FAILED',
+                });
+              }
+
+              createdAdminUser = true;
+            }
+          }
+
+          if (!createdAdminUser) {
+            const responseText = await updateUserResponse.text();
+            const duration = Date.now() - startTime;
+            logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, updateUserResponse.status, duration, correlationId);
+            return problem({
+              title: 'Failed to update admin user',
+              status: updateUserResponse.status,
+              detail: responseText || 'User service request failed',
+              correlationId,
+              code: 'UPDATE_ADMIN_USER_FAILED',
+            });
+          }
         }
+      } else {
+        logger.info({
+          event: 'admin_update_skipped',
+          reason: 'organization_status_not_active',
+          organizationStatus: orgStatus,
+        });
       }
     }
 

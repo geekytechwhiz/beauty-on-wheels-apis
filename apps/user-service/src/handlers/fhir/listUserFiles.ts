@@ -68,7 +68,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const duration = Date.now() - startTime;
     logger.info({ event: 'listUserFiles_fhir_success', count: resources.length });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/fhir/Patient/${patientId}/files`, 200, duration, correlationId);
-    return fhirBundle(resources, { correlationId, type: 'searchset' });
+    return fhirBundle(resources, { correlationId, type: 'searchset', baseUrl });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {

@@ -225,20 +225,58 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const userId = event.pathParameters?.userId;
-  const organizationId = event.pathParameters?.organizationId;
+  
+  // Extract userId and organizationId from access token (authorizer)
+  const authorizer = (event.requestContext as any)?.authorizer;
+  
+  let userId = authorizer?.userID || authorizer?.userId || (event as any).userID || (event as any).userId;
+  let organizationId = authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (event as any).organizationId;
+  
+  // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
+  if ((!userId || !organizationId) && event.headers?.Authorization) {
+    try {
+      const authHeader = event.headers.Authorization || event.headers.authorization;
+      if (authHeader && typeof authHeader === 'string') {
+        const token = authHeader.replace('Bearer ', '').trim();
+        // Decode JWT without verification (for development/testing)
+        // In production, this should be handled by the authorizer
+        const base64Url = token.split('.')[1];
+        if (base64Url) {
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            Buffer.from(base64, 'base64')
+              .toString()
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const decoded = JSON.parse(jsonPayload);
+          
+          // Extract from common JWT claim formats
+          userId = userId || decoded['custom:userID'] || decoded['custom:userId'] || decoded.userID || decoded.userId || decoded.sub;
+          organizationId = organizationId || decoded['custom:organizationID'] || decoded['custom:organizationId'] || decoded.organizationID || decoded.organizationId;
+        }
+      }
+    } catch (err) {
+      console.log("Error decoding token: ", err);
+      // Continue without token decoding
+    }
+  }
+
+  console.log("USER ID ", userId);
+  console.log("ORGANIZATION ID ", organizationId);
 
   if (!userId || !organizationId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/organization/${organizationId}/${userId}`, 400, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 401, duration, correlationId);
     return badRequest(
       {
-        title: 'Invalid request',
-        description: 'userId and organizationId are required',
+        title: 'Unauthorized',
+        description: 'userId and organizationId are required. Please ensure you are authenticated with a valid access token.',
         severity: 'error',
       },
-      [{ code: 'BAD_REQUEST', message: 'userId and organizationId are required' }],
+      [{ code: 'UNAUTHORIZED', message: 'Missing user context in access token' }],
       { correlationId },
     );
   }
@@ -268,7 +306,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   if (!validation.success) {
     logger.warn({ event: 'updateUser_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}`, 400, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 400, duration, correlationId);
     return unprocessableEntity(
       {
         title: 'Validation failed',
@@ -285,81 +323,50 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   try {
-    const { userInfo, userRole, userType } = validation.data;
+    const data = validation.data;
     
-    // Build update data object - only include fields that are provided
+    // Build update data object - map flat structure to internal format
     const userData: any = {};
     
-    if (userInfo) {
-      const contactAddress = (userInfo.contact as any)?.address;
-      
-      if (userInfo.name !== undefined) userData.fullName = userInfo.name;
-      if (userInfo.namePrefix !== undefined) userData.namePrefix = userInfo.namePrefix;
-      if (userInfo.profilePic !== undefined) userData.profilePic = userInfo.profilePic;
-      if (userInfo.code !== undefined) userData.code = userInfo.code;
-      if (userInfo.licenseNumber !== undefined) userData.licenseNumber = userInfo.licenseNumber;
-      
-      if (userInfo.contact) {
-        if (userInfo.contact.email !== undefined) userData.emailAddress = userInfo.contact.email;
-        if (userInfo.contact.phone !== undefined) userData.phoneNumber = userInfo.contact.phone;
-        if (userInfo.contact.phoneCode !== undefined) userData.phoneCode = userInfo.contact.phoneCode;
-      }
-      
-      if (userInfo.workingHours !== undefined) userData.workingHours = userInfo.workingHours;
-      if (userInfo.dateOfBirth !== undefined) userData.dateOfBirth = userInfo.dateOfBirth;
-      if (userInfo.department !== undefined) userData.department = userInfo.department;
-      if (userInfo.gender !== undefined) userData.gender = userInfo.gender;
-      if (userInfo.specialty !== undefined) userData.specialty = userInfo.specialty;
-      if (userInfo.slotDurationInMinutes !== undefined) userData.slotDurationInMinutes = userInfo.slotDurationInMinutes;
-      if (userInfo.experienceInYears !== undefined) userData.experienceInYears = userInfo.experienceInYears;
-      if (userInfo.bio !== undefined) userData.bio = userInfo.bio;
-      
-      if (contactAddress) {
-        if (contactAddress.address !== undefined) userData.address = contactAddress.address || userInfo.address || '';
-        if (contactAddress.city !== undefined) userData.city = contactAddress.city || userInfo.city || '';
-        if (contactAddress.state !== undefined) userData.state = contactAddress.state || userInfo.state || '';
-        if (contactAddress.country !== undefined) userData.country = contactAddress.country || userInfo.country || '';
-        if (contactAddress.postalCode !== undefined) userData.postalCode = contactAddress.postalCode || userInfo.postalCode || '';
-        if (contactAddress.street !== undefined) userData.street = contactAddress.street || '';
-        if (contactAddress.zip !== undefined) userData.zip = contactAddress.zip || '';
-        if (contactAddress.countryCode !== undefined) userData.countryCode = contactAddress.countryCode || '';
-        if (contactAddress.stateCode !== undefined) userData.stateCode = contactAddress.stateCode || '';
-      } else {
-        if (userInfo.address !== undefined) userData.address = userInfo.address;
-        if (userInfo.city !== undefined) userData.city = userInfo.city;
-        if (userInfo.state !== undefined) userData.state = userInfo.state;
-        if (userInfo.country !== undefined) userData.country = userInfo.country;
-        if (userInfo.postalCode !== undefined) userData.postalCode = userInfo.postalCode;
-      }
-      
-      if (userInfo.emergencyContact !== undefined) userData.emergencyContact = userInfo.emergencyContact;
-      if (userInfo.medicalHistory !== undefined) userData.medicalHistory = userInfo.medicalHistory;
-      if (userInfo.insuranceDetails !== undefined) userData.insuranceDetails = userInfo.insuranceDetails;
-      if (userInfo.workSchedule !== undefined) userData.workSchedule = userInfo.workSchedule;
-      if (userInfo.position !== undefined) userData.position = userInfo.position;
-      if (userInfo.userTimeZone !== undefined) userData.userTimeZone = userInfo.userTimeZone;
-      if (userInfo.devices !== undefined) userData.devices = userInfo.devices;
-      if (userInfo.assignRoomNo !== undefined) userData.assignRoomNo = userInfo.assignRoomNo;
-      if (userInfo.username !== undefined) userData.username = userInfo.username;
-      
-      // Update srcRegisEntity if email or phone is being updated
-      if (userInfo.contact?.email !== undefined || userInfo.contact?.phone !== undefined) {
-        const isEmail = userInfo.contact?.email && userInfo.contact.email.includes('@');
-        userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
-      }
+    // Map basic fields
+    if (data.profilePic !== undefined) userData.profilePic = data.profilePic;
+    if (data.namePrefix !== undefined) userData.namePrefix = data.namePrefix;
+    if (data.bio !== undefined) userData.bio = data.bio;
+    if (data.gender !== undefined) userData.gender = data.gender;
+    if (data.dateOfBirth !== undefined) userData.dateOfBirth = data.dateOfBirth;
+    if (data.specialty !== undefined) userData.specialty = data.specialty;
+    if (data.licenseNumber !== undefined) userData.licenseNumber = data.licenseNumber;
+    
+    // Map contact fields
+    if (data.email !== undefined) userData.emailAddress = data.email;
+    if (data.phone !== undefined) userData.phoneNumber = data.phone;
+    if (data.phoneCode !== undefined) userData.phoneCode = data.phoneCode;
+    
+    // Map name fields - combine firstName and lastName into fullName
+    if (data.firstName !== undefined || data.lastName !== undefined) {
+      const firstName = data.firstName ?? '';
+      const lastName = data.lastName ?? '';
+      userData.firstName = firstName;
+      userData.lastName = lastName;
+      userData.fullName = `${firstName} ${lastName}`.trim();
     }
     
-    if (userRole !== undefined) userData.userRole = userRole;
-    if (userType !== undefined) userData.userType = userType;
+    // Update srcRegisEntity if email or phone is being updated
+    if (data.email !== undefined || data.phone !== undefined) {
+      const isEmail = data.email && data.email.includes('@');
+      userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
+    }
+    
+    // Note: 'action' field is accepted but not stored in user data (may be used for business logic)
     
     const result = await userService.updateUser(userId, organizationId, userData, correlationId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}`, 200, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
     return ok(result, 'User updated', { requestId: correlationId });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
-      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}`, 404, duration, correlationId);
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 404, duration, correlationId);
       return notFound(
         {
           title: 'User not found',
@@ -371,7 +378,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
       );
     }
     logger.error({ event: 'updateUser_error', err: serializeError(err) });
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}`, 500, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 500, duration, correlationId);
     return internalServerError(
       {
         title: 'Failed to update user',

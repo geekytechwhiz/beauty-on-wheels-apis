@@ -55,6 +55,22 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (rawBody?.adminDetails !== undefined && normalized.data.adminDetails === undefined) {
     normalized.data.adminDetails = rawBody.adminDetails;
   }
+  if (normalized.data.adminDetails && typeof normalized.data.adminDetails === 'object') {
+    const adminDetails = normalized.data.adminDetails as Record<string, unknown>;
+    const adminId = typeof adminDetails.adminId === 'string' ? adminDetails.adminId.trim() : '';
+    if (!adminId) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
+      return problem({
+        title: 'Invalid request',
+        status: 400,
+        detail: 'adminId is required when adminDetails are provided',
+        correlationId,
+        code: 'ADMIN_ID_REQUIRED',
+      });
+    }
+    adminDetails.adminId = adminId;
+  }
   if (normalized.data.organizationInfo && typeof normalized.data.organizationInfo === 'object') {
     normalized.data.organizationInfo = {
       ...(normalized.data.organizationInfo as Record<string, unknown>),
@@ -92,6 +108,131 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   try {
+    if (rawBody?.adminDetails && typeof normalized.data.adminDetails === 'object') {
+      const adminDetails = normalized.data.adminDetails as Record<string, unknown>;
+      const userServiceUrl = process.env.USER_SERVICE_URL;
+      const authHeader =
+        event.headers?.Authorization ||
+        event.headers?.authorization ||
+        event.headers?.AUTHORIZATION;
+
+      if (!userServiceUrl) {
+        const duration = Date.now() - startTime;
+        logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 500, duration, correlationId);
+        return problem({
+          title: 'Missing configuration',
+          status: 500,
+          detail: 'USER_SERVICE_URL is not configured',
+          correlationId,
+          code: 'USER_SERVICE_URL_MISSING',
+        });
+      }
+
+      if (!authHeader) {
+        const duration = Date.now() - startTime;
+        logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 401, duration, correlationId);
+        return problem({
+          title: 'Unauthorized',
+          status: 401,
+          detail: 'Authorization header is required to create admin user',
+          correlationId,
+          code: 'UNAUTHORIZED',
+        });
+      }
+
+      const adminId = String(adminDetails.adminId || '').trim();
+      const adminName =
+        String(
+          adminDetails.adminName ||
+            adminDetails.fullName ||
+            adminDetails.name ||
+            '',
+        ).trim();
+      const email = typeof adminDetails.emailAddress === 'string' ? adminDetails.emailAddress : undefined;
+      const phone = typeof adminDetails.phoneNumber === 'string' ? adminDetails.phoneNumber : undefined;
+      const phoneCode = typeof adminDetails.phoneCode === 'string' ? adminDetails.phoneCode : undefined;
+      const adminAddress = adminDetails.adminAddress as Record<string, unknown> | undefined;
+      const profilePic = adminDetails.profilePic as string | undefined;
+      const userType = String(adminDetails.userType || 'STAFF');
+      const userRoleRaw = adminDetails.userRole;
+      const userRole = Array.isArray(userRoleRaw)
+        ? userRoleRaw.map((role) => String(role))
+        : userRoleRaw
+          ? [String(userRoleRaw)]
+          : ['ADMIN'];
+
+      const userTypeUpper = userType.toUpperCase();
+      if (userTypeUpper === 'STAFF' && (!email || email.trim() === '')) {
+        const duration = Date.now() - startTime;
+        logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
+        return problem({
+          title: 'Invalid request',
+          status: 400,
+          detail: 'Email is required to create STAFF admin user',
+          correlationId,
+          code: 'ADMIN_EMAIL_REQUIRED',
+        });
+      }
+
+      if (
+        (userTypeUpper === 'USER' || userTypeUpper === 'FNF') &&
+        (!email || email.trim() === '') &&
+        (!phone || String(phone).trim() === '')
+      ) {
+        const duration = Date.now() - startTime;
+        logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
+        return problem({
+          title: 'Invalid request',
+          status: 400,
+          detail: 'Email or phone is required to create admin user',
+          correlationId,
+          code: 'ADMIN_CONTACT_REQUIRED',
+        });
+      }
+
+      const userPayload = {
+        organizationID: organizationId,
+        userID: adminId,
+        userInfo: {
+          name: adminName,
+          namePrefix: adminDetails.namePrefix,
+          profilePic,
+          contact: {
+            email,
+            phone,
+            phoneCode,
+            address: adminAddress,
+          },
+          position: adminDetails.position,
+          department: adminDetails.department,
+        },
+        userRole,
+        userType,
+      };
+
+      const createUserResponse = await fetch(`${userServiceUrl.replace(/\/$/, '')}/user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(userPayload),
+      });
+
+      if (!createUserResponse.ok) {
+        const responseText = await createUserResponse.text();
+        const duration = Date.now() - startTime;
+        logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, createUserResponse.status, duration, correlationId);
+        return problem({
+          title: 'Failed to create admin user',
+          status: createUserResponse.status,
+          detail: responseText || 'User service request failed',
+          correlationId,
+          code: 'CREATE_ADMIN_USER_FAILED',
+        });
+      }
+    }
+
     const organization = await organizationService.updateOrganization(organizationId, validationResult.data, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 200, duration, correlationId);

@@ -126,13 +126,16 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       }
 
       const existingOrganization = await organizationService.getOrganization(organizationId);
+      logger.info({ event: 'existingOrganization', existingOrganization });
       const existingAdminDetails = existingOrganization?.adminDetails as Record<string, unknown> | undefined;
       const existingAdminId =
         typeof existingAdminDetails?.adminId === 'string' ? existingAdminDetails.adminId.trim() : '';
       const hasExistingAdmin = existingAdminId.length > 0;
       const orgStatus = existingOrganization?.status;
-
+      logger.info({ event: 'hasExistingAdmin', hasExistingAdmin });
+      logger.info({ event: 'orgStatus', orgStatus });
       let adminId = String(adminDetails.adminId || '').trim();
+      logger.info({ event: 'adminId', adminId });
       if (!adminId) {
         if (hasExistingAdmin) {
           const duration = Date.now() - startTime;

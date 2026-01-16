@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { UserService } from '../services/user.service';
+import { assignUserRole, getRoleDetails } from '../services/role.service';
 import { createLogger, extractCorrelationId, serializeError, logHttpRequest, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
 import {
   ok,
@@ -84,6 +85,15 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
 
   try {
     const { userInfo, userRole, userType } = validation.data;
+    const roleIds = Array.isArray(userRole)
+      ? userRole.map((roleId) => String(roleId))
+      : userRole
+        ? [String(userRole)]
+        : [];
+    const authHeader =
+      event.headers?.Authorization ||
+      event.headers?.authorization ||
+      event.headers?.AUTHORIZATION;
     const contactAddress = (userInfo.contact as any)?.address;
     const userTypeUpper = String(userType || '').toUpperCase();
     const userData: any = {
@@ -128,7 +138,35 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
+    if (roleIds.length > 0) {
+      await Promise.all(
+        roleIds.map(async (roleId: string) => {
+          const roleMeta = await getRoleDetails(roleId, body.organizationID, authHeader);
+          if (!roleMeta || (Array.isArray(roleMeta) && roleMeta.length === 0)) {
+            logger.warn({ event: 'createUser_role_not_found', roleId, organizationID: body.organizationID });
+          }
+        }),
+      );
+    } else {
+      logger.warn({ event: 'createUser_role_missing', organizationID: body.organizationID });
+    }
+
     const result = await userService.createUser(userData, body.organizationID, body.userID, correlationId);
+
+    if (roleIds.length > 0) {
+      void assignUserRole(
+        roleIds[0],
+        body.organizationID,
+        result.userID,
+        userInfo.name,
+        userInfo.contact.email ?? undefined,
+        userInfo.contact.phone ?? undefined,
+        userInfo.profilePic,
+        authHeader,
+      ).catch((err) => {
+        logger.warn({ event: 'createUser_assign_user_role_failed', err: serializeError(err) });
+      });
+    }
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
     

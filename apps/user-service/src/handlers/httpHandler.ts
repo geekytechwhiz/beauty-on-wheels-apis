@@ -139,21 +139,42 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
     if (roleIds.length > 0) {
+      logger.info({
+        event: 'createUser_role_check_start',
+        organizationID: body.organizationID,
+        roleIds,
+      });
       await Promise.all(
         roleIds.map(async (roleId: string) => {
           const roleMeta = await getRoleDetails(roleId, body.organizationID, authHeader);
           if (!roleMeta || (Array.isArray(roleMeta) && roleMeta.length === 0)) {
             logger.warn({ event: 'createUser_role_not_found', roleId, organizationID: body.organizationID });
+          } else {
+            logger.info({
+              event: 'createUser_role_check_success',
+              roleId,
+              organizationID: body.organizationID,
+            });
           }
         }),
       );
     } else {
-      logger.warn({ event: 'createUser_role_missing', organizationID: body.organizationID });
+      logger.warn({
+        event: 'createUser_role_missing',
+        organizationID: body.organizationID,
+        userType: userTypeUpper,
+      });
     }
 
     const result = await userService.createUser(userData, body.organizationID, body.userID, correlationId);
 
     if (roleIds.length > 0) {
+      logger.info({
+        event: 'createUser_assign_user_role_start',
+        organizationID: body.organizationID,
+        userID: result.userID,
+        roleId: roleIds[0],
+      });
       void assignUserRole(
         roleIds[0],
         body.organizationID,
@@ -165,6 +186,12 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
         authHeader,
       ).catch((err) => {
         logger.warn({ event: 'createUser_assign_user_role_failed', err: serializeError(err) });
+      });
+    } else {
+      logger.info({
+        event: 'createUser_assign_user_role_skipped',
+        organizationID: body.organizationID,
+        userID: result.userID,
       });
     }
     const duration = Date.now() - startTime;

@@ -24,7 +24,6 @@ export class OrganizationService {
       const now = Date.now();
       const status = data.status || 'PENDING';
       const traceId = data.traceId || randomUUID();
-      const adminDetails = undefined;
       const organizationInfo =
         data.organizationInfo && typeof data.organizationInfo === 'object'
           ? {
@@ -101,7 +100,6 @@ export class OrganizationService {
         insurancePartnerships: data.insurancePartnerships,
         remoteWellnessSupport: data.remoteWellnessSupport,
         corporateDiscounts: data.corporateDiscounts,
-        adminDetails,
         modules: data.modules,
         devices: data.devices,
         supportedVitals: data.supportedVitals,

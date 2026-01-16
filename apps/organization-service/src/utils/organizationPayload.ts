@@ -49,7 +49,6 @@ export type NormalizedOrganizationPayload = {
   insurancePartnerships?: boolean;
   remoteWellnessSupport?: boolean;
   corporateDiscounts?: boolean;
-  adminDetails?: unknown;
   modules?: unknown;
   devices?: unknown;
   supportedVitals?: unknown;
@@ -81,7 +80,6 @@ const buildPhone = (phoneCode?: unknown, phoneNumber?: unknown): string | undefi
 export const normalizeOrganizationPayload = (input: any): NormalizationResult => {
   const errors: Array<{ field: string; message: string }> = [];
   const organizationInfo = input?.organizationInfo || {};
-  const adminDetails = input?.adminDetails || {};
   const orgAddress = organizationInfo?.organizationAdd || organizationInfo?.address || {};
 
   const organizationId =
@@ -102,21 +100,17 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
 
   const email =
     normalizeString(input?.email) ||
-    normalizeString(organizationInfo?.emailAddress) ||
-    normalizeString(adminDetails?.emailAddress);
+    normalizeString(organizationInfo?.emailAddress);
 
   const phone =
     normalizeString(input?.phone) ||
-    buildPhone(organizationInfo?.phoneCode, organizationInfo?.phoneNumber) ||
-    buildPhone(adminDetails?.phoneCode, adminDetails?.phoneNumb);
+    buildPhone(organizationInfo?.phoneCode, organizationInfo?.phoneNumber);
   const phoneCode =
     normalizeString(input?.phoneCode) ||
-    normalizeString(organizationInfo?.phoneCode) ||
-    normalizeString(adminDetails?.phoneCode);
+    normalizeString(organizationInfo?.phoneCode);
   const phoneNumber =
     normalizeString(input?.phoneNumber) ||
-    normalizeString(organizationInfo?.phoneNumber) ||
-    normalizeString(adminDetails?.phoneNumb);
+    normalizeString(organizationInfo?.phoneNumber);
 
   const address =
     normalizeString(input?.address) ||
@@ -305,7 +299,6 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
       insurancePartnerships,
       remoteWellnessSupport,
       corporateDiscounts,
-      adminDetails: Object.keys(adminDetails || {}).length > 0 ? adminDetails : undefined,
       modules,
       devices,
       supportedVitals,

@@ -55,7 +55,6 @@ export interface Organization {
   insurancePartnerships?: boolean;
   remoteWellnessSupport?: boolean;
   corporateDiscounts?: boolean;
-  adminDetails?: unknown;
   modules?: unknown;
   devices?: unknown;
   supportedVitals?: unknown;

@@ -112,3 +112,37 @@ export interface Resource {
   modifierExtension?: Extension[];
 }
 
+export interface BundleEntry {
+  fullUrl?: string;
+  resource?: Resource;
+  search?: {
+    mode?: 'match' | 'include' | 'outcome';
+    score?: number;
+  };
+  request?: {
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    url?: string;
+    ifNoneMatch?: string;
+    ifModifiedSince?: string;
+    ifMatch?: string;
+    ifNoneExist?: string;
+  };
+  response?: {
+    status?: string;
+    location?: string;
+    etag?: string;
+    lastModified?: string;
+    outcome?: Resource;
+  };
+}
+
+export interface Bundle extends Resource {
+  resourceType: 'Bundle';
+  type: 'document' | 'message' | 'transaction' | 'transaction-response' | 'batch' | 'batch-response' | 'history' | 'searchset' | 'collection';
+  total?: number;
+  link?: Array<{
+    relation: string;
+    url: string;
+  }>;
+  entry?: BundleEntry[];
+}

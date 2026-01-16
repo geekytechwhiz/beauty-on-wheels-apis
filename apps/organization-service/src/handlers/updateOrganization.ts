@@ -14,10 +14,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const rawOrganizationId = event.pathParameters?.organizationId;
-  const organizationId = rawOrganizationId
-    ? decodeURIComponent(rawOrganizationId).replace(/^\{|\}$/g, '')
-    : undefined;
+  const organizationId = event.pathParameters?.organizationId;
 
   if (!organizationId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });

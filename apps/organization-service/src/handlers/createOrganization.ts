@@ -58,7 +58,6 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     ...normalized.data,
     organizationId: normalized.data.organizationId || generateOrganizationId(),
     createdBy: creatorId,
-    adminDetails: undefined,
   };
 
   const validationResult = createOrganizationSchema.safeParse(payload);

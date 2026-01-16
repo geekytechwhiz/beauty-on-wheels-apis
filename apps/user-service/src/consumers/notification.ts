@@ -20,8 +20,16 @@ export const handler = async (event: SNSEvent, _context: Context) => {
       for (const ch of channels) {
         try {
           if (ch === 'email') {
+            if (!data.email) {
+              logger.warn({ event: 'skip_email_missing_address', userId: data.userId });
+              continue;
+            }
             await sendEmail({ email: data.email, template: data.template, templateData: data.templateData });
           } else if (ch === 'sms') {
+            if (!data.phone) {
+              logger.warn({ event: 'skip_sms_missing_number', userId: data.userId });
+              continue;
+            }
             await sendSms({ phone: data.phone, template: data.template, templateData: data.templateData });
           } else if (ch === 'push') {
             await sendPush({ deviceToken: (data as any).deviceToken, template: data.template, templateData: data.templateData });

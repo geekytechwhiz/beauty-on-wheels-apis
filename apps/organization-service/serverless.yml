@@ -34,6 +34,7 @@ provider:
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
+    USER_SERVICE_URL: ${self:custom.userServiceUrl.${self:provider.stage}}
 
   tags:
     Service: ${self:service}
@@ -92,6 +93,10 @@ package:
   individually: true
 
 custom:
+  userServiceUrl:
+    dev: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
+    stg: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
+    prd: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
   esbuild:
     bundle: true
     minify: false
@@ -164,6 +169,9 @@ functions:
       - http:
           path: /health
           method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
           documentation:
             summary: Health check endpoint
             description: Returns the health status of the service
@@ -192,6 +200,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Create a new organization
             description: Creates a new organization in the system
@@ -207,6 +221,9 @@ functions:
                     required:
                       - name
                     properties:
+                      organizationId:
+                        type: string
+                        format: uuid
                       name:
                         type: string
                         minLength: 1
@@ -229,6 +246,19 @@ functions:
                       status:
                         type: string
                         enum: [ACTIVE, INACTIVE, SUSPENDED]
+                      website:
+                        type: string
+                      taxId:
+                        type: string
+                      registrationNumber:
+                        type: string
+                      description:
+                        type: string
+                      industry:
+                        type: string
+                      size:
+                        type: string
+                        enum: [SMALL, MEDIUM, LARGE]
                         default: ACTIVE
             responses:
               201:
@@ -284,6 +314,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Update organization information
             description: Updates organization information. Only provided fields will be updated.
@@ -635,6 +671,12 @@ functions:
                         type: object
                         description: Custom metadata as key-value pairs
                         additionalProperties: true
+                      updatedBy:
+                        type: string
+                        description: Identifier of the user or system updating metadata
+                      version:
+                        type: number
+                        description: Optional metadata version number
             responses:
               200:
                 description: Organization metadata updated successfully

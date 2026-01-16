@@ -7,4 +7,9 @@ export interface OrganizationFile {
   s3Key: string;
   uploadedAt: string;
   itemType: 'ORG_FILE';
+  fileSize?: number;
+  contentType?: string;
+  uploadedBy?: string;
+  description?: string;
+  tags?: string[];
 }

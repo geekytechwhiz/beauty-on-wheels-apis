@@ -1,9 +1,11 @@
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { OrganizationService } from '../services/organization.service';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
-import { ok, created, problem } from '../utils/response';
+// import { created, problem } from '../utils/response';
+import { problem } from '../utils/response';
 import { createOrganizationSchema } from '../validation/organization.validation';
 import { OrganizationAlreadyExistsError } from '../utils/errors';
+import { normalizeOrganizationPayload, generateOrganizationId } from '../utils/organizationPayload';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -31,7 +33,35 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     });
   }
 
-  const validationResult = createOrganizationSchema.safeParse(body);
+  const normalized = normalizeOrganizationPayload(body);
+  if (normalized.errors.length > 0) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
+    return problem({
+      title: 'Validation error',
+      status: 400,
+      detail: 'Invalid request body',
+      correlationId,
+      code: 'VALIDATION_ERROR',
+      errors: normalized.errors,
+    });
+  }
+
+  const authorizer = (event.requestContext as { authorizer?: Record<string, any> } | undefined)?.authorizer;
+  const creatorId =
+    authorizer?.userId ||
+    authorizer?.userID ||
+    authorizer?.claims?.sub ||
+    authorizer?.claims?.['custom:userID'];
+
+  const payload = {
+    ...normalized.data,
+    organizationId: normalized.data.organizationId || generateOrganizationId(),
+    createdBy: creatorId,
+    adminDetails: undefined,
+  };
+
+  const validationResult = createOrganizationSchema.safeParse(payload);
   if (!validationResult.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
@@ -41,7 +71,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       detail: 'Invalid request body',
       correlationId,
       code: 'VALIDATION_ERROR',
-      errors: validationResult.error.errors.map((err) => ({
+      errors: validationResult.error.issues.map((err) => ({
         field: err.path.join('.'),
         message: err.message,
       })),
@@ -52,7 +82,22 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const organization = await organizationService.createOrganization(validationResult.data, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 201, duration, correlationId);
-    return created(organization, { requestId: correlationId, message: 'Organization created' });
+    return {
+      statusCode: 201,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Correlation-Id',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+      },
+      body: JSON.stringify({
+        success: true,
+        statusCode: 201,
+        newOrganizationID: organization.organizationId,
+        hospitalImage: organization.hospitalImage,
+        message: 'Organization is successfully created',
+      }),
+    };
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof OrganizationAlreadyExistsError) {

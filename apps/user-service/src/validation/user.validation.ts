@@ -5,11 +5,30 @@ export const createUserSchema = z.object({
     name: z.string().min(1),
     namePrefix: z.string().optional(),
     code: z.string().optional(),
-    profilePic: z.string().optional(),
+    profilePic: z.union([
+      z.string(),
+      z.object({}).passthrough(),
+    ]).optional().transform((val) => {
+      if (!val) return undefined;
+      if (typeof val === 'string') return val;
+      if (typeof val === 'object' && val !== null) {
+        // Extract string value from common object properties
+        return (val as any).url || (val as any).profilePic || (val as any).value || (val as any).src || undefined;
+      }
+      return undefined;
+    }),
     licenseNumber: z.string().optional(),
     contact: z.object({
-      email: z.string().email(),
-      phone: z.string(),
+      email: z.union([
+        z.string().email(),
+        z.literal(''),
+        z.null(),
+      ]).optional(),
+      phone: z.union([
+        z.string(),
+        z.literal(''),
+        z.null(),
+      ]).optional(),
       phoneCode: z.string().optional(),
       address: z.object({
         address: z.string().optional(),
@@ -73,7 +92,7 @@ export const createUserSchema = z.object({
           to: z.string(),
         })).optional(),
       }),
-    }),
+    }).optional(),
     dateOfBirth: z.string().optional(),
     department: z.string().optional(),
     gender: z.string().optional(),
@@ -95,6 +114,35 @@ export const createUserSchema = z.object({
   }),
   userRole: z.array(z.string()),
   userType: z.string(),
+}).superRefine((data, ctx) => {
+  const userTypeUpper = String(data.userType || '').toUpperCase();
+  const email = data.userInfo.contact?.email;
+  const phone = data.userInfo.contact?.phone;
+  
+  const hasEmail = email && typeof email === 'string' && email.trim() !== '';
+  const hasPhone = phone && typeof phone === 'string' && phone.trim() !== '';
+  
+  // For STAFF, email is required
+  if (userTypeUpper === 'STAFF') {
+    if (!hasEmail) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Email is required for STAFF',
+        path: ['userInfo', 'contact', 'email'],
+      });
+    }
+  }
+  
+  // For USER and FNF, at least one of email or phone is required
+  if (userTypeUpper === 'USER' || userTypeUpper === 'FNF') {
+    if (!hasEmail && !hasPhone) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Either email address or phone number is required for USER and FNF userType',
+        path: ['userInfo', 'contact'],
+      });
+    }
+  }
 });
 
 export const updateUserSchema = z.object({

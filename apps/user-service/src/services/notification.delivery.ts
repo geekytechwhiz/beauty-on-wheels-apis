@@ -24,14 +24,23 @@ async function getSecrets(): Promise<Record<string, any>> {
 }
 
 export async function sendEmail(options: { email?: string; template?: string; templateData?: Record<string, unknown> }) {
+  let emailApiUrl: string | undefined;
   try {
     if (!options.email) throw new Error('Email not provided');
     const secrets = await getSecrets();
+    emailApiUrl = secrets.EMAIL_API_URL;
     const data = buildEmailPayload(options.email, options.template, options.templateData || {});
+    logger.info({
+      event: 'send_email_request',
+      url: emailApiUrl,
+      template: options.template,
+      hasEmail: Boolean(options.email),
+      templateDataKeys: Object.keys(options.templateData || {}),
+    });
 
     const apiData = {
       method: 'POST',
-      url: secrets.EMAIL_API_URL,
+      url: emailApiUrl,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -43,8 +52,19 @@ export async function sendEmail(options: { email?: string; template?: string; te
     await axios(apiData);
     logger.info({ event: 'send_email_success', email: options.email });
     return { success: true };
-  } catch (err) {
-    logger.error({ event: 'send_email_error', err: serializeError(err) });
+  } catch (err: any) {
+    if (err?.response) {
+      logger.error({
+        event: 'send_email_api_error',
+        url: emailApiUrl,
+        status: err.response.status,
+        statusText: err.response.statusText,
+        data: err.response.data,
+        err: serializeError(err),
+      });
+    } else {
+      logger.error({ event: 'send_email_error', err: serializeError(err) });
+    }
     throw err;
   }
 }
@@ -55,10 +75,9 @@ function buildEmailPayload(email: string, template?: string, templateData: Recor
   let html = `<p>${Object.entries(templateData).map(([k, v]) => `${k}: ${v}`).join('<br>')}</p>`;
 
   try {
-    if (template && (template === 'WELCOME' || template === 'WELCOME_USER' || template === 'WELCOME_STAFF' || template === 'INVITE' || template === 'PROFILE_UPDATED' || template === 'GENERIC_NOTIFICATION')) {
+    if (template && ( template === 'WELCOME_USER' || template === 'WELCOME_STAFF' || template === 'INVITE' || template === 'PROFILE_UPDATED' || template === 'GENERIC_NOTIFICATION')) {
       // map common names to registry keys
       const map: Record<string, any> = {
-        WELCOME: 'WELCOME_USER',
         WELCOME_USER: 'WELCOME_USER',
         WELCOME_STAFF: 'WELCOME_STAFF',
         INVITE: 'INVITE_USER',
@@ -71,8 +90,21 @@ function buildEmailPayload(email: string, template?: string, templateData: Recor
       html = rendered.body || html;
     }
   } catch (err) {
-    // fall back to minimal rendering
+    logger.error({ event: 'build_email_payload_error', err: serializeError(err) });
   }
+
+  const customAttributes: Record<string, string[]> = {};
+
+  for (const [key, value] of Object.entries(templateData)) {
+    if (value === undefined || value === null || String(value).trim() === '') continue;
+    customAttributes[key.toUpperCase()] = [String(value)];
+  }
+
+  if (!customAttributes.USER_EMAIL) {
+    customAttributes.USER_EMAIL = [email];
+  }
+
+  customAttributes.CURRENT_YEAR = [String(new Date().getFullYear())];
 
   return {
     emailId: email,
@@ -80,10 +112,7 @@ function buildEmailPayload(email: string, template?: string, templateData: Recor
       subject,
       html,
     },
-    customAttributes: {
-      ...Object.fromEntries(Object.entries(templateData).map(([k, v]) => [k.toUpperCase(), [String(v)]])),
-      CURRENT_YEAR: [new Date().getFullYear()],
-    },
+    customAttributes,
   };
 }
 

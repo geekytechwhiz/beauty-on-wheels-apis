@@ -5,4 +5,6 @@ export interface OrganizationMetadata {
   metadata: Record<string, unknown>;
   updatedAt: string;
   itemType: 'ORG_METADATA';
+  updatedBy?: string;
+  version?: number;
 }

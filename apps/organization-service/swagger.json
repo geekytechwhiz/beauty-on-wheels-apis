@@ -1,0 +1,243 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Organization Service API",
+    "version": "1.0.0",
+    "description": "RESTful API for managing organizations, users, devices, metadata, and files"
+  },
+  "paths": {
+    "/organization": {
+      "post": {
+        "summary": "Create organization",
+        "operationId": "createOrganization",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Organization created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Organization already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateOrganizationRequest": {
+        "type": "object",
+        "description": "Creates an organization. Legacy nested payloads are accepted and normalized server-side.",
+        "required": ["name"],
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "description": "Optional organization ID; generated if omitted"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "INACTIVE", "SUSPENDED"],
+            "default": "ACTIVE"
+          },
+          "organizationType": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "taxId": {
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "industry": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string",
+            "enum": ["SMALL", "MEDIUM", "LARGE"]
+          }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "required": [
+          "pk",
+          "sk",
+          "organizationId",
+          "name",
+          "status",
+          "createdDate",
+          "modifiedDate",
+          "itemType"
+        ],
+        "properties": {
+          "pk": { "type": "string" },
+          "sk": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "phone": { "type": "string" },
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "state": { "type": "string" },
+          "country": { "type": "string" },
+          "postalCode": { "type": "string" },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "SUSPENDED"] },
+          "organizationType": { "type": "string" },
+          "createdDate": { "type": "number" },
+          "modifiedDate": { "type": "number" },
+          "deleted": { "type": "boolean" },
+          "itemType": { "type": "string", "enum": ["ORG_DETAILS"] },
+          "website": { "type": "string" },
+          "taxId": { "type": "string" },
+          "registrationNumber": { "type": "string" },
+          "description": { "type": "string" },
+          "industry": { "type": "string" },
+          "size": { "type": "string", "enum": ["SMALL", "MEDIUM", "LARGE"] }
+        }
+      },
+      "CreateOrganizationResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/SuccessResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "data": { "$ref": "#/components/schemas/Organization" }
+            }
+          }
+        ]
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "Response data (can be object, array, or null)",
+            "oneOf": [
+              { "type": "object" },
+              { "type": "array" },
+              { "type": "null" }
+            ]
+          },
+          "meta": {
+            "type": "object",
+            "description": "Additional metadata (optional)",
+            "additionalProperties": true
+          },
+          "links": {
+            "type": "object",
+            "description": "Related resource links (optional)",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Request correlation ID",
+            "example": "req-123"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message (optional)",
+            "example": "Operation completed successfully"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "nullable": true },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string" },
+          "instance": { "type": "string", "nullable": true },
+          "code": { "type": "string" },
+          "correlationId": { "type": "string" },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": { "type": "string" },
+                "message": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

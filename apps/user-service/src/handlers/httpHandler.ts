@@ -85,6 +85,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   try {
     const { userInfo, userRole, userType } = validation.data;
     const contactAddress = (userInfo.contact as any)?.address;
+    const userTypeUpper = String(userType || '').toUpperCase();
     const userData: any = {
       fullName: userInfo.name,
       namePrefix: userInfo.namePrefix,
@@ -94,7 +95,6 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       emailAddress: userInfo.contact.email,
       phoneNumber: userInfo.contact.phone,
       phoneCode: userInfo.contact.phoneCode,
-      workingHours: userInfo.workingHours,
       dateOfBirth: userInfo.dateOfBirth,
       department: userInfo.department,
       gender: userInfo.gender,
@@ -104,6 +104,8 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       bio: userInfo.bio,
       userRole: userRole,
       userType: userType,
+      ...(userTypeUpper === 'STAFF' ? { workingHours: userInfo.workingHours || {} } : 
+          (userInfo.workingHours ? { workingHours: userInfo.workingHours } : {})),
       address: contactAddress?.address || userInfo.address || '',
       city: contactAddress?.city || userInfo.city || '',
       state: contactAddress?.state || userInfo.state || '',
@@ -737,4 +739,79 @@ export async function listUserFiles(event: APIGatewayProxyEvent, context?: Conte
     );
   }
 }
+
+export async function listOrganizationUsers(
+  event: APIGatewayProxyEvent,
+  context?: Context,
+): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const organizationId = event.pathParameters?.organizationId;
+
+  if (!organizationId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(
+      logger,
+      event.httpMethod || 'GET',
+      event.path || `/organization/${organizationId}/users`,
+      400,
+      duration,
+      correlationId,
+    );
+    return badRequest(
+      {
+        title: 'Invalid request',
+        description: 'organizationId is required',
+        severity: 'error',
+      },
+      [{ code: 'BAD_REQUEST', message: 'organizationId is required' }],
+      { correlationId },
+    );
+  }
+
+  const logger = createChildLogger(baseLogger, {
+    correlationId,
+    organizationId,
+    ...(awsRequestId && { awsRequestId }),
+  });
+  logger.info({ event: 'listOrganizationUsers_received', eventData: event });
+
+  try {
+    const result = await userService.listOrganizationUsers(organizationId);
+    const duration = Date.now() - startTime;
+    logger.info({ event: 'listOrganizationUsers_success', count: result.length });
+    logHttpRequest(
+      logger,
+      event.httpMethod || 'GET',
+      event.path || `/organization/${organizationId}/users`,
+      200,
+      duration,
+      correlationId,
+    );
+    return ok(result, 'Organization users retrieved successfully', { requestId: correlationId });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'listOrganizationUsers_error', err: serializeError(err) });
+    logHttpRequest(
+      logger,
+      event.httpMethod || 'GET',
+      event.path || `/organization/${organizationId}/users`,
+      500,
+      duration,
+      correlationId,
+    );
+    return internalServerError(
+      {
+        title: 'Failed to list organization users',
+        description: (err as Error)?.message || 'Unknown error',
+        severity: 'error',
+      },
+      [{ code: 'LIST_ORG_USERS_FAILED', message: (err as Error)?.message || 'Unknown error' }],
+      { correlationId },
+    );
+  }
+}
+
 

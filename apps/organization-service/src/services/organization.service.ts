@@ -1,7 +1,7 @@
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { Organization, OrganizationUser, OrganizationDevice, OrganizationMetadata, OrganizationFile } from '../models';
-import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
+import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationDevice } from '../models';
+import { OrganizationNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 
@@ -16,16 +16,46 @@ export class OrganizationService {
 
   async createOrganization(data: Partial<Organization>, correlationId?: string): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'createOrganization', correlationId);
-    const organizationId = randomUUID();
+    const organizationId = data.organizationId || randomUUID();
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
     logger.info({ event: 'service_createOrganization_start' });
 
     try {
       const now = Date.now();
+      const status = data.status || 'PENDING';
+      const traceId = data.traceId || randomUUID();
+      const adminDetails = undefined;
+      const organizationInfo =
+        data.organizationInfo && typeof data.organizationInfo === 'object'
+          ? {
+              ...(data.organizationInfo as Record<string, unknown>),
+              modifiedDate: now,
+              organizationID: organizationId,
+            }
+          : data.organizationInfo;
+      const searchFields =
+        data.searchFields && typeof data.searchFields === 'object'
+          ? data.searchFields
+          : {
+              name: (data.name || '').toLowerCase(),
+              city: (data.city || '').toLowerCase(),
+              country: (data.country || '').toLowerCase(),
+              countryCode: (data.countryCode || '').toLowerCase(),
+              state: (data.state || '').toLowerCase(),
+              organizationType: data.organizationType?.toLowerCase(),
+            };
+
       const organization: Organization = {
         pk: `ORG#${organizationId}`,
         sk: 'ORG_DETAILS',
+        gsi1pk: 'ORG_LIST',
+        gsi1sk: `ORG#${organizationId}`,
         organizationId,
+        createdAt: now,
+        createdBy: data.createdBy,
+        modifiedBy: data.modifiedBy || 'ROOT_ADMIN',
+        traceId,
+        parentOrgId: data.parentOrgId,
         name: data.name || '',
         email: data.email,
         phone: data.phone,
@@ -33,12 +63,56 @@ export class OrganizationService {
         city: data.city,
         state: data.state,
         country: data.country,
+        countryCode: data.countryCode,
         postalCode: data.postalCode,
-        status: data.status || 'ACTIVE',
-        createdDate: now,
+        status,
         modifiedDate: now,
         deleted: false,
         itemType: 'ORG_DETAILS',
+        lsi_createdAt: now,
+        lsi_entityType: 'ORG_DETAILS',
+        lsi_organizationType: data.organizationType,
+        lsi_status: status,
+        organizationType: data.organizationType,
+        organizationSize: data.organizationSize,
+        noOfBranches: data.noOfBranches,
+        phoneCode: data.phoneCode,
+        phoneNumber: data.phoneNumber,
+        hospitalImage: data.hospitalImage,
+        googleMapsLink: data.googleMapsLink,
+        hospitalBio: data.hospitalBio,
+        licenseNumber: data.licenseNumber,
+        scheduleConf: data.scheduleConf,
+        defaultSetting: data.defaultSetting,
+        goals: data.goals,
+        thresholds: data.thresholds,
+        workingHours: data.workingHours,
+        specialization: data.specialization,
+        certifications: data.certifications,
+        servicesOffered: data.servicesOffered,
+        appointmentType: data.appointmentType,
+        facilityType: data.facilityType,
+        equipmentAvailable: data.equipmentAvailable,
+        emergencySupport: data.emergencySupport,
+        industryType: data.industryType,
+        wellnessPrograms: data.wellnessPrograms,
+        onsiteFacilities: data.onsiteFacilities,
+        employeeCoverage: data.employeeCoverage,
+        insurancePartnerships: data.insurancePartnerships,
+        remoteWellnessSupport: data.remoteWellnessSupport,
+        corporateDiscounts: data.corporateDiscounts,
+        adminDetails,
+        modules: data.modules,
+        devices: data.devices,
+        supportedVitals: data.supportedVitals,
+        organizationInfo,
+        searchFields,
+        website: data.website,
+        taxId: data.taxId,
+        registrationNumber: data.registrationNumber,
+        description: data.description,
+        industry: data.industry,
+        size: data.size,
       };
 
       await this.repository.createOrganization(organization);
@@ -55,7 +129,7 @@ export class OrganizationService {
             name: organization.name,
             email: organization.email,
             status: organization.status,
-            createdDate: organization.createdDate,
+            createdDate: organization.createdAt ?? now,
           },
         },
         correlationId,
@@ -123,6 +197,12 @@ export class OrganizationService {
       if (updates.country !== undefined) updatedFields.country = updates.country;
       if (updates.postalCode !== undefined) updatedFields.postalCode = updates.postalCode;
       if (updates.status !== undefined) updatedFields.status = updates.status;
+      if (updates.website !== undefined) updatedFields.website = updates.website;
+      if (updates.taxId !== undefined) updatedFields.taxId = updates.taxId;
+      if (updates.registrationNumber !== undefined) updatedFields.registrationNumber = updates.registrationNumber;
+      if (updates.description !== undefined) updatedFields.description = updates.description;
+      if (updates.industry !== undefined) updatedFields.industry = updates.industry;
+      if (updates.size !== undefined) updatedFields.size = updates.size;
 
       await publishEvent(
         {
@@ -388,6 +468,8 @@ export class OrganizationService {
     organizationId: string,
     metadata: Record<string, unknown>,
     correlationId?: string,
+    updatedBy?: string,
+    version?: number,
   ): Promise<OrganizationMetadata> {
     const timer = createPerformanceTimer(baseLogger, 'updateOrganizationMetadata', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
@@ -399,7 +481,7 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
-      await this.repository.updateOrganizationMetadata(organizationId, metadata);
+      await this.repository.updateOrganizationMetadata(organizationId, metadata, updatedBy, version);
       const updated = await this.repository.getOrganizationMetadata(organizationId);
       if (!updated) {
         throw new OrganizationNotFoundError(organizationId);
@@ -416,6 +498,8 @@ export class OrganizationService {
             organizationId,
             metadata,
             updatedAt: updated.updatedAt,
+            ...(updated.updatedBy ? { updatedBy: updated.updatedBy } : {}),
+            ...(updated.version !== undefined ? { version: updated.version } : {}),
           },
         },
         correlationId,
@@ -459,6 +543,11 @@ export class OrganizationService {
     fileName: string,
     s3Key: string,
     correlationId?: string,
+    fileSize?: number,
+    contentType?: string,
+    uploadedBy?: string,
+    description?: string,
+    tags?: string[],
   ): Promise<OrganizationFile> {
     const timer = createPerformanceTimer(baseLogger, 'createOrganizationFile', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId, fileId });
@@ -480,6 +569,11 @@ export class OrganizationService {
         s3Key,
         uploadedAt: now,
         itemType: 'ORG_FILE',
+        fileSize,
+        contentType,
+        uploadedBy,
+        description,
+        tags,
       };
 
       await this.repository.createOrganizationFile(organizationFile);
@@ -497,6 +591,11 @@ export class OrganizationService {
             fileName,
             s3Key,
             uploadedAt: now,
+            ...(fileSize !== undefined ? { fileSize } : {}),
+            ...(contentType ? { contentType } : {}),
+            ...(uploadedBy ? { uploadedBy } : {}),
+            ...(description ? { description } : {}),
+            ...(tags ? { tags } : {}),
           },
         },
         correlationId,

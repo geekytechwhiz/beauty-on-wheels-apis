@@ -92,41 +92,6 @@ const jsonFormat = winston.format.combine(
 );
 
 /**
- * Pretty format for development
- */
-const prettyFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  errorFormat(),
-  winston.format.colorize({ all: true }),
-  winston.format.printf((info) => {
-    const { timestamp, level, event, message, err, error, ...meta } = info;
-
-    const logMessage = event || message || 'Log entry';
-    let log = `${timestamp} [${level}]: ${logMessage}`;
-
-    if (error && typeof error === 'object') {
-      const err = error as { name?: string; message?: string; stack?: string };
-      if (err.name && err.message) {
-        log += `\n  Error: ${err.name}: ${err.message}`;
-        if (err.stack) {
-          log += `\n  Stack: ${err.stack}`;
-        }
-      }
-    }
-
-    if (err) {
-      log += `\n  Error: ${JSON.stringify(err)}`;
-    }
-
-    if (Object.keys(meta).length > 0) {
-      log += `\n  Metadata: ${JSON.stringify(meta, null, 2)}`;
-    }
-
-    return log;
-  })
-);
-
-/**
  * Determine log level based on environment
  */
 const getLogLevel = (): string => {

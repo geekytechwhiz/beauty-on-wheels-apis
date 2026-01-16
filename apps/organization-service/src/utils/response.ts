@@ -37,7 +37,12 @@ export function ok<T>(
   };
   return {
     statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Correlation-Id',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+    },
     body: JSON.stringify(body),
   };
 }
@@ -50,7 +55,12 @@ export function created<T>(data: T | null, options?: { requestId?: string; messa
   };
   return {
     statusCode: 201,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Correlation-Id',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+    },
     body: JSON.stringify(body),
   };
 }
@@ -70,6 +80,9 @@ export function problem(details: ProblemDetails) {
     statusCode: details.status,
     headers: {
       'Content-Type': 'application/problem+json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Correlation-Id',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
     },
     body: JSON.stringify(body),
   };

@@ -22,6 +22,18 @@ type OrganizationDBItem = Organization & {
 };
 
 export class OrganizationRepository {
+  private sanitizeOrganization(item: Organization): Organization {
+    const sanitized = { ...(item as unknown as Record<string, unknown>) };
+    delete sanitized.pk;
+    delete sanitized.sk;
+    Object.keys(sanitized).forEach((key) => {
+      if (key.startsWith('gsi') || key.startsWith('lsi')) {
+        delete sanitized[key];
+      }
+    });
+    return sanitized as unknown as Organization;
+  }
+
   async createOrganization(organization: Organization): Promise<void> {
     const item: OrganizationDBItem = {
       ...organization,
@@ -72,8 +84,9 @@ export class OrganizationRepository {
       if (!result.Item || result.Item.deleted === true) {
         return null;
       }
-      logger.info({ event: 'organization_get_success', message: 'Organization found', result: result.Item });
-      return result.Item as Organization;
+      const item = this.sanitizeOrganization(result.Item as Organization);
+      logger.info({ event: 'organization_get_success', message: 'Organization found' });
+      return item as unknown as Organization;
     } catch (err) {
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.error({ event: 'organization_get_error', err: serializeError(err), message: 'Failed to get organization' });

@@ -286,6 +286,11 @@ export class OrganizationRepository {
       exprValues[':corporateDiscounts'] = updates.corporateDiscounts;
     }
 
+    if (updates.adminDetails !== undefined) {
+      updateParts.push('adminDetails = :adminDetails');
+      exprValues[':adminDetails'] = updates.adminDetails;
+    }
+
     if (updates.modules !== undefined) {
       updateParts.push('modules = :modules');
       exprValues[':modules'] = updates.modules;

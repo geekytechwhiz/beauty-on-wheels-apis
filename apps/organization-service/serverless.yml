@@ -281,6 +281,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Get organization by ID
             description: Retrieves organization information by organization ID
@@ -383,6 +389,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Delete an organization
             description: Deletes an organization from the system by organization ID (soft delete)
@@ -405,85 +417,85 @@ functions:
               500:
                 description: Internal server error
 
-  assignUserToOrganization:
-    handler: src/handlers/assignUserToOrganization.main
-    timeout: 10
-    memorySize: 256
-    events:
-      - http:
-          path: organization/{organizationId}/user/{userId}
-          method: post
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Assign user to organization
-            description: Assigns a user to an organization
-            tags:
-              - Organizations
-              - Users
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-              - name: userId
-                description: Unique identifier of the user (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: User assigned to organization successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
+  # assignUserToOrganization:
+  #   handler: src/handlers/assignUserToOrganization.main
+  #   timeout: 10
+  #   memorySize: 256
+  #   events:
+  #     - http:
+  #         path: organization/{organizationId}/user/{userId}
+  #         method: post
+  #         cors:
+  #           origin: ${self:custom.cors.origin}
+  #           headers: ${self:custom.cors.headers}
+  #         documentation:
+  #           summary: Assign user to organization
+  #           description: Assigns a user to an organization
+  #           tags:
+  #             - Organizations
+  #             - Users
+  #           pathParameters:
+  #             - name: organizationId
+  #               description: Unique identifier of the organization (UUID format)
+  #               required: true
+  #               schema:
+  #                 type: string
+  #                 format: uuid
+  #             - name: userId
+  #               description: Unique identifier of the user (UUID format)
+  #               required: true
+  #               schema:
+  #                 type: string
+  #                 format: uuid
+  #           responses:
+  #             200:
+  #               description: User assigned to organization successfully
+  #             400:
+  #               description: Bad request
+  #             404:
+  #               description: Organization not found
+  #             500:
+  #               description: Internal server error
 
-  removeUserFromOrganization:
-    handler: src/handlers/removeUserFromOrganization.main
-    timeout: 10
-    memorySize: 256
-    events:
-      - http:
-          path: organization/{organizationId}/user/{userId}
-          method: delete
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Remove user from organization
-            description: Removes a user from an organization
-            tags:
-              - Organizations
-              - Users
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-              - name: userId
-                description: Unique identifier of the user (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: User removed from organization successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
+  # removeUserFromOrganization:
+  #   handler: src/handlers/removeUserFromOrganization.main
+  #   timeout: 10
+  #   memorySize: 256
+  #   events:
+  #     - http:
+  #         path: organization/{organizationId}/user/{userId}
+  #         method: delete
+  #         cors:
+  #           origin: ${self:custom.cors.origin}
+  #           headers: ${self:custom.cors.headers}
+  #         documentation:
+  #           summary: Remove user from organization
+  #           description: Removes a user from an organization
+  #           tags:
+  #             - Organizations
+  #             - Users
+  #           pathParameters:
+  #             - name: organizationId
+  #               description: Unique identifier of the organization (UUID format)
+  #               required: true
+  #               schema:
+  #                 type: string
+  #                 format: uuid
+  #             - name: userId
+  #               description: Unique identifier of the user (UUID format)
+  #               required: true
+  #               schema:
+  #                 type: string
+  #                 format: uuid
+  #           responses:
+  #             200:
+  #               description: User removed from organization successfully
+  #             400:
+  #               description: Bad request
+  #             404:
+  #               description: Organization not found
+  #             500:
+  #               description: Internal server error
 
   listOrganizationUsers:
     handler: src/handlers/listOrganizationUsers.main
@@ -496,6 +508,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: List organization users
             description: Retrieves all users associated with an organization

@@ -2,7 +2,7 @@ import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { OrganizationService } from '../services/organization.service';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { OrganizationNotFoundError } from '../utils/errors';
-import { ok, problem } from '../utils/response';
+import { ApiResponse } from '@api-hub/utils';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -17,13 +17,11 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/organization/${organizationId}/devices`, 400, duration, correlationId);
-    return problem({
-      title: 'Invalid request',
-      status: 400,
-      detail: 'organizationId is required',
-      correlationId,
-      code: 'BAD_REQUEST',
-    });
+    return ApiResponse.badRequest(
+      { title: 'Invalid request', description: 'organizationId is required' },
+      { requestId: correlationId },
+      { code: 'BAD_REQUEST' },
+    );
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, organizationId, ...(awsRequestId && { awsRequestId }) });
@@ -33,27 +31,27 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const devices = await organizationService.listOrganizationDevices(organizationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/organization/${organizationId}/devices`, 200, duration, correlationId);
-    return ok(devices, { requestId: correlationId });
+    return ApiResponse.ok(
+      devices,
+      { title: 'Success', description: 'Organization devices retrieved successfully' },
+      { requestId: correlationId },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof OrganizationNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/organization/${organizationId}/devices`, 404, duration, correlationId);
-      return problem({
-        title: 'Organization not found',
-        status: 404,
-        detail: err.message,
-        correlationId,
-        code: 'ORGANIZATION_NOT_FOUND',
-      });
+      return ApiResponse.notFound(
+        { title: 'Organization not found', description: err.message },
+        { requestId: correlationId },
+        { code: 'ORGANIZATION_NOT_FOUND' },
+      );
     }
     logger.error({ event: 'listOrganizationDevices_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/organization/${organizationId}/devices`, 500, duration, correlationId);
-    return problem({
-      title: 'Failed to list organization devices',
-      status: 500,
-      detail: (err as Error)?.message || 'Unknown error',
-      correlationId,
-      code: 'LIST_DEVICES_FAILED',
-    });
+    return ApiResponse.internalServerError(
+      { title: 'Failed to list organization devices', description: (err as Error)?.message || 'Unknown error' },
+      { requestId: correlationId },
+      { code: 'LIST_DEVICES_FAILED' },
+    );
   }
 };

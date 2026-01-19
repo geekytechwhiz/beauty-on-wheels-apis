@@ -1,9 +1,9 @@
-// import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from "aws-lambda";
-import middy from "@middy/core";
-import httpCors from "@middy/http-cors";
+import middy from '@middy/core';
+import httpCors from '@middy/http-cors';
 import { createLogger, extractCorrelationId, extractAwsRequestId, logHttpRequest, createChildLogger } from '@api-hub/logger';
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda/trigger/api-gateway-proxy";
-import { Context } from "aws-lambda";
+import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda/trigger/api-gateway-proxy';
+import { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import { ApiResponse } from '@api-hub/utils';
 
 const baseLogger = createLogger({ service: 'order-service', redactPII: true });
 
@@ -14,22 +14,21 @@ const base = middy(async (event: APIGatewayProxyEventV2, context?: Context): Pro
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   
   logger.info({ event: 'health_check_received' });
-  console.log(" event.requestContext", event.requestContext)
-  const body = {
-    status: "ok",
-    service: "order-service",
-    version: process.env.npm_package_version ?? "dev",
-    time: new Date().toISOString(),
-  };
   
   const duration = Date.now() - startTime;
   logHttpRequest(logger, event.requestContext?.http?.method || 'GET', event.rawPath || '/health', 200, duration, correlationId);
   
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  };
+  // Use namespaced message key: MODULE.MESSAGE_CODE
+  return ApiResponse.ok(
+    {
+      status: 'ok',
+      service: 'order-service',
+      version: process.env.npm_package_version ?? 'dev',
+      time: new Date().toISOString(),
+    },
+    'HEALTH.HEALTH_CHECK_OK',
+    { requestId: correlationId, event: event as unknown as APIGatewayProxyEvent },
+  );
 });
 
-export const healthCheck = base.use(httpCors() as any);
+export const healthCheck = base.use(httpCors());

@@ -2,15 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda
 import { UserService } from '../services/user.service';
 import { assignUserRole, getRoleDetails } from '../services/role.service';
 import { createLogger, extractCorrelationId, serializeError, logHttpRequest, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
-import {
-  ok,
-  created,
-  badRequest,
-  notFound,
-  conflict,
-  unprocessableEntity,
-  internalServerError,
-} from '@api-hub/utils';
+import { ApiResponse } from '@api-hub/utils';
 import {
   createUserSchema,
   updateUserSchema,
@@ -36,14 +28,10 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     logger.error({ event: 'createUser_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'Invalid JSON body',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'Invalid JSON body' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
     );
   }
 
@@ -68,18 +56,16 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 400, duration, correlationId);
-    return unprocessableEntity(
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
       {
-        title: 'Validation failed',
-        description: 'Invalid request data',
-        severity: 'error',
-      },
-      validation.error.issues.map((e: any) => ({
-        field: e.path.join('.'),
-        message: e.message,
         code: 'VALIDATION_ERROR',
-      })),
-      { correlationId },
+        details: validation.error.issues.map((e: any) => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
+      },
     );
   }
 
@@ -197,35 +183,27 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
     
-    return created(
+    return ApiResponse.created(
       { userID: result.userID },
-      'User created successfully',
-      { requestId: correlationId },
+      'USER.USER_CREATED_SUCCESS',
+      { requestId: correlationId, event },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserAlreadyExistsError) {
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 409, duration, correlationId);
-      return conflict(
-        {
-          title: 'User already exists',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_ALREADY_EXISTS', message: err.message }],
-        { correlationId },
+      return ApiResponse.conflict(
+        'USER.USER_ALREADY_EXISTS',
+        { requestId: correlationId, event },
+        { code: 'USER_ALREADY_EXISTS', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'createUser_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to create user',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'CREATE_USER_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.CREATE_USER_FAILED',
+      { requestId: correlationId, event },
+      { code: 'CREATE_USER_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -241,14 +219,10 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
     const duration = Date.now() - startTime;
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 400, duration, correlationId);
-    return badRequest(
-      { 
-        title: 'Invalid request',
-        description: 'userId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
     );
   }
 
@@ -259,31 +233,23 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
     const result = await userService.getUser(userId,organizationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 200, duration, correlationId);
-    return ok(result, 'User retrieved successfully', { requestId: correlationId });
+    return ApiResponse.ok(result, 'USER.USER_RETRIEVED_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'getUser_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to get user',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'GET_USER_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.GET_USER_FAILED',
+      { requestId: correlationId, event },
+      { code: 'GET_USER_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -337,14 +303,10 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 401, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Unauthorized',
-        description: 'userId and organizationId are required. Please ensure you are authenticated with a valid access token.',
-        severity: 'error',
-      },
-      [{ code: 'UNAUTHORIZED', message: 'Missing user context in access token' }],
-      { correlationId },
+    return ApiResponse.unauthorized(
+      'COMMON.UNAUTHORIZED',
+      { requestId: correlationId, event },
+      { code: 'UNAUTHORIZED', details: [{ message: 'Missing user context in access token' }] },
     );
   }
 
@@ -358,14 +320,10 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     logger.error({ event: 'updateUser_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'Invalid JSON body',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'Invalid JSON body' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
     );
   }
 
@@ -374,18 +332,16 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     logger.warn({ event: 'updateUser_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 400, duration, correlationId);
-    return unprocessableEntity(
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
       {
-        title: 'Validation failed',
-        description: 'Invalid request data',
-        severity: 'error',
-      },
-      validation.error.issues.map((e: any) => ({
-        field: e.path.join('.'),
-        message: e.message,
         code: 'VALIDATION_ERROR',
-      })),
-      { correlationId },
+        details: validation.error.issues.map((e: any) => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
+      },
     );
   }
 
@@ -429,31 +385,23 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     const result = await userService.updateUser(userId, organizationId, userData, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
-    return ok(result, 'User updated', { requestId: correlationId });
+    return ApiResponse.ok(result, 'USER.USER_UPDATED_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'updateUser_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to update user',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'UPDATE_USER_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.UPDATE_USER_FAILED',
+      { requestId: correlationId, event },
+      { code: 'UPDATE_USER_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -468,14 +416,10 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `/users/${userId}`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'userId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
     );
   }
 
@@ -486,31 +430,23 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
     await userService.deleteUser(userId, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `/users/${userId}`, 200, duration, correlationId);
-    return ok(null, 'User deleted', { requestId: correlationId });
+    return ApiResponse.ok(null, 'USER.USER_DELETED_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `/users/${userId}`, 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'deleteUser_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `/users/${userId}`, 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to delete user',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'DELETE_USER_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.DELETE_USER_FAILED',
+      { requestId: correlationId, event },
+      { code: 'DELETE_USER_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -530,14 +466,10 @@ export async function assignUserToOrganization(event: APIGatewayProxyEvent, cont
     logger.error({ event: 'assignUserToOrg_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users/organizations/assign', 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'Invalid JSON body',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'Invalid JSON body' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
     );
   }
 
@@ -546,18 +478,16 @@ export async function assignUserToOrganization(event: APIGatewayProxyEvent, cont
     logger.warn({ event: 'assignUserToOrg_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users/organizations/assign', 400, duration, correlationId);
-    return unprocessableEntity(
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
       {
-        title: 'Validation failed',
-        description: 'Invalid request data',
-        severity: 'error',
-      },
-      validation.error.issues.map((e: any) => ({
-        field: e.path.join('.'),
-        message: e.message,
         code: 'VALIDATION_ERROR',
-      })),
-      { correlationId },
+        details: validation.error.issues.map((e: any) => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
+      },
     );
   }
 
@@ -565,31 +495,23 @@ export async function assignUserToOrganization(event: APIGatewayProxyEvent, cont
     await userService.assignUserToOrganization(validation.data.userId, validation.data.organizationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users/organizations/assign', 200, duration, correlationId);
-    return ok(null, 'User assigned to organization', { requestId: correlationId });
+    return ApiResponse.ok(null, 'USER.USER_ASSIGNED_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users/organizations/assign', 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'assignUserToOrg_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users/organizations/assign', 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to assign user to organization',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'ASSIGN_USER_ORG_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.ASSIGN_USER_FAILED',
+      { requestId: correlationId, event },
+      { code: 'ASSIGN_USER_ORG_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -604,14 +526,10 @@ export async function listUserOrganizations(event: APIGatewayProxyEvent, context
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/organizations`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'userId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
     );
   }
 
@@ -623,31 +541,23 @@ export async function listUserOrganizations(event: APIGatewayProxyEvent, context
     const duration = Date.now() - startTime;
     logger.info({ event: 'listUserOrgs_success', count: result.length });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/organizations`, 200, duration, correlationId);
-    return ok(result, 'User organizations retrieved successfully', { requestId: correlationId });
+    return ApiResponse.ok(result, 'USER.LIST_ORGANIZATIONS_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/organizations`, 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'listUserOrgs_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/organizations`, 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to list user organizations',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'LIST_USER_ORGS_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.LIST_ORGANIZATIONS_FAILED',
+      { requestId: correlationId, event },
+      { code: 'LIST_USER_ORGS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -684,13 +594,9 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
     return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'Invalid JSON body',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'Invalid JSON body' }],
-      { correlationId },
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
     );
   }
 
@@ -699,18 +605,16 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     logger.warn({ event: 'updateUserMetadata_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
-    return unprocessableEntity(
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
       {
-        title: 'Validation failed',
-        description: 'Invalid request data',
-        severity: 'error',
-      },
-      validation.error.issues.map((e: any) => ({
-        field: e.path.join('.'),
-        message: e.message,
         code: 'VALIDATION_ERROR',
-      })),
-      { correlationId },
+        details: validation.error.issues.map((e: any) => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
+      },
     );
   }
 
@@ -718,31 +622,23 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     const result = await userService.updateUserMetadata(userId, validation.data.metadata);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 200, duration, correlationId);
-    return ok(result, 'User metadata updated', { requestId: correlationId });
+    return ApiResponse.ok(result, 'USER.METADATA_UPDATED_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'updateUserMetadata_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to update user metadata',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'UPDATE_USER_METADATA_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.UPDATE_METADATA_FAILED',
+      { requestId: correlationId, event },
+      { code: 'UPDATE_USER_METADATA_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -757,14 +653,10 @@ export async function listUserFiles(event: APIGatewayProxyEvent, context?: Conte
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/files`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'userId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
     );
   }
 
@@ -776,31 +668,23 @@ export async function listUserFiles(event: APIGatewayProxyEvent, context?: Conte
     const duration = Date.now() - startTime;
     logger.info({ event: 'listUserFiles_success', count: result.length });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/files`, 200, duration, correlationId);
-    return ok(result, 'User files retrieved successfully', { requestId: correlationId });
+    return ApiResponse.ok(result, 'USER.LIST_FILES_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/files`, 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'listUserFiles_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}/files`, 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to list user files',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'LIST_USER_FILES_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.LIST_FILES_FAILED',
+      { requestId: correlationId, event },
+      { code: 'LIST_USER_FILES_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }
@@ -825,14 +709,10 @@ export async function listOrganizationUsers(
       duration,
       correlationId,
     );
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'organizationId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'organizationId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'organizationId is required' }] },
     );
   }
 
@@ -855,7 +735,7 @@ export async function listOrganizationUsers(
       duration,
       correlationId,
     );
-    return ok(result, 'Organization users retrieved successfully', { requestId: correlationId });
+    return ApiResponse.ok(result, 'ORGANIZATION.LIST_USERS_SUCCESS', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'listOrganizationUsers_error', err: serializeError(err) });
@@ -867,14 +747,10 @@ export async function listOrganizationUsers(
       duration,
       correlationId,
     );
-    return internalServerError(
-      {
-        title: 'Failed to list organization users',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'LIST_ORG_USERS_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'ORGANIZATION.LIST_USERS_FAILED',
+      { requestId: correlationId, event },
+      { code: 'LIST_ORG_USERS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 }

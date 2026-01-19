@@ -2,7 +2,7 @@ import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { OrganizationService } from '../services/organization.service';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { OrganizationNotFoundError } from '../utils/errors';
-import { ok, problem } from '../utils/response';
+import { ApiResponse } from '@api-hub/utils';
 import { updateOrganizationMetadataSchema } from '../validation/organization.validation';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
@@ -18,13 +18,11 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}/metadata`, 400, duration, correlationId);
-    return problem({
-      title: 'Invalid request',
-      status: 400,
-      detail: 'organizationId is required',
-      correlationId,
-      code: 'BAD_REQUEST',
-    });
+    return ApiResponse.badRequest(
+      { title: 'Invalid request', description: 'organizationId is required' },
+      { requestId: correlationId },
+      { code: 'BAD_REQUEST' },
+    );
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, organizationId, ...(awsRequestId && { awsRequestId }) });
@@ -37,30 +35,28 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.error({ event: 'updateOrganizationMetadata_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}/metadata`, 400, duration, correlationId);
-    return problem({
-      title: 'Invalid request',
-      status: 400,
-      detail: 'Invalid JSON body',
-      correlationId,
-      code: 'BAD_REQUEST',
-    });
+    return ApiResponse.badRequest(
+      { title: 'Invalid request', description: 'Invalid JSON body' },
+      { requestId: correlationId },
+      { code: 'BAD_REQUEST' },
+    );
   }
 
   const validationResult = updateOrganizationMetadataSchema.safeParse(body);
   if (!validationResult.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}/metadata`, 400, duration, correlationId);
-    return problem({
-      title: 'Validation error',
-      status: 400,
-      detail: 'Invalid request body',
-      correlationId,
-      code: 'VALIDATION_ERROR',
-      errors: validationResult.error.errors.map((err) => ({
-        field: err.path.join('.'),
-        message: err.message,
-      })),
-    });
+    return ApiResponse.unprocessableEntity(
+      { title: 'Validation error', description: 'Invalid request body' },
+      { requestId: correlationId },
+      {
+        code: 'VALIDATION_ERROR',
+        details: validationResult.error.errors.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+        })),
+      },
+    );
   }
 
   try {
@@ -73,27 +69,27 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}/metadata`, 200, duration, correlationId);
-    return ok(metadata, { requestId: correlationId, message: 'Organization metadata updated' });
+    return ApiResponse.ok(
+      metadata,
+      { title: 'Success', description: 'Organization metadata updated' },
+      { requestId: correlationId },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof OrganizationNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}/metadata`, 404, duration, correlationId);
-      return problem({
-        title: 'Organization not found',
-        status: 404,
-        detail: err.message,
-        correlationId,
-        code: 'ORGANIZATION_NOT_FOUND',
-      });
+      return ApiResponse.notFound(
+        { title: 'Organization not found', description: err.message },
+        { requestId: correlationId },
+        { code: 'ORGANIZATION_NOT_FOUND' },
+      );
     }
     logger.error({ event: 'updateOrganizationMetadata_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}/metadata`, 500, duration, correlationId);
-    return problem({
-      title: 'Failed to update organization metadata',
-      status: 500,
-      detail: (err as Error)?.message || 'Unknown error',
-      correlationId,
-      code: 'UPDATE_METADATA_FAILED',
-    });
+    return ApiResponse.internalServerError(
+      { title: 'Failed to update organization metadata', description: (err as Error)?.message || 'Unknown error' },
+      { requestId: correlationId },
+      { code: 'UPDATE_METADATA_FAILED' },
+    );
   }
 };

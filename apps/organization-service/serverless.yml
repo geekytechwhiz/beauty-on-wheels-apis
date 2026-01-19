@@ -35,6 +35,7 @@ provider:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
     USER_SERVICE_URL: ${self:custom.userServiceUrl.${self:provider.stage}}
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
 
   tags:
     Service: ${self:service}

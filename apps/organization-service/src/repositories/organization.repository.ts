@@ -1,6 +1,6 @@
 import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger, logger } from '@api-hub/logger';
 import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationDevice } from '../models';
 import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
 import {
@@ -60,7 +60,7 @@ export class OrganizationRepository {
           },
         }),
       );
-
+      logger.info({ event: 'organization_get_success', result: result.Item });
       if (!result.Item || result.Item.deleted === true) {
         return null;
       }

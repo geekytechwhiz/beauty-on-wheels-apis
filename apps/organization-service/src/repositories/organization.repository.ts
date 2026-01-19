@@ -1,6 +1,6 @@
 import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
-import { createLogger, serializeError, createChildLogger, logger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationDevice } from '../models';
 import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
 import {
@@ -51,6 +51,15 @@ export class OrganizationRepository {
 
   async getOrganization(organizationId: string): Promise<Organization | null> {
     try {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.info({ event: 'organization_get_start', message: 'Getting organization' });
+      logger.info({
+        event: 'organization_get_query',
+        key: {
+          pk: organizationPk(organizationId),
+          sk: organizationDetailsSk(),
+        },
+      });
       const result = await ddbDocClient.send(
         new GetCommand({
           TableName: ORGANIZATION_TABLE_NAME,
@@ -60,11 +69,10 @@ export class OrganizationRepository {
           },
         }),
       );
-      logger.info({ event: 'organization_get_success', result: result.Item });
       if (!result.Item || result.Item.deleted === true) {
         return null;
       }
-
+      logger.info({ event: 'organization_get_success', message: 'Organization found', result: result.Item });
       return result.Item as Organization;
     } catch (err) {
       const logger = createChildLogger(baseLogger, { organizationId });

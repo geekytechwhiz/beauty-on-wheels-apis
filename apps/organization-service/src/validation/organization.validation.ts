@@ -111,6 +111,7 @@ export const updateOrganizationSchema = z.object({
   insurancePartnerships: z.boolean().optional(),
   remoteWellnessSupport: z.boolean().optional(),
   corporateDiscounts: z.boolean().optional(),
+  adminDetails: z.unknown().optional(),
   modules: z.unknown().optional(),
   devices: z.unknown().optional(),
   supportedVitals: z.unknown().optional(),

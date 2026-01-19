@@ -49,6 +49,7 @@ export type NormalizedOrganizationPayload = {
   insurancePartnerships?: boolean;
   remoteWellnessSupport?: boolean;
   corporateDiscounts?: boolean;
+  adminDetails?: unknown;
   modules?: unknown;
   devices?: unknown;
   supportedVitals?: unknown;
@@ -169,6 +170,14 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   const insurancePartnerships = organizationInfo?.insurancePartnerships;
   const remoteWellnessSupport = organizationInfo?.remoteWellnessSupport;
   const corporateDiscounts = organizationInfo?.corporateDiscounts;
+
+  const adminDetailsInput = input?.adminDetails;
+  const adminDetails =
+    Array.isArray(adminDetailsInput) && adminDetailsInput.length > 0
+      ? adminDetailsInput[0]
+      : adminDetailsInput && typeof adminDetailsInput === 'object'
+        ? adminDetailsInput
+        : undefined;
 
   const modules = input?.modules;
   const devices = input?.devices;
@@ -299,6 +308,7 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
       insurancePartnerships,
       remoteWellnessSupport,
       corporateDiscounts,
+      adminDetails,
       modules,
       devices,
       supportedVitals,

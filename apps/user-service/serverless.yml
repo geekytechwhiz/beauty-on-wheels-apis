@@ -47,6 +47,7 @@ provider:
     WEB_URL: ${self:custom.stageUrls.${self:provider.stage}.WEB_URL, ''}
     WEB_DNS_URL: ${self:custom.stageUrls.${self:provider.stage}.WEB_URL, ''}
     ROLE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ROLE_API_URL, ''}
+    ORGANIZATION_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_API_URL, ''}
 
   tags:
     Service: ${self:service}
@@ -200,14 +201,17 @@ custom:
       WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
       PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://m226zl2j20.execute-api.us-east-1.amazonaws.com/dev'
+      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
     stg:
       WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
       PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
+      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/stg'
     prd:
       WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
       PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
+      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/prd'
 
   cors:
     origin: ${env:CORS_ORIGIN, '*'}

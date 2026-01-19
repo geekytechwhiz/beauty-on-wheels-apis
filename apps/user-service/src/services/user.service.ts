@@ -30,7 +30,13 @@ export class UserService {
     this.organizationRepository = new OrganizationRepository();
   }
 
-  async createUser(data: Partial<User>, organizationID?: string, invitedBy?: string, correlationId?: string): Promise<User> {
+  async createUser(
+    data: Partial<User>,
+    organizationID?: string,
+    invitedBy?: string,
+    correlationId?: string,
+    authHeader?: string,
+  ): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     // Generate ULID if userID is not provided
     if (!data.userID) {
@@ -42,7 +48,10 @@ export class UserService {
     try {
       if (!organizationID) throw new Error('organizationID is required');
       data.organizationID = organizationID;
-      const orgDetails = await this.organizationRepository.getOrganization(data?.organizationID || '');
+      const orgDetails = await this.organizationRepository.getOrganization(
+        data?.organizationID || '',
+        authHeader,
+      );
       if (!orgDetails) {
         throw new Error('Organization does not exist');
       }

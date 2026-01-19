@@ -166,7 +166,13 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       });
     }
 
-    const result = await userService.createUser(userData, body.organizationID, body.userID, correlationId);
+    const result = await userService.createUser(
+      userData,
+      body.organizationID,
+      body.userID,
+      correlationId,
+      authHeader,
+    );
 
     if (roleIds.length > 0) {
       logger.info({

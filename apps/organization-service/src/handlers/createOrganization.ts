@@ -1,8 +1,7 @@
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { OrganizationService } from '../services/organization.service';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
-// import { created, problem } from '../utils/response';
-import { problem } from '../utils/response';
+import { ApiResponse } from '@api-hub/utils';
 import { createOrganizationSchema } from '../validation/organization.validation';
 import { OrganizationAlreadyExistsError } from '../utils/errors';
 import { normalizeOrganizationPayload, generateOrganizationId } from '../utils/organizationPayload';
@@ -24,27 +23,28 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.error({ event: 'createOrganization_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
-    return problem({
-      title: 'Invalid request',
-      status: 400,
-      detail: 'Invalid JSON body',
-      correlationId,
-      code: 'BAD_REQUEST',
-    });
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST' },
+    );
   }
 
   const normalized = normalizeOrganizationPayload(body);
   if (normalized.errors.length > 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
-    return problem({
-      title: 'Validation error',
-      status: 400,
-      detail: 'Invalid request body',
-      correlationId,
-      code: 'VALIDATION_ERROR',
-      errors: normalized.errors,
-    });
+    return ApiResponse.badRequest(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
+      {
+        code: 'VALIDATION_ERROR',
+        details: normalized.errors.map((e) => ({
+          field: (e as any).field,
+          message: (e as any).message ?? 'Invalid request body',
+        })),
+      },
+    );
   }
 
   const authorizer = (event.requestContext as { authorizer?: Record<string, any> } | undefined)?.authorizer;
@@ -64,59 +64,47 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!validationResult.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
-    return problem({
-      title: 'Validation error',
-      status: 400,
-      detail: 'Invalid request body',
-      correlationId,
-      code: 'VALIDATION_ERROR',
-      errors: validationResult.error.issues.map((err) => ({
-        field: err.path.join('.'),
-        message: err.message,
-      })),
-    });
+    return ApiResponse.badRequest(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
+      {
+        code: 'VALIDATION_ERROR',
+        details: validationResult.error.issues.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+        })),
+      },
+    );
   }
 
   try {
     const organization = await organizationService.createOrganization(validationResult.data, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 201, duration, correlationId);
-    return {
-      statusCode: 201,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Correlation-Id',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
-      },
-      body: JSON.stringify({
-        success: true,
-        statusCode: 201,
+    return ApiResponse.created(
+      {
         newOrganizationID: organization.organizationId,
         hospitalImage: organization.hospitalImage,
-        message: 'Organization is successfully created',
-      }),
-    };
+      },
+      'ORGANIZATION.ORGANIZATION_CREATED_SUCCESS',
+      { requestId: correlationId, event },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof OrganizationAlreadyExistsError) {
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 409, duration, correlationId);
-      return problem({
-        title: 'Organization already exists',
-        status: 409,
-        detail: err.message,
-        correlationId,
-        code: 'ORGANIZATION_ALREADY_EXISTS',
-      });
+      return ApiResponse.conflict(
+        'ORGANIZATION.ORGANIZATION_ALREADY_EXISTS',
+        { requestId: correlationId, event },
+        { code: 'ORGANIZATION_ALREADY_EXISTS' },
+      );
     }
     logger.error({ event: 'createOrganization_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 500, duration, correlationId);
-    return problem({
-      title: 'Failed to create organization',
-      status: 500,
-      detail: (err as Error)?.message || 'Unknown error',
-      correlationId,
-      code: 'CREATE_ORGANIZATION_FAILED',
-    });
+    return ApiResponse.internalServerError(
+      'ORGANIZATION.CREATE_ORGANIZATION_FAILED',
+      { requestId: correlationId, event },
+      { code: 'CREATE_ORGANIZATION_FAILED' },
+    );
   }
 };

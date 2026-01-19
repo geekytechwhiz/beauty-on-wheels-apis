@@ -1,0 +1,207 @@
+{
+  "HEALTH.HEALTH_CHECK_OK": {
+    "title": "Éxito",
+    "description": "Verificación de salud correcta",
+    "severity": "SUCCESS"
+  },
+  "USER.USER_CREATED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Usuario creado exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.USER_RETRIEVED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Usuario recuperado exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.USER_UPDATED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Usuario actualizado exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.USER_DELETED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Usuario eliminado exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.GET_USER_FAILED": {
+    "title": "Error al obtener usuario",
+    "description": "Ocurrió un error al recuperar la información del usuario",
+    "severity": "ERROR"
+  },
+  "USER.CREATE_USER_FAILED": {
+    "title": "Error al crear usuario",
+    "description": "Ocurrió un error al crear el usuario",
+    "severity": "ERROR"
+  },
+  "USER.UPDATE_USER_FAILED": {
+    "title": "Error al actualizar usuario",
+    "description": "Ocurrió un error al actualizar el usuario",
+    "severity": "ERROR"
+  },
+  "USER.DELETE_USER_FAILED": {
+    "title": "Error al eliminar usuario",
+    "description": "Ocurrió un error al eliminar el usuario",
+    "severity": "ERROR"
+  },
+  "USER.USER_ASSIGNED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Usuario asignado a la organización exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.ASSIGN_USER_FAILED": {
+    "title": "Error al asignar usuario",
+    "description": "Ocurrió un error al asignar el usuario a la organización",
+    "severity": "ERROR"
+  },
+  "USER.LIST_ORGANIZATIONS_SUCCESS": {
+    "title": "Éxito",
+    "description": "Organizaciones del usuario recuperadas exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.LIST_ORGANIZATIONS_FAILED": {
+    "title": "Error al listar organizaciones",
+    "description": "Ocurrió un error al recuperar las organizaciones del usuario",
+    "severity": "ERROR"
+  },
+  "USER.METADATA_UPDATED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Metadatos del usuario actualizados exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.UPDATE_METADATA_FAILED": {
+    "title": "Error al actualizar metadatos",
+    "description": "Ocurrió un error al actualizar los metadatos del usuario",
+    "severity": "ERROR"
+  },
+  "USER.LIST_FILES_SUCCESS": {
+    "title": "Éxito",
+    "description": "Archivos del usuario recuperados exitosamente",
+    "severity": "SUCCESS"
+  },
+  "USER.LIST_FILES_FAILED": {
+    "title": "Error al listar archivos",
+    "description": "Ocurrió un error al recuperar los archivos del usuario",
+    "severity": "ERROR"
+  },
+  "USER.USER_NOT_FOUND": {
+    "title": "Usuario no encontrado",
+    "description": "El usuario solicitado no se pudo encontrar",
+    "severity": "ERROR"
+  },
+  "USER.USER_ALREADY_EXISTS": {
+    "title": "El usuario ya existe",
+    "description": "Ya existe un usuario con este correo electrónico",
+    "severity": "ERROR"
+  },
+  "ORGANIZATION.ORGANIZATION_CREATED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Organización creada exitosamente",
+    "severity": "SUCCESS"
+  },
+  "ORGANIZATION.ORGANIZATION_NOT_FOUND": {
+    "title": "Organización no encontrada",
+    "description": "La organización solicitada no se pudo encontrar",
+    "severity": "ERROR"
+  },
+  "ORGANIZATION.ORGANIZATION_ALREADY_EXISTS": {
+    "title": "La organización ya existe",
+    "description": "Ya existe una organización con este nombre",
+    "severity": "ERROR"
+  },
+  "ORGANIZATION.LIST_USERS_SUCCESS": {
+    "title": "Éxito",
+    "description": "Usuarios de la organización recuperados exitosamente",
+    "severity": "SUCCESS"
+  },
+  "ORGANIZATION.LIST_USERS_FAILED": {
+    "title": "Error al listar usuarios",
+    "description": "Ocurrió un error al recuperar los usuarios de la organización",
+    "severity": "ERROR"
+  },
+  "ORGANIZATION.ORGANIZATION_RETRIEVED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Organización recuperada exitosamente",
+    "severity": "SUCCESS"
+  },
+  "ORGANIZATION.CREATE_ORGANIZATION_FAILED": {
+    "title": "Error al crear organización",
+    "description": "Ocurrió un error al crear la organización",
+    "severity": "ERROR"
+  },
+  "ORGANIZATION.GET_ORGANIZATION_FAILED": {
+    "title": "Error al obtener organización",
+    "description": "Ocurrió un error al recuperar la organización",
+    "severity": "ERROR"
+  },
+  "ORGANIZATION.ORGANIZATION_UPDATED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Organización actualizada exitosamente",
+    "severity": "SUCCESS"
+  },
+  "ORGANIZATION.UPDATE_ORGANIZATION_FAILED": {
+    "title": "Error al actualizar organización",
+    "description": "Ocurrió un error al actualizar la organización",
+    "severity": "ERROR"
+  },
+  "ORGANIZATION.ORGANIZATION_DELETED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Organización eliminada exitosamente",
+    "severity": "SUCCESS"
+  },
+  "ORGANIZATION.DELETE_ORGANIZATION_FAILED": {
+    "title": "Error al eliminar organización",
+    "description": "Ocurrió un error al eliminar la organización",
+    "severity": "ERROR"
+  },
+  "ORDER.ORDER_CREATED_SUCCESS": {
+    "title": "Éxito",
+    "description": "Pedido creado exitosamente",
+    "severity": "SUCCESS"
+  },
+  "ORDER.ORDER_NOT_FOUND": {
+    "title": "Pedido no encontrado",
+    "description": "El pedido solicitado no se pudo encontrar",
+    "severity": "ERROR"
+  },
+  "REWARDS.REWARD_ALREADY_REDEEMED": {
+    "title": "Recompensa ya canjeada",
+    "description": "Esta recompensa ya ha sido canjeada. Por favor, consulte su historial de canjes.",
+    "severity": "INFO"
+  },
+  "COMMON.VALIDATION_ERROR": {
+    "title": "Validación fallida",
+    "description": "Datos de solicitud no válidos",
+    "severity": "ERROR"
+  },
+  "COMMON.BAD_REQUEST": {
+    "title": "Solicitud no válida",
+    "description": "La solicitud no es válida o está mal formada",
+    "severity": "ERROR"
+  },
+  "COMMON.INVALID_JSON": {
+    "title": "JSON no válido",
+    "description": "El cuerpo de la solicitud contiene JSON no válido",
+    "severity": "ERROR"
+  },
+  "COMMON.UNAUTHORIZED": {
+    "title": "No autorizado",
+    "description": "No está autorizado para acceder a este recurso",
+    "severity": "ERROR"
+  },
+  "COMMON.FORBIDDEN": {
+    "title": "Prohibido",
+    "description": "No tiene permiso para acceder a este recurso",
+    "severity": "ERROR"
+  },
+  "COMMON.INTERNAL_ERROR": {
+    "title": "Error interno del servidor",
+    "description": "Ocurrió un error inesperado",
+    "severity": "ERROR"
+  },
+  "COMMON.RATE_LIMIT_EXCEEDED": {
+    "title": "Demasiadas solicitudes",
+    "description": "Límite de velocidad excedido. Por favor, inténtelo de nuevo más tarde.",
+    "severity": "WARNING"
+  }
+}

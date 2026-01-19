@@ -1,8 +1,9 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId,   logHttpRequest, createChildLogger } from '@api-hub/logger';
- 
+import { createLogger, extractCorrelationId, extractAwsRequestId, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { ApiResponse } from '@api-hub/utils';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+
 export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
@@ -14,14 +15,10 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const duration = Date.now() - startTime;
   logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/health', 200, duration, correlationId);
   
-  return {
-    statusCode: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id,X-Requested-With',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
-    },
-    body: JSON.stringify({ status: 'ok' }),
-  };
+  // Use namespaced message key: MODULE.MESSAGE_CODE
+  return ApiResponse.ok(
+    { status: 'ok', service: 'user-service' },
+    'HEALTH.HEALTH_CHECK_OK',
+    { requestId: correlationId, event },
+  );
 };

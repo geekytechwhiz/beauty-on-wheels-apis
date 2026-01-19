@@ -2,12 +2,7 @@ import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { UserService } from '../services/user.service';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { UserNotFoundError } from '../utils/errors';
-import {
-  ok,
-  badRequest,
-  notFound,
-  internalServerError,
-} from '@api-hub/utils';
+import { ApiResponse } from '@api-hub/utils';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -24,14 +19,10 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/user/organization/${organizationId}/${userId}`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'userId and organizationId are required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId and organizationId are required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId and organizationId are required' }] },
     );
   }
 
@@ -42,31 +33,27 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const user = await userService.getUser(userId, organizationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 200, duration, correlationId);
-    return ok(user, 'User retrieved successfully', { requestId: correlationId });
+    return ApiResponse.ok(
+      user,
+      'USER.USER_RETRIEVED_SUCCESS',
+      { requestId: correlationId, event },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 404, duration, correlationId);
-      return notFound(
-        {
-          title: 'User not found',
-          description: err.message,
-          severity: 'error',
-        },
-        [{ code: 'USER_NOT_FOUND', message: err.message }],
-        { correlationId },
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
       );
     }
     logger.error({ event: 'getUser_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 500, duration, correlationId);
-    return internalServerError(
-      {
-        title: 'Failed to get user',
-        description: (err as Error)?.message || 'Unknown error',
-        severity: 'error',
-      },
-      [{ code: 'GET_USER_FAILED', message: (err as Error)?.message || 'Unknown error' }],
-      { correlationId },
+    return ApiResponse.internalServerError(
+      'USER.GET_USER_FAILED',
+      { requestId: correlationId, event },
+      { code: 'GET_USER_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
   }
 };

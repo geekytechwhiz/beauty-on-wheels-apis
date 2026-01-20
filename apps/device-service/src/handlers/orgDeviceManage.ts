@@ -60,7 +60,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     let result: unknown;
 
     switch (validation.data.action) {
-      case 'add':
+      case 'add': {
         if (!validation.data.devices || validation.data.devices.length === 0) {
           const duration = Date.now() - startTime;
           logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
@@ -70,8 +70,9 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
         const duration = Date.now() - startTime;
         logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 201, duration, correlationId);
         return ApiResponse.created(result, 'DEVICE.ORGANIZATION_DEVICES_ADDED_SUCCESS', { requestId: correlationId, event });
+      }
 
-      case 'remove':
+      case 'remove': {
         if (!validation.data.devices || validation.data.devices.length === 0) {
           const duration = Date.now() - startTime;
           logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
@@ -82,8 +83,9 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
         const duration = Date.now() - startTime;
         logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, duration, correlationId);
         return ApiResponse.ok(result, 'DEVICE.ORGANIZATION_DEVICES_REMOVED_SUCCESS', { requestId: correlationId, event });
+      }
 
-      case 'update':
+      case 'update': {
         if (!validation.data.deviceId) {
           const duration = Date.now() - startTime;
           logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
@@ -101,11 +103,13 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
         const duration = Date.now() - startTime;
         logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, duration, correlationId);
         return ApiResponse.ok(null, 'DEVICE.ORGANIZATION_DEVICE_UPDATED_SUCCESS', { requestId: correlationId, event });
+      }
 
-      default:
+      default: {
         const duration = Date.now() - startTime;
         logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
         return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid action' }] });
+      }
     }
   } catch (err) {
     const duration = Date.now() - startTime;

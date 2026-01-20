@@ -63,33 +63,28 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     switch (validation.data.action) {
       case 'add': {
         if (!validation.data.devices || validation.data.devices.length === 0) {
-          const duration = Date.now() - startTime;
-          logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
+          logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, Date.now() - startTime, correlationId);
           return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'devices array is required for add action' }] });
         }
         result = await orgDeviceService.addDevicesToOrganization(targetOrgId, validation.data.devices, correlationId);
-        const duration = Date.now() - startTime;
-        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 201, duration, correlationId);
+        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 201, Date.now() - startTime, correlationId);
         return ApiResponse.created(result, 'DEVICE.ORGANIZATION_DEVICES_ADDED_SUCCESS', { requestId: correlationId, event });
       }
 
       case 'remove': {
         if (!validation.data.devices || validation.data.devices.length === 0) {
-          const duration = Date.now() - startTime;
-          logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
+          logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, Date.now() - startTime, correlationId);
           return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'devices array is required for remove action' }] });
         }
         const deviceIds = validation.data.devices.map((d) => d.deviceId);
         result = await orgDeviceService.removeDevicesFromOrganization(targetOrgId, deviceIds, correlationId);
-        const duration = Date.now() - startTime;
-        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, duration, correlationId);
+        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, Date.now() - startTime, correlationId);
         return ApiResponse.ok(result, 'DEVICE.ORGANIZATION_DEVICES_REMOVED_SUCCESS', { requestId: correlationId, event });
       }
 
       case 'update': {
         if (!validation.data.deviceId) {
-          const duration = Date.now() - startTime;
-          logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
+          logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, Date.now() - startTime, correlationId);
           return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'deviceId is required for update action' }] });
         }
         await orgDeviceService.updateOrgDevice(
@@ -101,14 +96,12 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
           },
           correlationId,
         );
-        const duration = Date.now() - startTime;
-        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, duration, correlationId);
+        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, Date.now() - startTime, correlationId);
         return ApiResponse.ok(null, 'DEVICE.ORGANIZATION_DEVICE_UPDATED_SUCCESS', { requestId: correlationId, event });
       }
 
       default: {
-        const duration = Date.now() - startTime;
-        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
+        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, Date.now() - startTime, correlationId);
         return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid action' }] });
       }
     }

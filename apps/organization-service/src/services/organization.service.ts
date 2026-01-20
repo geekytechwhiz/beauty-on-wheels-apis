@@ -364,16 +364,28 @@ export class OrganizationService {
     }
   }
 
-  async listOrganizations(): Promise<Organization[]> {
+  async listOrganizations(filters?: {
+    organizationId?: string;
+    status?: string[];
+    organizationType?: string[];
+    adminName?: string;
+    organizationName?: string;
+    country?: string;
+    state?: string;
+    city?: string;
+    assignedPackagesName?: string[];
+    limit?: number;
+    nextPaginationKey?: string;
+  }): Promise<{ items: Organization[]; nextPaginationKey?: string | null }> {
     const timer = createPerformanceTimer(baseLogger, 'listOrganizations');
-    const logger = createChildLogger(baseLogger, {});
+    const logger = createChildLogger(baseLogger, { organizationId: filters?.organizationId });
     logger.info({ event: 'service_listOrganizations_start' });
 
     try {
-      const organizations = await this.repository.listOrganizations();
-      logger.info({ event: 'service_listOrganizations_success', count: organizations.length });
+      const result = await this.repository.listOrganizations(filters);
+      logger.info({ event: 'service_listOrganizations_success', count: result.items.length });
       timer.end();
-      return organizations;
+      return result;
     } catch (err) {
       logger.error({ event: 'service_listOrganizations_error', err: serializeError(err) });
       timer.end();

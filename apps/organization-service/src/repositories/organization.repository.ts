@@ -554,23 +554,159 @@ export class OrganizationRepository {
     }
   }
 
-  async listOrganizations(): Promise<Organization[]> {
+  async listOrganizations(filters?: {
+    organizationId?: string;
+    status?: string[];
+    organizationType?: string[];
+    adminName?: string;
+    organizationName?: string;
+    country?: string;
+    state?: string;
+    city?: string;
+    assignedPackagesName?: string[];
+    limit?: number;
+    nextPaginationKey?: string;
+  }): Promise<{ items: Organization[]; nextPaginationKey?: string | null }> {
     try {
-      const result = await ddbDocClient.send(
-        new QueryCommand({
-          TableName: ORGANIZATION_TABLE_NAME,
-          IndexName: 'GSI1',
-          KeyConditionExpression: 'gsi1pk = :gsi1pk',
-          ExpressionAttributeValues: {
-            ':gsi1pk': 'ORG_LIST',
-          },
-        }),
-      );
+      const params: {
+        TableName: string;
+        IndexName: string;
+        KeyConditionExpression: string;
+        ExpressionAttributeValues: Record<string, unknown>;
+        ExpressionAttributeNames?: Record<string, string>;
+        FilterExpression?: string;
+        ExclusiveStartKey?: Record<string, unknown>;
+      } = {
+        TableName: ORGANIZATION_TABLE_NAME,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'gsi1pk = :gsi1pk',
+        ExpressionAttributeValues: {
+          ':gsi1pk': 'ORG_LIST',
+        },
+      };
 
-      const items = (result.Items ?? []) as Organization[];
-      return items
+      const exprNames: Record<string, string> = {};
+      const filtersExpr: string[] = [];
+
+      const status = filters?.status?.filter((value) => value);
+      if (status?.length) {
+        exprNames['#status'] = 'status';
+        const statusFilters = status.map((value, index) => {
+          const key = `:status${index}`;
+          params.ExpressionAttributeValues[key] = value.toUpperCase();
+          return `#status = ${key}`;
+        });
+        filtersExpr.push(`(${statusFilters.join(' OR ')})`);
+      }
+
+      const organizationType = filters?.organizationType?.filter((value) => value);
+      if (organizationType?.length) {
+        exprNames['#searchFields'] = 'searchFields';
+        exprNames['#organizationType'] = 'organizationType';
+        const typeFilters = organizationType.map((value, index) => {
+          const key = `:orgType${index}`;
+          params.ExpressionAttributeValues[key] = value.toLowerCase();
+          return `contains(#searchFields.#organizationType, ${key})`;
+        });
+        filtersExpr.push(`(${typeFilters.join(' OR ')})`);
+      }
+
+      if (filters?.organizationName) {
+        exprNames['#searchFields'] = 'searchFields';
+        exprNames['#name'] = 'name';
+        params.ExpressionAttributeValues[':orgName'] = filters.organizationName.toLowerCase();
+        filtersExpr.push('contains(#searchFields.#name, :orgName)');
+      }
+
+      if (filters?.adminName) {
+        exprNames['#adminDetails'] = 'adminDetails';
+        exprNames['#adminName'] = 'adminName';
+        params.ExpressionAttributeValues[':adminName'] = filters.adminName.toLowerCase();
+        filtersExpr.push('contains(#adminDetails.#adminName, :adminName)');
+      }
+
+      if (filters?.country || filters?.state || filters?.city) {
+        exprNames['#searchFields'] = 'searchFields';
+        if (filters.country) {
+          exprNames['#country'] = 'country';
+          params.ExpressionAttributeValues[':country'] = filters.country.toLowerCase();
+          filtersExpr.push('#searchFields.#country = :country');
+        }
+        if (filters.state) {
+          exprNames['#state'] = 'state';
+          params.ExpressionAttributeValues[':state'] = filters.state.toLowerCase();
+          filtersExpr.push('#searchFields.#state = :state');
+        }
+        if (filters.city) {
+          exprNames['#city'] = 'city';
+          params.ExpressionAttributeValues[':city'] = filters.city.toLowerCase();
+          filtersExpr.push('#searchFields.#city = :city');
+        }
+      }
+
+      const assignedPackagesName = filters?.assignedPackagesName?.filter((value) => value);
+      if (assignedPackagesName?.length) {
+        exprNames['#assignedPackagesName'] = 'assignedPackagesName';
+        const pkgFilters = assignedPackagesName.map((value, index) => {
+          const key = `:pkgName${index}`;
+          params.ExpressionAttributeValues[key] = value.toLowerCase();
+          return `contains(#assignedPackagesName, ${key})`;
+        });
+        filtersExpr.push(`(${pkgFilters.join(' OR ')})`);
+      }
+
+      if (filters?.organizationId) {
+        exprNames['#parentOrgId'] = 'parentOrgId';
+        exprNames['#organizationId'] = 'organizationId';
+        params.ExpressionAttributeValues[':orgId'] = filters.organizationId;
+        filtersExpr.push('(#parentOrgId = :orgId OR #organizationId = :orgId)');
+      }
+
+      if (filtersExpr.length) {
+        params.FilterExpression = filtersExpr.join(' AND ');
+      }
+
+      if (Object.keys(exprNames).length) {
+        params.ExpressionAttributeNames = exprNames;
+      }
+
+      let lastEvaluatedKey = filters?.nextPaginationKey
+        ? (JSON.parse(Buffer.from(filters.nextPaginationKey, 'base64').toString()) as Record<string, unknown>)
+        : undefined;
+
+      const items: Organization[] = [];
+      const limit = filters?.limit && filters.limit > 0 ? filters.limit : undefined;
+
+      do {
+        if (lastEvaluatedKey) {
+          params.ExclusiveStartKey = lastEvaluatedKey;
+        } else {
+          delete params.ExclusiveStartKey;
+        }
+
+        const response = await ddbDocClient.send(new QueryCommand(params));
+        if (response.Items?.length) {
+          items.push(...(response.Items as Organization[]));
+        }
+
+        lastEvaluatedKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+
+        if (limit && items.length >= limit) {
+          items.splice(limit);
+          break;
+        }
+      } while (lastEvaluatedKey);
+
+      const sanitized = items
         .filter((item) => item.deleted !== true)
         .map((item) => this.sanitizeOrganization(item));
+
+      return {
+        items: sanitized,
+        nextPaginationKey: lastEvaluatedKey
+          ? Buffer.from(JSON.stringify(lastEvaluatedKey)).toString('base64')
+          : null,
+      };
     } catch (err) {
       const logger = createChildLogger(baseLogger, {});
       logger.error({ event: 'organization_list_error', err: serializeError(err), message: 'Failed to list organizations' });

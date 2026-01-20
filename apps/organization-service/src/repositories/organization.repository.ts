@@ -1,13 +1,12 @@
 import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationDevice } from '../models';
+import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser } from '../models';
 import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
 import {
   organizationPk,
   organizationDetailsSk,
   organizationUserSk,
-  organizationDeviceSk,
   organizationMetadataSk,
   organizationFileSk,
 } from '../utils/helpers';
@@ -496,82 +495,6 @@ export class OrganizationRepository {
     }
   }
 
-  async assignDeviceToOrganization(organizationId: string, deviceId: string): Promise<void> {
-    const now = new Date().toISOString();
-    const item: OrganizationDevice = {
-      pk: organizationPk(organizationId),
-      sk: organizationDeviceSk(deviceId),
-      organizationId,
-      deviceId,
-      assignedAt: now,
-      status: 'ACTIVE',
-      itemType: 'ORG_DEVICE',
-    };
-
-    try {
-      await ddbDocClient.send(
-        new PutCommand({
-          TableName: ORGANIZATION_TABLE_NAME,
-          Item: item,
-        }),
-      );
-      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
-      logger.info({ event: 'organization_device_assigned', message: 'Device assigned to organization' });
-    } catch (err) {
-      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
-      logger.error({
-        event: 'organization_device_assign_error',
-        err: serializeError(err),
-        message: 'Failed to assign device to organization',
-      });
-      throw err;
-    }
-  }
-
-  async removeDeviceFromOrganization(organizationId: string, deviceId: string): Promise<void> {
-    try {
-      await ddbDocClient.send(
-        new DeleteCommand({
-          TableName: ORGANIZATION_TABLE_NAME,
-          Key: {
-            pk: organizationPk(organizationId),
-            sk: organizationDeviceSk(deviceId),
-          },
-        }),
-      );
-      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
-      logger.info({ event: 'organization_device_removed', message: 'Device removed from organization' });
-    } catch (err) {
-      const logger = createChildLogger(baseLogger, { organizationId, deviceId });
-      logger.error({
-        event: 'organization_device_remove_error',
-        err: serializeError(err),
-        message: 'Failed to remove device from organization',
-      });
-      throw err;
-    }
-  }
-
-  async listOrganizationDevices(organizationId: string): Promise<OrganizationDevice[]> {
-    try {
-      const result = await ddbDocClient.send(
-        new QueryCommand({
-          TableName: ORGANIZATION_TABLE_NAME,
-          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
-          ExpressionAttributeValues: {
-            ':pk': organizationPk(organizationId),
-            ':skPrefix': 'ORG_DEVICE#',
-          },
-        }),
-      );
-
-      return (result?.Items ?? []) as OrganizationDevice[];
-    } catch (err) {
-      const logger = createChildLogger(baseLogger, { organizationId });
-      logger.error({ event: 'organization_devices_list_error', err: serializeError(err), message: 'Failed to list organization devices' });
-      throw err;
-    }
-  }
 
   async updateOrganizationMetadata(
     organizationId: string,

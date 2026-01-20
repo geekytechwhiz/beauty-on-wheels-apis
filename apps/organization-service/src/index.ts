@@ -7,8 +7,5 @@ export * from './handlers/deleteOrganization';
 export * from './handlers/assignUserToOrganization';
 export * from './handlers/removeUserFromOrganization';
 export * from './handlers/listOrganizationUsers';
-export * from './handlers/assignDeviceToOrganization';
-export * from './handlers/removeDeviceFromOrganization';
-export * from './handlers/listOrganizationDevices';
 export * from './handlers/updateOrganizationMetadata';
 export * from './handlers/listOrganizationFiles';

@@ -992,12 +992,6 @@ functions:
   #                     type: object
 
 resources:
-  Outputs:
-    UserServiceBaseUrl:
-      Description: "Base URL for the User Service"
-      Value: ${self:custom.stageUrls.${opt:stage, 'dev'}.USER_SERVICE_BASE_URL}
-      Export:
-        Name: ${self:provider.stage}-UserServiceBaseUrl
   Resources:
     # Dead Letter Queue for User Reminders
     UserRemindersQueueDLQ:
@@ -1082,6 +1076,11 @@ resources:
             Value: serverless
 
   Outputs:
+    UserServiceBaseUrl:
+      Description: "Base URL for the User Service"
+      Value: ${self:custom.stageUrls.${opt:stage, 'dev'}.USER_SERVICE_BASE_URL}
+      Export:
+        Name: ${self:provider.stage}-UserServiceBaseUrl
     UserRemindersQueueUrl:
       Description: URL of the User Reminders Queue
       Value: !Ref UserRemindersQueue

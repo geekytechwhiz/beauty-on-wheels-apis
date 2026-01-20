@@ -364,6 +364,23 @@ export class OrganizationService {
     }
   }
 
+  async listOrganizations(): Promise<Organization[]> {
+    const timer = createPerformanceTimer(baseLogger, 'listOrganizations');
+    const logger = createChildLogger(baseLogger, {});
+    logger.info({ event: 'service_listOrganizations_start' });
+
+    try {
+      const organizations = await this.repository.listOrganizations();
+      logger.info({ event: 'service_listOrganizations_success', count: organizations.length });
+      timer.end();
+      return organizations;
+    } catch (err) {
+      logger.error({ event: 'service_listOrganizations_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
 
   async updateOrganizationMetadata(
     organizationId: string,

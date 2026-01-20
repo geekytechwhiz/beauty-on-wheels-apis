@@ -123,7 +123,7 @@ custom:
       - '.json'
   autoswagger:
     title: Organization Service API
-    description: RESTful API for managing organizations, users, devices, metadata, and files
+    description: RESTful API for managing organizations, users, metadata, and files
     version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
@@ -147,8 +147,6 @@ custom:
         description: Organization management operations
       - name: Users
         description: Organization-user relationship operations
-      - name: Devices
-        description: Organization-device relationship operations
       - name: Metadata
         description: Organization metadata operations
       - name: Files
@@ -536,120 +534,6 @@ functions:
             responses:
               200:
                 description: Organization users retrieved successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
-
-  assignDeviceToOrganization:
-    handler: src/handlers/assignDeviceToOrganization.main
-    timeout: 10
-    memorySize: 256
-    events:
-      - http:
-          path: organization/{organizationId}/device/{deviceId}
-          method: post
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Assign device to organization
-            description: Assigns a device to an organization
-            tags:
-              - Organizations
-              - Devices
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-              - name: deviceId
-                description: Unique identifier of the device (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: Device assigned to organization successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
-
-  removeDeviceFromOrganization:
-    handler: src/handlers/removeDeviceFromOrganization.main
-    timeout: 10
-    memorySize: 256
-    events:
-      - http:
-          path: organization/{organizationId}/device/{deviceId}
-          method: delete
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Remove device from organization
-            description: Removes a device from an organization
-            tags:
-              - Organizations
-              - Devices
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-              - name: deviceId
-                description: Unique identifier of the device (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: Device removed from organization successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
-
-  listOrganizationDevices:
-    handler: src/handlers/listOrganizationDevices.main
-    timeout: 5
-    memorySize: 256
-    events:
-      - http:
-          path: organization/{organizationId}/devices
-          method: get
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          documentation:
-            summary: List organization devices
-            description: Retrieves all devices associated with an organization
-            tags:
-              - Organizations
-              - Devices
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: Organization devices retrieved successfully
               400:
                 description: Bad request
               404:

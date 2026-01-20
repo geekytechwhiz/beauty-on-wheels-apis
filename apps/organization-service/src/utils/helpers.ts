@@ -14,10 +14,6 @@ export function organizationUserSk(userId: string): string {
   return `ORG_USER#${userId}`;
 }
 
-export function organizationDeviceSk(deviceId: string): string {
-  return `ORG_DEVICE#${deviceId}`;
-}
-
 export function organizationMetadataSk(): string {
   return 'ORG_METADATA';
 }

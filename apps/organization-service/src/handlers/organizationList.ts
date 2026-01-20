@@ -13,18 +13,27 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'organizationList_received' });
 
+  if ((event.httpMethod || '').toUpperCase() !== 'POST') {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/list', 405, duration, correlationId);
+    return ApiResponse.badRequest(
+      { title: 'Invalid request', description: 'Only POST method is allowed' },
+      { requestId: correlationId },
+      { code: 'METHOD_NOT_ALLOWED' },
+    );
+  }
+
   try {
     const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-    const query = event.queryStringParameters ?? {};
 
-    let organizationId = body?.organizationId ?? (event as { organizationID?: string })?.organizationID ?? query.organizationId;
+    let organizationId = body?.organizationId ?? (event as { organizationID?: string })?.organizationID;
     if (organizationId === 'ROOT') {
       organizationId = undefined;
     }
 
-    const statusRaw = body?.status ?? query.status;
-    const organizationTypeRaw = body?.organizationType ?? query.organizationType;
-    const assignedPackagesNameRaw = body?.assignedPackagesName ?? query.assignedPackagesName;
+    const statusRaw = body?.status;
+    const organizationTypeRaw = body?.organizationType;
+    const assignedPackagesNameRaw = body?.assignedPackagesName;
 
     const toArray = (value: unknown): string[] | undefined => {
       if (!value) return undefined;
@@ -33,20 +42,20 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       return undefined;
     };
 
-    const limitRaw = body?.limit ?? query.limit;
+    const limitRaw = body?.limit;
     const limit = typeof limitRaw === 'string' ? Number(limitRaw) : typeof limitRaw === 'number' ? limitRaw : undefined;
 
-    const nextPaginationKey = body?.nextPaginationKey ?? query.nextPaginationKey;
+    const nextPaginationKey = body?.nextPaginationKey;
 
     const result = await organizationService.listOrganizations({
       organizationId,
       status: toArray(statusRaw),
       organizationType: toArray(organizationTypeRaw),
-      adminName: body?.adminName ?? query.adminName,
-      organizationName: body?.organizationName ?? query.organizationName,
-      country: body?.country ?? query.country,
-      state: body?.state ?? query.state,
-      city: body?.city ?? query.city,
+      adminName: body?.adminName,
+      organizationName: body?.organizationName,
+      country: body?.country,
+      state: body?.state,
+      city: body?.city,
       assignedPackagesName: toArray(assignedPackagesNameRaw),
       limit: Number.isFinite(limit) ? limit : undefined,
       nextPaginationKey: typeof nextPaginationKey === 'string' ? nextPaginationKey : undefined,
@@ -68,7 +77,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.ok(
       {
         items: organizations,
-        ...(result.nextPaginationKey ? { nextPaginationKey: result.nextPaginationKey } : {}),
+        nextPaginationKey: result.nextPaginationKey ?? null,
       },
       { title: 'Success', description: 'Organizations retrieved successfully' },
       { requestId: correlationId },

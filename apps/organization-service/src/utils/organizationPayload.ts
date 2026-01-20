@@ -172,12 +172,11 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   const corporateDiscounts = organizationInfo?.corporateDiscounts;
 
   const adminDetailsInput = input?.adminDetails;
-  const adminDetails =
-    Array.isArray(adminDetailsInput) && adminDetailsInput.length > 0
-      ? adminDetailsInput[0]
-      : adminDetailsInput && typeof adminDetailsInput === 'object'
-        ? adminDetailsInput
-        : undefined;
+  const adminDetails = Array.isArray(adminDetailsInput)
+    ? adminDetailsInput
+    : adminDetailsInput && typeof adminDetailsInput === 'object'
+      ? adminDetailsInput
+      : undefined;
 
   const modules = input?.modules;
   const devices = input?.devices;

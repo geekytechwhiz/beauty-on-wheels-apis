@@ -1,0 +1,23 @@
+{
+  "name": "device-service",
+  "projectType": "application",
+  "sourceRoot": "apps/device-service/src",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/node:build",
+      "options": {
+        "outputPath": "dist/apps/device-service",
+        "main": "apps/device-service/src/index.ts",
+        "tsConfig": "apps/device-service/tsconfig.app.json"
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "options": {
+        "jestConfig": "apps/device-service/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}

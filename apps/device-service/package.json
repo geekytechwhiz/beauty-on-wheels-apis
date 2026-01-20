@@ -1,0 +1,49 @@
+{
+  "name": "@api-hub/device-service",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "@nx/esbuild:esbuild",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "defaultConfiguration": "production",
+        "options": {
+          "platform": "node",
+          "outputPath": "device-service/dist",
+          "format": [
+            "cjs"
+          ],
+          "bundle": false,
+          "main": "device-service/src/index.ts",
+          "tsConfig": "device-service/tsconfig.app.json",
+          "assets": [
+            "device-service/src/assets"
+          ],
+          "esbuildOptions": {
+            "sourcemap": true,
+            "outExtension": {
+              ".js": ".js"
+            }
+          }
+        },
+        "configurations": {
+          "development": {},
+          "production": {
+            "esbuildOptions": {
+              "sourcemap": false,
+              "outExtension": {
+                ".js": ".js"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
+    
+  }
+}

@@ -22,7 +22,8 @@ Service-specific documentation organized by requirements, prompts, and implement
 - **[Prompts](./services/organization-service/prompts/)** - AI/Development prompts
 
 #### Device Service
-- **[Requirements](./services/device-service/requirements/)** - Technical specifications
+- **[Migration Document](./services/device-service/DEVICE_MICROSERVICE_MIGRATION_DOCUMENT.md)** - Complete migration blueprint
+- **[Prompts](./services/device-service/prompts/)** - AI/Development prompts for production-ready code generation
 
 #### FHIR Gateway
 - **[Requirements](./services/fhir-gateway/requirements/)** - Architecture review and mapping configs
@@ -59,6 +60,7 @@ Problem diagnosis and resolution guides.
 
 ### For AI/Prompts
 - **[Organization Service Prompt](./services/organization-service/prompts/ORGANIZATION_SERVICE_IMPLEMENTATION_PROMPT.md)**
+- **[Device Service Prompt](./services/device-service/prompts/DEVICE_SERVICE_IMPLEMENTATION_PROMPT.md)** - Backend AWS Serverless Architect prompt
 - **[FHIR AI Agent Guide](./services/fhir-gateway/ai-agent/FHIR_MAPPING_AI_AGENT_GUIDE.md)**
 - **[AI Agent Generation](./services/fhir-gateway/ai-agent/AI_AGENT_GENERATION_PROMPT.md)**
 

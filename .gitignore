@@ -45,6 +45,8 @@ vite.config.*.timestamp*
 apps/user-service/.esbuild/
 apps/user-service/swagger/
 apps/order-service/.esbuild/
+apps/device-service/.esbuild/
+apps/organization-service/.esbuild/
 # Serverless build artifacts
 **/.serverless/
 

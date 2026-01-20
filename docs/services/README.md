@@ -38,7 +38,10 @@ Organization and hospital management service.
 IoT device registration and management service.
 
 **Requirements**:
-- [Technical Specification](./device-service/requirements/DeviceService.doc) - Complete service specs
+- [Migration Document](./device-service/DEVICE_MICROSERVICE_MIGRATION_DOCUMENT.md) - Complete migration blueprint with schemas, endpoints, and architecture
+
+**Prompts**:
+- [Implementation Prompt](./device-service/prompts/DEVICE_SERVICE_IMPLEMENTATION_PROMPT.md) - Production-ready code generation prompt for Backend AWS Serverless Architect
 
 **Purpose**: Handle device registration, authentication, and management  
 **Status**: 🔄 In Development

@@ -1,0 +1,197 @@
+service: device-service
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-device-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
+    REGION: ${self:provider.region}
+    USER_TABLE: ${self:provider.stage}_common_user_data
+    EVENT_BUS: device-service-bus-${self:provider.stage}
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+    COMPLETE_TASK_LAMBDA: ${self:provider.stage}_complete_user_task
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    # DynamoDB
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_common_user_data
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_common_user_data/index/*
+
+    # EventBridge
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource:
+        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/device-service-bus-${self:provider.stage}
+
+    # Lambda (for backward compatibility with complete_user_task)
+    - Effect: Allow
+      Action:
+        - lambda:InvokeFunction
+      Resource:
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_complete_user_task
+
+    # X-Ray
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+package:
+  individually: true
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
+  autoswagger:
+    title: Device Service API
+    description: RESTful API for managing devices, device-user mappings, organization devices, and recommendations
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    type: openapi3
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+    swaggerOutputPath: swagger.json
+    tags:
+      - name: Devices
+        description: Device management operations
+      - name: Organization Devices
+        description: Organization-device relationship operations
+      - name: Recommendations
+        description: Device recommendation operations
+
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+functions:
+  deviceRegister:
+    handler: src/handlers/deviceRegister.handler
+    events:
+      - http:
+          path: devices/register
+          method: post
+          cors: true
+
+  deviceDelete:
+    handler: src/handlers/deviceDelete.handler
+    events:
+      - http:
+          path: devices/delete
+          method: post
+          cors: true
+
+  deviceDeleteMultiple:
+    handler: src/handlers/deviceDeleteMultiple.handler
+    events:
+      - http:
+          path: devices/delete-multiple
+          method: post
+          cors: true
+
+  deviceList:
+    handler: src/handlers/deviceList.handler
+    events:
+      - http:
+          path: devices/list
+          method: post
+          cors: true
+
+  deviceSearch:
+    handler: src/handlers/deviceSearch.handler
+    events:
+      - http:
+          path: devices/search
+          method: post
+          cors: true
+
+  orgDeviceManage:
+    handler: src/handlers/orgDeviceManage.handler
+    events:
+      - http:
+          path: devices/org/manage
+          method: post
+          cors: true
+
+  deviceRecommendationAdd:
+    handler: src/handlers/deviceRecommendationAdd.handler
+    events:
+      - http:
+          path: devices/recommendations/add
+          method: post
+          cors: true
+
+  deviceRecommendationRemove:
+    handler: src/handlers/deviceRecommendationRemove.handler
+    events:
+      - http:
+          path: devices/recommendations/remove
+          method: post
+          cors: true

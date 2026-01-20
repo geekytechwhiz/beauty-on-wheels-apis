@@ -320,7 +320,7 @@ functions:
     events:
       - http:
           path: organization/list
-          method: get
+          method: post
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}

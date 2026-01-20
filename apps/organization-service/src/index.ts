@@ -2,6 +2,7 @@
 export * from './handlers/health';
 export * from './handlers/createOrganization';
 export * from './handlers/getOrganization';
+export * from './handlers/organizationList';
 export * from './handlers/updateOrganization';
 export * from './handlers/deleteOrganization';
 export * from './handlers/assignUserToOrganization';

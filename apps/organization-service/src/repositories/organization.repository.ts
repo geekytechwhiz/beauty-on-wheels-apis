@@ -554,6 +554,30 @@ export class OrganizationRepository {
     }
   }
 
+  async listOrganizations(): Promise<Organization[]> {
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'gsi1pk = :gsi1pk',
+          ExpressionAttributeValues: {
+            ':gsi1pk': 'ORG_LIST',
+          },
+        }),
+      );
+
+      const items = (result.Items ?? []) as Organization[];
+      return items
+        .filter((item) => item.deleted !== true)
+        .map((item) => this.sanitizeOrganization(item));
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, {});
+      logger.error({ event: 'organization_list_error', err: serializeError(err), message: 'Failed to list organizations' });
+      throw err;
+    }
+  }
+
   async createOrganizationFile(organizationFile: OrganizationFile): Promise<void> {
     const item = {
       pk: organizationPk(organizationFile.organizationId),

@@ -87,6 +87,9 @@ components:
           type: string
           format: uuid
           description: Unique user identifier
+        organizationID:
+          type: string
+          description: Organization identifier
         emailAddress:
           type: string
           format: email
@@ -103,6 +106,34 @@ components:
         phoneNumber:
           type: string
           description: User's phone number
+        phoneCode:
+          type: string
+          description: Phone country code
+        namePrefix:
+          type: string
+          description: Name prefix (e.g., Dr., Mr., Ms.)
+        profilePic:
+          type: string
+          description: Profile picture URL
+        bio:
+          type: string
+          description: User biography
+        dateOfBirth:
+          type: string
+          format: date
+          description: Date of birth
+        gender:
+          type: string
+          description: User gender
+        specialty:
+          type: string
+          description: Medical specialty (for healthcare providers)
+        licenseNumber:
+          type: string
+          description: Professional license number
+        department:
+          type: string
+          description: Department name
         isActive:
           type: boolean
           description: Whether the user account is active
@@ -117,6 +148,337 @@ components:
       required:
         - userID
         - emailAddress
+
+    CreateUserRequest:
+      type: object
+      required:
+        - userInfo
+        - userRole
+        - userType
+      properties:
+        organizationID:
+          type: string
+          description: Organization identifier (can be extracted from token if not provided)
+        userID:
+          type: string
+          description: User identifier (can be extracted from token if not provided)
+        userInfo:
+          type: object
+          required:
+            - name
+            - contact
+          properties:
+            name:
+              type: string
+              minLength: 1
+              description: User's full name
+              example: "John Doe"
+            namePrefix:
+              type: string
+              description: Name prefix (e.g., Dr., Mr., Ms.)
+              example: "Dr."
+            code:
+              type: string
+              description: User code
+            profilePic:
+              oneOf:
+                - type: string
+                - type: object
+                  additionalProperties: true
+              description: Profile picture URL or object
+            licenseNumber:
+              type: string
+              description: Professional license number
+            contact:
+              type: object
+              properties:
+                email:
+                  oneOf:
+                    - type: string
+                      format: email
+                    - type: string
+                      enum: [""]
+                    - type: "null"
+                  description: Email address (required for STAFF, optional for USER/FNF)
+                  example: "john.doe@example.com"
+                phone:
+                  oneOf:
+                    - type: string
+                    - type: string
+                      enum: [""]
+                    - type: "null"
+                  description: Phone number (required for USER/FNF if email not provided)
+                  example: "+1234567890"
+                phoneCode:
+                  type: string
+                  description: Phone country code
+                  example: "+1"
+                address:
+                  type: object
+                  description: Address object
+                  properties:
+                    address:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    country:
+                      type: string
+                    postalCode:
+                      type: string
+                    street:
+                      type: string
+                    zip:
+                      type: string
+                    countryCode:
+                      type: string
+                    stateCode:
+                      type: string
+              required:
+                - email
+            workingHours:
+              type: object
+              description: Working hours (required for STAFF userType)
+              properties:
+                monday:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                    availableHours:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                          to:
+                            type: string
+                tuesday:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                    availableHours:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                          to:
+                            type: string
+                wednesday:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                    availableHours:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                          to:
+                            type: string
+                thursday:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                    availableHours:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                          to:
+                            type: string
+                friday:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                    availableHours:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                          to:
+                            type: string
+                saturday:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                    availableHours:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                          to:
+                            type: string
+                sunday:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                    availableHours:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from:
+                            type: string
+                          to:
+                            type: string
+            dateOfBirth:
+              type: string
+              format: date
+            department:
+              type: string
+            gender:
+              type: string
+            specialty:
+              type: string
+            slotDurationInMinutes:
+              type: number
+            experienceInYears:
+              type: string
+            bio:
+              type: string
+            address:
+              type: string
+            city:
+              type: string
+            state:
+              type: string
+            country:
+              type: string
+            postalCode:
+              type: string
+            emergencyContact:
+              type: object
+              additionalProperties: true
+            medicalHistory:
+              type: object
+              additionalProperties: true
+            insuranceDetails:
+              type: object
+              additionalProperties: true
+            workSchedule:
+              type: object
+              additionalProperties: true
+            position:
+              type: string
+            userTimeZone:
+              type: string
+        userRole:
+          type: array
+          items:
+            type: string
+          description: Array of role IDs to assign to the user
+          example: ["role-id-1", "role-id-2"]
+        userType:
+          type: string
+          enum: [USER, STAFF, FNF]
+          description: Type of user (USER, STAFF, or FNF)
+          example: "USER"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john.doe.updated@example.com"
+        phone:
+          type: string
+          description: User's phone number
+          example: "+1234567890"
+        phoneCode:
+          type: string
+          description: Phone country code
+          example: "+1"
+        firstName:
+          type: string
+          description: User's first name
+          example: "John"
+        lastName:
+          type: string
+          description: User's last name
+          example: "Doe"
+        profilePic:
+          type: string
+          description: Profile picture URL
+          example: "https://example.com/profile.jpg"
+        namePrefix:
+          type: string
+          description: Name prefix (e.g., Dr., Mr., Ms.)
+          example: "Dr."
+        dateOfBirth:
+          type: string
+          format: date
+          description: Date of birth
+          example: "1990-01-01"
+        gender:
+          type: string
+          description: User gender
+        specialty:
+          type: string
+          description: Medical specialty
+        licenseNumber:
+          type: string
+          description: Professional license number
+        bio:
+          type: string
+          description: User biography
+        action:
+          type: string
+          description: Optional action indicator (not stored in user data)
+
+    AssignUserToOrganizationRequest:
+      type: object
+      required:
+        - userId
+        - organizationId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: User identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        organizationId:
+          type: string
+          format: uuid
+          description: Organization identifier
+          example: "660e8400-e29b-41d4-a716-446655440001"
+
+    UpdateUserMetadataRequest:
+      type: object
+      required:
+        - metadata
+      properties:
+        metadata:
+          type: object
+          description: Custom metadata as key-value pairs. Values can be strings, numbers, booleans, arrays, or objects.
+          additionalProperties: true
+          example:
+            preferences:
+              theme: "dark"
+              notifications: true
+            tags:
+              - "premium"
+              - "verified"
+            customField: "customValue"
 
     UserOrganization:
       type: object
@@ -185,6 +547,18 @@ components:
         - userId
         - metadata
 
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        service:
+          type: string
+          example: "user-service"
+      required:
+        - status
+
   responses:
     BadRequest:
       description: Bad request - Invalid input data
@@ -198,9 +572,71 @@ components:
             status: 400
             detail: "Invalid request data"
             code: "VALIDATION_ERROR"
+            correlationId: "req-123"
             errors:
               - field: "email"
                 message: "Invalid email format"
+
+    Unauthorized:
+      description: Unauthorized - Missing or invalid authentication
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Unauthorized"
+            status: 401
+            detail: "Missing user context in access token"
+            code: "UNAUTHORIZED"
+            correlationId: "req-123"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Resource not found"
+            status: 404
+            detail: "User with ID 550e8400-e29b-41d4-a716-446655440000 not found"
+            code: "USER_NOT_FOUND"
+            correlationId: "req-123"
+
+    Conflict:
+      description: Resource conflict - Resource already exists
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "User already exists"
+            status: 409
+            detail: "User with ID 550e8400-e29b-41d4-a716-446655440000 already exists"
+            code: "USER_ALREADY_EXISTS"
+            correlationId: "req-123"
+
+    UnprocessableEntity:
+      description: Unprocessable Entity - Validation errors
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Validation failed"
+            status: 422
+            detail: "Invalid request data"
+            code: "VALIDATION_ERROR"
+            correlationId: "req-123"
+            errors:
+              - field: "userInfo.contact.email"
+                message: "Email is required for STAFF"
+              - field: "userRole"
+                message: "Expected array, received string"
 
     InternalServerError:
       description: Internal server error
@@ -214,4 +650,5 @@ components:
             status: 500
             detail: "An unexpected error occurred"
             code: "INTERNAL_ERROR"
+            correlationId: "req-123"
 

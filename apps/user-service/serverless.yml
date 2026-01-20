@@ -238,20 +238,24 @@ functions:
             description: Returns the health status of the service
             tags:
               - Health
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             responses:
               200:
                 description: Service is healthy
                 content:
                   application/json:
                     schema:
-                      type: object
-                      properties:
-                        status:
-                          type: string
-                          example: "ok"
-                        timestamp:
-                          type: string
-                          format: date-time
+                      $ref: '#/components/schemas/HealthResponse'
+                    example:
+                      status: "ok"
+                      service: "user-service"
+              500:
+                $ref: '#/components/responses/InternalServerError'
   
   createUser:
     handler: src/handlers/createUser.main
@@ -272,36 +276,47 @@ functions:
             resultTtlInSeconds: 0
           documentation:
             summary: Create a new user
-            description: Creates a new user in the system with the provided information
+            description: Creates a new user in the system with the provided information. organizationID and userID can be extracted from the access token if not provided in the request body.
             tags:
               - Users
+            headers:
+              - name: Authorization
+                description: Bearer token for authentication
+                schema:
+                  type: string
+                  format: bearer
+                required: true
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             requestBody:
               description: User creation data
               required: true
               content:
                 application/json:
                   schema:
-                    type: object
-                    required:
-                      - userId
-                      - email
-                      - name
-                    properties:
-                      userId:
-                        type: string
-                        format: uuid
-                        description: Unique identifier for the user (UUID format)
-                        example: "550e8400-e29b-41d4-a716-446655440000"
-                      email:
-                        type: string
-                        format: email
-                        description: User's email address
-                        example: "john.doe@example.com"
-                      name:
-                        type: string
-                        minLength: 1
-                        description: User's full name
-                        example: "John Doe"
+                    $ref: '#/components/schemas/CreateUserRequest'
+                  example:
+                    organizationID: "660e8400-e29b-41d4-a716-446655440001"
+                    userID: "550e8400-e29b-41d4-a716-446655440000"
+                    userInfo:
+                      name: "John Doe"
+                      namePrefix: "Dr."
+                      profilePic: "https://example.com/profile.jpg"
+                      contact:
+                        email: "john.doe@example.com"
+                        phone: "+1234567890"
+                        phoneCode: "+1"
+                      dateOfBirth: "1990-01-01"
+                      gender: "Male"
+                      specialty: "Cardiology"
+                      licenseNumber: "LIC123456"
+                      department: "Cardiology"
+                      bio: "Experienced cardiologist"
+                    userRole: ["role-id-1", "role-id-2"]
+                    userType: "STAFF"
             responses:
               201:
                 description: User created successfully
@@ -312,26 +327,15 @@ functions:
                     example:
                       data:
                         userID: "550e8400-e29b-41d4-a716-446655440000"
-                        emailAddress: "john.doe@example.com"
-                        fullName: "John Doe"
-                        createdDate: 1699123456789
-                        isActive: true
                       requestId: "req-123"
-                      message: "User created"
               400:
                 $ref: '#/components/responses/BadRequest'
+              401:
+                $ref: '#/components/responses/Unauthorized'
+              422:
+                $ref: '#/components/responses/UnprocessableEntity'
               409:
-                description: User already exists
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
-                    example:
-                      type: "about:blank"
-                      title: "User already exists"
-                      status: 409
-                      detail: "User with ID 550e8400-e29b-41d4-a716-446655440000 already exists"
-                      code: "USER_ALREADY_EXISTS"
+                $ref: '#/components/responses/Conflict'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -348,10 +352,22 @@ functions:
             headers: ${self:custom.cors.headers}
           documentation:
             summary: Get user by ID
-            description: Retrieves user information by user ID
+            description: Retrieves user information by user ID and organization ID
             tags:
               - Users
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             pathParameters:
+              - name: organizationId
+                description: Unique identifier of the organization (UUID or ULID format)
+                required: true
+                schema:
+                  type: string
+                  example: "660e8400-e29b-41d4-a716-446655440001"
               - name: userId
                 description: Unique identifier of the user (UUID format)
                 required: true
@@ -369,6 +385,7 @@ functions:
                     example:
                       data:
                         userID: "550e8400-e29b-41d4-a716-446655440000"
+                        organizationID: "660e8400-e29b-41d4-a716-446655440001"
                         emailAddress: "john.doe@example.com"
                         fullName: "John Doe"
                         phoneNumber: "+1234567890"
@@ -378,17 +395,7 @@ functions:
               400:
                 $ref: '#/components/responses/BadRequest'
               404:
-                description: User not found
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
-                    example:
-                      type: "about:blank"
-                      title: "User not found"
-                      status: 404
-                      detail: "User with ID 550e8400-e29b-41d4-a716-446655440000 not found"
-                      code: "USER_NOT_FOUND"
+                $ref: '#/components/responses/NotFound'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -411,27 +418,41 @@ functions:
             resultTtlInSeconds: 0
           documentation:
             summary: Update user information
-            description: Updates user information. Only provided fields will be updated. userId and organizationId are extracted from the access token.
+            description: Updates user information. Only provided fields will be updated. userId and organizationId are extracted from the access token (authorizer).
             tags:
               - Users
+            headers:
+              - name: Authorization
+                description: Bearer token for authentication (must contain userID and organizationID)
+                schema:
+                  type: string
+                  format: bearer
+                required: true
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             requestBody:
               description: User update data (all fields are optional)
               required: true
               content:
                 application/json:
                   schema:
-                    type: object
-                    properties:
-                      email:
-                        type: string
-                        format: email
-                        description: User's email address
-                        example: "john.doe.updated@example.com"
-                      name:
-                        type: string
-                        minLength: 1
-                        description: User's full name
-                        example: "John Doe Updated"
+                    $ref: '#/components/schemas/UpdateUserRequest'
+                  example:
+                    email: "john.doe.updated@example.com"
+                    firstName: "John"
+                    lastName: "Doe Updated"
+                    phone: "+1234567890"
+                    phoneCode: "+1"
+                    profilePic: "https://example.com/new-profile.jpg"
+                    namePrefix: "Dr."
+                    dateOfBirth: "1990-01-01"
+                    gender: "Male"
+                    specialty: "Cardiology"
+                    licenseNumber: "LIC123456"
+                    bio: "Updated biography"
             responses:
               200:
                 description: User updated successfully
@@ -445,15 +466,14 @@ functions:
                         emailAddress: "john.doe.updated@example.com"
                         fullName: "John Doe Updated"
                       requestId: "req-123"
-                      message: "User updated"
               400:
                 $ref: '#/components/responses/BadRequest'
+              401:
+                $ref: '#/components/responses/Unauthorized'
               404:
-                description: User not found
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
+                $ref: '#/components/responses/NotFound'
+              422:
+                $ref: '#/components/responses/UnprocessableEntity'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -473,6 +493,12 @@ functions:
             description: Deletes a user from the system by user ID
             tags:
               - Users
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             pathParameters:
               - name: userId
                 description: Unique identifier of the user to delete (UUID format)
@@ -491,15 +517,10 @@ functions:
                     example:
                       data: null
                       requestId: "req-123"
-                      message: "User deleted"
               400:
                 $ref: '#/components/responses/BadRequest'
               404:
-                description: User not found
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
+                $ref: '#/components/responses/NotFound'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -516,25 +537,41 @@ functions:
             headers: ${self:custom.cors.headers}
           documentation:
             summary: Assign user to organization
-            description: Assigns a user to an organization
+            description: Assigns a user to an organization. Requires userId and organizationId in the request body. Path parameters are available but not used by the handler.
             tags:
               - Users
               - Organizations
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             pathParameters:
               - name: userId
-                description: Unique identifier of the user (UUID format)
+                description: User identifier (available in path but handler reads from body)
                 required: true
                 schema:
                   type: string
                   format: uuid
                   example: "550e8400-e29b-41d4-a716-446655440000"
               - name: organizationId
-                description: Unique identifier of the organization (UUID format)
+                description: Organization identifier (available in path but handler reads from body)
                 required: true
                 schema:
                   type: string
                   format: uuid
                   example: "660e8400-e29b-41d4-a716-446655440001"
+            requestBody:
+              description: Assignment request data
+              required: true
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/AssignUserToOrganizationRequest'
+                  example:
+                    userId: "550e8400-e29b-41d4-a716-446655440000"
+                    organizationId: "660e8400-e29b-41d4-a716-446655440001"
             responses:
               200:
                 description: User assigned to organization successfully
@@ -545,15 +582,12 @@ functions:
                     example:
                       data: null
                       requestId: "req-123"
-                      message: "User assigned to organization"
               400:
                 $ref: '#/components/responses/BadRequest'
               404:
-                description: User or organization not found
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
+                $ref: '#/components/responses/NotFound'
+              422:
+                $ref: '#/components/responses/UnprocessableEntity'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -574,6 +608,12 @@ functions:
             tags:
               - Users
               - Organizations
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             pathParameters:
               - name: userId
                 description: Unique identifier of the user (UUID format)
@@ -598,11 +638,7 @@ functions:
               400:
                 $ref: '#/components/responses/BadRequest'
               404:
-                description: User not found
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
+                $ref: '#/components/responses/NotFound'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -622,6 +658,12 @@ functions:
             description: Updates custom metadata for a user. Metadata can contain any key-value pairs.
             tags:
               - Users
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             pathParameters:
               - name: userId
                 description: Unique identifier of the user (UUID format)
@@ -636,22 +678,16 @@ functions:
               content:
                 application/json:
                   schema:
-                    type: object
-                    required:
-                      - metadata
-                    properties:
-                      metadata:
-                        type: object
-                        description: Custom metadata as key-value pairs. Values can be strings, numbers, booleans, arrays, or objects.
-                        additionalProperties: true
-                        example:
-                          preferences:
-                            theme: "dark"
-                            notifications: true
-                          tags:
-                            - "premium"
-                            - "verified"
-                          customField: "customValue"
+                    $ref: '#/components/schemas/UpdateUserMetadataRequest'
+                  example:
+                    metadata:
+                      preferences:
+                        theme: "dark"
+                        notifications: true
+                      tags:
+                        - "premium"
+                        - "verified"
+                      customField: "customValue"
             responses:
               200:
                 description: User metadata updated successfully
@@ -666,17 +702,13 @@ functions:
                           preferences:
                             theme: "dark"
                             notifications: true
-                        modifiedDate: "2024-01-15T10:30:00Z"
                       requestId: "req-123"
-                      message: "User metadata updated"
               400:
                 $ref: '#/components/responses/BadRequest'
               404:
-                description: User not found
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
+                $ref: '#/components/responses/NotFound'
+              422:
+                $ref: '#/components/responses/UnprocessableEntity'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -697,6 +729,12 @@ functions:
             tags:
               - Users
               - Files
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             pathParameters:
               - name: userId
                 description: Unique identifier of the user (UUID format)
@@ -723,11 +761,7 @@ functions:
               400:
                 $ref: '#/components/responses/BadRequest'
               404:
-                description: User not found
-                content:
-                  application/problem+json:
-                    schema:
-                      $ref: '#/components/schemas/ProblemDetails'
+                $ref: '#/components/responses/NotFound'
               500:
                 $ref: '#/components/responses/InternalServerError'
 
@@ -748,6 +782,12 @@ functions:
             tags:
               - Users
               - Organizations
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
             pathParameters:
               - name: organizationId
                 description: Unique identifier of the organization (UUID or ULID)
@@ -769,7 +809,6 @@ functions:
                           emailAddress: "john.doe@example.com"
                           fullName: "John Doe"
                       requestId: "req-123"
-                      message: "Organization users retrieved successfully"
               400:
                 $ref: '#/components/responses/BadRequest'
               500:

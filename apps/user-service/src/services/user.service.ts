@@ -9,9 +9,11 @@ import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
 import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
+import { UserLinkRepository } from '../repositories/userLink.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const friendFamilyRepository = new FriendFamilyRepository();
+const userLinkRepository = new UserLinkRepository();
 function generateSortableId() {
   const now = Date.now();
   const timePart = now.toString(36).toUpperCase().padStart(6, '0');
@@ -39,6 +41,7 @@ export class UserService {
     correlationId?: string,
     authHeader?: string,
     friendNFamily?: Record<string, unknown>,
+    assignDoctor?: Record<string, unknown>,
   ): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     // Generate ULID if userID is not provided
@@ -270,6 +273,53 @@ export class UserService {
           }
         } catch (err) {
           logger.warn({ event: 'service_createUser_friend_family_failed', err: serializeError(err) });
+        }
+      }
+
+      if (assignDoctor && Object.keys(assignDoctor).length > 0 && organizationID) {
+        const doctorId =
+          (assignDoctor as any).doctorId ||
+          (assignDoctor as any).doctorID ||
+          (assignDoctor as any).userId ||
+          (assignDoctor as any).userID;
+        if (doctorId) {
+          try {
+            const doctor = await this.repository.getUser(doctorId, organizationID);
+            if (!doctor) {
+              logger.warn({ event: 'service_createUser_doctor_not_found', doctorId, organizationID });
+            } else {
+              const doctorFullName = doctor.namePrefix && String(doctor.namePrefix).toLowerCase().includes('dr')
+                ? `${doctor.namePrefix} ${doctor.fullName || doctor.firstName || ''}`.trim()
+                : (doctor.fullName || doctor.firstName || '');
+              const userFullName = user.fullName ?? `${user.firstName || ''} ${user.lastName || ''}`.trim();
+              const linkResult = await userLinkRepository.linkUser({
+                userID: user.userID,
+                organizationID,
+                body: {
+                  action: 'add',
+                  reporter: {
+                    id: doctorId,
+                    name: doctorFullName,
+                  },
+                  assignees: [
+                    {
+                      id: user.userID,
+                      name: userFullName || user.userID,
+                    },
+                  ],
+                },
+              });
+              if (!linkResult) {
+                logger.warn({ event: 'service_createUser_doctor_link_failed', doctorId, userId: user.userID });
+              } else {
+                logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
+              }
+            }
+          } catch (err) {
+            logger.warn({ event: 'service_createUser_doctor_link_error', err: serializeError(err) });
+          }
+        } else {
+          logger.warn({ event: 'service_createUser_doctor_missing_id' });
         }
       }
 

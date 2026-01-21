@@ -178,6 +178,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       correlationId,
       authHeader,
       body?.userInfo?.friendNFamily,
+      body?.userInfo?.assignDoctor,
     );
 
     if (roleIds.length > 0) {

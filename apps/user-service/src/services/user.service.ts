@@ -1,4 +1,4 @@
-import { UserRepository } from '../repositories/user.repository';
+import { UserRepository, ListOrganizationUsersOptions } from '../repositories/user.repository';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile } from '../models';
@@ -559,13 +559,16 @@ export class UserService {
     }
   }
 
-  async listOrganizationUsers(organizationId: string): Promise<User[]> {
+  async listOrganizationUsers(
+    organizationId: string,
+    options?: ListOrganizationUsersOptions,
+  ): Promise<User[]> {
     const timer = createPerformanceTimer(baseLogger, 'listOrganizationUsers');
     const logger = createChildLogger(baseLogger, { organizationId });
     logger.info({ event: 'service_listOrganizationUsers_start' });
 
     try {
-      const users = await this.repository.listOrganizationUsers(organizationId);
+      const users = await this.repository.listOrganizationUsers(organizationId, options);
       logger.info({ event: 'service_listOrganizationUsers_success', count: users.length });
       timer.end();
       return users;

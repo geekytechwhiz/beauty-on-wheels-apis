@@ -124,13 +124,14 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
+    let definedRoleCode: string | undefined;
     if (roleIds.length > 0) {
       logger.info({
         event: 'createUser_role_check_start',
         organizationID: body.organizationID,
         roleIds,
       });
-      await Promise.all(
+      const roleMetas = await Promise.all(
         roleIds.map(async (roleId: string) => {
           const roleMeta = await getRoleDetails(roleId, body.organizationID, authHeader);
           if (!roleMeta || (Array.isArray(roleMeta) && roleMeta.length === 0)) {
@@ -142,14 +143,32 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
               organizationID: body.organizationID,
             });
           }
+          logger.info({ event: 'createUser_role_check_success', roleMeta });
+          return roleMeta;
         }),
       );
+      const metaWithRoleCode = roleMetas.find((meta) => {
+        if (!meta) return false;
+        if (Array.isArray(meta)) {
+          return meta.some((item) => (item as any)?.definedRoleCode);
+        }
+        return (meta as any)?.definedRoleCode;
+      });
+      if (metaWithRoleCode) {
+        definedRoleCode = Array.isArray(metaWithRoleCode)
+          ? (metaWithRoleCode.find((item) => (item as any)?.definedRoleCode) as any)?.definedRoleCode
+          : (metaWithRoleCode as any)?.definedRoleCode;
+      }
     } else {
       logger.warn({
         event: 'createUser_role_missing',
         organizationID: body.organizationID,
         userType: userTypeUpper,
       });
+    }
+    logger.info({ event: 'createUser_definedRoleCode', definedRoleCode });
+    if (definedRoleCode) {
+      userData.definedRoleCode = definedRoleCode;
     }
 
     const result = await userService.createUser(

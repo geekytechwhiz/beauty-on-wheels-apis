@@ -23,6 +23,7 @@ export interface User {
   countryCode?: string;
   createdDate: number;
   dateOfBirth?: string;
+  definedRoleCode?: string;
   department?: string;
   emailAddress: string;
   emailVerified?: boolean;

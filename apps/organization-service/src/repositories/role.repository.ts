@@ -8,7 +8,11 @@ const buildHeaders = (authHeader?: string) => ({
 });
 
 export class RoleRepository {
-  async createDefaultRoles(organizationId: string, authHeader?: string): Promise<boolean> {
+  async createDefaultRoles(
+    organizationId: string,
+    authHeader?: string,
+    payload?: Record<string, unknown>,
+  ): Promise<boolean> {
     const baseUrl = process.env.ROLE_API_URL;
     const logger = createChildLogger(baseLogger, { organizationId });
     if (!baseUrl) {
@@ -21,7 +25,7 @@ export class RoleRepository {
       const response = await fetch(url, {
         method: 'POST',
         headers: buildHeaders(authHeader),
-        body: JSON.stringify({ isOnboarding: true }),
+        body: JSON.stringify(payload ?? { isOnboarding: true }),
       });
       if (!response.ok) {
         logger.warn({ event: 'organization_roles_api_non_ok', status: response.status });

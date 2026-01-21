@@ -218,32 +218,112 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const userId = event.pathParameters?.userId;
-  const organizationId = event.pathParameters?.organizationId;
 
+  // Scenario 1: Get userId and organizationId from path parameters (if provided in URL)
+  let userId = event.pathParameters?.userId?.trim();
+  let organizationId = event.pathParameters?.organizationId?.trim();
+
+  // Normalize empty strings to undefined
+  if (userId === '') userId = undefined;
+  if (organizationId === '') organizationId = undefined;
+
+  // Scenario 2: If not provided in URL, extract from authorization token
+  
   if (!userId || !organizationId) {
-    const duration = Date.now() - startTime;
+    // Extract from authorizer token (if available)
+    const authorizer = (event.requestContext as any)?.authorizer;
+    
+    if (!userId) {
+      userId = authorizer?.userID || authorizer?.userId || (event as any).userID || (event as any).userId;
+    }
+    
+    if (!organizationId) {
+      organizationId = authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (event as any).organizationId;
+    }
+
+    // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
+    if ((!userId || !organizationId) && event.headers?.Authorization) {
+      try {
+        const authHeader = event.headers.Authorization || event.headers.authorization;
+        if (authHeader && typeof authHeader === 'string') {
+          const token = authHeader.replace('Bearer ', '').trim();
+          // Decode JWT without verification (for development/testing)
+          // In production, this should be handled by the authorizer
+          const base64Url = token.split('.')[1];
+          if (base64Url) {
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+              Buffer.from(base64, 'base64')
+                .toString()
+                .split('')
+                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+            );
+            const decoded = JSON.parse(jsonPayload);
+            
+            // Extract from common JWT claim formats
+            if (!userId) {
+              userId = decoded['custom:userID'] || decoded['custom:userId'] || decoded.userID || decoded.userId || decoded.sub;
+            }
+            if (!organizationId) {
+              organizationId = decoded['custom:organizationID'] || decoded['custom:organizationId'] || decoded.organizationID || decoded.organizationId;
+            }
+          }
+        }
+      } catch (err) {
+        // Continue without token decoding - will validate below
+      }
+    }
+  }
+
+  // Validate that we have both userId and organizationId
+  if (!userId || !organizationId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 400, duration, correlationId);
+    const duration = Date.now() - startTime;
+    const defaultPath = event.pathParameters?.userId && event.pathParameters?.organizationId
+      ? '/dev/user/organization/{organizationId}/{userId}'
+      : '/dev/user/organization';
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       { requestId: correlationId, event },
-      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
+      { 
+        code: 'BAD_REQUEST', 
+        details: [{ 
+          message: !userId && !organizationId
+            ? 'userId and organizationId are required. Please provide them either in the URL path parameters or in the authorization token.'
+            : !userId
+            ? 'userId is required. Please provide it either in the URL path parameter or in the authorization token.'
+            : 'organizationId is required. Please provide it either in the URL path parameter or in the authorization token.'
+        }] 
+      },
     );
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'getUser_received', eventData: event });
-
+  const userIdSource = event.pathParameters?.userId ? 'url' : 'token';
+  const organizationIdSource = event.pathParameters?.organizationId ? 'url' : 'token';
+  logger.info({ event: 'getUser_received', userIdSource, organizationIdSource });
+  
   try {
-    const result = await userService.getUser(userId,organizationId);
+    const user = await userService.getUser(userId, organizationId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 200, duration, correlationId);
-    return ApiResponse.ok(result, 'USER.USER_RETRIEVED_SUCCESS', { requestId: correlationId, event });
+    const defaultPath = event.pathParameters?.userId && event.pathParameters?.organizationId
+      ? `/dev/user/organization/${organizationId}/${userId}`
+      : '/dev/user/organization';
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 200, duration, correlationId);
+    return ApiResponse.ok(
+      user,
+      'USER.USER_RETRIEVED_SUCCESS',
+      { requestId: correlationId, event },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
+    const defaultPath = event.pathParameters?.userId && event.pathParameters?.organizationId
+      ? `/dev/user/organization/${organizationId}/${userId}`
+      : '/dev/user/organization';
     if (err instanceof UserNotFoundError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 404, duration, correlationId);
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 404, duration, correlationId);
       return ApiResponse.notFound(
         'USER.USER_NOT_FOUND',
         { requestId: correlationId, event },
@@ -251,7 +331,7 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
       );
     }
     logger.error({ event: 'getUser_error', err: serializeError(err) });
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 500, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 500, duration, correlationId);
     return ApiResponse.internalServerError(
       'USER.GET_USER_FAILED',
       { requestId: correlationId, event },
@@ -578,14 +658,10 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'userId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
     );
   }
 
@@ -599,7 +675,7 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     logger.error({ event: 'updateUserMetadata_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
-    return badRequest(
+    return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
       { requestId: correlationId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },

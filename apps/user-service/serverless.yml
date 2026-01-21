@@ -50,6 +50,7 @@ provider:
     ORGANIZATION_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_API_URL, ''}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
 
+
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
@@ -347,18 +348,31 @@ functions:
     timeout: 5
     memorySize: 256
     events:
+      # Endpoint with path parameters: /dev/user/organization/{organizationId}/{userId}
       - http:
           path: user/organization/{organizationId}/{userId}
           method: get
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
-            summary: Get user by ID
-            description: Retrieves user information by user ID and organization ID
+            summary: Get user by ID (with path parameters)
+            description: "Retrieves user information by user ID and organization ID from URL path parameters."
             tags:
               - Users
             headers:
+              - name: Authorization
+                description: Bearer token for authentication
+                schema:
+                  type: string
+                  format: bearer
+                required: true
               - name: X-Correlation-Id
                 description: Request correlation ID for tracing
                 schema:
@@ -397,6 +411,63 @@ functions:
                       requestId: "req-123"
               400:
                 $ref: '#/components/responses/BadRequest'
+              401:
+                $ref: '#/components/responses/Unauthorized'
+              404:
+                $ref: '#/components/responses/NotFound'
+              500:
+                $ref: '#/components/responses/InternalServerError'
+      # Endpoint without path parameters: /dev/user/organization (extracts from token)
+      - http:
+          path: user/organization
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          documentation:
+            summary: Get user by ID (from token)
+            description: "Retrieves user information by extracting userId and organizationId from the authorization token."
+            tags:
+              - Users
+            headers:
+              - name: Authorization
+                description: Bearer token for authentication. Required - userId and organizationId will be extracted from this token.
+                schema:
+                  type: string
+                  format: bearer
+                required: true
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
+                schema:
+                  type: string
+                required: false
+            responses:
+              200:
+                description: User retrieved successfully
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessResponse'
+                    example:
+                      data:
+                        userID: "550e8400-e29b-41d4-a716-446655440000"
+                        organizationID: "660e8400-e29b-41d4-a716-446655440001"
+                        emailAddress: "john.doe@example.com"
+                        fullName: "John Doe"
+                        phoneNumber: "+1234567890"
+                        isActive: true
+                        createdDate: 1699123456789
+                      requestId: "req-123"
+              400:
+                $ref: '#/components/responses/BadRequest'
+              401:
+                $ref: '#/components/responses/Unauthorized'
               404:
                 $ref: '#/components/responses/NotFound'
               500:

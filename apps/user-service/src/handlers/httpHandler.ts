@@ -597,14 +597,10 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'userId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
     );
   }
 
@@ -618,7 +614,7 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     logger.error({ event: 'updateUserMetadata_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
-    return badRequest(
+    return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
       { requestId: correlationId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },

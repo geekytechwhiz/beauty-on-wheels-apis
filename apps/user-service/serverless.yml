@@ -203,16 +203,19 @@ custom:
       PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://m226zl2j20.execute-api.us-east-1.amazonaws.com/dev'
       ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
     stg:
       WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
       PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
       ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/stg'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
     prd:
       WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
       PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
       ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/prd'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
 
   cors:
     origin: ${env:CORS_ORIGIN, '*'}
@@ -1073,6 +1076,11 @@ resources:
             Value: serverless
 
   Outputs:
+    UserServiceBaseUrl:
+      Description: "Base URL for the User Service"
+      Value: ${self:custom.stageUrls.${opt:stage, 'dev'}.USER_SERVICE_BASE_URL}
+      Export:
+        Name: ${self:provider.stage}-UserServiceBaseUrl
     UserRemindersQueueUrl:
       Description: URL of the User Reminders Queue
       Value: !Ref UserRemindersQueue

@@ -12,7 +12,7 @@ export class OrganizationRepository {
     }
 
     try {
-      const url = `${apiBaseUrl.replace(/\/$/, '')}/${organizationId}`;
+      const url = `${apiBaseUrl.replace(/\/$/, '')}/organization/${organizationId}`;
       const response = await axios.get(url, {
         headers: {
           'Content-Type': 'application/json',

@@ -40,18 +40,6 @@ export interface OrganizationUserRemovedData {
   removedAt: string;
 }
 
-export interface OrganizationDeviceAssignedData {
-  organizationId: string;
-  deviceId: string;
-  assignedAt: string;
-}
-
-export interface OrganizationDeviceRemovedData {
-  organizationId: string;
-  deviceId: string;
-  removedAt: string;
-}
-
 export interface OrganizationMetadataUpdatedData {
   organizationId: string;
   metadata: Record<string, unknown>;

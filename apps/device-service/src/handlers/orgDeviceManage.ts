@@ -77,13 +77,13 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
           logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
           return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'devices array is required for remove action' }] });
         }
-        const deviceIds = validation.data.devices.map((d) => d.deviceId);
-        result = await orgDeviceService.removeDevicesFromOrganization(targetOrgId, deviceIds, correlationId);
-        const duration = Date.now() - startTime;
-        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, duration, correlationId);
-        return ApiResponse.ok(result, 'DEVICE.ORGANIZATION_DEVICES_REMOVED_SUCCESS', { requestId: correlationId, event });
-
-      case 'update':
+        {
+          const deviceIds = validation.data.devices.map((d) => d.deviceId);
+          result = await orgDeviceService.removeDevicesFromOrganization(targetOrgId, deviceIds, correlationId);
+          const duration = Date.now() - startTime;
+          logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 200, duration, correlationId);
+          return ApiResponse.ok(result, 'DEVICE.ORGANIZATION_DEVICES_REMOVED_SUCCESS', { requestId: correlationId, event });
+        }
         if (!validation.data.deviceId) {
           const duration = Date.now() - startTime;
           logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 400, duration, correlationId);
@@ -91,10 +91,10 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
         }
         await orgDeviceService.updateOrgDevice(
           targetOrgId,
-          validation.data.deviceId,
+          validation?.data?.deviceId ?? '',
           {
-            enabled: validation.data.enabled,
-            isAutoSyncSupported: validation.data.isAutoSyncSupported,
+            enabled: validation?.data?.enabled,
+            isAutoSyncSupported: validation?.data?.isAutoSyncSupported,
           },
           correlationId,
         );

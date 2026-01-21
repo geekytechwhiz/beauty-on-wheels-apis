@@ -195,3 +195,11 @@ functions:
           path: devices/recommendations/remove
           method: post
           cors: true
+
+  deviceGlobalRegister:
+    handler: src/handlers/deviceGlobalRegister.handler
+    events:
+      - http:
+          path: devices/global/register
+          method: post
+          cors: true

@@ -113,6 +113,21 @@ export const deviceRecommendationRemoveSchema = z.object({
   deviceId: z.string().min(1),
 });
 
+// Global device registration schema (POST /devices/global/register)
+export const globalDeviceRegistrationSchema = z.object({
+  devices: z
+    .array(
+      z.object({
+        deviceId: z.string().min(1),
+        category: z.string().min(1),
+        name: z.string().min(1),
+        enabled: z.boolean().optional().default(true),
+        countriesSupported: z.array(z.string()).optional(),
+      }).passthrough(), // Allow additional fields from devices.json
+    )
+    .min(1),
+});
+
 // Helper function to check if device is third-party
 export function isThirdPartyApp(deviceCategory: string): boolean {
   return THIRD_PARTY_APPS.includes(deviceCategory.toUpperCase());

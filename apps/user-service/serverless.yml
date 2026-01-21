@@ -49,6 +49,8 @@ provider:
     ROLE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ROLE_API_URL, ''}
     ORGANIZATION_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_API_URL, ''}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    SEARCH_FNF_LAMBDA: ${env:SEARCH_FNF_LAMBDA, ''}
+    ADD_FRIEND_N_FAMILY_LAMBDA: ${env:ADD_FRIEND_N_FAMILY_LAMBDA, ''}
 
   tags:
     Service: ${self:service}
@@ -110,6 +112,14 @@ provider:
         - sns:Publish
       Resource:
         - arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
+
+    # Lambda invoke
+    - Effect: Allow
+      Action:
+        - lambda:InvokeFunction
+      Resource:
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_friend_family_add_member
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_friend_family_search
 
     # X-Ray
     - Effect: Allow

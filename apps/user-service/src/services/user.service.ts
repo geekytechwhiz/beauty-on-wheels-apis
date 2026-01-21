@@ -8,8 +8,10 @@ import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
+import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+const friendFamilyRepository = new FriendFamilyRepository();
 function generateSortableId() {
   const now = Date.now();
   const timePart = now.toString(36).toUpperCase().padStart(6, '0');
@@ -36,6 +38,7 @@ export class UserService {
     invitedBy?: string,
     correlationId?: string,
     authHeader?: string,
+    friendNFamily?: Record<string, unknown>,
   ): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     // Generate ULID if userID is not provided
@@ -226,6 +229,50 @@ export class UserService {
       // Add user-organization mapping (future multi-org support)
       await this.repository.assignUserToOrganization(user);
 
+      if (friendNFamily && Object.keys(friendNFamily).length > 0 && organizationID) {
+        const fullNameRaw = String((friendNFamily as any).name || '').trim();
+        const nameMatch = fullNameRaw.match(/^(\S+)\s+(.+)/);
+        const fnfFirstName = nameMatch ? nameMatch[1] : fullNameRaw;
+        const fnfLastName = nameMatch ? nameMatch[2] : '';
+        const fnfEmail = String((friendNFamily as any).email || '').trim();
+        const fnfPhoneCode = String((friendNFamily as any).phoneCode || '').trim();
+        const fnfPhone = String((friendNFamily as any).phone || '').trim();
+        const fullPhoneNumber = fnfPhoneCode ? `${fnfPhoneCode}${fnfPhone}` : fnfPhone;
+        const friendNFamilyFullName = `${fnfFirstName}${fnfLastName ? ` ${fnfLastName}` : ''}`.trim();
+        const definedRoleCode = String((user as any).definedRoleCode || '').toUpperCase();
+        const fnfRole = definedRoleCode === 'FRIEND' || definedRoleCode === 'FAMILY' ? definedRoleCode : 'FAMILY';
+        try {
+          const searchResult = await friendFamilyRepository.searchFnf({
+            body: {
+              email: fnfEmail,
+              phone: fullPhoneNumber,
+              firstName: fnfFirstName,
+              lastName: fnfLastName,
+              roles: [fnfRole],
+            },
+            userID: user.userID,
+            organizationID,
+          });
+          const memberId = searchResult?.invitedUser;
+          if (searchResult?.success && memberId) {
+            await friendFamilyRepository.addFriendFamily({
+              body: {
+                memberId,
+                userId: user.userID,
+                userName: user.fullName ?? user.firstName ?? '',
+                memberName: friendNFamilyFullName,
+              },
+              organizationID,
+            });
+            logger.info({ event: 'service_createUser_friend_family_linked', memberId, userId: user.userID });
+          } else if (searchResult) {
+            logger.warn({ event: 'service_createUser_friend_family_not_found', result: searchResult });
+          }
+        } catch (err) {
+          logger.warn({ event: 'service_createUser_friend_family_failed', err: serializeError(err) });
+        }
+      }
+
       try {
         const userTypeUpper = String(user.userType || '').toUpperCase();
         const isStaff = userTypeUpper === 'STAFF';
@@ -308,17 +355,23 @@ export class UserService {
           });
         }
 
-        await notifyUser({
-          userId: user.userID,
-          email: user.emailAddress,
-          phone: notifyPhone,
-          name: user.fullName ?? user.firstName ?? '',
-          deviceToken,
-          channels,
-          template,
-          templateData,
-          correlationId,
-        });
+        const definedRoleCode = String((user as any).definedRoleCode || '').toUpperCase();
+        const isFnfRole = definedRoleCode === 'FRIEND' || definedRoleCode === 'FAMILY';
+        if (isFnfRole) {
+          logger.info({ event: 'service_createUser_notification_skipped', definedRoleCode });
+        } else {
+          await notifyUser({
+            userId: user.userID,
+            email: user.emailAddress,
+            phone: notifyPhone,
+            name: user.fullName ?? user.firstName ?? '',
+            deviceToken,
+            channels,
+            template,
+            templateData,
+            correlationId,
+          });
+        }
       } catch (notifyErr) {
         logger.warn({ event: 'service_createUser_notification_failed', err: serializeError(notifyErr) });
       }

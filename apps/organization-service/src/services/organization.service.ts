@@ -100,6 +100,7 @@ export class OrganizationService {
         insurancePartnerships: data.insurancePartnerships,
         remoteWellnessSupport: data.remoteWellnessSupport,
         corporateDiscounts: data.corporateDiscounts,
+        adminDetails: data.adminDetails,
         modules: data.modules,
         devices: data.devices,
         supportedVitals: data.supportedVitals,
@@ -201,6 +202,7 @@ export class OrganizationService {
       if (updates.description !== undefined) updatedFields.description = updates.description;
       if (updates.industry !== undefined) updatedFields.industry = updates.industry;
       if (updates.size !== undefined) updatedFields.size = updates.size;
+      if (updates.adminDetails !== undefined) updatedFields.adminDetails = updates.adminDetails;
 
       await publishEvent(
         {

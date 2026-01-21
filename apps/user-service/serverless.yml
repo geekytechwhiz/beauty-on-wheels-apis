@@ -857,6 +857,47 @@ functions:
                 schema:
                   type: string
                   example: "660e8400-e29b-41d4-a716-446655440001"
+            queryStringParameters:
+              - name: limit
+                description: Maximum number of users to return (default server-side, max 100)
+                required: false
+                schema:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+              - name: offset
+                description: Zero-based offset into the full result set
+                required: false
+                schema:
+                  type: integer
+                  minimum: 0
+              - name: status
+                description: Filter users by status (e.g. active, inactive)
+                required: false
+                schema:
+                  type: string
+              - name: userType
+                description: Filter users by userType (e.g. USER, STAFF, FNF)
+                required: false
+                schema:
+                  type: string
+              - name: search
+                description: Free-text search across name and email fields
+                required: false
+                schema:
+                  type: string
+              - name: sortBy
+                description: Field to sort by (createdDate, fullName, firstName, lastName, emailAddress)
+                required: false
+                schema:
+                  type: string
+                  enum: [createdDate, fullName, firstName, lastName, emailAddress]
+              - name: sortOrder
+                description: Sort direction
+                required: false
+                schema:
+                  type: string
+                  enum: [asc, desc]
             responses:
               200:
                 description: Organization users retrieved successfully

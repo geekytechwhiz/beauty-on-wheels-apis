@@ -58,6 +58,31 @@ const userOrgPk = (organizationId: string): string => {
   return `ORG#${organizationId}`;
 }
 
+export interface ListOrganizationUsersOptions {
+  limit?: number;
+  offset?: number;
+  /**
+   * Filter by user status (case-insensitive).
+   */
+  status?: string;
+  /**
+   * Filter by userType (e.g. "USER", "STAFF", "FNF"), case-insensitive.
+   */
+  userType?: string;
+  /**
+   * Free-text search across common user fields.
+   */
+  search?: string;
+  /**
+   * Field used for in-memory sorting. Defaults to "createdDate".
+   */
+  sortBy?: 'createdDate' | 'fullName' | 'firstName' | 'lastName' | 'emailAddress';
+  /**
+   * Sort direction. Defaults to "desc".
+   */
+  sortOrder?: 'asc' | 'desc';
+}
+
 export class UserRepository {
   async createUser(user: User): Promise<void> {
     const item = modifyIndexesUsers(user);
@@ -379,29 +404,111 @@ export class UserRepository {
     }
   }
 
-  async listOrganizationUsers(organizationId: string): Promise<User[]> {
+  async listOrganizationUsers(
+    organizationId: string,
+    options: ListOrganizationUsersOptions = {},
+  ): Promise<User[]> {
+    const {
+      limit,
+      offset = 0,
+      status,
+      userType,
+      search,
+      sortBy = 'createdDate',
+      sortOrder = 'desc',
+    } = options;
+
     try {
-      console.info( 'listOrganizationUsers', organizationId );
-      console.info( 'userOrgPk(organizationId)', userOrgPk(organizationId) );
-      console.info( 'begins_with(SK, :skPrefix)', 'USER#' );
-      console.info( 'ExpressionAttributeValues', {
-        ':pk': userOrgPk(organizationId),
-        ':skPrefix': 'USER#',
-      } );
+      console.info('listOrganizationUsers', organizationId, {
+        limit,
+        offset,
+        status,
+        userType,
+        search,
+        sortBy,
+        sortOrder,
+      });
+
       // First try with lowercase key names (pk/sk)
       try {
+        const queryLimit =
+          typeof limit === 'number' && limit > 0 ? limit + Math.max(offset, 0) : undefined;
+
         const result = await docClient.send(
           new QueryCommand({
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
             ExpressionAttributeValues: {
-              ':pk': `ORG#${organizationId}`, // userOrgPk(organizationId),
+              ':pk': `ORG#${organizationId}`,
               ':skPrefix': 'USER#',
             },
+            ...(queryLimit ? { Limit: queryLimit } : {}),
           }),
         );
 
-        return (result.Items ?? []) as User[];
+        let users = (result.Items ?? []) as User[];
+
+        // In-memory filtering
+        if (status) {
+          const statusLc = status.toLowerCase();
+          users = users.filter(
+            (u) => String((u as any).status ?? '').toLowerCase() === statusLc,
+          );
+        }
+
+        if (userType) {
+          const userTypeLc = userType.toLowerCase();
+          users = users.filter(
+            (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
+          );
+        }
+
+        if (search) {
+          const term = search.toLowerCase();
+          users = users.filter((u) => {
+            const fullName = String((u as any).fullName ?? '').toLowerCase();
+            const firstName = String((u as any).firstName ?? '').toLowerCase();
+            const lastName = String((u as any).lastName ?? '').toLowerCase();
+            const emailAddress = String((u as any).emailAddress ?? '').toLowerCase();
+            return (
+              fullName.includes(term) ||
+              firstName.includes(term) ||
+              lastName.includes(term) ||
+              emailAddress.includes(term)
+            );
+          });
+        }
+
+        // In-memory sorting
+        users.sort((a: any, b: any) => {
+          const dir = sortOrder === 'asc' ? 1 : -1;
+          const aVal = a[sortBy];
+          const bVal = b[sortBy];
+
+          if (aVal == null && bVal == null) return 0;
+          if (aVal == null) return 1 * dir;
+          if (bVal == null) return -1 * dir;
+
+          if (typeof aVal === 'number' && typeof bVal === 'number') {
+            return (aVal - bVal) * dir;
+          }
+
+          const aStr = String(aVal).toLowerCase();
+          const bStr = String(bVal).toLowerCase();
+          if (aStr < bStr) return -1 * dir;
+          if (aStr > bStr) return 1 * dir;
+          return 0;
+        });
+
+        // In-memory pagination
+        const safeOffset = Math.max(offset, 0);
+        if (limit && limit > 0) {
+          return users.slice(safeOffset, safeOffset + limit);
+        }
+        if (safeOffset > 0) {
+          return users.slice(safeOffset);
+        }
+        return users;
       } catch (innerErr) {
         const name = (innerErr as { name?: string }).name;
         const message = (innerErr as { message?: string }).message || '';
@@ -413,6 +520,11 @@ export class UserRepository {
             pk: userOrgPk(organizationId),
           });
 
+          const queryLimit =
+            typeof limit === 'number' && limit > 0
+              ? limit + Math.max(offset, 0)
+              : undefined;
+
           const fallbackResult = await docClient.send(
             new QueryCommand({
               TableName: USER_TABLE_NAME,
@@ -421,10 +533,70 @@ export class UserRepository {
                 ':pk': userOrgPk(organizationId),
                 ':skPrefix': 'USER#',
               },
+              ...(queryLimit ? { Limit: queryLimit } : {}),
             }),
           );
 
-          return (fallbackResult.Items ?? []) as User[];
+          let users = (fallbackResult.Items ?? []) as User[];
+
+          if (status) {
+            const statusLc = status.toLowerCase();
+            users = users.filter(
+              (u) => String((u as any).status ?? '').toLowerCase() === statusLc,
+            );
+          }
+
+          if (userType) {
+            const userTypeLc = userType.toLowerCase();
+            users = users.filter(
+              (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
+            );
+          }
+
+          if (search) {
+            const term = search.toLowerCase();
+            users = users.filter((u) => {
+              const fullName = String((u as any).fullName ?? '').toLowerCase();
+              const firstName = String((u as any).firstName ?? '').toLowerCase();
+              const lastName = String((u as any).lastName ?? '').toLowerCase();
+              const emailAddress = String((u as any).emailAddress ?? '').toLowerCase();
+              return (
+                fullName.includes(term) ||
+                firstName.includes(term) ||
+                lastName.includes(term) ||
+                emailAddress.includes(term)
+              );
+            });
+          }
+
+          users.sort((a: any, b: any) => {
+            const dir = sortOrder === 'asc' ? 1 : -1;
+            const aVal = a[sortBy];
+            const bVal = b[sortBy];
+
+            if (aVal == null && bVal == null) return 0;
+            if (aVal == null) return 1 * dir;
+            if (bVal == null) return -1 * dir;
+
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+              return (aVal - bVal) * dir;
+            }
+
+            const aStr = String(aVal).toLowerCase();
+            const bStr = String(bVal).toLowerCase();
+            if (aStr < bStr) return -1 * dir;
+            if (aStr > bStr) return 1 * dir;
+            return 0;
+          });
+
+          const safeOffset = Math.max(offset, 0);
+          if (limit && limit > 0) {
+            return users.slice(safeOffset, safeOffset + limit);
+          }
+          if (safeOffset > 0) {
+            return users.slice(safeOffset);
+          }
+          return users;
         }
 
         // Any other error, bubble up to outer catch

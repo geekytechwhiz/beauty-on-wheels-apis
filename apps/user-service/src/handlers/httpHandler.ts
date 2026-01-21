@@ -805,8 +805,140 @@ export async function listOrganizationUsers(
   });
   logger.info({ event: 'listOrganizationUsers_received', eventData: event });
 
+  // Extract and validate query params for pagination / filtering / sorting / search
+  const qp = event.queryStringParameters || {};
+
+  const rawLimit = qp.limit ?? qp.pageSize;
+  const rawOffset = qp.offset ?? qp.page ?? qp.pageIndex;
+  const rawStatus = qp.status;
+  const rawUserType = qp.userType;
+  const rawSearch = qp.search ?? qp.q;
+  const rawSortBy = qp.sortBy;
+  const rawSortOrder = qp.sortOrder ?? qp.order;
+
+  let limit: number | undefined;
+  let offset = 0;
+  let sortBy: 'createdDate' | 'fullName' | 'firstName' | 'lastName' | 'emailAddress' | undefined;
+  let sortOrder: 'asc' | 'desc' | undefined;
+
+  const MAX_LIMIT = 100;
+
+  const parseNumber = (value?: string | null): number | undefined => {
+    if (!value) return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  // limit
+  if (rawLimit !== undefined) {
+    const parsed = parseNumber(rawLimit);
+    if (!parsed || parsed <= 0) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'limit must be a positive number' }],
+        },
+      );
+    }
+    limit = Math.min(parsed, MAX_LIMIT);
+  }
+
+  // offset (supports both absolute offset and simple page index)
+  if (rawOffset !== undefined) {
+    const parsed = parseNumber(rawOffset);
+    if (parsed === undefined || parsed < 0) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'offset / page must be a non-negative number' }],
+        },
+      );
+    }
+    offset = parsed;
+  }
+
+  // sortBy
+  if (rawSortBy) {
+    const allowedSortBy = ['createdDate', 'fullName', 'firstName', 'lastName', 'emailAddress'] as const;
+    if (!allowedSortBy.includes(rawSortBy as any)) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: `sortBy must be one of ${allowedSortBy.join(', ')}` }],
+        },
+      );
+    }
+    sortBy = rawSortBy as any;
+  }
+
+  // sortOrder
+  if (rawSortOrder) {
+    const normalized = rawSortOrder.toLowerCase();
+    if (normalized !== 'asc' && normalized !== 'desc') {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'sortOrder must be "asc" or "desc"' }],
+        },
+      );
+    }
+    sortOrder = normalized as any;
+  }
+
   try {
-    const result = await userService.listOrganizationUsers(organizationId);
+    const result = await userService.listOrganizationUsers(organizationId, {
+      limit,
+      offset,
+      status: rawStatus || undefined,
+      userType: rawUserType || undefined,
+      search: rawSearch || undefined,
+      sortBy,
+      sortOrder,
+    });
     const duration = Date.now() - startTime;
     logger.info({ event: 'listOrganizationUsers_success', count: result.length });
     logHttpRequest(

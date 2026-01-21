@@ -355,24 +355,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
           documentation:
             summary: Get user by ID (with path parameters)
             description: "Retrieves user information by user ID and organization ID from URL path parameters."
             tags:
               - Users
             headers:
-              - name: Authorization
-                description: Bearer token for authentication
-                schema:
-                  type: string
-                  format: bearer
-                required: true
               - name: X-Correlation-Id
                 description: Request correlation ID for tracing
                 schema:

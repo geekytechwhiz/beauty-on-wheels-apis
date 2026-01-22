@@ -12,7 +12,7 @@ export class OrgDeviceRepository {
 
   constructor() {
     this.docClient = ddbDocClient;
-    this.tableName = process.env.USER_TABLE || '';
+    this.tableName = process.env.DEVICE_TABLE || '';
   }
 
   /**

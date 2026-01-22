@@ -11,7 +11,7 @@ export class GlobalDeviceRepository {
 
   constructor() {
     this.docClient = ddbDocClient;
-    this.tableName = process.env.USER_TABLE || '';
+    this.tableName = process.env.DEVICE_TABLE || '';
   }
 
   /**
@@ -56,7 +56,7 @@ export class GlobalDeviceRepository {
 
     try {
       if (!this.tableName) {
-        const error = new Error('Table name is not configured. Please set USER_TABLE environment variable.');
+        const error = new Error('Table name is not configured. Please set DEVICE_TABLE environment variable.');
         logger.error({ event: 'global_device_create_error', err: serializeError(error), tableName: this.tableName });
         throw error;
       }

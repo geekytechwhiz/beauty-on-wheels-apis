@@ -79,6 +79,10 @@ provider:
 
 package:
   individually: true
+  patterns:
+    - 'src/utils/devices.json'
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
 
 custom:
   esbuild:
@@ -99,6 +103,8 @@ custom:
       - '.js'
       - '.jsx'
       - '.json'
+    loader:
+      '.json': 'json'
   autoswagger:
     title: Device Service API
     description: RESTful API for managing devices, device-user mappings, organization devices, and recommendations

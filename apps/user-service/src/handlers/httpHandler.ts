@@ -354,6 +354,292 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     );
   }
 
+  const action = body?.action ? String(body.action).toUpperCase() : undefined;
+  if (action) {
+    const duration = Date.now() - startTime;
+    const hasOwn = (obj: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(obj, key);
+    const setIfPresent = (target: Record<string, unknown>, key: string, value: unknown) => {
+      if (hasOwn(body, key)) {
+        target[key] = value;
+      }
+    };
+    const validateWorkingHours = (workingHours: unknown) => {
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      if (!workingHours || typeof workingHours !== 'object') {
+        return 'workingHours must be an object';
+      }
+      const hours = workingHours as Record<string, any>;
+      for (const day of days) {
+        const dayConfig = hours[day];
+        if (!dayConfig || typeof dayConfig !== 'object') {
+          return `${day} must be an object`;
+        }
+        if (typeof dayConfig.available !== 'boolean') {
+          return `${day}.available must be a boolean`;
+        }
+        if (dayConfig.available === true) {
+          if (!Array.isArray(dayConfig.availableHours) || dayConfig.availableHours.length === 0) {
+            return `${day}.availableHours is required when available is true`;
+          }
+          for (const entry of dayConfig.availableHours) {
+            const from = entry?.from;
+            const to = entry?.to;
+            const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            if (!timeRegex.test(String(from || '')) || !timeRegex.test(String(to || ''))) {
+              return `${day}.availableHours must include valid from/to in HH:mm format`;
+            }
+          }
+        }
+      }
+      return undefined;
+    };
+
+    try {
+      const existing = await userService.getUser(userId, organizationId);
+      const userData: Record<string, unknown> = {};
+
+      switch (action) {
+        case 'LANGUAGE': {
+          if (!body?.language) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'language', message: 'language is required' }] },
+            );
+          }
+          userData.language = body.language;
+          break;
+        }
+        case 'DATE_FORMAT': {
+          if (!body?.dateFormat) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'dateFormat', message: 'dateFormat is required' }] },
+            );
+          }
+          userData.dateFormat = body.dateFormat;
+          break;
+        }
+        case 'UNITS_SETTINGS': {
+          const unitsSettings = body?.unitsSettings ?? body?.units;
+          if (!unitsSettings) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'unitsSettings', message: 'unitsSettings is required' }] },
+            );
+          }
+          userData.unitsSettings = unitsSettings;
+          break;
+        }
+        case 'COMMUNICATION_SETTINGS': {
+          const communicationSettings = body?.communicationSettings ?? body?.notifications;
+          if (!communicationSettings) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'communicationSettings', message: 'communicationSettings is required' }] },
+            );
+          }
+          userData.communicationSettings = communicationSettings;
+          break;
+        }
+        case 'GENERAL_SETTINGS': {
+          const keys = [
+            'promotions',
+            'medication',
+            'appointment',
+            'newsAndArticles',
+            'emergencyVital',
+            'medicationReminders',
+            'appointmentReminders',
+            'activityGoals',
+            'healthCheckIn',
+            'debugMode',
+          ];
+          const generalSetting: Record<string, unknown> = {};
+          for (const key of keys) {
+            if (hasOwn(body, key)) {
+              generalSetting[key] = body[key];
+            }
+          }
+          if (Object.keys(generalSetting).length === 0) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'generalSetting', message: 'general settings are required' }] },
+            );
+          }
+          userData.generalSetting = generalSetting;
+          break;
+        }
+        case 'UPLOAD': {
+          const srcRegisEntity = String((existing as any).srcRegisEntity || '').toLowerCase();
+          const emailInput = hasOwn(body, 'emailAddress') ? body.emailAddress : (hasOwn(body, 'email') ? body.email : undefined);
+          const phoneInput = hasOwn(body, 'phoneNumber') ? body.phoneNumber : (hasOwn(body, 'phone') ? body.phone : undefined);
+          if (emailInput !== undefined && srcRegisEntity === 'email') {
+            return ApiResponse.badRequest(
+              'COMMON.BAD_REQUEST',
+              { requestId: correlationId, event },
+              { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
+            );
+          }
+          if (phoneInput !== undefined && (srcRegisEntity === 'phone' || srcRegisEntity === 'phone_number')) {
+            return ApiResponse.badRequest(
+              'COMMON.BAD_REQUEST',
+              { requestId: correlationId, event },
+              { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
+            );
+          }
+
+          setIfPresent(userData, 'profilePic', body.profilePic);
+          setIfPresent(userData, 'firstName', body.firstName);
+          setIfPresent(userData, 'middleName', body.middleName);
+          setIfPresent(userData, 'lastName', body.lastName);
+          setIfPresent(userData, 'fullName', body.fullName);
+          setIfPresent(userData, 'gender', body.gender);
+          setIfPresent(userData, 'weightInLbs', body.weightInLbs);
+          setIfPresent(userData, 'weightInKG', body.weightInKG);
+          setIfPresent(userData, 'heightInCm', body.heightInCm);
+          setIfPresent(userData, 'heightInFeet', body.heightInFeet);
+          setIfPresent(userData, 'country', body.country);
+          setIfPresent(userData, 'dateOfBirth', body.dateOfBirth);
+          setIfPresent(userData, 'address', body.address);
+          setIfPresent(userData, 'postalCode', body.postalCode);
+          setIfPresent(userData, 'zip', body.zip);
+          setIfPresent(userData, 'cloudOpt', body.cloudOpt);
+          setIfPresent(userData, 'additionalPhoneNumbers', body.additionalPhoneNumbers);
+          setIfPresent(userData, 'additionalEmailIDs', body.additionalEmailIDs);
+          setIfPresent(userData, 'isRegisteredCompletely', body.isRegisteredCompletely);
+          setIfPresent(userData, 'appName', body.appName);
+          setIfPresent(userData, 'accountStatus', body.accountStatus);
+          setIfPresent(userData, 'phoneLocale', body.phoneLocale);
+          setIfPresent(userData, 'locale', body.locale);
+          setIfPresent(userData, 'userTimeZone', body.userTimeZone);
+          setIfPresent(userData, 'stateCode', body.stateCode);
+          setIfPresent(userData, 'countryCode', body.countryCode);
+          setIfPresent(userData, 'region', body.region);
+          setIfPresent(userData, 'assignRoomNo', body.assignRoomNo);
+          setIfPresent(userData, 'lastAppointment', body.lastAppointment);
+          setIfPresent(userData, 'state', body.state);
+          setIfPresent(userData, 'street', body.street);
+          setIfPresent(userData, 'city', body.city);
+          setIfPresent(userData, 'position', body.position);
+          setIfPresent(userData, 'department', body.department);
+          setIfPresent(userData, 'licenseNumber', body.licenseNumber);
+          setIfPresent(userData, 'specialty', body.specialty);
+          setIfPresent(userData, 'experienceInYears', body.experienceInYears);
+          setIfPresent(userData, 'bio', body.bio);
+          setIfPresent(userData, 'ethnicity', body.ethnicity);
+          setIfPresent(userData, 'maritalStatus', body.maritalStatus);
+          setIfPresent(userData, 'bloodGroup', body.bloodGroup);
+          setIfPresent(userData, 'namePrefix', body.namePrefix);
+          setIfPresent(userData, 'appleHealthLastSync', body.appleHealthLastSync);
+          setIfPresent(userData, 'googleFitLastSync', body.googleFitLastSync);
+          if (emailInput !== undefined) {
+            userData.emailAddress = emailInput;
+          }
+          if (phoneInput !== undefined) {
+            userData.phoneNumber = phoneInput;
+          }
+          if (hasOwn(body, 'phoneCode')) {
+            userData.phoneCode = body.phoneCode;
+          }
+          if (Array.isArray(body.acceptedAppForms)) {
+            const existingForms = Array.isArray((existing as any).acceptedAppForms)
+              ? (existing as any).acceptedAppForms
+              : [];
+            const merged = [...existingForms];
+            for (const form of body.acceptedAppForms) {
+              const versionId = (form as any)?.versionId;
+              if (!versionId || merged.some((existingForm) => existingForm.versionId === versionId)) {
+                continue;
+              }
+              merged.push({ ...form, acceptedDate: Date.now() });
+            }
+            userData.acceptedAppForms = merged;
+          }
+          break;
+        }
+        case 'DELETE': {
+          userData.profilePic = '';
+          break;
+        }
+        case 'ALLERGIES': {
+          userData.medicalHistory = {
+            ...(existing.medicalHistory || {}),
+            allergies: Array.isArray(body?.allergies) ? body.allergies : [],
+          };
+          break;
+        }
+        case 'CHIEF_MEDICAL_ISSUE': {
+          if (!body?.chiefMedicalIssue) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'chiefMedicalIssue', message: 'chiefMedicalIssue is required' }] },
+            );
+          }
+          userData.chiefMedicalIssue = body.chiefMedicalIssue;
+          break;
+        }
+        case 'SUBSTANCE_MISUSE': {
+          setIfPresent(userData, 'smoking', body.smoking ?? '');
+          setIfPresent(userData, 'alcoholConsumption', body.alcoholConsumption ?? '');
+          break;
+        }
+        case 'EMERGENCY_CONTACT': {
+          if (!body?.emergencyContact || Object.keys(body.emergencyContact).length === 0) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'emergencyContact', message: 'emergencyContact is required' }] },
+            );
+          }
+          userData.emergencyContact = body.emergencyContact;
+          break;
+        }
+        case 'WORKING_HOURS': {
+          const validationMessage = validateWorkingHours(body?.workingHours);
+          if (validationMessage) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'workingHours', message: validationMessage }] },
+            );
+          }
+          userData.workingHours = body.workingHours;
+          if (body?.slotDurationInMinutes !== undefined) {
+            userData.slotDurationInMinutes = body.slotDurationInMinutes;
+          } else {
+            userData.slotDurationInMinutes = 30;
+          }
+          break;
+        }
+        default: {
+          return ApiResponse.badRequest(
+            'COMMON.BAD_REQUEST',
+            { requestId: correlationId, event },
+            { code: 'ACTION_SHOULD_BE_DELETE_AND_UPLOAD' },
+          );
+        }
+      }
+
+      const result = await userService.updateUser(userId, organizationId, userData, correlationId);
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
+      return ApiResponse.ok(result, 'USER.USER_UPDATED_SUCCESS', { requestId: correlationId, event });
+    } catch (err) {
+      logger.error({ event: 'updateUser_action_error', err: serializeError(err) });
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 500, duration, correlationId);
+      return ApiResponse.internalServerError(
+        'USER.UPDATE_USER_FAILED',
+        { requestId: correlationId, event },
+        { code: 'UPDATE_USER_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
+      );
+    }
+  }
+
   const validation = updateUserSchema.safeParse(body);
   if (!validation.success) {
     logger.warn({ event: 'updateUser_validation_error', errors: validation.error.issues });

@@ -1,5 +1,5 @@
 import { ddbDocClient } from '@api-hub/utils';
-import { DynamoDBDocumentClient, QueryCommand, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { GlobalDevice } from '../models';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 
@@ -121,6 +121,7 @@ export class GlobalDeviceRepository {
 
   /**
    * Get device by deviceId
+   * Note: sk3 is not a key attribute, so we query by pk and filter by sk3
    */
   async getDeviceById(deviceId: string): Promise<GlobalDevice | null> {
     const logger = createChildLogger(baseLogger, { deviceId });
@@ -129,7 +130,8 @@ export class GlobalDeviceRepository {
       const result = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
-          KeyConditionExpression: 'pk = :pk AND sk3 = :sk3',
+          KeyConditionExpression: 'pk = :pk',
+          FilterExpression: 'sk3 = :sk3',
           ExpressionAttributeValues: {
             ':pk': 'DEVICE_LIST',
             ':sk3': normalizedDeviceId,
@@ -138,7 +140,7 @@ export class GlobalDeviceRepository {
       );
       return result.Items && result.Items.length > 0 ? (result.Items[0] as GlobalDevice) : null;
     } catch (err) {
-      logger.error({ event: 'get_device_by_id_error', err: serializeError(err) });
+      logger.error({ event: 'get_device_by_id_error', err: serializeError(err), tableName: this.tableName });
       throw err;
     }
   }
@@ -147,7 +149,7 @@ export class GlobalDeviceRepository {
    * Get all unique categories
    */
   async getCategories(): Promise<string[]> {
-    const logger = createChildLogger(baseLogger);
+    const logger = createChildLogger(baseLogger, {});
     try {
       const result = await this.docClient.send(
         new QueryCommand({

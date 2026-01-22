@@ -25,6 +25,17 @@ provider:
 
   logRetentionInDays: 14
 
+  gatewayResponses:
+    UNAUTHORIZED:
+      statusCode: 401
+      responseTemplates:
+        application/json: '{"success":false,"message":"Unauthorized","errorCode":"INVALID_TOKEN","statusCode":401}'
+      responseParameters:
+        headers:
+          Access-Control-Allow-Origin: "'*'"
+          Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id,X-Requested-With'"
+          Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+
   environment:
     REGION: ${self:provider.region}
     DEFAULT_TIMEZONE: Asia/Kolkata

@@ -27,7 +27,7 @@ provider:
 
   environment:
     REGION: ${self:provider.region}
-    USER_TABLE: device-table-${self:provider.stage}
+    DEVICE_TABLE: device-table-${self:provider.stage}
     EVENT_BUS: device-service-bus-${self:provider.stage}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
@@ -53,8 +53,8 @@ provider:
         - dynamodb:BatchWriteItem
         - dynamodb:DescribeTable
       Resource:
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_common_user_data
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_common_user_data/index/*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/device-table-${self:provider.stage} 
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/device-table-${self:provider.stage}/index/*
 
     # EventBridge
     - Effect: Allow
@@ -213,5 +213,73 @@ functions:
     events:
       - http:
           path: devices/global/register
+          method: post
+          cors: true
+
+  # Device-User Mapping APIs
+  deviceUserAssign:
+    handler: src/handlers/deviceUserAssign.handler
+    events:
+      - http:
+          path: devices/{deviceId}/users/{userId}
+          method: post
+          cors: true
+
+  deviceUserRemove:
+    handler: src/handlers/deviceUserRemove.handler
+    events:
+      - http:
+          path: devices/{deviceId}/users/{userId}
+          method: delete
+          cors: true
+
+  deviceUserList:
+    handler: src/handlers/deviceUserList.handler
+    events:
+      - http:
+          path: devices/{deviceId}/users
+          method: get
+          cors: true
+
+  # Device-Organization Mapping APIs
+  deviceOrgAssign:
+    handler: src/handlers/deviceOrgAssign.handler
+    events:
+      - http:
+          path: devices/{deviceId}/organizations/{orgId}
+          method: post
+          cors: true
+
+  deviceOrgRemove:
+    handler: src/handlers/deviceOrgRemove.handler
+    events:
+      - http:
+          path: devices/{deviceId}/organizations/{orgId}
+          method: delete
+          cors: true
+
+  deviceOrgList:
+    handler: src/handlers/deviceOrgList.handler
+    events:
+      - http:
+          path: devices/{deviceId}/organizations
+          method: get
+          cors: true
+
+  # Device Metadata API
+  deviceMetadataUpdate:
+    handler: src/handlers/deviceMetadataUpdate.handler
+    events:
+      - http:
+          path: devices/{deviceId}/metadata
+          method: put
+          cors: true
+
+  # Device Files API
+  deviceFileUpload:
+    handler: src/handlers/deviceFileUpload.handler
+    events:
+      - http:
+          path: devices/{deviceId}/files
           method: post
           cors: true

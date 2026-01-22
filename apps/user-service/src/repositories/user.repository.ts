@@ -174,6 +174,31 @@ export class UserRepository {
       logger.error({ event: 'user_update_error', err: serializeError(err), message: 'Failed to update user' });
       throw err;
     }
+
+    // Best-effort sync to legacy USER_DETAILS item
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userPk(userId),
+            sk: userDetailsSk(),
+          },
+          UpdateExpression: `SET ${updateParts.join(', ')}`,
+          ExpressionAttributeNames: exprNames,
+          ExpressionAttributeValues: exprValues,
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { userId });
+      logger.info({ event: 'user_updated_legacy', message: 'Legacy user updated', fields: Object.keys(updates) });
+    } catch (err: unknown) {
+      const code = (err as { name?: string })?.name;
+      const logger = createChildLogger(baseLogger, { userId });
+      if (code !== 'ConditionalCheckFailedException') {
+        logger.warn({ event: 'user_update_legacy_failed', err: serializeError(err) });
+      }
+    }
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -229,11 +254,11 @@ export class UserRepository {
   }
 
   async listUserOrganizations(userId: string): Promise<UserOrganization[]> {
-    // const logger = createChildLogger(baseLogger, {
-    //   userId,
-    //   pk: userPk(userId),
-    //   skPrefix: 'USER#',
-    // });
+    const logger = createChildLogger(baseLogger, {
+      userId,
+      pk: userPk(userId),
+      skPrefix: 'USER#',
+    });
     console.info({
       event: 'user_orgs_list_start',
       message: 'Listing user organizations',

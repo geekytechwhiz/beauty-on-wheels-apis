@@ -150,6 +150,8 @@ export const updateUserSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   phoneCode: z.string().optional(),
+  name: z.string().optional(),
+  fullName: z.string().optional(),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   dateOfBirth: z.string().optional(),
@@ -158,6 +160,12 @@ export const updateUserSchema = z.object({
   licenseNumber: z.string().optional(),
   bio: z.string().optional(),
   namePrefix: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+  postalCode: z.string().optional(),
+  countryCode: z.string().optional(),
   action: z.string().optional(),
 });
 

@@ -696,7 +696,17 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
       userData.firstName = firstName;
       userData.lastName = lastName;
       userData.fullName = `${firstName} ${lastName}`.trim();
+    } else if (data.fullName !== undefined || data.name !== undefined) {
+      userData.fullName = data.fullName ?? data.name;
     }
+
+    // Map address fields
+    if (data.address !== undefined) userData.address = data.address;
+    if (data.city !== undefined) userData.city = data.city;
+    if (data.state !== undefined) userData.state = data.state;
+    if (data.country !== undefined) userData.country = data.country;
+    if (data.postalCode !== undefined) userData.postalCode = data.postalCode;
+    if (data.countryCode !== undefined) userData.countryCode = data.countryCode;
     
     // Update srcRegisEntity if email or phone is being updated
     if (data.email !== undefined || data.phone !== undefined) {

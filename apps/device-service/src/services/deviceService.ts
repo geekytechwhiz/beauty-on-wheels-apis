@@ -28,30 +28,32 @@ export class DeviceService {
     data: {
       userId: string;
       organizationId: string;
-      configDeviceId: string;
-      displayName: string;
-      deviceCategory: string;
-      companyName: string;
-      modelName: string;
-      platform: string;
-      macAddress?: string;
-      localName?: string;
-      isAutoSyncEnabled: boolean;
-      isAutoSyncSupported: boolean;
-      isSync: boolean;
-      usesExtensionProtocol: boolean;
-      supportsUserAuthentication: boolean;
-      autoSyncDelay: number;
-      userIndex?: number;
-      noOfUsers: number;
-      lastReadingTimeStamp?: number;
-      lastSequenceNumber?: string;
-      databaseUpdateFlag?: boolean;
-      databaseChangeIncrement?: number;
-      isDeviceDeleted?: boolean;
-      iOSIdentifier?: string;
-      isEagleDevice?: boolean;
-      deviceCategoryNum?: string;
+      devices:{
+        configDeviceId: string;
+        displayName: string;
+        deviceCategory: string;
+        companyName: string;
+        modelName: string;
+        // platform: string;
+        // macAddress?: string;
+        // localName?: string;
+        // isAutoSyncEnabled: boolean;
+        // isAutoSyncSupported: boolean;
+        // isSync: boolean;
+        // usesExtensionProtocol: boolean;
+        // supportsUserAuthentication: boolean;
+        // autoSyncDelay: number;
+        // userIndex?: number;
+        // noOfUsers: number;
+        // lastReadingTimeStamp?: number;
+        // lastSequenceNumber?: string;
+        // databaseUpdateFlag?: boolean;
+        // databaseChangeIncrement?: number;
+        // isDeviceDeleted?: boolean;
+        // iOSIdentifier?: string;
+        // isEagleDevice?: boolean;
+        deviceCategoryNum?: string;
+      },
     },
     correlationId?: string,
   ): Promise<{ deviceId: string; configDeviceId: string }> {

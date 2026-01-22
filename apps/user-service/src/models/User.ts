@@ -18,11 +18,14 @@ export interface User {
   changePassword?: boolean;
   code?: string;
   city?: string;
+  chiefMedicalIssue?: string;
   cloudOpt?: string;
   country?: string;
   countryCode?: string;
   createdDate: number;
   dateOfBirth?: string;
+  dateFormat?: string;
+  definedRoleCode?: string;
   department?: string;
   emailAddress: string;
   emailVerified?: boolean;
@@ -33,6 +36,7 @@ export interface User {
   firstName?: string;
   fullName?: string;
   gender?: string;
+  generalSetting?: Record<string, unknown>;
   googleFitLastSync?: string;
   heightInCm?: string;
   heightInFeet?: string;
@@ -60,6 +64,7 @@ export interface User {
     chronicDiseases?: string[];
     symptoms?: string[];
   };
+  communicationSettings?: Record<string, unknown>;
   middleName?: string;
   modifiedDate: number;
   mrn?: string;
@@ -84,6 +89,8 @@ export interface User {
   reporterName?: string;
   reporterProfilePic?: string;
   specialty?: string;
+  smoking?: string;
+  alcoholConsumption?: string;
   srcRegisEntity?: string;
   state?: string;
   stateCode?: string;
@@ -92,6 +99,9 @@ export interface User {
   userID: string;
   userTimeZone?: string;
   userType?: string;
+  unitsSettings?: Record<string, unknown>;
+  workingHours?: Record<string, unknown>;
+  slotDurationInMinutes?: number;
   weightInKG?: string;
   weightInLbs?: string;
   zip?: string;

@@ -5,9 +5,11 @@ import { ApiResponse } from '@api-hub/utils';
 import { createOrganizationSchema } from '../validation/organization.validation';
 import { OrganizationAlreadyExistsError } from '../utils/errors';
 import { normalizeOrganizationPayload, generateOrganizationId } from '../utils/organizationPayload';
+import { RoleRepository } from '../repositories/role.repository';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
+const roleRepository = new RoleRepository();
 
 export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
@@ -31,6 +33,10 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   const normalized = normalizeOrganizationPayload(body);
+  const adminDetails = normalized.data.adminDetails;
+  if (adminDetails === undefined || adminDetails === null) {
+    normalized.data.adminDetails = [];
+  }
   if (normalized.errors.length > 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);
@@ -54,9 +60,10 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     authorizer?.claims?.sub ||
     authorizer?.claims?.['custom:userID'];
 
+  const organizationId = normalized.data.organizationId || generateOrganizationId();
   const payload = {
     ...normalized.data,
-    organizationId: normalized.data.organizationId || generateOrganizationId(),
+    organizationId,
     createdBy: creatorId,
   };
 
@@ -78,6 +85,17 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   try {
+    const authHeader = event.headers?.Authorization || event.headers?.authorization;
+    const rolesCreated = await roleRepository.createDefaultRoles(organizationId, authHeader);
+    if (!rolesCreated) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 500, duration, correlationId);
+      return ApiResponse.internalServerError(
+        'ORGANIZATION.CREATE_ORGANIZATION_FAILED',
+        { requestId: correlationId, event },
+        { code: 'CREATE_DEFAULT_ROLES_FAILED' },
+      );
+    }
     const organization = await organizationService.createOrganization(validationResult.data, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 201, duration, correlationId);

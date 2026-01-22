@@ -124,13 +124,14 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
+    let definedRoleCode: string | undefined;
     if (roleIds.length > 0) {
       logger.info({
         event: 'createUser_role_check_start',
         organizationID: body.organizationID,
         roleIds,
       });
-      await Promise.all(
+      const roleMetas = await Promise.all(
         roleIds.map(async (roleId: string) => {
           const roleMeta = await getRoleDetails(roleId, body.organizationID, authHeader);
           if (!roleMeta || (Array.isArray(roleMeta) && roleMeta.length === 0)) {
@@ -142,14 +143,32 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
               organizationID: body.organizationID,
             });
           }
+          logger.info({ event: 'createUser_role_check_success', roleMeta });
+          return roleMeta;
         }),
       );
+      const metaWithRoleCode = roleMetas.find((meta) => {
+        if (!meta) return false;
+        if (Array.isArray(meta)) {
+          return meta.some((item) => (item as any)?.definedRoleCode);
+        }
+        return (meta as any)?.definedRoleCode;
+      });
+      if (metaWithRoleCode) {
+        definedRoleCode = Array.isArray(metaWithRoleCode)
+          ? (metaWithRoleCode.find((item) => (item as any)?.definedRoleCode) as any)?.definedRoleCode
+          : (metaWithRoleCode as any)?.definedRoleCode;
+      }
     } else {
       logger.warn({
         event: 'createUser_role_missing',
         organizationID: body.organizationID,
         userType: userTypeUpper,
       });
+    }
+    logger.info({ event: 'createUser_definedRoleCode', definedRoleCode });
+    if (definedRoleCode) {
+      userData.definedRoleCode = definedRoleCode;
     }
 
     const result = await userService.createUser(
@@ -158,6 +177,8 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       body.userID,
       correlationId,
       authHeader,
+      body?.userInfo?.friendNFamily,
+      body?.userInfo?.assignDoctor,
     );
 
     if (roleIds.length > 0) {
@@ -218,32 +239,112 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const userId = event.pathParameters?.userId;
-  const organizationId = event.pathParameters?.organizationId;
 
+  // Scenario 1: Get userId and organizationId from path parameters (if provided in URL)
+  let userId = event.pathParameters?.userId?.trim();
+  let organizationId = event.pathParameters?.organizationId?.trim();
+
+  // Normalize empty strings to undefined
+  if (userId === '') userId = undefined;
+  if (organizationId === '') organizationId = undefined;
+
+  // Scenario 2: If not provided in URL, extract from authorization token
+  
   if (!userId || !organizationId) {
-    const duration = Date.now() - startTime;
+    // Extract from authorizer token (if available)
+    const authorizer = (event.requestContext as any)?.authorizer;
+    
+    if (!userId) {
+      userId = authorizer?.userID || authorizer?.userId || (event as any).userID || (event as any).userId;
+    }
+    
+    if (!organizationId) {
+      organizationId = authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (event as any).organizationId;
+    }
+
+    // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
+    if ((!userId || !organizationId) && event.headers?.Authorization) {
+      try {
+        const authHeader = event.headers.Authorization || event.headers.authorization;
+        if (authHeader && typeof authHeader === 'string') {
+          const token = authHeader.replace('Bearer ', '').trim();
+          // Decode JWT without verification (for development/testing)
+          // In production, this should be handled by the authorizer
+          const base64Url = token.split('.')[1];
+          if (base64Url) {
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+              Buffer.from(base64, 'base64')
+                .toString()
+                .split('')
+                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+            );
+            const decoded = JSON.parse(jsonPayload);
+            
+            // Extract from common JWT claim formats
+            if (!userId) {
+              userId = decoded['custom:userID'] || decoded['custom:userId'] || decoded.userID || decoded.userId || decoded.sub;
+            }
+            if (!organizationId) {
+              organizationId = decoded['custom:organizationID'] || decoded['custom:organizationId'] || decoded.organizationID || decoded.organizationId;
+            }
+          }
+        }
+      } catch (err) {
+        // Continue without token decoding - will validate below
+      }
+    }
+  }
+
+  // Validate that we have both userId and organizationId
+  if (!userId || !organizationId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 400, duration, correlationId);
+    const duration = Date.now() - startTime;
+    const defaultPath = event.pathParameters?.userId && event.pathParameters?.organizationId
+      ? '/dev/user/organization/{organizationId}/{userId}'
+      : '/dev/user/organization';
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       { requestId: correlationId, event },
-      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
+      { 
+        code: 'BAD_REQUEST', 
+        details: [{ 
+          message: !userId && !organizationId
+            ? 'userId and organizationId are required. Please provide them either in the URL path parameters or in the authorization token.'
+            : !userId
+            ? 'userId is required. Please provide it either in the URL path parameter or in the authorization token.'
+            : 'organizationId is required. Please provide it either in the URL path parameter or in the authorization token.'
+        }] 
+      },
     );
   }
 
   const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'getUser_received', eventData: event });
-
+  const userIdSource = event.pathParameters?.userId ? 'url' : 'token';
+  const organizationIdSource = event.pathParameters?.organizationId ? 'url' : 'token';
+  logger.info({ event: 'getUser_received', userIdSource, organizationIdSource });
+  
   try {
-    const result = await userService.getUser(userId,organizationId);
+    const user = await userService.getUser(userId, organizationId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 200, duration, correlationId);
-    return ApiResponse.ok(result, 'USER.USER_RETRIEVED_SUCCESS', { requestId: correlationId, event });
+    const defaultPath = event.pathParameters?.userId && event.pathParameters?.organizationId
+      ? `/dev/user/organization/${organizationId}/${userId}`
+      : '/dev/user/organization';
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 200, duration, correlationId);
+    return ApiResponse.ok(
+      user,
+      'USER.USER_RETRIEVED_SUCCESS',
+      { requestId: correlationId, event },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
+    const defaultPath = event.pathParameters?.userId && event.pathParameters?.organizationId
+      ? `/dev/user/organization/${organizationId}/${userId}`
+      : '/dev/user/organization';
     if (err instanceof UserNotFoundError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 404, duration, correlationId);
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 404, duration, correlationId);
       return ApiResponse.notFound(
         'USER.USER_NOT_FOUND',
         { requestId: correlationId, event },
@@ -251,7 +352,7 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
       );
     }
     logger.error({ event: 'getUser_error', err: serializeError(err) });
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `/users/${userId}`, 500, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 500, duration, correlationId);
     return ApiResponse.internalServerError(
       'USER.GET_USER_FAILED',
       { requestId: correlationId, event },
@@ -268,8 +369,8 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   // Extract userId and organizationId from access token (authorizer)
   const authorizer = (event.requestContext as any)?.authorizer;
   
-  let userId = authorizer?.userID || authorizer?.userId || (event as any).userID || (event as any).userId;
-  let organizationId = authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (event as any).organizationId;
+  let userId = (event as any).userId ||(event as any).userID || authorizer?.userID || authorizer?.userId;
+  let organizationId = (event as any).organizationId || (event as any).organizationID || authorizer?.organizationID || authorizer?.organizationId;
   
   // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
   if ((!userId || !organizationId) && event.headers?.Authorization) {
@@ -331,6 +432,292 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
       { requestId: correlationId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
     );
+  }
+
+  const action = body?.action ? String(body.action).toUpperCase() : undefined;
+  if (action) {
+    const duration = Date.now() - startTime;
+    const hasOwn = (obj: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(obj, key);
+    const setIfPresent = (target: Record<string, unknown>, key: string, value: unknown) => {
+      if (hasOwn(body, key)) {
+        target[key] = value;
+      }
+    };
+    const validateWorkingHours = (workingHours: unknown) => {
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      if (!workingHours || typeof workingHours !== 'object') {
+        return 'workingHours must be an object';
+      }
+      const hours = workingHours as Record<string, any>;
+      for (const day of days) {
+        const dayConfig = hours[day];
+        if (!dayConfig || typeof dayConfig !== 'object') {
+          return `${day} must be an object`;
+        }
+        if (typeof dayConfig.available !== 'boolean') {
+          return `${day}.available must be a boolean`;
+        }
+        if (dayConfig.available === true) {
+          if (!Array.isArray(dayConfig.availableHours) || dayConfig.availableHours.length === 0) {
+            return `${day}.availableHours is required when available is true`;
+          }
+          for (const entry of dayConfig.availableHours) {
+            const from = entry?.from;
+            const to = entry?.to;
+            const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            if (!timeRegex.test(String(from || '')) || !timeRegex.test(String(to || ''))) {
+              return `${day}.availableHours must include valid from/to in HH:mm format`;
+            }
+          }
+        }
+      }
+      return undefined;
+    };
+
+    try {
+      const existing = await userService.getUser(userId, organizationId);
+      const userData: Record<string, unknown> = {};
+
+      switch (action) {
+        case 'LANGUAGE': {
+          if (!body?.language) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'language', message: 'language is required' }] },
+            );
+          }
+          userData.language = body.language;
+          break;
+        }
+        case 'DATE_FORMAT': {
+          if (!body?.dateFormat) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'dateFormat', message: 'dateFormat is required' }] },
+            );
+          }
+          userData.dateFormat = body.dateFormat;
+          break;
+        }
+        case 'UNITS_SETTINGS': {
+          const unitsSettings = body?.unitsSettings ?? body?.units;
+          if (!unitsSettings) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'unitsSettings', message: 'unitsSettings is required' }] },
+            );
+          }
+          userData.unitsSettings = unitsSettings;
+          break;
+        }
+        case 'COMMUNICATION_SETTINGS': {
+          const communicationSettings = body?.communicationSettings ?? body?.notifications;
+          if (!communicationSettings) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'communicationSettings', message: 'communicationSettings is required' }] },
+            );
+          }
+          userData.communicationSettings = communicationSettings;
+          break;
+        }
+        case 'GENERAL_SETTINGS': {
+          const keys = [
+            'promotions',
+            'medication',
+            'appointment',
+            'newsAndArticles',
+            'emergencyVital',
+            'medicationReminders',
+            'appointmentReminders',
+            'activityGoals',
+            'healthCheckIn',
+            'debugMode',
+          ];
+          const generalSetting: Record<string, unknown> = {};
+          for (const key of keys) {
+            if (hasOwn(body, key)) {
+              generalSetting[key] = body[key];
+            }
+          }
+          if (Object.keys(generalSetting).length === 0) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'generalSetting', message: 'general settings are required' }] },
+            );
+          }
+          userData.generalSetting = generalSetting;
+          break;
+        }
+        case 'UPLOAD': {
+          const srcRegisEntity = String((existing as any).srcRegisEntity || '').toLowerCase();
+          const emailInput = hasOwn(body, 'emailAddress') ? body.emailAddress : (hasOwn(body, 'email') ? body.email : undefined);
+          const phoneInput = hasOwn(body, 'phoneNumber') ? body.phoneNumber : (hasOwn(body, 'phone') ? body.phone : undefined);
+          if (emailInput !== undefined && srcRegisEntity === 'email') {
+            return ApiResponse.badRequest(
+              'COMMON.BAD_REQUEST',
+              { requestId: correlationId, event },
+              { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
+            );
+          }
+          if (phoneInput !== undefined && (srcRegisEntity === 'phone' || srcRegisEntity === 'phone_number')) {
+            return ApiResponse.badRequest(
+              'COMMON.BAD_REQUEST',
+              { requestId: correlationId, event },
+              { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
+            );
+          }
+
+          setIfPresent(userData, 'profilePic', body.profilePic);
+          setIfPresent(userData, 'firstName', body.firstName);
+          setIfPresent(userData, 'middleName', body.middleName);
+          setIfPresent(userData, 'lastName', body.lastName);
+          setIfPresent(userData, 'fullName', body.fullName);
+          setIfPresent(userData, 'gender', body.gender);
+          setIfPresent(userData, 'weightInLbs', body.weightInLbs);
+          setIfPresent(userData, 'weightInKG', body.weightInKG);
+          setIfPresent(userData, 'heightInCm', body.heightInCm);
+          setIfPresent(userData, 'heightInFeet', body.heightInFeet);
+          setIfPresent(userData, 'country', body.country);
+          setIfPresent(userData, 'dateOfBirth', body.dateOfBirth);
+          setIfPresent(userData, 'address', body.address);
+          setIfPresent(userData, 'postalCode', body.postalCode);
+          setIfPresent(userData, 'zip', body.zip);
+          setIfPresent(userData, 'cloudOpt', body.cloudOpt);
+          setIfPresent(userData, 'additionalPhoneNumbers', body.additionalPhoneNumbers);
+          setIfPresent(userData, 'additionalEmailIDs', body.additionalEmailIDs);
+          setIfPresent(userData, 'isRegisteredCompletely', body.isRegisteredCompletely);
+          setIfPresent(userData, 'appName', body.appName);
+          setIfPresent(userData, 'accountStatus', body.accountStatus);
+          setIfPresent(userData, 'phoneLocale', body.phoneLocale);
+          setIfPresent(userData, 'locale', body.locale);
+          setIfPresent(userData, 'userTimeZone', body.userTimeZone);
+          setIfPresent(userData, 'stateCode', body.stateCode);
+          setIfPresent(userData, 'countryCode', body.countryCode);
+          setIfPresent(userData, 'region', body.region);
+          setIfPresent(userData, 'assignRoomNo', body.assignRoomNo);
+          setIfPresent(userData, 'lastAppointment', body.lastAppointment);
+          setIfPresent(userData, 'state', body.state);
+          setIfPresent(userData, 'street', body.street);
+          setIfPresent(userData, 'city', body.city);
+          setIfPresent(userData, 'position', body.position);
+          setIfPresent(userData, 'department', body.department);
+          setIfPresent(userData, 'licenseNumber', body.licenseNumber);
+          setIfPresent(userData, 'specialty', body.specialty);
+          setIfPresent(userData, 'experienceInYears', body.experienceInYears);
+          setIfPresent(userData, 'bio', body.bio);
+          setIfPresent(userData, 'ethnicity', body.ethnicity);
+          setIfPresent(userData, 'maritalStatus', body.maritalStatus);
+          setIfPresent(userData, 'bloodGroup', body.bloodGroup);
+          setIfPresent(userData, 'namePrefix', body.namePrefix);
+          setIfPresent(userData, 'appleHealthLastSync', body.appleHealthLastSync);
+          setIfPresent(userData, 'googleFitLastSync', body.googleFitLastSync);
+          if (emailInput !== undefined) {
+            userData.emailAddress = emailInput;
+          }
+          if (phoneInput !== undefined) {
+            userData.phoneNumber = phoneInput;
+          }
+          if (hasOwn(body, 'phoneCode')) {
+            userData.phoneCode = body.phoneCode;
+          }
+          if (Array.isArray(body.acceptedAppForms)) {
+            const existingForms = Array.isArray((existing as any).acceptedAppForms)
+              ? (existing as any).acceptedAppForms
+              : [];
+            const merged = [...existingForms];
+            for (const form of body.acceptedAppForms) {
+              const versionId = (form as any)?.versionId;
+              if (!versionId || merged.some((existingForm) => existingForm.versionId === versionId)) {
+                continue;
+              }
+              merged.push({ ...form, acceptedDate: Date.now() });
+            }
+            userData.acceptedAppForms = merged;
+          }
+          break;
+        }
+        case 'DELETE': {
+          userData.profilePic = '';
+          break;
+        }
+        case 'ALLERGIES': {
+          userData.medicalHistory = {
+            ...(existing.medicalHistory || {}),
+            allergies: Array.isArray(body?.allergies) ? body.allergies : [],
+          };
+          break;
+        }
+        case 'CHIEF_MEDICAL_ISSUE': {
+          if (!body?.chiefMedicalIssue) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'chiefMedicalIssue', message: 'chiefMedicalIssue is required' }] },
+            );
+          }
+          userData.chiefMedicalIssue = body.chiefMedicalIssue;
+          break;
+        }
+        case 'SUBSTANCE_MISUSE': {
+          setIfPresent(userData, 'smoking', body.smoking ?? '');
+          setIfPresent(userData, 'alcoholConsumption', body.alcoholConsumption ?? '');
+          break;
+        }
+        case 'EMERGENCY_CONTACT': {
+          if (!body?.emergencyContact || Object.keys(body.emergencyContact).length === 0) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'emergencyContact', message: 'emergencyContact is required' }] },
+            );
+          }
+          userData.emergencyContact = body.emergencyContact;
+          break;
+        }
+        case 'WORKING_HOURS': {
+          const validationMessage = validateWorkingHours(body?.workingHours);
+          if (validationMessage) {
+            return ApiResponse.unprocessableEntity(
+              'COMMON.VALIDATION_ERROR',
+              { requestId: correlationId, event },
+              { code: 'VALIDATION_ERROR', details: [{ field: 'workingHours', message: validationMessage }] },
+            );
+          }
+          userData.workingHours = body.workingHours;
+          if (body?.slotDurationInMinutes !== undefined) {
+            userData.slotDurationInMinutes = body.slotDurationInMinutes;
+          } else {
+            userData.slotDurationInMinutes = 30;
+          }
+          break;
+        }
+        default: {
+          return ApiResponse.badRequest(
+            'COMMON.BAD_REQUEST',
+            { requestId: correlationId, event },
+            { code: 'ACTION_SHOULD_BE_DELETE_AND_UPLOAD' },
+          );
+        }
+      }
+
+      const result = await userService.updateUser(userId, organizationId, userData, correlationId);
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
+      return ApiResponse.ok(result, 'USER.USER_UPDATED_SUCCESS', { requestId: correlationId, event });
+    } catch (err) {
+      logger.error({ event: 'updateUser_action_error', err: serializeError(err) });
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 500, duration, correlationId);
+      return ApiResponse.internalServerError(
+        'USER.UPDATE_USER_FAILED',
+        { requestId: correlationId, event },
+        { code: 'UPDATE_USER_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
+      );
+    }
   }
 
   const validation = updateUserSchema.safeParse(body);
@@ -578,14 +965,10 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
-    return badRequest(
-      {
-        title: 'Invalid request',
-        description: 'userId is required',
-        severity: 'error',
-      },
-      [{ code: 'BAD_REQUEST', message: 'userId is required' }],
-      { correlationId },
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] },
     );
   }
 
@@ -599,7 +982,7 @@ export async function updateUserMetadata(event: APIGatewayProxyEvent, context?: 
     logger.error({ event: 'updateUserMetadata_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}/metadata`, 400, duration, correlationId);
-    return badRequest(
+    return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
       { requestId: correlationId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
@@ -729,8 +1112,140 @@ export async function listOrganizationUsers(
   });
   logger.info({ event: 'listOrganizationUsers_received', eventData: event });
 
+  // Extract and validate query params for pagination / filtering / sorting / search
+  const qp = event.queryStringParameters || {};
+
+  const rawLimit = qp.limit ?? qp.pageSize;
+  const rawOffset = qp.offset ?? qp.page ?? qp.pageIndex;
+  const rawStatus = qp.status;
+  const rawUserType = qp.userType;
+  const rawSearch = qp.search ?? qp.q;
+  const rawSortBy = qp.sortBy;
+  const rawSortOrder = qp.sortOrder ?? qp.order;
+
+  let limit: number | undefined;
+  let offset = 0;
+  let sortBy: 'createdDate' | 'fullName' | 'firstName' | 'lastName' | 'emailAddress' | undefined;
+  let sortOrder: 'asc' | 'desc' | undefined;
+
+  const MAX_LIMIT = 100;
+
+  const parseNumber = (value?: string | null): number | undefined => {
+    if (!value) return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  // limit
+  if (rawLimit !== undefined) {
+    const parsed = parseNumber(rawLimit);
+    if (!parsed || parsed <= 0) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'limit must be a positive number' }],
+        },
+      );
+    }
+    limit = Math.min(parsed, MAX_LIMIT);
+  }
+
+  // offset (supports both absolute offset and simple page index)
+  if (rawOffset !== undefined) {
+    const parsed = parseNumber(rawOffset);
+    if (parsed === undefined || parsed < 0) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'offset / page must be a non-negative number' }],
+        },
+      );
+    }
+    offset = parsed;
+  }
+
+  // sortBy
+  if (rawSortBy) {
+    const allowedSortBy = ['createdDate', 'fullName', 'firstName', 'lastName', 'emailAddress'] as const;
+    if (!allowedSortBy.includes(rawSortBy as any)) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: `sortBy must be one of ${allowedSortBy.join(', ')}` }],
+        },
+      );
+    }
+    sortBy = rawSortBy as any;
+  }
+
+  // sortOrder
+  if (rawSortOrder) {
+    const normalized = rawSortOrder.toLowerCase();
+    if (normalized !== 'asc' && normalized !== 'desc') {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'sortOrder must be "asc" or "desc"' }],
+        },
+      );
+    }
+    sortOrder = normalized as any;
+  }
+
   try {
-    const result = await userService.listOrganizationUsers(organizationId);
+    const result = await userService.listOrganizationUsers(organizationId, {
+      limit,
+      offset,
+      status: rawStatus || undefined,
+      userType: rawUserType || undefined,
+      search: rawSearch || undefined,
+      sortBy,
+      sortOrder,
+    });
     const duration = Date.now() - startTime;
     logger.info({ event: 'listOrganizationUsers_success', count: result.length });
     logHttpRequest(

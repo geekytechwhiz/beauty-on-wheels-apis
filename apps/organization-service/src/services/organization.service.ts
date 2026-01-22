@@ -1,6 +1,6 @@
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationDevice } from '../models';
+import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser } from '../models';
 import { OrganizationNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
@@ -100,6 +100,7 @@ export class OrganizationService {
         insurancePartnerships: data.insurancePartnerships,
         remoteWellnessSupport: data.remoteWellnessSupport,
         corporateDiscounts: data.corporateDiscounts,
+        adminDetails: data.adminDetails,
         modules: data.modules,
         devices: data.devices,
         supportedVitals: data.supportedVitals,
@@ -201,6 +202,7 @@ export class OrganizationService {
       if (updates.description !== undefined) updatedFields.description = updates.description;
       if (updates.industry !== undefined) updatedFields.industry = updates.industry;
       if (updates.size !== undefined) updatedFields.size = updates.size;
+      if (updates.adminDetails !== undefined) updatedFields.adminDetails = updates.adminDetails;
 
       await publishEvent(
         {
@@ -364,103 +366,35 @@ export class OrganizationService {
     }
   }
 
-  async assignDeviceToOrganization(organizationId: string, deviceId: string, correlationId?: string): Promise<void> {
-    const timer = createPerformanceTimer(baseLogger, 'assignDeviceToOrganization', correlationId);
-    const logger = createChildLogger(baseLogger, { correlationId, organizationId, deviceId });
-    logger.info({ event: 'service_assignDeviceToOrg_start' });
+  async listOrganizations(filters?: {
+    organizationId?: string;
+    status?: string[];
+    organizationType?: string[];
+    adminName?: string;
+    organizationName?: string;
+    country?: string;
+    state?: string;
+    city?: string;
+    assignedPackagesName?: string[];
+    limit?: number;
+    nextPaginationKey?: string;
+  }): Promise<{ items: Organization[]; nextPaginationKey?: string | null }> {
+    const timer = createPerformanceTimer(baseLogger, 'listOrganizations');
+    const logger = createChildLogger(baseLogger, { organizationId: filters?.organizationId });
+    logger.info({ event: 'service_listOrganizations_start' });
 
     try {
-      const existing = await this.repository.getOrganization(organizationId);
-      if (!existing) {
-        throw new OrganizationNotFoundError(organizationId);
-      }
-
-      await this.repository.assignDeviceToOrganization(organizationId, deviceId);
-
-      await publishEvent(
-        {
-          eventId: randomUUID(),
-          eventType: 'OrganizationDeviceAssigned.v1',
-          occurredAt: new Date().toISOString(),
-          source: 'organization-service',
-          correlationId,
-          data: {
-            organizationId,
-            deviceId,
-            assignedAt: new Date().toISOString(),
-          },
-        },
-        correlationId,
-      );
-
-      logger.info({ event: 'service_assignDeviceToOrg_success' });
+      const result = await this.repository.listOrganizations(filters);
+      logger.info({ event: 'service_listOrganizations_success', count: result.items.length });
       timer.end();
+      return result;
     } catch (err) {
-      logger.error({ event: 'service_assignDeviceToOrg_error', err: serializeError(err) });
+      logger.error({ event: 'service_listOrganizations_error', err: serializeError(err) });
       timer.end();
       throw err;
     }
   }
 
-  async removeDeviceFromOrganization(organizationId: string, deviceId: string, correlationId?: string): Promise<void> {
-    const timer = createPerformanceTimer(baseLogger, 'removeDeviceFromOrganization', correlationId);
-    const logger = createChildLogger(baseLogger, { correlationId, organizationId, deviceId });
-    logger.info({ event: 'service_removeDeviceFromOrg_start' });
-
-    try {
-      const existing = await this.repository.getOrganization(organizationId);
-      if (!existing) {
-        throw new OrganizationNotFoundError(organizationId);
-      }
-
-      await this.repository.removeDeviceFromOrganization(organizationId, deviceId);
-
-      await publishEvent(
-        {
-          eventId: randomUUID(),
-          eventType: 'OrganizationDeviceRemoved.v1',
-          occurredAt: new Date().toISOString(),
-          source: 'organization-service',
-          correlationId,
-          data: {
-            organizationId,
-            deviceId,
-            removedAt: new Date().toISOString(),
-          },
-        },
-        correlationId,
-      );
-
-      logger.info({ event: 'service_removeDeviceFromOrg_success' });
-      timer.end();
-    } catch (err) {
-      logger.error({ event: 'service_removeDeviceFromOrg_error', err: serializeError(err) });
-      timer.end();
-      throw err;
-    }
-  }
-
-  async listOrganizationDevices(organizationId: string): Promise<OrganizationDevice[]> {
-    const timer = createPerformanceTimer(baseLogger, 'listOrganizationDevices');
-    const logger = createChildLogger(baseLogger, { organizationId });
-    logger.info({ event: 'service_listOrganizationDevices_start' });
-
-    try {
-      const existing = await this.repository.getOrganization(organizationId);
-      if (!existing) {
-        throw new OrganizationNotFoundError(organizationId);
-      }
-
-      const devices = await this.repository.listOrganizationDevices(organizationId);
-      logger.info({ event: 'service_listOrganizationDevices_success', count: devices.length });
-      timer.end();
-      return devices;
-    } catch (err) {
-      logger.error({ event: 'service_listOrganizationDevices_error', err: serializeError(err) });
-      timer.end();
-      throw err;
-    }
-  }
 
   async updateOrganizationMetadata(
     organizationId: string,

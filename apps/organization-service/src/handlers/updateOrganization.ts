@@ -44,6 +44,16 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   const normalized = normalizeOrganizationPayload(body);
+  const hasAdminDetails =
+    body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body as Record<string, unknown>, 'adminDetails');
+  const adminDetails = normalized.data.adminDetails;
+  if (!hasAdminDetails) {
+    normalized.data.adminDetails = undefined;
+  } else if (adminDetails === undefined || adminDetails === null) {
+    normalized.data.adminDetails = [];
+  } else if (!Array.isArray(adminDetails) && typeof adminDetails === 'object') {
+    normalized.data.adminDetails = [adminDetails];
+  }
   if (normalized.data.organizationInfo && typeof normalized.data.organizationInfo === 'object') {
     normalized.data.organizationInfo = {
       ...(normalized.data.organizationInfo as Record<string, unknown>),

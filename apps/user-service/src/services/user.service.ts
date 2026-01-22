@@ -1,4 +1,4 @@
-import { UserRepository } from '../repositories/user.repository';
+import { UserRepository, ListOrganizationUsersOptions } from '../repositories/user.repository';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile } from '../models';
@@ -8,8 +8,12 @@ import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
+import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
+import { UserLinkRepository } from '../repositories/userLink.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+const friendFamilyRepository = new FriendFamilyRepository();
+const userLinkRepository = new UserLinkRepository();
 function generateSortableId() {
   const now = Date.now();
   const timePart = now.toString(36).toUpperCase().padStart(6, '0');
@@ -36,6 +40,8 @@ export class UserService {
     invitedBy?: string,
     correlationId?: string,
     authHeader?: string,
+    friendNFamily?: Record<string, unknown>,
+    assignDoctor?: Record<string, unknown>,
   ): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'createUser', correlationId);
     // Generate ULID if userID is not provided
@@ -226,6 +232,97 @@ export class UserService {
       // Add user-organization mapping (future multi-org support)
       await this.repository.assignUserToOrganization(user);
 
+      if (friendNFamily && Object.keys(friendNFamily).length > 0 && organizationID) {
+        const fullNameRaw = String((friendNFamily as any).name || '').trim();
+        const nameMatch = fullNameRaw.match(/^(\S+)\s+(.+)/);
+        const fnfFirstName = nameMatch ? nameMatch[1] : fullNameRaw;
+        const fnfLastName = nameMatch ? nameMatch[2] : '';
+        const fnfEmail = String((friendNFamily as any).email || '').trim();
+        const fnfPhoneCode = String((friendNFamily as any).phoneCode || '').trim();
+        const fnfPhone = String((friendNFamily as any).phone || '').trim();
+        const fullPhoneNumber = fnfPhoneCode ? `${fnfPhoneCode}${fnfPhone}` : fnfPhone;
+        const friendNFamilyFullName = `${fnfFirstName}${fnfLastName ? ` ${fnfLastName}` : ''}`.trim();
+        const definedRoleCode = String((user as any).definedRoleCode || '').toUpperCase();
+        const fnfRole = definedRoleCode === 'FRIEND' || definedRoleCode === 'FAMILY' ? definedRoleCode : 'FAMILY';
+        try {
+          const searchResult = await friendFamilyRepository.searchFnf({
+            body: {
+              email: fnfEmail,
+              phone: fullPhoneNumber,
+              firstName: fnfFirstName,
+              lastName: fnfLastName,
+              roles: [fnfRole],
+            },
+            userID: user.userID,
+            organizationID,
+          });
+          const memberId = searchResult?.invitedUser;
+          if (searchResult?.success && memberId) {
+            await friendFamilyRepository.addFriendFamily({
+              body: {
+                memberId,
+                userId: user.userID,
+                userName: user.fullName ?? user.firstName ?? '',
+                memberName: friendNFamilyFullName,
+              },
+              organizationID,
+            });
+            logger.info({ event: 'service_createUser_friend_family_linked', memberId, userId: user.userID });
+          } else if (searchResult) {
+            logger.warn({ event: 'service_createUser_friend_family_not_found', result: searchResult });
+          }
+        } catch (err) {
+          logger.warn({ event: 'service_createUser_friend_family_failed', err: serializeError(err) });
+        }
+      }
+
+      if (assignDoctor && Object.keys(assignDoctor).length > 0 && organizationID) {
+        const doctorId =
+          (assignDoctor as any).doctorId ||
+          (assignDoctor as any).doctorID ||
+          (assignDoctor as any).userId ||
+          (assignDoctor as any).userID;
+        if (doctorId) {
+          try {
+            const doctor = await this.repository.getUser(doctorId, organizationID);
+            if (!doctor) {
+              logger.warn({ event: 'service_createUser_doctor_not_found', doctorId, organizationID });
+            } else {
+              const doctorFullName = doctor.namePrefix && String(doctor.namePrefix).toLowerCase().includes('dr')
+                ? `${doctor.namePrefix} ${doctor.fullName || doctor.firstName || ''}`.trim()
+                : (doctor.fullName || doctor.firstName || '');
+              const userFullName = user.fullName ?? `${user.firstName || ''} ${user.lastName || ''}`.trim();
+              const linkResult = await userLinkRepository.linkUser({
+                userID: user.userID,
+                organizationID,
+                body: {
+                  action: 'add',
+                  reporter: {
+                    id: doctorId,
+                    name: doctorFullName,
+                  },
+                  assignees: [
+                    {
+                      id: user.userID,
+                      name: userFullName || user.userID,
+                    },
+                  ],
+                },
+              });
+              if (!linkResult) {
+                logger.warn({ event: 'service_createUser_doctor_link_failed', doctorId, userId: user.userID });
+              } else {
+                logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
+              }
+            }
+          } catch (err) {
+            logger.warn({ event: 'service_createUser_doctor_link_error', err: serializeError(err) });
+          }
+        } else {
+          logger.warn({ event: 'service_createUser_doctor_missing_id' });
+        }
+      }
+
       try {
         const userTypeUpper = String(user.userType || '').toUpperCase();
         const isStaff = userTypeUpper === 'STAFF';
@@ -308,17 +405,23 @@ export class UserService {
           });
         }
 
-        await notifyUser({
-          userId: user.userID,
-          email: user.emailAddress,
-          phone: notifyPhone,
-          name: user.fullName ?? user.firstName ?? '',
-          deviceToken,
-          channels,
-          template,
-          templateData,
-          correlationId,
-        });
+        const definedRoleCode = String((user as any).definedRoleCode || '').toUpperCase();
+        const isFnfRole = definedRoleCode === 'FRIEND' || definedRoleCode === 'FAMILY';
+        if (isFnfRole) {
+          logger.info({ event: 'service_createUser_notification_skipped', definedRoleCode });
+        } else {
+          await notifyUser({
+            userId: user.userID,
+            email: user.emailAddress,
+            phone: notifyPhone,
+            name: user.fullName ?? user.firstName ?? '',
+            deviceToken,
+            channels,
+            template,
+            templateData,
+            correlationId,
+          });
+        }
       } catch (notifyErr) {
         logger.warn({ event: 'service_createUser_notification_failed', err: serializeError(notifyErr) });
       }
@@ -559,13 +662,16 @@ export class UserService {
     }
   }
 
-  async listOrganizationUsers(organizationId: string): Promise<User[]> {
+  async listOrganizationUsers(
+    organizationId: string,
+    options?: ListOrganizationUsersOptions,
+  ): Promise<User[]> {
     const timer = createPerformanceTimer(baseLogger, 'listOrganizationUsers');
     const logger = createChildLogger(baseLogger, { organizationId });
     logger.info({ event: 'service_listOrganizationUsers_start' });
 
     try {
-      const users = await this.repository.listOrganizationUsers(organizationId);
+      const users = await this.repository.listOrganizationUsers(organizationId, options);
       logger.info({ event: 'service_listOrganizationUsers_success', count: users.length });
       timer.end();
       return users;

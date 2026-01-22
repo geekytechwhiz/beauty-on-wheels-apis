@@ -225,7 +225,7 @@ export class UserRepository {
     }
   }
 
-  async deleteUser(userId: string): Promise<void> {
+  async deleteUser(userId: string, organizationId: string): Promise<void> {
     const now = new Date().toISOString();
     try {
       await docClient.send(
@@ -233,7 +233,22 @@ export class UserRepository {
           TableName: USER_TABLE_NAME,
           Key: {
             pk: userPk(userId),
-            sk: userDetailsSk(),
+            sk: userOrgPk(organizationId),
+          },
+          UpdateExpression: 'SET deleted = :deleted, updatedAt = :updatedAt',
+          ExpressionAttributeValues: {
+            ':deleted': true,
+            ':updatedAt': now,
+          },
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
           },
           UpdateExpression: 'SET deleted = :deleted, updatedAt = :updatedAt',
           ExpressionAttributeValues: {

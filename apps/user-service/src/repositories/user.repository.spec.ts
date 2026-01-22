@@ -74,7 +74,7 @@ describe('UserRepository', () => {
           name: mockUser.name,
           createdAt: mockUser.createdAt,
           updatedAt: mockUser.updatedAt,
-          deleted: false,
+          isDeleted: false,
         },
       });
 
@@ -103,7 +103,7 @@ describe('UserRepository', () => {
           name: 'Test',
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
-          deleted: true,
+          isDeleted: true,
         },
       });
 

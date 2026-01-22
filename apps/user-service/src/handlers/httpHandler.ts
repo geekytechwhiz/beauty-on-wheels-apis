@@ -289,8 +289,8 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   // Extract userId and organizationId from access token (authorizer)
   const authorizer = (event.requestContext as any)?.authorizer;
   
-  let userId = authorizer?.userID || authorizer?.userId || (event as any).userID || (event as any).userId;
-  let organizationId = authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (event as any).organizationId;
+  let userId = (event as any).userId ||(event as any).userID || authorizer?.userID || authorizer?.userId;
+  let organizationId = (event as any).organizationId || (event as any).organizationID || authorizer?.organizationID || authorizer?.organizationId;
   
   // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
   if ((!userId || !organizationId) && event.headers?.Authorization) {

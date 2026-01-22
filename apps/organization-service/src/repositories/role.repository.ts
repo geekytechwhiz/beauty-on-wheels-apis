@@ -15,7 +15,7 @@ export class RoleRepository {
       logger.warn({ event: 'organization_roles_api_missing' });
       return false;
     }
-    const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/roles`;
+    const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/defaultRoles`;
     try {
       logger.info({ event: 'organization_roles_api_start', url });
       const response = await fetch(url, {

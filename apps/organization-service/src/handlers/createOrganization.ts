@@ -33,6 +33,10 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   const normalized = normalizeOrganizationPayload(body);
+  const adminDetails = normalized.data.adminDetails;
+  if (adminDetails === undefined || adminDetails === null) {
+    normalized.data.adminDetails = [];
+  }
   if (normalized.errors.length > 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization', 400, duration, correlationId);

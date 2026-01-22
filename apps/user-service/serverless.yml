@@ -49,6 +49,9 @@ provider:
     ROLE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ROLE_API_URL, ''}
     ORGANIZATION_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_API_URL, ''}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    SEARCH_FNF_LAMBDA: ${self:provider.stage}_global_friend_family_search
+    ADD_FRIEND_N_FAMILY_LAMBDA: ${self:provider.stage}_global_friend_family_add_member
+    USER_LINK_LAMBDA: ${self:provider.stage}_global_link_unlink_service
 
 
   tags:
@@ -111,6 +114,15 @@ provider:
         - sns:Publish
       Resource:
         - arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
+
+    # Lambda invoke
+    - Effect: Allow
+      Action:
+        - lambda:InvokeFunction
+      Resource:
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_friend_family_add_member
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_friend_family_search
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_link_unlink_service
 
     # X-Ray
     - Effect: Allow
@@ -857,6 +869,47 @@ functions:
                 schema:
                   type: string
                   example: "660e8400-e29b-41d4-a716-446655440001"
+            queryStringParameters:
+              - name: limit
+                description: Maximum number of users to return (default server-side, max 100)
+                required: false
+                schema:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+              - name: offset
+                description: Zero-based offset into the full result set
+                required: false
+                schema:
+                  type: integer
+                  minimum: 0
+              - name: status
+                description: Filter users by status (e.g. active, inactive)
+                required: false
+                schema:
+                  type: string
+              - name: userType
+                description: Filter users by userType (e.g. USER, STAFF, FNF)
+                required: false
+                schema:
+                  type: string
+              - name: search
+                description: Free-text search across name and email fields
+                required: false
+                schema:
+                  type: string
+              - name: sortBy
+                description: Field to sort by (createdDate, fullName, firstName, lastName, emailAddress)
+                required: false
+                schema:
+                  type: string
+                  enum: [createdDate, fullName, firstName, lastName, emailAddress]
+              - name: sortOrder
+                description: Sort direction
+                required: false
+                schema:
+                  type: string
+                  enum: [asc, desc]
             responses:
               200:
                 description: Organization users retrieved successfully

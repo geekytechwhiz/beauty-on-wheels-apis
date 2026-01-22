@@ -124,13 +124,14 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
+    let definedRoleCode: string | undefined;
     if (roleIds.length > 0) {
       logger.info({
         event: 'createUser_role_check_start',
         organizationID: body.organizationID,
         roleIds,
       });
-      await Promise.all(
+      const roleMetas = await Promise.all(
         roleIds.map(async (roleId: string) => {
           const roleMeta = await getRoleDetails(roleId, body.organizationID, authHeader);
           if (!roleMeta || (Array.isArray(roleMeta) && roleMeta.length === 0)) {
@@ -142,14 +143,32 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
               organizationID: body.organizationID,
             });
           }
+          logger.info({ event: 'createUser_role_check_success', roleMeta });
+          return roleMeta;
         }),
       );
+      const metaWithRoleCode = roleMetas.find((meta) => {
+        if (!meta) return false;
+        if (Array.isArray(meta)) {
+          return meta.some((item) => (item as any)?.definedRoleCode);
+        }
+        return (meta as any)?.definedRoleCode;
+      });
+      if (metaWithRoleCode) {
+        definedRoleCode = Array.isArray(metaWithRoleCode)
+          ? (metaWithRoleCode.find((item) => (item as any)?.definedRoleCode) as any)?.definedRoleCode
+          : (metaWithRoleCode as any)?.definedRoleCode;
+      }
     } else {
       logger.warn({
         event: 'createUser_role_missing',
         organizationID: body.organizationID,
         userType: userTypeUpper,
       });
+    }
+    logger.info({ event: 'createUser_definedRoleCode', definedRoleCode });
+    if (definedRoleCode) {
+      userData.definedRoleCode = definedRoleCode;
     }
 
     const result = await userService.createUser(
@@ -158,6 +177,8 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       body.userID,
       correlationId,
       authHeader,
+      body?.userInfo?.friendNFamily,
+      body?.userInfo?.assignDoctor,
     );
 
     if (roleIds.length > 0) {
@@ -805,8 +826,140 @@ export async function listOrganizationUsers(
   });
   logger.info({ event: 'listOrganizationUsers_received', eventData: event });
 
+  // Extract and validate query params for pagination / filtering / sorting / search
+  const qp = event.queryStringParameters || {};
+
+  const rawLimit = qp.limit ?? qp.pageSize;
+  const rawOffset = qp.offset ?? qp.page ?? qp.pageIndex;
+  const rawStatus = qp.status;
+  const rawUserType = qp.userType;
+  const rawSearch = qp.search ?? qp.q;
+  const rawSortBy = qp.sortBy;
+  const rawSortOrder = qp.sortOrder ?? qp.order;
+
+  let limit: number | undefined;
+  let offset = 0;
+  let sortBy: 'createdDate' | 'fullName' | 'firstName' | 'lastName' | 'emailAddress' | undefined;
+  let sortOrder: 'asc' | 'desc' | undefined;
+
+  const MAX_LIMIT = 100;
+
+  const parseNumber = (value?: string | null): number | undefined => {
+    if (!value) return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  // limit
+  if (rawLimit !== undefined) {
+    const parsed = parseNumber(rawLimit);
+    if (!parsed || parsed <= 0) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'limit must be a positive number' }],
+        },
+      );
+    }
+    limit = Math.min(parsed, MAX_LIMIT);
+  }
+
+  // offset (supports both absolute offset and simple page index)
+  if (rawOffset !== undefined) {
+    const parsed = parseNumber(rawOffset);
+    if (parsed === undefined || parsed < 0) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'offset / page must be a non-negative number' }],
+        },
+      );
+    }
+    offset = parsed;
+  }
+
+  // sortBy
+  if (rawSortBy) {
+    const allowedSortBy = ['createdDate', 'fullName', 'firstName', 'lastName', 'emailAddress'] as const;
+    if (!allowedSortBy.includes(rawSortBy as any)) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: `sortBy must be one of ${allowedSortBy.join(', ')}` }],
+        },
+      );
+    }
+    sortBy = rawSortBy as any;
+  }
+
+  // sortOrder
+  if (rawSortOrder) {
+    const normalized = rawSortOrder.toLowerCase();
+    if (normalized !== 'asc' && normalized !== 'desc') {
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        event.httpMethod || 'GET',
+        event.path || `/organization/${organizationId}/users`,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'sortOrder must be "asc" or "desc"' }],
+        },
+      );
+    }
+    sortOrder = normalized as any;
+  }
+
   try {
-    const result = await userService.listOrganizationUsers(organizationId);
+    const result = await userService.listOrganizationUsers(organizationId, {
+      limit,
+      offset,
+      status: rawStatus || undefined,
+      userType: rawUserType || undefined,
+      search: rawSearch || undefined,
+      sortBy,
+      sortOrder,
+    });
     const duration = Date.now() - startTime;
     logger.info({ event: 'listOrganizationUsers_success', count: result.length });
     logHttpRequest(

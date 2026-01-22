@@ -1,5 +1,5 @@
 import { ddbDocClient } from '@api-hub/utils';
-import { DynamoDBDocumentClient, QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { GlobalDevice } from '../models';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 
@@ -19,6 +19,54 @@ export class GlobalDeviceRepository {
    */
   private normalizeDeviceId(deviceId: string): string {
     return deviceId.toUpperCase().split(' ').join('_');
+  }
+
+  /**
+   * Create a global device entry
+   * Access Pattern:
+   * pk: DEVICE_LIST
+   * sk: CATEGORY#${category}#${deviceId}
+   * sk3: ${deviceId.toUpperCase().split(' ').join('_')}
+   * sk4: ${category.toUpperCase()}
+   */
+  async createGlobalDevice(data: {
+    deviceId: string;
+    category: string;
+    name: string;
+    enabled?: boolean;
+    countriesSupported?: string[];
+    [key: string]: unknown;
+  }): Promise<GlobalDevice> {
+    const logger = createChildLogger(baseLogger, { deviceId: data.deviceId, category: data.category });
+    const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
+    const normalizedCategory = data.category.toUpperCase();
+
+    const item: GlobalDevice = {
+      pk: 'DEVICE_LIST',
+      sk: `CATEGORY#${data.category}#${data.deviceId}`,
+      sk3: normalizedDeviceId,
+      sk4: normalizedCategory,
+      enabled: data.enabled !== undefined ? data.enabled : true,
+      category: data.category,
+      name: data.name,
+      deviceId: data.deviceId,
+      countriesSupported: data.countriesSupported || [],
+      ...Object.fromEntries(Object.entries(data).filter(([key]) => !['deviceId', 'category', 'name', 'enabled', 'countriesSupported'].includes(key))),
+    };
+
+    try {
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: item,
+        }),
+      );
+      logger.info({ event: 'global_device_created', deviceId: data.deviceId });
+      return item;
+    } catch (err) {
+      logger.error({ event: 'global_device_create_error', err: serializeError(err) });
+      throw err;
+    }
   }
 
   /**

@@ -505,7 +505,7 @@ functions:
             headers: ${self:custom.cors.headers}
           documentation:
             summary: Delete a user
-            description: Deletes a user from the system by user ID
+            description: Deletes a user from the system by user ID and organization ID
             tags:
               - Users
             headers:
@@ -522,6 +522,12 @@ functions:
                   type: string
                   format: uuid
                   example: "550e8400-e29b-41d4-a716-446655440000"
+              - name: organizationId
+                description: Unique identifier of the organization (UUID or ULID format)
+                required: true
+                schema:
+                  type: string
+                  example: "660e8400-e29b-41d4-a716-446655440001"
             responses:
               200:
                 description: User deleted successfully

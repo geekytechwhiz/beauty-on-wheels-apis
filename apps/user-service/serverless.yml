@@ -25,17 +25,6 @@ provider:
 
   logRetentionInDays: 14
 
-  gatewayResponses:
-    UNAUTHORIZED:
-      statusCode: 401
-      responseTemplates:
-        application/json: '{"success":false,"message":"Unauthorized","errorCode":"INVALID_TOKEN","statusCode":401}'
-      responseParameters:
-        headers:
-          Access-Control-Allow-Origin: "'*'"
-          Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id,X-Requested-With'"
-          Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
-
   environment:
     REGION: ${self:provider.region}
     DEFAULT_TIMEZONE: Asia/Kolkata
@@ -1116,6 +1105,30 @@ functions:
 
 resources:
   Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+  
     # Dead Letter Queue for User Reminders
     UserRemindersQueueDLQ:
       Type: AWS::SQS::Queue

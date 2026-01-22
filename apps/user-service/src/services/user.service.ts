@@ -534,18 +534,18 @@ export class UserService {
     }
   }
 
-  async deleteUser(userId: string, correlationId?: string): Promise<void> {
+  async deleteUser(userId: string, organizationId: string, correlationId?: string): Promise<void> {
     const timer = createPerformanceTimer(baseLogger, 'deleteUser', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, userId });
     logger.info({ event: 'service_deleteUser_start' });
 
     try {
-      const existing = await this.repository.getUser(userId);
+      const existing = await this.repository.getUser(userId, organizationId);
       if (!existing) {
         throw new UserNotFoundError(userId);
       }
 
-      await this.repository.deleteUser(userId);
+      await this.repository.deleteUser(userId, organizationId);
 
       await publishEvent(
         {

@@ -745,6 +745,14 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const userId = event.pathParameters?.userId;
+  const authorizer = (event.requestContext as any)?.authorizer;
+  const organizationId =
+    (event.queryStringParameters as any)?.organizationId ||
+    (event.queryStringParameters as any)?.organizationID ||
+    (event as any).organizationId ||
+    (event as any).organizationID ||
+    authorizer?.organizationID ||
+    authorizer?.organizationId;
 
   if (!userId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
@@ -761,7 +769,16 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
   logger.info({ event: 'deleteUser_received', eventData: event });
 
   try {
-    await userService.deleteUser(userId, correlationId);
+    if (!organizationId) {
+      const duration = Date.now() - startTime;
+      logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `/users/${userId}`, 400, duration, correlationId);
+      return ApiResponse.badRequest(
+        'COMMON.BAD_REQUEST',
+        { requestId: correlationId, event },
+        { code: 'BAD_REQUEST', details: [{ message: 'organizationId is required' }] },
+      );
+    }
+    await userService.deleteUser(userId, organizationId, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `/users/${userId}`, 200, duration, correlationId);
     return ApiResponse.ok(null, 'USER.USER_DELETED_SUCCESS', { requestId: correlationId, event });

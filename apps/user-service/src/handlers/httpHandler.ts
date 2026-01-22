@@ -368,10 +368,34 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   
   // Extract userId and organizationId from access token (authorizer)
   const authorizer = (event.requestContext as any)?.authorizer;
-  
-  let userId = (event as any).userId ||(event as any).userID || authorizer?.userID || authorizer?.userId;
-  let organizationId = (event as any).organizationId || (event as any).organizationID || authorizer?.organizationID || authorizer?.organizationId;
-  
+  const baseLogContext = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  let body: any;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    baseLogContext.error({ event: 'updateUser_parse_error', err: serializeError(err) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(baseLogContext, event.httpMethod || 'PUT', event.path || `/users/unknown`, 400, duration, correlationId);
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
+    );
+  }
+
+  let userId: string | undefined;
+  let organizationId: string | undefined;
+  const bodyUserId = body?.userId || body?.userID;
+  const bodyOrganizationId = body?.organizationId || body?.organizationID;
+  userId = bodyUserId || (event as any).userId || (event as any).userID || authorizer?.userID || authorizer?.userId;
+  organizationId =
+    bodyOrganizationId ||
+    (event as any).organizationId ||
+    (event as any).organizationID ||
+    authorizer?.organizationID ||
+    authorizer?.organizationId;
+
   // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
   if ((!userId || !organizationId) && event.headers?.Authorization) {
     try {
@@ -407,9 +431,8 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   console.log("ORGANIZATION ID ", organizationId);
 
   if (!userId || !organizationId) {
-    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 401, duration, correlationId);
+    logHttpRequest(baseLogContext, event.httpMethod || 'PUT', event.path || '/user', 401, duration, correlationId);
     return ApiResponse.unauthorized(
       'COMMON.UNAUTHORIZED',
       { requestId: correlationId, event },
@@ -417,22 +440,10 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     );
   }
 
-  const logger = createChildLogger(baseLogger, { correlationId, userId, ...(awsRequestId && { awsRequestId }) });
+  const resolvedUserId = userId;
+  const resolvedOrganizationId = organizationId;
+  const logger = createChildLogger(baseLogger, { correlationId, userId: resolvedUserId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'updateUser_received', eventData: event });
-
-  let body: any;
-  try {
-    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-  } catch (err) {
-    logger.error({ event: 'updateUser_parse_error', err: serializeError(err) });
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/users/${userId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
-      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
-    );
-  }
 
   const action = body?.action ? String(body.action).toUpperCase() : undefined;
   if (action) {
@@ -706,7 +717,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
         }
       }
 
-      const result = await userService.updateUser(userId, organizationId, userData, correlationId);
+      const result = await userService.updateUser(resolvedUserId, resolvedOrganizationId, userData, correlationId);
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
       return ApiResponse.ok(result, 'USER.USER_UPDATED_SUCCESS', { requestId: correlationId, event });
     } catch (err) {

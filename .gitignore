@@ -54,3 +54,15 @@ apps/organization-service/.esbuild/
 apps/user-service/swagger
 
 test-output
+
+# Python virtual environment
+venv/
+env/
+.venv/
+
+# Script outputs
+api-endpoints-export.xlsx
+*.xlsx
+
+myVitalRx/
+scripts/    

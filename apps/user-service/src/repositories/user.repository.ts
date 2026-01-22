@@ -128,7 +128,7 @@ export class UserRepository {
         }),
       );
       logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
-      if (!result.Item || result.Item.deleted === true) {
+      if (!result.Item || result.Item.isDeleted === true || result.Item.deleted === true) {
         logger.info({ event: 'user_get_not_found', message: 'User not found' });
         return null;
       }
@@ -199,9 +199,33 @@ export class UserRepository {
       logger.error({ event: 'user_update_error', err: serializeError(err), message: 'Failed to update user' });
       throw err;
     }
+
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userPk(userId),
+            sk: userOrgPk(organizationId),
+          },
+          UpdateExpression: `SET ${updateParts.join(', ')}`,
+          ExpressionAttributeNames: exprNames,
+          ExpressionAttributeValues: exprValues,
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { userId });
+      logger.info({ event: 'user_updated_org_mapping', message: 'User org mapping updated', fields: Object.keys(updates) });
+    } catch (err: unknown) {
+      const code = (err as { name?: string })?.name;
+      const logger = createChildLogger(baseLogger, { userId });
+      if (code !== 'ConditionalCheckFailedException') {
+        logger.warn({ event: 'user_update_org_mapping_failed', err: serializeError(err) });
+      }
+    }
   }
 
-  async deleteUser(userId: string): Promise<void> {
+  async deleteUser(userId: string, organizationId: string): Promise<void> {
     const now = new Date().toISOString();
     try {
       await docClient.send(
@@ -209,11 +233,26 @@ export class UserRepository {
           TableName: USER_TABLE_NAME,
           Key: {
             pk: userPk(userId),
-            sk: userDetailsSk(),
+            sk: userOrgPk(organizationId),
           },
-          UpdateExpression: 'SET deleted = :deleted, updatedAt = :updatedAt',
+          UpdateExpression: 'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
           ExpressionAttributeValues: {
-            ':deleted': true,
+            ':isDeleted': true,
+            ':updatedAt': now,
+          },
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
+          },
+          UpdateExpression: 'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
+          ExpressionAttributeValues: {
+            ':isDeleted': true,
             ':updatedAt': now,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
@@ -254,11 +293,11 @@ export class UserRepository {
   }
 
   async listUserOrganizations(userId: string): Promise<UserOrganization[]> {
-    // const logger = createChildLogger(baseLogger, {
-    //   userId,
-    //   pk: userPk(userId),
-    //   skPrefix: 'USER#',
-    // });
+    const logger = createChildLogger(baseLogger, {
+      userId,
+      pk: userPk(userId),
+      skPrefix: 'USER#',
+    });
     console.info({
       event: 'user_orgs_list_start',
       message: 'Listing user organizations',

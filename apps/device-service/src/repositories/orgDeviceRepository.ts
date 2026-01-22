@@ -12,14 +12,14 @@ export class OrgDeviceRepository {
 
   constructor() {
     this.docClient = ddbDocClient;
-    this.tableName = process.env.USER_TABLE || '';
+    this.tableName = process.env.DEVICE_TABLE || '';
   }
 
   /**
    * Normalize deviceId for use in keys (uppercase, replace spaces with underscores)
    */
   private normalizeDeviceId(deviceId: string): string {
-    return deviceId.toUpperCase().split(' ').join('_');
+    return deviceId?.toUpperCase()?.split(' ')?.join('_');
   }
 
   /**

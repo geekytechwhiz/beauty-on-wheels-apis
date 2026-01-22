@@ -89,10 +89,10 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
         }
         await orgDeviceService.updateOrgDevice(
           targetOrgId,
-          validation.data.deviceId,
+          validation?.data?.deviceId ?? '',
           {
-            enabled: validation.data.enabled,
-            isAutoSyncSupported: validation.data.isAutoSyncSupported,
+            enabled: validation?.data?.enabled,
+            isAutoSyncSupported: validation?.data?.isAutoSyncSupported,
           },
           correlationId,
         );

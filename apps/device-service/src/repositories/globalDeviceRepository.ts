@@ -18,7 +18,7 @@ export class GlobalDeviceRepository {
    * Normalize deviceId for use in keys (uppercase, replace spaces with underscores)
    */
   private normalizeDeviceId(deviceId: string): string {
-    return deviceId.toUpperCase().split(' ').join('_');
+    return deviceId?.toUpperCase()?.split(' ')?.join('_');
   }
 
   /**
@@ -26,7 +26,7 @@ export class GlobalDeviceRepository {
    * Access Pattern:
    * pk: DEVICE_LIST
    * sk: CATEGORY#${category}#${deviceId}
-   * sk3: ${deviceId.toUpperCase().split(' ').join('_')}
+   * sk3: ${deviceId?.toUpperCase()?.split(' ')?.join('_')}
    * sk4: ${category.toUpperCase()}
    */
   async createGlobalDevice(data: {
@@ -55,16 +55,22 @@ export class GlobalDeviceRepository {
     };
 
     try {
+      if (!this.tableName) {
+        const error = new Error('Table name is not configured. Please set USER_TABLE environment variable.');
+        logger.error({ event: 'global_device_create_error', err: serializeError(error), tableName: this.tableName });
+        throw error;
+      }
+
       await this.docClient.send(
         new PutCommand({
           TableName: this.tableName,
           Item: item,
         }),
       );
-      logger.info({ event: 'global_device_created', deviceId: data.deviceId });
+      logger.info({ event: 'global_device_created', deviceId: data.deviceId, tableName: this.tableName });
       return item;
     } catch (err) {
-      logger.error({ event: 'global_device_create_error', err: serializeError(err) });
+      logger.error({ event: 'global_device_create_error', err: serializeError(err), tableName: this.tableName, deviceId: data.deviceId });
       throw err;
     }
   }
@@ -140,6 +146,18 @@ export class GlobalDeviceRepository {
       );
       return result.Items && result.Items.length > 0 ? (result.Items[0] as GlobalDevice) : null;
     } catch (err) {
+      // If table doesn't exist (ResourceNotFoundException), treat as device not found
+      // This allows the creation flow to proceed
+      const error = err as { name?: string };
+      if (error?.name === 'ResourceNotFoundException') {
+        logger.warn({ 
+          event: 'get_device_by_id_table_not_found', 
+          deviceId, 
+          tableName: this.tableName,
+          message: 'Table does not exist, treating as device not found'
+        });
+        return null;
+      }
       logger.error({ event: 'get_device_by_id_error', err: serializeError(err), tableName: this.tableName });
       throw err;
     }

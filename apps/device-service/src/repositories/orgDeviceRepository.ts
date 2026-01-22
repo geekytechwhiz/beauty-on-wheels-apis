@@ -19,7 +19,7 @@ export class OrgDeviceRepository {
    * Normalize deviceId for use in keys (uppercase, replace spaces with underscores)
    */
   private normalizeDeviceId(deviceId: string): string {
-    return deviceId.toUpperCase().split(' ').join('_');
+    return deviceId?.toUpperCase()?.split(' ')?.join('_');
   }
 
   /**

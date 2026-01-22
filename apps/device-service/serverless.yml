@@ -27,7 +27,7 @@ provider:
 
   environment:
     REGION: ${self:provider.region}
-    USER_TABLE: ${self:provider.stage}_common_user_data
+    USER_TABLE: device-table-${self:provider.stage}
     EVENT_BUS: device-service-bus-${self:provider.stage}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}

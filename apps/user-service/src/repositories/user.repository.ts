@@ -128,7 +128,7 @@ export class UserRepository {
         }),
       );
       logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
-      if (!result.Item || result.Item.deleted === true) {
+      if (!result.Item || result.Item.isDeleted === true || result.Item.deleted === true) {
         logger.info({ event: 'user_get_not_found', message: 'User not found' });
         return null;
       }
@@ -235,9 +235,9 @@ export class UserRepository {
             pk: userPk(userId),
             sk: userOrgPk(organizationId),
           },
-          UpdateExpression: 'SET deleted = :deleted, updatedAt = :updatedAt',
+          UpdateExpression: 'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
           ExpressionAttributeValues: {
-            ':deleted': true,
+            ':isDeleted': true,
             ':updatedAt': now,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
@@ -250,9 +250,9 @@ export class UserRepository {
             pk: userOrgPk(organizationId),
             sk: userPk(userId),
           },
-          UpdateExpression: 'SET deleted = :deleted, updatedAt = :updatedAt',
+          UpdateExpression: 'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
           ExpressionAttributeValues: {
-            ':deleted': true,
+            ':isDeleted': true,
             ':updatedAt': now,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',

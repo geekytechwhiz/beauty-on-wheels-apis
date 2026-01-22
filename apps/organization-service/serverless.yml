@@ -623,6 +623,38 @@ functions:
               500:
                 description: Internal server error
 
+  getOrganizationMetadata:
+    handler: src/handlers/getOrganizationMetadata.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: organization/metadata
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Get organization metadata
+            description: Retrieves organization metadata configuration such as types, sizes, schedules, and supported values
+            tags:
+              - Organizations
+              - Metadata
+            queryParams:
+              - name: type
+                description: ROOT or ORGANIZATION (default ORGANIZATION)
+                required: false
+                schema:
+                  type: string
+                  example: ORGANIZATION
+            responses:
+              200:
+                description: Organization metadata retrieved successfully
+              400:
+                description: Bad request
+              500:
+                description: Internal server error
+
   listOrganizationFiles:
     handler: src/handlers/listOrganizationFiles.main
     timeout: 5

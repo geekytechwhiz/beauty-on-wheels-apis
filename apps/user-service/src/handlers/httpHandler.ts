@@ -745,10 +745,10 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const userId = event.pathParameters?.userId;
+  const organizationIdFromPath = event.pathParameters?.organizationId;
   const authorizer = (event.requestContext as any)?.authorizer;
   const organizationId =
-    (event.queryStringParameters as any)?.organizationId ||
-    (event.queryStringParameters as any)?.organizationID ||
+    organizationIdFromPath ||
     (event as any).organizationId ||
     (event as any).organizationID ||
     authorizer?.organizationID ||

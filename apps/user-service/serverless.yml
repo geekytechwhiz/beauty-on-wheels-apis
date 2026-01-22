@@ -498,7 +498,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: user/{userId}
+          path: user/{userId}/organization/{organizationId}
           method: delete
           cors:
             origin: ${self:custom.cors.origin}

@@ -9,4 +9,5 @@ export * from './handlers/assignUserToOrganization';
 export * from './handlers/removeUserFromOrganization';
 export * from './handlers/listOrganizationUsers';
 export * from './handlers/updateOrganizationMetadata';
+export * from './handlers/getOrganizationMetadata';
 export * from './handlers/listOrganizationFiles';

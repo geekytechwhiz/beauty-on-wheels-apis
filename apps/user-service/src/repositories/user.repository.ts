@@ -175,14 +175,13 @@ export class UserRepository {
       throw err;
     }
 
-    // Best-effort sync to legacy USER_DETAILS item
     try {
       await docClient.send(
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
             pk: userPk(userId),
-            sk: userDetailsSk(),
+            sk: userOrgPk(organizationId),
           },
           UpdateExpression: `SET ${updateParts.join(', ')}`,
           ExpressionAttributeNames: exprNames,
@@ -191,12 +190,12 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_updated_legacy', message: 'Legacy user updated', fields: Object.keys(updates) });
+      logger.info({ event: 'user_updated_org_mapping', message: 'User org mapping updated', fields: Object.keys(updates) });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
       const logger = createChildLogger(baseLogger, { userId });
       if (code !== 'ConditionalCheckFailedException') {
-        logger.warn({ event: 'user_update_legacy_failed', err: serializeError(err) });
+        logger.warn({ event: 'user_update_org_mapping_failed', err: serializeError(err) });
       }
     }
   }

@@ -53,3 +53,10 @@ export class RecommendationCannotRemovePairedError extends Error {
     this.name = 'RecommendationCannotRemovePairedError';
   }
 }
+
+export class DeviceAlreadyDeletedError extends Error {
+  constructor(deviceId: string) {
+    super(`This device is already deleted: ${deviceId}`);
+    this.name = 'DeviceAlreadyDeletedError';
+  }
+}

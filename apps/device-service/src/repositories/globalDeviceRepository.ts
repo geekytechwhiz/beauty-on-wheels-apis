@@ -1,7 +1,8 @@
 import { ddbDocClient } from '@api-hub/utils';
-import { DynamoDBDocumentClient, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { GlobalDevice } from '../models';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { DeviceNotFoundError, DeviceAlreadyDeletedError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'global-device-repository' });
 
@@ -191,6 +192,158 @@ export class GlobalDeviceRepository {
       return Array.from(categories);
     } catch (err) {
       logger.error({ event: 'get_categories_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /**
+   * Soft delete a global device by setting enabled to false
+   * Access Pattern: Uses pk and sk from the device entry
+   * Returns the deleted device information
+   */
+  async softDeleteDevice(deviceId: string): Promise<GlobalDevice> {
+    const logger = createChildLogger(baseLogger, { deviceId });
+    
+    try {
+      // First, get the device to find its category and construct the key
+      const device = await this.getDeviceById(deviceId);
+      if (!device) {
+        throw new DeviceNotFoundError(deviceId);
+      }
+
+      // Check if device is already deleted
+      if (device.enabled === false) {
+        throw new DeviceAlreadyDeletedError(deviceId);
+      }
+
+      // Update the device to set enabled: false
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: {
+            pk: device.pk,
+            sk: device.sk,
+          },
+          UpdateExpression: 'SET enabled = :enabled',
+          ExpressionAttributeValues: {
+            ':enabled': false,
+          },
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+
+      // Return the device with updated enabled status
+      const deletedDevice: GlobalDevice = {
+        ...device,
+        enabled: false,
+      };
+
+      logger.info({ event: 'global_device_soft_deleted', deviceId });
+      return deletedDevice;
+    } catch (err) {
+      const code = (err as { name?: string })?.name;
+      if (code === 'ConditionalCheckFailedException') {
+        throw new DeviceNotFoundError(deviceId);
+      }
+      if (err instanceof DeviceNotFoundError || err instanceof DeviceAlreadyDeletedError) {
+        throw err;
+      }
+      logger.error({ event: 'global_device_soft_delete_error', err: serializeError(err), deviceId });
+      throw err;
+    }
+  }
+
+  /**
+   * Update a global device
+   * Access Pattern: Uses pk and sk from the device entry
+   * Returns the updated device information
+   * Note: pk, sk, sk3, sk4, and deviceId cannot be updated
+   */
+  async updateGlobalDevice(deviceId: string, updates: Partial<Omit<GlobalDevice, 'pk' | 'sk' | 'sk3' | 'sk4' | 'deviceId'>>): Promise<GlobalDevice> {
+    const logger = createChildLogger(baseLogger, { deviceId });
+    
+    try {
+      // First, get the device to check if it exists and get its keys
+      const existingDevice = await this.getDeviceById(deviceId);
+      if (!existingDevice) {
+        throw new DeviceNotFoundError(deviceId);
+      }
+
+      // Build update expression dynamically
+      const updateParts: string[] = [];
+      const expressionAttributeValues: Record<string, unknown> = {};
+      const expressionAttributeNames: Record<string, string> = {};
+
+      // Handle category update - if category changes, we need to update sk and sk4
+      if (updates.category && typeof updates.category === 'string' && updates.category !== existingDevice.category) {
+        const normalizedCategory = updates.category.toUpperCase();
+        updateParts.push('sk = :sk', 'sk4 = :sk4', '#category = :category');
+        expressionAttributeValues[':sk'] = `CATEGORY#${updates.category}#${deviceId}`;
+        expressionAttributeValues[':sk4'] = normalizedCategory;
+        expressionAttributeValues[':category'] = updates.category;
+        expressionAttributeNames['#category'] = 'category';
+      } else if (updates.category && typeof updates.category === 'string') {
+        updateParts.push('#category = :category');
+        expressionAttributeValues[':category'] = updates.category;
+        expressionAttributeNames['#category'] = 'category';
+      }
+
+      // Handle other fields (excluding keys and deviceId)
+      const excludedKeys = ['pk', 'sk', 'sk3', 'sk4', 'deviceId', 'category'];
+      for (const [key, value] of Object.entries(updates)) {
+        if (!excludedKeys.includes(key) && value !== undefined) {
+          const attrName = `#${key}`;
+          const attrValue = `:${key}`;
+          updateParts.push(`${attrName} = ${attrValue}`);
+          expressionAttributeNames[attrName] = key;
+          expressionAttributeValues[attrValue] = value;
+        }
+      }
+
+      if (updateParts.length === 0) {
+        // No updates provided, return existing device
+        logger.info({ event: 'global_device_update_no_changes', deviceId });
+        return existingDevice;
+      }
+
+      // Add modifiedDate if not provided
+      if (!updates.modifiedDate) {
+        updateParts.push('modifiedDate = :modifiedDate');
+        expressionAttributeValues[':modifiedDate'] = Date.now();
+      }
+
+      // Perform the update
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: {
+            pk: existingDevice.pk,
+            sk: existingDevice.sk,
+          },
+          UpdateExpression: `SET ${updateParts.join(', ')}`,
+          ExpressionAttributeValues: expressionAttributeValues,
+          ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+
+      // Get the updated device
+      const updatedDevice = await this.getDeviceById(deviceId);
+      if (!updatedDevice) {
+        throw new DeviceNotFoundError(deviceId);
+      }
+
+      logger.info({ event: 'global_device_updated', deviceId });
+      return updatedDevice;
+    } catch (err) {
+      const code = (err as { name?: string })?.name;
+      if (code === 'ConditionalCheckFailedException') {
+        throw new DeviceNotFoundError(deviceId);
+      }
+      if (err instanceof DeviceNotFoundError) {
+        throw err;
+      }
+      logger.error({ event: 'global_device_update_error', err: serializeError(err), deviceId });
       throw err;
     }
   }

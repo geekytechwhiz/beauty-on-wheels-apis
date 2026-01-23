@@ -152,12 +152,28 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
+  deviceGet:
+    handler: src/handlers/deviceGet.handler
+    events:
+      - http:
+          path: devices/{deviceId}
+          method: get
+          cors: true
+
+  deviceUpdate:
+    handler: src/handlers/deviceUpdate.handler
+    events:
+      - http:
+          path: devices/{deviceId}
+          method: put
+          cors: true
+
   deviceDelete:
     handler: src/handlers/deviceDelete.handler
     events:
       - http:
-          path: devices/delete
-          method: post
+          path: devices/{deviceId}
+          method: delete
           cors: true
 
   deviceDeleteMultiple:
@@ -173,7 +189,7 @@ functions:
     events:
       - http:
           path: devices/list
-          method: post
+          method: get
           cors: true
 
   deviceSearch:

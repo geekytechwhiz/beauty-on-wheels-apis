@@ -400,6 +400,10 @@ functions:
                       status:
                         type: string
                         enum: [ACTIVE, INACTIVE, SUSPENDED]
+                      supportedVitals:
+                        type: array
+                        items:
+                          type: string
             responses:
               200:
                 description: Organization updated successfully

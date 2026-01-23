@@ -1,5 +1,6 @@
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { OrganizationService } from '../services/organization.service';
+import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { OrganizationNotFoundError } from '../utils/errors';
 import { ApiResponse } from '@api-hub/utils';
@@ -8,6 +9,39 @@ import { normalizeOrganizationPayload } from '../utils/organizationPayload';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
+const rootOrgMetadataRepository = new RootOrgMetadataRepository();
+
+const tryParseSupportedVitals = (value: unknown): unknown => {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+const normalizeSupportedVitals = (
+  supportedVitals: string[],
+  supportedAttributes: unknown,
+): Array<Record<string, unknown>> => {
+  if (!Array.isArray(supportedAttributes)) return [];
+  return supportedAttributes
+    .filter((item) => {
+      if (!item || typeof item !== 'object') return false;
+      const key = Object.keys(item as Record<string, unknown>)[0];
+      return key ? supportedVitals.includes(key) : false;
+    })
+    .map((item) => {
+      const key = Object.keys(item as Record<string, unknown>)[0];
+      if (!key) return item as Record<string, unknown>;
+      const details = (item as Record<string, unknown>)[key];
+      if (!details || typeof details !== 'object') {
+        return { [key]: details };
+      }
+      const { label, ...filtered } = details as Record<string, unknown>;
+      return { [key]: filtered };
+    });
+};
 
 export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
@@ -59,6 +93,22 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       ...(normalized.data.organizationInfo as Record<string, unknown>),
       organizationID: organizationId,
     };
+  }
+
+  const supportedVitalsInput = tryParseSupportedVitals(normalized.data.supportedVitals);
+  normalized.data.supportedVitals = supportedVitalsInput as typeof normalized.data.supportedVitals;
+  if (
+    Array.isArray(supportedVitalsInput) &&
+    supportedVitalsInput.length > 0 &&
+    supportedVitalsInput.every((item) => typeof item === 'string')
+  ) {
+    try {
+      const supportedAttributes = await rootOrgMetadataRepository.getOrgSupportedVitals();
+      const matchedVitals = normalizeSupportedVitals(supportedVitalsInput, supportedAttributes);
+      normalized.data.supportedVitals = matchedVitals.length > 0 ? matchedVitals : undefined;
+    } catch (err) {
+      logger.warn({ event: 'updateOrganization_supportedVitals_error', err: serializeError(err) });
+    }
   }
   if (normalized.errors.length > 0) {
     const duration = Date.now() - startTime;

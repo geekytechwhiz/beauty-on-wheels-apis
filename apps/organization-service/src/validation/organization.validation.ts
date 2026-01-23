@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const supportedVitalsSchema = z
+  .array(z.string())
+  .or(z.array(z.record(z.string(), z.unknown())))
+  .optional();
+
 export const createOrganizationSchema = z.object({
   organizationId: z.string().optional(),
   parentOrgId: z.string().optional(),
@@ -52,7 +57,7 @@ export const createOrganizationSchema = z.object({
   adminDetails: z.unknown().optional(),
   modules: z.unknown().optional(),
   devices: z.unknown().optional(),
-  supportedVitals: z.unknown().optional(),
+  supportedVitals: supportedVitalsSchema,
   organizationInfo: z.unknown().optional(),
   searchFields: z.unknown().optional(),
   website: z.string().optional(),
@@ -114,7 +119,7 @@ export const updateOrganizationSchema = z.object({
   adminDetails: z.unknown().optional(),
   modules: z.unknown().optional(),
   devices: z.unknown().optional(),
-  supportedVitals: z.unknown().optional(),
+  supportedVitals: supportedVitalsSchema,
   organizationInfo: z.unknown().optional(),
   searchFields: z.unknown().optional(),
   website: z.string().optional(),

@@ -126,6 +126,12 @@
           "industry": {
             "type": "string"
           },
+          "supportedVitals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "size": {
             "type": "string",
             "enum": ["SMALL", "MEDIUM", "LARGE"]
@@ -167,6 +173,13 @@
           "registrationNumber": { "type": "string" },
           "description": { "type": "string" },
           "industry": { "type": "string" },
+          "supportedVitals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
           "size": { "type": "string", "enum": ["SMALL", "MEDIUM", "LARGE"] }
         }
       },

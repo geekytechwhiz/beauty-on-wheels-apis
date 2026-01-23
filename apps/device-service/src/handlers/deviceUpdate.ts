@@ -41,6 +41,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   }
 
   // Remove deviceId, pk, sk, sk3, sk4 from updates (these are key fields and cannot be updated)
+  // Only the fields provided in the request body will be updated; all other fields remain unchanged
   const bodyObj = body as Record<string, unknown>;
   const { deviceId: _, pk, sk, sk3, sk4, ...updates } = bodyObj;
 
@@ -51,8 +52,12 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'No valid fields to update' }] });
   }
 
+  // Log which fields will be updated (for debugging/auditing)
+  logger.info({ event: 'deviceUpdate_fields', deviceId, fieldsToUpdate: Object.keys(updates) });
+
   try {
     // Update device (method will check if device exists first)
+    // Only the provided fields will be updated; all other fields remain unchanged
     const updatedDevice = await globalDeviceRepository.updateGlobalDevice(deviceId, updates);
 
     const duration = Date.now() - startTime;

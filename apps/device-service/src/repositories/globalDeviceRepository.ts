@@ -1,5 +1,5 @@
 import { ddbDocClient } from '@api-hub/utils';
-import { DynamoDBDocumentClient, QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { GlobalDevice } from '../models';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { DeviceNotFoundError, DeviceAlreadyDeletedError } from '../utils/errors';
@@ -258,6 +258,9 @@ export class GlobalDeviceRepository {
    * Access Pattern: Uses pk and sk from the device entry
    * Returns the updated device information
    * Note: pk, sk, sk3, sk4, and deviceId cannot be updated
+   * 
+   * This method performs a PARTIAL UPDATE - only the fields provided in the 'updates' parameter
+   * will be updated. All other fields will remain unchanged (preserve their existing values).
    */
   async updateGlobalDevice(deviceId: string, updates: Partial<Omit<GlobalDevice, 'pk' | 'sk' | 'sk3' | 'sk4' | 'deviceId'>>): Promise<GlobalDevice> {
     const logger = createChildLogger(baseLogger, { deviceId });
@@ -269,26 +272,55 @@ export class GlobalDeviceRepository {
         throw new DeviceNotFoundError(deviceId);
       }
 
-      // Build update expression dynamically
+      // Check if category is being updated - if so, we need to delete and recreate the item
+      // because DynamoDB doesn't allow updating sort key (sk) directly
+      if (updates.category && typeof updates.category === 'string' && updates.category !== existingDevice.category) {
+        // Category change requires delete + create pattern
+        const normalizedCategory = updates.category.toUpperCase();
+        const normalizedDeviceId = this.normalizeDeviceId(deviceId);
+        const newSk = `CATEGORY#${updates.category}#${deviceId}`;
+        
+        // Create new device with updated category and all other updates
+        const updatedDeviceData: GlobalDevice = {
+          ...existingDevice,
+          ...updates,
+          category: updates.category,
+          sk: newSk,
+          sk3: normalizedDeviceId,
+          sk4: normalizedCategory,
+          modifiedDate: Date.now(),
+        };
+
+        // Delete old item
+        await this.docClient.send(
+          new DeleteCommand({
+            TableName: this.tableName,
+            Key: {
+              pk: existingDevice.pk,
+              sk: existingDevice.sk,
+            },
+            ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+          }),
+        );
+
+        // Create new item with updated keys
+        await this.docClient.send(
+          new PutCommand({
+            TableName: this.tableName,
+            Item: updatedDeviceData,
+          }),
+        );
+
+        logger.info({ event: 'global_device_updated_with_category_change', deviceId, oldCategory: existingDevice.category, newCategory: updates.category });
+        return updatedDeviceData;
+      }
+
+      // Build update expression dynamically for non-category updates
       const updateParts: string[] = [];
       const expressionAttributeValues: Record<string, unknown> = {};
       const expressionAttributeNames: Record<string, string> = {};
 
-      // Handle category update - if category changes, we need to update sk and sk4
-      if (updates.category && typeof updates.category === 'string' && updates.category !== existingDevice.category) {
-        const normalizedCategory = updates.category.toUpperCase();
-        updateParts.push('sk = :sk', 'sk4 = :sk4', '#category = :category');
-        expressionAttributeValues[':sk'] = `CATEGORY#${updates.category}#${deviceId}`;
-        expressionAttributeValues[':sk4'] = normalizedCategory;
-        expressionAttributeValues[':category'] = updates.category;
-        expressionAttributeNames['#category'] = 'category';
-      } else if (updates.category && typeof updates.category === 'string') {
-        updateParts.push('#category = :category');
-        expressionAttributeValues[':category'] = updates.category;
-        expressionAttributeNames['#category'] = 'category';
-      }
-
-      // Handle other fields (excluding keys and deviceId)
+      // Handle other fields (excluding keys and deviceId and category)
       const excludedKeys = ['pk', 'sk', 'sk3', 'sk4', 'deviceId', 'category'];
       for (const [key, value] of Object.entries(updates)) {
         if (!excludedKeys.includes(key) && value !== undefined) {

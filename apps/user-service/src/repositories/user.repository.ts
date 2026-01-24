@@ -422,6 +422,203 @@ export class UserRepository {
     }
   }
 
+  /**
+   * Gets user roles and permissions from DynamoDB
+   * Queries USER_ROLE#${orgId} with sk1 starting with ${userId}#
+   */
+  async getUserRolesPermissions(userId: string, organizationId: string): Promise<{
+    roles: string[];
+    permissions: any[];
+    roleName?: string;
+  }> {
+    const logger = createChildLogger(baseLogger, { userId, organizationId });
+    try {
+      const params: any = {
+        TableName: USER_TABLE_NAME,
+        IndexName: 'pk-sk1-index',
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk1, :sk1)',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk1': 'sk1',
+        },
+        ExpressionAttributeValues: {
+          ':pk': `USER_ROLE#${organizationId}`,
+          ':sk1': `${userId}#`,
+        },
+      };
+
+      let allItems: any[] = [];
+      let lastEvaluatedKey: any = undefined;
+
+      do {
+        if (lastEvaluatedKey) {
+          params.ExclusiveStartKey = lastEvaluatedKey;
+        }
+        try {
+          const result = await docClient.send(new QueryCommand(params));
+          if (result.Items) {
+            allItems = allItems.concat(result.Items);
+          }
+          lastEvaluatedKey = result.LastEvaluatedKey;
+        } catch (queryErr: any) {
+          if (queryErr.name === 'ValidationException' || queryErr.message?.includes('index')) {
+            logger.warn({ event: 'getUserRolesPermissions_gsi_not_found', tryingAlternative: true });
+            break;
+          }
+          throw queryErr;
+        }
+      } while (lastEvaluatedKey);
+
+      const roles: string[] = [];
+      for (const item of allItems) {
+        if (item.roleID) {
+          roles.push(item.roleID);
+        }
+      }
+
+      logger.info({ event: 'getUserRolesPermissions_success', rolesCount: roles.length });
+      return { roles, permissions: [], roleName: undefined };
+    } catch (err) {
+      logger.error({ event: 'getUserRolesPermissions_error', err: serializeError(err) });
+      return { roles: [], permissions: [], roleName: undefined };
+    }
+  }
+
+  /**
+   * Gets role permissions from DynamoDB
+   */
+  async getRolePermissions(roleId: string, organizationId: string): Promise<any[]> {
+    const logger = createChildLogger(baseLogger, { roleId, organizationId });
+    const ROLES_TABLE = process.env.ROLES_TABLE;
+    try {
+      const params = {
+        TableName: ROLES_TABLE,
+        KeyConditionExpression: '#PK = :PK AND begins_with(#SK, :SK)',
+        ExpressionAttributeNames: {
+          '#PK': 'PK',
+          '#SK': 'SK',
+        },
+        ExpressionAttributeValues: {
+          ':PK': `ORG#${organizationId}`,
+          ':SK': `ROLE#${roleId}`,
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        logger.info({ event: 'getRolePermissions_success', roleId });
+        return result.Items;
+      }
+      return [];
+    } catch (err) {
+      logger.error({ event: 'getRolePermissions_error', err: serializeError(err) });
+      return [];
+    }
+  }
+
+  /**
+   * Gets currencies for a country code from DynamoDB
+   * getCurrenciesForCountryCode
+   */
+  async getCurrenciesForCountryCode(countryCode: string): Promise<any[]> {
+    const logger = createChildLogger(baseLogger, { countryCode });
+    const PACKAGE_TABLE = process.env.PACKAGE_TABLE;
+    try {
+      if (!countryCode) {
+        return [];
+      }
+
+      const params = {
+        TableName: PACKAGE_TABLE,
+        KeyConditionExpression: '#pk = :pk AND #sk = :sk',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+        },
+        ExpressionAttributeValues: {
+          ':pk': 'CURRENCIES',
+          ':sk': `COUNTRY#${countryCode}`,
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0 && Array.isArray(result.Items[0].currencies)) {
+        logger.info({ event: 'getCurrenciesForCountryCode_success', countryCode });
+        return result.Items[0].currencies;
+      }
+      return [];
+    } catch (err) {
+      logger.error({ event: 'getCurrenciesForCountryCode_error', err: serializeError(err) });
+      return [];
+    }
+  }
+
+  /**
+   * Gets user preferences (for schedule configuration)
+   * 
+   */
+  async getUserPreferences(userId: string, organizationId: string): Promise<any> {
+    const logger = createChildLogger(baseLogger, { userId, organizationId });
+    try {
+      const params = {
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+        },
+        ExpressionAttributeValues: {
+          ':pk': `USER#${userId}`,
+          ':sk': 'PREFERENCE',
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        const item = result.Items[0];
+        // Filter out metadata fields
+        const { pk, sk, userID, createdDate, modifiedDate, organizationID, ...rest } = item;
+        logger.info({ event: 'getUserPreferences_success', userId });
+        return rest;
+      }
+      return {};
+    } catch (err) {
+      logger.error({ event: 'getUserPreferences_error', err: serializeError(err) });
+      return {};
+    }
+  }
+
+  /**
+   * Gets user basic details (for FNF details)
+   */
+  async getUserBasicDetails(userId: string): Promise<any | null> {
+    const logger = createChildLogger(baseLogger, { userId });
+    try {
+      const params = {
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+        },
+        ExpressionAttributeValues: {
+          ':pk': `USER#${userId}`,
+          ':sk': 'ORG#',
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        logger.info({ event: 'getUserBasicDetails_success', userId });
+        return result.Items[0];
+      }
+      return null;
+    } catch (err) {
+      logger.error({ event: 'getUserBasicDetails_error', err: serializeError(err) });
+      return null;
+    }
+  }
+
   async listUserFiles(userId: string): Promise<UserFile[]> {
     try {
       const result = await docClient.send(

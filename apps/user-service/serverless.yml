@@ -77,8 +77,12 @@ provider:
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-*
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-*/index/*
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_user_data
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_user_data/index/*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/organization-table-*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/organization-table-*/index/*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_roles_and_permissions
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_roles_and_permissions/index/*
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_packages
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_packages/index/*
 
     # S3 (user files)
     - Effect: Allow

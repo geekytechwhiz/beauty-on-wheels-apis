@@ -31,7 +31,7 @@ provider:
     USER_TABLE: user-table-${self:provider.stage}
     ORGANIZATION_TABLE: organization-table-${self:provider.stage}
     PACKAGE_TABLE: ${self:provider.stage}_global_common_packages
-    ROLE_TABLE: ${self:provider.stage}_roles_and_permissions
+    ROLES_TABLE: ${self:provider.stage}_roles_and_permissions
     OLD_USER_TABLE: ${self:provider.stage}_global_common_user_data
     USER_FILES_BUCKET: user-files-bucket-${self:provider.stage}
     USER_REMINDERS_QUEUE: user-reminders-queue-${self:provider.stage}

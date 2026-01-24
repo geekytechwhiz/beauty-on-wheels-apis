@@ -753,15 +753,24 @@ export class UserService {
     const userId = this.safeString(user.userID);
     const countryCode = this.safeString(user.countryCode) || (orgInfo?.address?.countryCode ? this.safeString(orgInfo.address.countryCode) : '');
 
+    // Extract user roles directly from user object (userRole array)
+    const userRoles: string[] = Array.isArray(user.userRole) ? user.userRole.filter((r: any) => typeof r === 'string' && r.trim() !== '') : [];
+    const roleId = userRoles.length > 0 ? userRoles[0] : '';
+
+    // Fetch role permissions for all user roles in parallel
+    const rolePermissionsPromises = userRoles.map((rId: string) => 
+      this.repository.getRolePermissions(rId, safeOrgId)
+    );
+
     // Fetch data in parallel where possible
     const [
-      rolesPermissionsResult,
+      rolePermissionsResults,
       currencies,
       userPreferences,
       fnfUserDetails,
     ] = await Promise.allSettled([
-      // Get user roles and permissions
-      this.repository.getUserRolesPermissions(userId, safeOrgId),
+      // Get role permissions for all user roles
+      Promise.allSettled(rolePermissionsPromises),
       // Get currencies for country code
       countryCode ? this.repository.getCurrenciesForCountryCode(countryCode) : Promise.resolve([]),
       // Get user preferences for schedule configuration
@@ -771,47 +780,42 @@ export class UserService {
     ]);
 
     // Extract roles and permissions data
-    let userRoles: string[] = [];
-    let roleId: string = '';
     let roleName: string = '';
     let roleType: string = '';
     let permission: any = {};
     let userPermissions: any[] = [];
     let isDefault: boolean = false;
 
-    if (rolesPermissionsResult.status === 'fulfilled' && rolesPermissionsResult.value) {
-      const rpResult = rolesPermissionsResult.value;
-      userRoles = rpResult.roles || [];
-      roleId = userRoles.length > 0 ? userRoles[0] : '';
+    // Process role permissions results
+    if (rolePermissionsResults.status === 'fulfilled' && rolePermissionsResults.value) {
+      const allRolePermissions: any[] = [];
+      const roleDetailsArray = rolePermissionsResults.value;
 
-      // If we have a roleId, fetch role details
-      if (roleId) {
-        try {
-          const roleDetails = await this.repository.getRolePermissions(roleId, safeOrgId);
-          if (roleDetails && roleDetails.length > 0) {
-            const roleDetail = roleDetails[0];
-            roleName = roleDetail?.roleName || roleDetail?.definedRoleCode || '';
-            roleType = roleDetail?.roleType || '';
-            userPermissions = roleDetail?.features || [];
-            isDefault = roleDetail?.isDefault ?? false;
-
-            // Get permissions from all roles and merge them
-            const allRolePermissions: any[] = [];
-            for (const rId of userRoles) {
-              try {
-                const rd = await this.repository.getRolePermissions(rId, safeOrgId);
-                if (rd && rd.length > 0 && rd[0].permissions) {
-                  allRolePermissions.push(rd[0].permissions);
-                }
-              } catch (err) {
-                // Continue with other roles if one fails
-              }
-            }
-            permission = this.getUniquePermissions(allRolePermissions);
-          }
-        } catch (err) {
-          // Continue with defaults if role fetch fails
+      // Process first role for roleName, roleType, userPermissions, isDefault
+      if (roleId && roleDetailsArray.length > 0 && roleDetailsArray[0].status === 'fulfilled') {
+        const firstRoleDetails = roleDetailsArray[0].value;
+        if (firstRoleDetails && firstRoleDetails.length > 0) {
+          const roleDetail = firstRoleDetails[0];
+          roleName = roleDetail?.roleName || roleDetail?.definedRoleCode || '';
+          roleType = roleDetail?.roleType || '';
+          userPermissions = roleDetail?.features || [];
+          isDefault = roleDetail?.isDefault ?? false;
         }
+      }
+
+      // Collect permissions from all roles
+      for (const roleResult of roleDetailsArray) {
+        if (roleResult.status === 'fulfilled' && roleResult.value) {
+          const roleDetails = roleResult.value;
+          if (roleDetails && roleDetails.length > 0 && roleDetails[0].permissions) {
+            allRolePermissions.push(roleDetails[0].permissions);
+          }
+        }
+      }
+
+      // Merge permissions from all roles
+      if (allRolePermissions.length > 0) {
+        permission = this.getUniquePermissions(allRolePermissions);
       }
     }
 

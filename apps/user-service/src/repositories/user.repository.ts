@@ -423,68 +423,6 @@ export class UserRepository {
   }
 
   /**
-   * Gets user roles and permissions from DynamoDB
-   * Queries USER_ROLE#${orgId} with sk1 starting with ${userId}#
-   */
-  async getUserRolesPermissions(userId: string, organizationId: string): Promise<{
-    roles: string[];
-    permissions: any[];
-    roleName?: string;
-  }> {
-    const logger = createChildLogger(baseLogger, { userId, organizationId });
-    try {
-      const params: any = {
-        TableName: USER_TABLE_NAME,
-        IndexName: 'pk-sk1-index',
-        KeyConditionExpression: '#pk = :pk AND begins_with(#sk1, :sk1)',
-        ExpressionAttributeNames: {
-          '#pk': 'pk',
-          '#sk1': 'sk1',
-        },
-        ExpressionAttributeValues: {
-          ':pk': `USER_ROLE#${organizationId}`,
-          ':sk1': `${userId}#`,
-        },
-      };
-
-      let allItems: any[] = [];
-      let lastEvaluatedKey: any = undefined;
-
-      do {
-        if (lastEvaluatedKey) {
-          params.ExclusiveStartKey = lastEvaluatedKey;
-        }
-        try {
-          const result = await docClient.send(new QueryCommand(params));
-          if (result.Items) {
-            allItems = allItems.concat(result.Items);
-          }
-          lastEvaluatedKey = result.LastEvaluatedKey;
-        } catch (queryErr: any) {
-          if (queryErr.name === 'ValidationException' || queryErr.message?.includes('index')) {
-            logger.warn({ event: 'getUserRolesPermissions_gsi_not_found', tryingAlternative: true });
-            break;
-          }
-          throw queryErr;
-        }
-      } while (lastEvaluatedKey);
-
-      const roles: string[] = [];
-      for (const item of allItems) {
-        if (item.roleID) {
-          roles.push(item.roleID);
-        }
-      }
-
-      logger.info({ event: 'getUserRolesPermissions_success', rolesCount: roles.length });
-      return { roles, permissions: [], roleName: undefined };
-    } catch (err) {
-      logger.error({ event: 'getUserRolesPermissions_error', err: serializeError(err) });
-      return { roles: [], permissions: [], roleName: undefined };
-    }
-  }
-
-  /**
    * Gets role permissions from DynamoDB
    */
   async getRolePermissions(roleId: string, organizationId: string): Promise<any[]> {

@@ -1604,30 +1604,6 @@ export class UserService {
   }
 
   /**
-   * Get unique permissions from array of permission objects
-   */
-  private getUniquePermissions(permissions: any[]): any {
-    const maxValues: any = {};
-    if (permissions && permissions.length > 0) {
-      permissions.forEach((obj: any) => {
-        Object.keys(obj).forEach((key) => {
-          if (!(key in maxValues)) {
-            maxValues[key] = obj[key];
-          } else {
-            Object.keys(obj[key] || {}).forEach((subKey) => {
-              if (!(subKey in maxValues[key]) || obj[key][subKey] > maxValues[key][subKey]) {
-                maxValues[key][subKey] = obj[key][subKey];
-              }
-            });
-          }
-        });
-      });
-      return maxValues;
-    }
-    return {};
-  }
-
-  /**
    * Make family permissions readonly (except chat and schedule)
    */
   private makeFamilyPermissionReadonly(permissions: any): any {

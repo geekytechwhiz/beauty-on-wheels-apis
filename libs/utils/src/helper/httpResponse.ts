@@ -132,7 +132,7 @@ export class ApiResponse {
         success: true,
         statusCode: 200,
         message: { ...message, severity: 'SUCCESS' },
-        data: data ?? null,
+        data: Array.isArray(data) ? {items: data} : data ?? null,
         error: null,
         meta: buildMeta(options),
       },

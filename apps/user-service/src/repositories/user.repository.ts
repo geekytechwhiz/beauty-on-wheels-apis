@@ -1,12 +1,48 @@
 import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile } from '../models';
+import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 const USER_TABLE_NAME = process.env.USER_TABLE || '';
+
+/**
+ * Maps a User object (or DynamoDB item) to UserResponse interface
+ * Returns only the fields specified in UserResponse
+ */
+function mapToUserResponse(user: any): UserResponse {
+  return {
+    phoneNumber: user.phoneNumber || '',
+    createdDate: user.createdDate || user.createdAt || 0,
+    userType: user.userType || '',
+    lastName: user.lastName || '',
+    isRpmUser: user.isRpmUser || false,
+    profilePic: user.profilePic || '',
+    mrn: user.mrn || '',
+    modifiedDate: user.modifiedDate || 0,
+    fullName: user.fullName || '',
+    firstName: user.firstName || '',
+    roleID: user.roleID || user.roleId || '',
+    city: user.city || '',
+    roleType: user.roleType || user.userType || '',
+    isActive: user.isActive !== undefined ? user.isActive : true,
+    accountType: user.accountType || 'REGULAR',
+    emailAddress: user.emailAddress || '',
+    userID: user.userID || user.userId || '',
+    organizationID: user.organizationID || user.organizationId || '',
+    phoneCode: user.phoneCode || '',
+    sk: user.sk || '',
+    pk: user.pk || '',
+    postalCode: user.postalCode || user.zip || '',
+    sk1: user.sk1 || user.userType || 'USER',
+    status: user.status !== undefined ? user.status : (user.isActive !== undefined ? user.isActive : true),
+    createdAt: user.createdAt || user.createdDate || 0,
+    roleName: user.roleName || user.userType || '',
+    definedRoleCode: user.definedRoleCode || user.userType || '',
+  };
+}
 
 // DynamoDB table for users is currently keyed with lowercase `pk` / `sk`
 // We keep uppercase PK/SK only as duplicate attributes on writes (non-key attributes)
@@ -447,6 +483,141 @@ export class UserRepository {
     }
   }
 
+  /**
+   * Gets role permissions from DynamoDB
+   */
+  async getRolePermissions(roleId: string, organizationId: string): Promise<any[]> {
+    const logger = createChildLogger(baseLogger, { roleId, organizationId });
+    const ROLES_TABLE = process.env.ROLES_TABLE;
+    try {
+      const params = {
+        TableName: ROLES_TABLE,
+        KeyConditionExpression: '#PK = :PK AND begins_with(#SK, :SK)',
+        ExpressionAttributeNames: {
+          '#PK': 'PK',
+          '#SK': 'SK',
+        },
+        ExpressionAttributeValues: {
+          ':PK': `ORG#${organizationId}`,
+          ':SK': `ROLE#${roleId}`,
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        logger.info({ event: 'getRolePermissions_success', roleId });
+        return result.Items;
+      }
+      return [];
+    } catch (err) {
+      logger.error({ event: 'getRolePermissions_error', err: serializeError(err) });
+      return [];
+    }
+  }
+
+  /**
+   * Gets currencies for a country code from DynamoDB
+   * getCurrenciesForCountryCode
+   */
+  async getCurrenciesForCountryCode(countryCode: string): Promise<any[]> {
+    const logger = createChildLogger(baseLogger, { countryCode });
+    const PACKAGE_TABLE = process.env.PACKAGE_TABLE;
+    try {
+      if (!countryCode) {
+        return [];
+      }
+
+      const params = {
+        TableName: PACKAGE_TABLE,
+        KeyConditionExpression: '#pk = :pk AND #sk = :sk',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+        },
+        ExpressionAttributeValues: {
+          ':pk': 'CURRENCIES',
+          ':sk': `COUNTRY#${countryCode}`,
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0 && Array.isArray(result.Items[0].currencies)) {
+        logger.info({ event: 'getCurrenciesForCountryCode_success', countryCode });
+        return result.Items[0].currencies;
+      }
+      return [];
+    } catch (err) {
+      logger.error({ event: 'getCurrenciesForCountryCode_error', err: serializeError(err) });
+      return [];
+    }
+  }
+
+  /**
+   * Gets user preferences (for schedule configuration)
+   * 
+   */
+  async getUserPreferences(userId: string, organizationId: string): Promise<any> {
+    const logger = createChildLogger(baseLogger, { userId, organizationId });
+    try {
+      const params = {
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+        },
+        ExpressionAttributeValues: {
+          ':pk': `USER#${userId}`,
+          ':sk': 'PREFERENCE',
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        const item = result.Items[0];
+        // Filter out metadata fields
+        const { pk, sk, userID, createdDate, modifiedDate, organizationID, ...rest } = item;
+        logger.info({ event: 'getUserPreferences_success', userId });
+        return rest;
+      }
+      return {};
+    } catch (err) {
+      logger.error({ event: 'getUserPreferences_error', err: serializeError(err) });
+      return {};
+    }
+  }
+
+  /**
+   * Gets user basic details (for FNF details)
+   */
+  async getUserBasicDetails(userId: string): Promise<any | null> {
+    const logger = createChildLogger(baseLogger, { userId });
+    try {
+      const params = {
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+        },
+        ExpressionAttributeValues: {
+          ':pk': `USER#${userId}`,
+          ':sk': 'ORG#',
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        logger.info({ event: 'getUserBasicDetails_success', userId });
+        return result.Items[0];
+      }
+      return null;
+    } catch (err) {
+      logger.error({ event: 'getUserBasicDetails_error', err: serializeError(err) });
+      return null;
+    }
+  }
+
   async listUserFiles(userId: string): Promise<UserFile[]> {
     try {
       const result = await docClient.send(
@@ -471,7 +642,7 @@ export class UserRepository {
   async listOrganizationUsers(
     organizationId: string,
     options: ListOrganizationUsersOptions = {},
-  ): Promise<User[]> {
+  ): Promise<UserResponse[]> {
     const {
       limit,
       offset = 0,
@@ -510,7 +681,7 @@ export class UserRepository {
           }),
         );
 
-        let users = (result.Items ?? []) as User[];
+        let users = (result.Items ?? []).map(mapToUserResponse);
 
         // In-memory filtering
         if (status) {
@@ -601,7 +772,7 @@ export class UserRepository {
             }),
           );
 
-          let users = (fallbackResult.Items ?? []) as User[];
+          let users = (fallbackResult.Items ?? []).map(mapToUserResponse);
 
           if (status) {
             const statusLc = status.toLowerCase();

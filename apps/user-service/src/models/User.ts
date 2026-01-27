@@ -1,3 +1,4 @@
+
 export interface User {
   pk: string;
   sk: string;
@@ -108,3 +109,37 @@ export interface User {
   itemType?: string;
 }
 
+/**
+ * User Response Interface
+ * Represents the user data structure returned in API responses
+ * Includes DynamoDB keys and role information
+ */
+export interface UserResponse {
+  phoneNumber: string;
+  createdDate: number;
+  userType: string;
+  lastName: string;
+  isRpmUser: boolean;
+  profilePic: string;
+  mrn: string;
+  modifiedDate: number;
+  fullName: string;
+  firstName: string;
+  roleID: string;
+  city: string;
+  roleType: string;
+  isActive: boolean;
+  accountType: string;
+  emailAddress: string;
+  userID: string;
+  organizationID: string;
+  phoneCode: string;
+  sk: string;
+  pk: string;
+  postalCode: string;
+  sk1: string;
+  status: boolean;
+  createdAt: number;
+  roleName: string;
+  definedRoleCode: string;
+}

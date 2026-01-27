@@ -2,6 +2,15 @@ import winston from 'winston';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { Context } from 'aws-lambda';
 
+// Increase max listeners to prevent warnings when multiple logger instances are created
+// This is common in Lambda environments where modules are imported multiple times
+if (typeof process.getMaxListeners === 'function') {
+  const currentMax = process.getMaxListeners();
+  if (currentMax < 20) {
+    process.setMaxListeners(20);
+  }
+}
+
 /**
  * Logger options interface
  */
@@ -112,6 +121,7 @@ const getLogLevel = (): string => {
 const createWinstonLogger = (options?: LoggerOptions): winston.Logger => {
   const env = process.env.NODE_ENV || 'development';
   const isTest = env === 'test';
+  const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
   const defaultMeta = {
     service: options?.service || 'unknown-service',
@@ -127,7 +137,7 @@ const createWinstonLogger = (options?: LoggerOptions): winston.Logger => {
     }),
   ];
 
-  return winston.createLogger({
+  const loggerConfig: winston.LoggerOptions = {
     level: getLogLevel(),
     defaultMeta,
     format: winston.format.combine(
@@ -137,19 +147,22 @@ const createWinstonLogger = (options?: LoggerOptions): winston.Logger => {
     transports,
     // Don't exit on handled exceptions
     exitOnError: false,
-    // Handle uncaught exceptions
-    exceptionHandlers: [
+  };
+
+  if (!isLambda) {
+    loggerConfig.exceptionHandlers = [
       new winston.transports.Console({
         format: jsonFormat, // Always use JSON format
       }),
-    ],
-    // Handle unhandled promise rejections
-    rejectionHandlers: [
+    ];
+    loggerConfig.rejectionHandlers = [
       new winston.transports.Console({
         format: jsonFormat, // Always use JSON format
       }),
-    ],
-  });
+    ];
+  }
+
+  return winston.createLogger(loggerConfig);
 };
 
 /**

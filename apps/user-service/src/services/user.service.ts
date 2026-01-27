@@ -1,7 +1,7 @@
 import { UserRepository, ListOrganizationUsersOptions } from '../repositories/user.repository';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile } from '../models';
+import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
 import { publishEvent } from '../events/event.publisher';
@@ -206,6 +206,10 @@ export class UserService {
       const devices = (data as any).devices;
       const isRpmUser = !!(devices && Array.isArray(devices) && devices.length > 0);
       
+      // Preserve definedRoleCode explicitly to ensure it's saved to DB
+      const definedRoleCode = (data as any).definedRoleCode;
+      logger.info({ event: 'service_createUser_definedRoleCode_check', definedRoleCode, hasDefinedRoleCode: definedRoleCode !== undefined });
+      
       const user: User = {
         ...data,
         phoneNumber: phoneNumberForDB,
@@ -226,7 +230,10 @@ export class UserService {
         invitedID: code || undefined,
         tokenUpdatedAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds (matching old implementation)
         userCat: userCat,
+        ...(definedRoleCode !== undefined ? { definedRoleCode: String(definedRoleCode) } : {}),
       } as User;
+      
+      logger.info({ event: 'service_createUser_user_object', hasDefinedRoleCode: (user as any).definedRoleCode !== undefined, definedRoleCode: (user as any).definedRoleCode });
 
       await this.repository.createUser(user);
 
@@ -458,6 +465,515 @@ export class UserService {
     }
   }
 
+  /**
+   * Merges multiple permission objects, taking max values for conflicts
+   * Based on old implementation: getUniquePermissions
+   */
+  private getUniquePermissions(permissions: any[]): any {
+    const maxValues: any = {};
+    if (permissions && permissions.length > 0) {
+      permissions.forEach((obj) => {
+        if (obj && typeof obj === 'object') {
+          Object.keys(obj).forEach((key) => {
+            if (!(key in maxValues)) {
+              maxValues[key] = obj[key];
+            } else {
+              // If both are objects, merge recursively
+              if (typeof obj[key] === 'object' && typeof maxValues[key] === 'object' && !Array.isArray(obj[key]) && !Array.isArray(maxValues[key])) {
+                Object.keys(obj[key]).forEach((subKey) => {
+                  if (!(subKey in maxValues[key]) || obj[key][subKey] > maxValues[key][subKey]) {
+                    maxValues[key][subKey] = obj[key][subKey];
+                  }
+                });
+              } else if (typeof obj[key] === 'number' && typeof maxValues[key] === 'number') {
+                maxValues[key] = Math.max(maxValues[key], obj[key]);
+              }
+            }
+          });
+        }
+      });
+      return maxValues;
+    }
+    return {};
+  }
+
+  /**
+   * Safely converts a value to a string, returning empty string if conversion fails
+   */
+  private safeString(value: any): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    try {
+      return String(value);
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Safely converts a value to a boolean, returning false if conversion fails
+   */
+  private safeBoolean(value: any): boolean {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'boolean') return value;
+    return value === true || value === 'true' || value === 1 || value === '1';
+  }
+
+  /**
+   * Transforms User object to match the expected response structure
+   * Includes comprehensive error handling to prevent runtime errors
+   * Fetches all required data from DynamoDB (roles, permissions, currencies, etc.)
+   */
+  async transformUserForResponse(
+    user: any, 
+    organizationId: string, 
+    userType?: string, 
+    orgData?: any, 
+    defaultProfile?: string
+  ): Promise<any> {
+    // Safety check: ensure user is an object
+    if (!user || typeof user !== 'object') {
+      return {};
+    }
+    
+    // Ensure organizationId is a string
+    const safeOrgId = this.safeString(organizationId);
+
+    // Calculate account age with leap year adjustment
+    const isLeapYear = (year: number) => {
+      if (typeof year !== 'number' || isNaN(year)) return false;
+      return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+    };
+    
+    const calculateAccountAge = (createdEpoch: number | string | undefined): { years: number; months: number; days: number } => {
+      try {
+        if (!createdEpoch) return { years: 0, months: 0, days: 0 };
+        
+        const epochNum = typeof createdEpoch === 'string' ? parseInt(createdEpoch, 10) : createdEpoch;
+        if (isNaN(epochNum) || !isFinite(epochNum)) return { years: 0, months: 0, days: 0 };
+
+        const currentTimestamp = Date.now();
+        const currentDate = new Date(currentTimestamp);
+        const createdDate = new Date(epochNum);
+
+        // Validate dates
+        if (isNaN(currentDate.getTime()) || isNaN(createdDate.getTime())) {
+          return { years: 0, months: 0, days: 0 };
+        }
+
+        let years = currentDate.getFullYear() - createdDate.getFullYear();
+        let months = currentDate.getMonth() - createdDate.getMonth();
+        let days = currentDate.getDate() - createdDate.getDate();
+
+        // Adjust for negative values
+        if (months < 0 || (months === 0 && days < 0)) {
+          years--;
+          months += 12;
+        }
+
+        // Adjust for leap years
+        const startYear = createdDate.getFullYear();
+        const endYear = currentDate.getFullYear();
+        for (let i = startYear; i < endYear; i++) {
+          if (isLeapYear(i)) {
+            days += 1;
+          }
+        }
+
+        return { years: Math.max(0, years), months: Math.max(0, months), days: Math.max(0, days) };
+      } catch (err) {
+        return { years: 0, months: 0, days: 0 };
+      }
+    };
+
+    const accountAge = user.createdDate ? calculateAccountAge(user.createdDate) : { years: 0, months: 0, days: 0 };
+
+    // Extract allergies from medicalHistory if it exists - safe array check
+    const allergies = Array.isArray(user.medicalHistory?.allergies) 
+      ? user.medicalHistory.allergies 
+      : (Array.isArray(user.allergies) ? user.allergies : []);
+    const chiefMedicalIssue = user.medicalHistory?.chiefMedicalIssue || user.chiefMedicalIssue || '';
+    const smoking = user.medicalHistory?.smoking || user.smoking || '';
+    const alcoholConsumption = user.medicalHistory?.alcoholConsumption || user.alcoholConsumption || '';
+
+    // Extract general settings - check if key exists in user object
+    // Safety: ensure userKeys is always an array
+    const userKeys = Array.isArray(Object.keys(user)) ? Object.keys(user) : [];
+    const generalSettings = {
+      promotions: userKeys.includes('promotions') ? user.promotions : true,
+      medication: userKeys.includes('medication') ? user.medication : true,
+      appointment: userKeys.includes('appointment') ? user.appointment : true,
+      newsAndArticles: userKeys.includes('newsAndArticles') ? user.newsAndArticles : true,
+      emergencyVital: userKeys.includes('emergencyVital') ? user.emergencyVital : true,
+      medicationReminders: userKeys.includes('medicationReminders') ? user.medicationReminders : true,
+      appointmentReminders: userKeys.includes('appointmentReminders') ? user.appointmentReminders : true,
+      activityGoals: userKeys.includes('activityGoals') ? user.activityGoals : true,
+      healthCheckIn: userKeys.includes('healthCheckIn') ? user.healthCheckIn : true,
+      debugMode: userKeys.includes('debugMode') ? user.debugMode : false,
+    };
+
+    // Extract organization data - safe access with defaults
+    const orgInfo = (orgData && typeof orgData === 'object' && orgData.organizationInfo) 
+      ? orgData.organizationInfo 
+      : {};
+    const orgDefaultSetting = (orgInfo && orgInfo.defaultSetting) 
+      ? orgInfo.defaultSetting 
+      : ((orgData && typeof orgData === 'object' && orgData.defaultSetting) ? orgData.defaultSetting : {});
+    const orgNotifications = (orgDefaultSetting && typeof orgDefaultSetting === 'object' && orgDefaultSetting.notifications)
+      ? orgDefaultSetting.notifications
+      : {};
+    const orgUnits = (orgDefaultSetting && typeof orgDefaultSetting === 'object' && orgDefaultSetting.units)
+      ? orgDefaultSetting.units
+      : {};
+    const orgLanguages = Array.isArray(orgDefaultSetting.languages) ? orgDefaultSetting.languages : [];
+    const orgDateFormat = Array.isArray(orgDefaultSetting.dateFormat) ? orgDefaultSetting.dateFormat : [];
+    const orgTabBar = Array.isArray(orgDefaultSetting.tabBar) ? orgDefaultSetting.tabBar : [];
+    
+    // Find default language (English) or first language - safe array operations
+    let defaultLanguage = { langCode: 'en' };
+    try {
+      if (orgLanguages.length > 0) {
+        const languageIndex = orgLanguages.findIndex((lang: any) => 
+          lang && typeof lang === 'object' && lang.label === 'English'
+        );
+        defaultLanguage = languageIndex >= 0 
+          ? (orgLanguages[languageIndex] || { langCode: 'en' })
+          : (orgLanguages[0] || { langCode: 'en' });
+      }
+    } catch (err) {
+      defaultLanguage = { langCode: 'en' };
+    }
+    
+    // Find default date format (MM.dd.yyyy) or first format - safe array operations
+    let defaultDateFormat = 'MM.dd.yyyy';
+    try {
+      if (orgDateFormat.length > 0) {
+        const dateFormatIndex = orgDateFormat.findIndex((fmt: any) => 
+          typeof fmt === 'string' && fmt === 'MM.dd.yyyy'
+        );
+        defaultDateFormat = dateFormatIndex >= 0 
+          ? (orgDateFormat[dateFormatIndex] || 'MM.dd.yyyy')
+          : (typeof orgDateFormat[0] === 'string' ? orgDateFormat[0] : 'MM.dd.yyyy');
+      }
+    } catch (err) {
+      defaultDateFormat = 'MM.dd.yyyy';
+    }
+
+    // Extract communication settings - check if key exists in user object, fallback to org defaults
+    const commSettings = {
+      sms: userKeys.includes('sms') ? user.sms : (orgNotifications.sms !== undefined ? orgNotifications.sms : true),
+      chat_with_push: userKeys.includes('chat_with_push') ? user.chat_with_push : (orgNotifications.chat_with_push !== undefined ? orgNotifications.chat_with_push : true),
+      email: userKeys.includes('email') ? user.email : (orgNotifications.email !== undefined ? orgNotifications.email : true),
+      push: userKeys.includes('push') ? user.push : (orgNotifications.push !== undefined ? orgNotifications.push : true),
+      chat: userKeys.includes('chat') ? user.chat : (orgNotifications.chat !== undefined ? orgNotifications.chat : false),
+    };
+
+    // Extract units using getUserUnits logic
+    const preferredUnits: Record<string, string> = {
+      bloodPressureUnit: 'mmHg',
+      glucometerUnit: 'mmol/L',
+      heartBeatUnit: 'bpm',
+      heightUnit: 'cm',
+      oximeterUnit: 'SpO2',
+      temperatureUnit: 'C',
+      weightUnit: 'kg',
+      cholesterolUnit: 'mg/dL',
+      water: 'l',
+      distance: 'km',
+    };
+
+    // Safe units extraction with error handling
+    const orgUnitsKeys = (orgUnits && typeof orgUnits === 'object') ? Object.keys(orgUnits) : [];
+    const userUnits: Record<string, string> = {};
+    try {
+      for (const key of orgUnitsKeys) {
+        if (typeof key !== 'string') continue;
+        
+        const defaultUnitArray = orgUnits[key];
+        const preferredUnit = preferredUnits[key];
+        
+        if (Array.isArray(defaultUnitArray) && defaultUnitArray.length > 0 && typeof preferredUnit === 'string') {
+          const defaultUnit = defaultUnitArray.includes(preferredUnit)
+            ? preferredUnit
+            : (typeof defaultUnitArray[0] === 'string' ? defaultUnitArray[0] : preferredUnit);
+          userUnits[key] = (typeof user[key] === 'string' && user[key]) || defaultUnit;
+        }
+      }
+    } catch (err) {
+      // Continue with defaults if unit extraction fails
+    }
+    
+    // Ensure all expected units are present
+    const units = {
+      glucometerUnit: userUnits.glucometerUnit || 'mmol/L',
+      heartBeatUnit: userUnits.heartBeatUnit || 'bpm',
+      oximeterUnit: userUnits.oximeterUnit || 'SpO2',
+      cholesterolUnit: userUnits.cholesterolUnit || 'mg/dL',
+      distance: userUnits.distance || 'km',
+      temperatureUnit: userUnits.temperatureUnit || 'C',
+      bloodPressureUnit: userUnits.bloodPressureUnit || 'mmHg',
+      water: userUnits.water || 'l',
+      heightUnit: userUnits.heightUnit || 'cm',
+      weightUnit: userUnits.weightUnit || 'kg',
+    };
+
+    // Determine userType - safe type checking
+    let finalUserType = 'USER'; // Default
+    try {
+      if (user.userCat && Array.isArray(user.userCat) && user.userCat.length > 0) {
+        finalUserType = typeof user.userCat[0] === 'string' ? user.userCat[0] : 'USER';
+      } else {
+        // roleType will be set from role service later, but for now use provided userType
+        const roleTypeStr = (user.roleType && typeof user.roleType === 'string') ? user.roleType : '';
+        if (roleTypeStr) {
+          if (roleTypeStr.includes('USER')) {
+            finalUserType = 'USER';
+          } else if (roleTypeStr.includes('STAFF')) {
+            finalUserType = 'STAFF';
+          } else {
+            finalUserType = (userType && typeof userType === 'string') ? userType : 'USER';
+          }
+        } else {
+          finalUserType = (userType && typeof userType === 'string') ? userType : 'USER';
+        }
+      }
+    } catch (err) {
+      finalUserType = (userType && typeof userType === 'string') ? userType : 'USER';
+    }
+
+    // Build full name with prefix if applicable - safe string operations
+    let fullName = (user.fullName && typeof user.fullName === 'string') ? user.fullName : '';
+    try {
+      if (user.namePrefix && typeof user.namePrefix === 'string' && user.namePrefix.includes('Dr')) {
+        fullName = `${user.namePrefix} ${fullName}`.trim();
+      }
+    } catch (err) {
+      // Keep original fullName if prefix processing fails
+    }
+
+    // Fitness apps - check if key exists in user object
+    const fitnessApps = {
+      garmin: userKeys.includes('garmin') ? (user.garmin === true) : false,
+      fitbit: userKeys.includes('fitbit') ? (user.fitbit === true) : false,
+    };
+
+    // Fetch all required data in parallel (with error handling)
+    const userId = this.safeString(user.userID);
+    const countryCode = this.safeString(user.countryCode) || (orgInfo?.address?.countryCode ? this.safeString(orgInfo.address.countryCode) : '');
+
+    // Extract user roles directly from user object (userRole array)
+    const userRoles: string[] = Array.isArray(user.userRole) ? user.userRole.filter((r: any) => typeof r === 'string' && r.trim() !== '') : [];
+    const roleId = userRoles.length > 0 ? userRoles[0] : '';
+
+    // Fetch role permissions for all user roles in parallel
+    const rolePermissionsPromises = userRoles.map((rId: string) => 
+      this.repository.getRolePermissions(rId, safeOrgId)
+    );
+
+    // Fetch data in parallel where possible
+    const [
+      rolePermissionsResults,
+      currencies,
+      userPreferences,
+      fnfUserDetails,
+    ] = await Promise.allSettled([
+      // Get role permissions for all user roles
+      Promise.allSettled(rolePermissionsPromises),
+      // Get currencies for country code
+      countryCode ? this.repository.getCurrenciesForCountryCode(countryCode) : Promise.resolve([]),
+      // Get user preferences for schedule configuration
+      this.repository.getUserPreferences(userId, safeOrgId),
+      // Get FNF details if defaultProfile is set
+      defaultProfile && defaultProfile.trim() !== '' ? this.repository.getUserBasicDetails(defaultProfile) : Promise.resolve(null),
+    ]);
+
+    // Extract roles and permissions data
+    let roleName: string = '';
+    let roleType: string = '';
+    let permission: any = {};
+    let userPermissions: any[] = [];
+    let isDefault: boolean = false;
+
+    // Process role permissions results
+    if (rolePermissionsResults.status === 'fulfilled' && rolePermissionsResults.value) {
+      const allRolePermissions: any[] = [];
+      const roleDetailsArray = rolePermissionsResults.value;
+
+      // Process first role for roleName, roleType, userPermissions, isDefault
+      if (roleId && roleDetailsArray.length > 0 && roleDetailsArray[0].status === 'fulfilled') {
+        const firstRoleDetails = roleDetailsArray[0].value;
+        if (firstRoleDetails && firstRoleDetails.length > 0) {
+          const roleDetail = firstRoleDetails[0];
+          roleName = roleDetail?.roleName || roleDetail?.definedRoleCode || '';
+          roleType = roleDetail?.roleType || '';
+          userPermissions = roleDetail?.features || [];
+          isDefault = roleDetail?.isDefault ?? false;
+        }
+      }
+
+      // Collect permissions from all roles
+      for (const roleResult of roleDetailsArray) {
+        if (roleResult.status === 'fulfilled' && roleResult.value) {
+          const roleDetails = roleResult.value;
+          if (roleDetails && roleDetails.length > 0 && roleDetails[0].permissions) {
+            allRolePermissions.push(roleDetails[0].permissions);
+          }
+        }
+      }
+
+      // Merge permissions from all roles
+      if (allRolePermissions.length > 0) {
+        permission = this.getUniquePermissions(allRolePermissions);
+      }
+    }
+
+    // Extract currencies
+    const currenciesArray = currencies.status === 'fulfilled' ? (currencies.value || []) : [];
+
+    // Extract schedule configuration
+    const scheduleConfiguration = userPreferences.status === 'fulfilled' ? (userPreferences.value || {}) : {};
+
+    // Extract FNF details
+    let fnfDetails: any = null;
+    if (fnfUserDetails.status === 'fulfilled' && fnfUserDetails.value) {
+      const fnfUser = fnfUserDetails.value;
+      fnfDetails = {
+        userID: defaultProfile || '',
+        firstName: this.safeString(fnfUser.firstName),
+        middleName: this.safeString(fnfUser.middleName),
+        lastName: this.safeString(fnfUser.lastName),
+        emailAddress: this.safeString(fnfUser.emailAddress),
+        phoneNumber: this.safeString(fnfUser.phoneNumber),
+        profilePic: this.safeString(fnfUser.profilePic),
+        organizationID: this.safeString(fnfUser.organizationID),
+        fullName: this.safeString(fnfUser.fullName),
+        gender: this.safeString(fnfUser.gender),
+        permissions: permission, // Use readonly permissions if needed (can be enhanced later)
+      };
+    }
+
+    // Transform to match expected response structure - all string fields use safeString
+    return {
+      userID: this.safeString(user.userID),
+      emailVerified: this.safeBoolean(user.emailVerified),
+      phoneVerified: this.safeBoolean(user.phoneVerified),
+      firstName: this.safeString(user.firstName),
+      middleName: this.safeString(user.middleName),
+      lastName: this.safeString(user.lastName),
+      mrn: this.safeString(user.mrn),
+      emailAddress: this.safeString(user.emailAddress),
+      phoneNumber: this.safeString(user.phoneNumber),
+      profilePic: this.safeString(user.profilePic),
+      organizationID: this.safeString(user.organizationID) || safeOrgId,
+      fullName: this.safeString(fullName),
+      gender: this.safeString(user.gender),
+      weightInLbs: this.safeString(user.weightInLbs),
+      weightInKG: this.safeString(user.weightInKG),
+      heightInCm: this.safeString(user.heightInCm),
+      heightInFeet: this.safeString(user.heightInFeet),
+      cloudOpt: this.safeString(user.cloudOpt),
+      country: this.safeString(user.country),
+      language: userKeys.includes('language') ? this.safeString(user.language) : this.safeString(defaultLanguage?.langCode || 'en'),
+      dateOfBirth: this.safeString(user.dateOfBirth),
+      address: this.safeString(user.address),
+      allergies: Array.isArray(allergies) ? allergies : [],
+      chiefMedicalIssue: this.safeString(chiefMedicalIssue),
+      smoking: this.safeString(smoking),
+      alcoholConsumption: this.safeString(alcoholConsumption),
+      additionalPhoneNumbers: Array.isArray(user.additionalPhoneNumbers) ? user.additionalPhoneNumbers : [],
+      additionalEmailIDs: Array.isArray(user.additionalEmailIDs) ? user.additionalEmailIDs : [],
+      srcRegisEntity: this.safeString(user.srcRegisEntity),
+      accountAge: accountAge || { years: 0, months: 0, days: 0 },
+      isRegisteredCompletely: this.safeBoolean(user.isRegisteredCompletely),
+      appName: this.safeString(user.appName),
+      accountStatus: this.safeString(user.accountStatus),
+      phoneLocale: this.safeString(user.phoneLocale),
+      locale: this.safeString(user.locale),
+      userTimeZone: this.safeString(user.userTimeZone),
+      stateCode: this.safeString(user.stateCode),
+      countryCode: this.safeString(user.countryCode),
+      currencies: currenciesArray,
+      region: this.safeString(user.region),
+      pushToken: this.safeString(user.pushToken),
+      platform: this.safeString(user.platform),
+      voipToken: this.safeString(user.voipToken),
+      assignRoomNo: this.safeString(user.assignRoomNo),
+      organizationName: this.safeString(orgInfo?.organizationName || orgData?.name),
+      organizationAddress: (orgInfo && typeof orgInfo === 'object' && orgInfo.address && typeof orgInfo.address === 'object')
+        ? orgInfo.address
+        : {},
+      organizationEmailAddress: (() => {
+        try {
+          if (orgData && typeof orgData === 'object' && Array.isArray(orgData.adminDetails) && orgData.adminDetails.length > 0) {
+            const adminEmail = orgData.adminDetails[0]?.emailAddress;
+            if (typeof adminEmail === 'string' && adminEmail) return adminEmail;
+          }
+          const orgEmail = orgInfo?.emailAddress;
+          return (typeof orgEmail === 'string' && orgEmail) ? orgEmail : '';
+        } catch (err) {
+          return '';
+        }
+      })(),
+      scheduleConfiguration: scheduleConfiguration,
+      roleName: roleName,
+      userRoles: userRoles,
+      roleType: roleType,
+      roleId: roleId,
+      permission: permission,
+      changePassword: this.safeBoolean(user.changePassword),
+      isRpmUser: this.safeBoolean(user.isRpmUser),
+      lastAppointment: this.safeString(user.lastAppointment),
+      state: this.safeString(user.state),
+      city: this.safeString(user.city),
+      street: this.safeString(user.street),
+      isActive: user.isActive !== undefined ? this.safeBoolean(user.isActive) : false,
+      emergencyContact: (user.emergencyContact && typeof user.emergencyContact === 'object') ? user.emergencyContact : {},
+      insuranceDetails: (user.insuranceDetails && typeof user.insuranceDetails === 'object') ? user.insuranceDetails : {},
+      medicalHistory: (user.medicalHistory && typeof user.medicalHistory === 'object') ? user.medicalHistory : {},
+      namePrefix: this.safeString(user.namePrefix),
+      mfaEnabled: this.safeBoolean(user.mfaEnabled),
+      phoneCode: this.safeString(user.phoneCode),
+      zip: this.safeString(user.zip || user.postalCode),
+      specialty: this.safeString(user.specialty),
+      position: this.safeString(user.position),
+      licenseNumber: this.safeString(user.licenseNumber),
+      department: this.safeString(user.department),
+      workSchedule: (user.workSchedule && typeof user.workSchedule === 'object') ? user.workSchedule : {},
+      isDeleted: this.safeBoolean(user.isDeleted),
+      delete_request_time: this.safeString(user.delete_request_time),
+      ethnicity: this.safeString(user.ethnicity),
+      maritalStatus: this.safeString(user.maritalStatus),
+      bloodGroup: this.safeString(user.bloodGroup),
+      appleHealthLastSync: this.safeString(user.appleHealthLastSync),
+      googleFitLastSync: this.safeString(user.googleFitLastSync),
+      experienceInYears: this.safeString(user.experienceInYears),
+      bio: this.safeString(user.bio),
+      workingHours: (user.workingHours && typeof user.workingHours === 'object') ? user.workingHours : {},
+      userType: finalUserType,
+      fnfDetails: fnfDetails,
+      generalSettings: generalSettings,
+      communicationSettings: commSettings,
+      tabBar: orgTabBar,
+      dateFormat: userKeys.includes('dateFormat') ? this.safeString(user.dateFormat) : this.safeString(defaultDateFormat),
+      acceptedAppForms: Array.isArray(user.acceptedAppForms) ? user.acceptedAppForms : [],
+      units: units,
+      fitnessApps: fitnessApps,
+      isTaskCompleted: user.isTaskCompleted !== undefined ? this.safeBoolean(user.isTaskCompleted) : true,
+      userPermissions: userPermissions,
+      isDefault: isDefault,
+      definedRoleCode: this.safeString(user.definedRoleCode),
+      // Additional fields that may exist
+      reporterId: this.safeString(user.reporterId),
+      reporterProfilePic: this.safeString(user.reporterProfilePic),
+      reporterSpecialty: this.safeString(user.reporterSpecialty),
+      reporterName: this.safeString(user.reporterName),
+      referred: this.safeString(user.referred),
+      careManager: this.safeString(user.careManager),
+      dietician: this.safeString(user.dietician),
+      healthCoach: this.safeString(user.healthCoach),
+    };
+  }
+
   async updateUser(
     userId: string,
     organizationId: string,
@@ -666,7 +1182,7 @@ export class UserService {
   async listOrganizationUsers(
     organizationId: string,
     options?: ListOrganizationUsersOptions,
-  ): Promise<User[]> {
+  ): Promise<UserResponse[]> {
     const timer = createPerformanceTimer(baseLogger, 'listOrganizationUsers');
     const logger = createChildLogger(baseLogger, { organizationId });
     logger.info({ event: 'service_listOrganizationUsers_start' });

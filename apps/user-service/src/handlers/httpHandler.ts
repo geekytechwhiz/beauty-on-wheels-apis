@@ -1,6 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { UserService } from '../services/user.service';
-import { assignUserRole, getRoleDetails } from '../services/role.service';
+import { assignUserRole } from '../services/role.service';
+import { OrganizationRepository } from '../repositories/organization.repository';
+import { UserRepository } from '../repositories/user.repository';
 import { createLogger, extractCorrelationId, serializeError, logHttpRequest, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import {
@@ -13,6 +15,8 @@ import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
+const organizationRepository = new OrganizationRepository();
+const userRepository = new UserRepository();
 
 export async function createUser(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();
@@ -125,39 +129,55 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
     let definedRoleCode: string | undefined;
+    
+    // Fetch definedRoleCode directly from repository (database query)
     if (roleIds.length > 0) {
       logger.info({
-        event: 'createUser_role_check_start',
+        event: 'createUser_fetch_definedRoleCode_from_repo',
         organizationID: body.organizationID,
         roleIds,
+        firstRoleId: roleIds[0],
       });
-      const roleMetas = await Promise.all(
-        roleIds.map(async (roleId: string) => {
-          const roleMeta = await getRoleDetails(roleId, body.organizationID, authHeader);
-          if (!roleMeta || (Array.isArray(roleMeta) && roleMeta.length === 0)) {
-            logger.warn({ event: 'createUser_role_not_found', roleId, organizationID: body.organizationID });
-          } else {
-            logger.info({
-              event: 'createUser_role_check_success',
-              roleId,
-              organizationID: body.organizationID,
-            });
-          }
-          logger.info({ event: 'createUser_role_check_success', roleMeta });
-          return roleMeta;
-        }),
-      );
-      const metaWithRoleCode = roleMetas.find((meta) => {
-        if (!meta) return false;
-        if (Array.isArray(meta)) {
-          return meta.some((item) => (item as any)?.definedRoleCode);
+      try {
+        const rolePermissions = await userRepository.getRolePermissions(roleIds[0], body.organizationID);
+        logger.info({ 
+          event: 'createUser_repo_query_result', 
+          rolePermissionsCount: rolePermissions?.length || 0,
+          hasItems: rolePermissions && rolePermissions.length > 0,
+        });
+        if (rolePermissions && rolePermissions.length > 0) {
+          // Find the exact match for the role (SK should match exactly)
+          const exactRoleMatch = rolePermissions.find(
+            (item: any) => item.SK === `ROLE#${roleIds[0]}`
+          ) || rolePermissions[0]; // Fallback to first item if exact match not found
+          logger.info({ 
+            event: 'createUser_role_detail_found', 
+            hasExactMatch: exactRoleMatch?.SK === `ROLE#${roleIds[0]}`,
+            roleDetailKeys: exactRoleMatch ? Object.keys(exactRoleMatch) : [],
+            hasDefinedRoleCode: exactRoleMatch?.definedRoleCode !== undefined,
+          });
+          definedRoleCode = exactRoleMatch?.definedRoleCode;
+          logger.info({ 
+            event: 'createUser_definedRoleCode_from_repo', 
+            found: !!definedRoleCode,
+            definedRoleCode,
+            definedRoleCodeType: typeof definedRoleCode,
+          });
+        } else {
+          logger.warn({ 
+            event: 'createUser_repo_no_items', 
+            message: 'Repository query returned no items',
+            roleId: roleIds[0],
+            organizationID: body.organizationID,
+          });
         }
-        return (meta as any)?.definedRoleCode;
-      });
-      if (metaWithRoleCode) {
-        definedRoleCode = Array.isArray(metaWithRoleCode)
-          ? (metaWithRoleCode.find((item) => (item as any)?.definedRoleCode) as any)?.definedRoleCode
-          : (metaWithRoleCode as any)?.definedRoleCode;
+      } catch (err) {
+        logger.error({ 
+          event: 'createUser_definedRoleCode_repo_error', 
+          err: serializeError(err),
+          roleId: roleIds[0],
+          organizationID: body.organizationID,
+        });
       }
     } else {
       logger.warn({
@@ -166,10 +186,34 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
         userType: userTypeUpper,
       });
     }
-    logger.info({ event: 'createUser_definedRoleCode', definedRoleCode });
-    if (definedRoleCode) {
-      userData.definedRoleCode = definedRoleCode;
+    logger.info({ 
+      event: 'createUser_definedRoleCode', 
+      definedRoleCode,
+      willSetInUserData: !!definedRoleCode,
+    });
+    // Always set definedRoleCode if it exists, even if empty string
+    if (definedRoleCode !== undefined && definedRoleCode !== null) {
+      userData.definedRoleCode = String(definedRoleCode);
+      logger.info({ 
+        event: 'createUser_definedRoleCode_set', 
+        definedRoleCode: userData.definedRoleCode,
+        userDataHasDefinedRoleCode: userData.definedRoleCode !== undefined,
+      });
+    } else {
+      logger.warn({ 
+        event: 'createUser_definedRoleCode_not_set', 
+        message: 'definedRoleCode is empty/undefined, not setting in userData',
+        definedRoleCode,
+      });
     }
+
+    // Log userData before passing to service to verify definedRoleCode is included
+    logger.info({
+      event: 'createUser_userData_before_service',
+      userDataKeys: Object.keys(userData),
+      hasDefinedRoleCode: userData.definedRoleCode !== undefined,
+      definedRoleCode: userData.definedRoleCode,
+    });
 
     const result = await userService.createUser(
       userData,
@@ -235,66 +279,139 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
 }
 
+
 export async function getUser(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-
-  // Scenario 1: Get userId and organizationId from path parameters (if provided in URL)
-  let userId = event.pathParameters?.userId?.trim();
-  let organizationId = event.pathParameters?.organizationId?.trim();
-
-  // Normalize empty strings to undefined
-  if (userId === '') userId = undefined;
-  if (organizationId === '') organizationId = undefined;
-
-  // Scenario 2: If not provided in URL, extract from authorization token
   
-  if (!userId || !organizationId) {
-    // Extract from authorizer token (if available)
-    const authorizer = (event.requestContext as any)?.authorizer;
-    
-    if (!userId) {
-      userId = authorizer?.userID || authorizer?.userId || (event as any).userID || (event as any).userId;
-    }
-    
-    if (!organizationId) {
-      organizationId = authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (event as any).organizationId;
-    }
+  // Create logger early for token parsing errors
+  const tempLogger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
 
-    // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
-    if ((!userId || !organizationId) && event.headers?.Authorization) {
-      try {
-        const authHeader = event.headers.Authorization || event.headers.authorization;
-        if (authHeader && typeof authHeader === 'string') {
-          const token = authHeader.replace('Bearer ', '').trim();
-          // Decode JWT without verification (for development/testing)
-          // In production, this should be handled by the authorizer
-          const base64Url = token.split('.')[1];
-          if (base64Url) {
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(
-              Buffer.from(base64, 'base64')
-                .toString()
-                .split('')
-                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-            );
-            const decoded = JSON.parse(jsonPayload);
-            
-            // Extract from common JWT claim formats
-            if (!userId) {
-              userId = decoded['custom:userID'] || decoded['custom:userId'] || decoded.userID || decoded.userId || decoded.sub;
-            }
-            if (!organizationId) {
-              organizationId = decoded['custom:organizationID'] || decoded['custom:organizationId'] || decoded.organizationID || decoded.organizationId;
+  const pathParams = event.pathParameters || {};
+  const authorizer = (event.requestContext as any)?.authorizer;
+
+  // Scenario 1: Get userId and organizationId from path parameters - safe string operations
+  let userId: string | undefined = (pathParams?.userId && typeof pathParams.userId === 'string') 
+    ? pathParams.userId.trim() 
+    : ((pathParams?.userID && typeof pathParams.userID === 'string') ? pathParams.userID.trim() : undefined);
+  let organizationId: string | undefined = (pathParams?.organizationId && typeof pathParams.organizationId === 'string')
+    ? pathParams.organizationId.trim()
+    : ((pathParams?.organizationID && typeof pathParams.organizationID === 'string') ? pathParams.organizationID.trim() : undefined);
+
+  // Scenario 2: If not in pathParams, check event.requestContext?.authorizer - safe property access
+  if (!userId && authorizer) {
+    userId = (authorizer.userID && typeof authorizer.userID === 'string') 
+      ? authorizer.userID 
+      : ((authorizer.userId && typeof authorizer.userId === 'string') ? authorizer.userId : undefined);
+  }
+  if (!organizationId && authorizer) {
+    organizationId = (authorizer.organizationID && typeof authorizer.organizationID === 'string')
+      ? authorizer.organizationID
+      : ((authorizer.organizationId && typeof authorizer.organizationId === 'string') ? authorizer.organizationId : undefined);
+  }
+
+  // Scenario 3: Also check event object directly - safe property access
+  if (!userId && event && typeof event === 'object') {
+    const eventAny = event as any;
+    userId = (eventAny.userID && typeof eventAny.userID === 'string')
+      ? eventAny.userID
+      : ((eventAny.userId && typeof eventAny.userId === 'string') ? eventAny.userId : undefined);
+  }
+  if (!organizationId && event && typeof event === 'object') {
+    const eventAny = event as any;
+    organizationId = (eventAny.organizationID && typeof eventAny.organizationID === 'string')
+      ? eventAny.organizationID
+      : ((eventAny.organizationId && typeof eventAny.organizationId === 'string') ? eventAny.organizationId : undefined);
+  }
+
+  // Extract userType and defaultProfile from event object directly - safe property access
+  let userType: string | undefined = undefined;
+  let defaultProfile: string | undefined = undefined;
+  
+  if (event && typeof event === 'object') {
+    const eventAny = event as any;
+    userType = (eventAny.userType && typeof eventAny.userType === 'string') ? eventAny.userType : undefined;
+    defaultProfile = (eventAny.defaultProfile && typeof eventAny.defaultProfile === 'string') ? eventAny.defaultProfile : undefined;
+  }
+
+  // Also check authorizer for userType (if not in event object)
+  if (!userType && authorizer && typeof authorizer.userType === 'string') {
+    userType = authorizer.userType;
+  }
+
+  // Normalize empty strings to undefined - safe string checks
+  if (userId === '' || (userId && typeof userId === 'string' && userId.trim() === '')) userId = undefined;
+  if (organizationId === '' || (organizationId && typeof organizationId === 'string' && organizationId.trim() === '')) organizationId = undefined;
+  if (userType === '' || (userType && typeof userType === 'string' && userType.trim() === '')) userType = undefined;
+  if (defaultProfile === '' || (defaultProfile && typeof defaultProfile === 'string' && defaultProfile.trim() === '')) defaultProfile = undefined;
+
+  if ((!userId || !organizationId || !userType) && event.headers?.Authorization) {
+    try {
+      const authHeader = event.headers.Authorization || event.headers.authorization;
+      if (authHeader && typeof authHeader === 'string' && authHeader.trim().length > 0) {
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+        
+        if (token && token.length > 0) {
+          const tokenParts = token.split('.');
+          if (tokenParts.length >= 2 && tokenParts[1]) {
+            try {
+              const base64Url = tokenParts[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const decodedBuffer = Buffer.from(base64, 'base64');
+              const jsonPayload = decodeURIComponent(
+                decodedBuffer
+                  .toString()
+                  .split('')
+                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                  .join('')
+              );
+              
+              if (jsonPayload && jsonPayload.trim().length > 0) {
+                const decoded = JSON.parse(jsonPayload);
+                
+                // Extract from common JWT claim formats - safe property access
+                if (!userId && decoded) {
+                  userId = decoded['custom:userID'] || decoded['custom:userId'] || decoded.userID || decoded.userId || decoded.sub || undefined;
+                  if (userId && typeof userId !== 'string') userId = String(userId);
+                }
+                if (!organizationId && decoded) {
+                  organizationId = decoded['custom:organizationID'] || decoded['custom:organizationId'] || decoded.organizationID || decoded.organizationId || undefined;
+                  if (organizationId && typeof organizationId !== 'string') organizationId = String(organizationId);
+                }
+                if (!userType && decoded) {
+                  userType = decoded['custom:userType'] || decoded.userType || undefined;
+                  if (userType && typeof userType !== 'string') userType = String(userType);
+                }
+              }
+            } catch (parseErr) {
+              tempLogger.warn({ 
+                event: 'getUser_token_parse_error', 
+                err: serializeError(parseErr),
+                correlationId,
+                hasToken: !!token,
+                tokenLength: token?.length,
+                tokenPartsCount: tokenParts?.length
+              });
+              // Continue with other sources for userId/organizationId/userType
             }
           }
         }
-      } catch (err) {
-        // Continue without token decoding - will validate below
       }
+    } catch (err) {
+      tempLogger.warn({ 
+        event: 'getUser_token_decode_error', 
+        err: serializeError(err),
+        correlationId,
+        hasAuthHeader: !!event.headers?.Authorization || !!event.headers?.authorization
+      });
+      // Continue with other sources or return error if validation fails
     }
+  }
+
+  // Handle defaultProfile logic (family/friend access) - if set, userId becomes defaultProfile
+  if (defaultProfile && typeof defaultProfile === 'string' && defaultProfile.trim() !== '') {
+    userId = defaultProfile.trim();
   }
 
   // Validate that we have both userId and organizationId
@@ -321,20 +438,63 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
     );
   }
 
-  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, userType, defaultProfile, ...(awsRequestId && { awsRequestId }) });
   const userIdSource = event.pathParameters?.userId ? 'url' : 'token';
   const organizationIdSource = event.pathParameters?.organizationId ? 'url' : 'token';
-  logger.info({ event: 'getUser_received', userIdSource, organizationIdSource });
+  logger.info({ event: 'getUser_received', userIdSource, organizationIdSource, userType, defaultProfile });
   
   try {
     const user = await userService.getUser(userId, organizationId);
+    
+    // Safety check: ensure user is valid
+    if (!user || typeof user !== 'object') {
+      logger.error({ event: 'getUser_invalid_user_object', userId, organizationId });
+      throw new UserNotFoundError(userId);
+    }
+    
+    // Fetch organization data from DynamoDB
+    let orgData = null;
+    try {
+      orgData = await organizationRepository.getOrganizationFromDB(organizationId);
+      if (!orgData) {
+        logger.warn({ event: 'getUser_org_data_not_found', organizationId });
+      }
+    } catch (orgErr) {
+      logger.warn({ event: 'getUser_org_data_fetch_error', err: serializeError(orgErr), organizationId });
+      // Continue without org data - will use defaults
+      orgData = null;
+    }
+    
+    // Transform user to match expected response structure - wrapped in try-catch for safety
+    let transformedUser;
+    try {
+      transformedUser = await userService.transformUserForResponse(user, organizationId, userType, orgData, defaultProfile);
+    } catch (transformErr) {
+      logger.error({ 
+        event: 'getUser_transform_error', 
+        err: serializeError(transformErr), 
+        userId, 
+        organizationId 
+      });
+      // Return a safe fallback response structure
+      transformedUser = {
+        userID: user.userID || userId || '',
+        organizationID: user.organizationID || organizationId || '',
+        emailAddress: user.emailAddress || '',
+        phoneNumber: user.phoneNumber || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        fullName: user.fullName || '',
+      };
+    }
+    
     const duration = Date.now() - startTime;
     const defaultPath = event.pathParameters?.userId && event.pathParameters?.organizationId
       ? `/dev/user/organization/${organizationId}/${userId}`
       : '/dev/user/organization';
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || defaultPath, 200, duration, correlationId);
     return ApiResponse.ok(
-      user,
+      transformedUser,
       'USER.USER_RETRIEVED_SUCCESS',
       { requestId: correlationId, event },
     );
@@ -569,19 +729,52 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
           const srcRegisEntity = String((existing as any).srcRegisEntity || '').toLowerCase();
           const emailInput = hasOwn(body, 'emailAddress') ? body.emailAddress : (hasOwn(body, 'email') ? body.email : undefined);
           const phoneInput = hasOwn(body, 'phoneNumber') ? body.phoneNumber : (hasOwn(body, 'phone') ? body.phone : undefined);
+          
+          // Normalize email for comparison
+          const normalizeEmail = (email: any): string => {
+            if (!email) return '';
+            return String(email).trim().toLowerCase();
+          };
+          
+          // Normalize phone for comparison (with phoneCode)
+          const normalizePhone = (phone: any, phoneCode?: any): string => {
+            if (!phone) return '';
+            const phoneStr = String(phone).trim();
+            const code = phoneCode ? String(phoneCode).trim() : '';
+            const composed = code ? `${code}${phoneStr}`.trim() : phoneStr;
+            return composed.startsWith('+') ? composed : `+${composed}`;
+          };
+          
+          // Check if email is being changed (only if srcRegisEntity is 'email')
           if (emailInput !== undefined && srcRegisEntity === 'email') {
-            return ApiResponse.badRequest(
-              'COMMON.BAD_REQUEST',
-              { requestId: correlationId, event },
-              { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
-            );
+            const existingEmail = normalizeEmail((existing as any).emailAddress);
+            const newEmail = normalizeEmail(emailInput);
+            
+            // Only block if the email is actually different
+            if (existingEmail !== newEmail) {
+              return ApiResponse.badRequest(
+                'COMMON.BAD_REQUEST',
+                { requestId: correlationId, event },
+                { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
+              );
+            }
           }
+          
+          // Check if phone is being changed (only if srcRegisEntity is 'phone' or 'phone_number')
           if (phoneInput !== undefined && (srcRegisEntity === 'phone' || srcRegisEntity === 'phone_number')) {
-            return ApiResponse.badRequest(
-              'COMMON.BAD_REQUEST',
-              { requestId: correlationId, event },
-              { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
-            );
+            const existingPhoneCode = (existing as any).phoneCode || body.phoneCode;
+            const newPhoneCode = body.phoneCode || existingPhoneCode;
+            const existingPhone = normalizePhone((existing as any).phoneNumber, existingPhoneCode);
+            const newPhone = normalizePhone(phoneInput, newPhoneCode);
+            
+            // Only block if the phone is actually different
+            if (existingPhone !== newPhone) {
+              return ApiResponse.badRequest(
+                'COMMON.BAD_REQUEST',
+                { requestId: correlationId, event },
+                { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
+              );
+            }
           }
 
           setIfPresent(userData, 'profilePic', body.profilePic);

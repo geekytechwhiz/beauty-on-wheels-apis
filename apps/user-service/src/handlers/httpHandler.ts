@@ -1,7 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { UserService } from '../services/user.service';
-import { assignUserRole, getRoleDetails } from '../services/role.service';
+import { assignUserRole } from '../services/role.service';
 import { OrganizationRepository } from '../repositories/organization.repository';
+import { UserRepository } from '../repositories/user.repository';
 import { createLogger, extractCorrelationId, serializeError, logHttpRequest, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import {
@@ -15,6 +16,7 @@ import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 const organizationRepository = new OrganizationRepository();
+const userRepository = new UserRepository();
 
 export async function createUser(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();
@@ -127,56 +129,55 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
     let definedRoleCode: string | undefined;
+    
+    // Fetch definedRoleCode directly from repository (database query)
     if (roleIds.length > 0) {
       logger.info({
-        event: 'createUser_role_check_start',
+        event: 'createUser_fetch_definedRoleCode_from_repo',
         organizationID: body.organizationID,
         roleIds,
+        firstRoleId: roleIds[0],
       });
-      const roleMetas = await Promise.all(
-        roleIds.map(async (roleId: string) => {
-          const roleMeta = await getRoleDetails(roleId, body.organizationID, authHeader);
-          if (!roleMeta || (Array.isArray(roleMeta) && roleMeta.length === 0)) {
-            logger.warn({ event: 'createUser_role_not_found', roleId, organizationID: body.organizationID });
-          } else {
-            logger.info({
-              event: 'createUser_role_check_success',
-              roleId,
-              organizationID: body.organizationID,
-            });
-          }
+      try {
+        const rolePermissions = await userRepository.getRolePermissions(roleIds[0], body.organizationID);
+        logger.info({ 
+          event: 'createUser_repo_query_result', 
+          rolePermissionsCount: rolePermissions?.length || 0,
+          hasItems: rolePermissions && rolePermissions.length > 0,
+        });
+        if (rolePermissions && rolePermissions.length > 0) {
+          // Find the exact match for the role (SK should match exactly)
+          const exactRoleMatch = rolePermissions.find(
+            (item: any) => item.SK === `ROLE#${roleIds[0]}`
+          ) || rolePermissions[0]; // Fallback to first item if exact match not found
           logger.info({ 
-            event: 'createUser_role_meta_details', 
-            roleId,
-            roleMeta,
-            isArray: Array.isArray(roleMeta),
-            hasDefinedRoleCode: Array.isArray(roleMeta) 
-              ? roleMeta.some((item) => (item as any)?.definedRoleCode)
-              : (roleMeta as any)?.definedRoleCode !== undefined,
-            definedRoleCode: Array.isArray(roleMeta)
-              ? (roleMeta.find((item) => (item as any)?.definedRoleCode) as any)?.definedRoleCode
-              : (roleMeta as any)?.definedRoleCode,
+            event: 'createUser_role_detail_found', 
+            hasExactMatch: exactRoleMatch?.SK === `ROLE#${roleIds[0]}`,
+            roleDetailKeys: exactRoleMatch ? Object.keys(exactRoleMatch) : [],
+            hasDefinedRoleCode: exactRoleMatch?.definedRoleCode !== undefined,
           });
-          return roleMeta;
-        }),
-      );
-      const metaWithRoleCode = roleMetas.find((meta) => {
-        if (!meta) return false;
-        if (Array.isArray(meta)) {
-          return meta.some((item) => (item as any)?.definedRoleCode);
+          definedRoleCode = exactRoleMatch?.definedRoleCode;
+          logger.info({ 
+            event: 'createUser_definedRoleCode_from_repo', 
+            found: !!definedRoleCode,
+            definedRoleCode,
+            definedRoleCodeType: typeof definedRoleCode,
+          });
+        } else {
+          logger.warn({ 
+            event: 'createUser_repo_no_items', 
+            message: 'Repository query returned no items',
+            roleId: roleIds[0],
+            organizationID: body.organizationID,
+          });
         }
-        return (meta as any)?.definedRoleCode;
-      });
-      logger.info({ 
-        event: 'createUser_metaWithRoleCode_found', 
-        found: !!metaWithRoleCode,
-        metaWithRoleCode,
-        isArray: Array.isArray(metaWithRoleCode),
-      });
-      if (metaWithRoleCode) {
-        definedRoleCode = Array.isArray(metaWithRoleCode)
-          ? (metaWithRoleCode.find((item) => (item as any)?.definedRoleCode) as any)?.definedRoleCode
-          : (metaWithRoleCode as any)?.definedRoleCode;
+      } catch (err) {
+        logger.error({ 
+          event: 'createUser_definedRoleCode_repo_error', 
+          err: serializeError(err),
+          roleId: roleIds[0],
+          organizationID: body.organizationID,
+        });
       }
     } else {
       logger.warn({
@@ -190,19 +191,29 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       definedRoleCode,
       willSetInUserData: !!definedRoleCode,
     });
-    if (definedRoleCode) {
-      userData.definedRoleCode = definedRoleCode;
+    // Always set definedRoleCode if it exists, even if empty string
+    if (definedRoleCode !== undefined && definedRoleCode !== null) {
+      userData.definedRoleCode = String(definedRoleCode);
       logger.info({ 
         event: 'createUser_definedRoleCode_set', 
-        definedRoleCode,
+        definedRoleCode: userData.definedRoleCode,
         userDataHasDefinedRoleCode: userData.definedRoleCode !== undefined,
       });
     } else {
       logger.warn({ 
         event: 'createUser_definedRoleCode_not_set', 
         message: 'definedRoleCode is empty/undefined, not setting in userData',
+        definedRoleCode,
       });
     }
+
+    // Log userData before passing to service to verify definedRoleCode is included
+    logger.info({
+      event: 'createUser_userData_before_service',
+      userDataKeys: Object.keys(userData),
+      hasDefinedRoleCode: userData.definedRoleCode !== undefined,
+      definedRoleCode: userData.definedRoleCode,
+    });
 
     const result = await userService.createUser(
       userData,

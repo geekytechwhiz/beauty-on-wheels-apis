@@ -729,19 +729,52 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
           const srcRegisEntity = String((existing as any).srcRegisEntity || '').toLowerCase();
           const emailInput = hasOwn(body, 'emailAddress') ? body.emailAddress : (hasOwn(body, 'email') ? body.email : undefined);
           const phoneInput = hasOwn(body, 'phoneNumber') ? body.phoneNumber : (hasOwn(body, 'phone') ? body.phone : undefined);
+          
+          // Normalize email for comparison
+          const normalizeEmail = (email: any): string => {
+            if (!email) return '';
+            return String(email).trim().toLowerCase();
+          };
+          
+          // Normalize phone for comparison (with phoneCode)
+          const normalizePhone = (phone: any, phoneCode?: any): string => {
+            if (!phone) return '';
+            const phoneStr = String(phone).trim();
+            const code = phoneCode ? String(phoneCode).trim() : '';
+            const composed = code ? `${code}${phoneStr}`.trim() : phoneStr;
+            return composed.startsWith('+') ? composed : `+${composed}`;
+          };
+          
+          // Check if email is being changed (only if srcRegisEntity is 'email')
           if (emailInput !== undefined && srcRegisEntity === 'email') {
-            return ApiResponse.badRequest(
-              'COMMON.BAD_REQUEST',
-              { requestId: correlationId, event },
-              { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
-            );
+            const existingEmail = normalizeEmail((existing as any).emailAddress);
+            const newEmail = normalizeEmail(emailInput);
+            
+            // Only block if the email is actually different
+            if (existingEmail !== newEmail) {
+              return ApiResponse.badRequest(
+                'COMMON.BAD_REQUEST',
+                { requestId: correlationId, event },
+                { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
+              );
+            }
           }
+          
+          // Check if phone is being changed (only if srcRegisEntity is 'phone' or 'phone_number')
           if (phoneInput !== undefined && (srcRegisEntity === 'phone' || srcRegisEntity === 'phone_number')) {
-            return ApiResponse.badRequest(
-              'COMMON.BAD_REQUEST',
-              { requestId: correlationId, event },
-              { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
-            );
+            const existingPhoneCode = (existing as any).phoneCode || body.phoneCode;
+            const newPhoneCode = body.phoneCode || existingPhoneCode;
+            const existingPhone = normalizePhone((existing as any).phoneNumber, existingPhoneCode);
+            const newPhone = normalizePhone(phoneInput, newPhoneCode);
+            
+            // Only block if the phone is actually different
+            if (existingPhone !== newPhone) {
+              return ApiResponse.badRequest(
+                'COMMON.BAD_REQUEST',
+                { requestId: correlationId, event },
+                { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
+              );
+            }
           }
 
           setIfPresent(userData, 'profilePic', body.profilePic);

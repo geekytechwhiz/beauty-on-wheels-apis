@@ -178,6 +178,31 @@ export class UserRepository {
     }
   }
 
+  /**
+   * Get all user data items (user details, preferences, metadata, etc.)
+   * This queries all items with pk = USER#userId
+   */
+  async getAllUserData(userId: string): Promise<any[]> {
+    const logger = createChildLogger(baseLogger, { userId });
+    logger.info({ event: 'get_all_user_data_start', message: 'Getting all user data' });
+    try {
+      const result = await docClient.send(
+        new QueryCommand({
+          TableName: USER_TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk',
+          ExpressionAttributeValues: {
+            ':pk': userPk(userId),
+          },
+        }),
+      );
+      logger.info({ event: 'get_all_user_data_success', count: result.Items?.length || 0 });
+      return result.Items || [];
+    } catch (err) {
+      logger.error({ event: 'get_all_user_data_error', err: serializeError(err), message: 'Failed to get all user data' });
+      throw err;
+    }
+  }
+
   async updateUser(userId: string, organizationId: string, updates: Partial<User>): Promise<void> {
     const updateParts: string[] = ['modifiedDate = :modifiedDate'];
     const exprNames: Record<string, string> = {};

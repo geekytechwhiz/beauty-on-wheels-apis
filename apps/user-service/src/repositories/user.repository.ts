@@ -44,9 +44,7 @@ function mapToUserResponse(user: any): UserResponse {
   };
 }
 
-// DynamoDB table for users is currently keyed with lowercase `pk` / `sk`
-// We keep uppercase PK/SK only as duplicate attributes on writes (non-key attributes)
-// so all key operations MUST use lowercase `pk` / `sk`.
+ 
 type UserDBItem = User & {
   pk: string;
   sk: string;

@@ -145,7 +145,18 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
               organizationID: body.organizationID,
             });
           }
-          logger.info({ event: 'createUser_role_check_success', roleMeta });
+          logger.info({ 
+            event: 'createUser_role_meta_details', 
+            roleId,
+            roleMeta,
+            isArray: Array.isArray(roleMeta),
+            hasDefinedRoleCode: Array.isArray(roleMeta) 
+              ? roleMeta.some((item) => (item as any)?.definedRoleCode)
+              : (roleMeta as any)?.definedRoleCode !== undefined,
+            definedRoleCode: Array.isArray(roleMeta)
+              ? (roleMeta.find((item) => (item as any)?.definedRoleCode) as any)?.definedRoleCode
+              : (roleMeta as any)?.definedRoleCode,
+          });
           return roleMeta;
         }),
       );
@@ -155,6 +166,12 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
           return meta.some((item) => (item as any)?.definedRoleCode);
         }
         return (meta as any)?.definedRoleCode;
+      });
+      logger.info({ 
+        event: 'createUser_metaWithRoleCode_found', 
+        found: !!metaWithRoleCode,
+        metaWithRoleCode,
+        isArray: Array.isArray(metaWithRoleCode),
       });
       if (metaWithRoleCode) {
         definedRoleCode = Array.isArray(metaWithRoleCode)
@@ -168,9 +185,23 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
         userType: userTypeUpper,
       });
     }
-    logger.info({ event: 'createUser_definedRoleCode', definedRoleCode });
+    logger.info({ 
+      event: 'createUser_definedRoleCode', 
+      definedRoleCode,
+      willSetInUserData: !!definedRoleCode,
+    });
     if (definedRoleCode) {
       userData.definedRoleCode = definedRoleCode;
+      logger.info({ 
+        event: 'createUser_definedRoleCode_set', 
+        definedRoleCode,
+        userDataHasDefinedRoleCode: userData.definedRoleCode !== undefined,
+      });
+    } else {
+      logger.warn({ 
+        event: 'createUser_definedRoleCode_not_set', 
+        message: 'definedRoleCode is empty/undefined, not setting in userData',
+      });
     }
 
     const result = await userService.createUser(

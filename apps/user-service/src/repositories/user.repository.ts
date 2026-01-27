@@ -1,12 +1,48 @@
 import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile } from '../models';
+import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 const USER_TABLE_NAME = process.env.USER_TABLE || '';
+
+/**
+ * Maps a User object (or DynamoDB item) to UserResponse interface
+ * Returns only the fields specified in UserResponse
+ */
+function mapToUserResponse(user: any): UserResponse {
+  return {
+    phoneNumber: user.phoneNumber || '',
+    createdDate: user.createdDate || user.createdAt || 0,
+    userType: user.userType || '',
+    lastName: user.lastName || '',
+    isRpmUser: user.isRpmUser || false,
+    profilePic: user.profilePic || '',
+    mrn: user.mrn || '',
+    modifiedDate: user.modifiedDate || 0,
+    fullName: user.fullName || '',
+    firstName: user.firstName || '',
+    roleID: user.roleID || user.roleId || '',
+    city: user.city || '',
+    roleType: user.roleType || user.userType || '',
+    isActive: user.isActive !== undefined ? user.isActive : true,
+    accountType: user.accountType || 'REGULAR',
+    emailAddress: user.emailAddress || '',
+    userID: user.userID || user.userId || '',
+    organizationID: user.organizationID || user.organizationId || '',
+    phoneCode: user.phoneCode || '',
+    sk: user.sk || '',
+    pk: user.pk || '',
+    postalCode: user.postalCode || user.zip || '',
+    sk1: user.sk1 || user.userType || 'USER',
+    status: user.status !== undefined ? user.status : (user.isActive !== undefined ? user.isActive : true),
+    createdAt: user.createdAt || user.createdDate || 0,
+    roleName: user.roleName || user.userType || '',
+    definedRoleCode: user.definedRoleCode || user.userType || '',
+  };
+}
 
 // DynamoDB table for users is currently keyed with lowercase `pk` / `sk`
 // We keep uppercase PK/SK only as duplicate attributes on writes (non-key attributes)
@@ -581,7 +617,7 @@ export class UserRepository {
   async listOrganizationUsers(
     organizationId: string,
     options: ListOrganizationUsersOptions = {},
-  ): Promise<User[]> {
+  ): Promise<UserResponse[]> {
     const {
       limit,
       offset = 0,
@@ -620,7 +656,7 @@ export class UserRepository {
           }),
         );
 
-        let users = (result.Items ?? []) as User[];
+        let users = (result.Items ?? []).map(mapToUserResponse);
 
         // In-memory filtering
         if (status) {
@@ -711,7 +747,7 @@ export class UserRepository {
             }),
           );
 
-          let users = (fallbackResult.Items ?? []) as User[];
+          let users = (fallbackResult.Items ?? []).map(mapToUserResponse);
 
           if (status) {
             const statusLc = status.toLowerCase();

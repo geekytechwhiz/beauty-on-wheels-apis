@@ -1,7 +1,7 @@
 import { UserRepository, ListOrganizationUsersOptions } from '../repositories/user.repository';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile } from '../models';
+import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
 import { publishEvent } from '../events/event.publisher';
@@ -1181,7 +1181,7 @@ export class UserService {
   async listOrganizationUsers(
     organizationId: string,
     options?: ListOrganizationUsersOptions,
-  ): Promise<User[]> {
+  ): Promise<UserResponse[]> {
     const timer = createPerformanceTimer(baseLogger, 'listOrganizationUsers');
     const logger = createChildLogger(baseLogger, { organizationId });
     logger.info({ event: 'service_listOrganizationUsers_start' });

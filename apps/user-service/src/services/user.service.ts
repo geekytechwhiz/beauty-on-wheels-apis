@@ -205,6 +205,10 @@ export class UserService {
       const devices = (data as any).devices;
       const isRpmUser = !!(devices && Array.isArray(devices) && devices.length > 0);
       
+      // Preserve definedRoleCode explicitly to ensure it's saved to DB
+      const definedRoleCode = (data as any).definedRoleCode;
+      logger.info({ event: 'service_createUser_definedRoleCode_check', definedRoleCode, hasDefinedRoleCode: definedRoleCode !== undefined });
+      
       const user: User = {
         ...data,
         phoneNumber: phoneNumberForDB,
@@ -225,7 +229,10 @@ export class UserService {
         invitedID: code || undefined,
         tokenUpdatedAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds (matching old implementation)
         userCat: userCat,
+        ...(definedRoleCode !== undefined ? { definedRoleCode: String(definedRoleCode) } : {}),
       } as User;
+      
+      logger.info({ event: 'service_createUser_user_object', hasDefinedRoleCode: (user as any).definedRoleCode !== undefined, definedRoleCode: (user as any).definedRoleCode });
 
       await this.repository.createUser(user);
 

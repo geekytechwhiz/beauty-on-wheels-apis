@@ -355,24 +355,37 @@ functions:
               500:
                 $ref: '#/components/responses/InternalServerError'
 
-  getUser:
-    handler: src/handlers/getUser.main
-    timeout: 5
-    memorySize: 256
+  getUserOrganization:
+    handler: src/handlers/getUserOrganization.main
+    timeout: 30
+    memorySize: 512
     events:
       # Endpoint with path parameters: /dev/user/organization/{organizationId}/{userId}
+      # If path parameters are provided, they will be used; otherwise, userId and organizationId will be extracted from token
       - http:
           path: user/organization/{organizationId}/{userId}
           method: get
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
-            summary: Get user by ID (with path parameters)
-            description: "Retrieves user information by user ID and organization ID from URL path parameters."
+            summary: Get user with comprehensive organization details (with path parameters)
+            description: "Retrieves comprehensive user information including organization details, roles, permissions, preferences, account age, and more. Uses user ID and organization ID from URL path parameters if provided, otherwise extracts from authorization token."
             tags:
               - Users
             headers:
+              - name: Authorization
+                description: Bearer token for authentication. Required for authorization. userId and organizationId can be extracted from token if not provided in path.
+                schema:
+                  type: string
+                  format: bearer
+                required: true
               - name: X-Correlation-Id
                 description: Request correlation ID for tracing
                 schema:
@@ -380,21 +393,32 @@ functions:
                 required: false
             pathParameters:
               - name: organizationId
-                description: Unique identifier of the organization (UUID or ULID format)
-                required: true
+                description: Unique identifier of the organization (UUID or ULID format). Optional - if not provided, will be extracted from token.
+                required: false
                 schema:
                   type: string
                   example: "660e8400-e29b-41d4-a716-446655440001"
               - name: userId
-                description: Unique identifier of the user (UUID format)
-                required: true
+                description: Unique identifier of the user (UUID format). Optional - if not provided, will be extracted from token.
+                required: false
                 schema:
                   type: string
                   format: uuid
                   example: "550e8400-e29b-41d4-a716-446655440000"
+            queryParameters:
+              - name: defaultProfile
+                description: Optional. If provided, returns data for the specified user profile (for family member access)
+                schema:
+                  type: string
+                required: false
+              - name: userType
+                description: Optional. User type filter
+                schema:
+                  type: string
+                required: false
             responses:
               200:
-                description: User retrieved successfully
+                description: User retrieved successfully with comprehensive details
                 content:
                   application/json:
                     schema:
@@ -408,6 +432,11 @@ functions:
                         phoneNumber: "+1234567890"
                         isActive: true
                         createdDate: 1699123456789
+                        accountAge: { years: 2, months: 3, days: 15 }
+                        roleName: "Admin"
+                        userRoles: ["role-id-1"]
+                        permission: {}
+                        organizationName: "Example Organization"
                       requestId: "req-123"
               400:
                 $ref: '#/components/responses/BadRequest'
@@ -417,7 +446,8 @@ functions:
                 $ref: '#/components/responses/NotFound'
               500:
                 $ref: '#/components/responses/InternalServerError'
-      # Endpoint without path parameters: /dev/user/organization (extracts from token)
+      # Endpoint without path parameters: /dev/user/organization
+      # Extracts userId and organizationId from authorization token
       - http:
           path: user/organization
           method: get
@@ -431,8 +461,8 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           documentation:
-            summary: Get user by ID (from token)
-            description: "Retrieves user information by extracting userId and organizationId from the authorization token."
+            summary: Get user with comprehensive organization details (from token)
+            description: "Retrieves comprehensive user information including organization details, roles, permissions, preferences, account age, and more. Extracts userId and organizationId from the authorization token."
             tags:
               - Users
             headers:
@@ -447,9 +477,20 @@ functions:
                 schema:
                   type: string
                 required: false
+            queryParameters:
+              - name: defaultProfile
+                description: Optional. If provided, returns data for the specified user profile (for family member access)
+                schema:
+                  type: string
+                required: false
+              - name: userType
+                description: Optional. User type filter
+                schema:
+                  type: string
+                required: false
             responses:
               200:
-                description: User retrieved successfully
+                description: User retrieved successfully with comprehensive details
                 content:
                   application/json:
                     schema:
@@ -463,6 +504,11 @@ functions:
                         phoneNumber: "+1234567890"
                         isActive: true
                         createdDate: 1699123456789
+                        accountAge: { years: 2, months: 3, days: 15 }
+                        roleName: "Admin"
+                        userRoles: ["role-id-1"]
+                        permission: {}
+                        organizationName: "Example Organization"
                       requestId: "req-123"
               400:
                 $ref: '#/components/responses/BadRequest'

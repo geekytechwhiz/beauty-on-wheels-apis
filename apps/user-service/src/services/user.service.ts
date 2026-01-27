@@ -10,6 +10,7 @@ import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
 import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
 import { UserLinkRepository } from '../repositories/userLink.repository';
+import { getRoleDetails } from './role.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const friendFamilyRepository = new FriendFamilyRepository();
@@ -735,6 +736,397 @@ export class UserService {
       timer.end();
       throw err;
     }
+  }
+
+  /**
+   * Get user with comprehensive organization details, roles, permissions, and preferences
+   * This implements the logic from the legacy applyValidation function
+   */
+  async getUserWithOrganizationDetails(
+    userId: string,
+    organizationId: string,
+    requestingUserId?: string,
+    defaultProfile?: string,
+    userType?: string,
+    authHeader?: string,
+  ): Promise<any> {
+    const timer = createPerformanceTimer(baseLogger, 'getUserWithOrganizationDetails');
+    const logger = createChildLogger(baseLogger, { userId, organizationId, requestingUserId });
+    logger.info({ event: 'service_getUserWithOrganizationDetails_start' });
+
+    try {
+      // Handle default profile (family member access)
+      let actualUserId = userId;
+      let fnfDetails: User | null = null;
+
+      if (defaultProfile && defaultProfile !== '') {
+        actualUserId = defaultProfile;
+        fnfDetails = await this.repository.getUser(userId, organizationId);
+      } else if (!actualUserId) {
+        actualUserId = requestingUserId || userId;
+      }
+
+      // First, try to get the user using the organizationId (new schema: pk=ORG#orgId, sk=USER#userId)
+      let userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
+      
+      // If not found with organizationId, try legacy schema (pk=USER#userId, sk=USER_DETAILS)
+      if (!userBasicDetails) {
+        userBasicDetails = await this.repository.getUser(actualUserId);
+      }
+
+      if (!userBasicDetails) {
+        throw new UserNotFoundError(actualUserId);
+      }
+
+      // Get organization details
+      let orgBasicDetails: any = null;
+      const userOrgId = userBasicDetails.organizationID || organizationId;
+      if (userOrgId && userOrgId !== 'ROOT') {
+        orgBasicDetails = await this.organizationRepository.getOrganization(userOrgId, authHeader);
+      }
+
+      // Get all related user data items (preferences, metadata, etc.) using pk=USER#userId
+      const allUserData = await this.repository.getAllUserData(actualUserId);
+      
+      // Find preference details from allUserData
+      const preferenceDetails = allUserData.find((item: any) => 
+        item.sk?.includes('PREFERENCE') || item.sk === 'PREFERENCE' || item.sk?.startsWith('PREFERENCE')
+      );
+
+      // Get roles and permissions
+      let roleDetails: any[] = [];
+      let roleName = '';
+      let userPermissions: any = null;
+      let isDefault = false;
+      let definedRoleCode: string | null = null;
+      let roleType: string | null = null;
+      let roleId: string | null = null;
+      let filteredRoles: string[] = [];
+      let uniquePermissions: any = {};
+
+      // Try to get user roles from role API
+      const roleApiUrl = process.env.ROLE_API_URL;
+      if (roleApiUrl && userOrgId) {
+        try {
+          const rolesUrl = `${roleApiUrl.replace(/\/$/, '')}/org/${userOrgId}/users/${actualUserId}/roles`;
+          const rolesResponse = await fetch(rolesUrl, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(authHeader ? { Authorization: authHeader } : {}),
+            },
+          });
+
+          if (rolesResponse.ok) {
+            const rolesData = (await rolesResponse.json()) as any;
+            filteredRoles = rolesData?.data?.roles || rolesData?.roles || [];
+            
+            if (filteredRoles.length > 0) {
+              roleId = filteredRoles[0];
+              roleDetails = await getRoleDetails(roleId, userOrgId, authHeader);
+              
+              if (roleDetails && roleDetails.length > 0) {
+                const roleDetail = Array.isArray(roleDetails) ? roleDetails[0] : roleDetails;
+                roleName = roleDetail?.roleName || roleDetail?.definedRoleCode || '';
+                userPermissions = roleDetail?.features || {};
+                isDefault = roleDetail?.isDefault ?? false;
+                definedRoleCode = roleDetail?.definedRoleCode ?? null;
+                roleType = roleDetail?.roleType ?? null;
+              }
+
+              // Get unique permissions
+              try {
+                const permissionsUrl = `${roleApiUrl.replace(/\/$/, '')}/org/${userOrgId}/users/${actualUserId}/permissions`;
+                const permissionsResponse = await fetch(permissionsUrl, {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(authHeader ? { Authorization: authHeader } : {}),
+                  },
+                });
+
+                if (permissionsResponse.ok) {
+                  const permissionsData = (await permissionsResponse.json()) as any;
+                  const permissions = permissionsData?.data?.permissions || permissionsData?.permissions || [];
+                  uniquePermissions = this.getUniquePermissions(permissions);
+                }
+              } catch (err) {
+                logger.warn({ event: 'get_permissions_error', err: serializeError(err) });
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn({ event: 'get_roles_error', err: serializeError(err) });
+        }
+      }
+
+      // Calculate account age
+      const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
+
+      // Build schedule configuration from preferences
+      let scheduleConfiguration: any = {};
+      if (preferenceDetails) {
+        const { pk, sk, userID, createdDate, modifiedDate, organizationID, ...rest } = preferenceDetails;
+        scheduleConfiguration = { ...rest };
+      }
+
+      // Get user category
+      let userCategory = userBasicDetails.userCat?.[0] || userType || 'USER';
+
+      // Get currencies (placeholder - would need currency API)
+      const currencies: any[] = [];
+
+      // Get email/phone verification status
+      let emailVerified = false;
+      let phoneVerified = false;
+      // This would typically come from Cognito or a verification service
+      // For now, we'll use the values from userBasicDetails if available
+      emailVerified = userBasicDetails.emailVerified || false;
+      phoneVerified = userBasicDetails.phoneVerified || false;
+
+      // Build response data
+      const data: any = {
+        userID: actualUserId,
+        emailVerified,
+        phoneVerified,
+        firstName: userBasicDetails.firstName || '',
+        middleName: userBasicDetails.middleName || '',
+        lastName: userBasicDetails.lastName || '',
+        mrn: userBasicDetails.mrn || '',
+        emailAddress: userBasicDetails.emailAddress || '',
+        phoneNumber: userBasicDetails.phoneNumber || '',
+        profilePic: userBasicDetails.profilePic || '',
+        organizationID: userBasicDetails.organizationID || userOrgId || '',
+        fullName: userBasicDetails.fullName || '',
+        gender: userBasicDetails.gender || '',
+        weightInLbs: userBasicDetails.weightInLbs || '',
+        weightInKG: userBasicDetails.weightInKG || '',
+        heightInCm: userBasicDetails.heightInCm || '',
+        heightInFeet: userBasicDetails.heightInFeet || '',
+        cloudOpt: userBasicDetails.cloudOpt || '',
+        country: userBasicDetails.country || '',
+        language: userBasicDetails.language || orgBasicDetails?.organizationInfo?.defaultSetting?.languages?.[0]?.langCode || 'en',
+        dateOfBirth: userBasicDetails.dateOfBirth || '',
+        address: userBasicDetails.address || '',
+        allergies: userBasicDetails.medicalHistory?.allergies || [],
+        chiefMedicalIssue: (userBasicDetails.medicalHistory as any)?.chiefMedicalIssue || (userBasicDetails as any).chiefMedicalIssue || '',
+        smoking: (userBasicDetails.medicalHistory as any)?.smoking || '',
+        alcoholConsumption: (userBasicDetails.medicalHistory as any)?.alcoholConsumption || '',
+        additionalPhoneNumbers: userBasicDetails.additionalPhoneNumbers || [],
+        additionalEmailIDs: userBasicDetails.additionalEmailIDs || [],
+        srcRegisEntity: userBasicDetails.srcRegisEntity || '',
+        accountAge: accountAge || { years: 0, months: 0, days: 0 },
+        isRegisteredCompletely: userBasicDetails.isRegisteredCompletely || false,
+        appName: userBasicDetails.appName || '',
+        accountStatus: userBasicDetails.accountStatus || '',
+        phoneLocale: userBasicDetails.phoneLocale || '',
+        locale: userBasicDetails.locale || '',
+        userTimeZone: userBasicDetails.userTimeZone || '',
+        stateCode: userBasicDetails.stateCode || '',
+        countryCode: userBasicDetails.countryCode || '',
+        currencies,
+        region: userBasicDetails.region || '',
+        pushToken: (userBasicDetails as any).pushToken || '',
+        platform: (userBasicDetails as any).platform || '',
+        voipToken: (userBasicDetails as any).voipToken || '',
+        assignRoomNo: userBasicDetails.assignRoomNo || '',
+        organizationName: orgBasicDetails?.organizationInfo?.organizationName || orgBasicDetails?.organizationInfo?.name || '',
+        organizationAddress: orgBasicDetails?.organizationInfo?.address || {},
+        organizationEmailAddress: orgBasicDetails?.adminDetails?.emailAddress || '',
+        scheduleConfiguration,
+        roleName,
+        userRoles: filteredRoles,
+        roleType,
+        roleId,
+        permission: uniquePermissions,
+        changePassword: userBasicDetails.changePassword || false,
+        isRpmUser: userBasicDetails.isRpmUser || false,
+        lastAppointment: userBasicDetails.lastAppointment || '',
+        state: userBasicDetails.state || '',
+        city: userBasicDetails.city || '',
+        street: userBasicDetails.street || '',
+        isActive: userBasicDetails.isActive || false,
+        emergencyContact: userBasicDetails.emergencyContact || {},
+        insuranceDetails: userBasicDetails.insuranceDetails || {},
+        medicalHistory: userBasicDetails.medicalHistory || {},
+        namePrefix: userBasicDetails.namePrefix || '',
+        mfaEnabled: (userBasicDetails as any).mfaEnabled || false,
+        phoneCode: userBasicDetails.phoneCode || '',
+        zip: userBasicDetails.zip || userBasicDetails.postalCode || '',
+        specialty: userBasicDetails.specialty || '',
+        position: userBasicDetails.position || '',
+        licenseNumber: userBasicDetails.licenseNumber || '',
+        department: userBasicDetails.department || '',
+        workSchedule: (userBasicDetails as any).workSchedule || {},
+        isDeleted: (userBasicDetails as any).isDeleted || false,
+        delete_request_time: (userBasicDetails as any).delete_request_time || '',
+        ethnicity: userBasicDetails.ethnicity || '',
+        maritalStatus: userBasicDetails.maritalStatus || '',
+        bloodGroup: userBasicDetails.bloodGroup || '',
+        appleHealthLastSync: userBasicDetails.appleHealthLastSync || '',
+        googleFitLastSync: userBasicDetails.googleFitLastSync || '',
+        experienceInYears: userBasicDetails.experienceInYears || '',
+        bio: userBasicDetails.bio || '',
+        workingHours: userBasicDetails.workingHours || {},
+        userType: userCategory,
+        fnfDetails: fnfDetails ? {
+          userID: userId,
+          firstName: fnfDetails.firstName || '',
+          middleName: fnfDetails.middleName || '',
+          lastName: fnfDetails.lastName || '',
+          emailAddress: fnfDetails.emailAddress || '',
+          phoneNumber: fnfDetails.phoneNumber || '',
+          profilePic: fnfDetails.profilePic || '',
+          organizationID: fnfDetails.organizationID || '',
+          fullName: fnfDetails.fullName || '',
+          gender: fnfDetails.gender || '',
+          permissions: this.makeFamilyPermissionReadonly(uniquePermissions),
+        } : null,
+        generalSettings: {
+          promotions: (userBasicDetails as any).promotions !== undefined ? (userBasicDetails as any).promotions : true,
+          medication: (userBasicDetails as any).medication !== undefined ? (userBasicDetails as any).medication : true,
+          appointment: (userBasicDetails as any).appointment !== undefined ? (userBasicDetails as any).appointment : true,
+          newsAndArticles: (userBasicDetails as any).newsAndArticles !== undefined ? (userBasicDetails as any).newsAndArticles : true,
+          emergencyVital: (userBasicDetails as any).emergencyVital !== undefined ? (userBasicDetails as any).emergencyVital : true,
+          medicationReminders: (userBasicDetails as any).medicationReminders !== undefined ? (userBasicDetails as any).medicationReminders : true,
+          appointmentReminders: (userBasicDetails as any).appointmentReminders !== undefined ? (userBasicDetails as any).appointmentReminders : true,
+          activityGoals: (userBasicDetails as any).activityGoals !== undefined ? (userBasicDetails as any).activityGoals : true,
+          healthCheckIn: (userBasicDetails as any).healthCheckIn !== undefined ? (userBasicDetails as any).healthCheckIn : true,
+          debugMode: (userBasicDetails as any).debugMode || false,
+        },
+        communicationSettings: {
+          sms: (userBasicDetails as any).sms !== undefined ? (userBasicDetails as any).sms : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.sms,
+          chat_with_push: (userBasicDetails as any).chat_with_push !== undefined ? (userBasicDetails as any).chat_with_push : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.chat_with_push,
+          email: (userBasicDetails as any).email !== undefined ? (userBasicDetails as any).email : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.email,
+          push: (userBasicDetails as any).push !== undefined ? (userBasicDetails as any).push : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.push,
+          chat: (userBasicDetails as any).chat !== undefined ? (userBasicDetails as any).chat : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.chat,
+        },
+        tabBar: orgBasicDetails?.organizationInfo?.defaultSetting?.tabBar || [],
+        dateFormat: userBasicDetails.dateFormat || orgBasicDetails?.organizationInfo?.defaultSetting?.dateFormat?.[0] || 'MM/DD/YYYY',
+        acceptedAppForms: userBasicDetails.acceptedAppForms || [],
+        userPermissions,
+        isDefault,
+        definedRoleCode,
+      };
+
+      // Add reporter details if available
+      if (userBasicDetails.reporterId) {
+        const reporterDetails = await this.repository.getUser(userBasicDetails.reporterId, userOrgId);
+        if (reporterDetails) {
+          data.reporterId = userBasicDetails.reporterId;
+          data.reporterProfilePic = reporterDetails.profilePic || '';
+          data.reporterSpecialty = reporterDetails.specialty || '';
+          data.reporterName = reporterDetails.fullName || 
+            (reporterDetails.firstName && reporterDetails.lastName ? `${reporterDetails.firstName} ${reporterDetails.lastName}` : 
+            reporterDetails.firstName || '');
+        }
+      }
+
+      // Add referred, careManager, dietician, healthCoach if available
+      if ((userBasicDetails as any).referred) data.referred = (userBasicDetails as any).referred;
+      if ((userBasicDetails as any).careManager) data.careManager = (userBasicDetails as any).careManager;
+      if ((userBasicDetails as any).dietician) data.dietician = (userBasicDetails as any).dietician;
+      if ((userBasicDetails as any).healthCoach) data.healthCoach = (userBasicDetails as any).healthCoach;
+
+      // Fitness apps
+      data.fitnessApps = {
+        garmin: !!(userBasicDetails as any).garmin,
+        fitbit: !!(userBasicDetails as any).fitbit,
+      };
+
+      // Task completion status
+      data.isTaskCompleted = userBasicDetails.isTaskCompleted !== undefined 
+        ? userBasicDetails.isTaskCompleted 
+        : false; // Would need to check completed tasks
+
+      // Format full name with prefix
+      if (data.namePrefix?.includes('Dr.') || data.namePrefix?.includes('DR')) {
+        data.fullName = `${data.namePrefix} ${data.fullName}`.trim();
+      }
+
+      logger.info({ event: 'service_getUserWithOrganizationDetails_success' });
+      timer.end();
+      return data;
+    } catch (err) {
+      logger.error({ event: 'service_getUserWithOrganizationDetails_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
+  /**
+   * Calculate account age from created date
+   */
+  private calculateAccountAge(createdEpoch: number): { years: number; months: number; days: number } {
+    const currentTimestamp = Date.now();
+    const currentDate = new Date(currentTimestamp);
+    const createdDate = new Date(createdEpoch);
+
+    let years = currentDate.getFullYear() - createdDate.getFullYear();
+    let months = currentDate.getMonth() - createdDate.getMonth();
+    let days = currentDate.getDate() - createdDate.getDate();
+
+    // Adjust for negative values
+    if (months < 0 || (months === 0 && days < 0)) {
+      years--;
+      months += 12;
+    }
+
+    // Adjust for leap years
+    for (let i = createdDate.getFullYear(); i < currentDate.getFullYear(); i++) {
+      if (this.isLeapYear(i)) {
+        days += 1;
+      }
+    }
+
+    return { years, months, days };
+  }
+
+  /**
+   * Check if year is a leap year
+   */
+  private isLeapYear(year: number): boolean {
+    return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  }
+
+  /**
+   * Get unique permissions from array of permission objects
+   */
+  private getUniquePermissions(permissions: any[]): any {
+    const maxValues: any = {};
+    if (permissions && permissions.length > 0) {
+      permissions.forEach((obj: any) => {
+        Object.keys(obj).forEach((key) => {
+          if (!(key in maxValues)) {
+            maxValues[key] = obj[key];
+          } else {
+            Object.keys(obj[key] || {}).forEach((subKey) => {
+              if (!(subKey in maxValues[key]) || obj[key][subKey] > maxValues[key][subKey]) {
+                maxValues[key][subKey] = obj[key][subKey];
+              }
+            });
+          }
+        });
+      });
+      return maxValues;
+    }
+    return {};
+  }
+
+  /**
+   * Make family permissions readonly (except chat and schedule)
+   */
+  private makeFamilyPermissionReadonly(permissions: any): any {
+    const readonlyPermissions: any = {};
+    Object.keys(permissions).forEach((key) => {
+      if (key === 'chat' || key === 'schedule') {
+        readonlyPermissions[key] = permissions[key];
+      } else {
+        readonlyPermissions[key] = {};
+        Object.keys(permissions[key] || {}).forEach((subKey) => {
+          readonlyPermissions[key][subKey] = 1; // Readonly
+        });
+      }
+    });
+    return readonlyPermissions;
   }
 }
 

@@ -3,10 +3,12 @@ import { docClient } from '../utils/db.config';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
+import { getRoleDetails } from '../services/role.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 const USER_TABLE_NAME = process.env.USER_TABLE || '';
+const ROLES_TABLE_NAME = process.env.ROLES_TABLE || '';
 
 /**
  * Maps a User object (or DynamoDB item) to UserResponse interface
@@ -487,6 +489,10 @@ export class UserRepository {
   async getRolePermissions(roleId: string, organizationId: string): Promise<any[]> {
     const logger = createChildLogger(baseLogger, { roleId, organizationId });
     const ROLES_TABLE = process.env.ROLES_TABLE;
+    if (!ROLES_TABLE) {
+      logger.warn({ event: 'getRolePermissions_missing_roles_table', message: 'ROLES_TABLE env var is not set' });
+      return [];
+    }
     try {
       const params = {
         TableName: ROLES_TABLE,
@@ -503,11 +509,45 @@ export class UserRepository {
 
       const result = await docClient.send(new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
+        console.log('getRolePermissions result (PK/SK):', JSON.stringify(result.Items, null, 2));
         logger.info({ event: 'getRolePermissions_success', roleId });
         return result.Items;
       }
       return [];
     } catch (err) {
+      const name = (err as { name?: string })?.name;
+      const message = (err as { message?: string })?.message || '';
+      // Some environments use lowercase keys (pk/sk) instead of (PK/SK). Retry if DynamoDB complains.
+      if (name === 'ValidationException' && (message.includes('PK') || message.includes('SK') || message.includes('key schema'))) {
+        try {
+          const fallbackParams = {
+            TableName: ROLES_TABLE,
+            KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+            ExpressionAttributeNames: {
+              '#pk': 'pk',
+              '#sk': 'sk',
+            },
+            ExpressionAttributeValues: {
+              ':pk': `ORG#${organizationId}`,
+              ':sk': `ROLE#${roleId}`,
+            },
+          };
+          const fallbackResult = await docClient.send(new QueryCommand(fallbackParams));
+          if (fallbackResult.Items && fallbackResult.Items.length > 0) {
+            console.log('getRolePermissions result (pk/sk fallback):', JSON.stringify(fallbackResult.Items, null, 2));
+            logger.info({ event: 'getRolePermissions_success_fallback_pk_sk', roleId });
+            return fallbackResult.Items;
+          }
+          return [];
+        } catch (fallbackErr) {
+          logger.error({
+            event: 'getRolePermissions_error_fallback_pk_sk',
+            err: serializeError(fallbackErr),
+          });
+          return [];
+        }
+      }
+
       logger.error({ event: 'getRolePermissions_error', err: serializeError(err) });
       return [];
     }
@@ -842,6 +882,365 @@ export class UserRepository {
         err: serializeError(err),
         message: 'Failed to list organization users',
       });
+      throw err;
+    }
+  }
+
+  /**
+   * Gets user roles and permissions from USER_TABLE (matches original getUserRolesPermissions)
+   * Queries: pk = USER_ROLE#orgId, sk1 = userId# using pk-sk1-index
+   * Also calls API endpoint to get userPermission features
+   */
+  async getUserRolesPermissions(userId: string, organizationId: string, authHeader?: string): Promise<{ permissions: any[]; roles: string[]; roleName?: string; userPermissions?: any[] }> {
+    const logger = createChildLogger(baseLogger, { userId, organizationId });
+    try {
+      let data: any[] = [];
+      let nextPaginationKey: any = undefined;
+      const params: any = {
+        TableName: USER_TABLE_NAME,
+        IndexName: 'pk-sk1-index',
+        KeyConditionExpression: '#pk = :pk and begins_with(#sk1, :sk1)',
+        ExpressionAttributeValues: {
+          ':pk': `USER_ROLE#${organizationId}`,
+          ':sk1': `${userId}#`,
+        },
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk1': 'sk1',
+        },
+      };
+
+      do {
+        if (nextPaginationKey) {
+          params.ExclusiveStartKey = nextPaginationKey;
+        }
+        const result = await docClient.send(new QueryCommand(params));
+        nextPaginationKey = result.LastEvaluatedKey;
+        if (result.Items && result.Items.length > 0) {
+          console.log('getUserRolesPermissions items (pk/sk1):', JSON.stringify(result.Items, null, 2));
+          data = data.concat(result.Items);
+        }
+      } while (nextPaginationKey);
+
+      // If nothing found, try uppercase attribute schema (PK/SK1) – common in some USER_TABLE designs.
+      if (data.length === 0) {
+        logger.warn({
+          event: 'getUserRolesPermissions_empty_first_pass',
+          message: 'No role mappings found using pk/sk1; retrying with PK/SK1',
+          pk: `USER_ROLE#${organizationId}`,
+          sk1Prefix: `${userId}#`,
+          indexName: 'pk-sk1-index',
+        });
+
+        let nextKey2: any = undefined;
+        const params2: any = {
+          TableName: USER_TABLE_NAME,
+          IndexName: 'pk-sk1-index',
+          KeyConditionExpression: '#PK = :PK and begins_with(#SK1, :SK1)',
+          ExpressionAttributeValues: {
+            ':PK': `USER_ROLE#${organizationId}`,
+            ':SK1': `${userId}#`,
+          },
+          ExpressionAttributeNames: {
+            '#PK': 'PK',
+            '#SK1': 'SK1',
+          },
+        };
+
+        do {
+          if (nextKey2) params2.ExclusiveStartKey = nextKey2;
+          const r2 = await docClient.send(new QueryCommand(params2));
+          nextKey2 = r2.LastEvaluatedKey;
+          if (r2.Items && r2.Items.length > 0) {
+            console.log('getUserRolesPermissions items (PK/SK1):', JSON.stringify(r2.Items, null, 2));
+            data = data.concat(r2.Items);
+          }
+        } while (nextKey2);
+      }
+
+      const roles: string[] = [];
+      const promises: Promise<any>[] = [];
+      console.log('getUserRolesPermissions - data items count:', data.length);
+      console.log('getUserRolesPermissions - data items:', JSON.stringify(data, null, 2));
+      for (const role of data) {
+        if (role.roleID) {
+          console.log('Found roleID:', role.roleID);
+          roles.push(role.roleID);
+          promises.push(this.getRoleDetails(organizationId, role.roleID));
+        } else if (role.roleId) {
+          // Some items may use roleId instead of roleID
+          console.log('Found roleId:', role.roleId);
+          roles.push(role.roleId);
+          promises.push(this.getRoleDetails(organizationId, role.roleId));
+        } else {
+          console.log('Role item missing roleID/roleId:', JSON.stringify(role, null, 2));
+        }
+      }
+
+      const rolesPermissions = await Promise.all(promises);
+      let roleName: string | undefined;
+      const roleFeaturePermission: any[] = [];
+      let userPermissions: any[] = [];
+
+      for (const obj of rolesPermissions) {
+        if (obj && obj.length > 0 && obj[0]) {
+          if (obj[0].permissions) {
+            roleFeaturePermission.push(obj[0].permissions);
+          }
+          if (obj[0].roleName) {
+            roleName = obj[0].roleName;
+          }
+        }
+      }
+
+      // Call API endpoint to get userPermission features for the first role
+      if (roles.length > 0 && authHeader) {
+        try {
+          logger.debug({ event: 'calling_role_api_for_permissions', roleId: roles[0], organizationId });
+          const apiRoleDetails = await getRoleDetails(roles[0], organizationId, authHeader);
+          
+          if (apiRoleDetails && Array.isArray(apiRoleDetails) && apiRoleDetails.length > 0) {
+            // Extract features from API response
+            const roleItem = apiRoleDetails.find((item: any) => 
+              String(item.SK || item.sk || '').startsWith(`ROLE#${roles[0]}`) ||
+              item.itemType === 'Role' ||
+              item.roleId === roles[0] ||
+              item.roleID === roles[0]
+            ) || apiRoleDetails[0];
+
+            // Get features from role item
+            if (roleItem?.features) {
+              if (Array.isArray(roleItem.features)) {
+                userPermissions = roleItem.features;
+              } else if (typeof roleItem.features === 'object') {
+                userPermissions = Object.values(roleItem.features);
+              }
+            } else {
+              // If features not in role header, filter for Feature items
+              const featureItems = apiRoleDetails.filter((item: any) => {
+                const sk = String(item.SK || item.sk || '');
+                return (
+                  item.itemType === 'Feature' ||
+                  !!item.featureKey ||
+                  sk.includes('#FEATURE#') ||
+                  sk.startsWith('MODULE#')
+                );
+              });
+              userPermissions = featureItems;
+            }
+
+            logger.info({ 
+              event: 'role_api_permissions_fetched', 
+              roleId: roles[0], 
+              userPermissionsCount: userPermissions.length 
+            });
+          }
+        } catch (apiErr) {
+          logger.warn({ 
+            event: 'role_api_call_failed', 
+            err: serializeError(apiErr),
+            roleId: roles[0],
+            organizationId 
+          });
+          // Continue without API permissions if call fails
+        }
+      }
+
+      logger.info({ event: 'getUserRolesPermissions_success', userId, rolesCount: roles.length });
+      return { permissions: roleFeaturePermission, roles, roleName, userPermissions };
+    } catch (err) {
+      logger.error({ event: 'getUserRolesPermissions_error', err: serializeError(err) });
+      return { permissions: [], roles: [] };
+    }
+  }
+
+  /**
+   * Gets role details from ROLES_TABLE (matches original getRoleDetails but queries ROLES_TABLE)
+   * Queries ROLES_TABLE: PK = ORG#orgId, SK begins with ROLE#roleId
+   * This gets role metadata (roleName, definedRoleCode, etc.) from ROLES_TABLE
+   */
+  async getRoleDetails(organizationId: string, roleId: string): Promise<any[]> {
+    const logger = createChildLogger(baseLogger, { organizationId, roleId });
+    if (!ROLES_TABLE_NAME) {
+      logger.warn({ event: 'getRoleDetails_missing_roles_table', message: 'ROLES_TABLE env var is not set' });
+      return [];
+    }
+    try {
+      // Try PK/SK format first (standard for ROLES_TABLE)
+      const params = {
+        TableName: ROLES_TABLE_NAME,
+        KeyConditionExpression: '#PK = :PK AND begins_with(#SK, :SK)',
+        FilterExpression: '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
+        ExpressionAttributeNames: {
+          '#PK': 'PK',
+          '#SK': 'SK',
+          '#deleteFlag': 'deleteFlag',
+          '#active': 'isActive',
+        },
+        ExpressionAttributeValues: {
+          ':PK': `ORG#${organizationId}`,
+          ':SK': `ROLE#${roleId}`,
+          ':deleteFlag': '1',
+          ':active': true,
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        logger.info({ event: 'getRoleDetails_success', organizationId, roleId, itemsCount: result.Items.length });
+        return result.Items;
+      }
+      
+      // Fallback: try pk/sk format (lowercase) if PK/SK didn't work
+      logger.debug({ event: 'getRoleDetails_trying_lowercase_keys', organizationId, roleId });
+      const fallbackParams = {
+        TableName: ROLES_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+        FilterExpression: '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+          '#deleteFlag': 'deleteFlag',
+          '#active': 'isActive',
+        },
+        ExpressionAttributeValues: {
+          ':pk': `ORG#${organizationId}`,
+          ':sk': `ROLE#${roleId}`,
+          ':deleteFlag': '1',
+          ':active': true,
+        },
+      };
+
+      const fallbackResult = await docClient.send(new QueryCommand(fallbackParams));
+      if (fallbackResult.Items && fallbackResult.Items.length > 0) {
+        logger.info({ event: 'getRoleDetails_success_fallback', organizationId, roleId, itemsCount: fallbackResult.Items.length });
+        return fallbackResult.Items;
+      }
+
+      logger.warn({ event: 'getRoleDetails_no_items_found', organizationId, roleId });
+      return [];
+    } catch (err) {
+      const name = (err as { name?: string })?.name;
+      const message = (err as { message?: string })?.message || '';
+      // If PK/SK format failed, try lowercase pk/sk
+      if (name === 'ValidationException' && (message.includes('PK') || message.includes('SK') || message.includes('key schema'))) {
+        try {
+          logger.debug({ event: 'getRoleDetails_retry_lowercase', organizationId, roleId });
+          const retryParams = {
+            TableName: ROLES_TABLE_NAME,
+            KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+            FilterExpression: '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
+            ExpressionAttributeNames: {
+              '#pk': 'pk',
+              '#sk': 'sk',
+              '#deleteFlag': 'deleteFlag',
+              '#active': 'isActive',
+            },
+            ExpressionAttributeValues: {
+              ':pk': `ORG#${organizationId}`,
+              ':sk': `ROLE#${roleId}`,
+              ':deleteFlag': '1',
+              ':active': true,
+            },
+          };
+          const retryResult = await docClient.send(new QueryCommand(retryParams));
+          if (retryResult.Items && retryResult.Items.length > 0) {
+            logger.info({ event: 'getRoleDetails_success_retry', organizationId, roleId, itemsCount: retryResult.Items.length });
+            return retryResult.Items;
+          }
+        } catch (retryErr) {
+          logger.error({ event: 'getRoleDetails_retry_error', err: serializeError(retryErr), organizationId, roleId });
+        }
+      }
+      logger.error({ event: 'getRoleDetails_error', err: serializeError(err), organizationId, roleId });
+      return [];
+    }
+  }
+
+  /**
+   * Checks if user has completed tasks (matches original checkCompletedTasks)
+   * Queries TASKS_TABLE for pending tasks
+   */
+  async checkCompletedTasks(userId: string): Promise<boolean> {
+    const logger = createChildLogger(baseLogger, { userId });
+    const TASKS_TABLE = process.env.TASKS_TABLE;
+    try {
+      if (!TASKS_TABLE) {
+        logger.warn({ event: 'TASKS_TABLE_not_configured' });
+        return true; // Default to completed if table not configured
+      }
+
+      const params = {
+        TableName: TASKS_TABLE,
+        IndexName: 'pk-sk1-index',
+        KeyConditionExpression: '#pk = :pk and #sk = :sk',
+        ExpressionAttributeValues: {
+          ':pk': `TASK#${userId}`,
+          ':sk': 'PENDING',
+        },
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk1',
+        },
+      };
+      const command = new QueryCommand(params);
+      const result = await docClient.send(command);
+      const hasPendingTasks = (result.Count || 0) > 0;
+      logger.info({ event: 'checkCompletedTasks_success', userId, hasPendingTasks });
+      return !hasPendingTasks; // Return true if no pending tasks (completed)
+    } catch (err) {
+      logger.error({ event: 'checkCompletedTasks_error', err: serializeError(err) });
+      return true; // Default to completed on error
+    }
+  }
+
+  /**
+   * Updates emailVerified and/or phoneVerified for a user in USER_BASIC_DETAILS
+   * Matches original updateUserVerification from dynamodb.js
+   */
+  async updateUserVerification(
+    userID: string,
+    organizationId: string,
+    updates: { emailVerified?: boolean; phoneVerified?: boolean },
+  ): Promise<void> {
+    const logger = createChildLogger(baseLogger, { userID, organizationId });
+    try {
+      const updateExpr: string[] = [];
+      const exprAttrNames: Record<string, string> = {};
+      const exprAttrValues: Record<string, any> = {};
+
+      if (typeof updates.emailVerified !== 'undefined') {
+        updateExpr.push('#emailVerified = :emailVerified');
+        exprAttrNames['#emailVerified'] = 'emailVerified';
+        exprAttrValues[':emailVerified'] = updates.emailVerified;
+      }
+      if (typeof updates.phoneVerified !== 'undefined') {
+        updateExpr.push('#phoneVerified = :phoneVerified');
+        exprAttrNames['#phoneVerified'] = 'phoneVerified';
+        exprAttrValues[':phoneVerified'] = updates.phoneVerified;
+      }
+
+      if (updateExpr.length === 0) {
+        logger.warn({ event: 'updateUserVerification_no_updates' });
+        return;
+      }
+
+      const params = {
+        TableName: USER_TABLE_NAME,
+        Key: {
+          pk: `USER#${userID}`,
+          sk: `USER_BASIC_DETAILS#${organizationId}`,
+        },
+        UpdateExpression: 'SET ' + updateExpr.join(', '),
+        ExpressionAttributeNames: exprAttrNames,
+        ExpressionAttributeValues: exprAttrValues,
+        ReturnValues: 'UPDATED_NEW' as const,
+      };
+
+      await docClient.send(new UpdateCommand(params));
+      logger.info({ event: 'updateUserVerification_success', userID, organizationId });
+    } catch (err) {
+      logger.error({ event: 'updateUserVerification_error', err: serializeError(err) });
       throw err;
     }
   }

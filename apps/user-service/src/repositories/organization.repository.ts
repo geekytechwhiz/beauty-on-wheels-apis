@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { createLogger, createChildLogger } from '@api-hub/logger';
 const logger = createLogger({ service: 'user-service', redactPII: true });
@@ -7,6 +7,53 @@ const logger = createLogger({ service: 'user-service', redactPII: true });
 const ORGANIZATION_TABLE_NAME = process.env.ORGANIZATION_TABLE || process.env.USER_TABLE || '';
 
 export class OrganizationRepository {
+  /**
+   * Fetches organization basic details from USER_TABLE (matches original getOrgBasicDetails)
+   * Queries: pk = ORG_LIST, sk = ORG#organizationId
+   */
+  async getOrgBasicDetails(organizationId: string): Promise<any | null> {
+    const childLogger = createChildLogger(logger, { organizationId });
+    childLogger.info({ event: 'getOrgBasicDetails_start', organizationId });
+
+    if (!ORGANIZATION_TABLE_NAME) {
+      childLogger.error({ event: 'Organization table name not configured' });
+      return null;
+    }
+
+    try {
+      const params = {
+        TableName: ORGANIZATION_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND #sk = :sk',
+        FilterExpression: '#deleteFlag <> :deleteFlag',
+        ExpressionAttributeNames: {
+          '#pk': 'pk',
+          '#sk': 'sk',
+          '#deleteFlag': 'deleteFlag',
+        },
+        ExpressionAttributeValues: {
+          ':pk': 'ORG_LIST',
+          ':sk': `ORG#${organizationId}`,
+          ':deleteFlag': '1',
+        },
+      };
+
+      const result = await docClient.send(new QueryCommand(params));
+      if (result.Items && result.Items.length > 0) {
+        childLogger.info({ event: 'getOrgBasicDetails_success', organizationId });
+        return result.Items[0];
+      }
+      childLogger.info({ event: 'getOrgBasicDetails_not_found', organizationId });
+      return null;
+    } catch (err) {
+      childLogger.error({
+        event: 'getOrgBasicDetails_error',
+        err: err instanceof Error ? { message: err.message, stack: err.stack, name: err.name } : err,
+        organizationId,
+      });
+      return null;
+    }
+  }
+
   /**
    * Fetches organization details directly from DynamoDB table
    */

@@ -10,7 +10,6 @@ import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
 import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
 import { UserLinkRepository } from '../repositories/userLink.repository';
-import { getRoleDetails } from './role.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const friendFamilyRepository = new FriendFamilyRepository();
@@ -1284,7 +1283,7 @@ export class UserService {
 
       // First, try to get the user using the organizationId (new schema: pk=ORG#orgId, sk=USER#userId)
       let userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
-      
+      console.log("USER DATA 1286 USERVICE : ", userBasicDetails);
       // If not found with organizationId, try legacy schema (pk=USER#userId, sk=USER_DETAILS)
       if (!userBasicDetails) {
         userBasicDetails = await this.repository.getUser(actualUserId);
@@ -1294,84 +1293,273 @@ export class UserService {
         throw new UserNotFoundError(actualUserId);
       }
 
-      // Get organization details
+      // Log definedRoleCode from userBasicDetails (USER_TABLE)
+      console.log("USER DATA - definedRoleCode from userBasicDetails:", (userBasicDetails as any).definedRoleCode);
+      console.log("USER DATA - userBasicDetails keys:", Object.keys(userBasicDetails));
+
+      // Get organization details (matches original: getOrgBasicDetails from USER_TABLE)
       let orgBasicDetails: any = null;
       const userOrgId = userBasicDetails.organizationID || organizationId;
       if (userOrgId && userOrgId !== 'ROOT') {
-        orgBasicDetails = await this.organizationRepository.getOrganization(userOrgId, authHeader);
+        // First try getOrgBasicDetails from USER_TABLE (matches original flow)
+        orgBasicDetails = await this.organizationRepository.getOrgBasicDetails(userOrgId);
+        console.log("USER DATA 1302 ORG BASIC DETAILS : ", orgBasicDetails);
+        // Fallback to getOrganizationFromDB if not found
+        if (!orgBasicDetails) {
+          orgBasicDetails = await this.organizationRepository.getOrganizationFromDB(userOrgId);
+        }
+        // Final fallback to API if not found in DB
+        if (!orgBasicDetails) {
+          orgBasicDetails = await this.organizationRepository.getOrganization(userOrgId, authHeader);
+        }
+        
+        logger.debug({
+          event: 'org_details_fetched',
+          userOrgId,
+          hasOrgBasicDetails: !!orgBasicDetails,
+          orgStructure: orgBasicDetails ? {
+            hasOrganizationInfo: !!orgBasicDetails.organizationInfo,
+            hasAdminDetails: !!orgBasicDetails.adminDetails,
+            organizationInfoKeys: orgBasicDetails.organizationInfo ? Object.keys(orgBasicDetails.organizationInfo) : [],
+          } : null,
+        });
       }
 
       // Get all related user data items (preferences, metadata, etc.) using pk=USER#userId
       const allUserData = await this.repository.getAllUserData(actualUserId);
+      console.log("USER DATA 1326 ALL USER DATA : ", allUserData);
+      
+      // Check if definedRoleCode exists in any item in allUserData
+      const itemWithDefinedRoleCode = allUserData.find((item: any) => item.definedRoleCode);
+      if (itemWithDefinedRoleCode) {
+        console.log("USER DATA - Found definedRoleCode in allUserData:", itemWithDefinedRoleCode.definedRoleCode, "from item with sk:", itemWithDefinedRoleCode.sk);
+      }
       
       // Find preference details from allUserData
       const preferenceDetails = allUserData.find((item: any) => 
         item.sk?.includes('PREFERENCE') || item.sk === 'PREFERENCE' || item.sk?.startsWith('PREFERENCE')
       );
 
-      // Get roles and permissions
+      // Get roles and permissions (matches original flow exactly)
+      // Step 1: Get user roles from USER_TABLE using getUserRolesPermissions
+      // This provides the mapping between user and roles (USER_TABLE → ROLES_TABLE mapping)
+      const permissionResponse = await this.repository.getUserRolesPermissions(actualUserId, userOrgId, authHeader);
+      const filteredRoles = permissionResponse.roles || [];
+      console.log("USER DATA 1336 PERMISSION RESPONSE: ", permissionResponse);
       let roleDetails: any[] = [];
       let roleName = '';
-      let userPermissions: any = null;
+      // Use userPermissions from API response if available, otherwise will be set from ROLES_TABLE
+      let userPermissions: any[] = permissionResponse.userPermissions || [];
       let isDefault = false;
       let definedRoleCode: string | null = null;
       let roleType: string | null = null;
       let roleId: string | null = null;
-      let filteredRoles: string[] = [];
       let uniquePermissions: any = {};
 
-      // Try to get user roles from role API
-      const roleApiUrl = process.env.ROLE_API_URL;
-      if (roleApiUrl && userOrgId) {
-        try {
-          const rolesUrl = `${roleApiUrl.replace(/\/$/, '')}/org/${userOrgId}/users/${actualUserId}/roles`;
-          const rolesResponse = await fetch(rolesUrl, {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(authHeader ? { Authorization: authHeader } : {}),
-            },
-          });
+      // Step 2: If roles found, get role details from ROLES_TABLE (matches original: getRolePermissions)
+      // The original code uses getRolePermissions from ROLES_TABLE to get features array
+      if (filteredRoles.length > 0) {
+        roleId = filteredRoles[0];
+        logger.debug({ event: 'fetching_role_permissions_from_roles_table', roleId, userOrgId });
+        
+        // Get role permissions from ROLES_TABLE (matches original: line 115)
+        // This returns the detailed features array with functionalities
+        const rolePermissionsFromRolesTable = await this.repository.getRolePermissions(roleId, userOrgId);
+        
+        console.log('getUserWithOrganizationDetails - rolePermissionsFromRolesTable:', JSON.stringify(rolePermissionsFromRolesTable, null, 2));
+        logger.debug({ 
+          event: 'role_permissions_from_roles_table_result', 
+          roleId, 
+          userOrgId,
+          rolePermissionsCount: rolePermissionsFromRolesTable?.length || 0,
+        });
+        
+        if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
+          const roleItems = rolePermissionsFromRolesTable;
 
-          if (rolesResponse.ok) {
-            const rolesData = (await rolesResponse.json()) as any;
-            filteredRoles = rolesData?.data?.roles || rolesData?.roles || [];
+          // Match original: index.js line 115-119
+          // const roleDetails = await DB.getRolePermissions(filteredRoles[0], organizationID);
+          // const definedRoleCode = roleDetails[0]?.definedRoleCode ?? null;
+          // The original just takes the first item from getRolePermissions result
+          const roleDetailsFirstItem = roleItems[0];
+
+          // Try to find a role header item (SK === ROLE#roleId or starts with ROLE#roleId)
+          // If not found, use first item (matches original behavior)
+          const roleHeader =
+            roleItems.find((it: any) => {
+              const sk = String(it.SK || it.sk || '');
+              return sk === `ROLE#${roleId}` || sk.startsWith(`ROLE#${roleId}#`);
+            }) || roleDetailsFirstItem;
+
+          // Extract fields - match original: index.js line 116-120
+          roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || roleDetailsFirstItem?.roleName || roleDetailsFirstItem?.definedRoleCode || '';
+          isDefault = roleHeader?.isDefault ?? roleDetailsFirstItem?.isDefault ?? false;
+          // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then ROLES_TABLE
+          const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
+            (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
+          definedRoleCode = definedRoleCodeFromUserTable ?? roleDetailsFirstItem?.definedRoleCode ?? roleHeader?.definedRoleCode ?? null;
+          console.log("USER DATA - definedRoleCode final value:", definedRoleCode, "source:", definedRoleCodeFromUserTable ? 'USER_TABLE' : (roleDetailsFirstItem?.definedRoleCode ? 'ROLES_TABLE' : 'null'));
+          roleType = roleHeader?.roleType ?? roleDetailsFirstItem?.roleType ?? null;
+
+          // Only set userPermissions from ROLES_TABLE if not already set from API
+          if (!userPermissions || userPermissions.length === 0) {
+            const headerFeatures = roleHeader?.features;
+            if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
+              userPermissions = headerFeatures;
+            } else if (headerFeatures && typeof headerFeatures === 'object') {
+              userPermissions = Object.values(headerFeatures);
+            } else {
+              const featureItems = roleItems.filter((it: any) => {
+                const sk = String(it.SK || it.sk || '');
+                return (
+                  it.itemType === 'Feature' ||
+                  !!it.featureKey ||
+                  sk.includes('#FEATURE#') ||
+                  sk.startsWith('MODULE#')
+                );
+              });
+              userPermissions = featureItems;
+            }
+          }
+
+          // Ensure userPermissions is always an array
+          if (!Array.isArray(userPermissions)) userPermissions = [];
+
+          logger.info({
+            event: 'role_permissions_fetched_from_roles_table',
+            roleId,
+            roleItemsCount: roleItems.length,
+            userPermissionsCount: userPermissions.length,
+            userPermissionsSource: userPermissions.length > 0 
+              ? ((permissionResponse.userPermissions && permissionResponse.userPermissions.length > 0) ? 'API' : 'ROLES_TABLE')
+              : 'empty',
+            definedRoleCode,
+            definedRoleCodeSource: roleHeader?.definedRoleCode ? 'roleHeader' : (userBasicDetails.definedRoleCode ? 'userBasicDetails' : 'null'),
+            roleName,
+            roleType,
+          });
+        } else {
+          // Fallback: try to get from USER_TABLE if not found in ROLES_TABLE
+          logger.debug({ event: 'fallback_to_user_table_role_details', roleId, userOrgId });
+          roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
+          
+          if (roleDetails && roleDetails.length > 0) {
+            const roleDetail = roleDetails[0];
+            roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
+            // Try to get features from USER_TABLE role details
+            const featuresFromUserTable = roleDetail.features;
+            if (featuresFromUserTable) {
+              userPermissions = Array.isArray(featuresFromUserTable) ? featuresFromUserTable :
+                               (typeof featuresFromUserTable === 'object' ? Object.values(featuresFromUserTable) : []);
+            } else {
+              userPermissions = [];
+            }
+            isDefault = roleDetail.isDefault ?? false;
+            // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then role detail
+            const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
+              (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
+            definedRoleCode = definedRoleCodeFromUserTable ?? roleDetail.definedRoleCode ?? null;
+            roleType = roleDetail.roleType ?? null;
             
-            if (filteredRoles.length > 0) {
-              roleId = filteredRoles[0];
-              roleDetails = await getRoleDetails(roleId, userOrgId, authHeader);
-              
-              if (roleDetails && roleDetails.length > 0) {
-                const roleDetail = Array.isArray(roleDetails) ? roleDetails[0] : roleDetails;
-                roleName = roleDetail?.roleName || roleDetail?.definedRoleCode || '';
-                userPermissions = roleDetail?.features || {};
-                isDefault = roleDetail?.isDefault ?? false;
-                definedRoleCode = roleDetail?.definedRoleCode ?? null;
-                roleType = roleDetail?.roleType ?? null;
+            logger.debug({
+              event: 'definedRoleCode_from_user_table_fallback',
+              roleId,
+              definedRoleCode,
+              definedRoleCodeSource: roleDetail.definedRoleCode ? 'roleDetail' : (userBasicDetails.definedRoleCode ? 'userBasicDetails' : 'null'),
+            });
+          } else {
+            // If no role details found, get definedRoleCode from userBasicDetails or allUserData (USER_TABLE)
+            const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
+              (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
+            definedRoleCode = definedRoleCodeFromUserTable ?? null;
+            logger.warn({ 
+              event: 'role_details_not_found', 
+              roleId, 
+              userOrgId,
+              triedRolesTable: true,
+              triedUserTable: true,
+              definedRoleCodeFromUserBasic: userBasicDetails.definedRoleCode ?? null,
+            });
+          }
+        }
+      } else {
+        // Fallback: try to use roleID from userBasicDetails
+        const userRoleId = (userBasicDetails as any).roleID || (userBasicDetails as any).roleId;
+        if (userRoleId) {
+          roleId = userRoleId;
+          logger.debug({ event: 'using_role_from_user_basic_details', roleId });
+          if (roleId) {
+            // Try ROLES_TABLE first
+            const rolePermissionsFromRolesTable = await this.repository.getRolePermissions(roleId, userOrgId);
+            if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
+              const roleItems = rolePermissionsFromRolesTable;
+              const roleHeader =
+                roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
+                roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
+                roleItems[0];
+
+              roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
+              isDefault = roleHeader?.isDefault ?? false;
+              // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then ROLES_TABLE
+              const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
+                (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
+              definedRoleCode = definedRoleCodeFromUserTable ?? roleHeader?.definedRoleCode ?? null;
+              roleType = roleHeader?.roleType ?? null;
+
+              const headerFeatures = roleHeader?.features;
+              if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
+                userPermissions = headerFeatures;
+              } else if (headerFeatures && typeof headerFeatures === 'object') {
+                userPermissions = Object.values(headerFeatures);
+              } else {
+                const featureItems = roleItems.filter((it: any) => {
+                  const sk = String(it.SK || it.sk || '');
+                  return (
+                    it.itemType === 'Feature' ||
+                    !!it.featureKey ||
+                    sk.includes('#FEATURE#') ||
+                    sk.startsWith('MODULE#')
+                  );
+                });
+                userPermissions = featureItems;
               }
 
-              // Get unique permissions
-              try {
-                const permissionsUrl = `${roleApiUrl.replace(/\/$/, '')}/org/${userOrgId}/users/${actualUserId}/permissions`;
-                const permissionsResponse = await fetch(permissionsUrl, {
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...(authHeader ? { Authorization: authHeader } : {}),
-                  },
-                });
-
-                if (permissionsResponse.ok) {
-                  const permissionsData = (await permissionsResponse.json()) as any;
-                  const permissions = permissionsData?.data?.permissions || permissionsData?.permissions || [];
-                  uniquePermissions = this.getUniquePermissions(permissions);
-                }
-              } catch (err) {
-                logger.warn({ event: 'get_permissions_error', err: serializeError(err) });
+              if (!Array.isArray(userPermissions)) userPermissions = [];
+            } else {
+              // Fallback to USER_TABLE
+              roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
+              if (roleDetails && roleDetails.length > 0) {
+                const roleDetail = roleDetails[0];
+                roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
+                const featuresFromUserTable = roleDetail.features;
+                userPermissions = Array.isArray(featuresFromUserTable) ? featuresFromUserTable : 
+                                 (typeof featuresFromUserTable === 'object' ? Object.values(featuresFromUserTable) : []);
+                isDefault = roleDetail.isDefault ?? false;
+                // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then role detail
+                const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
+                  (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
+                definedRoleCode = definedRoleCodeFromUserTable ?? roleDetail.definedRoleCode ?? null;
+                roleType = roleDetail.roleType ?? null;
               }
             }
           }
-        } catch (err) {
-          logger.warn({ event: 'get_roles_error', err: serializeError(err) });
         }
+      }
+
+      // Final fallback: If definedRoleCode is still null, get it from USER_TABLE
+      if (!definedRoleCode) {
+        const definedRoleCodeFromUserTableFinal = (userBasicDetails as any).definedRoleCode ?? 
+          (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
+        if (definedRoleCodeFromUserTableFinal) {
+          definedRoleCode = definedRoleCodeFromUserTableFinal;
+          console.log("USER DATA - definedRoleCode final fallback from USER_TABLE:", definedRoleCode);
+        }
+      }
+
+      // Step 3: Get unique permissions (matches original: line 122)
+      // permissionResponse.permissions is an array of permission objects
+      if (permissionResponse.permissions && permissionResponse.permissions.length > 0) {
+        uniquePermissions = this.getUniquePermissions(permissionResponse.permissions);
       }
 
       // Calculate account age
@@ -1387,16 +1575,26 @@ export class UserService {
       // Get user category
       let userCategory = userBasicDetails.userCat?.[0] || userType || 'USER';
 
-      // Get currencies (placeholder - would need currency API)
-      const currencies: any[] = [];
+      // Get currencies (matches original: getCurrenciesForCountryCode)
+      const currencies = await this.repository.getCurrenciesForCountryCode(
+        userBasicDetails.countryCode || orgBasicDetails?.organizationInfo?.address?.countryCode || ''
+      );
 
-      // Get email/phone verification status
+      // Get email/phone verification status (matches original: getEmailPhoneVerifiedStatus)
       let emailVerified = false;
       let phoneVerified = false;
-      // This would typically come from Cognito or a verification service
-      // For now, we'll use the values from userBasicDetails if available
-      emailVerified = userBasicDetails.emailVerified || false;
-      phoneVerified = userBasicDetails.phoneVerified || false;
+      if (userBasicDetails) {
+        try {
+          const verifiedStatus = await this.getEmailPhoneVerifiedStatus(userBasicDetails, actualUserId, userOrgId);
+          emailVerified = verifiedStatus?.emailVerified || false;
+          phoneVerified = verifiedStatus?.phoneVerified || false;
+        } catch (err) {
+          logger.warn({ event: 'getEmailPhoneVerifiedStatus_error', err: serializeError(err) });
+          // Fallback to DB values
+          emailVerified = userBasicDetails.emailVerified || false;
+          phoneVerified = userBasicDetails.phoneVerified || false;
+        }
+      }
 
       // Build response data
       const data: any = {
@@ -1444,9 +1642,18 @@ export class UserService {
         platform: (userBasicDetails as any).platform || '',
         voipToken: (userBasicDetails as any).voipToken || '',
         assignRoomNo: userBasicDetails.assignRoomNo || '',
-        organizationName: orgBasicDetails?.organizationInfo?.organizationName || orgBasicDetails?.organizationInfo?.name || '',
-        organizationAddress: orgBasicDetails?.organizationInfo?.address || {},
-        organizationEmailAddress: orgBasicDetails?.adminDetails?.emailAddress || '',
+        organizationName: orgBasicDetails?.organizationInfo?.organizationName || 
+                         orgBasicDetails?.organizationInfo?.name || 
+                         orgBasicDetails?.name || 
+                         '',
+        organizationAddress: orgBasicDetails?.organizationInfo?.address || 
+                            orgBasicDetails?.address || 
+                            {},
+        organizationEmailAddress: orgBasicDetails?.adminDetails?.emailAddress || 
+                                 orgBasicDetails?.adminDetails?.email || 
+                                 orgBasicDetails?.emailAddress || 
+                                 '',
+        organizationType: orgBasicDetails?.organizationType || orgBasicDetails?.organizationInfo?.organizationType || orgBasicDetails?.lsi_organizationType || (orgBasicDetails as any)?.orgType || (orgBasicDetails as any)?.type || '',
         scheduleConfiguration,
         roleName,
         userRoles: filteredRoles,
@@ -1548,10 +1755,10 @@ export class UserService {
         fitbit: !!(userBasicDetails as any).fitbit,
       };
 
-      // Task completion status
+      // Task completion status (matches original: checkCompletedTasks)
       data.isTaskCompleted = userBasicDetails.isTaskCompleted !== undefined 
         ? userBasicDetails.isTaskCompleted 
-        : false; // Would need to check completed tasks
+        : await this.repository.checkCompletedTasks(actualUserId);
 
       // Format full name with prefix
       if (data.namePrefix?.includes('Dr.') || data.namePrefix?.includes('DR')) {
@@ -1619,6 +1826,115 @@ export class UserService {
       }
     });
     return readonlyPermissions;
+  }
+
+  /**
+   * Gets email and phone verification status from Cognito and updates DB if needed
+   * Matches original getEmailPhoneVerifiedStatus from helper.js
+   */
+  private async getEmailPhoneVerifiedStatus(
+    userBasicDetails: any,
+    userID: string,
+    organizationID: string,
+  ): Promise<{ emailVerified: boolean; phoneVerified: boolean }> {
+    const methodLogger = createChildLogger(baseLogger, { userID, organizationID });
+    let emailVerified = userBasicDetails.emailVerified || false;
+    let phoneVerified = userBasicDetails.phoneVerified || false;
+    let shouldUpdate = false;
+
+    // If not verified in DB, check Cognito
+    if ((!emailVerified || !phoneVerified) && userBasicDetails) {
+      try {
+        const { CognitoIdentityProviderClient, ListUsersCommand } = await import('@aws-sdk/client-cognito-identity-provider');
+        const { SecretsManagerClient, GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
+        
+        // Get user pool ID from secrets manager
+        const secretManagerName = process.env.SECRET_MANAGER_NAME;
+        let userPoolId: string | undefined;
+        
+        if (secretManagerName) {
+          try {
+            const secretClient = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
+            const command = new GetSecretValueCommand({ SecretId: secretManagerName });
+            const data = await secretClient.send(command);
+            const secretString = 'SecretString' in data 
+              ? data.SecretString 
+              : (data.SecretBinary ? Buffer.from(data.SecretBinary as any).toString('ascii') : '');
+            if (secretString) {
+              const secrets = JSON.parse(secretString);
+              userPoolId = secrets.USER_POOL_ID;
+            }
+          } catch (err) {
+            methodLogger.warn({ event: 'get_secrets_error', err: serializeError(err) });
+          }
+        }
+
+        if (userPoolId) {
+          const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'us-east-1' });
+          
+          // Check email verification
+          if (!emailVerified && userBasicDetails.emailAddress) {
+            try {
+              const params = {
+                UserPoolId: userPoolId,
+                Filter: `email = "${userBasicDetails.emailAddress}"`,
+              };
+              const result = await client.send(new ListUsersCommand(params));
+              const cognitoUser = result.Users && result.Users[0];
+              if (cognitoUser) {
+                const attr = cognitoUser.Attributes?.find((a: any) => a.Name === 'email_verified');
+                if (attr && attr.Value === 'true') {
+                  emailVerified = true;
+                  shouldUpdate = true;
+                }
+              }
+            } catch (err) {
+              methodLogger.warn({ event: 'check_email_verification_error', err: serializeError(err) });
+            }
+          }
+
+          // Check phone verification
+          if (!phoneVerified && userBasicDetails.phoneNumber) {
+            try {
+              const phoneFilter = userBasicDetails.phoneCode 
+                ? `phone_number = "${userBasicDetails.phoneCode}${userBasicDetails.phoneNumber}"`
+                : `phone_number = "${userBasicDetails.phoneNumber}"`;
+              const params = {
+                UserPoolId: userPoolId,
+                Filter: phoneFilter,
+              };
+              const result = await client.send(new ListUsersCommand(params));
+              const cognitoUser = result.Users && result.Users[0];
+              if (cognitoUser) {
+                const attr = cognitoUser.Attributes?.find((a: any) => a.Name === 'phone_number_verified');
+                if (attr && attr.Value === 'true') {
+                  phoneVerified = true;
+                  shouldUpdate = true;
+                }
+              }
+            } catch (err) {
+              methodLogger.warn({ event: 'check_phone_verification_error', err: serializeError(err) });
+            }
+          }
+
+          // Update DB if verification status changed
+          if (shouldUpdate) {
+            try {
+              await this.repository.updateUserVerification(userID, organizationID, {
+                emailVerified,
+                phoneVerified,
+              });
+            } catch (err) {
+              methodLogger.warn({ event: 'update_verification_error', err: serializeError(err) });
+            }
+          }
+        }
+      } catch (err) {
+        methodLogger.warn({ event: 'getEmailPhoneVerifiedStatus_error', err: serializeError(err) });
+      }
+    }
+
+    return { emailVerified, phoneVerified };
   }
 }
 

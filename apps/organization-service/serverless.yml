@@ -205,11 +205,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Create a new organization
             description: Creates a new organization in the system
@@ -285,12 +285,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Get organization by ID
             description: Retrieves organization information by organization ID
@@ -325,11 +325,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: List organizations
             description: Retrieves all organizations
@@ -353,11 +353,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Update organization information
             description: Updates organization information. Only provided fields will be updated.
@@ -426,11 +426,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Delete an organization
             description: Deletes an organization from the system by organization ID (soft delete)
@@ -545,11 +545,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: List organization users
             description: Retrieves all users associated with an organization

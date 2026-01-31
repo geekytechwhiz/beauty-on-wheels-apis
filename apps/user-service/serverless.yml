@@ -292,11 +292,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Create a new user
             description: Creates a new user in the system with the provided information. organizationID and userID can be extracted from the access token if not provided in the request body.
@@ -376,11 +376,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Get user with comprehensive organization details (with path parameters)
             description: "Retrieves comprehensive user information including organization details, roles, permissions, preferences, account age, and more. Uses user ID and organization ID from URL path parameters if provided, otherwise extracts from authorization token."
@@ -462,11 +462,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Get user with comprehensive organization details (from token)
             description: "Retrieves comprehensive user information including organization details, roles, permissions, preferences, account age, and more. Extracts userId and organizationId from the authorization token."
@@ -538,11 +538,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           documentation:
             summary: Update user information
             description: Updates user information. Only provided fields will be updated. userId and organizationId are extracted from the access token (authorizer).

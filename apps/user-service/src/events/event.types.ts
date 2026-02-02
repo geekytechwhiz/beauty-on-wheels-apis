@@ -36,3 +36,45 @@ export interface UserFileUploadedData {
   s3Key: string;
 }
 
+/** Device error notification – Email/SMS/push via error_notification API. Same envelope shape for consumer. */
+export interface DeviceErrorNotificationRequestedData {
+  userId?: string;
+  email?: string;
+  phone?: string;
+  deviceToken?: string;
+  name?: string;
+  channels: string[];
+  template?: string;
+  templateData?: Record<string, unknown>;
+  deviceId?: string;
+  errorCode?: string;
+}
+
+/** Recommend services – Push + SMS + email to patient. Consumer may resolve contact from userId + organizationId. */
+export interface RecommendationNotificationRequestedData {
+  userId: string;
+  organizationId?: string;
+  email?: string;
+  phone?: string;
+  deviceToken?: string;
+  name?: string;
+  channels: string[];
+  template?: string;
+  templateData?: Record<string, unknown>;
+}
+
+/** Payment status (completed/cancelled/refunded/refund_initiated) – Push + SMS + email. */
+export interface PaymentStatusNotificationRequestedData {
+  userId: string;
+  organizationId?: string;
+  email?: string;
+  phone?: string;
+  deviceToken?: string;
+  name?: string;
+  channels: string[];
+  template?: string;
+  templateData?: Record<string, unknown>;
+  orderId?: string;
+  status?: string;
+}
+

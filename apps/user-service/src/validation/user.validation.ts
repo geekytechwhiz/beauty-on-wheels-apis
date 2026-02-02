@@ -211,3 +211,29 @@ export const sqsEventSchema = z.object({
   ),
 });
 
+export const activateDeactivateUserSchema = z.object({
+  action: z.enum(['ACTIVATE', 'DEACTIVATE'], { required_error: 'action must be ACTIVATE or DEACTIVATE' }),
+  organizationID: z.string().optional(),
+  patientUserId: z.string().optional(),
+});
+
+export const validateContactsSchema = z
+  .object({
+    emailAddress: z.union([z.string().email(), z.literal('')]).optional(),
+    phoneNumber: z.string().optional(),
+  })
+  .refine(
+    (data) =>
+      (typeof data.emailAddress === 'string' && data.emailAddress.trim() !== '') ||
+      (typeof data.phoneNumber === 'string' && data.phoneNumber.trim() !== ''),
+    { message: 'At least one of emailAddress or phoneNumber is required' },
+  );
+
+export const getOrganizationUserCountSchema = z.object({
+  organizationId: z.string().optional(),
+  roleId: z.string().optional(),
+  roleName: z.string().optional(),
+  roleType: z.string().optional(),
+  status: z.string().optional(),
+});
+

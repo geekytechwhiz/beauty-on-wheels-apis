@@ -988,6 +988,128 @@ functions:
               500:
                 $ref: '#/components/responses/InternalServerError'
 
+  activateDeactivateUser:
+    handler: src/handlers/activateDeactivateUser.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/activate-deactivate
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Activate or deactivate user
+            description: "Activates or deactivates a user in an organization. Body: action (ACTIVATE|DEACTIVATE), organizationID (optional from token), patientUserId (optional for acting on another user)."
+            tags:
+              - Users
+            requestBody:
+              description: action, organizationID, patientUserId
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - action
+                    properties:
+                      action:
+                        type: string
+                        enum: [ACTIVATE, DEACTIVATE]
+                      organizationID:
+                        type: string
+                      patientUserId:
+                        type: string
+            responses:
+              200:
+                description: User activated or deactivated
+              400:
+                description: Bad request
+              404:
+                description: User not found
+              500:
+                description: Internal server error
+
+  validateContacts:
+    handler: src/handlers/validateContacts.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/validate-contacts
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Validate contacts
+            description: Checks if email and/or phone exist in Cognito. At least one of emailAddress or phoneNumber required.
+            tags:
+              - Users
+            requestBody:
+              description: emailAddress, phoneNumber (at least one)
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      emailAddress:
+                        type: string
+                        format: email
+                      phoneNumber:
+                        type: string
+            responses:
+              200:
+                description: { emailAddressExists, phoneNumberExists }
+              400:
+                description: Bad request
+              500:
+                description: Internal server error
+
+  getOrganizationUserCount:
+    handler: src/handlers/getOrganizationUserCount.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/organization-user-count
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Get organization user count
+            description: "Returns user count items for an organization (pk=ORG_USER_COUNT#orgId). Optional filters: roleId, roleName, roleType, status."
+            tags:
+              - Users
+            requestBody:
+              description: organizationId (or from token), roleId, roleName, roleType, status
+              required: false
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      organizationId:
+                        type: string
+                      roleId:
+                        type: string
+                      roleName:
+                        type: string
+                      roleType:
+                        type: string
+                      status:
+                        type: string
+            responses:
+              200:
+                description: Array of count items
+              400:
+                description: Bad request (missing organizationId)
+              500:
+                description: Internal server error
+
   # S3 → EventBridge trigger (v3 safe)
   uploadUserFile:
     handler: src/handlers/s3/uploadUserFile.main

@@ -92,7 +92,11 @@ function userFileSk(fileId: string): string {
 
 const userOrgPk = (organizationId: string): string => {
   return `ORG#${organizationId}`;
-}
+};
+
+const orgUserCountPk = (organizationId: string): string => {
+  return `ORG_USER_COUNT#${organizationId}`;
+};
 
 export interface ListOrganizationUsersOptions {
   limit?: number;
@@ -394,6 +398,45 @@ export class UserRepository {
       });
       throw err;
     }
+  }
+
+  async getOrganizationUserCounts(
+    organizationId: string,
+    filters?: { roleId?: string; roleName?: string; roleType?: string; status?: string },
+  ): Promise<Array<Record<string, unknown>>> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    const pk = orgUserCountPk(organizationId);
+    const items: Array<Record<string, unknown>> = [];
+    let lastKey: Record<string, unknown> | undefined;
+
+    do {
+      const params: {
+        TableName: string;
+        KeyConditionExpression: string;
+        ExpressionAttributeValues: Record<string, unknown>;
+        ExclusiveStartKey?: Record<string, unknown>;
+      } = {
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk',
+        ExpressionAttributeValues: { ':pk': pk },
+      };
+      if (lastKey) params.ExclusiveStartKey = lastKey;
+
+      const response = await docClient.send(new QueryCommand(params));
+      const rawItems = (response.Items || []) as Array<Record<string, unknown>>;
+
+      for (const item of rawItems) {
+        if (filters?.roleId && item.roleId !== filters.roleId) continue;
+        if (filters?.roleName && String(item.roleName ?? '').toUpperCase().replace(/\s/g, '_') !== filters.roleName) continue;
+        if (filters?.roleType && String(item.roleType ?? '').toUpperCase() !== filters.roleType) continue;
+        if (filters?.status && String(item.sk3 ?? '').toUpperCase() !== filters.status) continue;
+        items.push(item);
+      }
+      lastKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+
+    logger.info({ event: 'org_user_count_fetched', count: items.length });
+    return items;
   }
 
   async updateUserMetadata(userId: string, metadata: Record<string, unknown>): Promise<void> {

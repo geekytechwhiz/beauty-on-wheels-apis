@@ -1,17 +1,21 @@
 import { OrganizationRepository } from '../repositories/organization.repository';
+import { UserRepository } from '../repositories/user.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser } from '../models';
-import { OrganizationNotFoundError } from '../utils/errors';
+import { OrganizationNotFoundError, PermissionDeniedError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
+import { notifyAdminForOrganizationActivated } from './notification.service';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 
 export class OrganizationService {
   private repository: OrganizationRepository;
+  private userRepository: UserRepository;
 
-  constructor() {
-    this.repository = new OrganizationRepository();
+  constructor(repository?: OrganizationRepository, userRepository?: UserRepository) {
+    this.repository = repository ?? new OrganizationRepository();
+    this.userRepository = userRepository ?? new UserRepository();
   }
 
   async createOrganization(data: Partial<Organization>, correlationId?: string): Promise<Organization> {
@@ -344,7 +348,271 @@ export class OrganizationService {
     }
   }
 
- 
+  async linkUnlinkOrganizations(
+    fromOrg: string,
+    toOrg: string,
+    action: 'LINK' | 'UNLINK',
+    userId: string,
+    userType?: string,
+    correlationId?: string,
+  ): Promise<{ message: string }> {
+    const timer = createPerformanceTimer(baseLogger, 'linkUnlinkOrganizations', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, fromOrg, toOrg, action });
+
+    if (userType !== 'ROOT_ADMIN') {
+      throw new PermissionDeniedError();
+    }
+
+    const [fromOrgDetails, toOrgDetails] = await Promise.all([
+      this.repository.getOrganization(fromOrg),
+      this.repository.getOrganization(toOrg),
+    ]);
+
+    if (!fromOrgDetails || !toOrgDetails) {
+      const missing = !fromOrgDetails ? fromOrg : toOrg;
+      throw new OrganizationNotFoundError(missing);
+    }
+
+    if (action === 'LINK') {
+      if (toOrgDetails.status !== 'ACTIVE') {
+        throw new OrganizationNotActiveError(toOrg);
+      }
+      const fromOrgType = fromOrgDetails.organizationType ?? '';
+      const toOrgType = toOrgDetails.organizationType ?? '';
+      await this.repository.createLink(fromOrg, toOrg, fromOrgType, toOrgType);
+      await Promise.all([
+        this.repository.createOrgUpdate(fromOrg, `${fromOrg} Org linked with ${toOrg}`, userId),
+        this.repository.createOrgUpdate(toOrg, `${toOrg} Org linked with ${fromOrg}`, userId),
+      ]);
+      logger.info({ event: 'service_linkUnlink_link_success' });
+      timer.end();
+      return { message: 'Org linked successfully' };
+    }
+
+    if (action === 'UNLINK') {
+      await this.repository.deleteLink(fromOrg, toOrg);
+      await Promise.all([
+        this.repository.createOrgUpdate(fromOrg, `${fromOrg} Org unlinked with ${toOrg}`, userId),
+        this.repository.createOrgUpdate(toOrg, `${toOrg} Org unlinked with ${fromOrg}`, userId),
+      ]);
+      logger.info({ event: 'service_linkUnlink_unlink_success' });
+      timer.end();
+      return { message: 'Org unlinked successfully' };
+    }
+
+    timer.end();
+    throw new Error('Invalid action; must be LINK or UNLINK');
+  }
+
+  async setOrganizationStatus(
+    organizationId: string,
+    status: 'ACTIVE' | 'HOLD' | 'DISABLED',
+    userId?: string,
+    userType?: string,
+    correlationId?: string,
+    authHeader?: string,
+  ): Promise<{ message: string }> {
+    const timer = createPerformanceTimer(baseLogger, 'setOrganizationStatus', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, organizationId, status });
+
+    if (userType !== 'ROOT_ADMIN') {
+      throw new PermissionDeniedError();
+    }
+
+    const org = await this.repository.getOrganization(organizationId);
+    if (!org) {
+      throw new OrganizationNotFoundError(organizationId);
+    }
+
+    const now = Date.now();
+    await this.repository.updateOrganizationStatus(organizationId, status, now);
+
+    if (status === 'ACTIVE') {
+      await this.notifyAdminsOrganizationActivated(org, authHeader, correlationId, logger);
+    }
+
+    logger.info({ event: 'service_setOrganizationStatus_success' });
+    timer.end();
+    return { message: 'Organization status updated' };
+  }
+
+  private async notifyAdminsOrganizationActivated(
+    org: Organization,
+    authHeader: string | undefined,
+    correlationId: string | undefined,
+    logger: ReturnType<typeof createChildLogger>,
+  ): Promise<void> {
+    const adminDetails = Array.isArray(org.adminDetails) ? org.adminDetails : [];
+    if (adminDetails.length === 0) {
+      logger.info({ event: 'service_setOrganizationStatus_no_admins', message: 'No admin details to notify' });
+      return;
+    }
+
+    const organizationId = org.organizationId;
+    const organizationName = org.name ?? '';
+
+    for (const adminDetail of adminDetails as Array<Record<string, unknown>>) {
+      try {
+        let email: string | undefined;
+        let phone: string | undefined;
+        let name: string | undefined;
+        let adminUserId: string | undefined;
+
+        const adminId = adminDetail?.adminId as string | undefined;
+        if (adminId && authHeader) {
+          const user = await this.userRepository.getUser(organizationId, adminId, authHeader);
+          if (user) {
+            adminUserId = adminId;
+            email = (user.emailAddress as string) ?? (user.email as string) ?? undefined;
+            name = (user.fullName as string) ?? (user.name as string) ?? undefined;
+            const pc = String(user.phoneCode ?? '').trim();
+            const pn = String(user.phoneNumber ?? '').trim();
+            if (pc) {
+              phone = pc.startsWith('+') ? `${pc}${pn}` : `+${pc}${pn}`;
+            } else {
+              phone = pn || undefined;
+            }
+          }
+        }
+        if (!email && !phone) {
+          email = (adminDetail?.emailAddress as string) ?? undefined;
+          const pc = String(adminDetail?.phoneCode ?? '').trim();
+          const pn = String(adminDetail?.phoneNumber ?? '').trim();
+          if (pc) {
+            phone = pc.startsWith('+') ? `${pc}${pn}` : `+${pc}${pn}`;
+          } else {
+            phone = pn || undefined;
+          }
+          name = (adminDetail?.adminName as string) ?? (adminDetail?.name as string) ?? undefined;
+          adminUserId = adminId;
+        }
+
+        if (!email && !phone) {
+          logger.warn({ event: 'service_setOrganizationStatus_admin_no_contact', adminId, organizationId });
+          continue;
+        }
+
+        await notifyAdminForOrganizationActivated({
+          userId: adminUserId,
+          email,
+          phone,
+          name,
+          channels: ['email', 'sms'],
+          template: 'ORGANIZATION_ACTIVATED',
+          templateData: {
+            organizationId,
+            organizationName,
+          },
+          organizationId,
+          organizationName,
+          correlationId,
+        });
+      } catch (notifyErr) {
+        logger.warn({
+          event: 'service_setOrganizationStatus_notify_admin_failed',
+          adminId: (adminDetail as Record<string, unknown>)?.adminId,
+          err: serializeError(notifyErr),
+        });
+      }
+    }
+  }
+
+  async getOrganizationCounts(correlationId?: string): Promise<{ total: number; orgType: Record<string, number> }> {
+    const timer = createPerformanceTimer(baseLogger, 'getOrganizationCounts', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId });
+
+    try {
+      const items = await this.repository.getOrganizationCounts();
+      let total = 0;
+      const orgType: Record<string, number> = {};
+      for (const { sk, count } of items) {
+        orgType[sk] = count;
+        total += count;
+      }
+      logger.info({ event: 'service_getOrganizationCounts_success', total });
+      timer.end();
+      return { total, orgType };
+    } catch (err) {
+      logger.error({ event: 'service_getOrganizationCounts_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
+  async getLinkedOrganizations(
+    organizationId: string,
+    options?: {
+      orgType?: string;
+      preferredOrgId?: string;
+      limit?: number;
+      nextPaginationKey?: string;
+    },
+    correlationId?: string,
+  ): Promise<{
+    items: Array<{
+      organizationId: string;
+      name: string;
+      organizationType?: string;
+      admin?: unknown;
+      address?: unknown;
+      orgImage?: string;
+      fromOrg: string;
+      isPreferredOrg?: boolean;
+    }>;
+    nextPaginationKey?: string | null;
+  }> {
+    const timer = createPerformanceTimer(baseLogger, 'getLinkedOrganizations', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+
+    try {
+      const linkResult = await this.repository.listLinkedOrganizationIds(organizationId, {
+        orgType: options?.orgType,
+        limit: options?.limit,
+        nextPaginationKey: options?.nextPaginationKey,
+      });
+
+      if (!linkResult.items.length) {
+        throw new LinkedOrganizationsNotFoundError(organizationId);
+      }
+
+      const items = await Promise.all(
+        linkResult.items.map(async (link) => {
+          const org = await this.repository.getOrganization(link.linkedOrgId);
+          const orgInfo = org?.organizationInfo as Record<string, unknown> | undefined;
+          const name = org?.name ?? (orgInfo?.organizationName as string) ?? '';
+          const organizationType = org?.organizationType ?? (orgInfo?.organizationType as string);
+          const address = org?.address ?? orgInfo?.address;
+          const orgImage = org?.hospitalImage ?? (orgInfo?.hospitalImage as string) ?? '';
+          return {
+            organizationId: link.linkedOrgId,
+            name,
+            organizationType,
+            admin: org?.adminDetails,
+            address,
+            orgImage,
+            fromOrg: link.fromOrg,
+            isPreferredOrg: options?.preferredOrgId === link.linkedOrgId,
+          };
+        }),
+      );
+
+      logger.info({ event: 'service_getLinkedOrganizations_success', count: items.length });
+      timer.end();
+      return {
+        items,
+        nextPaginationKey: linkResult.nextPaginationKey ?? null,
+      };
+    } catch (err) {
+      if (err instanceof LinkedOrganizationsNotFoundError) {
+        timer.end();
+        throw err;
+      }
+      logger.error({ event: 'service_getLinkedOrganizations_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
   async listOrganizations(filters?: {
     organizationId?: string;
     status?: string[];

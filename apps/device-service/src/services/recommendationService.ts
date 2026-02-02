@@ -3,6 +3,7 @@ import { createLogger, serializeError, createChildLogger } from '@api-hub/logger
 import { DeviceRecommendation } from '../models';
 import { RecommendationNotFoundError, RecommendationAlreadyExistsError, RecommendationCannotRemovePairedError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
+import { publishRecommendationNotification } from './notification.service';
 
 const baseLogger = createLogger({ service: 'recommendation-service', redactPII: true });
 
@@ -62,6 +63,13 @@ export class RecommendationService {
       }),
     );
 
+    await publishRecommendationNotification({
+      userId: patientUserId,
+      organizationId,
+      doctorName,
+      devices,
+      correlationId,
+    });
     logger.info({ event: 'devices_recommended', count: devices.length });
   }
 

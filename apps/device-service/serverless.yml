@@ -29,6 +29,7 @@ provider:
     REGION: ${self:provider.region}
     DEVICE_TABLE: device-table-${self:provider.stage}
     EVENT_BUS: device-service-bus-${self:provider.stage}
+    NOTIFICATION_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
@@ -63,12 +64,34 @@ provider:
       Resource:
         - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/device-service-bus-${self:provider.stage}
 
+    # SNS (publish to user-service notification topic for Email/SMS/push)
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
+
     # Lambda (for backward compatibility with complete_user_task)
     - Effect: Allow
       Action:
         - lambda:InvokeFunction
       Resource:
         - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_complete_user_task
+
+    # SQS (Vital Reading DLQ)
+    - Effect: Allow
+      Action:
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource: !GetAtt VitalReadingsDLQ.Arn
+
+    # SES (Vital Reading DLQ email after 3 retries)
+    - Effect: Allow
+      Action:
+        - ses:SendEmail
+        - ses:SendRawEmail
+      Resource: '*'
 
     # X-Ray
     - Effect: Allow
@@ -151,6 +174,14 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+
+  errorNotification:
+    handler: src/handlers/errorNotification.handler
+    events:
+      - http:
+          path: devices/error-notification
+          method: post
+          cors: true
 
   deviceGet:
     handler: src/handlers/deviceGet.handler
@@ -299,3 +330,12 @@ functions:
           path: devices/{deviceId}/files
           method: post
           cors: true
+
+
+resources:
+  Resources:
+    VitalReadingsDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: vital-readings-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600

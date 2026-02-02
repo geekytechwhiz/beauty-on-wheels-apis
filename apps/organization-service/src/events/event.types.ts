@@ -60,3 +60,16 @@ export interface OrganizationFileUploadedData {
   description?: string;
   tags?: string[];
 }
+
+/** Payload for admin notification when org status becomes ACTIVE (email + SMS). Same shape as user-service notification for shared consumer. */
+export interface OrganizationActivatedNotificationRequestedData {
+  userId?: string;
+  email?: string;
+  phone?: string;
+  name?: string;
+  channels: string[];
+  template?: string;
+  templateData?: Record<string, unknown>;
+  organizationId: string;
+  organizationName?: string;
+}

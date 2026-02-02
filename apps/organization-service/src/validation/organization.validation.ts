@@ -137,3 +137,23 @@ export const updateOrganizationMetadataSchema = z.object({
   updatedBy: z.string().optional(),
   version: z.number().int().nonnegative().optional(),
 });
+
+export const linkUnlinkOrganizationSchema = z.object({
+  fromOrg: z.string().min(1, 'fromOrg is required'),
+  toOrg: z.string().min(1, 'toOrg is required'),
+  action: z.enum(['LINK', 'UNLINK'], { required_error: 'action must be LINK or UNLINK' }),
+});
+
+export const getLinkedOrganizationsSchema = z.object({
+  organizationId: z.string().min(1, 'organizationId is required'),
+  orgType: z.string().optional(),
+  userId: z.string().optional(),
+  preferredOrgId: z.string().optional(),
+  limit: z.union([z.number().int().positive(), z.string().transform((s) => (s ? Number(s) : undefined))]).optional(),
+  nextPaginationKey: z.string().optional(),
+});
+
+export const setOrgStatusSchema = z.object({
+  organizationId: z.string().min(1, 'organizationId is required'),
+  status: z.enum(['ACTIVE', 'HOLD', 'DISABLED'], { required_error: 'status must be ACTIVE, HOLD, or DISABLED' }),
+});

@@ -4,9 +4,33 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Debug organization-service (serverless offline)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--inspect=9232",
+        "${workspaceFolder}/node_modules/serverless/bin/serverless.js",
+        "offline",
+        "--stage",
+        "dev"
+      ],
+      "cwd": "${workspaceFolder}/apps/organization-service",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/apps/organization-service/.esbuild/**/*.js",
+        "${workspaceFolder}/apps/organization-service/dist/**/*.js",
+        "${workspaceFolder}/**/dist/**/*.js",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Debug @api-hub/user-serive with Nx",
-      "runtimeExecutable": "pnpm exec",
-      "runtimeArgs": ["nx", "serve", "@api-hub/user-serive"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "nx", "serve", "@api-hub/user-serive"],
       "env": {
         "NODE_OPTIONS": "--inspect=9229"
       },
@@ -23,8 +47,8 @@
       "type": "node",
       "request": "launch",
       "name": "Debug @api-hub/user-service with Nx",
-      "runtimeExecutable": "pnpm exec",
-      "runtimeArgs": ["nx", "serve", "@api-hub/user-service"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "nx", "serve", "@api-hub/user-service"],
       "env": {
         "NODE_OPTIONS": "--inspect=9230"
       },
@@ -33,7 +57,26 @@
       "skipFiles": ["<node_internals>/**"],
       "sourceMaps": true,
       "outFiles": [
-        "${workspaceFolder}/user-service/dist/**/*.(m|c|)js",
+        "${workspaceFolder}/apps/user-service/dist/**/*.(m|c|)js",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug organization-service with Nx",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "nx", "serve", "organization-service"],
+      "env": {
+        "NODE_OPTIONS": "--inspect=9232"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/dist/apps/organization-service/**/*.(m|c|)js",
+        "${workspaceFolder}/apps/organization-service/dist/**/*.(m|c|)js",
         "!**/node_modules/**"
       ]
     },
@@ -41,8 +84,8 @@
       "type": "node",
       "request": "launch",
       "name": "Debug order-service with Nx",
-      "runtimeExecutable": "pnpm exec",
-      "runtimeArgs": ["nx", "serve", "order-service"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "nx", "serve", "order-service"],
       "env": {
         "NODE_OPTIONS": "--inspect=9231"
       },
@@ -52,6 +95,19 @@
       "sourceMaps": true,
       "outFiles": [
         "${workspaceFolder}/apps/order-service/dist/**/*.(m|c|)js",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to Node (inspect)",
+      "port": 9229,
+      "restart": false,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/**/dist/**/*.(m|c|)js",
         "!**/node_modules/**"
       ]
     }

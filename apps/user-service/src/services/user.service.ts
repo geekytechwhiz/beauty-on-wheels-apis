@@ -1050,6 +1050,47 @@ export class UserService {
     }
   }
 
+  async activateDeactivateUser(
+    organizationId: string,
+    targetUserId: string,
+    action: 'ACTIVATE' | 'DEACTIVATE',
+    correlationId?: string,
+  ): Promise<void> {
+    const timer = createPerformanceTimer(baseLogger, 'activateDeactivateUser', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, organizationId, targetUserId, action });
+
+    try {
+      const isActive = action === 'ACTIVATE';
+      await this.repository.updateUser(targetUserId, organizationId, { isActive, modifiedDate: Date.now() });
+      logger.info({ event: 'service_activateDeactivateUser_success' });
+      timer.end();
+    } catch (err) {
+      logger.error({ event: 'service_activateDeactivateUser_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
+  async getOrganizationUserCounts(
+    organizationId: string,
+    filters?: { roleId?: string; roleName?: string; roleType?: string; status?: string },
+    correlationId?: string,
+  ): Promise<Array<Record<string, unknown>>> {
+    const timer = createPerformanceTimer(baseLogger, 'getOrganizationUserCounts', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+
+    try {
+      const items = await this.repository.getOrganizationUserCounts(organizationId, filters);
+      logger.info({ event: 'service_getOrganizationUserCounts_success', count: items.length });
+      timer.end();
+      return items;
+    } catch (err) {
+      logger.error({ event: 'service_getOrganizationUserCounts_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
   async deleteUser(userId: string, organizationId: string, correlationId?: string): Promise<void> {
     const timer = createPerformanceTimer(baseLogger, 'deleteUser', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, userId });

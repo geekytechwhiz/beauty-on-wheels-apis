@@ -110,6 +110,23 @@ export const globalDeviceRegistrationSchema = z.object({
     .min(1),
 });
 
+// Error notification schema (POST /devices/error-notification) – Email/SMS/push
+export const errorNotificationSchema = z.object({
+  userId: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  deviceToken: z.string().optional(),
+  name: z.string().optional(),
+  channels: z.array(z.enum(['email', 'sms', 'push'])).optional().default(['email', 'sms', 'push']),
+  template: z.string().optional(),
+  templateData: z.record(z.unknown()).optional(),
+  deviceId: z.string().optional(),
+  errorCode: z.string().optional(),
+}).refine(
+  (data) => data.email ?? data.phone ?? data.deviceToken ?? data.userId,
+  { message: 'At least one of userId, email, phone, or deviceToken is required' }
+);
+
 // Helper function to check if device is third-party
 export function isThirdPartyApp(deviceCategory: string): boolean {
   return THIRD_PARTY_APPS.includes(deviceCategory.toUpperCase());

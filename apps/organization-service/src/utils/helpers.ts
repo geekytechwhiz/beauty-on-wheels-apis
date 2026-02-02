@@ -9,9 +9,11 @@ export function organizationPk(organizationId: string): string {
 export function organizationDetailsSk(): string {
   return 'ORG_DETAILS';
 }
-
+export function organizationUsersSk(): string {
+  return 'USER#';
+}
 export function organizationUserSk(userId: string): string {
-  return `ORG_USER#${userId}`;
+  return `USER#${userId}`;
 }
 
 export function organizationMetadataSk(): string {

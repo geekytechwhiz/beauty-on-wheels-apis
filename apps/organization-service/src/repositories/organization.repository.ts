@@ -9,6 +9,7 @@ import {
   organizationUserSk,
   organizationMetadataSk,
   organizationFileSk,
+  organizationUsersSk,
 } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
@@ -482,7 +483,7 @@ export class OrganizationRepository {
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
           ExpressionAttributeValues: {
             ':pk': organizationPk(organizationId),
-            ':skPrefix': 'ORG_USER#',
+            ':skPrefix': organizationUsersSk(),
           },
         }),
       );

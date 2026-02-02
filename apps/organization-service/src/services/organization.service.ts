@@ -344,28 +344,7 @@ export class OrganizationService {
     }
   }
 
-  async listOrganizationUsers(organizationId: string): Promise<OrganizationUser[]> {
-    const timer = createPerformanceTimer(baseLogger, 'listOrganizationUsers');
-    const logger = createChildLogger(baseLogger, { organizationId });
-    logger.info({ event: 'service_listOrganizationUsers_start' });
-
-    try {
-      const existing = await this.repository.getOrganization(organizationId);
-      if (!existing) {
-        throw new OrganizationNotFoundError(organizationId);
-      }
-
-      const users = await this.repository.listOrganizationUsers(organizationId);
-      logger.info({ event: 'service_listOrganizationUsers_success', count: users.length });
-      timer.end();
-      return users;
-    } catch (err) {
-      logger.error({ event: 'service_listOrganizationUsers_error', err: serializeError(err) });
-      timer.end();
-      throw err;
-    }
-  }
-
+ 
   async listOrganizations(filters?: {
     organizationId?: string;
     status?: string[];

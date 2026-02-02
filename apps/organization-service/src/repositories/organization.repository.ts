@@ -474,29 +474,6 @@ export class OrganizationRepository {
       throw err;
     }
   }
-
-  async listOrganizationUsers(organizationId: string): Promise<OrganizationUser[]> {
-    try {
-      const result = await ddbDocClient.send(
-        new QueryCommand({
-          TableName: ORGANIZATION_TABLE_NAME,
-          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
-          ExpressionAttributeValues: {
-            ':pk': organizationPk(organizationId),
-            ':skPrefix': organizationUsersSk(),
-          },
-        }),
-      );
-
-      return (result?.Items ?? []) as OrganizationUser[];
-    } catch (err) {
-      const logger = createChildLogger(baseLogger, { organizationId });
-      logger.error({ event: 'organization_users_list_error', err: serializeError(err), message: 'Failed to list organization users' });
-      throw err;
-    }
-  }
-
-
   async updateOrganizationMetadata(
     organizationId: string,
     metadata: Record<string, unknown>,

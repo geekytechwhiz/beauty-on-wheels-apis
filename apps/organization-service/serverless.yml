@@ -533,46 +533,7 @@ functions:
   #             500:
   #               description: Internal server error
 
-  listOrganizationUsers:
-    handler: src/handlers/listOrganizationUsers.main
-    timeout: 5
-    memorySize: 256
-    events:
-      - http:
-          path: organization/{organizationId}/users
-          method: get
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-          #   resultTtlInSeconds: 0
-          documentation:
-            summary: List organization users
-            description: Retrieves all users associated with an organization
-            tags:
-              - Organizations
-              - Users
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: Organization users retrieved successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
-
+   
   updateOrganizationMetadata:
     handler: src/handlers/updateOrganizationMetadata.main
     timeout: 10

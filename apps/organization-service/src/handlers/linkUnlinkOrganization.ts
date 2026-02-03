@@ -76,7 +76,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const actionNormalized = action.toUpperCase() as 'LINK' | 'UNLINK';
 
   try {
-    const result = await organizationService.linkUnlinkOrganizations(
+    await organizationService.linkUnlinkOrganizations(
       fromOrg,
       toOrg,
       actionNormalized,
@@ -86,9 +86,19 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 201, duration, correlationId);
+    
+    // Determine title and description based on action
+    const title = actionNormalized === 'LINK' ? 'Org link success' : 'Org unlink success';
+    const description = actionNormalized === 'LINK' 
+      ? 'The org link completed successfully.' 
+      : 'The org unlink completed successfully.';
+    const message = actionNormalized === 'LINK' 
+      ? 'Org linked successfully' 
+      : 'Org unlinked successfully';
+    
     return ApiResponse.created(
-      { message: result.message },
-      actionNormalized === 'LINK' ? 'FACILITY.ORG_LINK_SUCCESS' : 'FACILITY.ORG_UNLINK_SUCCESS',
+      { message },
+      { title, description },
       { requestId: correlationId, event },
     );
   } catch (err) {

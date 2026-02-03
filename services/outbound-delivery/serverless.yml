@@ -1,0 +1,43 @@
+service: outbound-delivery
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-esbuild
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 60
+  environment:
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+  iamRoleStatements: []
+
+package:
+  individually: true
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+
+functions:
+  subscriptionDelivery:
+    handler: src/handlers/subscriptionDelivery.handler
+    description: Subscription delivery stub
+  bulkExportStart:
+    handler: src/handlers/bulkExport.handler
+    description: Bulk $export job skeleton

@@ -1,0 +1,72 @@
+service: fhir-gateway
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    USER_SERVICE_URL: ${env:USER_SERVICE_URL, ''}
+    DEVICE_SERVICE_URL: ${env:DEVICE_SERVICE_URL, ''}
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+  httpApi:
+    cors: true
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+
+# IAM least privilege placeholders
+  iamRoleStatements: []
+
+package:
+  individually: true
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node20
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    packagerOptions:
+      cwd: ../..
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
+    loader:
+      '.json': 'json'
+
+functions:
+  patientGet:
+    handler: src/handlers/patientGet.handler
+    events:
+      - httpApi:
+          path: /fhir/Patient/{id}
+          method: get
+  observationSearch:
+    handler: src/handlers/observationSearch.handler
+    events:
+      - httpApi:
+          path: /fhir/Observation
+          method: get
+  metadata:
+    handler: src/handlers/metadata.handler
+    events:
+      - httpApi:
+          path: /fhir/metadata
+          method: get

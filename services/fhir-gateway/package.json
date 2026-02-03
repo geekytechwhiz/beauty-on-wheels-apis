@@ -1,0 +1,15 @@
+{
+  "name": "@api-hub/fhir-gateway",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "deploy": "serverless deploy",
+    "offline": "serverless offline",
+    "package": "serverless package"
+  },
+  "devDependencies": {
+    "serverless": "^3.40.0",
+    "serverless-esbuild": "^1.57.0",
+    "serverless-offline": "^13.9.0"
+  }
+}

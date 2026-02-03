@@ -213,8 +213,6 @@ importers:
 
   apps/device-service: {}
 
-  apps/order-service: {}
-
   apps/organization-service:
     dependencies:
       '@aws-sdk/client-dynamodb':
@@ -245,6 +243,12 @@ importers:
 
   apps/user-service: {}
 
+  libs/canonical: {}
+
+  libs/capability: {}
+
+  libs/consent: {}
+
   libs/error-messages:
     dependencies:
       '@api-hub/logger':
@@ -262,7 +266,21 @@ importers:
         specifier: ^3.19.0
         version: 3.19.0
 
+  libs/terminology: {}
+
   libs/utils: {}
+
+  services/fhir-gateway:
+    devDependencies:
+      serverless:
+        specifier: ^3.40.0
+        version: 3.40.0(@types/node@20.19.9)
+      serverless-esbuild:
+        specifier: ^1.57.0
+        version: 1.57.0(esbuild@0.27.2)
+      serverless-offline:
+        specifier: ^13.9.0
+        version: 13.9.0(serverless@3.40.0(@types/node@20.19.9))
 
   tools/fhir-mapper-generator:
     dependencies:

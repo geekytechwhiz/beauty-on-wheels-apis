@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../libs/canonical/tsconfig.lib.json" },
+    { "path": "../../libs/fhir/tsconfig.lib.json" },
+    { "path": "../../libs/consent/tsconfig.lib.json" },
+    { "path": "../../libs/capability/tsconfig.lib.json" }
+  ]
+}

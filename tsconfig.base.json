@@ -21,8 +21,12 @@
     "paths": {
       "@api-hub/logger": ["libs/logger/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"],
-      
-      "@api-hub/error-messages": ["libs/error-messages/src/index.ts"]
+      "@api-hub/error-messages": ["libs/error-messages/src/index.ts"],
+      "@api-hub/canonical": ["libs/canonical/src/index.ts"],
+      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
+      "@api-hub/consent": ["libs/consent/src/index.ts"],
+      "@api-hub/capability": ["libs/capability/src/index.ts"],
+      "@api-hub/terminology": ["libs/terminology/src/index.ts"]
     }
   }
 }

@@ -1,0 +1,7 @@
+{
+  "name": "outbound-delivery",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/outbound-delivery/src",
+  "projectType": "application",
+  "tags": ["type:service"]
+}

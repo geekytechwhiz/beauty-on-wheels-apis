@@ -15,6 +15,6 @@
       "executor": "@nx/eslint:lint"
     }
   },
-  "tags": []
+  "tags": ["type:lib", "allowed-for-app"]
 }
 

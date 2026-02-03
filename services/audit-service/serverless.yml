@@ -1,0 +1,43 @@
+service: audit-service
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-esbuild
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+  iamRoleStatements: []
+
+package:
+  individually: true
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+
+functions:
+  auditEvent:
+    handler: src/handlers/auditEvent.handler
+    description: AuditEvent logger stub
+  provenance:
+    handler: src/handlers/provenance.handler
+    description: Provenance logger stub

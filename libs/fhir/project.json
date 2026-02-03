@@ -1,0 +1,7 @@
+{
+  "name": "fhir",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/fhir/src",
+  "projectType": "library",
+  "tags": ["scope:fhir", "type:lib"]
+}

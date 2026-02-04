@@ -100,7 +100,7 @@ custom:
     stg: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
     prd: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
   roleApiUrl:
-    dev: https://m226zl2j20.execute-api.us-east-1.amazonaws.com/dev
+    dev: https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev
     stg: https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg
     prd: https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd
   esbuild:

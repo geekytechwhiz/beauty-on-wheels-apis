@@ -12,6 +12,7 @@ import {
   updateUserMetadataSchema,
 } from '../validation/user.validation';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
+import { getOrganization } from '../services/organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -56,6 +57,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
   logger.info({ event: 'createUser_organization_check', organizationID: body.organizationID, userID: body.userID });
   const validation = createUserSchema.safeParse(body);
+  
   if (!validation.success) {
     logger.warn({ event: 'createUser_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
@@ -75,15 +77,41 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
 
   try {
     const { userInfo, userRole, userType } = validation.data;
+    const organizationID = body.organizationID;
+    const authHeader =
+      event.headers?.Authorization ||
+      event.headers?.authorization ||
+      event.headers?.AUTHORIZATION;
+
+    // Validate organization exists and is available via Organization API
+    if (organizationID) {
+      const org = await getOrganization(organizationID, authHeader);
+      if (!org) {
+        const duration = Date.now() - startTime;
+        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 400, duration, correlationId);
+        return ApiResponse.badRequest(
+          'ORGANIZATION.NOT_FOUND',
+          { requestId: correlationId, event },
+          { code: 'ORGANIZATION_NOT_FOUND', details: [{ message: 'Organization does not exist', field: 'organizationID' }] },
+        );
+      }
+      const status = org.status ? String(org.status).toLowerCase() : '';
+      if (['on_hold', 'disabled', 'not_exist'].includes(status)) {
+        const duration = Date.now() - startTime;
+        logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 400, duration, correlationId);
+        return ApiResponse.badRequest(
+          'ORGANIZATION.NOT_AVAILABLE',
+          { requestId: correlationId, event },
+          { code: 'ORGANIZATION_NOT_AVAILABLE', details: [{ message: 'Organization is not available', field: 'organizationID' }] },
+        );
+      }
+    }
+
     const roleIds = Array.isArray(userRole)
       ? userRole.map((roleId) => String(roleId))
       : userRole
         ? [String(userRole)]
         : [];
-    const authHeader =
-      event.headers?.Authorization ||
-      event.headers?.authorization ||
-      event.headers?.AUTHORIZATION;
     const contactAddress = (userInfo.contact as any)?.address;
     const userTypeUpper = String(userType || '').toUpperCase();
     const userData: any = {

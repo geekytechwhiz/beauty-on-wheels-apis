@@ -21,7 +21,7 @@ export const getRoleDetails = async (
   try {
     console.log("URL DATA :", `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/roles/${roleId}/permissions`);
     const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/roles/${roleId}/permissions`;
-    console.log("URL DATA :", url);
+
     logger.info({ event: 'get_role_api_start', url });
     const response = await fetch(url, { headers: buildHeaders(authHeader) });
     if (!response.ok) {

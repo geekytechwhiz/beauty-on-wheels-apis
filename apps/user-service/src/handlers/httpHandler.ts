@@ -252,7 +252,6 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       body?.userInfo?.friendNFamily,
       body?.userInfo?.assignDoctor,
     );
-
     if (roleIds.length > 0) {
       logger.info({
         event: 'createUser_assign_user_role_start',

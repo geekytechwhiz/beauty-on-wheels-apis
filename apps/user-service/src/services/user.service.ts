@@ -1,5 +1,6 @@
 import { UserRepository, ListOrganizationUsersOptions } from '../repositories/user.repository';
 import { OrganizationRepository } from '../repositories/organization.repository';
+import { getOrganization as getOrganizationViaApi } from './organization.service';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
@@ -54,10 +55,7 @@ export class UserService {
     try {
       if (!organizationID) throw new Error('organizationID is required');
       data.organizationID = organizationID;
-      const orgDetails = await this.organizationRepository.getOrganization(
-        data?.organizationID || '',
-        authHeader,
-      );
+      const orgDetails = await getOrganizationViaApi(data?.organizationID || '', authHeader);
       if (!orgDetails) {
         throw new Error('Organization does not exist');
       }
@@ -1349,9 +1347,9 @@ export class UserService {
         if (!orgBasicDetails) {
           orgBasicDetails = await this.organizationRepository.getOrganizationFromDB(userOrgId);
         }
-        // Final fallback to API if not found in DB
+        // Final fallback to Organization API if not found in DB
         if (!orgBasicDetails) {
-          orgBasicDetails = await this.organizationRepository.getOrganization(userOrgId, authHeader);
+          orgBasicDetails = await getOrganizationViaApi(userOrgId, authHeader);
         }
         
         logger.debug({

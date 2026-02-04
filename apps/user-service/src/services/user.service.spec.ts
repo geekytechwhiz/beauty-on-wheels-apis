@@ -6,6 +6,7 @@ import type { UserRepository } from '../repositories/user.repository';
 import type { OrganizationRepository } from '../repositories/organization.repository';
 
 vi.mock('../repositories/user.repository');
+vi.mock('./organization.service', () => ({ getOrganization: vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' }) }));
 vi.mock('../events/event.publisher');
 vi.mock('./notification.service', () => ({ notifyUser: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@api-hub/logger', () => ({
@@ -62,10 +63,11 @@ describe('UserService', () => {
   const repository = () => (service as unknown as { repository: Partial<UserRepository> }).repository;
   const orgRepository = () => (service as unknown as { organizationRepository: Partial<OrganizationRepository> }).organizationRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    // Default organizationRepository behavior for tests
-    orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
+    // Default organization API behavior (organization.service getOrganization)
+    const orgServiceMod = await import('./organization.service');
+    (orgServiceMod.getOrganization as Mock).mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
   });
 
   describe('createUser', () => {
@@ -161,7 +163,7 @@ describe('UserService', () => {
       repository().getUser = vi.fn().mockResolvedValue(null);
       repository().createUser = vi.fn().mockResolvedValue(undefined);
       repository().assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
-      orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
+      (await import('./organization.service')).getOrganization.mockResolvedValue({ name: 'Acme Hospital', info: 'Acme Info' });
 
       const notifyMod = await import('./notification.service');
       const notify = notifyMod.notifyUser as Mock;
@@ -196,7 +198,7 @@ describe('UserService', () => {
       repository().getUser = vi.fn().mockResolvedValue(null);
       repository().createUser = vi.fn().mockResolvedValue(undefined);
       repository().assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
-      orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', contactInfo: 'Contact Info', organizationAddress: '123 Main St' });
+      (await import('./organization.service')).getOrganization.mockResolvedValue({ name: 'Acme Hospital', contactInfo: 'Contact Info', organizationAddress: '123 Main St' });
 
       const notifyMod = await import('./notification.service');
       const notify = notifyMod.notifyUser as Mock;
@@ -227,7 +229,7 @@ describe('UserService', () => {
       repository().getUser = vi.fn().mockResolvedValue(null);
       repository().createUser = vi.fn().mockResolvedValue(undefined);
       repository().assignUserToOrganization = vi.fn().mockResolvedValue(undefined);
-      orgRepository().getOrganization = vi.fn().mockResolvedValue({ name: 'Acme Hospital', contactInfo: 'Contact Info', organizationAddress: '123 Main St', organizationID: 'org-1' });
+      (await import('./organization.service')).getOrganization.mockResolvedValue({ name: 'Acme Hospital', contactInfo: 'Contact Info', organizationAddress: '123 Main St', organizationID: 'org-1' });
 
       const notifyMod = await import('./notification.service');
       const notify = notifyMod.notifyUser as Mock;

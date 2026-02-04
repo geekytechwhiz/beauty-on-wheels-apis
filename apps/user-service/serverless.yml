@@ -221,7 +221,7 @@ custom:
     dev:
       WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
       PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
-      ROLE_API_URL: 'https://m226zl2j20.execute-api.us-east-1.amazonaws.com/dev'
+      ROLE_API_URL: 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'
       ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
     stg:

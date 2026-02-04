@@ -12,12 +12,12 @@ const userRepository = new UserRepository();
 const buildAdminAddress = (user?: Record<string, unknown>) => {
   if (!user) return undefined;
   const address = {
-    address: user.address,
-    city: user.city,
-    state: user.state,
     country: user.country,
-    postalCode: user.postalCode,
+    address: user.address,
+    state: user.state,
+    city: user.city,
     countryCode: user.countryCode,
+    postalCode: user.postalCode,
   } as Record<string, unknown>;
   const hasAny = Object.values(address).some((value) => value !== undefined && value !== null && String(value).trim() !== '');
   return hasAny ? address : undefined;
@@ -51,91 +51,116 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       event.headers?.AUTHORIZATION;
     
     const orgRecord = organization as unknown as Record<string, unknown>;
-    
-    // Enrich admin details
-    const adminDetails = Array.isArray(organization.adminDetails) ? organization.adminDetails : [];
-    let enrichedAdminDetails: unknown = null;
-    
-    if (adminDetails.length > 0) {
-      const enrichedAdmins = await Promise.all(
-        adminDetails.map(async (adminDetail: any) => {
-          const adminId = adminDetail?.adminId;
-          if (!adminId) return adminDetail;
-          try {
-            const user = await userRepository.getUser(organizationId, adminId, authHeader);
-            if (!user) return adminDetail;
-            const mergedAddress = adminDetail?.adminAddress ?? buildAdminAddress(user);
-            return {
-              ...adminDetail,
-              adminName: adminDetail?.adminName ?? user?.fullName ?? user?.name,
-              namePrefix: adminDetail?.namePrefix ?? user?.namePrefix,
-              phoneCode: adminDetail?.phoneCode ?? user?.phoneCode,
-              phoneNumber: adminDetail?.phoneNumber ?? user?.phoneNumber,
-              profilePic: adminDetail?.profilePic ?? user?.profilePic,
-              emailAddress: adminDetail?.emailAddress ?? user?.emailAddress,
-              adminAddress: mergedAddress,
-            };
-          } catch (err) {
-            logger.warn({ event: 'getOrganization_admin_user_failed', adminId, err: serializeError(err) });
-            return adminDetail;
-          }
-        }),
-      );
-      // Use first admin if array, otherwise use the object
-      enrichedAdminDetails = Array.isArray(enrichedAdmins) && enrichedAdmins.length > 0 
-        ? enrichedAdmins[0] 
-        : enrichedAdmins;
-    } else if (organization.adminDetails && !Array.isArray(organization.adminDetails)) {
-      enrichedAdminDetails = organization.adminDetails;
-    }
+    const isRootOrg = organizationId.toUpperCase() === 'ROOT';
     
     // Transform organization to match the desired response structure
     const transformed: Record<string, unknown> = {};
     
-    // Add accountAlias (organizationId)
-    transformed.accountAlias = organization.organizationId;
-    
-    // Add adminDetails if it exists
-    if (enrichedAdminDetails) {
-      transformed.adminDetails = enrichedAdminDetails;
+    // Handle non-ROOT organizations
+    if (!isRootOrg) {
+      // Add accountAlias
+      transformed.accountAlias = organization.organizationId;
+      
+      // Enrich and add adminDetails
+      const adminDetails = Array.isArray(organization.adminDetails) ? organization.adminDetails : [];
+      let enrichedAdminDetails: unknown = null;
+      
+      if (adminDetails.length > 0) {
+        const enrichedAdmins = await Promise.all(
+          adminDetails.map(async (adminDetail: any) => {
+            const adminId = adminDetail?.adminId;
+            if (!adminId) return adminDetail;
+            try {
+              const user = await userRepository.getUser(organizationId, adminId, authHeader);
+              if (!user) return adminDetail;
+              const mergedAddress = adminDetail?.adminAddress ?? buildAdminAddress(user);
+              return {
+                ...(mergedAddress && { adminAddress: mergedAddress }),
+                adminId: adminDetail?.adminId ?? adminId,
+                adminName: adminDetail?.adminName ?? user?.fullName ?? user?.name,
+                ...(adminDetail?.adminRole && { adminRole: adminDetail.adminRole }),
+                emailAddress: adminDetail?.emailAddress ?? user?.emailAddress,
+                namePrefix: adminDetail?.namePrefix ?? user?.namePrefix,
+                phoneCode: adminDetail?.phoneCode ?? user?.phoneCode,
+                phoneNumber: adminDetail?.phoneNumber ?? user?.phoneNumber,
+                profilePic: adminDetail?.profilePic ?? user?.profilePic ?? '',
+                ...(adminDetail?.roleName && { roleName: adminDetail.roleName }),
+              };
+            } catch (err) {
+              logger.warn({ event: 'getOrganization_admin_user_failed', adminId, err: serializeError(err) });
+              return adminDetail;
+            }
+          }),
+        );
+        enrichedAdminDetails = Array.isArray(enrichedAdmins) && enrichedAdmins.length > 0 
+          ? enrichedAdmins[0] 
+          : enrichedAdmins;
+      } else if (organization.adminDetails && !Array.isArray(organization.adminDetails)) {
+        enrichedAdminDetails = organization.adminDetails;
+      }
+      
+      if (enrichedAdminDetails) {
+        transformed.adminDetails = enrichedAdminDetails;
+      }
+      
+      // Add createdAt
+      if (organization.createdAt || organization.createdDate) {
+        transformed.createdAt = organization.createdAt || organization.createdDate;
+      }
+      
+      // Add createdBy
+      if (organization.createdBy) {
+        transformed.createdBy = organization.createdBy;
+      }
+      
+      // Add formAlert
+      if (orgRecord.formAlert !== undefined) {
+        transformed.formAlert = orgRecord.formAlert;
+      }
+      
+      // Add modifiedBy
+      if (organization.modifiedBy) {
+        transformed.modifiedBy = organization.modifiedBy;
+      }
+      
+      // Add modifiedDate
+      if (organization.modifiedDate) {
+        transformed.modifiedDate = organization.modifiedDate;
+      }
+    } else {
+      // Handle ROOT organization
+      // Add createdDate
+      if (organization.createdAt || organization.createdDate) {
+        transformed.createdDate = organization.createdAt || organization.createdDate;
+      }
+      
+      // Add emailAddress
+      if (organization.email) {
+        transformed.emailAddress = organization.email;
+      }
+      
+      // Add status
+      transformed.status = organization.status;
+      
+      // Add modifiedDate
+      if (organization.modifiedDate) {
+        transformed.modifiedDate = organization.modifiedDate;
+      }
     }
-    
-    // Add createdAt if it exists
-    if (organization.createdAt || organization.createdDate) {
-      transformed.createdAt = organization.createdAt || organization.createdDate;
-    }
-    
-    // Add createdBy if it exists
-    if (organization.createdBy) {
-      transformed.createdBy = organization.createdBy;
-    }
-    
-    // Add formAlert if it exists
-    if (orgRecord.formAlert !== undefined) {
-      transformed.formAlert = orgRecord.formAlert;
-    }
-    
-    // Add modifiedBy if it exists
-    if (organization.modifiedBy) {
-      transformed.modifiedBy = organization.modifiedBy;
-    }
-    
-    // Add modifiedDate
-    transformed.modifiedDate = organization.modifiedDate;
     
     // Build organizationInfo - preserve all existing fields
     if (organization.organizationInfo && typeof organization.organizationInfo === 'object') {
       transformed.organizationInfo = { ...(organization.organizationInfo as Record<string, unknown>) };
       const orgInfo = transformed.organizationInfo as Record<string, unknown>;
       
-      // Ensure name field exists
-      if (orgInfo.organizationName && !orgInfo.name) {
-        orgInfo.name = orgInfo.organizationName;
-      }
-      
       // Ensure organizationID exists
       if (!orgInfo.organizationID && organization.organizationId) {
         orgInfo.organizationID = organization.organizationId;
+      }
+      
+      // Ensure organizationType exists
+      if (!orgInfo.organizationType && organization.organizationType) {
+        orgInfo.organizationType = organization.organizationType;
       }
       
       // Ensure address structure is correct
@@ -151,68 +176,31 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         if (Object.keys(addressObj).length > 0) {
           orgInfo.address = addressObj;
         }
-      } else {
-        // Address exists, ensure it has all available fields from item
-        const existingAddress = orgInfo.address as Record<string, unknown>;
-        if (organization.country && !existingAddress.country) existingAddress.country = organization.country;
-        if (organization.address && !existingAddress.address) existingAddress.address = organization.address;
-        if (organization.state && !existingAddress.state) existingAddress.state = organization.state;
-        if (organization.city && !existingAddress.city) existingAddress.city = organization.city;
-        if (organization.postalCode && !existingAddress.postalCode) existingAddress.postalCode = organization.postalCode;
-        if (organization.countryCode && !existingAddress.countryCode) existingAddress.countryCode = organization.countryCode;
       }
       
-      // Add missing fields from item if not already in orgInfo (only if they exist)
+      // Add missing fields from organization if not in orgInfo
+      if (!orgInfo.phoneNumber && organization.phoneNumber) {
+        orgInfo.phoneNumber = organization.phoneNumber;
+      }
       if (!orgInfo.organizationName && organization.name) {
         orgInfo.organizationName = organization.name;
       }
-      if (!orgInfo.name && organization.name) {
-        orgInfo.name = organization.name;
-      }
-      if (!orgInfo.organizationType && organization.organizationType) {
-        orgInfo.organizationType = organization.organizationType;
+      if (!orgInfo.organizationSize && organization.organizationSize) {
+        orgInfo.organizationSize = organization.organizationSize;
       }
       if (!orgInfo.phoneCode && organization.phoneCode) {
         orgInfo.phoneCode = organization.phoneCode;
       }
-      if (!orgInfo.phoneNumber && organization.phoneNumber) {
-        orgInfo.phoneNumber = organization.phoneNumber;
-      }
-      if (!orgInfo.emailAddress && organization.email) {
-        orgInfo.emailAddress = organization.email;
-      }
-      if (!orgInfo.hospitalBio && organization.hospitalBio !== undefined) {
-        orgInfo.hospitalBio = organization.hospitalBio;
-      }
-      if (!orgInfo.hospitalImage && organization.hospitalImage) {
-        orgInfo.hospitalImage = organization.hospitalImage;
-      }
-      if (!orgInfo.createdDate && (organization.createdAt || organization.createdDate)) {
-        orgInfo.createdDate = organization.createdAt || organization.createdDate;
-      }
-      if (!orgInfo.modifiedDate && organization.modifiedDate) {
-        orgInfo.modifiedDate = organization.modifiedDate;
+      if (!orgInfo.name && organization.name) {
+        orgInfo.name = organization.name;
       }
     } else {
       // Build organizationInfo from flat fields
       const orgInfo: Record<string, unknown> = {
         organizationID: organization.organizationId,
-        organizationName: organization.name,
-        name: organization.name,
       };
       
       if (organization.organizationType) orgInfo.organizationType = organization.organizationType;
-      if (organization.phoneCode) orgInfo.phoneCode = organization.phoneCode;
-      if (organization.phoneNumber) orgInfo.phoneNumber = organization.phoneNumber;
-      if (organization.email) orgInfo.emailAddress = organization.email;
-      if (organization.hospitalBio !== undefined) orgInfo.hospitalBio = organization.hospitalBio;
-      if (organization.hospitalImage) orgInfo.hospitalImage = organization.hospitalImage;
-      if (organization.createdAt || organization.createdDate) {
-        orgInfo.createdDate = organization.createdAt || organization.createdDate;
-      }
-      if (organization.modifiedDate) {
-        orgInfo.modifiedDate = organization.modifiedDate;
-      }
       
       // Build address object
       const addressObj: Record<string, unknown> = {};
@@ -227,45 +215,94 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         orgInfo.address = addressObj;
       }
       
+      if (organization.phoneNumber) orgInfo.phoneNumber = organization.phoneNumber;
+      if (organization.name) {
+        orgInfo.organizationName = organization.name;
+        orgInfo.name = organization.name;
+      }
+      if (organization.organizationSize) orgInfo.organizationSize = organization.organizationSize;
+      if (organization.phoneCode) orgInfo.phoneCode = organization.phoneCode;
+      
       transformed.organizationInfo = orgInfo;
     }
     
-    // Add searchFields if it exists
-    if (organization.searchFields && typeof organization.searchFields === 'object') {
+    // Add searchFields for non-ROOT only
+    if (!isRootOrg && organization.searchFields && typeof organization.searchFields === 'object') {
       transformed.searchFields = organization.searchFields;
     }
     
-    // Add status
-    transformed.status = organization.status;
+    // Add status for non-ROOT
+    if (!isRootOrg) {
+      transformed.status = organization.status;
+    }
     
-    // Add traceId if it exists
-    if (organization.traceId) {
+    // Add traceId for non-ROOT only
+    if (!isRootOrg && organization.traceId) {
       transformed.traceId = organization.traceId;
     }
     
-    // Add supportedRelations if it exists
-    if (orgRecord.supportedRelations !== undefined) {
+    // Add supportedRelations with defaults
+    if (orgRecord.supportedRelations !== undefined && orgRecord.supportedRelations !== null) {
       transformed.supportedRelations = orgRecord.supportedRelations;
+    } else {
+      transformed.supportedRelations = [
+        { name: 'Father', id: 'father' },
+        { name: 'Mother', id: 'mother' },
+        { name: 'Husband', id: 'husband' },
+        { name: 'Wife', id: 'wife' },
+        { name: 'Son', id: 'son' },
+        { name: 'Daughter', id: 'daughter' },
+        { name: 'Brother', id: 'brother' },
+        { name: 'Sister', id: 'sister' },
+        { name: 'Father-in-law', id: 'father-in-law' },
+        { name: 'Mother-in-law', id: 'mother-in-law' },
+        { name: 'Brother-in-law', id: 'brother-in-law' },
+        { name: 'Sister-in-law', id: 'sister-in-law' },
+        { name: 'Uncle', id: 'uncle' },
+        { name: 'Aunt', id: 'aunt' },
+        { name: 'Cousin', id: 'cousin' },
+        { name: 'Friend', id: 'friend' },
+      ];
     }
     
-    // Add linkedOrganizations if it exists
-    if (orgRecord.linkedOrganizations !== undefined) {
-      transformed.linkedOrganizations = orgRecord.linkedOrganizations;
+    // Add linkedOrganizations - fetch dynamically for non-ROOT
+    if (!isRootOrg) {
+      try {
+        const linkedOrgs = await organizationService.getLinkedOrganizations(organizationId, {}, correlationId);
+        transformed.linkedOrganizations = linkedOrgs.items || [];
+      } catch (err) {
+        logger.warn({ event: 'getOrganization_linked_orgs_failed', err: serializeError(err) });
+        transformed.linkedOrganizations = [];
+      }
+    } else {
+      transformed.linkedOrganizations = [];
     }
     
-    // Add mobileScreens if it exists
-    if (orgRecord.mobileScreens !== undefined) {
-      transformed.mobileScreens = orgRecord.mobileScreens;
+    // Add mobileScreens - check both root and organizationInfo
+    let mobileScreensValue = orgRecord.mobileScreens;
+    if (mobileScreensValue === undefined || mobileScreensValue === null) {
+      const orgInfoRecord = organization.organizationInfo as Record<string, unknown> | undefined;
+      if (orgInfoRecord?.mobileScreens !== undefined && orgInfoRecord.mobileScreens !== null) {
+        mobileScreensValue = orgInfoRecord.mobileScreens;
+      }
     }
+    transformed.mobileScreens = mobileScreensValue !== undefined && mobileScreensValue !== null ? mobileScreensValue : {};
     
-    // Add mobileScreen if it exists
-    if (orgRecord.mobileScreen !== undefined) {
-      transformed.mobileScreen = orgRecord.mobileScreen;
+    // Add mobileScreen - check both root and organizationInfo
+    let mobileScreenValue = orgRecord.mobileScreen;
+    if (mobileScreenValue === undefined || mobileScreenValue === null) {
+      const orgInfoRecord = organization.organizationInfo as Record<string, unknown> | undefined;
+      if (orgInfoRecord?.mobileScreen !== undefined && orgInfoRecord.mobileScreen !== null) {
+        mobileScreenValue = orgInfoRecord.mobileScreen;
+      }
     }
+    transformed.mobileScreen = mobileScreenValue !== undefined && mobileScreenValue !== null ? mobileScreenValue : {};
     
-    // Add features if it exists
-    if (orgRecord.features !== undefined) {
+    // Add features
+    if (orgRecord.features !== undefined && orgRecord.features !== null) {
       transformed.features = orgRecord.features;
+    } else {
+      transformed.features = [];
     }
     
     const duration = Date.now() - startTime;

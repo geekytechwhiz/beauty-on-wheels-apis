@@ -220,7 +220,7 @@ functions:
     events:
       - http:
           path: devices/list
-          method: get
+          method: post
           cors: true
 
   deviceSearch:

@@ -1,6 +1,12 @@
-import type { Partner, PartnerStatus, PartnerEndpoint } from '@api-hub/partners';
+import type {
+  Partner,
+  PartnerStatusExtended,
+  PartnerEndpoint,
+  PrimaryContact,
+  OnboardingInfo,
+} from '@api-hub/partners';
 
-export type { Partner, PartnerStatus, PartnerEndpoint };
+export type { Partner, PartnerStatusExtended, PartnerEndpoint, PrimaryContact, OnboardingInfo };
 
 export type OrganizationType =
   | 'HOSPITAL'
@@ -12,27 +18,6 @@ export type OrganizationType =
   | 'OTHER';
 
 export type OrganizationSize = 'SMALL' | 'MEDIUM' | 'LARGE';
-
-export type PartnerStatusExtended =
-  | 'PENDING_APPROVAL'
-  | 'ACTIVE'
-  | 'SUSPENDED'
-  | 'REJECTED'
-  | 'INACTIVE';
-
-export interface PrimaryContact {
-  name: string;
-  email: string;
-  phoneCode?: string;
-  phoneNumber?: string;
-}
-
-export interface OnboardingInfo {
-  submittedAt?: number;
-  approvedAt?: number;
-  approvedBy?: string;
-  rejectionReason?: string;
-}
 
 export interface CreatePartnerInput {
   organizationName: string;

@@ -1,31 +1,70 @@
-/**
- * Partner domain types (read-only / shared).
- */
-
-export type PartnerStatus = 'ACTIVE' | 'SUSPENDED';
+export type PartnerStatusExtended =
+  | 'PENDING_APPROVAL'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'REJECTED'
+  | 'INACTIVE';
 
 export type EndpointType = 'API' | 'WEBHOOK' | 'FHIR';
 
 export interface PartnerEndpoint {
   type: EndpointType;
   url: string;
-  /** Optional description or environment label */
   description?: string;
+}
+
+export interface PrimaryContact {
+  name: string;
+  email: string;
+  phoneCode?: string;
+  phoneNumber?: string;
+}
+
+export interface OnboardingInfo {
+  submittedAt?: number;
+  approvedAt?: number;
+  approvedBy?: string;
+  rejectionReason?: string;
 }
 
 export interface PartnerMeta {
   partnerId: string;
-  name?: string;
-  status: PartnerStatus;
-  /** Optional display / legal name */
+  status: PartnerStatusExtended;
   displayName?: string;
-  /** Optional description */
   description?: string;
   endpoints?: PartnerEndpoint[];
   createdAt: string;
   updatedAt: string;
+  createdBy?: string;
+  modifiedBy?: string;
+  isDeleted?: boolean;
 }
 
 export interface Partner extends PartnerMeta {
-  /** All fields from PartnerMeta; extend here if needed */
+  organizationName?: string;
+  legalName?: string;
+  organizationType?: 'HOSPITAL' | 'CLINIC' | 'LAB' | 'PHARMACY' | 'WELLNESS_CENTER' | 'CORPORATE' | 'OTHER';
+  organizationSize?: 'SMALL' | 'MEDIUM' | 'LARGE';
+  noOfBranches?: string;
+
+  email?: string;
+  phoneCode?: string;
+  phoneNumber?: string;
+  primaryContact?: PrimaryContact;
+
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  countryCode?: string;
+  postalCode?: string;
+  googleMapsLink?: string;
+
+  website?: string;
+  organizationImage?: string;
+  organizationBio?: string;
+  registrationNumber?: string;
+  taxId?: string;
+
+  onboarding?: OnboardingInfo;
 }

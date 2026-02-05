@@ -4,20 +4,19 @@ import type {
   PartnerEndpoint,
   PrimaryContact,
   OnboardingInfo,
+  OrganizationType,
+  OrganizationSize,
 } from '@api-hub/partners';
 
-export type { Partner, PartnerStatusExtended, PartnerEndpoint, PrimaryContact, OnboardingInfo };
-
-export type OrganizationType =
-  | 'HOSPITAL'
-  | 'CLINIC'
-  | 'LAB'
-  | 'PHARMACY'
-  | 'WELLNESS_CENTER'
-  | 'CORPORATE'
-  | 'OTHER';
-
-export type OrganizationSize = 'SMALL' | 'MEDIUM' | 'LARGE';
+export type {
+  Partner,
+  PartnerStatusExtended,
+  PartnerEndpoint,
+  PrimaryContact,
+  OnboardingInfo,
+  OrganizationType,
+  OrganizationSize,
+};
 
 export interface CreatePartnerInput {
   organizationName: string;

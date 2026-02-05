@@ -11,6 +11,17 @@ export type PartnerStatusExtended =
 
 export type EndpointType = 'API' | 'WEBHOOK' | 'FHIR';
 
+export type OrganizationType =
+  | 'HOSPITAL'
+  | 'CLINIC'
+  | 'LAB'
+  | 'PHARMACY'
+  | 'WELLNESS_CENTER'
+  | 'CORPORATE'
+  | 'OTHER';
+
+export type OrganizationSize = 'SMALL' | 'MEDIUM' | 'LARGE';
+
 export interface PartnerEndpoint {
   type: EndpointType;
   url: string;
@@ -47,8 +58,8 @@ export interface PartnerMeta {
 export interface Partner extends PartnerMeta {
   organizationName?: string;
   legalName?: string;
-  organizationType?: 'HOSPITAL' | 'CLINIC' | 'LAB' | 'PHARMACY' | 'WELLNESS_CENTER' | 'CORPORATE' | 'OTHER';
-  organizationSize?: 'SMALL' | 'MEDIUM' | 'LARGE';
+  organizationType?: OrganizationType;
+  organizationSize?: OrganizationSize;
   noOfBranches?: string;
 
   email?: string;

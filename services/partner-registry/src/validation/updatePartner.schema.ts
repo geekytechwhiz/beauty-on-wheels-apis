@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import type { PartnerStatusExtended, EndpointType, PrimaryContact, OnboardingInfo } from '@api-hub/partners';
+import type {
+  PartnerStatusExtended,
+  EndpointType,
+  PrimaryContact,
+  OnboardingInfo,
+  OrganizationType,
+  OrganizationSize,
+} from '@api-hub/partners';
 
 // Status enum values from shared type
 const PARTNER_STATUS_VALUES: [PartnerStatusExtended, ...PartnerStatusExtended[]] = [
@@ -13,8 +20,8 @@ const PARTNER_STATUS_VALUES: [PartnerStatusExtended, ...PartnerStatusExtended[]]
 // Endpoint type enum values from shared type
 const ENDPOINT_TYPE_VALUES: [EndpointType, ...EndpointType[]] = ['API', 'WEBHOOK', 'FHIR'];
 
-// Organization type enum
-const ORGANIZATION_TYPE_VALUES = [
+// Organization type enum values from shared type
+const ORGANIZATION_TYPE_VALUES: [OrganizationType, ...OrganizationType[]] = [
   'HOSPITAL',
   'CLINIC',
   'LAB',
@@ -22,10 +29,10 @@ const ORGANIZATION_TYPE_VALUES = [
   'WELLNESS_CENTER',
   'CORPORATE',
   'OTHER',
-] as const;
+];
 
-// Organization size enum
-const ORGANIZATION_SIZE_VALUES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
+// Organization size enum values from shared type
+const ORGANIZATION_SIZE_VALUES: [OrganizationSize, ...OrganizationSize[]] = ['SMALL', 'MEDIUM', 'LARGE'];
 
 const endpointSchema = z.object({
   type: z.enum(ENDPOINT_TYPE_VALUES),

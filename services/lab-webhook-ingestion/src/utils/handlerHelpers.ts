@@ -1,0 +1,31 @@
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import {
+  createLogger,
+  extractCorrelationId,
+  extractAwsRequestId,
+  createChildLogger,
+  type Logger,
+} from '@api-hub/logger';
+
+export const baseLogger = createLogger({ service: 'lab-webhook-ingestion', redactPII: true });
+
+export function getRequestId(event: APIGatewayProxyEvent, context?: Context): string {
+  return extractCorrelationId(event) || (context && extractAwsRequestId(context)) || 'unknown';
+}
+
+export function responseOpts(event: APIGatewayProxyEvent, requestId: string) {
+  return { requestId, event };
+}
+
+export function createHandlerLogger(
+  event: APIGatewayProxyEvent,
+  context?: Context,
+  meta?: Record<string, unknown>
+): Logger {
+  const requestId = getRequestId(event, context);
+  return createChildLogger(baseLogger, {
+    correlationId: requestId,
+    ...(context && { awsRequestId: extractAwsRequestId(context) }),
+    ...meta,
+  });
+}

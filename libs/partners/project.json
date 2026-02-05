@@ -1,0 +1,1 @@
+{"name":"partners","$schema":"../../node_modules/nx/schemas/project-schema.json","sourceRoot":"libs/partners/src","projectType":"library","tags":["scope:partners","type:lib","allowed-for-app"]}

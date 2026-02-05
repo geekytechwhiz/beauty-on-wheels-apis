@@ -1,0 +1,90 @@
+service: lab-webhook-ingestion
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    REGION: ${self:provider.region}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    PARTNER_REGISTRY_ENDPOINT: ${self:custom.partnerRegistryEndpoint.${self:provider.stage}}
+    LAB_DOMAIN_ENDPOINT: ${self:custom.labDomainEndpoint.${self:provider.stage}}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+  iamRoleStatements: []
+
+package:
+  individually: true
+
+custom:
+  partnerRegistryEndpoint:
+    dev: ${env:PARTNER_REGISTRY_ENDPOINT, 'https://partner-registry-dev.example.com'}
+    stg: ${env:PARTNER_REGISTRY_ENDPOINT, 'https://partner-registry-stg.example.com'}
+    prd: ${env:PARTNER_REGISTRY_ENDPOINT, 'https://partner-registry-prd.example.com'}
+  labDomainEndpoint:
+    dev: ${env:LAB_DOMAIN_ENDPOINT, 'https://lab-domain-dev.example.com'}
+    stg: ${env:LAB_DOMAIN_ENDPOINT, 'https://lab-domain-stg.example.com'}
+    prd: ${env:LAB_DOMAIN_ENDPOINT, 'https://lab-domain-prd.example.com'}
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - X-Webhook-Signature
+      - X-Webhook-Timestamp
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.js'
+
+functions:
+  ingestWebhook:
+    handler: src/handlers/ingestWebhook.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: /webhooks/labs/{partnerId}
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}

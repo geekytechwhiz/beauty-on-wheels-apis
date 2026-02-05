@@ -1,0 +1,1 @@
+{"name":"lab-webhook-ingestion","$schema":"../../node_modules/nx/schemas/project-schema.json","sourceRoot":"services/lab-webhook-ingestion/src","projectType":"application","tags":["type:service"]}

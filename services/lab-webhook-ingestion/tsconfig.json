@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../libs/logger/tsconfig.lib.json" },
+    { "path": "../../libs/utils/tsconfig.lib.json" },
+    { "path": "../../libs/integration-events/tsconfig.lib.json" }
+  ]
+}

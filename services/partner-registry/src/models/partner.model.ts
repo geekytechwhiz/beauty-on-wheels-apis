@@ -1,6 +1,6 @@
 import type {
   Partner,
-  PartnerStatusExtended,
+  PartnerStatus,
   PartnerEndpoint,
   PrimaryContact,
   OnboardingInfo,
@@ -10,7 +10,7 @@ import type {
 
 export type {
   Partner,
-  PartnerStatusExtended,
+  PartnerStatus,
   PartnerEndpoint,
   PrimaryContact,
   OnboardingInfo,
@@ -43,7 +43,7 @@ export interface CreatePartnerInput {
   organizationBio?: string;
   registrationNumber?: string;
   taxId?: string;
-  status?: PartnerStatusExtended;
+  status?: PartnerStatus;
   onboarding?: OnboardingInfo;
   description?: string;
   endpoints?: PartnerEndpoint[];
@@ -76,7 +76,7 @@ export interface UpdatePartnerInput {
   registrationNumber?: string;
   taxId?: string;
   
-  status?: PartnerStatusExtended;
+  status?: PartnerStatus;
   
   onboarding?: Partial<OnboardingInfo>;
   description?: string;

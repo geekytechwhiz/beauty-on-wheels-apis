@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type {
-  PartnerStatusExtended,
+  PartnerStatus,
   EndpointType,
   PrimaryContact,
   OnboardingInfo,
@@ -9,7 +9,7 @@ import type {
 } from '@api-hub/partners';
 
 // Status enum values from shared type
-const PARTNER_STATUS_VALUES: [PartnerStatusExtended, ...PartnerStatusExtended[]] = [
+const PARTNER_STATUS_VALUES: [PartnerStatus, ...PartnerStatus[]] = [
   'PENDING_APPROVAL',
   'ACTIVE',
   'SUSPENDED',

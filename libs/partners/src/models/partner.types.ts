@@ -2,7 +2,7 @@
  * Partner domain types (read-only / shared).
  */
 
-export type PartnerStatusExtended =
+export type PartnerStatus =
   | 'PENDING_APPROVAL'
   | 'ACTIVE'
   | 'SUSPENDED'
@@ -44,7 +44,7 @@ export interface OnboardingInfo {
 
 export interface PartnerMeta {
   partnerId: string;
-  status: PartnerStatusExtended;
+  status: PartnerStatus;
   displayName?: string;
   description?: string;
   endpoints?: PartnerEndpoint[];

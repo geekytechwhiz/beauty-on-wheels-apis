@@ -35,9 +35,13 @@ export const deviceDeleteMultipleSchema = z.object({
 
 // Retrieve device list schema (POST /devices/list)
 export const deviceListSchema = z.object({
+  action: z.enum(['deviceCategory', 'organization', 'patient']).optional(),
+  organizationID: z.string().optional(),
+  searchValue: z.string().optional(),
   deviceId: z.string().optional(),
   deviceType: z.string().optional(),
   userId: z.string().min(1).optional(),
+  countryCode: z.string().optional(),
 });
 
 // Get device list schema (POST /devices/search)

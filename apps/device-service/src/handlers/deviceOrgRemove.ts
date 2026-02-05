@@ -1,53 +1,238 @@
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
-import { DeviceMappingService } from '../services/deviceMappingService';
+import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
+import { z } from 'zod';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
-const deviceMappingService = new DeviceMappingService();
+const orgDeviceRepository = new OrgDeviceRepository();
+
+// Validation schema for device removal
+const deviceRemoveSchema = z.object({
+  accountAlias: z.string().min(1),
+  roleId: z.string().uuid(),
+  devices: z
+    .array(
+      z.object({
+        deviceId: z.string().min(1),
+        category: z.string().min(1),
+        name: z.string().min(1),
+        displayName: z.string().optional(),
+        deviceImage: z.string().optional(),
+        countriesSupported: z.array(z.string()).optional(),
+        manufacturerImage: z.string().optional(),
+        manufacturerName: z.string().optional(),
+        template: z.number().optional(),
+        deviceDetails: z.string().optional(),
+        supportedVitals: z.array(z.string()).optional(),
+      }),
+    )
+    .min(1),
+  supportedVitals: z.array(z.string()).optional(),
+});
 
 export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+  const awsRequestId = context ? extractAwsRequestId(context) : 'local';
+  const correlationId = extractCorrelationId(event.headers);
+
+  const logger = createChildLogger(baseLogger, { awsRequestId, correlationId });
   logger.info({ event: 'deviceOrgRemove_received' });
 
-  // Extract path parameters
-  const deviceId = event.pathParameters?.deviceId;
-  const orgId = event.pathParameters?.orgId;
-
-  // Validate path parameters
-  if (!deviceId || !orgId) {
-    logger.warn({ event: 'deviceOrgRemove_validation_error', deviceId, orgId });
+  // Parse body
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body || {};
+  } catch (err) {
+    logger.error({ event: 'deviceOrgRemove_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/{deviceId}/organizations/{orgId}', 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.BAD_REQUEST',
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  // Validate request body
+  const validation = deviceRemoveSchema.safeParse(body);
+  if (!validation.success) {
+    logger.warn({ event: 'deviceOrgRemove_validation_error', errors: validation.error.issues });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
       { requestId: correlationId, event },
       {
-        code: 'BAD_REQUEST',
-        details: [{ message: 'deviceId and orgId are required in path parameters' }],
+        code: 'VALIDATION_ERROR',
+        details: validation.error.issues.map((e: any) => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
       },
     );
   }
 
+  // Use accountAlias as the organization ID
+  const orgId = validation.data.accountAlias;
+
+  logger.info({
+    event: 'deviceOrgRemove_start',
+    orgId,
+    accountAlias: validation.data.accountAlias,
+    roleId: validation.data.roleId,
+    deviceCount: validation.data.devices.length,
+  });
+
   try {
-    await deviceMappingService.removeDeviceFromOrganization(deviceId, orgId, correlationId);
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/{deviceId}/organizations/{orgId}', 200, duration, correlationId);
-    return ApiResponse.ok(null, 'DEVICE.DEVICE_ORG_REMOVED_SUCCESS', { requestId: correlationId, event });
+    return await removeDevicesFromOrganization(validation.data, orgId, correlationId, logger, event, startTime);
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceOrgRemove_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 500, duration, correlationId);
 
-    const errorMessage = (err as Error).message;
-    if (errorMessage.includes('not found')) {
-      logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/{deviceId}/organizations/{orgId}', 404, duration, correlationId);
-      return ApiResponse.notFound('DEVICE.DEVICE_ORG_MAPPING_NOT_FOUND', { requestId: correlationId, event }, { code: 'MAPPING_NOT_FOUND' });
-    }
-
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/{deviceId}/organizations/{orgId}', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.REMOVAL_FAILED', { requestId: correlationId, event }, { code: 'REMOVAL_FAILED' });
+    return ApiResponse.internalServerError(
+      {
+        title: 'Internal server error',
+        description: 'An unexpected error occurred while removing devices from organization.',
+      },
+      { requestId: correlationId, event },
+      { code: 'INTERNAL_SERVER_ERROR' },
+    );
   }
 };
+
+/**
+ * Remove devices from organization: POST /devices/organizations
+ * Body: { accountAlias, roleId, devices: [...] }
+ * Note: accountAlias is the organization ID
+ */
+async function removeDevicesFromOrganization(
+  data: z.infer<typeof deviceRemoveSchema>,
+  orgId: string,
+  correlationId: string,
+  logger: ReturnType<typeof createChildLogger>,
+  event: any,
+  startTime: number,
+) {
+  const processedDevices: Array<{
+    deviceId: string;
+    status: 'success' | 'failed';
+    error?: string;
+  }> = [];
+
+  // Process each device
+  for (const device of data.devices) {
+    const deviceId = device.deviceId;
+
+    try {
+      logger.info({ event: 'device_removing_from_org', deviceId, orgId });
+
+      // Remove device from organization using ORG_DEVICES pattern
+      await orgDeviceRepository.removeOrgDevice(orgId, deviceId);
+
+      logger.info({ event: 'device_removed_from_org_success', deviceId, orgId });
+
+      processedDevices.push({
+        deviceId,
+        status: 'success',
+      });
+    } catch (deviceErr) {
+      const errorMessage = deviceErr instanceof Error ? deviceErr.message : 'Unknown error';
+      logger.error({ event: 'device_removal_error', deviceId, err: serializeError(deviceErr) });
+
+      processedDevices.push({
+        deviceId,
+        status: 'failed',
+        error: errorMessage,
+      });
+    }
+  }
+
+  // Analyze results
+  const failedDevices = processedDevices.filter((d) => d.status === 'failed');
+  const successfulDevices = processedDevices.filter((d) => d.status === 'success');
+  const duration = Date.now() - startTime;
+
+  // All devices failed
+  if (successfulDevices.length === 0) {
+    logger.error({
+      event: 'deviceOrgRemove_all_failed',
+      failedCount: failedDevices.length,
+      failures: failedDevices,
+    });
+
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 400, duration, correlationId);
+
+    return ApiResponse.badRequest(
+      {
+        title: 'Device removal failed',
+        description: 'All devices failed to be removed from the organization.',
+      },
+      { requestId: correlationId, event },
+      {
+        code: 'DEVICE_REMOVAL_FAILED',
+        details: failedDevices.map((d) => ({
+          field: d.deviceId,
+          message: d.error || 'Unknown error',
+        })),
+      },
+    );
+  }
+
+  // Partial success
+  if (failedDevices.length > 0) {
+    logger.warn({
+      event: 'deviceOrgRemove_partial_success',
+      successCount: successfulDevices.length,
+      failedCount: failedDevices.length,
+    });
+
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 207, duration, correlationId);
+
+    return {
+      statusCode: 207,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
+      body: JSON.stringify({
+        success: true,
+        statusCode: 207,
+        message: {
+          title: 'Devices partially removed',
+          description: `${successfulDevices.length} device(s) successfully removed. ${failedDevices.length} device(s) failed.`,
+          severity: 'WARNING',
+        },
+        data: {
+          successful: successfulDevices.map((d) => d.deviceId),
+          failed: failedDevices.map((d) => ({
+            deviceId: d.deviceId,
+            error: d.error,
+          })),
+        },
+        error: null,
+        meta: {
+          requestId: correlationId,
+          timestamp: new Date().toISOString(),
+          version: 'v1',
+        },
+      }),
+    };
+  }
+
+  // All devices processed successfully
+  logger.info({
+    event: 'deviceOrgRemove_success',
+    orgId,
+    deviceCount: successfulDevices.length,
+  });
+
+  logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 201, duration, correlationId);
+
+  return ApiResponse.created(
+    null,
+    {
+      title: 'Device is successfully updated',
+      description: 'Device is successfully updated.',
+    },
+    { requestId: correlationId, event },
+  );
+}

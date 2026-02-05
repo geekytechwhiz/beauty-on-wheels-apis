@@ -329,7 +329,7 @@ export class PartnerRepository {
         new PutCommand({
           TableName: TABLE_NAME,
           Item: item,
-          ConditionExpression: 'attribute_not_exists(pk) OR attribute_not_exists(sk)',
+          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
         })
       );
       await this.writeAudit({

@@ -55,11 +55,11 @@ function sanitizePartner(item: Record<string, unknown>): Partner {
 export class PartnerRepository {
   async createPartner(partnerId: string, input: CreatePartnerInput): Promise<Partner> {
     const now = new Date().toISOString();
-    const status = input.status ?? 'ACTIVE';
+    const status = input.status ?? 'PENDING_APPROVAL';
     const item: PartnerDBItem = {
       ...input,
       partnerId,
-      name: input.name,
+      organizationName: input.organizationName,
       status,
       endpoints: input.endpoints ?? [],
       createdAt: now,
@@ -112,27 +112,140 @@ export class PartnerRepository {
     const names: Record<string, string> = { '#updatedAt': 'updatedAt' };
     const values: Record<string, unknown> = { ':updatedAt': now };
 
-    if (input.name !== undefined) {
-      updates.push('#name = :name');
-      names['#name'] = 'name';
-      values[':name'] = input.name;
+    // Basic Information
+    if (input.organizationName !== undefined) {
+      updates.push('#organizationName = :organizationName');
+      names['#organizationName'] = 'organizationName';
+      values[':organizationName'] = input.organizationName;
     }
-    if (input.displayName !== undefined) {
-      updates.push('#displayName = :displayName');
-      names['#displayName'] = 'displayName';
-      values[':displayName'] = input.displayName;
+    if (input.legalName !== undefined) {
+      updates.push('#legalName = :legalName');
+      names['#legalName'] = 'legalName';
+      values[':legalName'] = input.legalName;
     }
-    if (input.description !== undefined) {
-      updates.push('#description = :description');
-      names['#description'] = 'description';
-      values[':description'] = input.description;
+    if (input.organizationType !== undefined) {
+      updates.push('#organizationType = :organizationType');
+      names['#organizationType'] = 'organizationType';
+      values[':organizationType'] = input.organizationType;
     }
+    if (input.organizationSize !== undefined) {
+      updates.push('#organizationSize = :organizationSize');
+      names['#organizationSize'] = 'organizationSize';
+      values[':organizationSize'] = input.organizationSize;
+    }
+    if (input.noOfBranches !== undefined) {
+      updates.push('#noOfBranches = :noOfBranches');
+      names['#noOfBranches'] = 'noOfBranches';
+      values[':noOfBranches'] = input.noOfBranches;
+    }
+
+    // Contact Information
+    if (input.email !== undefined) {
+      updates.push('#email = :email');
+      names['#email'] = 'email';
+      values[':email'] = input.email;
+    }
+    if (input.phoneCode !== undefined) {
+      updates.push('#phoneCode = :phoneCode');
+      names['#phoneCode'] = 'phoneCode';
+      values[':phoneCode'] = input.phoneCode;
+    }
+    if (input.phoneNumber !== undefined) {
+      updates.push('#phoneNumber = :phoneNumber');
+      names['#phoneNumber'] = 'phoneNumber';
+      values[':phoneNumber'] = input.phoneNumber;
+    }
+    if (input.primaryContact !== undefined) {
+      updates.push('#primaryContact = :primaryContact');
+      names['#primaryContact'] = 'primaryContact';
+      values[':primaryContact'] = input.primaryContact;
+    }
+
+    // Address Information
+    if (input.address !== undefined) {
+      updates.push('#address = :address');
+      names['#address'] = 'address';
+      values[':address'] = input.address;
+    }
+    if (input.city !== undefined) {
+      updates.push('#city = :city');
+      names['#city'] = 'city';
+      values[':city'] = input.city;
+    }
+    if (input.state !== undefined) {
+      updates.push('#state = :state');
+      names['#state'] = 'state';
+      values[':state'] = input.state;
+    }
+    if (input.country !== undefined) {
+      updates.push('#country = :country');
+      names['#country'] = 'country';
+      values[':country'] = input.country;
+    }
+    if (input.countryCode !== undefined) {
+      updates.push('#countryCode = :countryCode');
+      names['#countryCode'] = 'countryCode';
+      values[':countryCode'] = input.countryCode;
+    }
+    if (input.postalCode !== undefined) {
+      updates.push('#postalCode = :postalCode');
+      names['#postalCode'] = 'postalCode';
+      values[':postalCode'] = input.postalCode;
+    }
+    if (input.googleMapsLink !== undefined) {
+      updates.push('#googleMapsLink = :googleMapsLink');
+      names['#googleMapsLink'] = 'googleMapsLink';
+      values[':googleMapsLink'] = input.googleMapsLink;
+    }
+
+    // Additional Information
+    if (input.website !== undefined) {
+      updates.push('#website = :website');
+      names['#website'] = 'website';
+      values[':website'] = input.website;
+    }
+    if (input.organizationImage !== undefined) {
+      updates.push('#organizationImage = :organizationImage');
+      names['#organizationImage'] = 'organizationImage';
+      values[':organizationImage'] = input.organizationImage;
+    }
+    if (input.organizationBio !== undefined) {
+      updates.push('#organizationBio = :organizationBio');
+      names['#organizationBio'] = 'organizationBio';
+      values[':organizationBio'] = input.organizationBio;
+    }
+    if (input.registrationNumber !== undefined) {
+      updates.push('#registrationNumber = :registrationNumber');
+      names['#registrationNumber'] = 'registrationNumber';
+      values[':registrationNumber'] = input.registrationNumber;
+    }
+    if (input.taxId !== undefined) {
+      updates.push('#taxId = :taxId');
+      names['#taxId'] = 'taxId';
+      values[':taxId'] = input.taxId;
+    }
+
+    // Status
     if (input.status !== undefined) {
       updates.push('#status = :status', '#lsi2_sk = :lsi2_sk');
       names['#status'] = 'status';
       names['#lsi2_sk'] = 'lsi2_sk';
       values[':status'] = input.status;
       values[':lsi2_sk'] = input.status;
+    }
+
+    // Onboarding
+    if (input.onboarding !== undefined) {
+      updates.push('#onboarding = :onboarding');
+      names['#onboarding'] = 'onboarding';
+      values[':onboarding'] = input.onboarding;
+    }
+
+    // Legacy fields
+    if (input.description !== undefined) {
+      updates.push('#description = :description');
+      names['#description'] = 'description';
+      values[':description'] = input.description;
     }
     if (input.endpoints !== undefined) {
       updates.push('#endpoints = :endpoints');
@@ -191,6 +304,7 @@ export class PartnerRepository {
       })
     );
     if (!result.Item) return null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { pk, sk, lsi3_sk, ...rest } = result.Item as Record<string, unknown>;
     return rest as unknown as PartnerCapability;
   }

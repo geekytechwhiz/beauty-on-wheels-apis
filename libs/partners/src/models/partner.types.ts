@@ -15,7 +15,7 @@ export interface PartnerEndpoint {
 
 export interface PartnerMeta {
   partnerId: string;
-  name: string;
+  name?: string;
   status: PartnerStatus;
   /** Optional display / legal name */
   displayName?: string;

@@ -23,14 +23,32 @@ export class OrgDeviceRepository {
   }
 
   /**
-   * Create bidirectional organization-device mappings
+   * Create bidirectional organization-device mappings with full device details
    */
-  async addOrgDevice(organizationId: string, device: { deviceId: string; category: string; name: string; enabled?: boolean; isAutoSyncSupported?: boolean }): Promise<void> {
+  async addOrgDevice(
+    organizationId: string,
+    device: {
+      deviceId: string;
+      category: string;
+      name: string;
+      enabled?: boolean;
+      isAutoSyncSupported?: boolean;
+      displayName?: string;
+      deviceImage?: string;
+      countriesSupported?: string[];
+      manufacturerImage?: string;
+      manufacturerName?: string;
+      template?: number;
+      deviceDetails?: string;
+      supportedVitals?: string[];
+    },
+  ): Promise<void> {
     const logger = createChildLogger(baseLogger, { organizationId, deviceId: device.deviceId });
     const normalizedDeviceId = this.normalizeDeviceId(device.deviceId);
     const now = Date.now();
 
     // Forward mapping: Organization → Device
+    // Access pattern: pk: ORG_DEVICES#{orgId}, sk: {deviceId}
     const forwardEntry: OrgDevice = {
       pk: `ORG_DEVICES#${organizationId}`,
       sk: normalizedDeviceId,
@@ -43,11 +61,20 @@ export class OrgDeviceRepository {
       name: device.name,
       category: device.category,
       deviceId: device.deviceId,
+      displayName: device.displayName,
+      deviceImage: device.deviceImage,
+      countriesSupported: device.countriesSupported,
+      manufacturerImage: device.manufacturerImage,
+      manufacturerName: device.manufacturerName,
+      template: device.template,
+      deviceDetails: device.deviceDetails,
+      supportedVitals: device.supportedVitals,
       createdDate: now,
       modifiedDate: now,
     };
 
     // Reverse mapping: Device → Organization
+    // Access pattern: pk: ORG_DEVICES#{deviceId}, sk: {orgId}
     const reverseEntry: OrgDevice = {
       pk: `ORG_DEVICES#${normalizedDeviceId}`,
       sk: organizationId,
@@ -60,6 +87,14 @@ export class OrgDeviceRepository {
       name: device.name,
       category: device.category,
       deviceId: device.deviceId,
+      displayName: device.displayName,
+      deviceImage: device.deviceImage,
+      countriesSupported: device.countriesSupported,
+      manufacturerImage: device.manufacturerImage,
+      manufacturerName: device.manufacturerName,
+      template: device.template,
+      deviceDetails: device.deviceDetails,
+      supportedVitals: device.supportedVitals,
       createdDate: now,
       modifiedDate: now,
     };

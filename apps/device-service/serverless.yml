@@ -292,16 +292,18 @@ functions:
   deviceOrgAssign:
     handler: src/handlers/deviceOrgAssign.handler
     events:
+      # Bulk device assignment: POST /devices/organizations
       - http:
-          path: devices/{deviceId}/organizations/{orgId}
+          path: devices/organizations
           method: post
           cors: true
 
   deviceOrgRemove:
     handler: src/handlers/deviceOrgRemove.handler
     events:
+      # Bulk device removal: DELETE /devices/organizations
       - http:
-          path: devices/{deviceId}/organizations/{orgId}
+          path: devices/organizations
           method: delete
           cors: true
 

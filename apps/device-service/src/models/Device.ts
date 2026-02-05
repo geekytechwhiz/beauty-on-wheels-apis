@@ -78,6 +78,15 @@ export interface OrgDevice {
   name: string;
   category: string;
   deviceId: string;
+  // Extended device details
+  displayName?: string;
+  deviceImage?: string;
+  countriesSupported?: string[];
+  manufacturerImage?: string;
+  manufacturerName?: string;
+  template?: number;
+  deviceDetails?: string;
+  supportedVitals?: string[];
   createdDate: number;
   modifiedDate: number;
 }

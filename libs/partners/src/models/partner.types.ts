@@ -1,3 +1,7 @@
+/**
+ * Partner domain types (read-only / shared).
+ */
+
 export type PartnerStatusExtended =
   | 'PENDING_APPROVAL'
   | 'ACTIVE'

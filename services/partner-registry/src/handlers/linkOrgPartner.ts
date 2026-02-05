@@ -16,8 +16,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const requestId = getRequestId(event, context);
   const orgId = event.pathParameters?.orgId;
   const logger = createHandlerLogger(event, context, { organizationId: orgId });
+  logger.info({ event: 'linkOrgPartner_received', organizationId: orgId });
 
   if (!orgId) {
+    logger.warn({ event: 'linkOrgPartner_missing_org_id' });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       responseOpts(event, requestId),
@@ -27,6 +31,9 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
 
   const body = parseJsonBody(event);
   if (body === null) {
+    logger.warn({ event: 'linkOrgPartner_invalid_json' });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
       responseOpts(event, requestId),
@@ -36,6 +43,9 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
 
   const validation = linkOrgPartnerSchema.safeParse(body);
   if (!validation.success) {
+    logger.warn({ event: 'linkOrgPartner_validation_error', errors: validation.error.issues });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 422, duration, requestId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
       responseOpts(event, requestId),
@@ -64,6 +74,9 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
   } catch (err) {
     if (err instanceof PartnerNotFoundError) {
+      logger.warn({ event: 'linkOrgPartner_partner_not_found', err: serializeError(err) });
+      const duration = Date.now() - startTime;
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 404, duration, requestId);
       return ApiResponse.notFound(
         'PARTNER.PARTNER_NOT_FOUND',
         responseOpts(event, requestId),
@@ -71,6 +84,9 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     if (err instanceof OrgPartnerLinkExistsError) {
+      logger.warn({ event: 'linkOrgPartner_link_exists', err: serializeError(err) });
+      const duration = Date.now() - startTime;
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 409, duration, requestId);
       return ApiResponse.conflict(
         'PARTNER.ORG_PARTNER_LINK_EXISTS',
         responseOpts(event, requestId),
@@ -78,6 +94,8 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     logger.error({ event: 'linkOrgPartner_error', err: serializeError(err) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
       responseOpts(event, requestId),

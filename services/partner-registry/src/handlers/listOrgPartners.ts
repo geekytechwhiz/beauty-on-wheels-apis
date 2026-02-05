@@ -13,8 +13,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const requestId = getRequestId(event, context);
   const orgId = event.pathParameters?.orgId;
   const logger = createHandlerLogger(event, context, { organizationId: orgId });
+  logger.info({ event: 'listOrgPartners_received', organizationId: orgId });
 
   if (!orgId) {
+    logger.warn({ event: 'listOrgPartners_missing_org_id' });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       responseOpts(event, requestId),
@@ -33,6 +37,8 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
   } catch (err) {
     logger.error({ event: 'listOrgPartners_error', err: serializeError(err) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
       responseOpts(event, requestId),

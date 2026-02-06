@@ -261,18 +261,48 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
         roleId: roleIds[0],
       });
       console.log("AUTH HEADER : ", authHeader);
-      void assignUserRole(
-        roleIds[0],
-        body.organizationID,
-        result.userID,
-        userInfo.name,
-        userInfo.contact.email ?? '',
-        userInfo.contact.phone ?? '',
-        userInfo.profilePic,
-        authHeader,
-      ).catch((err) => {
-        logger.warn({ event: 'createUser_assign_user_role_failed', err: serializeError(err) });
-      });
+      
+      try {
+        const roleAssignmentResult = await assignUserRole(
+          roleIds[0],
+          body.organizationID,
+          result.userID,
+          userInfo.name,
+          userInfo.contact.email ?? '',
+          userInfo.contact.phone ?? '',
+          userInfo.profilePic,
+          authHeader,
+        );
+        
+        console.log("ROLE ASSIGNMENT RESULT:", roleAssignmentResult);
+        
+        if (!roleAssignmentResult || roleAssignmentResult.success === false) {
+          logger.error({
+            event: 'createUser_assign_user_role_failed',
+            organizationID: body.organizationID,
+            userID: result.userID,
+            roleId: roleIds[0],
+            result: roleAssignmentResult,
+          });
+          // Note: User is still created in Cognito and user table, but role assignment failed
+        } else {
+          logger.info({
+            event: 'createUser_assign_user_role_success',
+            organizationID: body.organizationID,
+            userID: result.userID,
+            roleId: roleIds[0],
+          });
+        }
+      } catch (err) {
+        logger.error({ 
+          event: 'createUser_assign_user_role_exception', 
+          err: serializeError(err),
+          organizationID: body.organizationID,
+          userID: result.userID,
+          roleId: roleIds[0],
+        });
+        // Note: User is still created in Cognito and user table, but role assignment failed
+      }
     } else {
       logger.info({
         event: 'createUser_assign_user_role_skipped',

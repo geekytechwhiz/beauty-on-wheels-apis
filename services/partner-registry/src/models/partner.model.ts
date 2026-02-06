@@ -1,21 +1,41 @@
-import type {
-  Partner,
-  PartnerStatus,
-  PartnerEndpoint,
-  PrimaryContact,
-  OnboardingInfo,
-  OrganizationType,
-  OrganizationSize,
-} from '@api-hub/partners';
+import type { Partner, PartnerStatus, PartnerEndpoint } from '@api-hub/partners';
+
+/** Auth config for outbound calls; matches @api-hub/partners PartnerAuthConfig. */
+export interface PartnerAuthConfig {
+  authType: 'API_KEY' | 'BEARER' | 'OAUTH_CLIENT_CREDENTIALS';
+  credentialsSecretArn: string;
+  oauthTokenUrl?: string;
+}
+
+export interface PrimaryContact {
+  name: string;
+  email: string;
+  phoneCode?: string;
+  phoneNumber?: string;
+}
+
+export interface OnboardingInfo {
+  submittedAt?: number;
+  approvedAt?: number;
+  approvedBy?: string;
+  rejectionReason?: string;
+}
+
+export type OrganizationType =
+  | 'HOSPITAL'
+  | 'CLINIC'
+  | 'LAB'
+  | 'PHARMACY'
+  | 'WELLNESS_CENTER'
+  | 'CORPORATE'
+  | 'OTHER';
+
+export type OrganizationSize = 'SMALL' | 'MEDIUM' | 'LARGE';
 
 export type {
   Partner,
   PartnerStatus,
   PartnerEndpoint,
-  PrimaryContact,
-  OnboardingInfo,
-  OrganizationType,
-  OrganizationSize,
 };
 
 export interface CreatePartnerInput {
@@ -47,6 +67,8 @@ export interface CreatePartnerInput {
   onboarding?: OnboardingInfo;
   description?: string;
   endpoints?: PartnerEndpoint[];
+  authConfig?: PartnerAuthConfig;
+  adapterKey?: string;
 }
 
 export interface UpdatePartnerInput {
@@ -81,4 +103,6 @@ export interface UpdatePartnerInput {
   onboarding?: Partial<OnboardingInfo>;
   description?: string;
   endpoints?: PartnerEndpoint[];
+  authConfig?: PartnerAuthConfig;
+  adapterKey?: string;
 }

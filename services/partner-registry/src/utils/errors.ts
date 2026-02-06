@@ -32,3 +32,10 @@ export class ValidationError extends Error {
     this.name = 'ValidationError';
   }
 }
+
+export class PartnerInvalidStatusTransitionError extends Error {
+  constructor(partnerId: string, currentStatus: string, action: string) {
+    super(`Partner ${partnerId} has status ${currentStatus}; cannot ${action}`);
+    this.name = 'PartnerInvalidStatusTransitionError';
+  }
+}

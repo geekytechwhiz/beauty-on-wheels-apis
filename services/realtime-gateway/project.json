@@ -1,0 +1,7 @@
+{
+  "name": "realtime-gateway",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/realtime-gateway/src",
+  "projectType": "application",
+  "tags": ["type:service"]
+}

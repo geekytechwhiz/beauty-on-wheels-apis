@@ -19,6 +19,7 @@ provider:
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
+    PARTNER_REGISTRY_API_KEY: ${env:PARTNER_REGISTRY_API_KEY, ''}
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
@@ -74,36 +75,17 @@ custom:
       - '.js'
 
 functions:
+  partnerRegistryAuthorizer:
+    handler: src/auth/authorizer.main
+    timeout: 5
+    memorySize: 128
+
   health:
     handler: src/handlers/health.main
     events:
       - http:
           path: /health
           method: get
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-
-  createPartner:
-    handler: src/handlers/createPartner.main
-    timeout: 10
-    memorySize: 256
-    events:
-      - http:
-          path: /partner
-          method: post
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-
-  updatePartner:
-    handler: src/handlers/updatePartner.main
-    timeout: 10
-    memorySize: 256
-    events:
-      - http:
-          path: /partner/{id}
-          method: patch
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
@@ -120,6 +102,38 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
 
+  createPartner:
+    handler: src/handlers/createPartner.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /partner
+          method: post
+          authorizer:
+            name: partnerRegistryAuthorizer
+            type: token
+            identitySource: method.request.header.Authorization
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  updatePartner:
+    handler: src/handlers/updatePartner.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /partner/{id}
+          method: patch
+          authorizer:
+            name: partnerRegistryAuthorizer
+            type: token
+            identitySource: method.request.header.Authorization
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
   setPartnerCapability:
     handler: src/handlers/setPartnerCapability.main
     timeout: 10
@@ -128,6 +142,10 @@ functions:
       - http:
           path: /partner/{id}/capability
           method: put
+          authorizer:
+            name: partnerRegistryAuthorizer
+            type: token
+            identitySource: method.request.header.Authorization
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
@@ -140,6 +158,10 @@ functions:
       - http:
           path: /organization/{orgId}/partner
           method: post
+          authorizer:
+            name: partnerRegistryAuthorizer
+            type: token
+            identitySource: method.request.header.Authorization
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
@@ -152,6 +174,42 @@ functions:
       - http:
           path: /organization/{orgId}/partners
           method: get
+          authorizer:
+            name: partnerRegistryAuthorizer
+            type: token
+            identitySource: method.request.header.Authorization
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  approvePartner:
+    handler: src/handlers/approvePartner.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /partner/{id}/approve
+          method: post
+          authorizer:
+            name: partnerRegistryAuthorizer
+            type: token
+            identitySource: method.request.header.Authorization
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  rejectPartner:
+    handler: src/handlers/rejectPartner.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /partner/{id}/reject
+          method: post
+          authorizer:
+            name: partnerRegistryAuthorizer
+            type: token
+            identitySource: method.request.header.Authorization
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}

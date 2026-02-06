@@ -9,7 +9,7 @@ import { createLogger, createChildLogger, serializeError } from '@api-hub/logger
 import type { Partner, PartnerCapability } from '@api-hub/partners';
 import type { CreatePartnerInput, UpdatePartnerInput } from '../models/partner.model';
 import type { SetCapabilityInput } from '../models/capability.model';
-import { PartnerAlreadyExistsError, OrgPartnerLinkExistsError } from '../utils/errors';
+import { PartnerAlreadyExistsError, OrgPartnerLinkExistsError, PartnerInvalidStatusTransitionError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'partner-registry', redactPII: true });
 const TABLE_NAME = process.env.INTEGRATION_REGISTRY_TABLE || '';
@@ -56,7 +56,7 @@ export class PartnerRepository {
   async createPartner(partnerId: string, input: CreatePartnerInput): Promise<Partner> {
     const now = new Date().toISOString();
     const status = input.status ?? 'PENDING_APPROVAL';
-    const item: PartnerDBItem = {
+    const item = {
       ...input,
       partnerId,
       organizationName: input.organizationName,
@@ -67,7 +67,7 @@ export class PartnerRepository {
       pk: pkPartner(partnerId),
       sk: skMeta(),
       lsi2_sk: status,
-    } as PartnerDBItem;
+    } as unknown as PartnerDBItem;
     try {
       await ddbDocClient.send(
         new PutCommand({
@@ -252,6 +252,16 @@ export class PartnerRepository {
       names['#endpoints'] = 'endpoints';
       values[':endpoints'] = input.endpoints;
     }
+    if (input.authConfig !== undefined) {
+      updates.push('#authConfig = :authConfig');
+      names['#authConfig'] = 'authConfig';
+      values[':authConfig'] = input.authConfig;
+    }
+    if (input.adapterKey !== undefined) {
+      updates.push('#adapterKey = :adapterKey');
+      names['#adapterKey'] = 'adapterKey';
+      values[':adapterKey'] = input.adapterKey;
+    }
     if (updates.length <= 1) return this.getPartner(partnerId);
 
     try {
@@ -365,6 +375,84 @@ export class PartnerRepository {
       relationshipType: (item as Record<string, string>).relationshipType,
     }));
     return items;
+  }
+
+  async approvePartner(partnerId: string, approvedBy?: string): Promise<Partner | null> {
+    const partner = await this.getPartner(partnerId);
+    if (!partner) return null;
+    const status = (partner as { status: string }).status;
+    if (status !== 'PENDING_APPROVAL') {
+      throw new PartnerInvalidStatusTransitionError(partnerId, status, 'approve');
+    }
+    const now = new Date().toISOString();
+    const nowTs = Date.now();
+    const existingOnboarding = (partner as { onboarding?: { approvedAt?: number; approvedBy?: string } }).onboarding;
+    const onboarding = {
+      ...existingOnboarding,
+      approvedAt: nowTs,
+      approvedBy: approvedBy ?? existingOnboarding?.approvedBy,
+    };
+    await ddbDocClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { pk: pkPartner(partnerId), sk: skMeta() },
+        UpdateExpression: 'SET #st = :status, #lsi2_sk = :lsi2_sk, #updatedAt = :updatedAt, #onboarding = :onboarding',
+        ConditionExpression: 'attribute_exists(pk) AND #st = :pendingStatus',
+        ExpressionAttributeNames: {
+          '#st': 'status',
+          '#lsi2_sk': 'lsi2_sk',
+          '#updatedAt': 'updatedAt',
+          '#onboarding': 'onboarding',
+        },
+        ExpressionAttributeValues: {
+          ':status': 'ACTIVE',
+          ':lsi2_sk': 'ACTIVE',
+          ':updatedAt': now,
+          ':onboarding': onboarding,
+          ':pendingStatus': 'PENDING_APPROVAL',
+        },
+      })
+    );
+    await this.writeAudit({ event: 'PARTNER_APPROVED', partnerId, approvedBy, at: now });
+    return this.getPartner(partnerId);
+  }
+
+  async rejectPartner(partnerId: string, rejectionReason: string): Promise<Partner | null> {
+    const partner = await this.getPartner(partnerId);
+    if (!partner) return null;
+    const status = (partner as { status: string }).status;
+    if (status !== 'PENDING_APPROVAL') {
+      throw new PartnerInvalidStatusTransitionError(partnerId, status, 'reject');
+    }
+    const now = new Date().toISOString();
+    const existingOnboarding = (partner as { onboarding?: Record<string, unknown> }).onboarding;
+    const onboarding = {
+      ...existingOnboarding,
+      rejectionReason,
+    };
+    await ddbDocClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { pk: pkPartner(partnerId), sk: skMeta() },
+        UpdateExpression: 'SET #st = :status, #lsi2_sk = :lsi2_sk, #updatedAt = :updatedAt, #onboarding = :onboarding',
+        ConditionExpression: 'attribute_exists(pk) AND #st = :pendingStatus',
+        ExpressionAttributeNames: {
+          '#st': 'status',
+          '#lsi2_sk': 'lsi2_sk',
+          '#updatedAt': 'updatedAt',
+          '#onboarding': 'onboarding',
+        },
+        ExpressionAttributeValues: {
+          ':status': 'REJECTED',
+          ':lsi2_sk': 'REJECTED',
+          ':updatedAt': now,
+          ':onboarding': onboarding,
+          ':pendingStatus': 'PENDING_APPROVAL',
+        },
+      })
+    );
+    await this.writeAudit({ event: 'PARTNER_REJECTED', partnerId, rejectionReason, at: now });
+    return this.getPartner(partnerId);
   }
 
   async writeAudit(payload: Record<string, unknown>): Promise<void> {

@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { logHttpRequest, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
+import type { CreatePartnerInput } from '../models/partner.model';
 import { createPartnerSchema } from '../validation/createPartner.schema';
 import {
   getRequestId,
@@ -43,7 +44,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   try {
-    const partner = await getPartnerService().createPartner(validation.data);
+    const partner = await getPartnerService().createPartner(validation.data as CreatePartnerInput);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner', 201, duration, requestId);
     return ApiResponse.created(

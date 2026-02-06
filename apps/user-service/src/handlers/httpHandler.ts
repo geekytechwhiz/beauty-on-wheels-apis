@@ -252,6 +252,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
       body?.userInfo?.friendNFamily,
       body?.userInfo?.assignDoctor,
     );
+    console.log("RESULT DATA :", result);
     if (roleIds.length > 0) {
       logger.info({
         event: 'createUser_assign_user_role_start',
@@ -259,13 +260,14 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
         userID: result.userID,
         roleId: roleIds[0],
       });
+      console.log("AUTH HEADER : ", authHeader);
       void assignUserRole(
         roleIds[0],
         body.organizationID,
         result.userID,
         userInfo.name,
-        userInfo.contact.email ?? undefined,
-        userInfo.contact.phone ?? undefined,
+        userInfo.contact.email ?? '',
+        userInfo.contact.phone ?? '',
         userInfo.profilePic,
         authHeader,
       ).catch((err) => {

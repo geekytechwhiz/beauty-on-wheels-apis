@@ -70,9 +70,25 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
       validation.data.devices,
       correlationId,
     );
+    
+    logger.info({
+      event: 'deviceRecommendationAdd_success',
+      patientUserId: validation.data.patientUserId,
+      doctorName: validation.data.doctorName,
+      deviceCount: validation.data.devices.length,
+    });
+
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/recommendations/add', 200, duration, correlationId);
-    return ApiResponse.ok(null, 'DEVICE.RECOMMENDATION_ADDED_SUCCESS', { requestId: correlationId, event });
+    
+    return ApiResponse.ok(
+      { message: 'Devices recommended to a patient successfully' },
+      {
+        title: 'Device recommend success',
+        description: 'The device recommend completed successfully.',
+      },
+      { requestId: correlationId, event }
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceRecommendationAdd_error', err: serializeError(err) });

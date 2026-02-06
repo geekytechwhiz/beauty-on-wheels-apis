@@ -1,4 +1,4 @@
-import type { APIGatewayProxyHandlerV2, APIGatewayProxyWebsocketEventV2 } from 'aws-lambda';
+import type { APIGatewayProxyWebsocketHandlerV2, APIGatewayProxyWebsocketEventV2 } from 'aws-lambda';
 import { createLogger, createChildLogger } from '@api-hub/logger';
 import { saveConnection } from '../repositories/connection.repository';
 import { getAuthProvider } from '../auth/auth.registry';
@@ -14,9 +14,9 @@ const baseLogger = createLogger({ service: 'realtime-gateway', redactPII: true }
 async function getConnectionContextFromRequest(
   event: APIGatewayProxyWebsocketEventV2
 ): Promise<ConnectionContext | null> {
-  // event may be APIGatewayProxyHandlerV2 which doesn't always have queryStringParameters (esp. with websocket),
-  // so we cast to any for safe property access
-  const qs = (event as any).queryStringParameters ?? {};
+   
+  // WebSocket $connect: query params exist at runtime but are not on the typed interface
+  const qs = (event as APIGatewayProxyWebsocketEventV2 & { queryStringParameters?: Record<string, string> }).queryStringParameters ?? {};
   const parsed = connectionQuerySchema.safeParse({
     token: qs.token ?? qs.Token,
     authType: qs.authType ?? qs.auth_type,
@@ -46,13 +46,13 @@ async function getConnectionContextFromRequest(
   };
 }
 
-export const main: APIGatewayProxyHandlerV2 = async (event) => {
-  const connectionId = (event as APIGatewayProxyWebsocketEventV2).requestContext.connectionId;
+export const main: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
+  const connectionId = event.requestContext.connectionId;
   const logger = createChildLogger(baseLogger, { connectionId });
 
   let context: ConnectionContext | null = null;
   try {
-    context = await getConnectionContextFromRequest(event as APIGatewayProxyWebsocketEventV2);
+    context = await getConnectionContextFromRequest(event);
   } catch (err) {
     logger.warn({ event: 'connect_auth_failed', reason: 'context_parse_error', err });
     return { statusCode: 401, body: 'Unauthorized' };

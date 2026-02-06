@@ -1,4 +1,4 @@
-service: lab-integration
+service: partner-integration
 
 frameworkVersion: '3'
 

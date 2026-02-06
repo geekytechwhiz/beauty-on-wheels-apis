@@ -11,7 +11,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const duration = Date.now() - startTime;
   logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/health', 200, duration, requestId);
   return ApiResponse.ok(
-    { status: 'ok', service: 'lab-integration' },
+    { status: 'ok', service: 'partner-integration' },
     'HEALTH.HEALTH_CHECK_OK',
     responseOpts(event, requestId)
   );

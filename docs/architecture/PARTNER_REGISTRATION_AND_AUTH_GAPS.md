@@ -1,6 +1,6 @@
 # Partner Registration & Third-Party Auth – Gap Analysis
 
-Review of **partner-registry**, **lab-integration**, **realtime-gateway**, **libs/partners**, and related flows. Identifies what is missing for:
+Review of **partner-registry**, **partner-integration**, **realtime-gateway**, **libs/partners**, and related flows. Identifies what is missing for:
 
 1. **Complete partner registration**
 2. **Connecting to third parties with their auth mechanism**
@@ -30,8 +30,8 @@ Review of **partner-registry**, **lab-integration**, **realtime-gateway**, **lib
 |---|-----|-------------|--------------|
 | **G1** | **No credential / auth config in registry** | Partner record has `endpoints[]` (type, url, description) but **no auth type** (Bearer, X-API-Key, OAuth, etc.) and **no reference to credentials** (secret ARN, SSM path). Lab-integration today resolves API keys via **env vars by partner name** (e.g. REDCLIFFE_API_KEY_SECRET_ARN, ORANGE_API_KEY). Adding a new partner (e.g. “acme-lab”) requires new env vars and deployment; registry cannot drive “where to get secret for this partner.” | **libs/partners**: Extend `PartnerEndpoint` or add partner-level `authConfig` (e.g. authType, secretArnOrName). **partner-registry**: Add fields to create/update schema and repository; optional GET endpoint to resolve secret reference only (no secret value). |
 | **G2** | **No explicit approve/reject workflow** | `OnboardingInfo` (submittedAt, approvedAt, approvedBy, rejectionReason) and `PartnerStatus` (PENDING_APPROVAL, ACTIVE, REJECTED, …) exist, but there is **no dedicated API** to approve or reject a partner (e.g. POST /partner/{id}/approve, POST /partner/{id}/reject). Status can only be changed via PATCH /partner/{id} with a new status. | **partner-registry**: Add handlers (e.g. approvePartner, rejectPartner) that validate current status, set onboarding fields, set status to ACTIVE/REJECTED, and optionally emit audit/event. |
-| **G3** | **Consumers don’t enforce ACTIVE** | Lab-integration (and any other consumer) fetches partner from registry but **does not check** `partner.status === 'ACTIVE'`. So PENDING_APPROVAL or SUSPENDED partners can still be used. | **lab-integration** (partnerRegistry.client): After GET partner, if `partner.status !== 'ACTIVE'`, throw PartnerUnavailableError (or similar). **libs/partners** or doc: Define when “active” is required (e.g. outbound calls only for ACTIVE). |
-| **G4** | **No partner-type or integration-type in registry** | Adapter selection (e.g. Redcliffe vs Orange) is **hardcoded by partnerId** in lab-integration’s factory. Registry does not store “this partner is a lab partner” or “adapter type: redcliffe.” Adding a new lab partner requires code change (new adapter + factory branch). | **libs/partners** / **partner-registry**: Optional field e.g. `partnerType` or `integrationType` / `adapterKey` (e.g. "lab", "redcliffe", "orange"). **lab-integration**: Factory could resolve adapter from registry (adapterKey) + allowlist, so new partners of known types don’t require code deploy. |
+| **G3** | **Consumers don’t enforce ACTIVE** | Lab-integration (and any other consumer) fetches partner from registry but **does not check** `partner.status === 'ACTIVE'`. So PENDING_APPROVAL or SUSPENDED partners can still be used. | **partner-integration** (partnerRegistry.client): After GET partner, if `partner.status !== 'ACTIVE'`, throw PartnerUnavailableError (or similar). **libs/partners** or doc: Define when “active” is required (e.g. outbound calls only for ACTIVE). |
+| **G4** | **No partner-type or integration-type in registry** | Adapter selection (e.g. Redcliffe vs Orange) is **hardcoded by partnerId** in partner-integration’s factory. Registry does not store “this partner is a lab partner” or “adapter type: redcliffe.” Adding a new lab partner requires code change (new adapter + factory branch). | **libs/partners** / **partner-registry**: Optional field e.g. `partnerType` or `integrationType` / `adapterKey` (e.g. "lab", "redcliffe", "orange"). **partner-integration**: Factory could resolve adapter from registry (adapterKey) + allowlist, so new partners of known types don’t require code deploy. |
 | **G5** | **Link org–partner: no authz** | POST /organization/{orgId}/partner is **unprotected** (no auth in serverless.yml). Any caller can link any org to any partner. | **partner-registry**: Add API Gateway authorizer (e.g. JWT/Cognito) and/or internal-only (VPC, IAM, or API key); document as internal/admin. |
 | **G6** | **Create/Update partner: no authz** | Same as G5: create/update/setCapability have no authorizer. | Same as G5. |
 
@@ -44,11 +44,11 @@ Two directions:
 - **Outbound:** We call the third party (e.g. lab APIs) — their auth (API key, OAuth, etc.).
 - **Inbound:** Third party calls us (e.g. WebSocket, webhooks) — we verify their auth.
 
-### 2.1 Outbound (We Call Partner) – e.g. lab-integration
+### 2.1 Outbound (We Call Partner) – e.g. partner-integration
 
 **What exists:**
 
-- **lab-integration** adapters (Redcliffe, Orange) call partner APIs with:
+- **partner-integration** adapters (Redcliffe, Orange) call partner APIs with:
   - **Auth:** API key from Secrets Manager (env: REDCLIFFE_API_KEY_SECRET_ARN, ORANGE_API_KEY_SECRET_ARN) or fallback env (REDCLIFFE_API_KEY, ORANGE_API_KEY).
   - **Header shape:** Redcliffe = Bearer; Orange = X-API-Key (hardcoded per adapter).
 - **partnerRegistry.client** gets partner from registry and uses first `endpoints[type===API].url` as base URL.
@@ -93,7 +93,7 @@ Two directions:
 | Link org to partner | Done | — |
 | **Store auth type + credential reference in registry** | Missing | G1, A3 |
 | **Explicit approve/reject API** | Missing | G2 |
-| **Enforce ACTIVE when using partner (e.g. lab-integration)** | Missing | G3 |
+| **Enforce ACTIVE when using partner (e.g. partner-integration)** | Missing | G3 |
 | **Partner type / adapter key in registry** | Missing | G4 (optional) |
 | **Authz on partner-registry APIs** | Missing | G5, G6 |
 

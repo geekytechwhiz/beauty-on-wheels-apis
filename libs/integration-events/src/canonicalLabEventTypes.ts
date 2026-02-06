@@ -1,8 +1,4 @@
-/**
- * Canonical lab event types (partner-agnostic).
- * Used by lab-webhook-ingestion to normalize third-party webhook payloads.
- */
-
+ 
 export const CANONICAL_LAB_EVENT_TYPES = [
   'SAMPLE_COLLECTED',
   'SAMPLE_RECEIVED',

@@ -129,7 +129,7 @@ functions:
           eventBus: default
           pattern:
             source:
-              - lab-integration
+              - partner-integration
               - default
             detail-type:
               - LAB_SAMPLE_COLLECTED
@@ -147,7 +147,7 @@ functions:
           eventBus: default
           pattern:
             source:
-              - lab-integration
+              - partner-integration
               - default
             detail-type:
               - APPOINTMENT_UPDATED

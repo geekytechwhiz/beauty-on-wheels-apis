@@ -7,7 +7,7 @@ import {
   type Logger,
 } from '@api-hub/logger';
 
-export const baseLogger = createLogger({ service: 'lab-integration', redactPII: true });
+export const baseLogger = createLogger({ service: 'partner-integration', redactPII: true });
 
 export function getRequestId(event: APIGatewayProxyEvent, context?: Context): string {
   return extractCorrelationId(event) || (context && extractAwsRequestId(context)) || 'unknown';

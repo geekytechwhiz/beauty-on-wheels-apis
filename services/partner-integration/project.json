@@ -1,7 +1,7 @@
 {
-  "name": "lab-integration",
+  "name": "partner-integration",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "services/lab-integration/src",
+  "sourceRoot": "services/partner-integration/src",
   "projectType": "application",
   "tags": ["type:service"]
 }

@@ -31,8 +31,8 @@ export interface PartnerEndpoint {
 export interface PrimaryContact {
   name: string;
   email: string;
-  phoneCode?: string;
-  phoneNumber?: string;
+  phoneCode: string;
+  phoneNumber: string;
 }
 
 export interface OnboardingInfo {

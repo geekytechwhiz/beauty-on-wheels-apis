@@ -132,9 +132,9 @@ export const assignUserRole = async (
   organizationId: string,
   userId: string,
   fullName: string,
-  emailAddress?: string,
-  phoneNumber?: string,
-  profilePic?: string,
+  emailAddress: string,
+  phoneNumber: string,
+  profilePic: string,
   authHeader?: string,
 ) => {
   const baseUrl = process.env.ROLE_API_URL;
@@ -146,15 +146,23 @@ export const assignUserRole = async (
   try {
     const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/users/${userId}/roles/assign`;
     logger.info({ event: 'assign_user_role_api_start', url });
+    console.log('BODY :', JSON.stringify({
+      roleId,
+      name: fullName,
+      emailAddress: emailAddress || '',
+      phoneNumber: phoneNumber || ''  ,
+      profilePic: profilePic || '',
+    }));
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: buildHeaders(authHeader),
       body: JSON.stringify({
         roleId,
         name: fullName,
-        emailAddress,
-        phoneNumber,
-        profilePic,
+        emailAddress: emailAddress || '',
+        phoneNumber: phoneNumber || ''  ,
+        profilePic: profilePic || '',
       }),
     });
     if (!response.ok) {

@@ -1,27 +1,9 @@
 import { z } from 'zod';
-import type {
-  PartnerStatus,
-  EndpointType,
-  PrimaryContact,
-  OnboardingInfo,
-  OrganizationType,
-  OrganizationSize,
-} from '@api-hub/partners';
+import type { PrimaryContact, OnboardingInfo } from '../models/partner.model';
 
-// Status enum values from shared type
-const PARTNER_STATUS_VALUES: [PartnerStatus, ...PartnerStatus[]] = [
-  'PENDING_APPROVAL',
-  'ACTIVE',
-  'SUSPENDED',
-  'REJECTED',
-  'INACTIVE',
-];
-
-// Endpoint type enum values from shared type
-const ENDPOINT_TYPE_VALUES: [EndpointType, ...EndpointType[]] = ['API', 'WEBHOOK', 'FHIR'];
-
-// Organization type enum values from shared type
-const ORGANIZATION_TYPE_VALUES: [OrganizationType, ...OrganizationType[]] = [
+const PARTNER_STATUS_VALUES = ['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'INACTIVE'] as const;
+const ENDPOINT_TYPE_VALUES = ['API', 'WEBHOOK', 'FHIR'] as const;
+const ORGANIZATION_TYPE_VALUES = [
   'HOSPITAL',
   'CLINIC',
   'LAB',
@@ -29,15 +11,20 @@ const ORGANIZATION_TYPE_VALUES: [OrganizationType, ...OrganizationType[]] = [
   'WELLNESS_CENTER',
   'CORPORATE',
   'OTHER',
-];
-
-// Organization size enum values from shared type
-const ORGANIZATION_SIZE_VALUES: [OrganizationSize, ...OrganizationSize[]] = ['SMALL', 'MEDIUM', 'LARGE'];
+] as const;
+const ORGANIZATION_SIZE_VALUES = ['SMALL', 'MEDIUM', 'LARGE'] as const;
+const PARTNER_AUTH_TYPE_VALUES = ['API_KEY', 'BEARER', 'OAUTH_CLIENT_CREDENTIALS'] as const;
 
 const endpointSchema = z.object({
   type: z.enum(ENDPOINT_TYPE_VALUES),
   url: z.string().url(),
   description: z.string().optional(),
+});
+
+const authConfigSchema = z.object({
+  authType: z.enum(PARTNER_AUTH_TYPE_VALUES),
+  credentialsSecretArn: z.string().min(1).max(512),
+  oauthTokenUrl: z.string().url().optional(),
 });
 
 const primaryContactSchema: z.ZodType<PrimaryContact> = z.object({
@@ -87,7 +74,9 @@ export const updatePartnerSchema = z.object({
   onboarding: onboardingSchema.optional(),
 
   description: z.string().max(2000).optional(),
-  endpoints: z.array(endpointSchema).min(1).optional(),
+  endpoints: z.array(endpointSchema).optional(),
+  authConfig: authConfigSchema.optional(),
+  adapterKey: z.string().min(1).max(128).optional(),
 }).refine((data) => Object.keys(data).length > 0, { message: 'At least one field required' });
 
 export type UpdatePartnerBody = z.infer<typeof updatePartnerSchema>;

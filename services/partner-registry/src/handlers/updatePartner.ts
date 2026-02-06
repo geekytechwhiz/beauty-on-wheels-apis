@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { logHttpRequest, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
+import type { UpdatePartnerInput } from '../models/partner.model';
 import { updatePartnerSchema } from '../validation/updatePartner.schema';
 import {
   getRequestId,
@@ -59,7 +60,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   try {
-    const partner = await getPartnerService().updatePartner(partnerId, validation.data);
+    const partner = await getPartnerService().updatePartner(partnerId, validation.data as UpdatePartnerInput);
     if (!partner) {
       logger.warn({ event: 'updatePartner_not_found', partnerId });
       const duration = Date.now() - startTime;

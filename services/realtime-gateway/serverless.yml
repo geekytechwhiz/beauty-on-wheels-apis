@@ -1,0 +1,183 @@
+service: realtime-gateway
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    REGION: ${self:provider.region}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    WEBSOCKET_CONNECTION_TABLE: ${self:custom.connectionTable.${self:provider.stage}}
+    DOMAIN_EVENT_SOURCE: ${self:custom.domainEventSource.${self:provider.stage}}
+    JWT_SECRET: ${env:JWT_SECRET, ''}
+    JWT_JWKS_URI: ${env:JWT_JWKS_URI, ''}
+    INTROSPECTION_URL: ${env:INTROSPECTION_URL, ''}
+    INTROSPECTION_CLIENT_ID: ${env:INTROSPECTION_CLIENT_ID, ''}
+    INTROSPECTION_CLIENT_SECRET: ${env:INTROSPECTION_CLIENT_SECRET, ''}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchWriteItem
+      Resource:
+        - !GetAtt ConnectionTable.Arn
+        - !Sub '${ConnectionTable.Arn}/index/by-orgId'
+    - Effect: Allow
+      Action:
+        - execute-api:ManageConnections
+      Resource:
+        - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebsocketsApi}/${self:provider.stage}/POST/@connections/*'
+
+package:
+  individually: true
+
+custom:
+  connectionTable:
+    dev: ${self:service}-connections-${self:provider.stage}
+    stg: ${self:service}-connections-${self:provider.stage}
+    prd: ${self:service}-connections-${self:provider.stage}
+  domainEventSource:
+    dev: ${env:DOMAIN_EVENT_SOURCE, 'default'}
+    stg: ${env:DOMAIN_EVENT_SOURCE, 'default'}
+    prd: ${env:DOMAIN_EVENT_SOURCE, 'default'}
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.js'
+
+functions:
+  connect:
+    handler: src/handlers/connect.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - websocket:
+          route: $connect
+
+  disconnect:
+    handler: src/handlers/disconnect.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - websocket:
+          route: $disconnect
+
+  default:
+    handler: src/handlers/default.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - websocket: $default
+
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  labEventsSubscriber:
+    handler: src/subscribers/labEvents.subscriber.main
+    timeout: 30
+    memorySize: 256
+    environment:
+      WEBSOCKET_ENDPOINT: !Sub 'https://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
+    events:
+      - eventBridge:
+          eventBus: default
+          pattern:
+            source:
+              - partner-integration
+              - default
+            detail-type:
+              - LAB_SAMPLE_COLLECTED
+              - LAB_REPORT_READY
+              - LAB_ORDER_STATUS_UPDATED
+
+  appointmentEventsSubscriber:
+    handler: src/subscribers/appointmentEvents.subscriber.main
+    timeout: 30
+    memorySize: 256
+    environment:
+      WEBSOCKET_ENDPOINT: !Sub 'https://${WebsocketsApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
+    events:
+      - eventBridge:
+          eventBus: default
+          pattern:
+            source:
+              - partner-integration
+              - default
+            detail-type:
+              - APPOINTMENT_UPDATED
+
+resources:
+  Resources:
+    ConnectionTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-connections-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+          - AttributeName: orgId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: by-orgId
+            KeySchema:
+              - AttributeName: orgId
+                KeyType: HASH
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - connectionId
+                - userId
+                - roles
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true

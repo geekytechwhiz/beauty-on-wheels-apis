@@ -61,4 +61,14 @@ export class PartnerService {
     }
     return partners;
   }
+
+  async approvePartner(partnerId: string, approvedBy?: string): Promise<Partner | null> {
+    await this.getPartnerOrThrow(partnerId);
+    return this.repository.approvePartner(partnerId, approvedBy);
+  }
+
+  async rejectPartner(partnerId: string, rejectionReason: string): Promise<Partner | null> {
+    await this.getPartnerOrThrow(partnerId);
+    return this.repository.rejectPartner(partnerId, rejectionReason);
+  }
 }

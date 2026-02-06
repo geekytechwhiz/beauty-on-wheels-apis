@@ -1,0 +1,124 @@
+service: partner-integration
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    REGION: ${self:provider.region}
+    PARTNER_REGISTRY_ENDPOINT: ${self:custom.partnerRegistryEndpoint.${self:provider.stage}}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: '*'
+    # Least-privilege: no DynamoDB, no persistence. SSM/Secrets only if adapters need auth.
+    - Effect: Allow
+      Action:
+        - ssm:GetParameter
+        - ssm:GetParameters
+      Resource: arn:aws:ssm:${self:provider.region}:${aws:accountId}:parameter/*
+    - Effect: Allow
+      Action:
+        - secretsmanager:GetSecretValue
+      Resource: arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:*
+
+package:
+  individually: true
+
+custom:
+  partnerRegistryEndpoint:
+    dev: ${env:PARTNER_REGISTRY_ENDPOINT, 'http://localhost:3001'}
+    stg: ${env:PARTNER_REGISTRY_ENDPOINT}
+    prd: ${env:PARTNER_REGISTRY_ENDPOINT}
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.js'
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  createLabOrder:
+    handler: src/handlers/createLabOrder.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: /lab/orders
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  cancelLabOrder:
+    handler: src/handlers/cancelLabOrder.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /lab/orders/{orderId}/cancel
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  getLabOrderStatus:
+    handler: src/handlers/getLabOrderStatus.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /lab/orders/{orderId}/status
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}

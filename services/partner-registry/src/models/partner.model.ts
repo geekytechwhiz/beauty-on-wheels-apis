@@ -21,32 +21,32 @@ export type {
 export interface CreatePartnerInput {
   organizationName: string;
 
-  legalName?: string;
-  organizationType?: OrganizationType;
+  legalName: string;
+  organizationType: OrganizationType;
   organizationSize?: OrganizationSize;
   noOfBranches?: string;
   
-  email?: string;
-  phoneCode?: string;
-  phoneNumber?: string;
-  primaryContact?: PrimaryContact;
+  email: string;
+  phoneCode: string;
+  phoneNumber: string;
+  primaryContact: PrimaryContact;
   
-  address?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  countryCode?: string;
-  postalCode?: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  countryCode: string;
+  postalCode: string;
   googleMapsLink?: string;
   website?: string;
   organizationImage?: string;
   organizationBio?: string;
   registrationNumber?: string;
   taxId?: string;
-  status?: PartnerStatus;
+  status: PartnerStatus;
   onboarding?: OnboardingInfo;
   description?: string;
-  endpoints?: PartnerEndpoint[];
+  endpoints: PartnerEndpoint[];
 }
 
 export interface UpdatePartnerInput {

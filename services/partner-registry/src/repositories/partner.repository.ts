@@ -55,18 +55,17 @@ function sanitizePartner(item: Record<string, unknown>): Partner {
 export class PartnerRepository {
   async createPartner(partnerId: string, input: CreatePartnerInput): Promise<Partner> {
     const now = new Date().toISOString();
-    const status = input.status ?? 'PENDING_APPROVAL';
     const item: PartnerDBItem = {
       ...input,
       partnerId,
       organizationName: input.organizationName,
-      status,
-      endpoints: input.endpoints ?? [],
+      status: input.status,
+      endpoints: input.endpoints,
       createdAt: now,
       updatedAt: now,
       pk: pkPartner(partnerId),
       sk: skMeta(),
-      lsi2_sk: status,
+      lsi2_sk: input.status,
     } as PartnerDBItem;
     try {
       await ddbDocClient.send(

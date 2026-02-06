@@ -114,6 +114,7 @@ export const createUserSchema = z.object({
   }),
   userRole: z.array(z.string()),
   userType: z.string(),
+  organizationID: z.string(),
 }).superRefine((data, ctx) => {
   const userTypeUpper = String(data.userType || '').toUpperCase();
   const email = data.userInfo.contact?.email;

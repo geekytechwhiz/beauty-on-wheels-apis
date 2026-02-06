@@ -165,6 +165,7 @@ export const assignUserRole = async (
         profilePic: profilePic || '',
       }),
     });
+    console.log('RESPONSE :', response);
     if (!response.ok) {
       logger.warn({ event: 'assign_user_role_api_non_ok', status: response.status });
       return { success: false };

@@ -53,15 +53,16 @@ export class UserService {
     logger.info({ event: 'service_createUser_start' });
 
     try {
-      // if (!organizationID) throw new Error('organizationID is required');
-      // data.organizationID = organizationID;
-      // const orgDetails = await getOrganizationViaApi(data?.organizationID || '', authHeader);
-      // if (!orgDetails) {
-      //   throw new Error('Organization does not exist');
-      // }
-      // if (orgDetails.status && ['on_hold', 'disabled', 'not_exist'].includes(String(orgDetails.status).toLowerCase())) {
-      //   throw new Error('Organization is not available');
-      // }
+      if (!organizationID) throw new Error('organizationID is required');
+      data.organizationID = organizationID;
+      // data.organizationID = "ml7pvhod5db23be4";
+      const orgDetails = await getOrganizationViaApi(data?.organizationID || '', authHeader);
+      if (!orgDetails) {
+        throw new Error('Organization does not exist');
+      }
+      if (orgDetails.status && ['on_hold', 'disabled', 'not_exist'].includes(String(orgDetails.status).toLowerCase())) {
+        throw new Error('Organization is not available');
+      }
 
       // Check if user already exists (must pass organizationId since getUser requires it)
       // const existing = await this.repository.getUser(data.userID, organizationID);

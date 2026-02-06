@@ -79,16 +79,24 @@ export const orgDeviceManageSchema = z.object({
 // Add device recommendation schema (POST /devices/recommendations/add)
 export const deviceRecommendationAddSchema = z.object({
   patientUserId: z.string().min(1),
+  doctorName: z.string().min(1),
   devices: z
     .array(
       z.object({
         deviceId: z.string().min(1),
         category: z.string().min(1),
         name: z.string().min(1),
+        displayName: z.string().optional(),
+        deviceImage: z.string().optional(),
+        countriesSupported: z.array(z.string()).optional(),
+        manufacturerImage: z.string().optional(),
+        manufacturerName: z.string().optional(),
+        template: z.number().optional(),
+        deviceDetails: z.string().optional(),
+        supportedVitals: z.array(z.string()).optional(),
       }),
     )
     .min(1),
-  doctorName: z.string().min(1),
   userID: z.string().optional(),
   organizationID: z.string().optional(),
 });

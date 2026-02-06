@@ -165,13 +165,25 @@ export const assignUserRole = async (
         profilePic: profilePic || '',
       }),
     });
-    console.log('RESPONSE :', response);
+    
+    console.log('RESPONSE STATUS:', response.status);
+    console.log('RESPONSE OK:', response.ok);
+    
     if (!response.ok) {
-      logger.warn({ event: 'assign_user_role_api_non_ok', status: response.status });
-      return { success: false };
+      const errorText = await response.text();
+      console.log('ERROR RESPONSE BODY:', errorText);
+      logger.warn({ 
+        event: 'assign_user_role_api_non_ok', 
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText,
+      });
+      return { success: false, error: errorText, status: response.status };
     }
+    
     const body = (await response.json()) as any;
-    logger.info({ event: 'assign_user_role_api_success' });
+    console.log('SUCCESS RESPONSE BODY:', JSON.stringify(body));
+    logger.info({ event: 'assign_user_role_api_success', organizationId, userId, roleId });
     return body?.data || body || { success: true };
   } catch (error) {
     logger.error({ event: 'assign_user_role_api_failed', err: serializeError(error) });

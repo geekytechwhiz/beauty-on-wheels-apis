@@ -146,12 +146,28 @@ export const assignUserRole = async (
   try {
     const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/users/${userId}/roles/assign`;
     logger.info({ event: 'assign_user_role_api_start', url });
+    
+    // Validate required fields
+    if (!roleId || roleId.trim() === '') {
+      logger.error({ event: 'assign_user_role_missing_roleId' });
+      return { success: false, error: 'roleId is required' };
+    }
+    
+    if (!fullName || fullName.trim() === '') {
+      logger.error({ event: 'assign_user_role_missing_name' });
+      return { success: false, error: 'name is required' };
+    }
+    
+    // Use a default placeholder image if profilePic is not provided
+    const defaultProfilePic = 'https://d3ihgxc81ym0ss.cloudfront.net/default-avatar.png';
+    const finalProfilePic = profilePic && profilePic.trim() !== '' ? profilePic : defaultProfilePic;
+    
     console.log('BODY :', JSON.stringify({
       roleId,
       name: fullName,
       emailAddress: emailAddress || '',
       phoneNumber: phoneNumber || ''  ,
-      profilePic: profilePic || '',
+      profilePic: finalProfilePic,
     }));
     
     const response = await fetch(url, {
@@ -162,7 +178,7 @@ export const assignUserRole = async (
         name: fullName,
         emailAddress: emailAddress || '',
         phoneNumber: phoneNumber || ''  ,
-        profilePic: profilePic || '',
+        profilePic: finalProfilePic,
       }),
     });
     

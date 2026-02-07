@@ -923,52 +923,64 @@ functions:
                 required: false
             pathParameters:
               - name: organizationId
-                description: Unique identifier of the organization (UUID or ULID)
-                required: true
+
+  listOrganizationUsersPost:
+    handler: src/handlers/listOrganizationUsersPost.main
+    timeout: 30
+    memorySize: 512
+    events:
+      - http:
+          path: organization/users
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: List organization users (POST)
+            description: |
+              Retrieves users for an organization with flexible filtering.
+              Supports two scenarios:
+              1. { "organizationID": "...", "type": "STAFF" } - Filter by user type
+              2. { "organizationID": "...", "limit": 10 } - Limit results
+            tags:
+              - Users
+              - Organizations
+            headers:
+              - name: X-Correlation-Id
+                description: Request correlation ID for tracing
                 schema:
                   type: string
-                  example: "660e8400-e29b-41d4-a716-446655440001"
-            queryStringParameters:
-              - name: limit
-                description: Maximum number of users to return (default server-side, max 100)
                 required: false
-                schema:
-                  type: integer
-                  minimum: 1
-                  maximum: 100
-              - name: offset
-                description: Zero-based offset into the full result set
-                required: false
-                schema:
-                  type: integer
-                  minimum: 0
-              - name: status
-                description: Filter users by status (e.g. active, inactive)
-                required: false
-                schema:
-                  type: string
-              - name: userType
-                description: Filter users by userType (e.g. USER, STAFF, FNF)
-                required: false
-                schema:
-                  type: string
-              - name: search
-                description: Free-text search across name and email fields
-                required: false
-                schema:
-                  type: string
-              - name: sortBy
-                description: Field to sort by (createdDate, fullName, firstName, lastName, emailAddress)
-                required: false
-                schema:
-                  type: string
-                  enum: [createdDate, fullName, firstName, lastName, emailAddress]
-              - name: sortOrder
-                description: Sort direction
-                required: false
-                schema:
-                  type: string
-                  enum: [asc, desc]
+            requestBody:
+              description: Query parameters for user listing
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - organizationID
+                    properties:
+                      organizationID:
+                        type: string
+                        description: Organization ID
+                      limit:
+                        type: number
+                        description: Maximum number of users to return
+                      type:
+                        type: string
+                        description: Filter by user type (e.g., STAFF, USER, FNF)
+                  examples:
+                    withType:
+                      summary: Get users by type
+                      value:
+                        organizationID: "your-organization-id"
+                        type: "STAFF"
+                    withLimit:
+                      summary: Get users with limit
+                      value:
+                        organizationID: "your-organization-id"
+                        limit: 1
             responses:
               200:
                 description: Organization users retrieved successfully

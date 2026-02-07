@@ -585,8 +585,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   
-  // Extract userId and organizationId from access token (authorizer)
-  const authorizer = (event.requestContext as any)?.authorizer;
+  // Authorization disabled
   const baseLogContext = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
 
   let body: any;
@@ -603,61 +602,27 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     );
   }
 
-  let userId: string | undefined;
-  let organizationId: string | undefined;
+  // Authorization disabled - extract userId and organizationId directly from body
   const bodyUserId = body?.userId || body?.userID;
   const bodyOrganizationId = body?.organizationId || body?.organizationID;
-  userId = bodyUserId || (event as any).userId || (event as any).userID || authorizer?.userID || authorizer?.userId;
-  organizationId =
-    bodyOrganizationId ||
-    (event as any).organizationId ||
-    (event as any).organizationID ||
-    authorizer?.organizationID ||
-    authorizer?.organizationId;
-
-  // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
-  if ((!userId || !organizationId) && event.headers?.Authorization) {
-    try {
-      const authHeader = event.headers.Authorization || event.headers.authorization;
-      if (authHeader && typeof authHeader === 'string') {
-        const token = authHeader.replace('Bearer ', '').trim();
-        // Decode JWT without verification (for development/testing)
-        // In production, this should be handled by the authorizer
-        const base64Url = token.split('.')[1];
-        if (base64Url) {
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(
-            Buffer.from(base64, 'base64')
-              .toString()
-              .split('')
-              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-          const decoded = JSON.parse(jsonPayload);
-          
-          // Extract from common JWT claim formats
-          userId = userId || decoded['custom:userID'] || decoded['custom:userId'] || decoded.userID || decoded.userId || decoded.sub;
-          organizationId = organizationId || decoded['custom:organizationID'] || decoded['custom:organizationId'] || decoded.organizationID || decoded.organizationId;
-        }
-      }
-    } catch (err) {
-      console.log("Error decoding token: ", err);
-      // Continue without token decoding
-    }
-  }
+  
+  // Use body values directly (no authorization required)
+  const userId = bodyUserId;
+  const organizationId = bodyOrganizationId;
 
   console.log("USER ID ", userId);
   console.log("ORGANIZATION ID ", organizationId);
 
-  if (!userId || !organizationId) {
-    const duration = Date.now() - startTime;
-    logHttpRequest(baseLogContext, event.httpMethod || 'PUT', event.path || '/user', 401, duration, correlationId);
-    return ApiResponse.unauthorized(
-      'COMMON.UNAUTHORIZED',
-      { requestId: correlationId, event },
-      { code: 'UNAUTHORIZED', details: [{ message: 'Missing user context in access token' }] },
-    );
-  }
+  // Authorization check disabled
+  // if (!userId || !organizationId) {
+  //   const duration = Date.now() - startTime;
+  //   logHttpRequest(baseLogContext, event.httpMethod || 'PUT', event.path || '/user', 401, duration, correlationId);
+  //   return ApiResponse.unauthorized(
+  //     'COMMON.UNAUTHORIZED',
+  //     { requestId: correlationId, event },
+  //     { code: 'UNAUTHORIZED', details: [{ message: 'Missing user context in access token' }] },
+  //   );
+  // }
 
   const resolvedUserId = userId;
   const resolvedOrganizationId = organizationId;
@@ -969,9 +934,16 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
         }
       }
 
-      const result = await userService.updateUser(resolvedUserId, resolvedOrganizationId, userData, correlationId);
+      await userService.updateUser(resolvedUserId, resolvedOrganizationId, userData, correlationId);
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
-      return ApiResponse.ok(result, 'USER.USER_UPDATED_SUCCESS', { requestId: correlationId, event });
+      return ApiResponse.ok(
+        {}, 
+        { 
+          title: 'Success', 
+          description: 'The operation completed successfully.' 
+        }, 
+        { requestId: correlationId, event }
+      );
     } catch (err) {
       logger.error({ event: 'updateUser_action_error', err: serializeError(err) });
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 500, duration, correlationId);
@@ -1014,6 +986,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     if (data.gender !== undefined) userData.gender = data.gender;
     if (data.dateOfBirth !== undefined) userData.dateOfBirth = data.dateOfBirth;
     if (data.specialty !== undefined) userData.specialty = data.specialty;
+    if (data.department !== undefined) userData.department = data.department;
     if (data.licenseNumber !== undefined) userData.licenseNumber = data.licenseNumber;
     
     // Map contact fields
@@ -1048,10 +1021,17 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     
     // Note: 'action' field is accepted but not stored in user data (may be used for business logic)
     
-    const result = await userService.updateUser(userId, organizationId, userData, correlationId);
+    await userService.updateUser(userId, organizationId, userData, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
-    return ApiResponse.ok(result, 'USER.USER_UPDATED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.ok(
+      {}, 
+      { 
+        title: 'Success', 
+        description: 'The operation completed successfully.' 
+      }, 
+      { requestId: correlationId, event }
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {

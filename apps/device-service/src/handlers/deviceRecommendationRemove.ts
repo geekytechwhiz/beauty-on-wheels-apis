@@ -47,9 +47,24 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
 
   try {
     await recommendationService.removeRecommendation(validation.data.patientUserId, validation.data.deviceId, correlationId);
+    
+    logger.info({
+      event: 'deviceRecommendationRemove_success',
+      patientUserId: validation.data.patientUserId,
+      deviceId: validation.data.deviceId,
+    });
+    
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/recommendations/remove', 200, duration, correlationId);
-    return ApiResponse.ok(null, 'DEVICE.RECOMMENDATION_REMOVED_SUCCESS', { requestId: correlationId, event });
+    
+    return ApiResponse.ok(
+      { message: 'Device un-recommended successfully' },
+      {
+        title: 'Device unrecommend success',
+        description: 'The device unrecommend completed successfully.',
+      },
+      { requestId: correlationId, event }
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof RecommendationNotFoundError) {

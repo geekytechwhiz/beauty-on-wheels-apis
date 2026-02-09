@@ -229,6 +229,7 @@ export class OrgDeviceRepository {
    * Get organization devices
    */
   async getOrgDevices(organizationId: string): Promise<OrgDevice[]> {
+    console.log("ORG DEVICES ", this.tableName);
     const logger = createChildLogger(baseLogger, { organizationId });
     try {
       const result = await this.docClient.send(
@@ -240,6 +241,7 @@ export class OrgDeviceRepository {
           },
         }),
       );
+      console.log("ORG DEVICES ", result);
       logger.info({ event: 'get_org_devices_success', count: result.Items?.length || 0 });
       return (result.Items || []) as OrgDevice[];
     } catch (err) {

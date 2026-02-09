@@ -37,7 +37,7 @@ export class RecommendationRepository {
     const logger = createChildLogger(baseLogger, { patientUserId: data.patientUserId, deviceId: data.deviceId });
     const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
     const now = Date.now();
-
+console.log("NORMALIZED DEVICE ID ", normalizedDeviceId);
     const item: DeviceRecommendation = {
       pk: 'RECOMMEND',
       sk: `${normalizedDeviceId}#${data.patientUserId}`,
@@ -104,19 +104,43 @@ export class RecommendationRepository {
    */
   async getPatientRecommendations(patientUserId: string): Promise<DeviceRecommendation[]> {
     const logger = createChildLogger(baseLogger, { patientUserId });
+    console.log("GET PATIENT RECOMMENDATIONS ", patientUserId);
     try {
+      // Query all recommendations
       const result = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
-          KeyConditionExpression: 'pk = :pk AND sk1 = :sk1',
+          KeyConditionExpression: 'pk = :pk',
           ExpressionAttributeValues: {
             ':pk': 'RECOMMEND',
-            ':sk1': patientUserId,
           },
         }),
       );
-      logger.info({ event: 'get_patient_recommendations_success', count: result.Items?.length || 0 });
-      return (result.Items || []) as DeviceRecommendation[];
+      
+      // Filter to get only recommendations for this patient
+      // sk format is: {deviceId}#{patientUserId}, so we need to extract the second part
+      const filteredItems = (result.Items || []).filter((item: any) => {
+        // Check if sk ends with the patientUserId after #
+        if (item.sk && typeof item.sk === 'string') {
+          const parts = item.sk.split('#');
+          // parts[0] = deviceId, parts[1] = patientUserId
+          if (parts.length >= 2 && parts[1] === patientUserId) {
+            return true;
+          }
+        }
+        // Fallback: check sk1 if it's just the patientUserId
+        if (item.sk1 === patientUserId) {
+          return true;
+        }
+        return false;
+      });
+      
+      logger.info({ 
+        event: 'get_patient_recommendations_success', 
+        totalCount: result.Items?.length || 0,
+        filteredCount: filteredItems.length 
+      });
+      return filteredItems as DeviceRecommendation[];
     } catch (err) {
       logger.error({ event: 'get_patient_recommendations_error', err: serializeError(err) });
       throw err;

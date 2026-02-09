@@ -25,13 +25,18 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
-  // Extract user context from authorizer
-  const authorizer = (event.requestContext as any)?.authorizer;
-  const doctorId = authorizer?.userID || authorizer?.userId || (event as any).userID || (body as any).userID;
-  const organizationId = authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (body as any).organizationID;
+  // Authorization disabled - extract values from body
+  const bodyData = body as any;
+  const doctorId = bodyData.doctorId || bodyData.userID || 'SYSTEM';
+  const organizationId = bodyData.organizationID || bodyData.organizationId;
 
   // Validation
-  const validation = deviceRecommendationAddSchema.safeParse({ ...body, userID: doctorId, organizationID: organizationId });
+  const validation = deviceRecommendationAddSchema.safeParse({ 
+    ...bodyData, 
+    userID: doctorId, 
+    organizationID: organizationId 
+  });
+  
   if (!validation.success) {
     logger.warn({ event: 'deviceRecommendationAdd_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
@@ -50,23 +55,17 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   }
 
   try {
-    if (!validation.data.userID) {
-      const duration = Date.now() - startTime;
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/recommendations/add', 401, duration, correlationId);
-      return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED', details: [{ message: 'Doctor ID is required' }] });
-    }
-
-    if (!validation.data.organizationID) {
-      const duration = Date.now() - startTime;
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/recommendations/add', 400, duration, correlationId);
-      return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'organizationID is required' }] });
-    }
+    // Use doctorId from validation or fallback to 'SYSTEM'
+    const finalDoctorId = validation.data.userID || 'SYSTEM';
+    
+    // organizationID is now optional - will use from body if provided
+    const finalOrganizationId = validation.data.organizationID || organizationId || 'DEFAULT_ORG';
 
     await recommendationService.recommendDevices(
       validation.data.patientUserId,
-      validation.data.userID,
+      finalDoctorId,
       validation.data.doctorName,
-      validation.data.organizationID,
+      finalOrganizationId,
       validation.data.devices,
       correlationId,
     );

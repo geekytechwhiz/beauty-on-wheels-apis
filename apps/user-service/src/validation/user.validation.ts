@@ -147,6 +147,7 @@ export const createUserSchema = z.object({
 });
 
 export const updateUserSchema = z.object({
+  userId: z.string().optional(),
   profilePic: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
@@ -158,6 +159,7 @@ export const updateUserSchema = z.object({
   dateOfBirth: z.string().optional(),
   gender: z.string().optional(),
   specialty: z.string().optional(),
+  department: z.string().optional(),
   licenseNumber: z.string().optional(),
   bio: z.string().optional(),
   namePrefix: z.string().optional(),
@@ -168,6 +170,31 @@ export const updateUserSchema = z.object({
   postalCode: z.string().optional(),
   countryCode: z.string().optional(),
   action: z.string().optional(),
+}).superRefine((data, ctx) => {
+  // If namePrefix is "Dr", then specialty, department, and licenseNumber are required
+  if (data.namePrefix && data.namePrefix.toLowerCase() === 'dr') {
+    if (!data.specialty || data.specialty.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'specialty is required when namePrefix is Dr',
+        path: ['specialty'],
+      });
+    }
+    if (!data.department || data.department.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'department is required when namePrefix is Dr',
+        path: ['department'],
+      });
+    }
+    if (!data.licenseNumber || data.licenseNumber.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'licenseNumber is required when namePrefix is Dr',
+        path: ['licenseNumber'],
+      });
+    }
+  }
 });
 
 export const assignUserToOrganizationSchema = z.object({
@@ -213,7 +240,7 @@ export const sqsEventSchema = z.object({
 });
 
 export const activateDeactivateUserSchema = z.object({
-  action: z.enum(['ACTIVATE', 'DEACTIVATE'], { required_error: 'action must be ACTIVATE or DEACTIVATE' }),
+  action: z.enum(['ACTIVATE', 'DEACTIVATE'], { message: 'action must be ACTIVATE or DEACTIVATE' }),
   organizationID: z.string().optional(),
   patientUserId: z.string().optional(),
 });

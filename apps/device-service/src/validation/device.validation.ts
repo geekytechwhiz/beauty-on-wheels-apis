@@ -35,8 +35,10 @@ export const deviceDeleteMultipleSchema = z.object({
 
 // Retrieve device list schema (POST /devices/list)
 export const deviceListSchema = z.object({
-  action: z.enum(['deviceCategory', 'organization', 'patient']).optional(),
+  action: z.enum(['deviceCategory', 'organization', 'patient', 'recommend']).optional(),
   organizationID: z.string().optional(),
+  organizationId: z.string().optional(), // Support both cases
+  patientUserId: z.string().optional(), // For recommend action
   searchValue: z.string().optional(),
   deviceId: z.string().optional(),
   deviceType: z.string().optional(),
@@ -98,7 +100,9 @@ export const deviceRecommendationAddSchema = z.object({
     )
     .min(1),
   userID: z.string().optional(),
+  doctorId: z.string().optional(), // Support doctorId field
   organizationID: z.string().optional(),
+  organizationId: z.string().optional(), // Support both cases
 });
 
 // Remove device recommendation schema (POST /devices/recommendations/remove)
@@ -131,7 +135,7 @@ export const errorNotificationSchema = z.object({
   name: z.string().optional(),
   channels: z.array(z.enum(['email', 'sms', 'push'])).optional().default(['email', 'sms', 'push']),
   template: z.string().optional(),
-  templateData: z.record(z.unknown()).optional(),
+  templateData: z.record(z.string(), z.unknown()).optional(),
   deviceId: z.string().optional(),
   errorCode: z.string().optional(),
 }).refine(

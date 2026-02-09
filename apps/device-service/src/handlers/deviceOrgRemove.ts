@@ -10,7 +10,7 @@ const orgDeviceRepository = new OrgDeviceRepository();
 // Validation schema for device removal
 const deviceRemoveSchema = z.object({
   accountAlias: z.string().min(1),
-  roleId: z.string().uuid(),
+  roleId: z.string().optional(),
   devices: z
     .array(
       z.object({

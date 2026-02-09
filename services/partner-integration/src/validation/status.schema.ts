@@ -8,7 +8,7 @@ export const statusPathSchema = z.object({
 });
 
 /**
- * Query params: partnerId required to resolve which lab partner to call.
+ * Query params: partnerId required to resolve which partner to call.
  */
 export const statusQuerySchema = z.object({
   partnerId: z.string().min(1).max(128),

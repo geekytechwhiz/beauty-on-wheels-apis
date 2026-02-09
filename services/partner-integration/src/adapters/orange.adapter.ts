@@ -1,12 +1,12 @@
 import axios, { type AxiosError } from 'axios';
-import type { LabPartnerAdapter, LabPartnerConfig } from './labPartner.adapter';
-import type { CreateLabOrderCommand } from '../models/labOrder.command';
-import type { LabIntegrationResult } from '../models/labIntegration.result';
+import type { PartnerAdapter, PartnerConfig } from './partner.adapter';
+import type { CreateOrderCommand } from '../models/order.command';
+import type { IntegrationResult } from '../models/integration.result';
 import { InvalidPartnerResponseError, PartnerUnavailableError } from '../utils/integrationErrors';
 import { getAuthHeadersFromRegistry, getPartnerApiKey } from '../utils/partnerAuth';
 import {
-  toLabResult,
-  toLabResultError,
+  toResult,
+  toResultError,
   type PartnerOrderPayload,
 } from '../utils/responseMapper';
 
@@ -46,8 +46,8 @@ function translateError(partnerId: string, err: unknown): never {
   throw new PartnerUnavailableError(partnerId, msg);
 }
 
-export class OrangeAdapter implements LabPartnerAdapter {
-  constructor(private readonly config: LabPartnerConfig) {}
+export class OrangeAdapter implements PartnerAdapter {
+  constructor(private readonly config: PartnerConfig) {}
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
     if (this.config.authConfig) {
@@ -64,7 +64,7 @@ export class OrangeAdapter implements LabPartnerAdapter {
     return this.config.apiBaseUrl.replace(/\/$/, '');
   }
 
-  private mapCreateOrderBody(command: CreateLabOrderCommand): Record<string, unknown> {
+  private mapCreateOrderBody(command: CreateOrderCommand): Record<string, unknown> {
     return {
       patientId: command.patientId,
       ...(command.patientName && { patientName: command.patientName }),
@@ -76,7 +76,7 @@ export class OrangeAdapter implements LabPartnerAdapter {
     };
   }
 
-  async createOrder(command: CreateLabOrderCommand): Promise<LabIntegrationResult> {
+  async createOrder(command: CreateOrderCommand): Promise<IntegrationResult> {
     const { partnerId } = this.config;
     const url = `${this.baseUrl()}/lab/orders`;
     const headers = await this.getAuthHeaders();
@@ -86,13 +86,13 @@ export class OrangeAdapter implements LabPartnerAdapter {
         timeout: REQUEST_TIMEOUT_MS,
         headers,
       });
-      return toLabResult(data ?? null, { success: true });
+      return toResult(data ?? null, { success: true });
     } catch (err) {
       translateError(partnerId, err);
     }
   }
 
-  async cancelOrder(orderId: string): Promise<LabIntegrationResult> {
+  async cancelOrder(orderId: string): Promise<IntegrationResult> {
     const { partnerId } = this.config;
     const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/cancel`;
     const headers = await this.getAuthHeaders();
@@ -102,16 +102,16 @@ export class OrangeAdapter implements LabPartnerAdapter {
         timeout: REQUEST_TIMEOUT_MS,
         headers,
       });
-      return toLabResult(data ?? null, { orderId, success: true });
+      return toResult(data ?? null, { orderId, success: true });
     } catch (err) {
       if (isAxiosError(err) && err.response?.status === 404) {
-        return toLabResultError(orderId, 'Order not found');
+        return toResultError(orderId, 'Order not found');
       }
       translateError(partnerId, err);
     }
   }
 
-  async fetchStatus(orderId: string): Promise<LabIntegrationResult> {
+  async fetchStatus(orderId: string): Promise<IntegrationResult> {
     const { partnerId } = this.config;
     const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/status`;
     const headers = await this.getAuthHeaders();
@@ -121,10 +121,10 @@ export class OrangeAdapter implements LabPartnerAdapter {
         timeout: REQUEST_TIMEOUT_MS,
         headers,
       });
-      return toLabResult(data ?? null, { orderId, success: true });
+      return toResult(data ?? null, { orderId, success: true });
     } catch (err) {
       if (isAxiosError(err) && err.response?.status === 404) {
-        return toLabResultError(orderId, 'Order not found');
+        return toResultError(orderId, 'Order not found');
       }
       translateError(partnerId, err);
     }

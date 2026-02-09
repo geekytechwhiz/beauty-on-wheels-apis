@@ -1,9 +1,9 @@
 /**
- * Canonical lab integration result (partner-agnostic).
+ * Canonical integration result (partner-agnostic).
  * No raw partner payloads or partner-specific fields.
  */
 
-export type LabOrderStatus =
+export type OrderStatus =
   | 'PENDING'
   | 'COLLECTED'
   | 'IN_TRANSIT'
@@ -14,10 +14,10 @@ export type LabOrderStatus =
   | 'FAILED'
   | 'UNKNOWN';
 
-export interface LabIntegrationResult {
+export interface IntegrationResult {
   success: boolean;
   orderId?: string;
-  status?: LabOrderStatus;
+  status?: OrderStatus;
   message?: string;
   externalOrderId?: string;
   errors?: Array<{ code?: string; message: string }>;

@@ -87,37 +87,37 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
 
-  createLabOrder:
-    handler: src/handlers/createLabOrder.main
+  createOrder:
+    handler: src/handlers/createOrder.main
     timeout: 15
     memorySize: 256
     events:
       - http:
-          path: /lab/orders
+          path: /orders
           method: post
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
 
-  cancelLabOrder:
-    handler: src/handlers/cancelLabOrder.main
+  cancelOrder:
+    handler: src/handlers/cancelOrder.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: /lab/orders/{orderId}/cancel
+          path: /orders/{orderId}/cancel
           method: post
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
 
-  getLabOrderStatus:
-    handler: src/handlers/getLabOrderStatus.main
+  getOrderStatus:
+    handler: src/handlers/getOrderStatus.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: /lab/orders/{orderId}/status
+          path: /orders/{orderId}/status
           method: get
           cors:
             origin: ${self:custom.cors.origin}

@@ -1,5 +1,5 @@
 /**
- * Custom errors for lab integration. Mapped to ApiResponse in handlers.
+ * Custom errors for partner integration. Mapped to ApiResponse in handlers.
  * Never expose raw partner payloads or errors.
  */
 

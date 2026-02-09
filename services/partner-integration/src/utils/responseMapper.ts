@@ -1,6 +1,6 @@
-import type { LabIntegrationResult, LabOrderStatus } from '../models/labIntegration.result';
+import type { IntegrationResult, OrderStatus } from '../models/integration.result';
 
-const STATUS_MAP: Record<string, LabOrderStatus> = {
+const STATUS_MAP: Record<string, OrderStatus> = {
   pending: 'PENDING',
   submitted: 'PENDING',
   pending_collection: 'PENDING',
@@ -18,7 +18,7 @@ const STATUS_MAP: Record<string, LabOrderStatus> = {
   rejected: 'FAILED',
 };
 
-function normalizeStatus(raw: unknown): LabOrderStatus {
+function normalizeStatus(raw: unknown): OrderStatus {
   if (raw == null) return 'UNKNOWN';
   const s = String(raw).toLowerCase().trim();
   return STATUS_MAP[s] ?? 'UNKNOWN';
@@ -26,7 +26,7 @@ function normalizeStatus(raw: unknown): LabOrderStatus {
 
 /**
  * Generic partner response shape (orderId/id, status/state, externalId).
- * Adapters map partner-specific payloads to this before calling toLabResult.
+ * Adapters map partner-specific payloads to this before calling toResult.
  */
 export interface PartnerOrderPayload {
   orderId?: string;
@@ -40,10 +40,10 @@ export interface PartnerOrderPayload {
   errors?: Array<{ code?: string; message?: string }>;
 }
 
-export function toLabResult(
+export function toResult(
   payload: PartnerOrderPayload | null,
   options: { orderId?: string; success?: boolean } = {}
-): LabIntegrationResult {
+): IntegrationResult {
   const success = payload !== null && (options.success ?? true);
   const orderId = payload?.orderId ?? payload?.id ?? options.orderId;
   const status = normalizeStatus(payload?.status ?? payload?.state);
@@ -61,7 +61,7 @@ export function toLabResult(
   };
 }
 
-export function toLabResultError(orderId: string, message: string): LabIntegrationResult {
+export function toResultError(orderId: string, message: string): IntegrationResult {
   return {
     success: false,
     orderId,

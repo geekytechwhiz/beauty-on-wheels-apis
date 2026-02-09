@@ -8,7 +8,7 @@ import {
   createHandlerLogger,
   parseJsonBody,
 } from '../utils/handlerHelpers';
-import * as labIntegrationService from '../services/labIntegration.service';
+import * as integrationService from '../services/integration.service';
 import {
   PartnerUnavailableError,
   UnsupportedPartnerError,
@@ -19,11 +19,11 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const logger = createHandlerLogger(event, context);
-  logger.info({ event: 'createLabOrder_received' });
+  logger.info({ event: 'createOrder_received' });
 
   const body = parseJsonBody(event);
   if (body === null) {
-    logger.warn({ event: 'createLabOrder_invalid_json' });
+    logger.warn({ event: 'createOrder_invalid_json' });
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
       responseOpts(event, requestId),
@@ -33,7 +33,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
 
   const validation = createOrderSchema.safeParse(body);
   if (!validation.success) {
-    logger.warn({ event: 'createLabOrder_validation_error', errors: validation.error.issues });
+    logger.warn({ event: 'createOrder_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
       responseOpts(event, requestId),
@@ -48,43 +48,43 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   const { partnerId } = validation.data;
-  logger.info({ event: 'createLabOrder_processing', partnerId, correlationId: requestId });
+  logger.info({ event: 'createOrder_processing', partnerId, correlationId: requestId });
 
   try {
-    const result = await labIntegrationService.createLabOrder(validation.data);
+    const result = await integrationService.createOrder(validation.data);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/lab/orders', 201, duration, requestId);
-    return ApiResponse.created(result, 'LAB_INTEGRATION.ORDER_CREATED', responseOpts(event, requestId));
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 201, duration, requestId);
+    return ApiResponse.created(result, 'PARTNER_INTEGRATION.ORDER_CREATED', responseOpts(event, requestId));
   } catch (err) {
-    logger.error({ event: 'createLabOrder_error', err: serializeError(err), partnerId });
+    logger.error({ event: 'createOrder_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
     if (err instanceof UnsupportedPartnerError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/lab/orders', 400, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 400, duration, requestId);
       return ApiResponse.badRequest(
-        'LAB_INTEGRATION.UNSUPPORTED_PARTNER',
+        'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
         responseOpts(event, requestId),
         { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerUnavailableError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/lab/orders', 503, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 503, duration, requestId);
       return ApiResponse.error(
         503,
-        'LAB_INTEGRATION.PARTNER_UNAVAILABLE',
+        'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
         responseOpts(event, requestId),
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
     if (err instanceof InvalidPartnerResponseError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/lab/orders', 502, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 502, duration, requestId);
       return ApiResponse.error(
         502,
-        'LAB_INTEGRATION.INVALID_PARTNER_RESPONSE',
+        'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
         responseOpts(event, requestId),
         { code: 'INVALID_PARTNER_RESPONSE', details: [{ message: err.message }] }
       );
     }
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/lab/orders', 500, duration, requestId);
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
       responseOpts(event, requestId),

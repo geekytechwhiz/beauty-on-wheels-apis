@@ -5,11 +5,11 @@
 
 import axios, { type AxiosError } from 'axios';
 import type { Partner } from '@api-hub/partners';
-import type { LabPartnerConfig } from '../adapters/labPartner.adapter';
+import type { PartnerConfig } from '../adapters/partner.adapter';
 
 /** Partner with optional authConfig and adapterKey (registry fields). */
 interface PartnerWithAuth extends Partner {
-  authConfig?: LabPartnerConfig['authConfig'];
+  authConfig?: PartnerConfig['authConfig'];
   adapterKey?: string;
 }
 import { PartnerUnavailableError } from '../utils/integrationErrors';
@@ -31,9 +31,9 @@ function isAxiosError(err: unknown): err is AxiosError {
 
 /**
  * Fetches partner by id from Partner Registry (READ-ONLY).
- * Returns LabPartnerConfig with apiBaseUrl from partner's API endpoint.
+ * Returns PartnerConfig with apiBaseUrl from partner's API endpoint.
  */
-export async function getPartnerConfig(partnerId: string): Promise<LabPartnerConfig> {
+export async function getPartnerConfig(partnerId: string): Promise<PartnerConfig> {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}/partner/${encodeURIComponent(partnerId)}`;
 

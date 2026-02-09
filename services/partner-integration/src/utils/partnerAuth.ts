@@ -6,7 +6,7 @@
 
 import axios from 'axios';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
-import type { PartnerAuthConfig } from '../adapters/labPartner.adapter';
+import type { PartnerAuthConfig } from '../adapters/partner.adapter';
 
 const region = process.env.REGION || process.env.DEFAULT_REGION || 'us-east-1';
 let secretsClient: SecretsManagerClient | null = null;

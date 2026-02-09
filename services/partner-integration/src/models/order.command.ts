@@ -1,9 +1,9 @@
 /**
- * Canonical lab order command (partner-agnostic).
+ * Canonical order command (partner-agnostic).
  * No partner-specific fields.
  */
 
-export interface CreateLabOrderCommand {
+export interface CreateOrderCommand {
   partnerId: string;
   patientId: string;
   patientName?: string;

@@ -1,5 +1,5 @@
-import type { LabPartnerAdapter } from '../adapters/labPartner.adapter';
-import type { LabPartnerConfig } from '../adapters/labPartner.adapter';
+import type { PartnerAdapter } from '../adapters/partner.adapter';
+import type { PartnerConfig } from '../adapters/partner.adapter';
 import { RedcliffeAdapter } from '../adapters/redcliffe.adapter';
 import { OrangeAdapter } from '../adapters/orange.adapter';
 import { UnsupportedPartnerError } from '../utils/integrationErrors';
@@ -17,10 +17,10 @@ function isAllowedAdapterKey(key: string): key is AdapterKey {
 }
 
 /**
- * Resolves the lab partner adapter from registry config (G4).
+ * Resolves the partner adapter from registry config (G4).
  * Uses config.adapterKey when set; otherwise falls back to partnerId for backward compatibility.
  */
-export function getLabAdapter(partnerId: string, config: LabPartnerConfig): LabPartnerAdapter {
+export function getAdapter(partnerId: string, config: PartnerConfig): PartnerAdapter {
   const key = config.adapterKey ? normalizeKey(config.adapterKey) : normalizeKey(partnerId);
   if (!isAllowedAdapterKey(key)) {
     throw new UnsupportedPartnerError(

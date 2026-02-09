@@ -12,7 +12,7 @@ const orgDeviceRepository = new OrgDeviceRepository();
 // Validation schema for device assignment
 const deviceAssignSchema = z.object({
   accountAlias: z.string().min(1),
-  roleId: z.string().uuid(),
+  roleId: z.string().optional(),
   devices: z
     .array(
       z.object({

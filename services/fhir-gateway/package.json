@@ -5,6 +5,7 @@
   "scripts": {
     "deploy": "serverless deploy",
     "offline": "serverless offline",
+    "offline:dev": "FHIR_GATEWAY_LOCAL_DEV=true serverless offline",
     "package": "serverless package"
   },
   "devDependencies": {

@@ -53,9 +53,14 @@ export function getAuthContext(
     };
   }
   if (authorizationHeader?.startsWith('Bearer ')) {
+    const isLocalDev = process.env.FHIR_GATEWAY_LOCAL_DEV === 'true';
     return {
       clientId: 'default-client',
       purposeOfUse: 'TREATMENT',
+      ...(isLocalDev && {
+        scope: ['patient/Patient.read', 'user/Observation.read', 'user/Observation.search'],
+        tenantId: 'local-tenant',
+      }),
     };
   }
   return null;

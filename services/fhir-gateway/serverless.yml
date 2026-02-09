@@ -17,6 +17,7 @@ provider:
     USER_SERVICE_URL: ${env:USER_SERVICE_URL, ''}
     DEVICE_SERVICE_URL: ${env:DEVICE_SERVICE_URL, ''}
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+    FHIR_GATEWAY_LOCAL_DEV: ${env:FHIR_GATEWAY_LOCAL_DEV, 'false'}
   httpApi:
     cors: true
   tags:

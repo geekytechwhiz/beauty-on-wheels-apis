@@ -1,0 +1,7 @@
+{
+  "name": "authorizer-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/authorizer-service/src",
+  "projectType": "application",
+  "tags": ["type:service"]
+}

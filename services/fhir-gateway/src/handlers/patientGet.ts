@@ -1,68 +1,73 @@
 /**
  * GET /fhir/Patient/{id}
- * Auth → Consent → Fetch canonical from apps → Map to FHIR → Validate → Response.
+ * Auth → Scope → Consent → Tenant → Fetch canonical → Map to FHIR → Audit → Response.
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { getAuthContext } from '../auth';
-import { evaluateConsent } from '@api-hub/consent';
+import { enforceConsent } from '@api-hub/consent';
+import { isScopeAllowed } from '@api-hub/scope-mapping';
+import { assertResourceInTenant, TenantAccessDeniedError } from '@api-hub/tenant-guard';
+import { logAccessAudit } from '@api-hub/access-audit';
 import { fetchCanonicalPatient } from './fetchCanonical';
 import { exposePatient } from '../exposure';
+
+const fhirJson = { 'Content-Type': 'application/fhir+json' };
+
+function operationOutcome(statusCode: number, code: string, text: string): APIGatewayProxyResult {
+  return {
+    statusCode,
+    headers: fhirJson,
+    body: JSON.stringify({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code, details: { text } }],
+    }),
+  };
+}
 
 export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   const id = event.pathParameters?.id;
   if (!id) {
-    return {
-      statusCode: 400,
-      headers: { 'Content-Type': 'application/fhir+json' },
-      body: JSON.stringify({
-        resourceType: 'OperationOutcome',
-        issue: [{ severity: 'error', code: 'required', details: { text: 'Patient id required' } }],
-      }),
-    };
+    return operationOutcome(400, 'required', 'Patient id required');
   }
 
   const auth = getAuthContext(
-    event.headers?.Authorization ?? event.headers?.authorization
+    event.headers?.Authorization ?? event.headers?.authorization,
+    event.requestContext
   );
   if (!auth) {
-    return {
-      statusCode: 401,
-      headers: { 'Content-Type': 'application/fhir+json' },
-      body: JSON.stringify({
-        resourceType: 'OperationOutcome',
-        issue: [{ severity: 'error', code: 'login', details: { text: 'Unauthorized' } }],
-      }),
-    };
+    return operationOutcome(401, 'login', 'Unauthorized');
   }
 
-  const consent = evaluateConsent({
-    patientId: id,
-    resourceType: 'Patient',
-    purposeOfUse: auth.purposeOfUse ?? 'TREATMENT',
-  });
+  const scopes = auth.scope ?? [];
+  if (!isScopeAllowed(scopes, 'Patient', 'read')) {
+    return operationOutcome(403, 'forbidden', 'Insufficient scope for Patient read');
+  }
+
+  const consent = enforceConsent(auth, id, 'Patient');
   if (consent === 'DENY') {
-    return {
-      statusCode: 403,
-      headers: { 'Content-Type': 'application/fhir+json' },
-      body: JSON.stringify({
-        resourceType: 'OperationOutcome',
-        issue: [{ severity: 'error', code: 'forbidden', details: { text: 'Consent denied' } }],
-      }),
-    };
+    return operationOutcome(403, 'forbidden', 'Consent denied');
   }
 
   const canonical = await fetchCanonicalPatient(id);
   if (!canonical) {
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'application/fhir+json' },
-      body: JSON.stringify({
-        resourceType: 'OperationOutcome',
-        issue: [{ severity: 'error', code: 'not-found', details: { text: 'Patient not found' } }],
-      }),
-    };
+    return operationOutcome(404, 'not-found', 'Patient not found');
+  }
+
+  if (auth.tenantId) {
+    const resourceTenantId = canonical.organizationId ?? '';
+    if (!resourceTenantId) {
+      return operationOutcome(403, 'forbidden', 'Tenant isolation: resource has no tenant');
+    }
+    try {
+      assertResourceInTenant(auth.tenantId, resourceTenantId, 'Patient', id);
+    } catch (err) {
+      if (err instanceof TenantAccessDeniedError) {
+        return operationOutcome(403, 'forbidden', 'Tenant isolation: access denied');
+      }
+      throw err;
+    }
   }
 
   if (consent === 'MASK') {
@@ -71,16 +76,37 @@ export async function handler(
 
   const result = exposePatient(canonical, 'r4');
   if (!result.success) {
+    await logAccessAudit({
+      action: 'R',
+      resourceType: 'Patient',
+      resourceId: id,
+      agentId: auth.subjectId,
+      clientId: auth.clientId,
+      tenantId: auth.tenantId,
+      outcome: '8',
+      requestId: event.requestContext?.requestId,
+    });
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/fhir+json' },
+      headers: fhirJson,
       body: JSON.stringify(result.outcome),
     };
   }
 
+  await logAccessAudit({
+    action: 'R',
+    resourceType: 'Patient',
+    resourceId: id,
+    agentId: auth.subjectId,
+    clientId: auth.clientId,
+    tenantId: auth.tenantId,
+    outcome: '0',
+    requestId: event.requestContext?.requestId,
+  });
+
   return {
     statusCode: 200,
-    headers: { 'Content-Type': 'application/fhir+json' },
+    headers: fhirJson,
     body: JSON.stringify(result.resource),
   };
 }

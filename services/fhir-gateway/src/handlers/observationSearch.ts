@@ -1,62 +1,69 @@
 /**
  * GET /fhir/Observation?patient={id}
- * Auth → Consent → Fetch canonical from apps → Map to FHIR Bundle → Validate → Response.
+ * Auth → Scope → Consent → Tenant (via patient) → Fetch canonical → Map to FHIR → Audit → Response.
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { getAuthContext } from '../auth';
-import { evaluateConsent } from '@api-hub/consent';
-import { fetchCanonicalObservations } from './fetchCanonical';
+import { enforceConsent } from '@api-hub/consent';
+import { isScopeAllowed } from '@api-hub/scope-mapping';
+import { assertResourceInTenant, TenantAccessDeniedError } from '@api-hub/tenant-guard';
+import { logAccessAudit } from '@api-hub/access-audit';
+import { fetchCanonicalPatient, fetchCanonicalObservations } from './fetchCanonical';
 import { exposeObservation } from '../exposure';
+
+const fhirJson = { 'Content-Type': 'application/fhir+json' };
+
+function operationOutcome(statusCode: number, code: string, text: string): APIGatewayProxyResult {
+  return {
+    statusCode,
+    headers: fhirJson,
+    body: JSON.stringify({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code, details: { text } }],
+    }),
+  };
+}
 
 export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   const patientId = event.queryStringParameters?.patient;
   if (!patientId) {
-    return {
-      statusCode: 400,
-      headers: { 'Content-Type': 'application/fhir+json' },
-      body: JSON.stringify({
-        resourceType: 'OperationOutcome',
-        issue: [
-          {
-            severity: 'error',
-            code: 'required',
-            details: { text: 'Query parameter patient is required' },
-          },
-        ],
-      }),
-    };
+    return operationOutcome(400, 'required', 'Query parameter patient is required');
   }
 
   const auth = getAuthContext(
-    event.headers?.Authorization ?? event.headers?.authorization
+    event.headers?.Authorization ?? event.headers?.authorization,
+    event.requestContext
   );
   if (!auth) {
-    return {
-      statusCode: 401,
-      headers: { 'Content-Type': 'application/fhir+json' },
-      body: JSON.stringify({
-        resourceType: 'OperationOutcome',
-        issue: [{ severity: 'error', code: 'login', details: { text: 'Unauthorized' } }],
-      }),
-    };
+    return operationOutcome(401, 'login', 'Unauthorized');
   }
 
-  const consent = evaluateConsent({
-    patientId,
-    resourceType: 'Observation',
-    purposeOfUse: auth.purposeOfUse ?? 'TREATMENT',
-  });
+  const scopes = auth.scope ?? [];
+  if (!isScopeAllowed(scopes, 'Observation', 'search')) {
+    return operationOutcome(403, 'forbidden', 'Insufficient scope for Observation search');
+  }
+
+  const consent = enforceConsent(auth, patientId, 'Observation');
   if (consent === 'DENY') {
-    return {
-      statusCode: 403,
-      headers: { 'Content-Type': 'application/fhir+json' },
-      body: JSON.stringify({
-        resourceType: 'OperationOutcome',
-        issue: [{ severity: 'error', code: 'forbidden', details: { text: 'Consent denied' } }],
-      }),
-    };
+    return operationOutcome(403, 'forbidden', 'Consent denied');
+  }
+
+  if (auth.tenantId) {
+    const patient = await fetchCanonicalPatient(patientId);
+    const resourceTenantId = patient?.organizationId ?? '';
+    if (!resourceTenantId) {
+      return operationOutcome(403, 'forbidden', 'Tenant isolation: patient has no tenant');
+    }
+    try {
+      assertResourceInTenant(auth.tenantId, resourceTenantId, 'Observation', patientId);
+    } catch (err) {
+      if (err instanceof TenantAccessDeniedError) {
+        return operationOutcome(403, 'forbidden', 'Tenant isolation: access denied');
+      }
+      throw err;
+    }
   }
 
   const canonicalList = await fetchCanonicalObservations(patientId);
@@ -78,9 +85,20 @@ export async function handler(
     entry: entries,
   };
 
+  await logAccessAudit({
+    action: 'R',
+    resourceType: 'Observation',
+    resourceId: patientId,
+    agentId: auth.subjectId,
+    clientId: auth.clientId,
+    tenantId: auth.tenantId,
+    outcome: '0',
+    requestId: event.requestContext?.requestId,
+  });
+
   return {
     statusCode: 200,
-    headers: { 'Content-Type': 'application/fhir+json' },
+    headers: fhirJson,
     body: JSON.stringify(bundle),
   };
 }

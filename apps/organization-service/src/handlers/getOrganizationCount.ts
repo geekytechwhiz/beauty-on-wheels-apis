@@ -28,11 +28,25 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
 
   try {
     const result = await organizationService.getOrganizationCounts(correlationId);
+    
+    logger.info({ 
+      event: 'getOrganizationCount_success', 
+      total: result.total,
+      orgType: result.orgType
+    });
+    
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 200, duration, correlationId);
+    
     return ApiResponse.ok(
-      { total: result.total, orgType: result.orgType },
-      'FACILITY.ORGANIZATION_COUNT_SUCCESS',
+      { 
+        total: result.total, 
+        orgType: result.orgType 
+      },
+      {
+        title: 'Organization count success',
+        description: 'The organization count completed successfully.',
+      },
       { requestId: correlationId, event },
     );
   } catch (err) {

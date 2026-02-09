@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationLink, OrganizationUpdate } from '../models';
@@ -14,7 +14,6 @@ import {
   organizationLinkSk,
   organizationUpdatesPk,
   organizationUpdatesSk,
-  ORGANIZATION_COUNT_PK,
 } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
@@ -474,20 +473,67 @@ export class OrganizationRepository {
   }
 
   async getOrganizationCounts(): Promise<Array<{ sk: string; count: number }>> {
+    const logger = createChildLogger(baseLogger, {});
     try {
-      const response = await ddbDocClient.send(
-        new QueryCommand({
+      logger.info({ event: 'organization_counts_scan_start' });
+      
+      // Scan all organizations with sk = 'ORG_DETAILS'
+      const organizations: Array<{ organizationType?: string; deleted?: boolean }> = [];
+      let lastEvaluatedKey: Record<string, any> | undefined;
+      
+      do {
+        const scanParams: any = {
           TableName: ORGANIZATION_TABLE_NAME,
-          KeyConditionExpression: 'pk = :pk',
-          ExpressionAttributeValues: { ':pk': ORGANIZATION_COUNT_PK },
-        }),
-      );
-      const items = (response.Items || []) as Array<{ sk: string; count?: number }>;
-      const logger = createChildLogger(baseLogger, {});
-      logger.info({ event: 'organization_counts_fetched', count: items.length });
-      return items.map((item) => ({ sk: item.sk, count: item.count ?? 0 }));
+          FilterExpression: 'sk = :sk',
+          ExpressionAttributeValues: {
+            ':sk': 'ORG_DETAILS',
+          },
+        };
+        
+        if (lastEvaluatedKey) {
+          scanParams.ExclusiveStartKey = lastEvaluatedKey;
+        }
+        
+        const response = await ddbDocClient.send(new ScanCommand(scanParams));
+        
+        if (response.Items) {
+          organizations.push(...(response.Items as Array<{ organizationType?: string; deleted?: boolean }>));
+        }
+        
+        lastEvaluatedKey = response.LastEvaluatedKey;
+      } while (lastEvaluatedKey);
+      
+      // Filter out deleted organizations
+      const activeOrganizations = organizations.filter(org => org.deleted !== true);
+      
+      logger.info({ 
+        event: 'organization_counts_scanned', 
+        totalOrganizations: organizations.length,
+        activeOrganizations: activeOrganizations.length
+      });
+      
+      // Count by organization type
+      const countsByType: Record<string, number> = {};
+      
+      for (const org of activeOrganizations) {
+        const orgType = org.organizationType || 'UNKNOWN';
+        countsByType[orgType] = (countsByType[orgType] || 0) + 1;
+      }
+      
+      // Convert to array format expected by service
+      const result = Object.entries(countsByType).map(([type, count]) => ({
+        sk: type,
+        count: count,
+      }));
+      
+      logger.info({ 
+        event: 'organization_counts_fetched', 
+        types: Object.keys(countsByType),
+        counts: countsByType
+      });
+      
+      return result;
     } catch (err) {
-      const logger = createChildLogger(baseLogger, {});
       logger.error({ event: 'organization_counts_error', err: serializeError(err) });
       throw err;
     }

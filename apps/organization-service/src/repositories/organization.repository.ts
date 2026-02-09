@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationLink, OrganizationUpdate } from '../models';
@@ -475,26 +475,27 @@ export class OrganizationRepository {
   async getOrganizationCounts(): Promise<Array<{ sk: string; count: number }>> {
     const logger = createChildLogger(baseLogger, {});
     try {
-      logger.info({ event: 'organization_counts_scan_start' });
+      logger.info({ event: 'organization_counts_query_start' });
       
-      // Scan all organizations with sk = 'ORG_DETAILS'
+      // Query all organizations using GSI1
       const organizations: Array<{ organizationType?: string; deleted?: boolean }> = [];
       let lastEvaluatedKey: Record<string, any> | undefined;
       
       do {
-        const scanParams: any = {
+        const queryParams: any = {
           TableName: ORGANIZATION_TABLE_NAME,
-          FilterExpression: 'sk = :sk',
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'gsi1pk = :gsi1pk',
           ExpressionAttributeValues: {
-            ':sk': 'ORG_DETAILS',
+            ':gsi1pk': 'ORG_LIST',
           },
         };
         
         if (lastEvaluatedKey) {
-          scanParams.ExclusiveStartKey = lastEvaluatedKey;
+          queryParams.ExclusiveStartKey = lastEvaluatedKey;
         }
         
-        const response = await ddbDocClient.send(new ScanCommand(scanParams));
+        const response = await ddbDocClient.send(new QueryCommand(queryParams));
         
         if (response.Items) {
           organizations.push(...(response.Items as Array<{ organizationType?: string; deleted?: boolean }>));
@@ -507,7 +508,7 @@ export class OrganizationRepository {
       const activeOrganizations = organizations.filter(org => org.deleted !== true);
       
       logger.info({ 
-        event: 'organization_counts_scanned', 
+        event: 'organization_counts_queried', 
         totalOrganizations: organizations.length,
         activeOrganizations: activeOrganizations.length
       });

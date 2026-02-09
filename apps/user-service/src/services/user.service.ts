@@ -715,10 +715,13 @@ export class UserService {
       weightUnit: userUnits.weightUnit || 'kg',
     };
 
-    // Determine userType - safe type checking
+    // Determine userType - prefer DB userType (source of truth), then userCat, then roleType/request param
     let finalUserType = 'USER'; // Default
     try {
-      if (user.userCat && Array.isArray(user.userCat) && user.userCat.length > 0) {
+      const dbUserType = (user.userType && typeof user.userType === 'string' && user.userType.trim()) ? user.userType.trim() : '';
+      if (dbUserType) {
+        finalUserType = dbUserType;
+      } else if (user.userCat && Array.isArray(user.userCat) && user.userCat.length > 0) {
         finalUserType = typeof user.userCat[0] === 'string' ? user.userCat[0] : 'USER';
       } else {
         // roleType will be set from role service later, but for now use provided userType
@@ -1612,8 +1615,12 @@ export class UserService {
         scheduleConfiguration = { ...rest };
       }
 
-      // Get user category
-      let userCategory = userBasicDetails.userCat?.[0] || userType || 'USER';
+      // Get user category: prefer DB userType (source of truth), then userCat, then request param, then default
+      let userCategory =
+        (userBasicDetails.userType && String(userBasicDetails.userType).trim()) ||
+        userBasicDetails.userCat?.[0] ||
+        userType ||
+        'USER';
 
       // Get currencies (matches original: getCurrenciesForCountryCode)
       const currencies = await this.repository.getCurrenciesForCountryCode(

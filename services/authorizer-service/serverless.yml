@@ -16,7 +16,8 @@ provider:
   environment:
     REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, ''}
-    EXPECTED_AUDIENCE: ${env:EXPECTED_AUDIENCE, env:COGNITO_CLIENT_ID, ''}
+    EXPECTED_AUDIENCE: ${env:EXPECTED_AUDIENCE, ''}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, ''}
     SECRET_MANAGER_NAME: ${env:SECRET_MANAGER_NAME, ''}
     USER_TABLE: ${env:USER_TABLE, ''}
     END_USER_MESSAGING_URL: ${env:END_USER_MESSAGING_URL, ''}
@@ -42,7 +43,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: true
-    target: node22
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json

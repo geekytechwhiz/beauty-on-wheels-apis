@@ -8,5 +8,9 @@
     "emitDeclarationOnly": true
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../canonical/tsconfig.lib.json"
+    }
+  ]
 }

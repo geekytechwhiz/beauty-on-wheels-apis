@@ -4,10 +4,73 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/user-service/tsconfig.app.json"
+      "path": "./libs/logger"
     },
     {
-      "path": "./libs/logger"
+      "path": "./services/partner-integration"
+    },
+    {
+      "path": "./services/authorizer-service"
+    },
+    {
+      "path": "./apps/organization-service"
+    },
+    {
+      "path": "./services/partner-registry"
+    },
+    {
+      "path": "./services/realtime-gateway"
+    },
+    {
+      "path": "./libs/integration-events"
+    },
+    {
+      "path": "./services/fhir-gateway"
+    },
+    {
+      "path": "./libs/lab-integration"
+    },
+    {
+      "path": "./apps/device-service"
+    },
+    {
+      "path": "./libs/error-messages"
+    },
+    {
+      "path": "./libs/scope-mapping"
+    },
+    {
+      "path": "./libs/access-audit"
+    },
+    {
+      "path": "./libs/tenant-guard"
+    },
+    {
+      "path": "./apps/user-service"
+    },
+    {
+      "path": "./libs/terminology"
+    },
+    {
+      "path": "./libs/capability"
+    },
+    {
+      "path": "./libs/canonical"
+    },
+    {
+      "path": "./libs/partners"
+    },
+    {
+      "path": "./libs/consent"
+    },
+    {
+      "path": "./libs/utils"
+    },
+    {
+      "path": "./libs/auth"
+    },
+    {
+      "path": "./libs/fhir"
     }
   ]
 }

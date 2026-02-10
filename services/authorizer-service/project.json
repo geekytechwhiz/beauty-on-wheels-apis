@@ -3,5 +3,14 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "services/authorizer-service/src",
   "projectType": "application",
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "services/authorizer-service/jest.config.cjs",
+        "passWithNoTests": false
+      }
+    }
+  },
   "tags": ["type:service"]
 }

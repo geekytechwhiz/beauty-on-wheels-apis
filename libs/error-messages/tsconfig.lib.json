@@ -13,8 +13,7 @@
   "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"],
   "references": [
     {
-      "path": "../logger"
+      "path": "../logger/tsconfig.lib.json"
     }
   ]
 }
-

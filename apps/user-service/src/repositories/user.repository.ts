@@ -405,10 +405,18 @@ export class UserRepository {
     filters?: { roleId?: string; roleName?: string; roleType?: string; status?: string },
   ): Promise<Array<Record<string, unknown>>> {
     const logger = createChildLogger(baseLogger, { organizationId });
-    const pk = orgUserCountPk(organizationId);
-    const items: Array<Record<string, unknown>> = [];
+    
+    // Query actual users from ORG_USER_LIST (not ORG_USER_COUNT)
+    const userListPk = `ORG_USER_LIST#${organizationId}`;
+    const allUsers: Array<Record<string, unknown>> = [];
     let lastKey: Record<string, unknown> | undefined;
 
+    logger.info({ event: 'querying_users', pk: userListPk, table: USER_TABLE_NAME });
+    console.log('=== REPOSITORY: Querying Users ===');
+    console.log('PK:', userListPk);
+    console.log('Table:', USER_TABLE_NAME);
+
+    // Fetch all users for the organization
     do {
       const params: {
         TableName: string;
@@ -418,25 +426,100 @@ export class UserRepository {
       } = {
         TableName: USER_TABLE_NAME,
         KeyConditionExpression: 'pk = :pk',
-        ExpressionAttributeValues: { ':pk': pk },
+        ExpressionAttributeValues: { ':pk': userListPk },
       };
       if (lastKey) params.ExclusiveStartKey = lastKey;
 
+      console.log('Query params:', JSON.stringify(params, null, 2));
       const response = await docClient.send(new QueryCommand(params));
       const rawItems = (response.Items || []) as Array<Record<string, unknown>>;
-
-      for (const item of rawItems) {
-        if (filters?.roleId && item.roleId !== filters.roleId) continue;
-        if (filters?.roleName && String(item.roleName ?? '').toUpperCase().replace(/\s/g, '_') !== filters.roleName) continue;
-        if (filters?.roleType && String(item.roleType ?? '').toUpperCase() !== filters.roleType) continue;
-        if (filters?.status && String(item.sk3 ?? '').toUpperCase() !== filters.status) continue;
-        items.push(item);
+      
+      console.log('Query response - Items count:', rawItems.length);
+      if (rawItems.length > 0) {
+        console.log('Sample user:', JSON.stringify(rawItems[0], null, 2));
       }
+      
+      allUsers.push(...rawItems);
       lastKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
     } while (lastKey);
 
-    logger.info({ event: 'org_user_count_fetched', count: items.length });
-    return items;
+    console.log('=== REPOSITORY: Total users fetched ===', allUsers.length);
+    logger.info({ event: 'users_fetched', totalUsers: allUsers.length });
+
+    // Group users by role and count them
+    const roleCountMap = new Map<string, {
+      roleId: string;
+      roleName: string;
+      definedRoleCode: string;
+      roleType: string;
+      status: string;
+      count: number;
+    }>();
+
+    for (const user of allUsers) {
+      // Extract role information from user record
+      const roleId = String(user.roleID || user.roleId || '');
+      const roleName = String(user.roleName || '');
+      const definedRoleCode = String(user.definedRoleCode || roleName || '');
+      const roleType = String(user.roleType || user.userType || '');
+      
+      // Determine status (ACTIVE/INACTIVE)
+      let status = 'ACTIVE';
+      if (user.status === false || user.status === 'INACTIVE' || user.isActive === false) {
+        status = 'INACTIVE';
+      }
+      
+      // Skip if missing required fields
+      if (!roleId || !roleName) {
+        logger.warn({ event: 'user_missing_role', userId: user.userID });
+        continue;
+      }
+
+      // Create unique key for role + status combination
+      const mapKey = `${roleId}#${status}`;
+      
+      if (roleCountMap.has(mapKey)) {
+        // Increment count for existing role
+        roleCountMap.get(mapKey)!.count++;
+      } else {
+        // Add new role entry
+        roleCountMap.set(mapKey, {
+          roleId,
+          roleName,
+          definedRoleCode,
+          roleType,
+          status,
+          count: 1,
+        });
+      }
+    }
+
+    // Convert Map to array format matching ORG_USER_COUNT structure
+    const countRecords: Array<Record<string, unknown>> = [];
+    
+    for (const [, roleData] of roleCountMap.entries()) {
+      countRecords.push({
+        pk: `ORG_USER_COUNT#${organizationId}`,
+        sk: `${roleData.roleId}#${roleData.status}`,
+        sk1: roleData.roleId,
+        sk2: roleData.definedRoleCode,
+        sk3: roleData.status,
+        roleId: roleData.roleId,
+        roleName: roleData.roleName,
+        definedRoleCode: roleData.definedRoleCode,
+        roleType: roleData.roleType,
+        count: roleData.count,
+      });
+    }
+
+    logger.info({ 
+      event: 'user_counts_calculated', 
+      totalUsers: allUsers.length,
+      uniqueRoles: countRecords.length,
+      counts: countRecords.map(r => ({ role: r.roleName, count: r.count }))
+    });
+
+    return countRecords;
   }
 
   async updateUserMetadata(userId: string, metadata: Record<string, unknown>): Promise<void> {

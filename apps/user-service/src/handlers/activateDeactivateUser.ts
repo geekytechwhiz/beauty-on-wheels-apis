@@ -28,10 +28,46 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
   });
   logger.info({ event: 'activateDeactivateUser_received' });
 
+  // Extract from authorizer token
   const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)?.authorizer;
-  const requestUserId = (authorizer?.userId as string) ?? (authorizer?.userID as string);
-  const requestOrgId = (authorizer?.organizationID as string) ?? (authorizer?.organizationId as string);
-
+  
+  // Extract userID from token
+  let requestUserId: string | undefined;
+  if (authorizer?.claims) {
+    const claims = authorizer.claims as Record<string, unknown>;
+    requestUserId = (claims['custom:userID'] as string) ?? (claims['custom:userId'] as string);
+  }
+  if (!requestUserId) {
+    requestUserId = (authorizer?.userId as string) ?? (authorizer?.userID as string);
+  }
+  
+  // Extract organizationID from token
+  let requestOrgId: string | undefined;
+  
+  // Path 1: From claims['custom:organizationID'] - YOUR TOKEN FORMAT
+  if (authorizer?.claims) {
+    const claims = authorizer.claims as Record<string, unknown>;
+    requestOrgId = (claims['custom:organizationID'] as string) ?? 
+                   (claims['custom:organizationId'] as string);
+  }
+  
+  // Path 2: From claims.organizationID (standard claim)
+  if (!requestOrgId && authorizer?.claims) {
+    const claims = authorizer.claims as Record<string, unknown>;
+    requestOrgId = (claims.organizationID as string) ?? (claims.organizationId as string);
+  }
+  
+  // Path 3: Direct from authorizer (custom authorizer)
+  if (!requestOrgId && authorizer) {
+    requestOrgId = (authorizer.organizationID as string) ?? (authorizer.organizationId as string);
+  }
+  
+  logger.info({ 
+    event: 'token_data_extracted', 
+    requestUserId,
+    requestOrgId,
+    source: 'claims[custom:*]'
+  });
   let body: unknown;
   try {
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
@@ -87,6 +123,7 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
   const actionNormalized = action.toUpperCase() as 'ACTIVATE' | 'DEACTIVATE';
 
   try {
+    console.log(" ORGANIZATION id :",requestOrgId , organizationId)
     await userService.activateDeactivateUser(
       organizationId,
       targetUserId,

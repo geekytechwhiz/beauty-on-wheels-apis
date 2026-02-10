@@ -10,6 +10,9 @@
     { "path": "../../libs/canonical/tsconfig.lib.json" },
     { "path": "../../libs/fhir/tsconfig.lib.json" },
     { "path": "../../libs/consent/tsconfig.lib.json" },
-    { "path": "../../libs/capability/tsconfig.lib.json" }
+    { "path": "../../libs/capability/tsconfig.lib.json" },
+    { "path": "../../libs/scope-mapping/tsconfig.lib.json" },
+    { "path": "../../libs/tenant-guard/tsconfig.lib.json" },
+    { "path": "../../libs/access-audit/tsconfig.lib.json" }
   ]
 }

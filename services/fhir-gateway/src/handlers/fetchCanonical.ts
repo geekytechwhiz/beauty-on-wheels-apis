@@ -67,7 +67,9 @@ export async function fetchCanonicalObservations(
     if (!res.ok) return [];
     const data = (await res.json()) as { items?: unknown[] };
     const items = Array.isArray(data?.items) ? data.items : [];
-    return items.map((o: Record<string, unknown>) => mapToCanonicalObservation(o, patientId));
+    return items.map((o: unknown) =>
+      mapToCanonicalObservation(o as Record<string, unknown>, patientId)
+    );
   } catch {
     return [];
   }

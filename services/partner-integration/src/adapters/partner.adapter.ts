@@ -1,5 +1,7 @@
-import type { CreateOrderCommand } from '../models/order.command';
-import type { IntegrationResult } from '../models/integration.result';
+/**
+ * Partner config types returned by Partner Registry (read-only).
+ * Adapter implementation and contract live in @api-hub/lab-integration.
+ */
 
 /** Auth config from registry (matches @api-hub/partners PartnerAuthConfig). */
 export interface PartnerAuthConfig {
@@ -9,24 +11,12 @@ export interface PartnerAuthConfig {
 }
 
 /**
- * Partner config passed to adapters (read-only from Partner Registry).
- * Auth resolved at runtime via authConfig.credentialsSecretArn (registry-driven) or env fallback.
+ * Partner config from Partner Registry.
+ * Mapped to lib PartnerConfig in config/partner-config.mapper.ts.
  */
 export interface PartnerConfig {
   partnerId: string;
   apiBaseUrl: string;
-  /** Registry-driven auth (G1/A1/A3). If set, adapters use this; else fallback to env per partnerId. */
   authConfig?: PartnerAuthConfig;
-  /** Adapter key for registry-driven adapter selection (G4), e.g. "redcliffe", "orange". */
   adapterKey?: string;
-}
-
-/**
- * Strict adapter contract for partners.
- * Each adapter handles: auth headers, endpoint URLs, payload mapping, error translation.
- */
-export interface PartnerAdapter {
-  createOrder(command: CreateOrderCommand): Promise<IntegrationResult>;
-  cancelOrder(orderId: string): Promise<IntegrationResult>;
-  fetchStatus(orderId: string): Promise<IntegrationResult>;
 }

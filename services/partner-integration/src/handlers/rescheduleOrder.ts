@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { logHttpRequest, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
-import { getCancelOrderSchema } from '@api-hub/lab-integration';
+import { getRescheduleOrderSchema } from '@api-hub/lab-integration';
 import {
   InvalidPartnerResponseError,
   PartnerUnavailableError,
@@ -26,7 +26,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const requestId = getRequestId(event, context);
   const orderId = event.pathParameters?.orderId;
   const logger = createHandlerLogger(event, context, { orderId });
-  logger.info({ event: 'cancelOrder_received', orderId });
+  logger.info({ event: 'rescheduleOrder_received', orderId });
 
   if (!orderId) {
     return ApiResponse.badRequest(
@@ -37,23 +37,27 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   }
 
   const body = parseJsonBody(event);
-  const bodyObj = (body !== null && typeof body === 'object' ? body : {}) as {
-    partnerId?: string;
-    remark?: string;
-  };
-  const partnerId = bodyObj.partnerId ?? (event.queryStringParameters?.partnerId as string | undefined);
+  if (body === null) {
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      responseOpts(event, requestId),
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
+    );
+  }
+
+  const partnerId = (body as { partnerId?: string }).partnerId;
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       responseOpts(event, requestId),
-      { code: 'BAD_REQUEST', details: [{ message: 'partnerId is required (body or query)' }] }
+      { code: 'BAD_REQUEST', details: [{ message: 'partnerId is required' }] }
     );
   }
 
-  const schema = getCancelOrderSchema(partnerId);
-  const validation = schema.safeParse({ partnerId, orderId, remark: bodyObj.remark });
+  const schema = getRescheduleOrderSchema(partnerId);
+  const validation = schema.safeParse({ ...(body as object), orderId });
   if (!validation.success) {
-    logger.warn({ event: 'cancelOrder_validation_error', errors: validation.error.issues });
+    logger.warn({ event: 'rescheduleOrder_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
       responseOpts(event, requestId),
@@ -71,17 +75,17 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     event.headers['Idempotency-Key'] ?? event.headers['idempotency-key'];
 
   try {
-    const result = await integrationService.cancelOrder(
+    const result = await integrationService.rescheduleOrder(
       partnerId,
       orderId,
-      validation.data.remark,
+      validation.data as Parameters<typeof integrationService.rescheduleOrder>[2],
       idempotencyKey
     );
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/cancel', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.ORDER_CANCELLED', responseOpts(event, requestId));
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/reschedule', 200, duration, requestId);
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.ORDER_RESCHEDULED', responseOpts(event, requestId));
   } catch (err) {
-    logger.error({ event: 'cancelOrder_error', err: serializeError(err), partnerId, orderId });
+    logger.error({ event: 'rescheduleOrder_error', err: serializeError(err), partnerId, orderId });
     const duration = Date.now() - startTime;
 
     if (err instanceof UnsupportedPartnerError) {
@@ -129,7 +133,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
 
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/cancel', 500, duration, requestId);
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/reschedule', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
       responseOpts(event, requestId),

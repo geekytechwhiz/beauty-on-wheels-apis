@@ -5,6 +5,7 @@ frameworkVersion: '3'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
+  - serverless-offline
 
 provider:
   name: aws
@@ -15,10 +16,11 @@ provider:
   timeout: 30
   environment:
     REGION: ${self:provider.region}
+    DEFAULT_REGION: ${self:provider.region}
     PARTNER_REGISTRY_ENDPOINT: ${self:custom.partnerRegistryEndpoint.${self:provider.stage}}
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    IDEMPOTENCY_TABLE_NAME: ${self:service}-${self:provider.stage}-idempotency
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
-    DEFAULT_REGION: ${self:provider.region}
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
@@ -30,7 +32,6 @@ provider:
         - logs:CreateLogStream
         - logs:PutLogEvents
       Resource: '*'
-    # Least-privilege: no DynamoDB, no persistence. SSM/Secrets only if adapters need auth.
     - Effect: Allow
       Action:
         - ssm:GetParameter
@@ -40,6 +41,11 @@ provider:
       Action:
         - secretsmanager:GetSecretValue
       Resource: arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:*
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: !GetAtt IdempotencyTable.Arn
 
 package:
   individually: true
@@ -47,8 +53,8 @@ package:
 custom:
   partnerRegistryEndpoint:
     dev: ${env:PARTNER_REGISTRY_ENDPOINT, 'http://localhost:3001'}
-    stg: ${env:PARTNER_REGISTRY_ENDPOINT}
-    prd: ${env:PARTNER_REGISTRY_ENDPOINT}
+    stg: ${env:PARTNER_REGISTRY_ENDPOINT, ''}
+    prd: ${env:PARTNER_REGISTRY_ENDPOINT, ''}
   logLevel:
     dev: debug
     stg: info
@@ -61,6 +67,7 @@ custom:
       - Authorization
       - X-Api-Key
       - X-Correlation-Id
+      - Idempotency-Key
   esbuild:
     bundle: true
     minify: false
@@ -89,8 +96,8 @@ functions:
 
   createOrder:
     handler: src/handlers/createOrder.main
-    timeout: 15
-    memorySize: 256
+    timeout: 30
+    memorySize: 512
     events:
       - http:
           path: /orders
@@ -99,10 +106,22 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
 
+  rescheduleOrder:
+    handler: src/handlers/rescheduleOrder.main
+    timeout: 30
+    memorySize: 512
+    events:
+      - http:
+          path: /orders/{orderId}/reschedule
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
   cancelOrder:
     handler: src/handlers/cancelOrder.main
-    timeout: 10
-    memorySize: 256
+    timeout: 30
+    memorySize: 512
     events:
       - http:
           path: /orders/{orderId}/cancel
@@ -122,3 +141,80 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+
+  getServiceableLocations:
+    handler: src/handlers/getServiceableLocations.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /locations/serviceable
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  getPartnerLocation:
+    handler: src/handlers/getPartnerLocation.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /locations/partner
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  searchPackages:
+    handler: src/handlers/searchPackages.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /packages/search
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  getPackageDetails:
+    handler: src/handlers/getPackageDetails.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /packages/details
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  getBookingSlots:
+    handler: src/handlers/getBookingSlots.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /booking-slots
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+resources:
+  Resources:
+    IdempotencyTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.IDEMPOTENCY_TABLE_NAME}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: idempotencyKey
+            AttributeType: S
+        KeySchema:
+          - AttributeName: idempotencyKey
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true

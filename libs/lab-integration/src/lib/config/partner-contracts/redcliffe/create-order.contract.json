@@ -1,0 +1,52 @@
+{
+  "operation": "createOrder",
+  "partner": "redcliffe",
+  "endpoint": {
+    "method": "POST",
+    "path": "/api/external/v2/center-create-booking/"
+  },
+  "authentication": {
+    "type": "apiKey",
+    "headerName": "key"
+  },
+  "request": {
+    "required": [
+      "booking_date",
+      "collection_date",
+      "collection_slot",
+      "customer_name",
+      "package_code",
+      "customer_email",
+      "customer_gender",
+      "customer_latitude",
+      "customer_longitude",
+      "customer_phonenumber",
+      "customer_whatsapppnumber",
+      "is_credit",
+      "landmark",
+      "pincode"
+    ],
+    "optional": [
+      "customer_address",
+      "customer_age",
+      "customer_altphonenumber",
+      "reference_data",
+      "additional_member"
+    ]
+  },
+  "response": {
+    "success": {
+      "statusCodes": [200, 201],
+      "schema": {
+        "booking_id": "number",
+        "status": "string"
+      }
+    },
+    "error": {
+      "statusCodes": [400, 404, 500],
+      "schema": {
+        "errors": "array"
+      }
+    }
+  }
+}

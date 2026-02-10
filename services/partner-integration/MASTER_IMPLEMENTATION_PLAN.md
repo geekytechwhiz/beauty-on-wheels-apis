@@ -14,8 +14,9 @@
 
 **External References:**
 - Redcliffe Postman Collection: https://api.postman.com/collections/25836147-c45099eb-2f45-4e29-8a0f-d8da1e36c889
+- Redcliffe API documentation: https://docs.google.com/document/d/1aXpnbanPV8jDVXok7pp-a3_LmsUYLcWQJbqO7IcBJh4/edit?tab=t.p68vd7si2ak5#heading=h.rezsv2g3r6vz
 - Orange Health API Docs: https://orangehealth.docs.apiary.io/
-- Old Redcliffe Implementation: `Common-Backend/third_party_integration/redcliffe_lab/`
+
 
 ---
 
@@ -39,6 +40,17 @@
 ---
 
 ## 📊 Implementation Priority
+
+### Phase 0: Architectural Foundation (Do First)
+**Priority:** 🔵 **FOUNDATION**  
+**Timeline:** Before or in parallel with Week 1
+
+- **Reusability:** Base order command + partner extensions; separate Zod schemas per adapter; validate per partner.
+- **Standards:** Idempotency for create/reschedule/cancel; retry/backoff; optional circuit breaker; document or generate partner request/response contracts.
+- **Scalability:** Adapter factory refactored to registry (adapterKey → constructor); new partners without editing factory; document registry SLA and caching if used.
+- **Patterns:** Shared base adapter with getAuthHeaders, request, error handling; reduce duplication and standardize resilience across adapters.
+
+**See section "PHASE 0: ARCHITECTURAL FOUNDATION" for full steps.**
 
 ### Phase 1: Critical (Must Have) - Start Here
 **Priority:** 🔴 **CRITICAL**  
@@ -74,6 +86,78 @@
 
 14. Update Credit (both partners)
 15. Webhooks (both partners - check later)
+
+---
+
+## 🏗️ PHASE 0: ARCHITECTURAL FOUNDATION (Do First)
+
+**Priority:** 🔵 **FOUNDATION**  
+**Timeline:** Before or in parallel with Week 1  
+**Purpose:** Implement the four mandatory architectural steps (Reusability, Standards, Scalability, Patterns) so Phase 1+ builds on a solid base.
+
+---
+
+### Step 1 – Reusability: Base order command, partner extensions, per-partner validation
+
+**Goal:** Define a **base order command** and **partner-specific extensions** (or **separate Zod schemas per adapter**) and **validate per partner**.
+
+- **Base command:** In `src/models/order.command.ts`, define `BaseCreateOrderCommand` with only canonical fields (partnerId, patientId, testCodes, etc.). No partner-specific fields in the base.
+- **Partner extensions:** Define `RedcliffeCreateOrderExtension`, `OrangeCreateOrderExtension`, etc. Type `CreateOrderCommand = BaseCreateOrderCommand & (RedcliffeCreateOrderExtension | OrangeCreateOrderExtension)` (or equivalent).
+- **Separate Zod schemas per adapter:** Refactor validation into e.g. `src/validation/createOrder/base.createOrder.schema.ts`, `redcliffe.createOrder.schema.ts`, `orange.createOrder.schema.ts`. Export `getCreateOrderSchema(partnerId)` that returns the schema for that partner.
+- **Validate per partner:** Handlers resolve `partnerId` first (from body or path), then call `getCreateOrderSchema(partnerId).safeParse(body)` so each partner gets its own required/optional rules.
+
+**Checklist:** Base command only canonical fields; partner extensions in separate types; per-partner Zod schemas; `getCreateOrderSchema(partnerId)`; handler validates after partnerId is known.
+
+---
+
+### Step 2 – Standards: Idempotency, retry/backoff, circuit breaker, partner contracts
+
+**Goal:** Add **idempotency** for create/reschedule/cancel; define **retry/backoff** and **optional circuit breaker**; **document (or generate) partner request/response contracts**.
+
+- **Idempotency:** For create, reschedule, and cancel: client sends `Idempotency-Key` header. Handler reads it and passes to the integration service. Either (A) store key → result (e.g. DynamoDB/cache, TTL e.g. 24h) and return cached result on duplicate key, or (B) forward key to partner when supported. Document which approach is used.
+- **Retry with backoff:** Use a single HTTP wrapper (e.g. axios-retry or custom `requestWithRetry`) for partner calls. Config: max retries (e.g. 2–3), backoff (exponential/linear), only for retryable errors (5xx, 408, 429, network). Do not retry non-retryable 4xx. Place in base adapter (Step 4) so all adapters get it.
+- **Optional circuit breaker:** Use a library (e.g. opossum) or small in-memory circuit breaker around partner HTTP. Config: failure threshold, reset timeout. Place in base adapter’s `request()`. Optionally per-partner (by partnerId). Document: enabled by config/env and defaults.
+- **Partner request/response contracts:** For each partner and operation (create, reschedule, cancel, getStatus): document request (URL, method, headers, body/query shape) and response (success/error body, status codes). Store in e.g. `docs/partner-contracts/`. Optionally generate TS types (e.g. from OpenAPI) and use in adapters.
+
+**Checklist:** Idempotency for create/reschedule/cancel; retry/backoff on partner HTTP; optional circuit breaker; partner contracts documented (and optionally generated).
+
+---
+
+### Step 3 – Scalability: Adapter registry (adapterKey → constructor), registry SLA and caching
+
+**Goal:** **Refactor adapter factory to a registry** (adapterKey → constructor) so **new partner types can be added without editing the factory**; **document registry SLA and caching if used**.
+
+- **Adapter registry:** Replace hardcoded `if (key === 'redcliffe') return new RedcliffeAdapter(config)` with a registry: a map from `adapterKey` (string) to adapter constructor. New partner type = add one registry entry (e.g. in `src/adapters/adapter.registry.ts`); no change to `getAdapter()` branching logic. Factory: resolve adapterKey from config, call `getAdapterConstructor(key)`, then `new Ctor(config)`.
+- **Document registry SLA:** Document that partner config (including adapterKey) comes from the Partner Registry service; document expected SLA (latency, availability) and that the integration service depends on it.
+- **Document caching if used:** If `getPartnerConfig(partnerId)` is cached (e.g. in-memory, TTL), document TTL, invalidation behavior, and that new partners/config may take up to TTL to appear.
+
+**Checklist:** Adapter registry (adapterKey → constructor); new partner = registry entry only; factory uses registry; registry SLA documented; caching (if used) documented.
+
+---
+
+### Step 4 – Patterns: Shared base adapter (getAuthHeaders, request, error handling)
+
+**Goal:** Introduce a **small shared base** (e.g. **base adapter** with **getAuthHeaders**, **request**, **error handling**) to **reduce duplication** and **standardize resilience behavior** across adapters.
+
+- **Base adapter:** Create `src/adapters/base.adapter.ts`. Abstract class (or equivalent) that provides:
+  - **getAuthHeaders(): Promise<Record<string, string>>** – default from config/authConfig; subclasses override for partner-specific header (e.g. `key` vs `X-API-Key`).
+  - **request&lt;T&gt;(options): Promise&lt;T&gt;** – builds URL, adds auth (via getAuthHeaders), applies timeout, **retry/backoff**, **optional circuit breaker**, calls axios; on failure calls **translateError(partnerId, err)** and throws. Single place for resilience.
+  - **baseUrl(): string** – from config, trimmed.
+  - **translateError(partnerId, err)** – map 4xx/5xx/timeout/network to `InvalidPartnerResponseError` / `PartnerUnavailableError`; used by all adapters.
+- **Partner adapters:** Redcliffe and Orange **extend** BasePartnerAdapter. Override getAuthHeaders if needed; implement only endpoint paths and body/response mapping; use **this.request()** for all outbound HTTP. No duplicate retry/circuit-breaker/error logic.
+
+**Checklist:** BasePartnerAdapter with getAuthHeaders, request (with retry/circuit breaker), baseUrl, translateError; Redcliffe and Orange extend it and use this.request(); no duplicate resilience logic in adapters.
+
+---
+
+### Phase 0 summary
+
+| Mandatory step | Pillar | Deliverables |
+|----------------|--------|---------------|
+| 1. Reusability | Base command + per-partner validation | BaseCreateOrderCommand + extensions; getCreateOrderSchema(partnerId); validate per partner in handlers |
+| 2. Standards | Idempotency, retry, circuit breaker, contracts | Idempotency-Key for create/reschedule/cancel; retry/backoff + optional circuit breaker; docs/partner-contracts (and optional type generation) |
+| 3. Scalability | Adapter registry + docs | adapterKey → constructor registry; new partner = registry entry; document registry SLA and caching if used |
+| 4. Patterns | Base adapter | BasePartnerAdapter (getAuthHeaders, request, error handling); all adapters extend and use this.request() |
 
 ---
 
@@ -800,6 +884,12 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 
 ## 📝 Complete Implementation Checklist
 
+### Phase 0: Four Mandatory Architectural Steps
+- [ ] **Step 1 – Reusability:** Base order command + partner extensions; separate Zod schemas per adapter; getCreateOrderSchema(partnerId); validate per partner in handlers
+- [ ] **Step 2 – Standards:** Idempotency for create/reschedule/cancel; retry/backoff; optional circuit breaker; document (or generate) partner request/response contracts
+- [ ] **Step 3 – Scalability:** Adapter factory refactored to registry (adapterKey → constructor); new partner types without editing factory; document registry SLA and caching if used
+- [ ] **Step 4 – Patterns:** Shared base adapter with getAuthHeaders, request, error handling; all adapters extend base and use this.request(); resilience behavior standardized
+
 ### Phase 1: Critical APIs
 
 #### Redcliffe Labs
@@ -842,6 +932,8 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 ---
 
 ## 🔧 Common Implementation Patterns
+
+All patterns below align with the **four mandatory steps**: use the **base adapter** (getAuthHeaders, request, error handling), **adapter registry** for resolving partners, **per-partner validation** (e.g. getXxxSchema(partnerId)) where applicable, and **Idempotency-Key** for write operations (create/reschedule/cancel).
 
 ### Pattern 1: Adding New API to Adapter
 
@@ -928,6 +1020,8 @@ newMethod:
 
 ## ⚠️ Important Notes
 
+0. **Four mandatory steps (Phase 0 first):** Complete the four architectural steps before or in parallel with Phase 1: (1) **Reusability** – base order command and partner-specific extensions, separate Zod schemas per adapter, validate per partner; (2) **Standards** – idempotency for create/reschedule/cancel, retry/backoff, optional circuit breaker, document or generate partner request/response contracts; (3) **Scalability** – adapter factory refactored to registry (adapterKey → constructor), new partner types without editing factory, document registry SLA and caching if used; (4) **Patterns** – shared base adapter with getAuthHeaders, request, error handling to reduce duplication and standardize resilience. See "Four Mandatory Architectural Steps" and "PHASE 0: ARCHITECTURAL FOUNDATION".
+
 1. **OrderId Format:** Redcliffe uses numeric `booking_id`, but our system uses string `orderId`. Always convert with validation.
 
 2. **Authentication:** 
@@ -950,34 +1044,32 @@ newMethod:
 
 ## 🚀 Getting Started
 
-1. **Start with Phase 1: Critical APIs**
-   - Begin with Redcliffe (has old implementation reference)
-   - Then move to Orange (verify first, then implement)
+1. **Complete the four mandatory architectural steps (Phase 0)**
+   - **Step 1 – Reusability:** Base order command and partner extensions; separate Zod schemas per adapter; validate per partner.
+   - **Step 2 – Standards:** Idempotency for create/reschedule/cancel; retry/backoff and optional circuit breaker; document (or generate) partner request/response contracts.
+   - **Step 3 – Scalability:** Refactor adapter factory to registry (adapterKey → constructor); document registry SLA and caching if used.
+   - **Step 4 – Patterns:** Shared base adapter with getAuthHeaders, request, error handling; reduce duplication and standardize resilience across adapters.
+   - See "PHASE 0: ARCHITECTURAL FOUNDATION" for detailed implementation.
 
-2. **Follow Implementation Order:**
+2. **Then Phase 1: Critical APIs**
+   - Begin with Redcliffe (has old implementation reference), then Orange (verify first, then implement).
+
+3. **Phase 1 implementation order:**
    - Create Order (update existing)
    - Reschedule Order (implement new)
    - Cancel Order (update existing)
    - Get Order Status (update existing)
 
-3. **For Each API:**
-   - Read the detailed steps in this document
-   - Refer to partner-specific guides for details
-   - Implement step-by-step
-   - Test thoroughly
-   - Mark checklist as complete
+4. **For each API:** Read the detailed steps, refer to partner guides and Phase 0 patterns, implement step-by-step, test, mark checklist complete.
 
-4. **After Phase 1:**
-   - Move to Phase 2 (High Priority APIs)
-   - Then Phase 3 (Medium Priority APIs)
-   - Finally Phase 4 (Low Priority APIs)
+5. **After Phase 1:** Phase 2 (High Priority) → Phase 3 (Medium) → Phase 4 (Low).
 
 ---
 
 **End of Master Implementation Plan**
 
-**Last Updated:** Consolidated from all reference documents  
-**Next Steps:** Begin Phase 1 implementation
+**Last Updated:** Consolidated from all reference documents; includes Four Mandatory Architectural Steps and Phase 0.  
+**Next Steps:** Complete Phase 0 (four steps: Reusability, Standards, Scalability, Patterns), then Phase 1 implementation.
 
 ---
 

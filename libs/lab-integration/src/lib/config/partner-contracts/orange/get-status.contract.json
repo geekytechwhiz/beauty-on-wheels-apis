@@ -1,0 +1,5 @@
+{
+  "operation": "getStatus",
+  "partner": "orange",
+  "request": { "required": [], "optional": [] }
+}

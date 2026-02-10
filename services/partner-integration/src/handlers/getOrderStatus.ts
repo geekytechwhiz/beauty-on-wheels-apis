@@ -1,7 +1,12 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { logHttpRequest, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
-import { statusPathSchema, statusQuerySchema } from '../validation/status.schema';
+import {
+  PartnerUnavailableError,
+  PartnerAuthenticationError,
+  PartnerNotFoundError,
+  InvalidPartnerResponseError,
+} from '@api-hub/lab-integration';
 import {
   getRequestId,
   responseOpts,
@@ -9,39 +14,33 @@ import {
 } from '../utils/handlerHelpers';
 import * as integrationService from '../services/integration.service';
 import {
-  PartnerUnavailableError,
+  PartnerUnavailableError as ServicePartnerUnavailableError,
   UnsupportedPartnerError,
-  InvalidPartnerResponseError,
+  InvalidPartnerResponseError as ServiceInvalidPartnerResponseError,
 } from '../utils/integrationErrors';
 
 export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const orderId = event.pathParameters?.orderId;
+  const partnerId = event.queryStringParameters?.partnerId;
   const logger = createHandlerLogger(event, context, { orderId });
   logger.info({ event: 'getOrderStatus_received', orderId });
 
-  const pathValidation = statusPathSchema.safeParse({ orderId });
-  if (!pathValidation.success || !orderId) {
-    logger.warn({ event: 'getOrderStatus_invalid_path' });
+  if (!orderId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       responseOpts(event, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Missing or invalid orderId in path' }] }
     );
   }
-
-  const queryParams = event.queryStringParameters ?? {};
-  const queryValidation = statusQuerySchema.safeParse(queryParams);
-  if (!queryValidation.success) {
-    logger.warn({ event: 'getOrderStatus_missing_partnerId', errors: queryValidation.error.issues });
+  if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       responseOpts(event, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Query parameter partnerId is required' }] }
     );
   }
-  const { partnerId } = queryValidation.data;
 
   try {
     const result = await integrationService.getOrderStatus(partnerId, orderId);
@@ -51,16 +50,15 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   } catch (err) {
     logger.error({ event: 'getOrderStatus_error', err: serializeError(err), partnerId, orderId });
     const duration = Date.now() - startTime;
+
     if (err instanceof UnsupportedPartnerError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/orders/status', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
         responseOpts(event, requestId),
         { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
       );
     }
-    if (err instanceof PartnerUnavailableError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/orders/status', 503, duration, requestId);
+    if (err instanceof ServicePartnerUnavailableError || err instanceof PartnerUnavailableError) {
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
@@ -68,8 +66,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
-    if (err instanceof InvalidPartnerResponseError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/orders/status', 502, duration, requestId);
+    if (err instanceof InvalidPartnerResponseError || err instanceof ServiceInvalidPartnerResponseError) {
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
@@ -77,6 +74,28 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         { code: 'INVALID_PARTNER_RESPONSE', details: [{ message: err.message }] }
       );
     }
+    if (err instanceof PartnerAuthenticationError) {
+      return ApiResponse.badRequest(
+        'PARTNER_INTEGRATION.AUTH_FAILED',
+        responseOpts(event, requestId),
+        { code: 'AUTH_FAILED', details: [{ message: err.message }] }
+      );
+    }
+    if (err instanceof PartnerNotFoundError) {
+      return ApiResponse.badRequest(
+        'PARTNER_INTEGRATION.NOT_FOUND',
+        responseOpts(event, requestId),
+        { code: 'NOT_FOUND', details: [{ message: err.message }] }
+      );
+    }
+    if (err instanceof Error && err.message?.includes('No adapter registered')) {
+      return ApiResponse.badRequest(
+        'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
+        responseOpts(event, requestId),
+        { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
+      );
+    }
+
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/orders/status', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',

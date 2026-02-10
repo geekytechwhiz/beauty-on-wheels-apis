@@ -589,6 +589,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
 
   // Extract from authorizer token
   const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)?.authorizer;
+  console.log("AUTHORIZER ", authorizer);
   
   // Extract userID from token
   let requestUserId: string | undefined;
@@ -609,17 +610,19 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     requestOrgId = (claims['custom:organizationID'] as string) ?? 
                    (claims['custom:organizationId'] as string);
   }
-  
+  console.log("REQ ORG ID : 1 ", requestOrgId);
   // Path 2: From claims.organizationID (standard claim)
   if (!requestOrgId && authorizer?.claims) {
     const claims = authorizer.claims as Record<string, unknown>;
     requestOrgId = (claims.organizationID as string) ?? (claims.organizationId as string);
   }
-  
+  console.log("REQ ORG ID : 2 ", requestOrgId);
   // Path 3: Direct from authorizer (custom authorizer)
   if (!requestOrgId && authorizer) {
     requestOrgId = (authorizer.organizationID as string) ?? (authorizer.organizationId as string);
   }
+
+  console.log("REQ ORG ID : 3 ", requestOrgId);
   
   baseLogContext.info({ 
     event: 'token_data_extracted', 

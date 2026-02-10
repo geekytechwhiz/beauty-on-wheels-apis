@@ -538,11 +538,11 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
           authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-          #   resultTtlInSeconds: 0
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Update user information
             description: Updates user information. Only provided fields will be updated. userId and organizationId are extracted from the access token (authorizer).
@@ -1011,6 +1011,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Activate or deactivate user
             description: "Activates or deactivates a user in an organization. Body: action (ACTIVATE|DEACTIVATE), organizationID (optional from token), patientUserId (optional for acting on another user)."
@@ -1091,6 +1097,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Get organization user count
             description: "Returns user count items for an organization (pk=ORG_USER_COUNT#orgId). Optional filters: roleId, roleName, roleType, status."

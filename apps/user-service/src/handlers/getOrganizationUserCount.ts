@@ -9,7 +9,6 @@ import {
   createChildLogger,
 } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
-import { getOrganizationUserCountSchema } from '../validation/user.validation';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -26,77 +25,104 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
     ...(awsRequestId && { awsRequestId }),
   });
   logger.info({ event: 'getOrganizationUserCount_received' });
-
+  
+  // Extract organizationID from authorizer (handle different structures)
   const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)?.authorizer;
-  const requestOrgId = (authorizer?.organizationID as string) ?? (authorizer?.organizationId as string);
-
-  let body: unknown;
-  try {
-    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-  } catch (err) {
-    logger.error({ event: 'getOrganizationUserCount_parse_error', err: serializeError(err) });
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', PATH, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
-      { code: 'BAD_REQUEST' },
-    );
+  
+  // Debug logging
+  logger.info({ 
+    event: 'authorizer_debug', 
+    authorizer: authorizer,
+    authorizerKeys: authorizer ? Object.keys(authorizer) : []
+  });
+  
+  // Extract organizationID from token - try multiple paths
+  let requestOrgId: string | undefined;
+  
+  // Path 1: From claims['custom:organizationID'] - YOUR TOKEN FORMAT (Cognito custom attribute)
+  if (authorizer?.claims) {
+    const claims = authorizer.claims as Record<string, unknown>;
+    requestOrgId = (claims['custom:organizationID'] as string) ?? 
+                   (claims['custom:organizationId'] as string);
   }
-
-  const rawBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-  const payload = {
-    organizationId: rawBody.organizationId ?? requestOrgId,
-    roleId: rawBody.roleId,
-    roleName: rawBody.roleName,
-    roleType: rawBody.roleType,
-    status: rawBody.status,
-  };
-
-  const validationResult = getOrganizationUserCountSchema.safeParse(payload);
-  if (!validationResult.success) {
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', PATH, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
-      {
-        code: 'VALIDATION_ERROR',
-        details: validationResult.error.issues.map((err) => ({
-          field: err.path.join('.'),
-          message: err.message,
-        })),
-      },
-    );
+  
+  // Path 2: From claims.organizationID (standard Cognito claim)
+  if (!requestOrgId && authorizer?.claims) {
+    const claims = authorizer.claims as Record<string, unknown>;
+    requestOrgId = (claims.organizationID as string) ?? (claims.organizationId as string);
   }
-
-  const { organizationId, roleId, roleName, roleType, status } = validationResult.data;
-
+  
+  // Path 3: Direct from authorizer (custom authorizer)
+  if (!requestOrgId && authorizer) {
+    requestOrgId = (authorizer.organizationID as string) ?? (authorizer.organizationId as string);
+  }
+  
+  logger.info({ 
+    event: 'organizationId_extracted', 
+    requestOrgId,
+    source: requestOrgId ? 'claims[custom:organizationID]' : 'not_found'
+  });
+  
+  // Use organizationId from token only
+  const organizationId = requestOrgId;
+  console.log('organizationId', organizationId, requestOrgId);
   if (!organizationId) {
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', PATH, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'VALIDATION.ORGANIZATION_ID_REQUIRED',
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH, 401, duration, correlationId);
+    return ApiResponse.unauthorized(
+      'COMMON.UNAUTHORIZED',
       { requestId: correlationId, event },
-      { code: 'ORGANIZATION_ID_REQUIRED' },
+      { code: 'UNAUTHORIZED', details: [{ message: 'Organization ID not found in token' }] },
     );
   }
-
-  const filters: { roleId?: string; roleName?: string; roleType?: string; status?: string } = {};
-  if (roleId) filters.roleId = roleId;
-  if (roleName) filters.roleName = String(roleName).toUpperCase().replace(/\s/g, '_');
-  if (roleType) filters.roleType = String(roleType).toUpperCase();
-  if (status) filters.status = String(status).toUpperCase();
+  
+  logger.info({ 
+    event: 'organizationId_confirmed', 
+    organizationId 
+  });
 
   try {
+    logger.info({ 
+      event: 'fetching_user_counts', 
+      organizationId,
+      source: 'ORG_USER_LIST',
+      table: 'user-table-dev'
+    });
+    
+    // Fetch and calculate user counts dynamically from actual users
     const data = await userService.getOrganizationUserCounts(
       organizationId,
-      Object.keys(filters).length ? filters : undefined,
+      undefined, // No filters - get all user counts
       correlationId,
     );
+    
+    console.log('=== USER COUNTS DATA ===');
+    console.log('Organization ID:', organizationId);
+    console.log('Data type:', typeof data);
+    console.log('Data is array:', Array.isArray(data));
+    console.log('Data length:', Array.isArray(data) ? data.length : 'N/A');
+    console.log('Data:', JSON.stringify(data, null, 2));
+    
+    logger.info({ 
+      event: 'getOrganizationUserCount_success', 
+      organizationId,
+      dataType: typeof data,
+      isArray: Array.isArray(data),
+      totalRoles: Array.isArray(data) ? data.length : 0,
+      sampleData: Array.isArray(data) && data.length > 0 ? data[0] : null
+    });
+    
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 200, duration, correlationId);
-    return ApiResponse.ok(data, 'ROLE.ORGANIZATION_USER_COUNT_SUCCESS', { requestId: correlationId, event });
+    
+    return ApiResponse.ok(
+      data,
+      {
+        title: 'Organization user count success',
+        description: 'The organization user count completed successfully.',
+      },
+      { requestId: correlationId, event }
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'getOrganizationUserCount_error', err: serializeError(err) });

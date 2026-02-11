@@ -275,4 +275,107 @@ export class RedcliffeAdapter
 
     return toResult(data, { success: true });
   }
+
+  async confirmBooking(orderId: string, remark?: string): Promise<ReturnType<typeof toResult>> {
+    const bookingId = parseInt(orderId, 10);
+
+    if (Number.isNaN(bookingId)) {
+      return toResultError(orderId, 'Invalid booking ID format');
+    }
+
+    const url = `${this.baseUrl()}/api/external/v2/center-confirm-booking/`;
+    const headers = await this.getAuthHeaders();
+
+    const body: Record<string, unknown> = {
+      booking_id: bookingId,
+    };
+
+    if (remark) {
+      body.remark = remark;
+    }
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
+
+  async updatePackage(
+    packageCode: string,
+    updateData: Record<string, unknown>
+  ): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/external/v2/center-update-package/`;
+    const headers = await this.getAuthHeaders();
+
+    const body = {
+      package_code: packageCode,
+      ...updateData,
+    };
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { packageCode, success: true });
+  }
+
+  async getConsolidatedReport(orderId: string): Promise<ReturnType<typeof toResult>> {
+    const bookingId = parseInt(orderId, 10);
+
+    if (Number.isNaN(bookingId)) {
+      return toResultError(orderId, 'Invalid booking ID format');
+    }
+
+    const url = `${this.baseUrl()}/api/external/v2/center-get-consolidated-report/`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        booking_id: bookingId,
+      },
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
+
+  async getDigitalReport(
+    orderId: string,
+    format?: string
+  ): Promise<ReturnType<typeof toResult>> {
+    const bookingId = parseInt(orderId, 10);
+
+    if (Number.isNaN(bookingId)) {
+      return toResultError(orderId, 'Invalid booking ID format');
+    }
+
+    const url = `${this.baseUrl()}/api/external/v2/center-get-digital-report/`;
+    const headers = await this.getAuthHeaders();
+
+    const params: Record<string, unknown> = {
+      booking_id: bookingId,
+    };
+
+    if (format) {
+      params.format = format;
+    }
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params,
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
 }

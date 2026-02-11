@@ -28,6 +28,12 @@ export interface PartnerAdapter {
   searchPackages?(query: string): Promise<IntegrationResult>;
   getPackageDetails?(code: string): Promise<IntegrationResult>;
   getBookingSlots?(params: BookingSlotsParams): Promise<IntegrationResult>;
+
+  // Phase 3 methods
+  confirmBooking?(orderId: string, remark?: string): Promise<IntegrationResult>;
+  updatePackage?(packageCode: string, updateData: Record<string, unknown>): Promise<IntegrationResult>;
+  getConsolidatedReport?(orderId: string): Promise<IntegrationResult>;
+  getDigitalReport?(orderId: string, format?: string): Promise<IntegrationResult>;
 }
 
 /**

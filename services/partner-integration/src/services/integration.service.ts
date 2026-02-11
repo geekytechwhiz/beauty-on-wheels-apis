@@ -156,3 +156,78 @@ export async function getBookingSlots(
   }
   return adapter.getBookingSlots(params);
 }
+
+export async function confirmBooking(
+  partnerId: string,
+  orderId: string,
+  remark?: string,
+  idempotencyKey?: string
+): Promise<IntegrationResult> {
+  if (idempotencyKey) {
+    const cached =
+      await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
+    if (cached) return cached;
+  }
+
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.confirmBooking) {
+    throw new Error(`confirmBooking not supported for partner: ${partnerId}`);
+  }
+  const result = await adapter.confirmBooking(orderId, remark);
+
+  if (idempotencyKey) {
+    await idempotencyService.storeResult(idempotencyKey, result);
+  }
+  return result;
+}
+
+export async function updatePackage(
+  partnerId: string,
+  packageCode: string,
+  updateData: Record<string, unknown>,
+  idempotencyKey?: string
+): Promise<IntegrationResult> {
+  if (idempotencyKey) {
+    const cached =
+      await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
+    if (cached) return cached;
+  }
+
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.updatePackage) {
+    throw new Error(`updatePackage not supported for partner: ${partnerId}`);
+  }
+  const result = await adapter.updatePackage(packageCode, updateData);
+
+  if (idempotencyKey) {
+    await idempotencyService.storeResult(idempotencyKey, result);
+  }
+  return result;
+}
+
+export async function getConsolidatedReport(
+  partnerId: string,
+  orderId: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getConsolidatedReport) {
+    throw new Error(`getConsolidatedReport not supported for partner: ${partnerId}`);
+  }
+  return adapter.getConsolidatedReport(orderId);
+}
+
+export async function getDigitalReport(
+  partnerId: string,
+  orderId: string,
+  format?: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getDigitalReport) {
+    throw new Error(`getDigitalReport not supported for partner: ${partnerId}`);
+  }
+  return adapter.getDigitalReport(orderId, format);
+}

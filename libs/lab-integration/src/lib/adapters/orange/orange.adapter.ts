@@ -228,4 +228,75 @@ export class OrangeAdapter
 
     return toResult(data, { success: true });
   }
+
+  async confirmBooking(orderId: string, remark?: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/confirm`;
+    const headers = await this.getAuthHeaders();
+
+    const body: Record<string, unknown> = {};
+    if (remark) {
+      body.remark = remark;
+    }
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
+
+  async updatePackage(
+    packageCode: string,
+    updateData: Record<string, unknown>
+  ): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/packages/${encodeURIComponent(packageCode)}`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'PUT',
+      url,
+      headers,
+      data: updateData,
+    });
+
+    return toResult(data, { packageCode, success: true });
+  }
+
+  async getConsolidatedReport(orderId: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/reports/consolidated`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
+
+  async getDigitalReport(
+    orderId: string,
+    format?: string
+  ): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/reports/digital`;
+    const headers = await this.getAuthHeaders();
+
+    const params: Record<string, unknown> = {};
+    if (format) {
+      params.format = format;
+    }
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params,
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
 }

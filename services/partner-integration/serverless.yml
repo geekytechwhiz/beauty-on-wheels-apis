@@ -202,6 +202,54 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
 
+  confirmBooking:
+    handler: src/handlers/confirmBooking.main
+    timeout: 30
+    memorySize: 512
+    events:
+      - http:
+          path: /orders/{orderId}/confirm
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  updatePackage:
+    handler: src/handlers/updatePackage.main
+    timeout: 30
+    memorySize: 512
+    events:
+      - http:
+          path: /packages/{packageCode}
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  getConsolidatedReport:
+    handler: src/handlers/getConsolidatedReport.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /orders/{orderId}/reports/consolidated
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  getDigitalReport:
+    handler: src/handlers/getDigitalReport.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /orders/{orderId}/reports/digital
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
 resources:
   Resources:
     IdempotencyTable:

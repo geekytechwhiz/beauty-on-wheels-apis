@@ -11,6 +11,9 @@ provider:
   runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-authorizer-service-bucket
+    serverSideEncryption: AES256
   memorySize: 128
   timeout: 5
   environment:

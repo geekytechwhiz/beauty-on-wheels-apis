@@ -189,4 +189,90 @@ export class RedcliffeAdapter
       }),
     };
   }
+
+  async getServiceableLocations(query: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/partner/v2/get-partner-location-2-eloc/`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        place_query: query,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async getPartnerLocation(eloc: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/partner/v2/get-partner-loc-2-eloc/`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        eloc,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async searchPackages(query: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/external/v2/center-package-data/`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        search: query,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async getPackageDetails(code: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/external/v2/package-parameter-data/`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        code,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async getBookingSlots(params: {
+    latitude: number;
+    longitude: number;
+    collectionDate: string;
+  }): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/booking/v2/get-time-slot-list/`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        latitude: params.latitude,
+        longitude: params.longitude,
+        collection_date: params.collectionDate,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
 }

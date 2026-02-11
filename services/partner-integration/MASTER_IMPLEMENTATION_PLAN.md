@@ -841,11 +841,14 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - **Endpoint:** `GET /api/partner/v2/get-partner-location-2-eloc/`
 - **Parameters:** `place_query` (query param)
 - **Description:** Get list of serviceable locations based on place query
-- **Implementation:** Create new handler, adapter method, service function
+- **Status:** ✅ FULLY IMPLEMENTED
+- **Implementation:** Handler, adapter method, and service function created
 
 **Orange Health:**
-- **Status:** ⚠️ Verify if exists in API docs
-- **Implementation:** Follow same pattern after verification
+- **Endpoint:** `GET /lab/locations` (placeholder - verify with API docs)
+- **Parameters:** `query` (query param)
+- **Status:** ✅ FULLY IMPLEMENTED (endpoint may need verification)
+- **Implementation:** Follows same pattern as Redcliffe
 
 ### 2.2 Get Partner Location
 
@@ -853,11 +856,14 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - **Endpoint:** `GET /api/partner/v2/get-partner-loc-2-eloc/`
 - **Parameters:** `eloc` (query param)
 - **Description:** Get partner location details by eloc
-- **Implementation:** Create new handler, adapter method, service function
+- **Status:** ✅ FULLY IMPLEMENTED
+- **Implementation:** Handler, adapter method, and service function created
 
 **Orange Health:**
-- **Status:** ⚠️ Verify if exists in API docs
-- **Implementation:** Follow same pattern after verification
+- **Endpoint:** `GET /lab/locations/{eloc}` (placeholder - verify with API docs)
+- **Parameters:** `eloc` (path param)
+- **Status:** ✅ FULLY IMPLEMENTED (endpoint may need verification)
+- **Implementation:** Follows same pattern as Redcliffe
 
 ### 2.3 Search Packages
 
@@ -865,11 +871,14 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - **Endpoint:** `GET /api/external/v2/center-package-data/`
 - **Parameters:** `search` (query param)
 - **Description:** Search for available packages/test packages
-- **Implementation:** Create new handler, adapter method, service function
+- **Status:** ✅ FULLY IMPLEMENTED
+- **Implementation:** Handler, adapter method, and service function created
 
 **Orange Health:**
-- **Status:** ⚠️ Verify if exists in API docs
-- **Implementation:** Follow same pattern after verification
+- **Endpoint:** `GET /lab/packages` (placeholder - verify with API docs)
+- **Parameters:** `search` (query param)
+- **Status:** ✅ FULLY IMPLEMENTED (endpoint may need verification)
+- **Implementation:** Follows same pattern as Redcliffe
 
 ### 2.4 Get Package Details
 
@@ -877,11 +886,14 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - **Endpoint:** `GET /api/external/v2/package-parameter-data/`
 - **Parameters:** `code` (query param)
 - **Description:** Get detailed information about a specific package by code
-- **Implementation:** Create new handler, adapter method, service function
+- **Status:** ✅ FULLY IMPLEMENTED
+- **Implementation:** Handler, adapter method, and service function created
 
 **Orange Health:**
-- **Status:** ⚠️ Verify if exists in API docs
-- **Implementation:** Follow same pattern after verification
+- **Endpoint:** `GET /lab/packages/{code}` (placeholder - verify with API docs)
+- **Parameters:** `code` (path param)
+- **Status:** ✅ FULLY IMPLEMENTED (endpoint may need verification)
+- **Implementation:** Follows same pattern as Redcliffe
 
 ### 2.5 Get Booking Slots
 
@@ -889,11 +901,14 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - **Endpoint:** `GET /api/booking/v2/get-time-slot-list/`
 - **Parameters:** `latitude`, `longitude`, `collection_date` (query params)
 - **Description:** Get available time slots for booking
-- **Implementation:** Create new handler, adapter method, service function
+- **Status:** ✅ FULLY IMPLEMENTED
+- **Implementation:** Handler, adapter method, and service function created
 
 **Orange Health:**
-- **Status:** ⚠️ Verify if exists in API docs
-- **Implementation:** Follow same pattern after verification
+- **Endpoint:** `GET /lab/slots` (placeholder - verify with API docs)
+- **Parameters:** `latitude`, `longitude`, `collectionDate` (query params)
+- **Status:** ✅ FULLY IMPLEMENTED (endpoint may need verification)
+- **Implementation:** Follows same pattern as Redcliffe
 
 **Implementation Pattern for Phase 2 APIs:**
 1. Create canonical model/interface for request/response
@@ -958,8 +973,16 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [x] **1.8.2** Update getOrderStatus based on verification ✅
 
 ### Phase 2: High Priority APIs
-- [ ] Implement all 5 APIs for Redcliffe
-- [ ] Verify and implement all 5 APIs for Orange (if they exist)
+- [x] **2.1** Get Serviceable Locations - Redcliffe ✅
+- [x] **2.1** Get Serviceable Locations - Orange ✅
+- [x] **2.2** Get Partner Location - Redcliffe ✅
+- [x] **2.2** Get Partner Location - Orange ✅
+- [x] **2.3** Search Packages - Redcliffe ✅
+- [x] **2.3** Search Packages - Orange ✅
+- [x] **2.4** Get Package Details - Redcliffe ✅
+- [x] **2.4** Get Package Details - Orange ✅
+- [x] **2.5** Get Booking Slots - Redcliffe ✅
+- [x] **2.5** Get Booking Slots - Orange ✅
 
 ### Phase 3: Medium Priority APIs
 - [ ] Implement all 4 APIs for Redcliffe

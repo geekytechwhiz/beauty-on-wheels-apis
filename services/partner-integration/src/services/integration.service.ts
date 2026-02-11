@@ -92,3 +92,67 @@ export async function getOrderStatus(
   const adapter = createAdapter(config);
   return adapter.fetchStatus(orderId);
 }
+
+export async function getServiceableLocations(
+  partnerId: string,
+  query: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getServiceableLocations) {
+    throw new Error(`getServiceableLocations not supported for partner: ${partnerId}`);
+  }
+  return adapter.getServiceableLocations(query);
+}
+
+export async function getPartnerLocation(
+  partnerId: string,
+  eloc: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getPartnerLocation) {
+    throw new Error(`getPartnerLocation not supported for partner: ${partnerId}`);
+  }
+  return adapter.getPartnerLocation(eloc);
+}
+
+export async function searchPackages(
+  partnerId: string,
+  query: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.searchPackages) {
+    throw new Error(`searchPackages not supported for partner: ${partnerId}`);
+  }
+  return adapter.searchPackages(query);
+}
+
+export async function getPackageDetails(
+  partnerId: string,
+  code: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getPackageDetails) {
+    throw new Error(`getPackageDetails not supported for partner: ${partnerId}`);
+  }
+  return adapter.getPackageDetails(code);
+}
+
+export async function getBookingSlots(
+  partnerId: string,
+  params: {
+    latitude: number;
+    longitude: number;
+    collectionDate: string;
+  }
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getBookingSlots) {
+    throw new Error(`getBookingSlots not supported for partner: ${partnerId}`);
+  }
+  return adapter.getBookingSlots(params);
+}

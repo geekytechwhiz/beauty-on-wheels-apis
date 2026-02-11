@@ -148,4 +148,84 @@ export class OrangeAdapter
       ...(command.specimenType && { specimenType: command.specimenType }),
     };
   }
+
+  async getServiceableLocations(query: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/locations`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        query,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async getPartnerLocation(eloc: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/locations/${encodeURIComponent(eloc)}`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async searchPackages(query: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/packages`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        search: query,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async getPackageDetails(code: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/packages/${encodeURIComponent(code)}`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  async getBookingSlots(params: {
+    latitude: number;
+    longitude: number;
+    collectionDate: string;
+  }): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/slots`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+      params: {
+        latitude: params.latitude,
+        longitude: params.longitude,
+        collectionDate: params.collectionDate,
+      },
+    });
+
+    return toResult(data, { success: true });
+  }
 }

@@ -1,41 +1,125 @@
 import { BasePartnerAdapter } from '../base/base.adapter';
-import type { PartnerAdapter } from '../base/adapter.interface';
+import type { PartnerAdapter, PartnerConfig } from '../base/adapter.interface';
 import type {
   CreateOrderCommand,
   RescheduleOrderCommand,
 } from '../../commands/base/order-command.types';
-import { toResultError } from '../../utils/types/integration-result';
+import {
+  toResult,
+  toResultError,
+} from '../../utils/types/integration-result';
+import type { OrangeCreateOrderCommand } from '../../commands/orange/orange-order.extension';
+import { InvalidPartnerResponseError } from '../../utils/error/custom-errors';
 
 /**
  * Orange Health partner adapter.
- * TODO: Implement after verifying Orange Health API documentation.
+ * Extends BasePartnerAdapter for shared functionality.
+ * API Documentation: https://orangehealth.docs.apiary.io/
  */
-export class OrangeAdapter extends BasePartnerAdapter implements PartnerAdapter {
-  async createOrder(_command: CreateOrderCommand) {
-    return toResultError(
-      _command.partnerId,
-      'Orange Health createOrder not yet implemented'
-    );
+export class OrangeAdapter
+  extends BasePartnerAdapter
+  implements PartnerAdapter
+{
+  constructor(config: PartnerConfig) {
+    super(config);
   }
 
-  async rescheduleOrder(orderId: string, _command: RescheduleOrderCommand) {
+  /**
+   * Override to use 'api_key' header instead of 'Authorization'.
+   * According to Orange Health API documentation: https://orangehealth.docs.apiary.io/
+   * Auth: Add header (api_key : YOUR_API_KEY_HERE)
+   */
+  protected override async getAuthHeaders(): Promise<Record<string, string>> {
+    const apiKey = await this.getApiKey();
+    return {
+      'Content-Type': 'application/json',
+      ...(apiKey && { api_key: apiKey }),
+    };
+  }
+
+  async createOrder(command: CreateOrderCommand): Promise<ReturnType<typeof toResult>> {
+    const orangeCommand = command as OrangeCreateOrderCommand;
+    const url = `${this.baseUrl()}/lab/orders`;
+    const headers = await this.getAuthHeaders();
+
+    const body = this.mapCreateOrderBody(orangeCommand);
+
+    const { data } = await this.request<{
+      orderId?: string;
+      id?: string;
+      status?: string;
+    }>({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, {
+      orderId: data?.orderId ?? data?.id,
+    });
+  }
+
+  async rescheduleOrder(
+    orderId: string,
+    _command: RescheduleOrderCommand
+  ): Promise<ReturnType<typeof toResultError>> {
+    void _command; // Placeholder for future implementation
     return toResultError(
       orderId,
       'Orange Health rescheduleOrder not yet implemented'
     );
   }
 
-  async cancelOrder(orderId: string) {
+  async cancelOrder(
+    orderId: string,
+    remark?: string
+  ): Promise<ReturnType<typeof toResultError>> {
+    void remark; // Placeholder for future implementation
     return toResultError(
       orderId,
       'Orange Health cancelOrder not yet implemented'
     );
   }
 
-  async fetchStatus(orderId: string) {
+  async fetchStatus(
+    orderId: string
+  ): Promise<ReturnType<typeof toResultError>> {
     return toResultError(
       orderId,
       'Orange Health fetchStatus not yet implemented'
     );
+  }
+
+  private mapCreateOrderBody(
+    command: OrangeCreateOrderCommand
+  ): Record<string, unknown> {
+    const requiredFields = {
+      patientId: command.patientId,
+      testCodes: command.testCodes,
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([, value]) => value === undefined || value === null)
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      throw new InvalidPartnerResponseError(
+        this.config.partnerId,
+        `Missing required fields for Orange Health order: ${missingFields.join(', ')}`
+      );
+    }
+
+    return {
+      ...requiredFields,
+      ...(command.patientName && { patientName: command.patientName }),
+      ...(command.scheduledDate && { scheduledDate: command.scheduledDate }),
+      ...(command.priority && { priority: command.priority }),
+      ...(command.notes && { notes: command.notes }),
+      ...(command.externalReferenceId && {
+        externalReferenceId: command.externalReferenceId,
+      }),
+      ...(command.specimenType && { specimenType: command.specimenType }),
+    };
   }
 }

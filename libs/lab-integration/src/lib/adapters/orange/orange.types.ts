@@ -1,9 +1,12 @@
 /**
  * Orange Health-specific types.
- * Update after verifying Orange Health API documentation.
+ * Based on Orange Health API documentation: https://orangehealth.docs.apiary.io/
+ * TODO: Verify exact response structure from API docs
  */
-// Placeholder - add response/request types as needed
 export interface OrangeOrderResponse {
   orderId?: string;
+  id?: string; // Alternative field name
   status?: string;
+  message?: string;
+  // Add other response fields as needed after API verification
 }

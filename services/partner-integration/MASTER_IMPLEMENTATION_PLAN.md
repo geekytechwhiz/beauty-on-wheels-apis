@@ -165,7 +165,7 @@
 
 ### 1.1 Create Order - Redcliffe Labs
 
-**Status:** ✅ Partially implemented (needs updates)
+**Status:** ✅ **FULLY IMPLEMENTED**
 
 #### Files to Modify:
 - `src/adapters/redcliffe.adapter.ts`
@@ -365,7 +365,14 @@ private mapCreateOrderBody(command: CreateOrderCommand): Record<string, unknown>
 
 ### 1.2 Create Order - Orange Health
 
-**Status:** ✅ Partially implemented (needs verification)
+**Status:** ✅ **FULLY IMPLEMENTED**
+
+**Implementation Notes:**
+- Authentication: Uses `api_key` header (as per Orange Health API documentation)
+- Endpoint: `/lab/orders` (POST)
+- Base URLs:
+  - Testing: `https://sandbox-partner-api.orangehealth.dev`
+  - Production: `https://partner-api.orangehealth.in`
 
 #### Files to Modify:
 - `src/adapters/orange.adapter.ts`
@@ -893,11 +900,11 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 ### Phase 1: Critical APIs
 
 #### Redcliffe Labs
-- [ ] **1.1.1** Fix authentication header (use `key` instead of `Authorization`)
-- [ ] **1.1.2** Fix createOrder endpoint
-- [ ] **1.1.3** Extend CreateOrderCommand interface
-- [ ] **1.1.4** Update validation schema
-- [ ] **1.1.5** Update request body mapping
+- [x] **1.1.1** Fix authentication header (use `key` instead of `Authorization`) ✅
+- [x] **1.1.2** Fix createOrder endpoint ✅
+- [x] **1.1.3** Extend CreateOrderCommand interface ✅
+- [x] **1.1.4** Update validation schema ✅
+- [x] **1.1.5** Update request body mapping ✅
 - [ ] **1.3.1** Add rescheduleOrder to interface
 - [ ] **1.3.2** Implement rescheduleOrder in adapter
 - [ ] **1.3.3** Create RescheduleOrderCommand interface
@@ -910,10 +917,10 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [ ] **1.7.2** Fix fetchStatus to use query parameter
 
 #### Orange Health
-- [ ] **1.2.1** Verify authentication method
-- [ ] **1.2.2** Verify createOrder endpoint
-- [ ] **1.2.3** Verify createOrder request body
-- [ ] **1.2.4** Update implementation based on verification
+- [x] **1.2.1** Verify authentication method ✅ (Uses `api_key` header)
+- [x] **1.2.2** Verify createOrder endpoint ✅ (`/lab/orders`)
+- [x] **1.2.3** Verify createOrder request body ✅
+- [x] **1.2.4** Update implementation based on verification ✅
 - [ ] **1.4.1** Verify rescheduleOrder API exists
 - [ ] **1.4.2** Implement rescheduleOrder based on verification
 - [ ] **1.6.1** Verify cancelOrder endpoint

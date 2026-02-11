@@ -12,6 +12,7 @@ import type {
   RedcliffeCreateOrderCommand,
   RedcliffeRescheduleOrderCommand,
 } from '../../commands/redcliffe/redcliffe-order.extension';
+import { InvalidPartnerResponseError } from '../../utils/error/custom-errors';
 
 /**
  * Redcliffe Labs partner adapter.
@@ -167,7 +168,8 @@ export class RedcliffeAdapter
       .map(([key]) => key);
 
     if (missingFields.length > 0) {
-      throw new Error(
+      throw new InvalidPartnerResponseError(
+        this.config.partnerId,
         `Missing required fields for Redcliffe booking: ${missingFields.join(', ')}`
       );
     }

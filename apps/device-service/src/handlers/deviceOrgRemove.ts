@@ -46,7 +46,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   } catch (err) {
     logger.error({ event: 'deviceOrgRemove_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 400, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 400, duration, correlationId);
     return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
@@ -55,7 +55,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   if (!validation.success) {
     logger.warn({ event: 'deviceOrgRemove_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 400, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 400, duration, correlationId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
       { requestId: correlationId, event },
@@ -85,12 +85,12 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceOrgRemove_error', err: serializeError(err) });
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 500, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 500, duration, correlationId);
 
     return ApiResponse.internalServerError(
       {
         title: 'Internal server error',
-        description: 'An unexpected error occurred while removing devices from organization.',
+        description: 'An unexpected error occurred while syncing organization devices.',
       },
       { requestId: correlationId, event },
       { code: 'INTERNAL_SERVER_ERROR' },
@@ -99,9 +99,11 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
 };
 
 /**
- * Remove devices from organization: POST /devices/organizations
+ * Sync organization devices: Only keep specified devices, remove all others
+ * POST /devices/remove/organizations
  * Body: { accountAlias, roleId, devices: [...] }
  * Note: accountAlias is the organization ID
+ * Logic: Devices in payload remain assigned, all others are removed
  */
 async function removeDevicesFromOrganization(
   data: z.infer<typeof deviceRemoveSchema>,
@@ -111,14 +113,78 @@ async function removeDevicesFromOrganization(
   event: any,
   startTime: number,
 ) {
+  // Step 1: Get all current devices for the organization
+  logger.info({ event: 'fetching_current_org_devices', orgId });
+  const currentDevices = await orgDeviceRepository.getOrgDevices(orgId);
+  
+  console.log('=== CURRENT DEVICES IN ORGANIZATION ===');
+  console.log('Organization ID:', orgId);
+  console.log('Current device count:', currentDevices.length);
+  console.log('Current device IDs:', currentDevices.map(d => d.deviceId));
+  console.log('Current devices:', JSON.stringify(currentDevices, null, 2));
+  
+  logger.info({ 
+    event: 'current_devices_fetched', 
+    orgId, 
+    currentDeviceCount: currentDevices.length,
+    currentDeviceIds: currentDevices.map(d => d.deviceId)
+  });
+
+  // Step 2: Extract device IDs from the payload (devices to keep)
+  const devicesToKeep = new Set(data.devices.map(d => d.deviceId));
+  
+  console.log('=== DEVICES TO KEEP (FROM PAYLOAD) ===');
+  console.log('Devices to keep:', Array.from(devicesToKeep));
+  
+  logger.info({ 
+    event: 'devices_to_keep', 
+    orgId, 
+    keepDeviceCount: devicesToKeep.size,
+    keepDeviceIds: Array.from(devicesToKeep)
+  });
+
+  // Step 3: Identify devices to remove (current devices NOT in the payload)
+  const devicesToRemove = currentDevices.filter(device => !devicesToKeep.has(device.deviceId));
+  
+  console.log('=== DEVICES TO REMOVE ===');
+  console.log('Remove device count:', devicesToRemove.length);
+  console.log('Remove device IDs:', devicesToRemove.map(d => d.deviceId));
+  
+  logger.info({ 
+    event: 'devices_to_remove_identified', 
+    orgId, 
+    removeDeviceCount: devicesToRemove.length,
+    removeDeviceIds: devicesToRemove.map(d => d.deviceId)
+  });
+
+  // If no devices to remove, return success
+  if (devicesToRemove.length === 0) {
+    logger.info({ event: 'no_devices_to_remove', orgId });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 200, duration, correlationId);
+    
+    return ApiResponse.ok(
+      { 
+        message: 'Devices synced successfully',
+        removed: 0,
+        kept: devicesToKeep.size
+      },
+      {
+        title: 'Device unassign success',
+        description: 'The device unassign completed successfully.',
+      },
+      { requestId: correlationId, event },
+    );
+  }
+
   const processedDevices: Array<{
     deviceId: string;
     status: 'success' | 'failed';
     error?: string;
   }> = [];
 
-  // Process each device
-  for (const device of data.devices) {
+  // Step 4: Remove devices that are not in the payload
+  for (const device of devicesToRemove) {
     const deviceId = device.deviceId;
 
     try {
@@ -158,7 +224,7 @@ async function removeDevicesFromOrganization(
       failures: failedDevices,
     });
 
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 400, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 400, duration, correlationId);
 
     return ApiResponse.badRequest(
       {
@@ -184,7 +250,7 @@ async function removeDevicesFromOrganization(
       failedCount: failedDevices.length,
     });
 
-    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 207, duration, correlationId);
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 207, duration, correlationId);
 
     return {
       statusCode: 207,
@@ -218,20 +284,25 @@ async function removeDevicesFromOrganization(
     };
   }
 
-  // All devices processed successfully
+  // All devices removed successfully
   logger.info({
     event: 'deviceOrgRemove_success',
     orgId,
-    deviceCount: successfulDevices.length,
+    removedCount: successfulDevices.length,
+    keptCount: data.devices.length,
   });
 
-  logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || '/devices/organizations', 201, duration, correlationId);
+  logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 200, duration, correlationId);
 
-  return ApiResponse.created(
-    null,
+  return ApiResponse.ok(
+    { 
+      message: 'Devices removed from organization successfully',
+      removed: successfulDevices.length,
+      kept: data.devices.length
+    },
     {
-      title: 'Device is successfully updated',
-      description: 'Device is successfully updated.',
+      title: 'Device unassign success',
+      description: 'The device unassign completed successfully.',
     },
     { requestId: correlationId, event },
   );

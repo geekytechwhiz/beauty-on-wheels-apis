@@ -301,10 +301,10 @@ functions:
   deviceOrgRemove:
     handler: src/handlers/deviceOrgRemove.handler
     events:
-      # Bulk device removal: DELETE /devices/organizations
+      # Bulk device removal: POST /devices/remove/organizations
       - http:
-          path: devices/organizations
-          method: delete
+          path: devices/remove/organizations
+          method: post
           cors: true
 
   deviceOrgList:
@@ -325,7 +325,7 @@ functions:
           cors: true
 
   # Device Files API
-  deviceFileUpload:
+  deviceFileUpload: 
     handler: src/handlers/deviceFileUpload.handler
     events:
       - http:

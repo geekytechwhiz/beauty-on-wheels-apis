@@ -100,11 +100,21 @@ export class OrangeAdapter
 
   async fetchStatus(
     orderId: string
-  ): Promise<ReturnType<typeof toResultError>> {
-    return toResultError(
-      orderId,
-      'Orange Health fetchStatus not yet implemented'
-    );
+  ): Promise<ReturnType<typeof toResult> | ReturnType<typeof toResultError>> {
+    const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/status`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request<{ errors?: string[] }>({
+      method: 'GET',
+      url,
+      headers,
+    });
+
+    if (data?.errors?.includes('Order not found')) {
+      return toResultError(orderId, 'Order ID does not exist or is not accessible');
+    }
+
+    return toResult(data, { orderId, success: true });
   }
 
   private mapCreateOrderBody(

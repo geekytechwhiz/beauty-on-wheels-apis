@@ -54,12 +54,26 @@
 
 ### Phase 1: Critical (Must Have) - Start Here
 **Priority:** 🔴 **CRITICAL**  
-**Timeline:** Week 1-2
+**Timeline:** Week 1-2  
+**Status:** ✅ **COMPLETE - READY FOR PHASE 2**
 
-1. ✅ **Create Order** (both partners - update existing)
-2. ✅ **Reschedule Order** (both partners - implement new)
-3. ✅ **Cancel Order** (both partners - update existing)
-4. ✅ **Get Order Status** (both partners - update existing)
+1. ✅ **Create Order** (both partners) - **COMPLETE**
+   - Redcliffe: ✅ Fully implemented with `key` header, endpoint `/api/external/v2/center-create-booking/`
+   - Orange: ✅ Fully implemented with `api_key` header, endpoint `/lab/orders`
+
+2. ✅ **Reschedule Order** (both partners) - **COMPLETE**
+   - Redcliffe: ✅ Fully implemented, endpoint `/api/external/v2/center-update-booking/`
+   - Orange: ✅ Fully implemented, endpoint `/lab/orders/{orderId}/reschedule`
+
+3. ✅ **Cancel Order** (both partners) - **COMPLETE**
+   - Redcliffe: ✅ Fully implemented, endpoint `/api/external/v2/center-update-booking/`
+   - Orange: ✅ Fully implemented, endpoint `/lab/orders/{orderId}/cancel`
+
+4. ✅ **Get Order Status** (both partners) - **COMPLETE**
+   - Redcliffe: ✅ Fully implemented, endpoint `/api/external/v2/center-get-booking` (GET with query param)
+   - Orange: ✅ Fully implemented, endpoint `/lab/orders/{orderId}/status` (GET)
+
+**All Phase 1 APIs are fully implemented, following consistent patterns, and ready for testing.**
 
 ### Phase 2: High Priority (Should Have)
 **Priority:** 🟠 **HIGH**  
@@ -713,7 +727,7 @@ async cancelOrder(orderId: string, remark?: string): Promise<IntegrationResult> 
 
 ### 1.7 Get Order Status - Redcliffe Labs
 
-**Status:** ✅ Partially implemented (needs updates)
+**Status:** ✅ **FULLY IMPLEMENTED**
 
 #### Files to Modify:
 - `src/adapters/redcliffe.adapter.ts`
@@ -796,7 +810,12 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 
 ### 1.8 Get Order Status - Orange Health
 
-**Status:** ✅ Partially implemented (needs verification)
+**Status:** ✅ **FULLY IMPLEMENTED**
+
+**Implementation Notes:**
+- Endpoint: `/lab/orders/{orderId}/status` (GET)
+- Uses `api_key` header for authentication
+- Handles error responses with proper error messages
 
 #### Step-by-Step Implementation:
 
@@ -902,10 +921,10 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 ## 📝 Complete Implementation Checklist
 
 ### Phase 0: Four Mandatory Architectural Steps
-- [ ] **Step 1 – Reusability:** Base order command + partner extensions; separate Zod schemas per adapter; getCreateOrderSchema(partnerId); validate per partner in handlers
-- [ ] **Step 2 – Standards:** Idempotency for create/reschedule/cancel; retry/backoff; optional circuit breaker; document (or generate) partner request/response contracts
-- [ ] **Step 3 – Scalability:** Adapter factory refactored to registry (adapterKey → constructor); new partner types without editing factory; document registry SLA and caching if used
-- [ ] **Step 4 – Patterns:** Shared base adapter with getAuthHeaders, request, error handling; all adapters extend base and use this.request(); resilience behavior standardized
+- [x] **Step 1 – Reusability:** Base order command + partner extensions; separate Zod schemas per adapter; getCreateOrderSchema(partnerId); validate per partner in handlers ✅
+- [x] **Step 2 – Standards:** Idempotency for create/reschedule/cancel; retry/backoff; optional circuit breaker; document (or generate) partner request/response contracts ✅
+- [x] **Step 3 – Scalability:** Adapter factory refactored to registry (adapterKey → constructor); new partner types without editing factory; document registry SLA and caching if used ✅
+- [x] **Step 4 – Patterns:** Shared base adapter with getAuthHeaders, request, error handling; all adapters extend base and use this.request(); resilience behavior standardized ✅
 
 ### Phase 1: Critical APIs
 
@@ -923,8 +942,8 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [x] **1.3.6** Add to serverless.yml ✅
 - [x] **1.5.1** Fix cancelOrder endpoint ✅
 - [x] **1.5.2** Fix cancelOrder request body ✅
-- [ ] **1.7.1** Fix fetchStatus endpoint
-- [ ] **1.7.2** Fix fetchStatus to use query parameter
+- [x] **1.7.1** Fix fetchStatus endpoint ✅
+- [x] **1.7.2** Fix fetchStatus to use query parameter ✅
 
 #### Orange Health
 - [x] **1.2.1** Verify authentication method ✅ (Uses `api_key` header)
@@ -935,8 +954,8 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [x] **1.4.2** Implement rescheduleOrder based on verification ✅
 - [x] **1.6.1** Verify cancelOrder endpoint ✅ (`/lab/orders/{orderId}/cancel`)
 - [x] **1.6.2** Update cancelOrder based on verification ✅
-- [ ] **1.8.1** Verify getOrderStatus endpoint
-- [ ] **1.8.2** Update getOrderStatus based on verification
+- [x] **1.8.1** Verify getOrderStatus endpoint ✅ (`/lab/orders/{orderId}/status`)
+- [x] **1.8.2** Update getOrderStatus based on verification ✅
 
 ### Phase 2: High Priority APIs
 - [ ] Implement all 5 APIs for Redcliffe

@@ -423,7 +423,7 @@ private mapCreateOrderBody(command: CreateOrderCommand): Record<string, unknown>
 
 ### 1.3 Reschedule Order - Redcliffe Labs
 
-**Status:** ❌ Not yet implemented
+**Status:** ✅ **FULLY IMPLEMENTED**
 
 #### Files to Create/Modify:
 - `src/adapters/partner.adapter.ts` (add method to interface)
@@ -576,7 +576,12 @@ rescheduleOrder:
 
 ### 1.4 Reschedule Order - Orange Health
 
-**Status:** ❌ Not yet implemented (needs verification)
+**Status:** ✅ **FULLY IMPLEMENTED**
+
+**Implementation Notes:**
+- Endpoint: `/lab/orders/{orderId}/reschedule` (POST)
+- Uses `api_key` header for authentication
+- Request body includes `newScheduledDate` (optional)
 
 #### Step-by-Step Implementation:
 
@@ -905,12 +910,12 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [x] **1.1.3** Extend CreateOrderCommand interface ✅
 - [x] **1.1.4** Update validation schema ✅
 - [x] **1.1.5** Update request body mapping ✅
-- [ ] **1.3.1** Add rescheduleOrder to interface
-- [ ] **1.3.2** Implement rescheduleOrder in adapter
-- [ ] **1.3.3** Create RescheduleOrderCommand interface
-- [ ] **1.3.4** Create validation schema
-- [ ] **1.3.5** Create handler
-- [ ] **1.3.6** Add to serverless.yml
+- [x] **1.3.1** Add rescheduleOrder to interface ✅
+- [x] **1.3.2** Implement rescheduleOrder in adapter ✅
+- [x] **1.3.3** Create RescheduleOrderCommand interface ✅
+- [x] **1.3.4** Create validation schema ✅
+- [x] **1.3.5** Create handler ✅
+- [x] **1.3.6** Add to serverless.yml ✅
 - [ ] **1.5.1** Fix cancelOrder endpoint
 - [ ] **1.5.2** Fix cancelOrder request body
 - [ ] **1.7.1** Fix fetchStatus endpoint
@@ -921,8 +926,8 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [x] **1.2.2** Verify createOrder endpoint ✅ (`/lab/orders`)
 - [x] **1.2.3** Verify createOrder request body ✅
 - [x] **1.2.4** Update implementation based on verification ✅
-- [ ] **1.4.1** Verify rescheduleOrder API exists
-- [ ] **1.4.2** Implement rescheduleOrder based on verification
+- [x] **1.4.1** Verify rescheduleOrder API exists ✅
+- [x] **1.4.2** Implement rescheduleOrder based on verification ✅
 - [ ] **1.6.1** Verify cancelOrder endpoint
 - [ ] **1.6.2** Update cancelOrder based on verification
 - [ ] **1.8.1** Verify getOrderStatus endpoint

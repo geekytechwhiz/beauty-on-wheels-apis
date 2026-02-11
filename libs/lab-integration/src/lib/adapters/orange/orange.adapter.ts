@@ -8,14 +8,12 @@ import {
   toResult,
   toResultError,
 } from '../../utils/types/integration-result';
-import type { OrangeCreateOrderCommand } from '../../commands/orange/orange-order.extension';
+import type {
+  OrangeCreateOrderCommand,
+  OrangeRescheduleOrderCommand,
+} from '../../commands/orange/orange-order.extension';
 import { InvalidPartnerResponseError } from '../../utils/error/custom-errors';
 
-/**
- * Orange Health partner adapter.
- * Extends BasePartnerAdapter for shared functionality.
- * API Documentation: https://orangehealth.docs.apiary.io/
- */
 export class OrangeAdapter
   extends BasePartnerAdapter
   implements PartnerAdapter
@@ -24,11 +22,6 @@ export class OrangeAdapter
     super(config);
   }
 
-  /**
-   * Override to use 'api_key' header instead of 'Authorization'.
-   * According to Orange Health API documentation: https://orangehealth.docs.apiary.io/
-   * Auth: Add header (api_key : YOUR_API_KEY_HERE)
-   */
   protected override async getAuthHeaders(): Promise<Record<string, string>> {
     const apiKey = await this.getApiKey();
     return {
@@ -62,13 +55,25 @@ export class OrangeAdapter
 
   async rescheduleOrder(
     orderId: string,
-    _command: RescheduleOrderCommand
-  ): Promise<ReturnType<typeof toResultError>> {
-    void _command; // Placeholder for future implementation
-    return toResultError(
-      orderId,
-      'Orange Health rescheduleOrder not yet implemented'
-    );
+    command: RescheduleOrderCommand
+  ): Promise<ReturnType<typeof toResult>> {
+    const orangeCommand = command as OrangeRescheduleOrderCommand;
+    const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/reschedule`;
+    const headers = await this.getAuthHeaders();
+
+    const body: Record<string, unknown> = {};
+    if (orangeCommand.newScheduledDate) {
+      body.newScheduledDate = orangeCommand.newScheduledDate;
+    }
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { orderId, success: true });
   }
 
   async cancelOrder(

@@ -250,6 +250,18 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
 
+  updateCredit:
+    handler: src/handlers/updateCredit.main
+    timeout: 30
+    memorySize: 512
+    events:
+      - http:
+          path: /orders/{orderId}/credit
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
 resources:
   Resources:
     IdempotencyTable:

@@ -231,3 +231,28 @@ export async function getDigitalReport(
   }
   return adapter.getDigitalReport(orderId, format);
 }
+
+export async function updateCredit(
+  partnerId: string,
+  orderId: string,
+  creditData: Record<string, unknown>,
+  idempotencyKey?: string
+): Promise<IntegrationResult> {
+  if (idempotencyKey) {
+    const cached =
+      await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
+    if (cached) return cached;
+  }
+
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.updateCredit) {
+    throw new Error(`updateCredit not supported for partner: ${partnerId}`);
+  }
+  const result = await adapter.updateCredit(orderId, creditData);
+
+  if (idempotencyKey) {
+    await idempotencyService.storeResult(idempotencyKey, result);
+  }
+  return result;
+}

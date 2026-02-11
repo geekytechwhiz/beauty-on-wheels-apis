@@ -299,4 +299,21 @@ export class OrangeAdapter
 
     return toResult(data, { orderId, success: true });
   }
+
+  async updateCredit(
+    orderId: string,
+    creditData: Record<string, unknown>
+  ): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/credit`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'PUT',
+      url,
+      headers,
+      data: creditData,
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
 }

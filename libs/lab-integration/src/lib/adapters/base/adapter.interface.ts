@@ -34,6 +34,9 @@ export interface PartnerAdapter {
   updatePackage?(packageCode: string, updateData: Record<string, unknown>): Promise<IntegrationResult>;
   getConsolidatedReport?(orderId: string): Promise<IntegrationResult>;
   getDigitalReport?(orderId: string, format?: string): Promise<IntegrationResult>;
+
+  // Phase 4 methods
+  updateCredit?(orderId: string, creditData: Record<string, unknown>): Promise<IntegrationResult>;
 }
 
 /**

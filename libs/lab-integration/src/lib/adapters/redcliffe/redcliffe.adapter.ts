@@ -378,4 +378,32 @@ export class RedcliffeAdapter
 
     return toResult(data, { orderId, success: true });
   }
+
+  async updateCredit(
+    orderId: string,
+    creditData: Record<string, unknown>
+  ): Promise<ReturnType<typeof toResult>> {
+    const bookingId = parseInt(orderId, 10);
+
+    if (Number.isNaN(bookingId)) {
+      return toResultError(orderId, 'Invalid booking ID format');
+    }
+
+    const url = `${this.baseUrl()}/api/external/v2/center-update-credit/`;
+    const headers = await this.getAuthHeaders();
+
+    const body = {
+      booking_id: bookingId,
+      ...creditData,
+    };
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { orderId, success: true });
+  }
 }

@@ -607,7 +607,7 @@ rescheduleOrder:
 
 ### 1.5 Cancel Order - Redcliffe Labs
 
-**Status:** ✅ Partially implemented (needs updates)
+**Status:** ✅ **FULLY IMPLEMENTED**
 
 #### Files to Modify:
 - `src/adapters/redcliffe.adapter.ts`
@@ -684,7 +684,12 @@ async cancelOrder(orderId: string, remark?: string): Promise<IntegrationResult> 
 
 ### 1.6 Cancel Order - Orange Health
 
-**Status:** ✅ Partially implemented (needs verification)
+**Status:** ✅ **FULLY IMPLEMENTED**
+
+**Implementation Notes:**
+- Endpoint: `/lab/orders/{orderId}/cancel` (POST)
+- Uses `api_key` header for authentication
+- Request body includes `remark` (optional)
 
 #### Step-by-Step Implementation:
 
@@ -916,8 +921,8 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [x] **1.3.4** Create validation schema ✅
 - [x] **1.3.5** Create handler ✅
 - [x] **1.3.6** Add to serverless.yml ✅
-- [ ] **1.5.1** Fix cancelOrder endpoint
-- [ ] **1.5.2** Fix cancelOrder request body
+- [x] **1.5.1** Fix cancelOrder endpoint ✅
+- [x] **1.5.2** Fix cancelOrder request body ✅
 - [ ] **1.7.1** Fix fetchStatus endpoint
 - [ ] **1.7.2** Fix fetchStatus to use query parameter
 
@@ -928,8 +933,8 @@ async fetchStatus(orderId: string): Promise<IntegrationResult> {
 - [x] **1.2.4** Update implementation based on verification ✅
 - [x] **1.4.1** Verify rescheduleOrder API exists ✅
 - [x] **1.4.2** Implement rescheduleOrder based on verification ✅
-- [ ] **1.6.1** Verify cancelOrder endpoint
-- [ ] **1.6.2** Update cancelOrder based on verification
+- [x] **1.6.1** Verify cancelOrder endpoint ✅ (`/lab/orders/{orderId}/cancel`)
+- [x] **1.6.2** Update cancelOrder based on verification ✅
 - [ ] **1.8.1** Verify getOrderStatus endpoint
 - [ ] **1.8.2** Update getOrderStatus based on verification
 

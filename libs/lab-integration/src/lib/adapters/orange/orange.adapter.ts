@@ -79,12 +79,23 @@ export class OrangeAdapter
   async cancelOrder(
     orderId: string,
     remark?: string
-  ): Promise<ReturnType<typeof toResultError>> {
-    void remark; // Placeholder for future implementation
-    return toResultError(
-      orderId,
-      'Orange Health cancelOrder not yet implemented'
-    );
+  ): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/lab/orders/${encodeURIComponent(orderId)}/cancel`;
+    const headers = await this.getAuthHeaders();
+
+    const body: Record<string, unknown> = {};
+    if (remark) {
+      body.remark = remark;
+    }
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { orderId, success: true });
   }
 
   async fetchStatus(

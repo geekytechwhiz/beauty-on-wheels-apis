@@ -1,8 +1,10 @@
 /**
  * Maps canonical ObservationValue to FHIR R4 Observation.
  * Deterministic and profile-aware (r4).
+ * Uses terminology lib to map internal codes to standard systems (e.g. LOINC) when registered.
  */
 import type { ObservationValue } from '@api-hub/canonical';
+import { mapCode } from '@api-hub/terminology';
 
 export type FhirVersion = 'r4' | 'r5';
 
@@ -43,15 +45,20 @@ export function canonicalToFhirObservation(
   };
 
   if (canonical.code || canonical.display || canonical.system) {
-    observation.code = {
-      coding: [
-        {
-          system: canonical.system,
-          code: canonical.code,
-          display: canonical.display,
-        },
-      ],
-    };
+    const codings: Array<{ system?: string; code?: string; display?: string }> = [];
+    const internalSystem = canonical.system ?? 'http://internal';
+    const mapped = canonical.code
+      ? mapCode(canonical.code, internalSystem, 'http://loinc.org')
+      : undefined;
+    if (mapped) {
+      codings.push({ system: mapped.system, code: mapped.code, display: mapped.display });
+    }
+    codings.push({
+      system: canonical.system,
+      code: canonical.code,
+      display: canonical.display,
+    });
+    observation.code = { coding: codings };
   }
 
   if (canonical.valueQuantity) {

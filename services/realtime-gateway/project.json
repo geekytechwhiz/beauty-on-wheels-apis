@@ -1,7 +1,1 @@
-{
-  "name": "realtime-gateway",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "services/realtime-gateway/src",
-  "projectType": "application",
-  "tags": ["type:service"]
-}
+{"name": "realtime-gateway", "$schema": "../../node_modules/nx/schemas/project-schema.json", "sourceRoot": "services/realtime-gateway/src", "projectType": "application", "tags": ["type:service"], "targets": {"test": {"executor": "@nx/jest:jest", "options": {"jestConfig": "services/realtime-gateway/jest.config.ts", "passWithNoTests": true}}}}

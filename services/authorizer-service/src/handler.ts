@@ -165,8 +165,8 @@ export async function main(
   let userPoolId: string;
   try {
     userPoolId = await resolveUserPoolId(config);
-  } catch (err) {
-    console.warn('Authorizer config error:', err instanceof Error ? err.message : 'resolve pool failed');
+  } catch {
+    console.warn('Authorizer config error: resolve pool failed');
     return denyPolicy('unauthorized', methodArn);
   }
 
@@ -181,10 +181,40 @@ export async function main(
       allowLegacyToken: allowLegacy,
     });
   } catch (err) {
+    const debug = process.env.AUTHORIZER_DEBUG === 'true' || process.env.AUTHORIZER_DEBUG === '1';
     if (err instanceof TokenValidationError) {
-      console.warn('Token validation failed', { code: err.code, message: err.message });
+      if (debug) {
+        let payloadHint: Record<string, unknown> = {};
+        try {
+          const decoded = jwt.decode(token, { complete: true }) as { header?: { kid?: string }; payload?: Record<string, unknown> } | null;
+          if (decoded?.payload) {
+            payloadHint = {
+              iss: decoded.payload.iss,
+              aud: decoded.payload.aud,
+              token_use: decoded.payload.token_use,
+              exp: decoded.payload.exp,
+              kid: decoded.header?.kid,
+            };
+          }
+        } catch {
+          // ignore
+        }
+        console.warn('Token validation failed (debug)', {
+          code: err.code,
+          message: err.message,
+          expectedIssuer: `https://cognito-idp.${config.region}.amazonaws.com/${userPoolId}`,
+          expectedAudience: config.expectedAudience,
+          tokenClaims: payloadHint,
+        });
+      } else {
+        console.warn('Token validation failed', { code: err.code });
+      }
     } else {
-      console.warn('Authorizer error', { message: err instanceof Error ? err.message : String(err) });
+      if (debug && err instanceof Error) {
+        console.warn('Authorizer error (debug)', { message: err.message });
+      } else {
+        console.warn('Authorizer error');
+      }
     }
     return denyPolicy('unauthorized', methodArn);
   }

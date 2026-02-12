@@ -5,18 +5,23 @@ frameworkVersion: '3'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
+  - serverless-offline
 
 provider:
   name: aws
   runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-authorizer-service-bucket
+    serverSideEncryption: AES256
   memorySize: 128
   timeout: 5
   environment:
     REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, ''}
-    EXPECTED_AUDIENCE: ${env:EXPECTED_AUDIENCE, env:COGNITO_CLIENT_ID, ''}
+    EXPECTED_AUDIENCE: ${env:EXPECTED_AUDIENCE, ''}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, ''}
     SECRET_MANAGER_NAME: ${env:SECRET_MANAGER_NAME, ''}
     USER_TABLE: ${env:USER_TABLE, ''}
     END_USER_MESSAGING_URL: ${env:END_USER_MESSAGING_URL, ''}
@@ -25,14 +30,15 @@ provider:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
+  # Least privilege: restrict to specific secret and table (placeholder when not used)
   iamRoleStatements:
     - Effect: Allow
       Action: secretsmanager:GetSecretValue
-      Resource: '*'
+      Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${env:SECRET_MANAGER_NAME, "authorizer-service-no-secret"}*'
     - Effect: Allow
       Action:
         - dynamodb:Query
-      Resource: '*'
+      Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${env:USER_TABLE, "authorizer-service-no-table"}'
 
 package:
   individually: true
@@ -42,7 +48,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: true
-    target: node22
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
@@ -59,3 +65,13 @@ functions:
     timeout: 5
     memorySize: 128
     description: OAuth2 / SMART on FHIR Lambda Token Authorizer (JWT via JWKS)
+  # Local testing only: HTTP endpoint that accepts authorizer event as POST body (use with serverless offline)
+  localAuthorize:
+    handler: src/local-authorizer-http.handler
+    timeout: 5
+    memorySize: 128
+    description: Local HTTP wrapper for authorizer (serverless offline)
+    events:
+      - http:
+          path: authorize
+          method: post

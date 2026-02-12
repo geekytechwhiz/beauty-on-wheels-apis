@@ -10,6 +10,9 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-audit-service-bucket
+    serverSideEncryption: AES256
   memorySize: 256
   timeout: 30
   environment:

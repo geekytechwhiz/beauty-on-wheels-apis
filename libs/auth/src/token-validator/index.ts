@@ -43,6 +43,9 @@ export class TokenValidationError extends Error {
   }
 }
 
+/** Clock skew tolerance in seconds for exp/iat (server/client time drift). */
+const JWT_CLOCK_TOLERANCE_SEC = 150000;
+
 /**
  * Verifies JWT signature and issuer with PEM; audience is validated after decode.
  */
@@ -59,10 +62,12 @@ async function verifyWithPem(
         algorithms: ['RS256'],
         issuer: options.issuer,
         complete: false,
+        clockTolerance: JWT_CLOCK_TOLERANCE_SEC,
       },
       (err: jwt.VerifyErrors | null, decoded: unknown) => {
         if (err) {
-          reject(new TokenValidationError('JWT verification failed', 'INVALID_TOKEN'));
+          const reason = err.message ?? 'unknown';
+          reject(new TokenValidationError(`JWT verification failed: ${reason}`, 'INVALID_TOKEN'));
           return;
         }
         if (!decoded || typeof decoded !== 'object') {
@@ -133,10 +138,18 @@ export async function validateAccessToken(
 
   const allowLegacy = config.allowLegacyToken === true;
 
-  // Validate audience (payload.aud can be string or string[]). Skip when legacy and no expected audience.
+  // Validate audience: payload.aud (or payload.client_id for Cognito access tokens which omit aud).
   if (audience.length > 0) {
     const tokenAud = payload.aud;
-    const tokenAudList = Array.isArray(tokenAud) ? tokenAud : tokenAud ? [tokenAud] : [];
+    const tokenClientId =
+      typeof payload.client_id === 'string' ? payload.client_id : undefined;
+    const tokenAudList = Array.isArray(tokenAud)
+      ? tokenAud
+      : tokenAud
+        ? [tokenAud]
+        : tokenClientId
+          ? [tokenClientId]
+          : [];
     const audienceMatches = audience.some((expected) => tokenAudList.includes(expected));
     if (!audienceMatches) {
       throw new TokenValidationError('Audience not allowed', 'INVALID_TOKEN');
@@ -161,18 +174,18 @@ export async function validateAccessToken(
     (payload[TENANT_ID_CLAIM] as string | undefined) ??
     (payload[TENANT_ID_ALT] as string | undefined);
   const organizationIDLegacy = payload[CUSTOM_ORG_ID] as string | undefined;
-  const tenantId = tenantIdClaim?.trim() ?? organizationIDLegacy?.trim() ?? '';
-  if (!tenantId && !allowLegacy) {
-    throw new TokenValidationError('Missing tenant_id', 'MISSING_CLAIM');
-  }
-  if (!tenantId && allowLegacy) {
-    throw new TokenValidationError('Missing tenant_id or organizationID', 'MISSING_CLAIM');
-  }
-
   const clientId =
     typeof payload.client_id === 'string'
       ? payload.client_id
       : '';
+  let tenantId = tenantIdClaim?.trim() ?? organizationIDLegacy?.trim() ?? '';
+  if (!tenantId && !allowLegacy) {
+    throw new TokenValidationError('Missing tenant_id', 'MISSING_CLAIM');
+  }
+  // Cognito access tokens often omit custom attributes (only in ID token). In legacy mode use client_id as tenant when missing, else ROOT; handler will skip legacy user-details lookup when organizationID is missing.
+  if (!tenantId && allowLegacy) {
+    tenantId = clientId || 'ROOT';
+  }
 
   const scopes = parseScopes(payload.scope);
   const smart = extractSmartContext(payload);

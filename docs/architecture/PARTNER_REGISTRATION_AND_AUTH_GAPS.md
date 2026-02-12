@@ -1,6 +1,8 @@
 # Partner Registration & Third-Party Auth – Gap Analysis
 
-Review of **partner-registry**, **partner-integration**, **realtime-gateway**, **libs/partners**, and related flows. Identifies what is missing for:
+Review of **partner-registry**, **partner-integration**, **libs/partners**, and related flows. Identifies what is missing for:
+
+> **Note:** The **realtime-gateway** (WebSocket) service has been removed from the codebase. Inbound real-time UI push is out of scope; third-party event integration uses webhooks (inbound/outbound) only. Sections below that reference realtime-gateway are kept for historical context.
 
 1. **Complete partner registration**
 2. **Connecting to third parties with their auth mechanism**
@@ -62,15 +64,13 @@ Two directions:
 | **A3** | **Secret reference by partnerId** | Today secret ARN is inferred from **env var name** (e.g. REDCLIFFE_API_KEY_SECRET_ARN). There is no **per-partner secret reference** in registry, so new partners need new env and redeploy. | Store in registry e.g. `apiKeySecretArn` or `credentialsSecretArn` (and optionally authType). Lab-integration (or partnerAuth util): take partnerId + registry payload, resolve secret by ARN from registry; no env per partner. |
 | **A4** | **No mutual TLS / client certs** | If a partner requires mTLS, there is no support (no client cert in registry or in adapter). | Optional: registry field for client cert secret ARN; HTTP client in adapters (or shared lib) to attach client cert for that partner. |
 
-### 2.2 Inbound (Partner Calls Us) – e.g. WebSocket, webhooks
+### 2.2 Inbound (Partner Calls Us) – e.g. webhooks
 
-**What exists:**
-
-- **realtime-gateway** (WebSocket $connect):
+**What existed (removed):** The **realtime-gateway** WebSocket service was removed. It had provided:
   - **Auth:** Query params (token, authType). **auth.registry** resolves provider by authType (default jwt).
   - **Providers:** JWT (verify with JWT_SECRET or JWKS; decode-only if neither set), OAuth (introspection via INTROSPECTION_URL + optional client id/secret).
   - Result: **user/org context** (userId, orgId, roles), not “partner” identity.
-- So today, “third party” can connect with **their** JWT or **their** OAuth introspection; we map to our userId/orgId. There is **no partner-scoped auth** (e.g. partner API key validated against registry).
+- **Today:** Inbound third-party integration is via **webhooks** only (when implemented). No WebSocket service in the codebase.
 
 **Gaps:**
 
@@ -78,7 +78,7 @@ Two directions:
 |---|-----|-------------|--------------|
 | **B1** | **No partner identity on connect** | WebSocket auth yields userId/orgId/roles, not partnerId. So we cannot enforce “only partner X can subscribe to topic Y” or rate-limit by partner. | Optional: New auth provider (e.g. authType=partner_api_key) that validates API key against Partner Registry (or secret); returns context with partnerId (and optionally orgId if linked). |
 | **B2** | **Webhook auth not in registry** | Doc (THIRD_PARTY_INTEGRATION_ENTERPRISE.md) says webhook secret should be in registry and validated per request. Lab-webhook-ingestion was removed; any future webhook service would need **per-partner webhook secret** (and replay/signature) from registry. | When (re)introducing webhooks: store webhook secret reference (and auth type: signature, replay window) in partner registry; adapter fetches and validates. |
-| **B3** | **OAuth provider: JWKS not implemented** | realtime-gateway JWT provider: if only JWT_JWKS_URI is set, it **decode-only** (TODO in code). No real JWKS fetch and verify. | realtime-gateway jwt.auth: Implement JWKS fetch, resolve key by kid from token header, verify signature. |
+| **B3** | **OAuth provider: JWKS not implemented** | (Historical: realtime-gateway JWT provider had decode-only when only JWKS was set. Service removed.) | N/A — WebSocket service removed. |
 
 ---
 
@@ -105,7 +105,7 @@ Two directions:
 | **Outbound** | Auth type + secret reference in registry | Missing | A1, A3 |
 | **Outbound** | OAuth client_credentials for partners | Missing | A2 |
 | **Outbound** | mTLS / client certs | Missing | A4 (optional) |
-| **Inbound** | JWT + OAuth introspection (realtime) | Done | — |
+| **Inbound** | JWT + OAuth introspection (realtime) | Removed (realtime-gateway deleted) | — |
 | **Inbound** | JWKS verification for JWT | Missing | B3 |
 | **Inbound** | Partner-scoped auth (e.g. API key → partnerId) | Missing | B1 |
 | **Inbound** | Webhook secret in registry | Missing | B2 (when webhooks return) |

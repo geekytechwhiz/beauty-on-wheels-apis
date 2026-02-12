@@ -124,19 +124,14 @@ Keep “call third-party API” vs “receive third-party webhook” clearly sep
 | **Inbound** | Webhooks from partners (`POST /webhooks/labs/{partnerId}`) → canonical → EventBridge + optional Lab Domain. |
 | **Outbound** | Domain workflows call `POST /internal/labs/partners/{partnerId}/call` (operation + body) → adapter builds request → call partner API → return response. |
 
-### 3.2 WebSocket / Real-time Notification Service (`lab-webhook-ingestion`)
+### 3.2 WebSocket / Real-time Notification (removed)
 
-| Aspect | Description |
-|--------|--------------|
-| **Purpose** | Push real-time updates to clients (UI, apps). Long-lived connections. Fan-out to many clients. UI-facing. |
-| **Characteristics** | Connection-oriented. High concurrency. Bursty traffic. Sensitive to latency spikes. |
-| **Behaviour** | WebSocket `$connect` / `$disconnect`; DynamoDB connections table with GSI by `subscribedTo`. EventBridge consumes `Lab.CanonicalEvent` → query connections → batch parallel `PostToConnection`. |
+The WebSocket / realtime-gateway service has been **removed** from the codebase. Real-time UI push is out of scope; third-party event integration uses webhooks (inbound/outbound) only.
 
 ### 3.3 Summary
 
 - **Lab Integration**: one service for both inbound webhooks and outbound partner API calls; stateless, sync, internal-only, predictable.
-- **WebSocket / Real-time**: separate service for connections and fan-out; connection-oriented, high concurrency, bursty, latency-sensitive.
-- **Partner Registry**: shared by both; config and endpoints.
+- **Partner Registry**: shared; config and endpoints.
 
 ---
 
@@ -161,6 +156,6 @@ Keep “call third-party API” vs “receive third-party webhook” clearly sep
 | **Security** | Per-partner auth (signature + replay); no PII in logs. |
 | **Observability** | Structured logs, metrics per partner, tracing with correlation ID. |
 | **Versioning** | Canonical schema versioning; partner API version in registry. |
-| **Services** | One integration service per direction/type; WebSocket as separate service. |
+| **Services** | One integration service per direction/type. (WebSocket/realtime service removed.) |
 
 This gives you a consistent, scalable, and maintainable approach to third-party integration at enterprise scale while building on the patterns already used in `lab-webhook-ingestion` and Partner Registry.

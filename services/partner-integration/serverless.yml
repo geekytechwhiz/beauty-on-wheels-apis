@@ -23,6 +23,7 @@ provider:
     PARTNER_REGISTRY_ENDPOINT: ${self:custom.partnerRegistryEndpoint.${self:provider.stage}}
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     IDEMPOTENCY_TABLE_NAME: ${self:service}-${self:provider.stage}-idempotency
+    EVENT_BUS_NAME: ${env:EVENT_BUS_NAME, 'default'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
   tags:
     Service: ${self:service}
@@ -49,6 +50,10 @@ provider:
         - dynamodb:GetItem
         - dynamodb:PutItem
       Resource: !GetAtt IdempotencyTable.Arn
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource: '*'
 
 package:
   individually: true
@@ -261,6 +266,18 @@ functions:
       - http:
           path: /orders/{orderId}/credit
           method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+
+  webhookLabEvent:
+    handler: src/handlers/webhookLabEvent.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: /webhooks/labs/{partnerId}
+          method: post
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}

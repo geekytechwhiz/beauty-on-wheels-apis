@@ -19,9 +19,6 @@
       "path": "./services/partner-registry"
     },
     {
-      "path": "./services/realtime-gateway"
-    },
-    {
       "path": "./libs/integration-events"
     },
     {

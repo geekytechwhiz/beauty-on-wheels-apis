@@ -3,6 +3,7 @@ service: fhir-gateway
 frameworkVersion: '3.x'
 
 plugins:
+  - serverless-dotenv-plugin
   - serverless-esbuild
   - serverless-offline
 
@@ -18,6 +19,8 @@ provider:
   timeout: 30
   environment:
     USER_SERVICE_URL: ${env:USER_SERVICE_URL, ''}
+    USER_SERVICE_PATIENT_PATH: ${env:USER_SERVICE_PATIENT_PATH, 'get-user-details?userID={id}'}
+    PATIENT_SOURCE: ${env:PATIENT_SOURCE, ''}
     DEVICE_SERVICE_URL: ${env:DEVICE_SERVICE_URL, ''}
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     FHIR_GATEWAY_LOCAL_DEV: ${env:FHIR_GATEWAY_LOCAL_DEV, 'false'}

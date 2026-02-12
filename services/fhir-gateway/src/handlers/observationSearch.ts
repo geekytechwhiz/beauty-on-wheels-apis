@@ -52,8 +52,8 @@ export async function handler(
 
   const skipTenantCheck = process.env.FHIR_GATEWAY_LOCAL_DEV === 'true';
   if (auth.tenantId && !skipTenantCheck) {
-    const patient = await fetchCanonicalPatient(patientId);
-    const resourceTenantId = patient?.organizationId ?? '';
+    const patientResult = await fetchCanonicalPatient(patientId);
+    const resourceTenantId = patientResult?.canonical?.organizationId ?? '';
     if (!resourceTenantId) {
       return operationOutcome(403, 'forbidden', 'Tenant isolation: patient has no tenant');
     }

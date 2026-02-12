@@ -1,1 +1,39 @@
-{"compilerOptions":{"composite":true,"declarationMap":true,"emitDeclarationOnly":true,"importHelpers":true,"isolatedModules":true,"lib":["es2022"],"module":"ESNext","moduleResolution":"bundler","noEmitOnError":true,"noFallthroughCasesInSwitch":true,"noImplicitOverride":true,"noImplicitReturns":true,"noUnusedLocals":true,"skipLibCheck":true,"strict":true,"baseUrl":".","target":"es2022","customConditions":["@api-hub/source"],"paths":{"@api-hub/logger":["libs/logger/src/index.ts"],"@api-hub/utils":["libs/utils/src/index.ts"],"@api-hub/error-messages":["libs/error-messages/src/index.ts"],"@api-hub/canonical":["libs/canonical/src/index.ts"],"@api-hub/fhir":["libs/fhir/src/index.ts"],"@api-hub/consent":["libs/consent/src/index.ts"],"@api-hub/capability":["libs/capability/src/index.ts"],"@api-hub/terminology":["libs/terminology/src/index.ts"],"@api-hub/partners":["libs/partners/src/index.ts"],"@api-hub/integration-events":["libs/integration-events/src/index.ts"],"@api-hub/lab-integration":["libs/lab-integration/src/index.ts"],"@api-hub/auth":["libs/auth/src/index.ts"]}}}
+{
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "importHelpers": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "baseUrl": ".",
+    "target": "es2022",
+    "customConditions": ["@api-hub/source"],
+    "paths": {
+      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/error-messages": ["libs/error-messages/src/index.ts"],
+      "@api-hub/canonical": ["libs/canonical/src/index.ts"],
+      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
+      "@api-hub/consent": ["libs/consent/src/index.ts"],
+      "@api-hub/capability": ["libs/capability/src/index.ts"],
+      "@api-hub/terminology": ["libs/terminology/src/index.ts"],
+      "@api-hub/partners": ["libs/partners/src/index.ts"],
+      "@api-hub/integration-events": ["libs/integration-events/src/index.ts"],
+      "@api-hub/lab-integration": ["libs/lab-integration/src/index.ts"],
+      "@api-hub/auth": ["libs/auth/src/index.ts"],
+      "@api-hub/scope-mapping": ["libs/scope-mapping/src/index.ts"],
+      "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
+      "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"]
+    }
+  }
+}

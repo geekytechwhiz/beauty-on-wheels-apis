@@ -1,54 +1,29 @@
 /**
  * Fetches canonical data from apps/* APIs.
- * Environment: USER_SERVICE_URL, DEVICE_SERVICE_URL (or similar).
- * Stub implementation — wire to real HTTP calls in deployment.
+ * Patient is resolved via adapters (see adapters/patient); Observations use DEVICE_SERVICE_URL.
  */
-import type { Patient, ObservationValue } from '@api-hub/canonical';
+import type { ObservationValue } from '@api-hub/canonical';
+import { getPatientSourceAdapter } from '../adapters/patient';
+import type { PatientFetchResult } from '../adapters/patient';
 
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL ?? '';
 const DEVICE_SERVICE_URL = process.env.DEVICE_SERVICE_URL ?? '';
 
-/**
- * Fetches canonical Patient (user) by id from user-service.
- */
-export async function fetchCanonicalPatient(patientId: string): Promise<Patient | null> {
-  if (!USER_SERVICE_URL) {
-    // Stub for local/dev: return minimal canonical patient
-    return {
-      id: patientId,
-      active: true,
-      givenName: 'Stub',
-      familyName: 'Patient',
-    };
-  }
-  try {
-    const res = await fetch(`${USER_SERVICE_URL}/users/${patientId}`);
-    if (!res.ok) return null;
-    const user = (await res.json()) as Record<string, unknown>;
-    return mapUserToCanonicalPatient(user, patientId);
-  } catch {
-    return null;
-  }
+/** Options when fetching a patient (e.g. headers to forward to the backing API). */
+export interface FetchCanonicalPatientOptions {
+  headers?: Record<string, string>;
 }
 
-function mapUserToCanonicalPatient(
-  user: Record<string, unknown>,
-  id: string
-): Patient {
-  return {
-    id,
-    externalId: user.pk as string | undefined,
-    active: user.isActive as boolean | undefined,
-    givenName: user.firstName as string | undefined,
-    familyName: user.lastName as string | undefined,
-    email: user.emailAddress as string | undefined,
-    phone: (user.additionalPhoneNumbers as string[])?.[0],
-    gender: user.gender as string | undefined,
-    birthDate: user.dateOfBirth as string | undefined,
-    addressLine: user.address as string | undefined,
-    city: user.city as string | undefined,
-    country: user.country as string | undefined,
-  };
+/**
+ * Fetches canonical Patient by id using the configured patient source adapter
+ * (user-service microservice or stub when USER_SERVICE_URL is unset).
+ * Returns canonical + optional raw domain response for response merge.
+ */
+export async function fetchCanonicalPatient(
+  patientId: string,
+  options?: FetchCanonicalPatientOptions
+): Promise<PatientFetchResult | null> {
+  const adapter = getPatientSourceAdapter();
+  return adapter.getPatient(patientId, { headers: options?.headers });
 }
 
 /**

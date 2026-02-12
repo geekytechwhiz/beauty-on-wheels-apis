@@ -7,6 +7,7 @@
     "deploy:fhir-gateway": "cd services/fhir-gateway && serverless deploy",
     "fhir-gateway:offline": "cd services/fhir-gateway && serverless offline",
     "fhir-gateway:offline:dev": "cd services/fhir-gateway && FHIR_GATEWAY_LOCAL_DEV=true serverless offline",
+    "fhir-gateway:offline:dev:watch": "cd services/fhir-gateway && pnpm run offline:dev:watch",
     "authorizer-service:offline": "cd services/authorizer-service && serverless offline"
   },
   "private": true,

@@ -51,6 +51,7 @@ provider:
     WEB_DNS_URL: ${self:custom.stageUrls.${self:provider.stage}.WEB_URL, ''}
     ROLE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ROLE_API_URL, ''}
     ORGANIZATION_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_API_URL, ''}
+    PACKAGE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.PACKAGE_SERVICE_BASE_URL, ''}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
     SEARCH_FNF_LAMBDA: ${self:provider.stage}_global_friend_family_search
     ADD_FRIEND_N_FAMILY_LAMBDA: ${self:provider.stage}_global_friend_family_add_member
@@ -224,18 +225,22 @@ custom:
       ROLE_API_URL: 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'
       ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      PACKAGE_SERVICE_BASE_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
+
     stg:
       WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
       PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
       ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/stg'
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
     prd:
       WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
       PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
       ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/prd'
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      PACKAGE_SERVICE_BASE_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
 
   cors:
     origin: ${env:CORS_ORIGIN, '*'}
@@ -282,7 +287,7 @@ functions:
   
   createUser:
     handler: src/handlers/createUser.main
-    timeout: 10
+    timeout: 15
     memorySize: 256
     events:
       - http:

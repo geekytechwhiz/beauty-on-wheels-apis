@@ -1374,9 +1374,13 @@ export class UserService {
       
       // Check if definedRoleCode exists in any item in allUserData
       const itemWithDefinedRoleCode = allUserData.find((item: any) => item.definedRoleCode);
+      const itemRoleId =
+        allUserData.find(item => item.userRole?.[0])?.userRole[0] ?? '';
+      console.log("USER DATA - itemRoleId found in allUserData:", itemRoleId);  
       if (itemWithDefinedRoleCode) {
         console.log("USER DATA - Found definedRoleCode in allUserData:", itemWithDefinedRoleCode.definedRoleCode, "from item with sk:", itemWithDefinedRoleCode.sk);
       }
+
       
       // Find preference details from allUserData
       const preferenceDetails = allUserData.find((item: any) => 
@@ -1386,28 +1390,30 @@ export class UserService {
       // Get roles and permissions (matches original flow exactly)
       // Step 1: Get user roles from USER_TABLE using getUserRolesPermissions
       // This provides the mapping between user and roles (USER_TABLE → ROLES_TABLE mapping)
-      const permissionResponse = await this.repository.getUserRolesPermissions(actualUserId, userOrgId, authHeader);
-      const filteredRoles = permissionResponse.roles || [];
-      console.log("USER DATA 1336 PERMISSION RESPONSE: ", permissionResponse);
-      let roleDetails: any[] = [];
-      let roleName = '';
+      // const permissionResponse = await this.repository.getUserRolesPermissions(actualUserId, userOrgId, authHeader);
+      // const filteredRoles = permissionResponse.roles || [];
+      // console.log("USER DATA 1336 PERMISSION RESPONSE: ", permissionResponse);
+       let roleDetails: any[] = [];
+       let roleName = '';
       // Use userPermissions from API response if available, otherwise will be set from ROLES_TABLE
-      let userPermissions: any[] = permissionResponse.userPermissions || [];
+      let userPermissions: any[] = [];
       let isDefault = false;
       let definedRoleCode: string | null = null;
       let roleType: string | null = null;
       let roleId: string | null = null;
       let uniquePermissions: any = {};
 
+      definedRoleCode = itemWithDefinedRoleCode ? itemWithDefinedRoleCode.definedRoleCode : null;
+
       // Step 2: If roles found, get role details from ROLES_TABLE (matches original: getRolePermissions)
       // The original code uses getRolePermissions from ROLES_TABLE to get features array
-      if (filteredRoles.length > 0) {
-        roleId = filteredRoles[0];
+      if (itemRoleId) {
+        // roleId = filteredRoles[0];
         logger.debug({ event: 'fetching_role_permissions_from_roles_table', roleId, userOrgId });
         
         // Get role permissions from ROLES_TABLE (matches original: line 115)
         // This returns the detailed features array with functionalities
-        const rolePermissionsFromRolesTable = await this.repository.getRolePermissions(roleId, userOrgId);
+        const rolePermissionsFromRolesTable = await this.repository.getRolePermissions(itemRoleId, userOrgId);
         
         console.log('getUserWithOrganizationDetails - rolePermissionsFromRolesTable:', JSON.stringify(rolePermissionsFromRolesTable, null, 2));
         logger.debug({ 
@@ -1434,6 +1440,7 @@ export class UserService {
               return sk === `ROLE#${roleId}` || sk.startsWith(`ROLE#${roleId}#`);
             }) || roleDetailsFirstItem;
 
+            console.log("USER DATA - roleHeader found in roleItems:", !!roleHeader, "sk:", roleHeader ? (roleHeader.SK || roleHeader.sk) : 'N/A');
           // Extract fields - match original: index.js line 116-120
           roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || roleDetailsFirstItem?.roleName || roleDetailsFirstItem?.definedRoleCode || '';
           isDefault = roleHeader?.isDefault ?? roleDetailsFirstItem?.isDefault ?? false;
@@ -1474,7 +1481,7 @@ export class UserService {
             roleItemsCount: roleItems.length,
             userPermissionsCount: userPermissions.length,
             userPermissionsSource: userPermissions.length > 0 
-              ? ((permissionResponse.userPermissions && permissionResponse.userPermissions.length > 0) ? 'API' : 'ROLES_TABLE')
+              ? 'ROLES_TABLE'
               : 'empty',
             definedRoleCode,
             definedRoleCodeSource: roleHeader?.definedRoleCode ? 'roleHeader' : (userBasicDetails.definedRoleCode ? 'userBasicDetails' : 'null'),
@@ -1484,7 +1491,7 @@ export class UserService {
         } else {
           // Fallback: try to get from USER_TABLE if not found in ROLES_TABLE
           logger.debug({ event: 'fallback_to_user_table_role_details', roleId, userOrgId });
-          roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
+          roleDetails = await this.repository.getRoleDetails(userOrgId, itemRoleId);
           
           if (roleDetails && roleDetails.length > 0) {
             const roleDetail = roleDetails[0];
@@ -1526,6 +1533,7 @@ export class UserService {
           }
         }
       } else {
+        console.log("USER DATA - No roleId found in allUserData, attempting fallback to userBasicDetails for roleId");
         // Fallback: try to use roleID from userBasicDetails
         const userRoleId = (userBasicDetails as any).roleID || (userBasicDetails as any).roleId;
         if (userRoleId) {
@@ -1601,9 +1609,9 @@ export class UserService {
 
       // Step 3: Get unique permissions (matches original: line 122)
       // permissionResponse.permissions is an array of permission objects
-      if (permissionResponse.permissions && permissionResponse.permissions.length > 0) {
-        uniquePermissions = this.getUniquePermissions(permissionResponse.permissions);
-      }
+      // if (permissionResponse.permissions && permissionResponse.permissions.length > 0) {
+      //   uniquePermissions = this.getUniquePermissions(userPermissions);
+      // }
 
       // Calculate account age
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
@@ -1703,10 +1711,10 @@ export class UserService {
         organizationType: orgBasicDetails?.organizationType || orgBasicDetails?.organizationInfo?.organizationType || orgBasicDetails?.lsi_organizationType || (orgBasicDetails as any)?.orgType || (orgBasicDetails as any)?.type || '',
         scheduleConfiguration,
         roleName,
-        userRoles: filteredRoles,
+        userRoles: itemRoleId,
         roleType,
         roleId,
-        permission: uniquePermissions,
+        userPermissions,
         changePassword: userBasicDetails.changePassword || false,
         isRpmUser: userBasicDetails.isRpmUser || false,
         lastAppointment: userBasicDetails.lastAppointment || '',
@@ -1772,7 +1780,6 @@ export class UserService {
         tabBar: orgBasicDetails?.organizationInfo?.defaultSetting?.tabBar || [],
         dateFormat: userBasicDetails.dateFormat || orgBasicDetails?.organizationInfo?.defaultSetting?.dateFormat?.[0] || 'MM/DD/YYYY',
         acceptedAppForms: userBasicDetails.acceptedAppForms || [],
-        userPermissions,
         isDefault,
         definedRoleCode,
       };

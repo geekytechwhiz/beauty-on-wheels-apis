@@ -633,6 +633,8 @@ export class UserRepository {
         },
       };
 
+      console.log('getRolePermissions query params:',params);
+
       const result = await docClient.send(new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
         console.log('getRolePermissions result (PK/SK):', JSON.stringify(result.Items, null, 2));

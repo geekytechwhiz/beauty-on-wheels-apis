@@ -163,38 +163,38 @@ export const main: APIGatewayProxyHandler = async (
           organizationId 
         });
         
-        const apiPermissions = await getUserPermissions(userId, organizationId, authHeader);
-        console.log("USER PERMISSIONS RESPONSE FROM API:", apiPermissions);
+        // const apiPermissions = await getUserPermissions(userId, organizationId, authHeader);
+        // console.log("USER PERMISSIONS RESPONSE FROM API:", JSON.stringify(apiPermissions));
 
-        // apiPermissions shape: { roleId, roleName, roleType, definedRoleCode, isDefault, features: [...] }
-        if (apiPermissions && Array.isArray(apiPermissions.features) && apiPermissions.features.length > 0) {
-          userData.userPermissions = apiPermissions.features;
-        }
+        // // apiPermissions shape: { roleId, roleName, roleType, definedRoleCode, isDefault, features: [...] }
+        // if (apiPermissions && Array.isArray(apiPermissions.features) && apiPermissions.features.length > 0) {
+        //   userData.userPermissions = apiPermissions.features;
+        // }
 
-        if (apiPermissions.roleId) {
-          userData.roleId = apiPermissions.roleId;
-          userData.userRoles = [apiPermissions.roleId];
-        }
-        if (apiPermissions.roleName) {
-          userData.roleName = apiPermissions.roleName;
-        }
-        if (apiPermissions.roleType) {
-          userData.roleType = apiPermissions.roleType;
-        }
-        if (apiPermissions.definedRoleCode) {
-          userData.definedRoleCode = apiPermissions.definedRoleCode;
-        }
+        // if (apiPermissions.roleId) {
+        //   userData.roleId = apiPermissions.roleId;
+        //   userData.userRoles = [apiPermissions.roleId];
+        // }
+        // if (apiPermissions.roleName) {
+        //   userData.roleName = apiPermissions.roleName;
+        // }
+        // if (apiPermissions.roleType) {
+        //   userData.roleType = apiPermissions.roleType;
+        // }
+        // if (apiPermissions.definedRoleCode) {
+        //   userData.definedRoleCode = apiPermissions.definedRoleCode;
+        // }
 
-        logger.info({ 
-          event: 'user_permissions_and_role_meta_from_api', 
-          userId,
-          organizationId,
-          featuresCount: Array.isArray(apiPermissions.features) ? apiPermissions.features.length : 0,
-          roleId: apiPermissions.roleId,
-          roleName: apiPermissions.roleName,
-          roleType: apiPermissions.roleType,
-          definedRoleCode: apiPermissions.definedRoleCode,
-        });
+        // logger.info({ 
+        //   event: 'user_permissions_and_role_meta_from_api', 
+        //   userId,
+        //   organizationId,
+        //   featuresCount: Array.isArray(apiPermissions.features) ? apiPermissions.features.length : 0,
+        //   roleId: apiPermissions.roleId,
+        //   roleName: apiPermissions.roleName,
+        //   roleType: apiPermissions.roleType,
+        //   definedRoleCode: apiPermissions.definedRoleCode,
+        // });
       } catch (apiErr) {
         logger.warn({ 
           event: 'user_permissions_api_call_failed_in_handler', 

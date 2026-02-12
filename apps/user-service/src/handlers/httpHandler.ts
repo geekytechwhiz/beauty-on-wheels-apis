@@ -13,11 +13,15 @@ import {
 } from '../validation/user.validation';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { getOrganization } from '../services/organization.service';
+import { PackageRepository } from '../repositories/package.repositrory';
+import { RoleRepository } from '../repositories/role.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 const organizationRepository = new OrganizationRepository();
 const userRepository = new UserRepository();
+const packagRepository = new PackageRepository();
+const roleRepository = new RoleRepository();
 
 export async function createUser(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();
@@ -185,6 +189,23 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
             hasDefinedRoleCode: exactRoleMatch?.definedRoleCode !== undefined,
           });
           definedRoleCode = exactRoleMatch?.definedRoleCode;
+          console.log("DEFINED ROLE CODE :", definedRoleCode);  
+          console.log("EXACT ROLE MATCH :", JSON.stringify(exactRoleMatch));  
+
+          const hasExistingFeatures =
+            Array.isArray((exactRoleMatch as any)?.features) &&
+            (exactRoleMatch as any).features.length > 0;
+          console.log("ADMIN ROLE HAS EXISTING FEATURES :", hasExistingFeatures);
+
+          // Only seed org features into ADMIN role when it has no features
+          if (definedRoleCode === 'ADMIN' && !hasExistingFeatures) {
+            const authHeader = event.headers?.Authorization || event.headers?.authorization;
+            const orgFetaures = await packagRepository.getOrgFeatures(body.organizationID, authHeader);
+            if (orgFetaures && orgFetaures.length > 0) {
+             const {roleId, roleName, roleDescription, roleType } = exactRoleMatch as any;
+              await roleRepository.saveRoles(body.organizationID, roleId, roleName, roleDescription,roleType, orgFetaures, authHeader);
+            }
+          }
           logger.info({ 
             event: 'createUser_definedRoleCode_from_repo', 
             found: !!definedRoleCode,
@@ -1588,5 +1609,6 @@ export async function listOrganizationUsers(
     );
   }
 }
+
 
 

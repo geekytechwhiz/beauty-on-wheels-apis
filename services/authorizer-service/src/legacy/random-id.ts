@@ -16,3 +16,5 @@ function randomString(length: number): string {
 export function generateRandomIdWithTimestamp(): string {
   return `${randomString(LENGTH)}${Date.now()}`;
 }
+
+

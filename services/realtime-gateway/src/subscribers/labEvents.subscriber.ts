@@ -6,6 +6,8 @@ import { deliverToOrg } from '../services/realtime.service';
 
 const baseLogger = createLogger({ service: 'realtime-gateway', redactPII: true });
 
+const LAB_PREFIX = 'LAB_';
+
 /** Lab event detail-types: canonical (from integration-events) prefixed with LAB_ for routing, plus order status */
 type LabEventDetailType =
   | 'LAB_SAMPLE_COLLECTED'

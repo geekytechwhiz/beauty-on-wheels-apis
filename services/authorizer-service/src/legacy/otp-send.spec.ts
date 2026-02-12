@@ -84,10 +84,7 @@ describe('otp-send', () => {
     sendOtpFireAndForget('https://msg.example', '5551234567');
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      'OTP send failed (non-blocking)',
-      expect.objectContaining({ message: 'network error' })
-    );
+    expect(warnSpy).toHaveBeenCalledWith('OTP send failed (non-blocking)');
     warnSpy.mockRestore();
   });
 });

@@ -6,7 +6,8 @@
     "user-service:offline": "cd apps/user-service && npx nodemon --watch src --ext ts,js,yml,json --exec \"serverless offline --stage dev --aws-profile ci-user\"",
     "deploy:fhir-gateway": "cd services/fhir-gateway && serverless deploy",
     "fhir-gateway:offline": "cd services/fhir-gateway && serverless offline",
-    "fhir-gateway:offline:dev": "cd services/fhir-gateway && FHIR_GATEWAY_LOCAL_DEV=true serverless offline"
+    "fhir-gateway:offline:dev": "cd services/fhir-gateway && FHIR_GATEWAY_LOCAL_DEV=true serverless offline",
+    "authorizer-service:offline": "cd services/authorizer-service && serverless offline"
   },
   "private": true,
   "dependencies": {

@@ -5,6 +5,7 @@ frameworkVersion: '3'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
+  - serverless-offline
 
 provider:
   name: aws
@@ -29,14 +30,15 @@ provider:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
+  # Least privilege: restrict to specific secret and table (placeholder when not used)
   iamRoleStatements:
     - Effect: Allow
       Action: secretsmanager:GetSecretValue
-      Resource: '*'
+      Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${env:SECRET_MANAGER_NAME, "authorizer-service-no-secret"}*'
     - Effect: Allow
       Action:
         - dynamodb:Query
-      Resource: '*'
+      Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${env:USER_TABLE, "authorizer-service-no-table"}'
 
 package:
   individually: true
@@ -63,3 +65,13 @@ functions:
     timeout: 5
     memorySize: 128
     description: OAuth2 / SMART on FHIR Lambda Token Authorizer (JWT via JWKS)
+  # Local testing only: HTTP endpoint that accepts authorizer event as POST body (use with serverless offline)
+  localAuthorize:
+    handler: src/local-authorizer-http.handler
+    timeout: 5
+    memorySize: 128
+    description: Local HTTP wrapper for authorizer (serverless offline)
+    events:
+      - http:
+          path: authorize
+          method: post

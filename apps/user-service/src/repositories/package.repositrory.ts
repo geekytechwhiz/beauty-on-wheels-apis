@@ -1,9 +1,6 @@
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { docClient } from '../utils/db.config';
-import { createChildLogger, createLogger, logger, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
 const baselogger = createLogger({ service: 'user-service', redactPII: true });
 
-const PACKAGE_TABLE_NAME = process.env.PACKAGE_TABLE || '';
 const buildHeaders = (authHeader?: string) => ({
   'Content-Type': 'application/json',
   ...(authHeader ? { Authorization: authHeader } : {}),

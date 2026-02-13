@@ -9,6 +9,8 @@ export * from './lib/adapters/base/adapter.interface';
 export * from './lib/adapters/base/adapter.factory';
 export * from './lib/adapters/base/adapter.registry';
 export * from './lib/adapters/base/base.adapter';
+export * from './lib/adapters/base/webhook.types';
+export * from './lib/adapters/base/webhook.registry';
 export * from './lib/adapters/redcliffe/redcliffe.adapter';
 export * from './lib/adapters/orange/orange.adapter';
 

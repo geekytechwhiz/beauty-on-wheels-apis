@@ -23,10 +23,18 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const logger = createHandlerLogger(event, context);
-  logger.info({ event: 'getServiceableLocations_received' });
+  logger.info({ event: 'getConsolidatedReport_received' });
 
+  const orderId = event.pathParameters?.orderId;
   const partnerId = event.queryStringParameters?.partnerId;
-  const query = event.queryStringParameters?.query;
+
+  if (!orderId) {
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      responseOpts(event, requestId),
+      { code: 'BAD_REQUEST', details: [{ message: 'orderId path parameter is required' }] }
+    );
+  }
 
   if (!partnerId) {
     return ApiResponse.badRequest(
@@ -36,27 +44,19 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
   }
 
-  if (!query) {
-    return ApiResponse.badRequest(
-      'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
-      { code: 'BAD_REQUEST', details: [{ message: 'query parameter is required' }] }
-    );
-  }
-
-  logger.info({ event: 'getServiceableLocations_processing', partnerId, query, correlationId: requestId });
+  logger.info({ event: 'getConsolidatedReport_processing', partnerId, orderId, correlationId: requestId });
 
   try {
-    const result = await integrationService.getServiceableLocations(partnerId, query);
+    const result = await integrationService.getConsolidatedReport(partnerId, orderId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.LOCATIONS_RETRIEVED', responseOpts(event, requestId));
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/reports', 200, duration, requestId);
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.REPORT_RETRIEVED', responseOpts(event, requestId));
   } catch (err) {
-    logger.error({ event: 'getServiceableLocations_error', err: serializeError(err), partnerId });
+    logger.error({ event: 'getConsolidatedReport_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
 
     if (err instanceof UnsupportedPartnerError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 400, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/reports', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
         responseOpts(event, requestId),
@@ -64,7 +64,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     if (err instanceof ServicePartnerUnavailableError || err instanceof PartnerUnavailableError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 503, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/reports', 503, duration, requestId);
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
@@ -73,7 +73,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     if (err instanceof InvalidPartnerResponseError || err instanceof ServiceInvalidPartnerResponseError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 502, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/reports', 502, duration, requestId);
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
@@ -103,7 +103,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
 
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 500, duration, requestId);
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/reports', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
       responseOpts(event, requestId),

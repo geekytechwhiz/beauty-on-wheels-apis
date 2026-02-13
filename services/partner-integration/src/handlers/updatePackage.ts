@@ -5,6 +5,7 @@ import {
   getRequestId,
   responseOpts,
   createHandlerLogger,
+  parseJsonBody,
 } from '../utils/handlerHelpers';
 import * as integrationService from '../services/integration.service';
 import {
@@ -23,10 +24,19 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const logger = createHandlerLogger(event, context);
-  logger.info({ event: 'getServiceableLocations_received' });
+  logger.info({ event: 'updatePackage_received' });
 
+  const packageCode = event.pathParameters?.packageCode;
   const partnerId = event.queryStringParameters?.partnerId;
-  const query = event.queryStringParameters?.query;
+  const idempotencyKey = event.headers['Idempotency-Key'] || event.headers['idempotency-key'];
+
+  if (!packageCode) {
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      responseOpts(event, requestId),
+      { code: 'BAD_REQUEST', details: [{ message: 'packageCode path parameter is required' }] }
+    );
+  }
 
   if (!partnerId) {
     return ApiResponse.badRequest(
@@ -36,27 +46,30 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
   }
 
-  if (!query) {
+  const body = parseJsonBody(event);
+  if (body === null || typeof body !== 'object') {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       responseOpts(event, requestId),
-      { code: 'BAD_REQUEST', details: [{ message: 'query parameter is required' }] }
+      { code: 'BAD_REQUEST', details: [{ message: 'Request body is required' }] }
     );
   }
 
-  logger.info({ event: 'getServiceableLocations_processing', partnerId, query, correlationId: requestId });
+  const updateData = body as Record<string, unknown>;
+
+  logger.info({ event: 'updatePackage_processing', partnerId, packageCode, correlationId: requestId });
 
   try {
-    const result = await integrationService.getServiceableLocations(partnerId, query);
+    const result = await integrationService.updatePackage(partnerId, packageCode, updateData, idempotencyKey);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.LOCATIONS_RETRIEVED', responseOpts(event, requestId));
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/packages', 200, duration, requestId);
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.PACKAGE_UPDATED', responseOpts(event, requestId));
   } catch (err) {
-    logger.error({ event: 'getServiceableLocations_error', err: serializeError(err), partnerId });
+    logger.error({ event: 'updatePackage_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
 
     if (err instanceof UnsupportedPartnerError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 400, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/packages', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
         responseOpts(event, requestId),
@@ -64,7 +77,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     if (err instanceof ServicePartnerUnavailableError || err instanceof PartnerUnavailableError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 503, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/packages', 503, duration, requestId);
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
@@ -73,7 +86,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     if (err instanceof InvalidPartnerResponseError || err instanceof ServiceInvalidPartnerResponseError) {
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 502, duration, requestId);
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/packages', 502, duration, requestId);
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
@@ -103,7 +116,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
 
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 500, duration, requestId);
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/packages', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
       responseOpts(event, requestId),

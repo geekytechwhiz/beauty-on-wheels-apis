@@ -92,3 +92,167 @@ export async function getOrderStatus(
   const adapter = createAdapter(config);
   return adapter.fetchStatus(orderId);
 }
+
+export async function getServiceableLocations(
+  partnerId: string,
+  query: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getServiceableLocations) {
+    throw new Error(`getServiceableLocations not supported for partner: ${partnerId}`);
+  }
+  return adapter.getServiceableLocations(query);
+}
+
+export async function getPartnerLocation(
+  partnerId: string,
+  eloc: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getPartnerLocation) {
+    throw new Error(`getPartnerLocation not supported for partner: ${partnerId}`);
+  }
+  return adapter.getPartnerLocation(eloc);
+}
+
+export async function searchPackages(
+  partnerId: string,
+  query: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.searchPackages) {
+    throw new Error(`searchPackages not supported for partner: ${partnerId}`);
+  }
+  return adapter.searchPackages(query);
+}
+
+export async function getPackageDetails(
+  partnerId: string,
+  code: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getPackageDetails) {
+    throw new Error(`getPackageDetails not supported for partner: ${partnerId}`);
+  }
+  return adapter.getPackageDetails(code);
+}
+
+export async function getBookingSlots(
+  partnerId: string,
+  params: {
+    latitude: number;
+    longitude: number;
+    collectionDate: string;
+  }
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getBookingSlots) {
+    throw new Error(`getBookingSlots not supported for partner: ${partnerId}`);
+  }
+  return adapter.getBookingSlots(params);
+}
+
+export async function confirmBooking(
+  partnerId: string,
+  orderId: string,
+  remark?: string,
+  idempotencyKey?: string
+): Promise<IntegrationResult> {
+  if (idempotencyKey) {
+    const cached =
+      await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
+    if (cached) return cached;
+  }
+
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.confirmBooking) {
+    throw new Error(`confirmBooking not supported for partner: ${partnerId}`);
+  }
+  const result = await adapter.confirmBooking(orderId, remark);
+
+  if (idempotencyKey) {
+    await idempotencyService.storeResult(idempotencyKey, result);
+  }
+  return result;
+}
+
+export async function updatePackage(
+  partnerId: string,
+  packageCode: string,
+  updateData: Record<string, unknown>,
+  idempotencyKey?: string
+): Promise<IntegrationResult> {
+  if (idempotencyKey) {
+    const cached =
+      await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
+    if (cached) return cached;
+  }
+
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.updatePackage) {
+    throw new Error(`updatePackage not supported for partner: ${partnerId}`);
+  }
+  const result = await adapter.updatePackage(packageCode, updateData);
+
+  if (idempotencyKey) {
+    await idempotencyService.storeResult(idempotencyKey, result);
+  }
+  return result;
+}
+
+export async function getConsolidatedReport(
+  partnerId: string,
+  orderId: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getConsolidatedReport) {
+    throw new Error(`getConsolidatedReport not supported for partner: ${partnerId}`);
+  }
+  return adapter.getConsolidatedReport(orderId);
+}
+
+export async function getDigitalReport(
+  partnerId: string,
+  orderId: string,
+  format?: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.getDigitalReport) {
+    throw new Error(`getDigitalReport not supported for partner: ${partnerId}`);
+  }
+  return adapter.getDigitalReport(orderId, format);
+}
+
+export async function updateCredit(
+  partnerId: string,
+  orderId: string,
+  creditData: Record<string, unknown>,
+  idempotencyKey?: string
+): Promise<IntegrationResult> {
+  if (idempotencyKey) {
+    const cached =
+      await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
+    if (cached) return cached;
+  }
+
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  if (!adapter.updateCredit) {
+    throw new Error(`updateCredit not supported for partner: ${partnerId}`);
+  }
+  const result = await adapter.updateCredit(orderId, creditData);
+
+  if (idempotencyKey) {
+    await idempotencyService.storeResult(idempotencyKey, result);
+  }
+  return result;
+}

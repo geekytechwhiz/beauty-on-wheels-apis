@@ -43,15 +43,39 @@
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /health | Health check |
-| POST | /orders | Create order |
-| POST | /orders/{orderId}/reschedule | Reschedule order |
-| POST | /orders/{orderId}/cancel | Cancel order |
-| GET | /orders/{orderId}/status | Get order status |
-| GET | /locations/serviceable | (Phase 2) Serviceable locations |
-| GET | /locations/partner | (Phase 2) Partner location |
-| GET | /packages/search | (Phase 2) Search packages |
-| GET | /packages/details | (Phase 2) Package details |
-| GET | /booking-slots | (Phase 2) Booking slots |
+### Phase 1: Critical APIs
+
+| Method | Path | Description | Idempotency |
+|--------|------|-------------|-------------|
+| GET | /health | Health check | No |
+| POST | /orders | Create order | Yes |
+| POST | /orders/{orderId}/reschedule | Reschedule order | Yes |
+| POST | /orders/{orderId}/cancel | Cancel order | Yes |
+| GET | /orders/{orderId}/status | Get order status | No |
+
+### Phase 2: High Priority APIs
+
+| Method | Path | Description | Idempotency |
+|--------|------|-------------|-------------|
+| GET | /locations/serviceable | Get serviceable locations | No |
+| GET | /locations/partner | Get partner location by eloc | No |
+| GET | /packages/search | Search packages | No |
+| GET | /packages/details | Get package details by code | No |
+| GET | /booking-slots | Get booking slots | No |
+
+### Phase 3: Medium Priority APIs
+
+| Method | Path | Description | Idempotency |
+|--------|------|-------------|-------------|
+| POST | /orders/{orderId}/confirm | Confirm booking/order | Yes |
+| PUT | /packages/{packageCode} | Update package | Yes |
+| GET | /orders/{orderId}/reports/consolidated | Get consolidated report | No |
+| GET | /orders/{orderId}/reports/digital | Get digital report | No |
+
+### Phase 4: Low Priority APIs
+
+| Method | Path | Description | Idempotency |
+|--------|------|-------------|-------------|
+| PUT | /orders/{orderId}/credit | Update credit | Yes |
+
+**Note:** All endpoints require `partnerId` as a query parameter (except `/health`). Write operations (POST/PUT) support `Idempotency-Key` header for idempotent requests.

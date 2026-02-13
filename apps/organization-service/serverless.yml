@@ -37,6 +37,7 @@ provider:
     USER_SERVICE_URL: ${self:custom.userServiceUrl.${self:provider.stage}}
     ROLE_API_URL: ${self:custom.roleApiUrl.${self:provider.stage}}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    GET_ONBOARDING_SCREENS_LAMBDA: ${self:provider.stage}_global_get_onboarding_screens
 
   tags:
     Service: ${self:service}
@@ -90,6 +91,14 @@ provider:
         - xray:PutTraceSegments
         - xray:PutTelemetryRecords
       Resource: '*'
+
+    # Lambda (invoke onboarding screens lambda)
+    - Effect: Allow
+      Action:
+        - lambda:InvokeFunction
+      Resource:
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_get_onboarding_screens
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:dev_global_get_onboarding_screens
 
 package:
   individually: true
@@ -276,7 +285,7 @@ functions:
 
   getOrganization:
     handler: src/handlers/getOrganization.main
-    timeout: 5
+    timeout: 10
     memorySize: 256
     events:
       - http:

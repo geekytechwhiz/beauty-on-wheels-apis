@@ -4,6 +4,7 @@ import { UserRepository } from '../repositories/user.repository';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { OrganizationNotFoundError } from '../utils/errors';
 import { ApiResponse } from '@api-hub/utils';
+import { getMobileScreens } from '../utils/lambda.utils';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -21,6 +22,15 @@ const buildAdminAddress = (user?: Record<string, unknown>) => {
   } as Record<string, unknown>;
   const hasAny = Object.values(address).some((value) => value !== undefined && value !== null && String(value).trim() !== '');
   return hasAny ? address : undefined;
+};
+
+const ensureHttps = (url?: string | null): string | undefined => {
+  if (!url || typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('http://')) return trimmed.replace('http://', 'https://');
+  return `https://${trimmed}`;
 };
 
 export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
@@ -278,7 +288,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       transformed.linkedOrganizations = [];
     }
     
-    // Add mobileScreens - check both root and organizationInfo
+    // Add mobileScreens - fetch from lambda
     let mobileScreensValue = orgRecord.mobileScreens;
     if (mobileScreensValue === undefined || mobileScreensValue === null) {
       const orgInfoRecord = organization.organizationInfo as Record<string, unknown> | undefined;
@@ -286,6 +296,91 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         mobileScreensValue = orgInfoRecord.mobileScreens;
       }
     }
+    
+    // If mobileScreens is still not found, fetch from lambda
+    if ((mobileScreensValue === undefined || mobileScreensValue === null || Object.keys(mobileScreensValue as Record<string, unknown>).length === 0)) {
+      try {
+        const functionName = process.env.GET_ONBOARDING_SCREENS_LAMBDA || 'dev_global_get_onboarding_screens';
+        if (functionName) {
+          // Extract locale from headers or default to 'en'
+          const locale = event.headers?.['Accept-Language']?.split(',')[0]?.split('-')[0]?.toLowerCase() || 'en';
+          
+          // Extract userId from authorizer if available
+          const authorizer = (event.requestContext as any)?.authorizer;
+          const userId = authorizer?.userID || authorizer?.userId;
+          
+          // Match the lambda's expected format based on the lambda code structure
+          const lambdaParams = {
+            body: {
+              organizationId: organizationId,
+              ...(userId && { userId })
+            },
+            locale: locale
+          };
+          const lambdaResult = await getMobileScreens(functionName, lambdaParams);
+          if (lambdaResult) {
+            mobileScreensValue = lambdaResult;
+          }
+        }
+      } catch (err) {
+        logger.warn({ event: 'getOrganization_mobile_screens_lambda_failed', err: serializeError(err) });
+      }
+    }
+    
+    // Process mobileScreens to add organization info to all screens
+    const orgDetails = transformed as Record<string, unknown>;
+    const orgInfo = orgDetails?.organizationInfo as Record<string, unknown> | undefined;
+    
+    // Helper function to add org info to an object
+    const addOrgInfoToObject = (obj: Record<string, unknown>) => {
+      obj.orgName = orgInfo?.organizationName;
+      const hospitalImage = orgInfo?.hospitalImage;
+      obj.orgImage = ensureHttps(
+        hospitalImage && typeof hospitalImage === 'string' 
+          ? hospitalImage 
+          : hospitalImage === null 
+            ? null 
+            : undefined
+      );
+      
+      // Build orgAddress from address fields matching user's format
+      const address = orgInfo?.address as Record<string, unknown> | undefined;
+      if (address) {
+        const addressParts = [
+          address.address,
+          address.city,
+          address.state,
+          address.country
+        ].filter(Boolean);
+        obj.orgAddress = addressParts.length > 0 ? addressParts.join(', ') : undefined;
+      }
+    };
+    
+    // Process mobileScreens.screens structure
+    if (mobileScreensValue && typeof mobileScreensValue === 'object') {
+      const mobileScreensObj = mobileScreensValue as Record<string, unknown>;
+      const screens = mobileScreensObj.screens as Record<string, unknown> | undefined;
+      
+      if (screens && typeof screens === 'object') {
+        // Iterate through all screen types (WELCOME, WALK_THROUGH, PRIVACY_CONSENT, etc.)
+        Object.keys(screens).forEach((screenKey) => {
+          const screenData = screens[screenKey];
+          
+          if (Array.isArray(screenData)) {
+            // Handle array screens (like WALK_THROUGH)
+            screenData.forEach((item: unknown) => {
+              if (item && typeof item === 'object') {
+                addOrgInfoToObject(item as Record<string, unknown>);
+              }
+            });
+          } else if (screenData && typeof screenData === 'object') {
+            // Handle object screens (like WELCOME, PRIVACY_CONSENT)
+            addOrgInfoToObject(screenData as Record<string, unknown>);
+          }
+        });
+      }
+    }
+    
     transformed.mobileScreens = mobileScreensValue !== undefined && mobileScreensValue !== null ? mobileScreensValue : {};
     
     // Add mobileScreen - check both root and organizationInfo
@@ -296,6 +391,50 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         mobileScreenValue = orgInfoRecord.mobileScreen;
       }
     }
+    
+    // Process mobileScreen to add organization info to all screens
+    if (mobileScreenValue && typeof mobileScreenValue === 'object') {
+      const mobileScreenObj = mobileScreenValue as Record<string, unknown>;
+      
+      // Check if mobileScreen has items array
+      if (Array.isArray(mobileScreenObj.items)) {
+        mobileScreenObj.items = mobileScreenObj.items.map((item: unknown) => {
+          if (item && typeof item === 'object') {
+            const itemObj = item as Record<string, unknown>;
+            // Ensure attributes object exists
+            if (!itemObj.attributes || typeof itemObj.attributes !== 'object') {
+              itemObj.attributes = {};
+            }
+            const attributes = itemObj.attributes as Record<string, unknown>;
+            
+            // Add organization info to attributes matching user's format
+            attributes.orgName = orgInfo?.organizationName;
+            const hospitalImage = orgInfo?.hospitalImage;
+            attributes.orgImage = ensureHttps(
+              hospitalImage && typeof hospitalImage === 'string' 
+                ? hospitalImage 
+                : hospitalImage === null 
+                  ? null 
+                  : undefined
+            );
+            
+            // Build orgAddress from address fields matching user's format
+            const address = orgInfo?.address as Record<string, unknown> | undefined;
+            if (address) {
+              const addressParts = [
+                address.address,
+                address.city,
+                address.state,
+                address.country
+              ].filter(Boolean);
+              attributes.orgAddress = addressParts.length > 0 ? addressParts.join(', ') : undefined;
+            }
+          }
+          return item;
+        });
+      }
+    }
+    
     transformed.mobileScreen = mobileScreenValue !== undefined && mobileScreenValue !== null ? mobileScreenValue : {};
     
     // Add features

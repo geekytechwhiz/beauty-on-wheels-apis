@@ -2,12 +2,6 @@ import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { logHttpRequest, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import {
-  PartnerUnavailableError,
-  PartnerAuthenticationError,
-  PartnerNotFoundError,
-  InvalidPartnerResponseError,
-} from '@api-hub/lab-integration';
-import {
   getRequestId,
   responseOpts,
   createHandlerLogger,
@@ -18,44 +12,42 @@ import {
   UnsupportedPartnerError,
   InvalidPartnerResponseError as ServiceInvalidPartnerResponseError,
 } from '../utils/integrationErrors';
+import {
+  InvalidPartnerResponseError,
+  PartnerUnavailableError,
+  PartnerAuthenticationError,
+  PartnerNotFoundError,
+} from '@api-hub/lab-integration';
 
 export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
-  const orderId = event.pathParameters?.orderId;
-  const partnerId = event.queryStringParameters?.partnerId;
-  const logger = createHandlerLogger(event, context, { orderId });
-  logger.info({ event: 'getOrderStatus_received', orderId });
+  const logger = createHandlerLogger(event, context);
+  logger.info({ event: 'listAddedWebhooks_received' });
 
-  if (!orderId) {
-    return ApiResponse.badRequest(
-      'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
-      { code: 'BAD_REQUEST', details: [{ message: 'Missing or invalid orderId in path' }] }
-    );
-  }
+  const partnerId = event.queryStringParameters?.partnerId;
+
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
       responseOpts(event, requestId),
-      { code: 'BAD_REQUEST', details: [{ message: 'Query parameter partnerId is required' }] }
+      { code: 'BAD_REQUEST', details: [{ message: 'partnerId query parameter is required' }] }
     );
   }
 
-  const bookingDate = event.queryStringParameters?.bookingDate;
-  const collectionDate = event.queryStringParameters?.collectionDate;
-  const options = (bookingDate || collectionDate) ? { bookingDate, collectionDate } : undefined;
+  logger.info({ event: 'listAddedWebhooks_processing', partnerId, correlationId: requestId });
 
   try {
-    const result = await integrationService.getOrderStatus(partnerId, orderId, options);
+    const result = await integrationService.listAddedWebhooks(partnerId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/orders/status', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.STATUS_RETRIEVED', responseOpts(event, requestId));
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/webhooks', 200, duration, requestId);
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.WEBHOOKS_LISTED', responseOpts(event, requestId));
   } catch (err) {
-    logger.error({ event: 'getOrderStatus_error', err: serializeError(err), partnerId, orderId });
+    logger.error({ event: 'listAddedWebhooks_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
 
     if (err instanceof UnsupportedPartnerError) {
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/webhooks', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
         responseOpts(event, requestId),
@@ -63,6 +55,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     if (err instanceof ServicePartnerUnavailableError || err instanceof PartnerUnavailableError) {
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/webhooks', 503, duration, requestId);
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
@@ -71,6 +64,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       );
     }
     if (err instanceof InvalidPartnerResponseError || err instanceof ServiceInvalidPartnerResponseError) {
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/webhooks', 502, duration, requestId);
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
@@ -92,15 +86,15 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         { code: 'NOT_FOUND', details: [{ message: err.message }] }
       );
     }
-    if (err instanceof Error && err.message?.includes('No adapter registered')) {
+    if (err instanceof Error && err.message?.includes('not supported')) {
       return ApiResponse.badRequest(
-        'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
+        'PARTNER_INTEGRATION.UNSUPPORTED_OPERATION',
         responseOpts(event, requestId),
-        { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
+        { code: 'UNSUPPORTED_OPERATION', details: [{ message: err.message }] }
       );
     }
 
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/orders/status', 500, duration, requestId);
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/webhooks', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
       responseOpts(event, requestId),

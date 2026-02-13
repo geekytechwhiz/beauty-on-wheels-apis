@@ -86,10 +86,16 @@ export async function cancelOrder(
 
 export async function getOrderStatus(
   partnerId: string,
-  orderId: string
+  orderId: string,
+  options?: { bookingDate?: string; collectionDate?: string }
 ): Promise<IntegrationResult> {
   const config = await getLibConfig(partnerId);
   const adapter = createAdapter(config);
+  // Type assertion needed since fetchStatus signature was updated
+  const redcliffeAdapter = adapter as any;
+  if (options && (options.bookingDate || options.collectionDate)) {
+    return redcliffeAdapter.fetchStatus(orderId, options);
+  }
   return adapter.fetchStatus(orderId);
 }
 
@@ -255,4 +261,51 @@ export async function updateCredit(
     await idempotencyService.storeResult(idempotencyKey, result);
   }
   return result;
+}
+
+export async function createUpdateWebhook(
+  partnerId: string,
+  webhookConfig: {
+    urlLink: string;
+    hookTypeList: string[];
+    authKey?: string;
+    authValue?: string;
+  }
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  // Type assertion needed since these methods are not in the base interface
+  const redcliffeAdapter = adapter as any;
+  if (!redcliffeAdapter.createUpdateWebhook) {
+    throw new Error(`createUpdateWebhook not supported for partner: ${partnerId}`);
+  }
+  return redcliffeAdapter.createUpdateWebhook(webhookConfig);
+}
+
+export async function mockB2BWebhook(
+  partnerId: string,
+  bookingId: string,
+  webhookType: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  // Type assertion needed since these methods are not in the base interface
+  const redcliffeAdapter = adapter as any;
+  if (!redcliffeAdapter.mockB2BWebhook) {
+    throw new Error(`mockB2BWebhook not supported for partner: ${partnerId}`);
+  }
+  return redcliffeAdapter.mockB2BWebhook(bookingId, webhookType);
+}
+
+export async function listAddedWebhooks(
+  partnerId: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  // Type assertion needed since these methods are not in the base interface
+  const redcliffeAdapter = adapter as any;
+  if (!redcliffeAdapter.listAddedWebhooks) {
+    throw new Error(`listAddedWebhooks not supported for partner: ${partnerId}`);
+  }
+  return redcliffeAdapter.listAddedWebhooks();
 }

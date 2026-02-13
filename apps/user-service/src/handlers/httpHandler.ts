@@ -335,7 +335,7 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/users', 201, duration, correlationId);
     
     return ApiResponse.created(
-      { userID: result.userID },
+      { invitedUser: result.userID },
       'USER.USER_CREATED_SUCCESS',
       { requestId: correlationId, event },
     );

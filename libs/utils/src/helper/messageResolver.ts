@@ -1,7 +1,5 @@
 import * as https from 'https';
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { getErrorDefinition, normalizeLanguage } from '@api-hub/error-messages';
-import { extractLanguageFromEvent } from './headerUtils';
 
 /**
  * Message structure returned from CDN and used in ApiResponse
@@ -145,8 +143,8 @@ export async function resolveMessage(
 }
 
 /**
- * Gets an error message by key from @api-hub/error-messages (CDN server-side-messages/{lang}/errors.json).
- * Uses Accept-Language / X-Language from the event. Returns defaults when CDN is not configured or key is missing.
+ * Gets an error message by key from CDN (ERROR_MESSAGES_CDN_URL/error-messages/{lang}.json).
+ * Uses Accept-Language from the event. Returns defaults when CDN is not configured or key is missing.
  */
 export async function getErrorMessage(event: APIGatewayProxyEvent, errorKey: string): Promise<ResolvedMessage> {
   const defaults: ResolvedMessage = {
@@ -154,20 +152,8 @@ export async function getErrorMessage(event: APIGatewayProxyEvent, errorKey: str
     description: 'An error occurred',
     severity: 'ERROR',
   };
-  try {
-    const language = normalizeLanguage(extractLanguageFromEvent(event));
-    const def = await getErrorDefinition(errorKey, language);
-    if (def) {
-      return {
-        title: def.title ?? defaults.title,
-        description: def.description ?? defaults.description,
-        severity: normalizeSeverity(def.severity, 'ERROR'),
-      };
-    }
-  } catch {
-    // CDN not configured or fetch failed
-  }
-  return defaults;
+  // Use the existing resolveMessage which handles CDN fetching and language detection
+  return resolveMessage(event, errorKey, defaults);
 }
 
 /**

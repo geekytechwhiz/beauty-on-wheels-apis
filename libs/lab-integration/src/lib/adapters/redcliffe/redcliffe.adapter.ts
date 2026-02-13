@@ -117,7 +117,10 @@ export class RedcliffeAdapter
     return toResult(data, { orderId, success: true });
   }
 
-  async fetchStatus(orderId: string): Promise<ReturnType<typeof toResult> | ReturnType<typeof toResultError>> {
+  async fetchStatus(
+    orderId: string,
+    options?: { bookingDate?: string; collectionDate?: string }
+  ): Promise<ReturnType<typeof toResult> | ReturnType<typeof toResultError>> {
     const bookingId = parseInt(orderId, 10);
 
     if (Number.isNaN(bookingId)) {
@@ -127,13 +130,23 @@ export class RedcliffeAdapter
     const url = `${this.baseUrl()}/api/external/v2/center-get-booking`;
     const headers = await this.getAuthHeaders();
 
+    const params: Record<string, unknown> = {
+      booking_id: bookingId,
+    };
+
+    if (options?.bookingDate) {
+      params.booking_date = options.bookingDate;
+    }
+
+    if (options?.collectionDate) {
+      params.collection_date = options.collectionDate;
+    }
+
     const { data } = await this.request<{ errors?: string[] }>({
       method: 'GET',
       url,
       headers,
-      params: {
-        booking_id: bookingId,
-      },
+      params,
     });
 
     if (data?.errors?.includes('Dont have a matching booking')) {
@@ -287,7 +300,8 @@ export class RedcliffeAdapter
     const headers = await this.getAuthHeaders();
 
     const body: Record<string, unknown> = {
-      booking_id: bookingId,
+      booking_id: bookingId.toString(),
+      is_confirmed: 'true',
     };
 
     if (remark) {
@@ -333,16 +347,13 @@ export class RedcliffeAdapter
       return toResultError(orderId, 'Invalid booking ID format');
     }
 
-    const url = `${this.baseUrl()}/api/external/v2/center-get-consolidated-report/`;
+    const url = `${this.baseUrl()}/api/external/v2/get-consolidated-report/${bookingId}`;
     const headers = await this.getAuthHeaders();
 
     const { data } = await this.request({
       method: 'GET',
       url,
       headers,
-      params: {
-        booking_id: bookingId,
-      },
     });
 
     return toResult(data, { orderId, success: true });
@@ -358,12 +369,10 @@ export class RedcliffeAdapter
       return toResultError(orderId, 'Invalid booking ID format');
     }
 
-    const url = `${this.baseUrl()}/api/external/v2/center-get-digital-report/`;
+    const url = `${this.baseUrl()}/api/external/v2/get-digital-report/${bookingId}`;
     const headers = await this.getAuthHeaders();
 
-    const params: Record<string, unknown> = {
-      booking_id: bookingId,
-    };
+    const params: Record<string, unknown> = {};
 
     if (format) {
       params.format = format;
@@ -373,7 +382,7 @@ export class RedcliffeAdapter
       method: 'GET',
       url,
       headers,
-      params,
+      ...(Object.keys(params).length > 0 && { params }),
     });
 
     return toResult(data, { orderId, success: true });
@@ -405,5 +414,75 @@ export class RedcliffeAdapter
     });
 
     return toResult(data, { orderId, success: true });
+  }
+
+  /**
+   * Create or update webhook configuration.
+   * @param webhookConfig - Webhook configuration including URL, hook types, and auth details
+   */
+  async createUpdateWebhook(webhookConfig: {
+    urlLink: string;
+    hookTypeList: string[];
+    authKey?: string;
+    authValue?: string;
+  }): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/v1/webhook/create-update-webhook/`;
+    const headers = await this.getAuthHeaders();
+
+    const body = {
+      url_link: webhookConfig.urlLink,
+      hook_type_list: webhookConfig.hookTypeList,
+      ...(webhookConfig.authKey && { auth_key: webhookConfig.authKey }),
+      ...(webhookConfig.authValue && { auth_value: webhookConfig.authValue }),
+    };
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { success: true });
+  }
+
+  /**
+   * Mock/trigger a B2B webhook for testing purposes.
+   * @param bookingId - Booking ID to trigger webhook for
+   * @param webhookType - Type of webhook to trigger (e.g., 'consolidatereport')
+   */
+  async mockB2BWebhook(bookingId: string, webhookType: string): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/v1/webhook/mock-b2b-webhook/`;
+    const headers = await this.getAuthHeaders();
+
+    const body = {
+      booking_id: bookingId,
+      webhook_type: webhookType,
+    };
+
+    const { data } = await this.request({
+      method: 'POST',
+      url,
+      headers,
+      data: body,
+    });
+
+    return toResult(data, { bookingId, success: true });
+  }
+
+  /**
+   * List all configured webhooks.
+   */
+  async listAddedWebhooks(): Promise<ReturnType<typeof toResult>> {
+    const url = `${this.baseUrl()}/api/v1/webhook/list-added-webhooks/`;
+    const headers = await this.getAuthHeaders();
+
+    const { data } = await this.request({
+      method: 'GET',
+      url,
+      headers,
+    });
+
+    return toResult(data, { success: true });
   }
 }

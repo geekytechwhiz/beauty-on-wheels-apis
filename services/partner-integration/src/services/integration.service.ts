@@ -8,6 +8,7 @@ import { createAdapter, IdempotencyService } from '@api-hub/lab-integration';
 import type {
   CreateOrderCommand,
   RescheduleOrderCommand,
+  PartnerAdapter,
 } from '@api-hub/lab-integration';
 import type { IntegrationResult } from '@api-hub/lab-integration';
 import { getPartnerConfig as getRegistryConfig } from './partnerRegistry.client';
@@ -86,10 +87,22 @@ export async function cancelOrder(
 
 export async function getOrderStatus(
   partnerId: string,
-  orderId: string
+  orderId: string,
+  options?: { bookingDate?: string; collectionDate?: string }
 ): Promise<IntegrationResult> {
   const config = await getLibConfig(partnerId);
   const adapter = createAdapter(config);
+  
+  // If options are provided, use type assertion for Redcliffe-specific extended signature
+  if (options && (options.bookingDate || options.collectionDate)) {
+    const extendedAdapter = adapter as PartnerAdapter & RedcliffeAdapterExtensions;
+    // Check if the extended fetchStatus method exists and call it with options
+    if (extendedAdapter.fetchStatus) {
+      return extendedAdapter.fetchStatus(orderId, options);
+    }
+  }
+  
+  // Use base interface method when no options provided
   return adapter.fetchStatus(orderId);
 }
 
@@ -255,4 +268,61 @@ export async function updateCredit(
     await idempotencyService.storeResult(idempotencyKey, result);
   }
   return result;
+}
+
+// Type for Redcliffe-specific adapter methods
+interface RedcliffeAdapterExtensions {
+  createUpdateWebhook?(webhookConfig: {
+    urlLink: string;
+    hookTypeList: string[];
+    authKey?: string;
+    authValue?: string;
+  }): Promise<IntegrationResult>;
+  mockB2BWebhook?(bookingId: string, webhookType: string): Promise<IntegrationResult>;
+  listAddedWebhooks?(): Promise<IntegrationResult>;
+  fetchStatus?(orderId: string, options?: { bookingDate?: string; collectionDate?: string }): Promise<IntegrationResult>;
+}
+
+export async function createUpdateWebhook(
+  partnerId: string,
+  webhookConfig: {
+    urlLink: string;
+    hookTypeList: string[];
+    authKey?: string;
+    authValue?: string;
+  }
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  const extendedAdapter = adapter as PartnerAdapter & RedcliffeAdapterExtensions;
+  if (!extendedAdapter.createUpdateWebhook) {
+    throw new Error(`createUpdateWebhook not supported for partner: ${partnerId}`);
+  }
+  return extendedAdapter.createUpdateWebhook(webhookConfig);
+}
+
+export async function mockB2BWebhook(
+  partnerId: string,
+  bookingId: string,
+  webhookType: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  const extendedAdapter = adapter as PartnerAdapter & RedcliffeAdapterExtensions;
+  if (!extendedAdapter.mockB2BWebhook) {
+    throw new Error(`mockB2BWebhook not supported for partner: ${partnerId}`);
+  }
+  return extendedAdapter.mockB2BWebhook(bookingId, webhookType);
+}
+
+export async function listAddedWebhooks(
+  partnerId: string
+): Promise<IntegrationResult> {
+  const config = await getLibConfig(partnerId);
+  const adapter = createAdapter(config);
+  const extendedAdapter = adapter as PartnerAdapter & RedcliffeAdapterExtensions;
+  if (!extendedAdapter.listAddedWebhooks) {
+    throw new Error(`listAddedWebhooks not supported for partner: ${partnerId}`);
+  }
+  return extendedAdapter.listAddedWebhooks();
 }

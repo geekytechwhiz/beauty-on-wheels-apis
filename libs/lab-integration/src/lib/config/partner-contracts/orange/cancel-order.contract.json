@@ -1,0 +1,5 @@
+{
+  "operation": "cancelOrder",
+  "partner": "orange",
+  "request": { "required": [], "optional": [] }
+}

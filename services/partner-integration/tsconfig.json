@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../libs/partners"
+    },
+    {
+      "path": "../../libs/utils"
+    },
+    {
+      "path": "../../libs/logger"
+    },
+    {
+      "path": "../../libs/lab-integration"
+    }
+  ]
+}

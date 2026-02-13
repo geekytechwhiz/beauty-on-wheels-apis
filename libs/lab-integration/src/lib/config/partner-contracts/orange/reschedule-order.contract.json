@@ -1,0 +1,5 @@
+{
+  "operation": "rescheduleOrder",
+  "partner": "orange",
+  "request": { "required": [], "optional": [] }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "canonical",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/canonical/src",
+  "projectType": "library",
+  "tags": ["scope:canonical", "type:lib", "allowed-for-app"]
+}

@@ -1,0 +1,1 @@
+{"name": "terminology", "$schema": "../../node_modules/nx/schemas/project-schema.json", "sourceRoot": "libs/terminology/src", "projectType": "library", "tags": ["scope:terminology", "type:lib", "allowed-for-app"], "targets": {"test": {"executor": "@nx/jest:jest", "options": {"jestConfig": "libs/terminology/jest.config.ts", "passWithNoTests": true}}}}

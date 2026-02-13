@@ -1,0 +1,14 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "Observation",
+  "url": "http://hl7.org/fhir/StructureDefinition/Observation",
+  "version": "4.0.1",
+  "name": "Observation",
+  "status": "active",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Observation",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Observation",
+  "derivation": "constraint",
+  "description": "Pinned R4 Observation profile for gateway validation. No runtime fetch of external profile URLs."
+}

@@ -4,6 +4,8 @@
 
 ✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
 
+**📖 Full codebase reference** (structure, patterns, serverless, coding standards): [docs/CODEBASE_README.md](docs/CODEBASE_README.md)
+
 [Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
 
 ## Run tasks

@@ -1,0 +1,7 @@
+{
+  "name": "scope-mapping",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scope-mapping/src",
+  "projectType": "library",
+  "tags": ["scope:auth", "type:lib", "allowed-for-app"]
+}

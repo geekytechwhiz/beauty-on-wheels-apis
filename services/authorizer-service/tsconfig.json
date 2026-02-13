@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.base.json","compilerOptions":{"outDir":"dist","types":["node","jest"],"noEmit":true},"include":["src/**/*.ts"],"references":[{"path":"../../libs/auth"}]}

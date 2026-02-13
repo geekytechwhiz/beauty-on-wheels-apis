@@ -1,0 +1,32 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../libs/access-audit"
+    },
+    {
+      "path": "../../libs/tenant-guard"
+    },
+    {
+      "path": "../../libs/scope-mapping"
+    },
+    {
+      "path": "../../libs/fhir"
+    },
+    {
+      "path": "../../libs/canonical"
+    },
+    {
+      "path": "../../libs/consent"
+    },
+    {
+      "path": "../../libs/capability"
+    }
+  ]
+}

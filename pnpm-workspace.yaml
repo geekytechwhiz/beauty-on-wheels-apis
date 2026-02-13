@@ -1,5 +1,6 @@
 packages:
   - 'apps/*'
   - 'libs/*'
+  - 'services/*'
   - 'tools/*'
 autoInstallPeers: true

@@ -6,19 +6,10 @@ import {
   responseOpts,
   createHandlerLogger,
   parseJsonBody,
+  getIdempotencyKey,
 } from '../utils/handlerHelpers';
+import { handlePartnerIntegrationError } from '../utils/partnerErrorHandler';
 import * as integrationService from '../services/integration.service';
-import {
-  PartnerUnavailableError as ServicePartnerUnavailableError,
-  UnsupportedPartnerError,
-  InvalidPartnerResponseError as ServiceInvalidPartnerResponseError,
-} from '../utils/integrationErrors';
-import {
-  InvalidPartnerResponseError,
-  PartnerUnavailableError,
-  PartnerAuthenticationError,
-  PartnerNotFoundError,
-} from '@api-hub/lab-integration';
 
 export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
@@ -28,7 +19,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
 
   const orderId = event.pathParameters?.orderId;
   const partnerId = event.queryStringParameters?.partnerId;
-  const idempotencyKey = event.headers['Idempotency-Key'] || event.headers['idempotency-key'];
+  const idempotencyKey = getIdempotencyKey(event);
 
   if (!orderId) {
     return ApiResponse.badRequest(
@@ -62,52 +53,10 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.error({ event: 'confirmBooking_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
 
-    if (err instanceof UnsupportedPartnerError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 400, duration, requestId);
-      return ApiResponse.badRequest(
-        'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
-        responseOpts(event, requestId),
-        { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
-      );
-    }
-    if (err instanceof ServicePartnerUnavailableError || err instanceof PartnerUnavailableError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 503, duration, requestId);
-      return ApiResponse.error(
-        503,
-        'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
-        responseOpts(event, requestId),
-        { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
-      );
-    }
-    if (err instanceof InvalidPartnerResponseError || err instanceof ServiceInvalidPartnerResponseError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 502, duration, requestId);
-      return ApiResponse.error(
-        502,
-        'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
-        responseOpts(event, requestId),
-        { code: 'INVALID_PARTNER_RESPONSE', details: [{ message: err.message }] }
-      );
-    }
-    if (err instanceof PartnerAuthenticationError) {
-      return ApiResponse.badRequest(
-        'PARTNER_INTEGRATION.AUTH_FAILED',
-        responseOpts(event, requestId),
-        { code: 'AUTH_FAILED', details: [{ message: err.message }] }
-      );
-    }
-    if (err instanceof PartnerNotFoundError) {
-      return ApiResponse.badRequest(
-        'PARTNER_INTEGRATION.NOT_FOUND',
-        responseOpts(event, requestId),
-        { code: 'NOT_FOUND', details: [{ message: err.message }] }
-      );
-    }
-    if (err instanceof Error && err.message?.includes('not supported')) {
-      return ApiResponse.badRequest(
-        'PARTNER_INTEGRATION.UNSUPPORTED_OPERATION',
-        responseOpts(event, requestId),
-        { code: 'UNSUPPORTED_OPERATION', details: [{ message: err.message }] }
-      );
+    const handled = await handlePartnerIntegrationError(err, event, requestId);
+    if (handled) {
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', handled.statusCode, duration, requestId);
+      return handled;
     }
 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 500, duration, requestId);

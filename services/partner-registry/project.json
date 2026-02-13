@@ -1,0 +1,1 @@
+{"name":"partner-registry","$schema":"../../node_modules/nx/schemas/project-schema.json","sourceRoot":"services/partner-registry/src","projectType":"application","tags":["type:service"]}

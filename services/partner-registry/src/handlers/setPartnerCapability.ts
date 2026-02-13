@@ -1,0 +1,87 @@
+import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { ApiResponse } from '@api-hub/utils';
+import { setCapabilitySchema } from '../validation/capability.schema';
+import { PartnerNotFoundError } from '../utils/errors';
+import {
+  getRequestId,
+  responseOpts,
+  createHandlerLogger,
+  parseJsonBody,
+  getPartnerService,
+} from '../utils/handlerHelpers';
+
+export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+  const startTime = Date.now();
+  const requestId = getRequestId(event, context);
+  const partnerId = event.pathParameters?.id;
+  const logger = createHandlerLogger(event, context, { partnerId });
+  logger.info({ event: 'setPartnerCapability_received', partnerId });
+
+  if (!partnerId) {
+    logger.warn({ event: 'setPartnerCapability_missing_id' });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 400, duration, requestId);
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      responseOpts(event, requestId),
+      { code: 'BAD_REQUEST', details: [{ message: 'Missing partner id in path' }] }
+    );
+  }
+
+  const body = parseJsonBody(event);
+  if (body === null) {
+    logger.warn({ event: 'setPartnerCapability_invalid_json' });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 400, duration, requestId);
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      responseOpts(event, requestId),
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
+    );
+  }
+
+  const validation = setCapabilitySchema.safeParse(body);
+  if (!validation.success) {
+    logger.warn({ event: 'setPartnerCapability_validation_error', errors: validation.error.issues });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 422, duration, requestId);
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      responseOpts(event, requestId),
+      {
+        code: 'VALIDATION_ERROR',
+        details: validation.error.issues.map((e) => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
+      }
+    );
+  }
+
+  try {
+    const capability = await getPartnerService().setCapability(partnerId, validation.data);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 200, duration, requestId);
+    return ApiResponse.ok(capability, 'PARTNER.CAPABILITY_SET_SUCCESS', responseOpts(event, requestId));
+  } catch (err) {
+    if (err instanceof PartnerNotFoundError) {
+      logger.warn({ event: 'setPartnerCapability_partner_not_found', err: serializeError(err) });
+      const duration = Date.now() - startTime;
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 404, duration, requestId);
+      return ApiResponse.notFound(
+        'PARTNER.PARTNER_NOT_FOUND',
+        responseOpts(event, requestId),
+        { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
+      );
+    }
+    logger.error({ event: 'setPartnerCapability_error', err: serializeError(err) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 500, duration, requestId);
+    return ApiResponse.internalServerError(
+      'COMMON.INTERNAL_ERROR',
+      responseOpts(event, requestId),
+      { code: 'INTERNAL_ERROR' }
+    );
+  }
+};

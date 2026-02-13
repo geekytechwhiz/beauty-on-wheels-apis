@@ -1,0 +1,12 @@
+{
+  "operation": "cancelOrder",
+  "partner": "redcliffe",
+  "endpoint": {
+    "method": "POST",
+    "path": "/api/external/v2/center-update-booking/"
+  },
+  "request": {
+    "required": ["booking_id", "booking_status"],
+    "optional": ["remark"]
+  }
+}

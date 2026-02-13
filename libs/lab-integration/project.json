@@ -1,0 +1,7 @@
+{
+  "name": "lab-integration",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/lab-integration/src",
+  "projectType": "library",
+  "tags": ["scope:lab-integration", "type:lib", "allowed-for-app"]
+}

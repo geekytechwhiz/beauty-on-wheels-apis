@@ -1,0 +1,11 @@
+{
+  "operation": "getStatus",
+  "partner": "redcliffe",
+  "endpoint": {
+    "method": "GET",
+    "path": "/api/external/v2/center-get-booking"
+  },
+  "request": {
+    "required": ["booking_id"]
+  }
+}

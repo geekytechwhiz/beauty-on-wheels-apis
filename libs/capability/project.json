@@ -1,0 +1,7 @@
+{
+  "name": "capability",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/capability/src",
+  "projectType": "library",
+  "tags": ["scope:capability", "type:lib", "allowed-for-app"]
+}

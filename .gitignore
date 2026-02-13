@@ -47,6 +47,14 @@ apps/user-service/swagger/
 apps/order-service/.esbuild/
 apps/device-service/.esbuild/
 apps/organization-service/.esbuild/
+
+services/partner-integration/.env
+services/partner-registry/.esbuild
+services/partner-integration/.esbuild
+services/partner-registry/.esbuild
+services/fhir-gateway/.esbuild
+services/authorizer-service/.esbuild
+
 # Serverless build artifacts
 **/.serverless/
 

@@ -1713,7 +1713,7 @@ export class UserService {
         roleName,
         userRoles: itemRoleId,
         roleType,
-        roleId,
+        roleId:itemRoleId,
         userPermissions,
         changePassword: userBasicDetails.changePassword || false,
         isRpmUser: userBasicDetails.isRpmUser || false,

@@ -93,26 +93,24 @@
 **Priority:** Medium  
 **Estimated Effort:** 1-2 hours
 
-**Description:** Ensure webhook secrets are properly configured in partner credentials.
+**Description:** Ensure webhook secrets are added to partner credentials in the partner registry.
+
+**Note:** Webhook secrets are already integrated with the partner registry system, using the same `authConfig.credentialsSecretArn` as other partner API credentials. No code changes needed - only configuration.
 
 **Action Required:**
-1. Verify webhook secret storage location:
-   - Currently reads from partner credentials secret (AWS Secrets Manager)
-   - Looks for keys: `webhookSecret`, `webhook_secret`, `secretKey`, `secret_key`
-2. For Orange Health partners:
-   - Add webhook secret to credentials secret in AWS Secrets Manager
-   - Document secret key name convention
-   - Test secret retrieval
-3. For Redcliffe Labs (if signature validation required):
-   - Add webhook secret to credentials secret
-   - Update adapter to use secret
-4. Document secret management process
-5. Consider secret rotation strategy
+1. For Orange Health partners:
+   - Add webhook secret to the existing credentials secret in AWS Secrets Manager (same secret used for API credentials)
+   - Use one of the supported key names: `webhookSecret`, `webhook_secret`, `secretKey`, or `secret_key`
+   - Test secret retrieval via partner registry
+2. For Redcliffe Labs (if signature validation required):
+   - Add webhook secret to credentials secret using the same approach
+3. Document that webhook secrets are managed through partner registry (same as API credentials)
 
 **Current Implementation:**
-- Secret retrieved from `authConfig.credentialsSecretArn`
-- Stored as JSON in AWS Secrets Manager
-- Retrieved in `webhook.service.ts` via `getWebhookSecret()`
+- ✅ Already integrated with partner registry via `authConfig.credentialsSecretArn`
+- ✅ Uses same credentials secret as partner API authentication
+- ✅ Retrieved in `webhook.service.ts` via `getWebhookSecret()` from partner registry config
+- ✅ Supports multiple key name formats for flexibility
 
 ---
 

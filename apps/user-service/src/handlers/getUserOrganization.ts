@@ -4,7 +4,6 @@ import { UserService } from '../services/user.service';
 import { createLogger, extractCorrelationId, serializeError, logHttpRequest, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { UserNotFoundError } from '../utils/errors';
-import { getUserPermissions } from '../services/role.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -162,39 +161,6 @@ export const main: APIGatewayProxyHandler = async (
           userId, 
           organizationId 
         });
-        
-        // const apiPermissions = await getUserPermissions(userId, organizationId, authHeader);
-        // console.log("USER PERMISSIONS RESPONSE FROM API:", JSON.stringify(apiPermissions));
-
-        // // apiPermissions shape: { roleId, roleName, roleType, definedRoleCode, isDefault, features: [...] }
-        // if (apiPermissions && Array.isArray(apiPermissions.features) && apiPermissions.features.length > 0) {
-        //   userData.userPermissions = apiPermissions.features;
-        // }
-
-        // if (apiPermissions.roleId) {
-        //   userData.roleId = apiPermissions.roleId;
-        //   userData.userRoles = [apiPermissions.roleId];
-        // }
-        // if (apiPermissions.roleName) {
-        //   userData.roleName = apiPermissions.roleName;
-        // }
-        // if (apiPermissions.roleType) {
-        //   userData.roleType = apiPermissions.roleType;
-        // }
-        // if (apiPermissions.definedRoleCode) {
-        //   userData.definedRoleCode = apiPermissions.definedRoleCode;
-        // }
-
-        // logger.info({ 
-        //   event: 'user_permissions_and_role_meta_from_api', 
-        //   userId,
-        //   organizationId,
-        //   featuresCount: Array.isArray(apiPermissions.features) ? apiPermissions.features.length : 0,
-        //   roleId: apiPermissions.roleId,
-        //   roleName: apiPermissions.roleName,
-        //   roleType: apiPermissions.roleType,
-        //   definedRoleCode: apiPermissions.definedRoleCode,
-        // });
       } catch (apiErr) {
         logger.warn({ 
           event: 'user_permissions_api_call_failed_in_handler', 

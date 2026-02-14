@@ -405,18 +405,19 @@ export class UserRepository {
     filters?: { roleId?: string; roleName?: string; roleType?: string; status?: string },
   ): Promise<Array<Record<string, unknown>>> {
     const logger = createChildLogger(baseLogger, { organizationId });
-    
-    // Query actual users from ORG_USER_LIST (not ORG_USER_COUNT)
-    const userListPk = `ORG_USER_LIST#${organizationId}`;
+
+    // Same key pattern as listOrganizationUsers: pk = ORG#orgId, sk begins_with USER#
+    const pk = userOrgPk(organizationId);
     const allUsers: Array<Record<string, unknown>> = [];
+    const keyCondition = 'pk = :pk AND begins_with(sk, :skPrefix)';
+    const expressionValues: Record<string, unknown> = { ':pk': pk, ':skPrefix': 'USER#' };
+
+    logger.info({ event: 'querying_users', pk, table: USER_TABLE_NAME });
+
     let lastKey: Record<string, unknown> | undefined;
+    let useUppercaseKeys = false;
 
-    logger.info({ event: 'querying_users', pk: userListPk, table: USER_TABLE_NAME });
-    console.log('=== REPOSITORY: Querying Users ===');
-    console.log('PK:', userListPk);
-    console.log('Table:', USER_TABLE_NAME);
-
-    // Fetch all users for the organization
+    // Fetch all users for the organization (pk=ORG#orgId, sk=USER#userId)
     do {
       const params: {
         TableName: string;
@@ -425,25 +426,31 @@ export class UserRepository {
         ExclusiveStartKey?: Record<string, unknown>;
       } = {
         TableName: USER_TABLE_NAME,
-        KeyConditionExpression: 'pk = :pk',
-        ExpressionAttributeValues: { ':pk': userListPk },
+        KeyConditionExpression: useUppercaseKeys ? 'PK = :pk AND begins_with(SK, :skPrefix)' : keyCondition,
+        ExpressionAttributeValues: expressionValues,
       };
       if (lastKey) params.ExclusiveStartKey = lastKey;
 
-      console.log('Query params:', JSON.stringify(params, null, 2));
-      const response = await docClient.send(new QueryCommand(params));
-      const rawItems = (response.Items || []) as Array<Record<string, unknown>>;
-      
-      console.log('Query response - Items count:', rawItems.length);
-      if (rawItems.length > 0) {
-        console.log('Sample user:', JSON.stringify(rawItems[0], null, 2));
+      let response: { Items?: unknown[]; LastEvaluatedKey?: Record<string, unknown> };
+      try {
+        response = await docClient.send(new QueryCommand(params));
+      } catch (innerErr: unknown) {
+        const name = (innerErr as { name?: string }).name;
+        const message = String((innerErr as { message?: string }).message ?? '');
+        // Table may use PK/SK (uppercase) – retry with uppercase and re-paginate from start
+        if (!useUppercaseKeys && name === 'ValidationException' && message.includes('PK')) {
+          useUppercaseKeys = true;
+          lastKey = undefined;
+          continue;
+        }
+        throw innerErr;
       }
-      
+
+      const rawItems = (response.Items || []) as Array<Record<string, unknown>>;
       allUsers.push(...rawItems);
-      lastKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+      lastKey = response.LastEvaluatedKey;
     } while (lastKey);
 
-    console.log('=== REPOSITORY: Total users fetched ===', allUsers.length);
     logger.info({ event: 'users_fetched', totalUsers: allUsers.length });
 
     // Group users by role and count them
@@ -458,9 +465,9 @@ export class UserRepository {
 
     for (const user of allUsers) {
       // Extract role information from user record
-      const roleId = String(user.roleID || user.roleId || '');
-      const roleName = String(user.roleName || '');
-      const definedRoleCode = String(user.definedRoleCode || roleName || '');
+      const roleId = String(user.roleID || (user as any)?.userRole[0] || '');
+      const roleName = String(user?.roleName || '');
+      const definedRoleCode = String(user?.definedRoleCode || roleName || '');
       const roleType = String(user.roleType || user.userType || '');
       
       // Determine status (ACTIVE/INACTIVE)
@@ -470,7 +477,7 @@ export class UserRepository {
       }
       
       // Skip if missing required fields
-      if (!roleId || !roleName) {
+      if (!roleId) {
         logger.warn({ event: 'user_missing_role', userId: user.userID });
         continue;
       }

@@ -191,6 +191,8 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
             hasDefinedRoleCode: exactRoleMatch?.definedRoleCode !== undefined,
           });
           definedRoleCode = exactRoleMatch?.definedRoleCode;
+          const roleName = exactRoleMatch?.roleName;
+          userData.roleName = roleName || definedRoleCode || '';
           console.log("DEFINED ROLE CODE :", definedRoleCode);  
           console.log("EXACT ROLE MATCH :", JSON.stringify(exactRoleMatch));  
 

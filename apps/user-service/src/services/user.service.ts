@@ -1711,7 +1711,7 @@ export class UserService {
         organizationType: orgBasicDetails?.organizationType || orgBasicDetails?.organizationInfo?.organizationType || orgBasicDetails?.lsi_organizationType || (orgBasicDetails as any)?.orgType || (orgBasicDetails as any)?.type || '',
         scheduleConfiguration,
         roleName,
-        userRoles: itemRoleId,
+        userRoles: itemRoleId ? [itemRoleId] : [],
         roleType,
         roleId:itemRoleId,
         userPermissions,

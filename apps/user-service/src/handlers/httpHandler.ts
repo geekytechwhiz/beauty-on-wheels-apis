@@ -671,7 +671,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   const bodyOrganizationId = body?.organizationId || body?.organizationID;
   
   // Prioritize token values, fallback to body for backward compatibility
-  const userId = requestUserId || bodyUserId;
+  const userId = bodyUserId;
   const organizationId = requestOrgId || bodyOrganizationId;
 
   console.log("USER ID ", userId);
@@ -833,38 +833,6 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
             return composed.startsWith('+') ? composed : `+${composed}`;
           };
           
-          // Check if email is being changed (only if srcRegisEntity is 'email')
-          if (emailInput !== undefined && srcRegisEntity === 'email') {
-            const existingEmail = normalizeEmail((existing as any).emailAddress);
-            const newEmail = normalizeEmail(emailInput);
-            
-            // Only block if the email is actually different
-            if (existingEmail !== newEmail) {
-              return ApiResponse.badRequest(
-                'COMMON.BAD_REQUEST',
-                { requestId: correlationId, event },
-                { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
-              );
-            }
-          }
-          
-          // Check if phone is being changed (only if srcRegisEntity is 'phone' or 'phone_number')
-          if (phoneInput !== undefined && (srcRegisEntity === 'phone' || srcRegisEntity === 'phone_number')) {
-            const existingPhoneCode = (existing as any).phoneCode || body.phoneCode;
-            const newPhoneCode = body.phoneCode || existingPhoneCode;
-            const existingPhone = normalizePhone((existing as any).phoneNumber, existingPhoneCode);
-            const newPhone = normalizePhone(phoneInput, newPhoneCode);
-            
-            // Only block if the phone is actually different
-            if (existingPhone !== newPhone) {
-              return ApiResponse.badRequest(
-                'COMMON.BAD_REQUEST',
-                { requestId: correlationId, event },
-                { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
-              );
-            }
-          }
-
           setIfPresent(userData, 'profilePic', body.profilePic);
           setIfPresent(userData, 'firstName', body.firstName);
           setIfPresent(userData, 'middleName', body.middleName);

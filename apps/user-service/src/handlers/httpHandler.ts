@@ -1256,7 +1256,7 @@ export async function assignDoctor(event: APIGatewayProxyEvent, context?: Contex
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 200, duration, correlationId);
     return ApiResponse.ok(
-      { message: 'Patient assigned to doctor successfully' },
+      { message: 'Patient assigned to doctor successfully!' },
       'USER.ASSIGN_DOCTOR_SUCCESS',
       { requestId: correlationId, event },
     );

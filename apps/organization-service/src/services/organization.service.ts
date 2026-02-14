@@ -572,7 +572,11 @@ export class OrganizationService {
       });
 
       if (!linkResult.items.length) {
-        throw new LinkedOrganizationsNotFoundError(organizationId);
+        // throw new LinkedOrganizationsNotFoundError(organizationId);
+        return {
+          items: [],
+          nextPaginationKey: null,
+        };
       }
 
       const items = await Promise.all(

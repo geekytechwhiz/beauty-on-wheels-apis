@@ -1172,6 +1172,113 @@ export class UserService {
     }
   }
 
+  /**
+   * Assign a patient (receiver) to a doctor (sender) in an organization.
+   * Calls the legacy link_unlink_user Lambda (USER_LINK_LAMBDA) to create
+   * reporter/assignee link and set reporterId on the patient.
+   */
+  async assignDoctor(
+    organizationId: string,
+    sender: { userId: string; name?: string; email?: string },
+    receiver: { userId: string; name?: string; email?: string },
+    correlationId?: string,
+  ): Promise<void> {
+    const timer = createPerformanceTimer(baseLogger, 'assignDoctor', correlationId);
+    const logger = createChildLogger(baseLogger, { organizationId, doctorId: sender.userId, patientId: receiver.userId });
+    logger.info({ event: 'service_assignDoctor_start' });
+
+    const doctor = await this.repository.getUser(sender.userId, organizationId);
+    if (!doctor) {
+      timer.end();
+      throw new UserNotFoundError(sender.userId);
+    }
+    const patient = await this.repository.getUser(receiver.userId, organizationId);
+    if (!patient) {
+      timer.end();
+      throw new UserNotFoundError(receiver.userId);
+    }
+
+    const doctorFullName =
+      (doctor as any).namePrefix && String((doctor as any).namePrefix).toLowerCase().includes('dr')
+        ? `${(doctor as any).namePrefix} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
+        : (doctor as any).fullName || (doctor as any).firstName || '';
+    const patientFullName =
+      (patient as any).fullName ?? `${(patient as any).firstName || ''} ${(patient as any).lastName || ''}`.trim();
+
+    const linkResult = await userLinkRepository.linkUser({
+      userID: receiver.userId,
+      organizationID: organizationId,
+      body: {
+        action: 'add',
+        reporter: { id: sender.userId, name: doctorFullName || sender.userId },
+        assignees: [{ id: receiver.userId, name: patientFullName || receiver.userId }],
+      },
+    });
+
+    if (!linkResult) {
+      logger.warn({ event: 'service_assignDoctor_link_failed' });
+      timer.end();
+      throw new Error('DOCTOR_NOT_LINKED_WITH_USER');
+    }
+
+    logger.info({ event: 'service_assignDoctor_success' });
+    timer.end();
+  }
+
+  /**
+   * List all patients assigned to a doctor in an organization.
+   * Uses legacy link records (USER#doctorId / ASSIGNEE#patientId, SCD_LINK#patientId).
+   */
+  async listDoctorPatients(doctorId: string, organizationId: string): Promise<Record<string, unknown>[]> {
+    const timer = createPerformanceTimer(baseLogger, 'listDoctorPatients');
+    const logger = createChildLogger(baseLogger, { doctorId, organizationId });
+    logger.info({ event: 'service_listDoctorPatients_start' });
+
+    const links = await this.repository.listPatientIdsForDoctor(doctorId);
+    if (links.length === 0) {
+      timer.end();
+      return [];
+    }
+
+    const doctor = await this.repository.getUser(doctorId, organizationId);
+    const doctorName = doctor
+      ? `${(doctor as any).namePrefix || ''} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
+      : '';
+
+    const users: Record<string, unknown>[] = [];
+    for (const { patientId, patientOrgId, previouslyConsulted } of links) {
+      const orgId = patientOrgId || organizationId;
+      const user = await this.repository.getUser(patientId, orgId);
+      if (!user) continue;
+      const u = user as unknown as Record<string, unknown>;
+      users.push({
+        city: u.city || '',
+        state: u.state || '',
+        country: u.country || '',
+        fullName: u.fullName || '',
+        emailAddress: u.emailAddress || '',
+        phoneNumber: u.phoneNumber || '',
+        profilePic: u.profilePic || '',
+        reporterId: u.reporterId || '',
+        doctor: doctorName || (u.reporterName as string) || '',
+        patientId: u.userID || patientId,
+        userID: u.userID || patientId,
+        accountType: (u as any).isRpmUser ? 'RPM' : 'REGULAR',
+        status: (u as any).isActive !== false ? 'active' : 'inactive',
+        createdDate: u.createdDate ?? u.createdAt ?? null,
+        mrn: u.mrn ?? null,
+        gender: u.gender || '',
+        dateOfBirth: u.dateOfBirth ?? null,
+        patientOrgId: u.organizationID || orgId,
+        previouslyConsulted: previouslyConsulted ?? false,
+      });
+    }
+
+    logger.info({ event: 'service_listDoctorPatients_success', count: users.length });
+    timer.end();
+    return users;
+  }
+
   async updateUserMetadata(userId: string, metadata: Record<string, unknown>): Promise<UserMetadata> {
     const timer = createPerformanceTimer(baseLogger, 'updateUserMetadata');
     const logger = createChildLogger(baseLogger, { userId });

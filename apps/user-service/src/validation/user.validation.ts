@@ -265,3 +265,32 @@ export const getOrganizationUserCountSchema = z.object({
   status: z.string().optional(),
 });
 
+/** Assign doctor (staff) to patient. Matches legacy assignDoctor API body. */
+export const assignDoctorSchema = z.object({
+  organizationId: z.string().min(1, 'organizationId is required'),
+  sender: z.object({
+    userId: z.string().min(1),
+    name: z.string().optional(),
+    email: z.string().optional(),
+    userType: z.string().optional(),
+    presenceStatus: z.string().optional(),
+  }),
+  receiver: z.object({
+    userId: z.string().min(1),
+    name: z.string().optional(),
+    email: z.string().optional(),
+    profileImage: z.string().optional(),
+    userType: z.string().optional(),
+    presenceStatus: z.string().optional(),
+  }),
+}).refine(
+  (data) => data.sender.userId !== data.receiver.userId,
+  { message: 'Sender (doctor) and receiver (patient) must be different users', path: ['receiver'] },
+);
+
+/** List patients assigned to a doctor. Matches legacy doctor-patient-list API body. */
+export const listDoctorPatientsSchema = z.object({
+  organizationId: z.string().min(1, 'organizationId is required'),
+  doctorId: z.string().min(1, 'doctorId is required'),
+});
+

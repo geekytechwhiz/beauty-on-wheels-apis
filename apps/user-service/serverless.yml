@@ -1005,6 +1005,109 @@ functions:
               500:
                 $ref: '#/components/responses/InternalServerError'
 
+  assignDoctor:
+    handler: src/handlers/assignDoctor.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/assign-doctor
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+          documentation:
+            summary: Assign patient to doctor
+            description: Assigns a patient user to a doctor (staff) in an organization. Matches legacy assignDoctor API.
+            tags:
+              - Users
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - organizationId
+                      - sender
+                      - receiver
+                    properties:
+                      organizationId:
+                        type: string
+                      sender:
+                        type: object
+                        description: Doctor (staff) - userId, name, email, userType, presenceStatus
+                        properties:
+                          userId: { type: string }
+                          name: { type: string }
+                          email: { type: string }
+                          userType: { type: string }
+                          presenceStatus: { type: string }
+                      receiver:
+                        type: object
+                        description: Patient - userId, name, email, userType, presenceStatus
+                        properties:
+                          userId: { type: string }
+                          name: { type: string }
+                          email: { type: string }
+                          userType: { type: string }
+                          presenceStatus: { type: string }
+            responses:
+              200:
+                description: Patient assigned to doctor successfully
+              400:
+                $ref: '#/components/responses/BadRequest'
+              404:
+                $ref: '#/components/responses/NotFound'
+              500:
+                $ref: '#/components/responses/InternalServerError'
+
+  listDoctorPatients:
+    handler: src/handlers/listDoctorPatients.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/doctor-patient-list
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+          documentation:
+            summary: List doctor's patients
+            description: Returns all patients assigned to a doctor in an organization. Matches legacy doctor-patient-list API.
+            tags:
+              - Users
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - organizationId
+                      - doctorId
+                    properties:
+                      organizationId:
+                        type: string
+                      doctorId:
+                        type: string
+            responses:
+              200:
+                description: List of patients (data.users)
+              400:
+                $ref: '#/components/responses/BadRequest'
+              500:
+                $ref: '#/components/responses/InternalServerError'
+
   activateDeactivateUser:
     handler: src/handlers/activateDeactivateUser.main
     timeout: 15

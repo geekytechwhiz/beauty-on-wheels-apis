@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand, QueryCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
@@ -1371,6 +1371,53 @@ export class UserRepository {
       logger.error({ event: 'updateUserVerification_error', err: serializeError(err) });
       throw err;
     }
+  }
+
+  /**
+   * List patient IDs assigned to a doctor. Reads legacy link records:
+   * pk=USER#doctorId, sk=ASSIGNEE#patientId or sk=SCD_LINK#patientId.
+   */
+  async listPatientIdsForDoctor(doctorId: string): Promise<{ patientId: string; patientOrgId?: string; previouslyConsulted?: boolean }[]> {
+    const logger = createChildLogger(baseLogger, { doctorId });
+    const seen = new Set<string>();
+    const result: { patientId: string; patientOrgId?: string; previouslyConsulted?: boolean }[] = [];
+
+    const skPrefixes = ['ASSIGNEE#', 'SCD_LINK#'];
+    for (const skPrefix of skPrefixes) {
+      let lastKey: Record<string, unknown> | undefined;
+      do {
+        const params: QueryCommandInput = {
+          TableName: USER_TABLE_NAME,
+          KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+          ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+          ExpressionAttributeValues: {
+            ':pk': `USER#${doctorId}`,
+            ':sk': skPrefix,
+          },
+        };
+        if (lastKey) params.ExclusiveStartKey = lastKey as Record<string, unknown>;
+
+        const response = await docClient.send(new QueryCommand(params));
+        const items = response.Items ?? [];
+        lastKey = response.LastEvaluatedKey;
+
+        for (const item of items) {
+          const sk = (item.sk as string) || '';
+          const patientId = sk.includes('#') ? sk.split('#')[1] : sk;
+          if (patientId && !seen.has(patientId)) {
+            seen.add(patientId);
+            result.push({
+              patientId,
+              patientOrgId: (item as any).patientOrgId,
+              previouslyConsulted: skPrefix === 'SCD_LINK#',
+            });
+          }
+        }
+      } while (lastKey);
+    }
+
+    logger.info({ event: 'listPatientIdsForDoctor_success', doctorId, count: result.length });
+    return result;
   }
 }
 

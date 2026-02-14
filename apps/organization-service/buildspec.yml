@@ -76,9 +76,13 @@ phases:
   post_build:
     commands:
       # Ensure artifact path exists for deploy (CodePipeline expects apps/organization-service/packaged.yaml)
-      # When primary source = repo root, we are in apps/organization-service so packaged.yaml is already there
+      # When primary source = repo root, we're already in apps/organization-service so packaged.yaml is in place; copy only if different path
       - mkdir -p "$CODEBUILD_SRC_DIR/apps/organization-service"
-      - cp packaged.yaml "$CODEBUILD_SRC_DIR/apps/organization-service/packaged.yaml"
+      - |
+        DEST="$CODEBUILD_SRC_DIR/apps/organization-service/packaged.yaml"
+        if [ ! packaged.yaml -ef "$DEST" ]; then
+          cp packaged.yaml "$DEST"
+        fi
       - |
         ARTIFACT_FILE="$CODEBUILD_SRC_DIR/apps/organization-service/packaged.yaml"
         if [ ! -f "$ARTIFACT_FILE" ]; then

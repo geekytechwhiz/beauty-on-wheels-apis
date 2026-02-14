@@ -1,0 +1,93 @@
+{
+  "info": {
+    "name": "Friend & Family (FNF) API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "User Service – Friend and Family endpoints. Legacy-compatible request bodies.\n\n**Auth:** Use Bearer token (Cognito JWT). When `organizationID` or `userID`/`userId` are omitted in the body, they are taken from the authorizer (`custom:organizationID`, `custom:userID`).\n\n**Base URL:** `{{baseUrl}}` (e.g. https://xxx.execute-api.region.amazonaws.com/dev)\n\n**Relation:** Accepts \"Family\" or \"Friend\" (case-insensitive)."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://e5gv0qum80.execute-api.region.amazonaws.com/dev" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Friend Family Search",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"relationship\": \"brother\",\n  \"email\": \"\",\n  \"manageHealth\": true,\n  \"roles\": [\"f463568d-f49f-4311-82df-d7e102014398\"],\n  \"relation\": \"Family\",\n  \"phone\": \"+918526963568\",\n  \"fullName\": \"Rawat\",\n  \"emergencyContact\": false,\n  \"invite\": \"email\"\n}"
+        },
+        "url": "{{baseUrl}}/user/friend-family/search",
+        "description": "Search for a user by email or phone to add as friend/family. **organizationID** and **userID** can be omitted (from JWT). Requires either `email` or `phone` (can send empty string for one). `relation`: \"Family\" or \"Friend\". When relation is Family, `relationship` is required. Optional: `roles`, `manageHealth`."
+      }
+    },
+    {
+      "name": "Friend Family Add Member",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"relationship\": \"brother\",\n  \"memberName\": \"Rawat\",\n  \"emergencyContact\": false,\n  \"userId\": \"01KHDXHWMWTY4KYVR6N4P5EGZW\",\n  \"relation\": \"Family\",\n  \"manageHealth\": true,\n  \"userName\": \"Sumit Rawat\",\n  \"memberId\": \"01KHE3MM2FV9B91FNDX0S216JQ\"\n}"
+        },
+        "url": "{{baseUrl}}/user/friend-family/add-member",
+        "description": "Add a member as friend or family. **organizationID** can be omitted (from JWT). **userId** can be omitted if provided by authorizer. `relation`: \"Family\" or \"Friend\". When relation is Family, `relationship` is required. Optional: `manageHealth`."
+      }
+    },
+    {
+      "name": "Friend Family Update",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"organizationID\": \"org-123\",\n  \"memberId\": \"member-456\",\n  \"fullName\": \"Jane Smith\",\n  \"relation\": \"Family\",\n  \"relationship\": \"sibling\",\n  \"emergencyContact\": false,\n  \"manageHealth\": true\n}"
+        },
+        "url": "{{baseUrl}}/user/friend-family/update",
+        "description": "Update an existing friend/family member. **organizationID** can be omitted (from JWT). **userId** from authorizer. Required: `memberId`. Optional: `fullName`, `relation` (\"Family\"|\"Friend\"), `relationship`, `emergencyContact`, `manageHealth`."
+      }
+    },
+    {
+      "name": "Friend Family Fetch",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"user-123\"\n}"
+        },
+        "url": "{{baseUrl}}/user/friend-family/fetch",
+        "description": "Fetch invitees and inviters (friend/family list) for the given user. **userId** can be omitted if provided by authorizer."
+      }
+    },
+    {
+      "name": "Friend Family Delete",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userID\": \"user-123\",\n  \"memberID\": \"member-456\",\n  \"organizationID\": \"org-123\"\n}"
+        },
+        "url": "{{baseUrl}}/user/friend-family/delete",
+        "description": "Remove a friend/family member. Required: `userID`, `memberID`. **organizationID** is optional."
+      }
+    }
+  ]
+}

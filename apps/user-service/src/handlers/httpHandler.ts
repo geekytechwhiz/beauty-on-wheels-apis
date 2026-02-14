@@ -1404,14 +1404,14 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
       details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
     });
   }
-  if (!userID) {
+  if (!userID || !organizationID?.trim()) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 401, duration, correlationId);
     return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
   }
 
   try {
-    const result = await friendFamilyService.searchFnf(organizationID!, userID, validation.data, authHeader);
+    const result = await friendFamilyService.searchFnf(organizationID, userID, validation.data, authHeader);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
     if (result.success && result.invitedUser) {
@@ -1462,7 +1462,8 @@ export async function friendFamilyAddMember(event: APIGatewayProxyEvent, context
   const b = body as Record<string, unknown>;
   const userIdFromAuth = getAuthorizerUserId(event);
   const userId = (b.userId as string) ?? (b.userID as string) ?? userIdFromAuth;
-  const payload = { ...b, userId } as Record<string, unknown>;
+  const organizationID = (b.organizationID as string) ?? getAuthorizerOrganizationId(event);
+  const payload = { ...b, userId, organizationID } as Record<string, unknown>;
   const validation = addMemberFriendFamilySchema.safeParse(payload);
   if (!validation.success) {
     const duration = Date.now() - startTime;
@@ -1477,9 +1478,16 @@ export async function friendFamilyAddMember(event: APIGatewayProxyEvent, context
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 401, duration, correlationId);
     return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
   }
+  const orgId = validation.data.organizationID ?? organizationID;
+  if (!orgId || !orgId.trim()) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
 
   try {
-    const data = await friendFamilyService.addMember(validation.data.organizationID, { ...validation.data, userId }, authHeader);
+    const { organizationID: _omit, ...addBody } = validation.data;
+    const data = await friendFamilyService.addMember(orgId, { ...addBody, userId }, authHeader);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 200, duration, correlationId);
     return ApiResponse.ok(data, 'FRIEND_FAMILY.ADD_MEMBER_SUCCESS', { requestId: correlationId, event });
@@ -1517,7 +1525,8 @@ export async function friendFamilyUpdate(event: APIGatewayProxyEvent, context?: 
 
   const b = body as Record<string, unknown>;
   const userId = (b.userId as string) ?? (b.userID as string) ?? getAuthorizerUserId(event);
-  const validation = updateFriendFamilySchema.safeParse(body);
+  const organizationID = (b.organizationID as string) ?? getAuthorizerOrganizationId(event);
+  const validation = updateFriendFamilySchema.safeParse({ ...b, organizationID });
   if (!validation.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 400, duration, correlationId);
@@ -1531,9 +1540,15 @@ export async function friendFamilyUpdate(event: APIGatewayProxyEvent, context?: 
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 401, duration, correlationId);
     return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
   }
+  const orgId = validation.data.organizationID ?? organizationID;
+  if (!orgId?.trim()) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
 
   try {
-    await friendFamilyService.updateMember(userId, validation.data.organizationID, validation.data);
+    await friendFamilyService.updateMember(userId, orgId, validation.data);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 200, duration, correlationId);
     return ApiResponse.ok(null, 'FRIEND_FAMILY.UPDATE_SUCCESS', { requestId: correlationId, event });

@@ -261,6 +261,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Health check endpoint
             description: Returns the health status of the service
@@ -620,6 +626,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Delete a user
             description: Deletes a user from the system by user ID and organization ID
@@ -673,6 +685,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Assign user to organization
             description: Assigns a user to an organization. Requires userId and organizationId in the request body. Path parameters are available but not used by the handler.
@@ -740,6 +758,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: List user organizations
             description: Retrieves all organizations associated with a user
@@ -791,6 +815,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Update user metadata
             description: Updates custom metadata for a user. Metadata can contain any key-value pairs.
@@ -861,6 +891,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: List user files
             description: Retrieves all files associated with a user
@@ -914,6 +950,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: List organization users
             description: Retrieves all users associated with an organization
@@ -940,6 +982,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: List organization users (POST)
             description: |
@@ -1016,10 +1064,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          # authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Assign patient to doctor
             description: Assigns a patient user to a doctor (staff) in an organization. Matches legacy assignDoctor API.
@@ -1077,10 +1127,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          # authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: List doctor's patients
             description: Returns all patients assigned to a doctor in an organization. Matches legacy doctor-patient-list API.
@@ -1123,6 +1175,8 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   friendFamilyAddMember:
     handler: src/handlers/friendFamilyAddMember.main
@@ -1139,6 +1193,8 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   friendFamilyUpdate:
     handler: src/handlers/friendFamilyUpdate.main
@@ -1155,6 +1211,8 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   friendFamilyFetch:
     handler: src/handlers/friendFamilyFetch.main
@@ -1171,6 +1229,8 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   friendFamilyDelete:
     handler: src/handlers/friendFamilyDelete.main
@@ -1187,6 +1247,8 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   activateDeactivateUser:
     handler: src/handlers/activateDeactivateUser.main
@@ -1248,6 +1310,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           documentation:
             summary: Validate contacts
             description: Checks if email and/or phone exist in Cognito. At least one of emailAddress or phoneNumber required.

@@ -9,11 +9,11 @@ import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
-import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
+import { FriendFamilyService } from './friendFamily.service';
 import { UserLinkRepository } from '../repositories/userLink.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
-const friendFamilyRepository = new FriendFamilyRepository();
+const friendFamilyService = new FriendFamilyService();
 const userLinkRepository = new UserLinkRepository();
 function generateSortableId() {
   const now = Date.now();
@@ -240,42 +240,49 @@ export class UserService {
 
       if (friendNFamily && Object.keys(friendNFamily).length > 0 && organizationID) {
         const fullNameRaw = String((friendNFamily as any).name || '').trim();
-        const nameMatch = fullNameRaw.match(/^(\S+)\s+(.+)/);
-        const fnfFirstName = nameMatch ? nameMatch[1] : fullNameRaw;
-        const fnfLastName = nameMatch ? nameMatch[2] : '';
         const fnfEmail = String((friendNFamily as any).email || '').trim();
         const fnfPhoneCode = String((friendNFamily as any).phoneCode || '').trim();
         const fnfPhone = String((friendNFamily as any).phone || '').trim();
         const fullPhoneNumber = fnfPhoneCode ? `${fnfPhoneCode}${fnfPhone}` : fnfPhone;
-        const friendNFamilyFullName = `${fnfFirstName}${fnfLastName ? ` ${fnfLastName}` : ''}`.trim();
-        const definedRoleCode = String((user as any).definedRoleCode || '').toUpperCase();
-        const fnfRole = definedRoleCode === 'FRIEND' || definedRoleCode === 'FAMILY' ? definedRoleCode : 'FAMILY';
+        const friendNFamilyFullName = fullNameRaw || 'F&F Member';
+        const relationRaw = String((friendNFamily as any).relation || 'family').toLowerCase();
+        const relation = relationRaw === 'friend' ? 'FRIEND' : 'FAMILY';
+        const relationship = relation === 'FAMILY' ? (relationRaw !== 'friend' ? String((friendNFamily as any).relation || '').trim() : '') : '';
+        const userName = (user.fullName ?? `${(user as any).firstName ?? ''} ${(user as any).lastName ?? ''}`.trim()) || user.userID;
         try {
-          const searchResult = await friendFamilyRepository.searchFnf({
-            body: {
-              email: fnfEmail,
-              phone: fullPhoneNumber,
-              firstName: fnfFirstName,
-              lastName: fnfLastName,
-              roles: [fnfRole],
-            },
-            userID: user.userID,
+          const searchResult = await friendFamilyService.searchFnf(
             organizationID,
-          });
+            user.userID,
+            {
+              email: fnfEmail || undefined,
+              phone: fullPhoneNumber || undefined,
+              fullName: friendNFamilyFullName,
+              invite: fnfEmail ? 'email' : 'phone',
+              relation,
+              relationship,
+              emergencyContact: true,
+            },
+            authHeader,
+          );
           const memberId = searchResult?.invitedUser;
           if (searchResult?.success && memberId) {
-            await friendFamilyRepository.addFriendFamily({
-              body: {
-                memberId,
-                userId: user.userID,
-                userName: user.fullName ?? user.firstName ?? '',
-                memberName: friendNFamilyFullName,
-              },
+            await friendFamilyService.addMember(
               organizationID,
-            });
+              {
+                userId: user.userID,
+                memberId,
+                userName,
+                memberName: friendNFamilyFullName,
+                relation,
+                relationship,
+                emergencyContact: true,
+                manageHealth: false,
+              },
+              authHeader,
+            );
             logger.info({ event: 'service_createUser_friend_family_linked', memberId, userId: user.userID });
-          } else if (searchResult) {
-            logger.warn({ event: 'service_createUser_friend_family_not_found', result: searchResult });
+          } else {
+            logger.warn({ event: 'service_createUser_friend_family_not_found', message: 'F&F user not found; invite separately or add via add-member after invite' });
           }
         } catch (err) {
           logger.warn({ event: 'service_createUser_friend_family_failed', err: serializeError(err) });

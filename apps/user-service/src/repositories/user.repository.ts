@@ -1419,5 +1419,44 @@ export class UserRepository {
     logger.info({ event: 'listPatientIdsForDoctor_success', doctorId, count: result.length });
     return result;
   }
+
+  /**
+   * Find a user in an organization by email or phone (for F&F search).
+   * Queries org users and filters by emailAddress or phoneNumber/phoneCode.
+   */
+  async findUserByEmailOrPhoneInOrg(
+    organizationId: string,
+    email?: string,
+    phone?: string
+  ): Promise<UserResponse | null> {
+    if (!email && !phone) return null;
+    const result = await docClient.send(
+      new QueryCommand({
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+        ExpressionAttributeValues: {
+          ':pk': userOrgPk(organizationId),
+          ':skPrefix': 'USER#',
+        },
+        Limit: 100,
+      }),
+    );
+    const items = result.Items ?? [];
+    const emailNorm = email ? String(email).trim().toLowerCase() : '';
+    const phoneNorm = phone ? String(phone).replace(/\s/g, '') : '';
+    for (const item of items) {
+      const u = item as any;
+      if (emailNorm && String(u?.emailAddress ?? '').toLowerCase() === emailNorm) {
+        return mapToUserResponse(u);
+      }
+      if (phoneNorm) {
+        const userPhone = [String(u?.phoneCode ?? ''), String(u?.phoneNumber ?? '')].filter(Boolean).join('').replace(/\s/g, '');
+        if (userPhone && (userPhone === phoneNorm || userPhone.endsWith(phoneNorm) || phoneNorm.endsWith(userPhone))) {
+          return mapToUserResponse(u);
+        }
+      }
+    }
+    return null;
+  }
 }
 

@@ -1108,6 +1108,86 @@ functions:
               500:
                 $ref: '#/components/responses/InternalServerError'
 
+  friendFamilySearch:
+    handler: src/handlers/friendFamilySearch.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/search
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+
+  friendFamilyAddMember:
+    handler: src/handlers/friendFamilyAddMember.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/add-member
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+
+  friendFamilyUpdate:
+    handler: src/handlers/friendFamilyUpdate.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/update
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+
+  friendFamilyFetch:
+    handler: src/handlers/friendFamilyFetch.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/fetch
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+
+  friendFamilyDelete:
+    handler: src/handlers/friendFamilyDelete.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/delete
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+
   activateDeactivateUser:
     handler: src/handlers/activateDeactivateUser.main
     timeout: 15

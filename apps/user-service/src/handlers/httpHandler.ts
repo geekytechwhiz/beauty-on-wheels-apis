@@ -17,8 +17,17 @@ import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { getOrganization } from '../services/organization.service';
 import { PackageRepository } from '../repositories/package.repositrory';
 import { RoleRepository } from '../repositories/role.repository';
+import { FriendFamilyService } from '../services/friendFamily.service';
+import {
+  addMemberFriendFamilySchema,
+  friendFamilySearchSchema,
+  updateFriendFamilySchema,
+  fetchFriendFamilySchema,
+  deleteFriendFamilySchema,
+} from '../validation/friendFamily.validation';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+const friendFamilyService = new FriendFamilyService();
 const userService = new UserService();
 const organizationRepository = new OrganizationRepository();
 const userRepository = new UserRepository();
@@ -1346,6 +1355,275 @@ export async function listDoctorPatients(event: APIGatewayProxyEvent, context?: 
       { requestId: correlationId, event },
       { code: 'LIST_DOCTOR_PATIENTS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
+  }
+}
+
+const PATH_FNF_SEARCH = '/user/friend-family/search';
+const PATH_FNF_ADD = '/user/friend-family/add-member';
+const PATH_FNF_UPDATE = '/user/friend-family/update';
+const PATH_FNF_FETCH = '/user/friend-family/fetch';
+const PATH_FNF_DELETE = '/user/friend-family/delete';
+
+function getAuthorizerUserId(event: APIGatewayProxyEvent): string | undefined {
+  const authorizer = (event.requestContext as any)?.authorizer;
+  return (authorizer?.userID ?? authorizer?.userId ?? authorizer?.['custom:userID']) as string | undefined;
+}
+
+function getAuthorizerOrganizationId(event: APIGatewayProxyEvent): string | undefined {
+  const authorizer = (event.requestContext as any)?.authorizer;
+  return (authorizer?.organizationID ?? authorizer?.organizationId ?? authorizer?.['custom:organizationID']) as string | undefined;
+}
+
+export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+  const authHeader = event.headers?.Authorization ?? event.headers?.authorization;
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = body as Record<string, unknown>;
+  const userID = (b.userID as string) ?? getAuthorizerUserId(event);
+  const organizationID = (b.organizationID as string) ?? getAuthorizerOrganizationId(event);
+  const validation = friendFamilySearchSchema.safeParse({ ...b, organizationID });
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+  if (!userID) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+
+  try {
+    const result = await friendFamilyService.searchFnf(organizationID!, userID, validation.data, authHeader);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
+    if (result.success && result.invitedUser) {
+      return ApiResponse.ok(
+        { invitedUser: result.invitedUser, ...(result.data && { data: result.data }) },
+        'FRIEND_FAMILY.SEARCH_SUCCESS',
+        { requestId: correlationId, event },
+      );
+    }
+    return ApiResponse.ok(
+      { message: 'User not found; invite via create user with friendNFamily' },
+      'FRIEND_FAMILY.USER_NOT_FOUND',
+      { requestId: correlationId, event },
+    );
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    const msg = (err as Error)?.message;
+    if (['ORGANIZATION_NOT_EXIST', 'ORGANIZATION_IS_ON_HOLD'].includes(msg ?? '')) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+      return ApiResponse.badRequest(`FRIEND_FAMILY.${msg}`, { requestId: correlationId, event }, { code: msg! });
+    }
+    if (['USER_CANNOT_INVITE_MORE_FNF', 'USER_ALREADY_INVITED_BY_SOMEONE', 'USER_ALREADY_INVITED', 'EMAIL_OR_PHONE_REQUIRED'].includes(msg ?? '')) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+      return ApiResponse.badRequest(`FRIEND_FAMILY.${msg}`, { requestId: correlationId, event }, { code: msg! });
+    }
+    logger.error({ event: 'friendFamilySearch_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyAddMember(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+  const authHeader = event.headers?.Authorization ?? event.headers?.authorization;
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = body as Record<string, unknown>;
+  const userIdFromAuth = getAuthorizerUserId(event);
+  const userId = (b.userId as string) ?? (b.userID as string) ?? userIdFromAuth;
+  const payload = { ...b, userId } as Record<string, unknown>;
+  const validation = addMemberFriendFamilySchema.safeParse(payload);
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+  if (!userId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+
+  try {
+    const data = await friendFamilyService.addMember(validation.data.organizationID, { ...validation.data, userId }, authHeader);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 200, duration, correlationId);
+    return ApiResponse.ok(data, 'FRIEND_FAMILY.ADD_MEMBER_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if (err instanceof UserNotFoundError) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 404, duration, correlationId);
+      return ApiResponse.notFound('USER.USER_NOT_FOUND', { requestId: correlationId, event }, { code: 'USER_NOT_FOUND', details: [{ message: (err as Error).message }] });
+    }
+    const msg = (err as Error)?.message;
+    if (['ORGANIZATION_NOT_EXIST', 'ORGANIZATION_IS_ON_HOLD', 'ORGANIZATION_MISMATCH'].includes(msg ?? '')) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 400, duration, correlationId);
+      return ApiResponse.badRequest(`FRIEND_FAMILY.${msg}`, { requestId: correlationId, event }, { code: msg! });
+    }
+    logger.error({ event: 'friendFamilyAddMember_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyUpdate(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = body as Record<string, unknown>;
+  const userId = (b.userId as string) ?? (b.userID as string) ?? getAuthorizerUserId(event);
+  const validation = updateFriendFamilySchema.safeParse(body);
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+  if (!userId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+
+  try {
+    await friendFamilyService.updateMember(userId, validation.data.organizationID, validation.data);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 200, duration, correlationId);
+    return ApiResponse.ok(null, 'FRIEND_FAMILY.UPDATE_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if ((err as Error)?.message === 'MEMBER_NOT_FOUND') {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 400, duration, correlationId);
+      return ApiResponse.badRequest('FRIEND_FAMILY.MEMBER_NOT_FOUND', { requestId: correlationId, event }, { code: 'MEMBER_NOT_FOUND' });
+    }
+    logger.error({ event: 'friendFamilyUpdate_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyFetch(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body ?? {};
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = (body as Record<string, unknown>) ?? {};
+  const userId = (b.userId as string) ?? (b.userID as string) ?? getAuthorizerUserId(event);
+  const validation = fetchFriendFamilySchema.safeParse({ userId: userId ?? '' });
+  if (!validation.success || !userId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] });
+  }
+
+  try {
+    const data = await friendFamilyService.fetchMembers(userId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 200, duration, correlationId);
+    return ApiResponse.ok(data, 'FRIEND_FAMILY.FETCH_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'friendFamilyFetch_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyDelete(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const validation = deleteFriendFamilySchema.safeParse(body);
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+
+  const { userID, memberID, organizationID } = validation.data;
+  try {
+    await friendFamilyService.deleteMember(userID, memberID, organizationID);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 201, duration, correlationId);
+    return ApiResponse.created({ userID, memberID, organizationID: organizationID ?? null }, 'FRIEND_FAMILY.DELETE_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if ((err as Error)?.message === 'FNF_DOES_NOT_EXIST') {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 400, duration, correlationId);
+      return ApiResponse.badRequest('FRIEND_FAMILY.FNF_DOES_NOT_EXIST', { requestId: correlationId, event }, { code: 'FNF_DOES_NOT_EXIST' });
+    }
+    logger.error({ event: 'friendFamilyDelete_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
   }
 }
 

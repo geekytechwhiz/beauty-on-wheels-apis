@@ -1,17 +1,14 @@
-/**
- * Stub patient adapter for local/dev when no backend is configured.
- */
-import type { Patient } from '@api-hub/canonical';
 import type { GetPatientOptions, PatientSourceAdapter } from './patient-source.types';
 
+/** Stub adapter when no user-service URL is configured (e.g. local dev). Always returns null. */
 export class StubPatientAdapter implements PatientSourceAdapter {
-  async getPatient(id: string, _options?: GetPatientOptions) {
-    const canonical: Patient = {
-      id,
-      active: true,
-      givenName: 'Stub',
-      familyName: 'Patient',
-    };
-    return { canonical, raw: {} };
+  async getPatient(_id: string, _options?: GetPatientOptions) {
+    return null;
   }
+}
+
+const stubInstance = new StubPatientAdapter();
+
+export function createStubPatientAdapter(): PatientSourceAdapter {
+  return stubInstance;
 }

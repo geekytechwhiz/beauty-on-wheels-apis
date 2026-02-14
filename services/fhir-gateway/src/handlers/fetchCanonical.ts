@@ -1,12 +1,11 @@
 /**
  * Fetches canonical data from apps/* APIs.
- * Patient is resolved via adapters (see adapters/patient); Observations use DEVICE_SERVICE_URL.
+ * Patient is resolved via adapters (see adapters/patient); Observations use device-service config (config/domainEndpoints).
  */
 import type { ObservationValue } from '@api-hub/canonical';
 import { getPatientSourceAdapter } from '../adapters/patient';
 import type { PatientFetchResult } from '../adapters/patient';
-
-const DEVICE_SERVICE_URL = process.env.DEVICE_SERVICE_URL ?? '';
+import { getDeviceServiceEndpoints } from '../config/domainEndpoints';
 
 /** Options when fetching a patient (e.g. headers to forward to the backing API). */
 export interface FetchCanonicalPatientOptions {
@@ -32,13 +31,14 @@ export async function fetchCanonicalPatient(
 export async function fetchCanonicalObservations(
   patientId: string
 ): Promise<ObservationValue[]> {
-  if (!DEVICE_SERVICE_URL) {
+  const { baseUrl, observationsPath } = getDeviceServiceEndpoints();
+  if (!baseUrl) {
     return [];
   }
+  const path = observationsPath.replace(/^\//, '');
+  const url = `${baseUrl.replace(/\/$/, '')}/${path}?patientId=${encodeURIComponent(patientId)}`;
   try {
-    const res = await fetch(
-      `${DEVICE_SERVICE_URL}/observations?patientId=${encodeURIComponent(patientId)}`
-    );
+    const res = await fetch(url);
     if (!res.ok) return [];
     const data = (await res.json()) as { items?: unknown[] };
     const items = Array.isArray(data?.items) ? data.items : [];

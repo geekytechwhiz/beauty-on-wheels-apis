@@ -572,7 +572,6 @@ export class OrganizationService {
       });
 
       if (!linkResult.items.length) {
-        // throw new LinkedOrganizationsNotFoundError(organizationId);
         return {
           items: [],
           nextPaginationKey: null,

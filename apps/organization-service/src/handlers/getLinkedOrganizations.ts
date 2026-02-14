@@ -99,14 +99,6 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
   } catch (err) {
     const duration = Date.now() - startTime;
-    if (err instanceof LinkedOrganizationsNotFoundError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', PATH, 400, duration, correlationId);
-      return ApiResponse.badRequest(
-        'FACILITY.LINKED_ORGANIZATION_NOT_FOUND',
-        { requestId: correlationId, event },
-        { code: 'LINKED_ORGANIZATION_NOT_FOUND' },
-      );
-    }
     logger.error({ event: 'getLinkedOrganizations_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 500, duration, correlationId);
     return ApiResponse.internalServerError(

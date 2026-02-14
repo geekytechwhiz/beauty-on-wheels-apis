@@ -1002,6 +1002,17 @@ export class UserService {
         updates.emailAddress = String(updates.emailAddress).trim().toLowerCase();
       }
 
+      // Construct fullName if firstName or lastName is being updated
+      if (updates.firstName !== undefined || updates.lastName !== undefined) {
+        const firstName = updates.firstName !== undefined 
+          ? String(updates.firstName).trim() 
+          : String(existing.firstName || '').trim();
+        const lastName = updates.lastName !== undefined 
+          ? String(updates.lastName).trim() 
+          : String(existing.lastName || '').trim();
+        updates.fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      }
+
       // Handle name splitting if fullName is provided
       if (updates.fullName !== undefined && !updates.firstName && !updates.lastName) {
         const fullNameStr = String(updates.fullName).trim();

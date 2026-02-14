@@ -1028,16 +1028,11 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     if (data.phone !== undefined) userData.phoneNumber = data.phone;
     if (data.phoneCode !== undefined) userData.phoneCode = data.phoneCode;
     
-    // Map name fields - combine firstName and lastName into fullName
-    if (data.firstName !== undefined || data.lastName !== undefined) {
-      const firstName = data.firstName ?? '';
-      const lastName = data.lastName ?? '';
-      userData.firstName = firstName;
-      userData.lastName = lastName;
-      userData.fullName = `${firstName} ${lastName}`.trim();
-    } else if (data.fullName !== undefined || data.name !== undefined) {
-      userData.fullName = data.fullName ?? data.name;
-    }
+    // Map name fields - firstName and lastName (fullName will be constructed in service)
+    if (data.firstName !== undefined) userData.firstName = data.firstName;
+    if (data.lastName !== undefined) userData.lastName = data.lastName;
+    if (data.fullName !== undefined) userData.fullName = data.fullName;
+    if (data.name !== undefined) userData.fullName = data.name;
 
     // Map address fields
     if (data.address !== undefined) userData.address = data.address;

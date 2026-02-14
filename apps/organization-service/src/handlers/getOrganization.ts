@@ -356,16 +356,17 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       }
     };
     
-    // Process mobileScreens.screens structure
+    // Process mobileScreens.screens structure and flatten so response has screen keys directly under mobileScreens (no nested "screens")
+    let mobileScreensForResponse: Record<string, unknown> = {};
     if (mobileScreensValue && typeof mobileScreensValue === 'object') {
       const mobileScreensObj = mobileScreensValue as Record<string, unknown>;
       const screens = mobileScreensObj.screens as Record<string, unknown> | undefined;
-      
+
       if (screens && typeof screens === 'object') {
         // Iterate through all screen types (WELCOME, WALK_THROUGH, PRIVACY_CONSENT, etc.)
         Object.keys(screens).forEach((screenKey) => {
           const screenData = screens[screenKey];
-          
+
           if (Array.isArray(screenData)) {
             // Handle array screens (like WALK_THROUGH)
             screenData.forEach((item: unknown) => {
@@ -378,10 +379,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
             addOrgInfoToObject(screenData as Record<string, unknown>);
           }
         });
+        mobileScreensForResponse = screens;
+      } else {
+        mobileScreensForResponse = mobileScreensObj;
       }
     }
-    
-    transformed.mobileScreens = mobileScreensValue !== undefined && mobileScreensValue !== null ? mobileScreensValue : {};
+    transformed.mobileScreens = mobileScreensForResponse;
     
     // Add mobileScreen - check both root and organizationInfo
     let mobileScreenValue = orgRecord.mobileScreen;

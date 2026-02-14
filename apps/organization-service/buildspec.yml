@@ -75,10 +75,19 @@ phases:
 
   post_build:
     commands:
-      # Ensure artifact path exists for deploy (works when primary source is repo root or apps/organization-service)
+      # Ensure artifact path exists for deploy (CodePipeline expects apps/organization-service/packaged.yaml)
+      # When primary source = repo root, we are in apps/organization-service so packaged.yaml is already there
       - mkdir -p "$CODEBUILD_SRC_DIR/apps/organization-service"
       - cp packaged.yaml "$CODEBUILD_SRC_DIR/apps/organization-service/packaged.yaml"
-      - echo "✅ Build done, artifacts ready in packaged.yaml"
+      - |
+        ARTIFACT_FILE="$CODEBUILD_SRC_DIR/apps/organization-service/packaged.yaml"
+        if [ ! -f "$ARTIFACT_FILE" ]; then
+          echo "ERROR: Artifact file not found at $ARTIFACT_FILE (CODEBUILD_SRC_DIR=$CODEBUILD_SRC_DIR)"
+          ls -la "$CODEBUILD_SRC_DIR" "$CODEBUILD_SRC_DIR/apps" 2>/dev/null || true
+          exit 1
+        fi
+        echo "✅ Artifact verified: $ARTIFACT_FILE"
+      - echo "✅ Build done, artifacts ready for CodePipeline (apps/organization-service/packaged.yaml)"
 
 artifacts:
   files:

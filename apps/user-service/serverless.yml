@@ -1016,10 +1016,10 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
           documentation:
             summary: Assign patient to doctor
             description: Assigns a patient user to a doctor (staff) in an organization. Matches legacy assignDoctor API.
@@ -1077,10 +1077,10 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
           documentation:
             summary: List doctor's patients
             description: Returns all patients assigned to a doctor in an organization. Matches legacy doctor-patient-list API.

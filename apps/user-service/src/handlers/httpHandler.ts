@@ -14,6 +14,7 @@ import {
   listDoctorPatientsSchema,
 } from '../validation/user.validation';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
+import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../utils/helpers';
 import { getOrganization } from '../services/organization.service';
 import { PackageRepository } from '../repositories/package.repositrory';
 import { RoleRepository } from '../repositories/role.repository';
@@ -56,19 +57,10 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   if (!body?.organizationID) {
-    if ((event as any).organizationID) {
-      body.organizationID = (event as any).organizationID;
-    } else if ((event as any).requestContext?.authorizer?.organizationID) {
-      body.organizationID = (event as any).requestContext.authorizer.organizationID;
-    }
+    body.organizationID = (event as any).organizationID ?? getAuthorizerOrganizationId(event);
   }
-
   if (!body?.userID) {
-    if ((event as any).userID) {
-      body.userID = (event as any).userID;
-    } else if ((event as any).requestContext?.authorizer?.userID) {
-      body.userID = (event as any).requestContext.authorizer.userID;
-    }
+    body.userID = (event as any).userID ?? getAuthorizerUserId(event);
   }
   logger.info({ event: 'createUser_organization_check', organizationID: body.organizationID, userID: body.userID });
   const validation = createUserSchema.safeParse(body);
@@ -384,25 +376,17 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
   const pathParams = event.pathParameters || {};
   const authorizer = (event.requestContext as any)?.authorizer;
 
-  // Scenario 1: Get userId and organizationId from path parameters - safe string operations
-  let userId: string | undefined = (pathParams?.userId && typeof pathParams.userId === 'string') 
-    ? pathParams.userId.trim() 
+  // Scenario 1: Get userId and organizationId from path parameters
+  let userId: string | undefined = (pathParams?.userId && typeof pathParams.userId === 'string')
+    ? pathParams.userId.trim()
     : ((pathParams?.userID && typeof pathParams.userID === 'string') ? pathParams.userID.trim() : undefined);
   let organizationId: string | undefined = (pathParams?.organizationId && typeof pathParams.organizationId === 'string')
     ? pathParams.organizationId.trim()
     : ((pathParams?.organizationID && typeof pathParams.organizationID === 'string') ? pathParams.organizationID.trim() : undefined);
 
-  // Scenario 2: If not in pathParams, check event.requestContext?.authorizer - safe property access
-  if (!userId && authorizer) {
-    userId = (authorizer.userID && typeof authorizer.userID === 'string') 
-      ? authorizer.userID 
-      : ((authorizer.userId && typeof authorizer.userId === 'string') ? authorizer.userId : undefined);
-  }
-  if (!organizationId && authorizer) {
-    organizationId = (authorizer.organizationID && typeof authorizer.organizationID === 'string')
-      ? authorizer.organizationID
-      : ((authorizer.organizationId && typeof authorizer.organizationId === 'string') ? authorizer.organizationId : undefined);
-  }
+  // Scenario 2: If not in pathParams, use authorizer helpers
+  if (!userId) userId = getAuthorizerUserId(event);
+  if (!organizationId) organizationId = getAuthorizerOrganizationId(event);
 
   // Scenario 3: Also check event object directly - safe property access
   if (!userId && event && typeof event === 'object') {
@@ -1050,14 +1034,11 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const userId = event.pathParameters?.userId;
-  const organizationIdFromPath = event.pathParameters?.organizationId;
-  const authorizer = (event.requestContext as any)?.authorizer;
   const organizationId =
-    organizationIdFromPath ||
+    event.pathParameters?.organizationId ||
     (event as any).organizationId ||
     (event as any).organizationID ||
-    authorizer?.organizationID ||
-    authorizer?.organizationId;
+    getAuthorizerOrganizationId(event);
 
   if (!userId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
@@ -1318,16 +1299,6 @@ const PATH_FNF_ADD = '/user/friend-family/add-member';
 const PATH_FNF_UPDATE = '/user/friend-family/update';
 const PATH_FNF_FETCH = '/user/friend-family/fetch';
 const PATH_FNF_DELETE = '/user/friend-family/delete';
-
-function getAuthorizerUserId(event: APIGatewayProxyEvent): string | undefined {
-  const authorizer = (event.requestContext as any)?.authorizer;
-  return (authorizer?.userID ?? authorizer?.userId ?? authorizer?.['custom:userID']) as string | undefined;
-}
-
-function getAuthorizerOrganizationId(event: APIGatewayProxyEvent): string | undefined {
-  const authorizer = (event.requestContext as any)?.authorizer;
-  return (authorizer?.organizationID ?? authorizer?.organizationId ?? authorizer?.['custom:organizationID']) as string | undefined;
-}
 
 export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();

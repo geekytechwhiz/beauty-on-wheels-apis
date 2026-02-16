@@ -9,6 +9,7 @@ import {
   createChildLogger,
 } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
+import { getAuthorizerOrganizationId } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -25,47 +26,8 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
     ...(awsRequestId && { awsRequestId }),
   });
   logger.info({ event: 'getOrganizationUserCount_received' });
-  
-  // Extract organizationID from authorizer (handle different structures)
-  const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)?.authorizer;
-  
-  // Debug logging
-  logger.info({ 
-    event: 'authorizer_debug', 
-    authorizer: authorizer,
-    authorizerKeys: authorizer ? Object.keys(authorizer) : []
-  });
-  
-  // Extract organizationID from token - try multiple paths
-  let requestOrgId: string | undefined;
-  
-  // Path 1: From claims['custom:organizationID'] - YOUR TOKEN FORMAT (Cognito custom attribute)
-  if (authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestOrgId = (claims['custom:organizationID'] as string) ?? 
-                   (claims['custom:organizationId'] as string);
-  }
-  
-  // Path 2: From claims.organizationID (standard Cognito claim)
-  if (!requestOrgId && authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestOrgId = (claims.organizationID as string) ?? (claims.organizationId as string);
-  }
-  
-  // Path 3: Direct from authorizer (custom authorizer)
-  if (!requestOrgId && authorizer) {
-    requestOrgId = (authorizer.organizationID as string) ?? (authorizer.organizationId as string);
-  }
-  
-  logger.info({ 
-    event: 'organizationId_extracted', 
-    requestOrgId,
-    source: requestOrgId ? 'claims[custom:organizationID]' : 'not_found'
-  });
-  
-  // Use organizationId from token only
-  const organizationId = requestOrgId;
-  console.log('organizationId', organizationId, requestOrgId);
+
+  const organizationId = getAuthorizerOrganizationId(event);
   if (!organizationId) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 401, duration, correlationId);
@@ -75,11 +37,6 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
       { code: 'UNAUTHORIZED', details: [{ message: 'Organization ID not found in token' }] },
     );
   }
-  
-  logger.info({ 
-    event: 'organizationId_confirmed', 
-    organizationId 
-  });
 
   try {
     logger.info({ 

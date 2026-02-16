@@ -9,8 +9,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
-  
-  logger.info({ event: 'health_check_received' });
+ 
   
   const duration = Date.now() - startTime;
   logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/health', 200, duration, correlationId);

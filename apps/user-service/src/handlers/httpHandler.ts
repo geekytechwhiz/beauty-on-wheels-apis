@@ -1340,16 +1340,21 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
     if (result.success && result.invitedUser) {
       return ApiResponse.ok(
-        { invitedUser: result.invitedUser, ...(result.data && { data: result.data }) },
+        { invitedUser: result.invitedUser },
         'FRIEND_FAMILY.SEARCH_SUCCESS',
         { requestId: correlationId, event },
       );
     }
-    return ApiResponse.ok(
-      { message: 'User not found; invite via create user with friendNFamily' },
-      'FRIEND_FAMILY.USER_NOT_FOUND',
-      { requestId: correlationId, event },
-    );
+    // User not found: return either email(object) or phone(object) so client can invite via create user with friendNFamily
+    const emailVal = (validation.data.email ?? '').toString().trim();
+    const phoneVal = (validation.data.phone ?? '').toString().trim();
+    const data =
+      emailVal.length > 0
+        ? { email: { email: emailVal } }
+        : phoneVal.length > 0
+          ? { phone: { phone: phoneVal } }
+          : { email: { email: '' } };
+    return ApiResponse.ok(data, 'FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     const msg = (err as Error)?.message;

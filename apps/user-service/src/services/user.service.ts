@@ -1432,9 +1432,7 @@ export class UserService {
 
       // First, try to get the user using the organizationId (new schema: pk=ORG#orgId, sk=USER#userId)
       let userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
-      // console.log("USER DATA 1286 USERVICE : ", userBasicDetails);
-      // If not found with organizationId, try legacy schema (pk=USER#userId, sk=USER_DETAILS)
-      if (!userBasicDetails) {
+        if (!userBasicDetails) {
         userBasicDetails = await this.repository.getUser(actualUserId);
       }
 
@@ -1442,17 +1440,12 @@ export class UserService {
         throw new UserNotFoundError(actualUserId);
       }
 
-      // Log definedRoleCode from userBasicDetails (USER_TABLE)
-      console.log("USER DATA - definedRoleCode from userBasicDetails:", (userBasicDetails as any).definedRoleCode);
-      console.log("USER DATA - userBasicDetails keys:", Object.keys(userBasicDetails));
-
       // Get organization details (matches original: getOrgBasicDetails from USER_TABLE)
       let orgBasicDetails: any = null;
       const userOrgId = userBasicDetails.organizationID || organizationId;
       if (userOrgId && userOrgId !== 'ROOT') {
         // First try getOrgBasicDetails from USER_TABLE (matches original flow)
         orgBasicDetails = await this.organizationRepository.getOrgBasicDetails(userOrgId);
-        console.log("USER DATA 1302 ORG BASIC DETAILS : ", orgBasicDetails);
         // Fallback to getOrganizationFromDB if not found
         if (!orgBasicDetails) {
           orgBasicDetails = await this.organizationRepository.getOrganizationFromDB(userOrgId);
@@ -1481,10 +1474,6 @@ export class UserService {
       const itemWithDefinedRoleCode = allUserData.find((item: any) => item.definedRoleCode);
       const itemRoleId =
         allUserData.find(item => item.userRole?.[0])?.userRole[0] ?? '';
-      console.log("USER DATA - itemRoleId found in allUserData:", itemRoleId);  
-      if (itemWithDefinedRoleCode) {
-        console.log("USER DATA - Found definedRoleCode in allUserData:", itemWithDefinedRoleCode.definedRoleCode, "from item with sk:", itemWithDefinedRoleCode.sk);
-      }
 
       
       // Find preference details from allUserData
@@ -1515,9 +1504,8 @@ export class UserService {
       if (itemRoleId) {
         // roleId = filteredRoles[0];
         logger.debug({ event: 'fetching_role_permissions_from_roles_table', roleId, userOrgId });
-        
-        // Get role permissions from ROLES_TABLE (matches original: line 115)
-        // This returns the detailed features array with functionalities
+         
+ 
         const orgFetaures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
         const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(userOrgId, actualUserId,orgFetaures, authHeader);
         
@@ -1539,13 +1527,12 @@ export class UserService {
 
           // Try to find a role header item (SK === ROLE#roleId or starts with ROLE#roleId)
           // If not found, use first item (matches original behavior)
-          const roleHeader =
+            const roleHeader =
             roleItems.find((it: any) => {
               const sk = String(it.SK || it.sk || '');
               return sk === `ROLE#${roleId}` || sk.startsWith(`ROLE#${roleId}#`);
             }) || roleDetailsFirstItem;
 
-            console.log("USER DATA - roleHeader found in roleItems:", !!roleHeader, "sk:", roleHeader ? (roleHeader.SK || roleHeader.sk) : 'N/A');
           // Extract fields - match original: index.js line 116-120
           roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || roleDetailsFirstItem?.roleName || roleDetailsFirstItem?.definedRoleCode || '';
           isDefault = roleHeader?.isDefault ?? roleDetailsFirstItem?.isDefault ?? false;
@@ -1553,7 +1540,6 @@ export class UserService {
           const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
             (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
           definedRoleCode = definedRoleCodeFromUserTable ?? roleDetailsFirstItem?.definedRoleCode ?? roleHeader?.definedRoleCode ?? null;
-          console.log("USER DATA - definedRoleCode final value:", definedRoleCode, "source:", definedRoleCodeFromUserTable ? 'USER_TABLE' : (roleDetailsFirstItem?.definedRoleCode ? 'ROLES_TABLE' : 'null'));
           roleType = roleHeader?.roleType ?? roleDetailsFirstItem?.roleType ?? null;
 
           // Only set userPermissions from ROLES_TABLE if not already set from API
@@ -1638,7 +1624,6 @@ export class UserService {
           }
         }
       } else {
-        console.log("USER DATA - No roleId found in allUserData, attempting fallback to userBasicDetails for roleId");
         // Fallback: try to use roleID from userBasicDetails
         const userRoleId = (userBasicDetails as any).roleID || (userBasicDetails as any).roleId;
         if (userRoleId) {
@@ -1708,7 +1693,6 @@ export class UserService {
           (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
         if (definedRoleCodeFromUserTableFinal) {
           definedRoleCode = definedRoleCodeFromUserTableFinal;
-          console.log("USER DATA - definedRoleCode final fallback from USER_TABLE:", definedRoleCode);
         }
       }
 

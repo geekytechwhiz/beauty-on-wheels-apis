@@ -293,7 +293,7 @@ functions:
   
   createUser:
     handler: src/handlers/createUser.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1055,7 +1055,7 @@ functions:
 
   assignDoctor:
     handler: src/handlers/assignDoctor.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1118,7 +1118,7 @@ functions:
 
   listDoctorPatients:
     handler: src/handlers/listDoctorPatients.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1162,7 +1162,7 @@ functions:
 
   friendFamilySearch:
     handler: src/handlers/friendFamilySearch.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1180,7 +1180,7 @@ functions:
 
   friendFamilyAddMember:
     handler: src/handlers/friendFamilyAddMember.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1198,7 +1198,7 @@ functions:
 
   friendFamilyUpdate:
     handler: src/handlers/friendFamilyUpdate.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1216,7 +1216,7 @@ functions:
 
   friendFamilyFetch:
     handler: src/handlers/friendFamilyFetch.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1234,7 +1234,7 @@ functions:
 
   friendFamilyDelete:
     handler: src/handlers/friendFamilyDelete.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1252,7 +1252,7 @@ functions:
 
   activateDeactivateUser:
     handler: src/handlers/activateDeactivateUser.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1344,7 +1344,7 @@ functions:
 
   getOrganizationUserCount:
     handler: src/handlers/getOrganizationUserCount.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:

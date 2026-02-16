@@ -621,49 +621,8 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   
   const baseLogContext = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
 
-  // Extract from authorizer token
-  const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)?.authorizer;
-  console.log("AUTHORIZER ", authorizer);
-  
-  // Extract userID from token
-  let requestUserId: string | undefined;
-  if (authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestUserId = (claims['custom:userID'] as string) ?? (claims['custom:userId'] as string);
-  }
-  if (!requestUserId && authorizer) {
-    requestUserId = (authorizer.userId as string) ?? (authorizer.userID as string);
-  }
-  
-  // Extract organizationID from token
-  let requestOrgId: string | undefined;
-  
-  // Path 1: From claims['custom:organizationID'] - YOUR TOKEN FORMAT
-  if (authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestOrgId = (claims['custom:organizationID'] as string) ?? 
-                   (claims['custom:organizationId'] as string);
-  }
-  console.log("REQ ORG ID : 1 ", requestOrgId);
-  // Path 2: From claims.organizationID (standard claim)
-  if (!requestOrgId && authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestOrgId = (claims.organizationID as string) ?? (claims.organizationId as string);
-  }
-  console.log("REQ ORG ID : 2 ", requestOrgId);
-  // Path 3: Direct from authorizer (custom authorizer)
-  if (!requestOrgId && authorizer) {
-    requestOrgId = (authorizer.organizationID as string) ?? (authorizer.organizationId as string);
-  }
-
-  console.log("REQ ORG ID : 3 ", requestOrgId);
-  
-  baseLogContext.info({ 
-    event: 'token_data_extracted', 
-    requestUserId,
-    requestOrgId,
-    source: 'claims[custom:*]'
-  });
+  const requestUserId = getAuthorizerUserId(event);
+  const requestOrgId = getAuthorizerOrganizationId(event);
 
   let body: any;
   try {
@@ -679,17 +638,11 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     );
   }
 
-  // Extract from body (with token fallback)
+  // Extract from body; fallback to authorizer (token) when body does not send them
   const bodyUserId = body?.userId || body?.userID;
   const bodyOrganizationId = body?.organizationId || body?.organizationID;
-  
-  // Prioritize token values, fallback to body for backward compatibility
-  const userId = bodyUserId;
-  const organizationId = requestOrgId || bodyOrganizationId;
-
-  console.log("USER ID ", userId);
-  console.log("ORGANIZATION ID ", organizationId);
-  console.log("From Token - UserID:", requestUserId, "OrgID:", requestOrgId);
+  const userId = bodyUserId || requestUserId;
+  const organizationId = bodyOrganizationId || requestOrgId;
 
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;

@@ -1508,7 +1508,7 @@ export class UserService {
 
           // Match original: index.js line 115-119
           // const roleDetails = await DB.getRolePermissions(filteredRoles[0], organizationID);
-          // const definedRoleCode = roleDetails[0]?.definedRoleCode ?? null;
+          // const definedRoleCode = orgFeaturesroleDetails[0]?.definedRoleCode ?? null;
           // The original just takes the first item from getRolePermissions result
           const roleDetailsFirstItem = roleItems[0];
 
@@ -1520,6 +1520,7 @@ export class UserService {
               return sk === `ROLE#${roleId}` || sk.startsWith(`ROLE#${roleId}#`);
             }) || roleDetailsFirstItem;
 
+            console.log("roleHeader: ");
           // Extract fields - match original: index.js line 116-120
           roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || roleDetailsFirstItem?.roleName || roleDetailsFirstItem?.definedRoleCode || '';
           isDefault = roleHeader?.isDefault ?? roleDetailsFirstItem?.isDefault ?? false;
@@ -1531,23 +1532,11 @@ export class UserService {
 
           // Only set userPermissions from ROLES_TABLE if not already set from API
           if (!userPermissions || userPermissions.length === 0) {
-            const headerFeatures = roleHeader?.features;
-            if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
-              userPermissions = headerFeatures;
-            } else if (headerFeatures && typeof headerFeatures === 'object') {
-              userPermissions = Object.values(headerFeatures);
-            } else {
-              const featureItems = roleItems.filter((it: any) => {
-                const sk = String(it.SK || it.sk || '');
-                return (
-                  it.itemType === 'Feature' ||
-                  !!it.featureKey ||
-                  sk.includes('#FEATURE#') ||
-                  sk.startsWith('MODULE#')
-                );
-              });
-              userPermissions = featureItems;
-            }
+            console.log("here")
+            // console.log("ROLE DETAILS FIRST ITEM FEATURES: ", JSON.stringify(roleDetailsFirstItem?.features));
+            const headerFeatures = roleDetailsFirstItem?.features;
+            console.log("headerFeatures: ", JSON.stringify(headerFeatures));
+            userPermissions = headerFeatures;
           }
 
           // Ensure userPermissions is always an array
@@ -1854,7 +1843,12 @@ export class UserService {
         userRoles: itemRoleId ? [itemRoleId] : [],
         roleType,
         roleId:itemRoleId,
-        userPermissions: (userPermissionsList && userPermissionsList.length > 0) ? userPermissionsList : userPermissions,
+        userPermissions: (userPermissionsList && userPermissionsList.length > 0)
+          ? (() => {
+              const firstRole = userPermissionsList[0] as { features?: any[] };
+              return Array.isArray(firstRole?.features) ? firstRole.features : [];
+            })()
+          : userPermissions,
         changePassword: userBasicDetails.changePassword || false,
         isRpmUser: userBasicDetails.isRpmUser || false,
         lastAppointment: userBasicDetails.lastAppointment || '',

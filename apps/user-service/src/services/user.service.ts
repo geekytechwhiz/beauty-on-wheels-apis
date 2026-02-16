@@ -9,16 +9,15 @@ import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
-import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
-import { UserLinkRepository } from '../repositories/userLink.repository';
 import { RoleRepository } from '../repositories/role.repository';
 import { PackageRepository } from '../repositories/package.repositrory';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
-const friendFamilyRepository = new FriendFamilyRepository();
-const userLinkRepository = new UserLinkRepository();
 const roleRepository = new RoleRepository();
 const packageRepository = new PackageRepository();
+import { FriendFamilyService } from './friendFamily.service';
+
+const friendFamilyService = new FriendFamilyService();
 function generateSortableId() {
   const now = Date.now();
   const timePart = now.toString(36).toUpperCase().padStart(6, '0');
@@ -244,42 +243,49 @@ export class UserService {
 
       if (friendNFamily && Object.keys(friendNFamily).length > 0 && organizationID) {
         const fullNameRaw = String((friendNFamily as any).name || '').trim();
-        const nameMatch = fullNameRaw.match(/^(\S+)\s+(.+)/);
-        const fnfFirstName = nameMatch ? nameMatch[1] : fullNameRaw;
-        const fnfLastName = nameMatch ? nameMatch[2] : '';
         const fnfEmail = String((friendNFamily as any).email || '').trim();
         const fnfPhoneCode = String((friendNFamily as any).phoneCode || '').trim();
         const fnfPhone = String((friendNFamily as any).phone || '').trim();
         const fullPhoneNumber = fnfPhoneCode ? `${fnfPhoneCode}${fnfPhone}` : fnfPhone;
-        const friendNFamilyFullName = `${fnfFirstName}${fnfLastName ? ` ${fnfLastName}` : ''}`.trim();
-        const definedRoleCode = String((user as any).definedRoleCode || '').toUpperCase();
-        const fnfRole = definedRoleCode === 'FRIEND' || definedRoleCode === 'FAMILY' ? definedRoleCode : 'FAMILY';
+        const friendNFamilyFullName = fullNameRaw || 'F&F Member';
+        const relationRaw = String((friendNFamily as any).relation || 'family').toLowerCase();
+        const relation = relationRaw === 'friend' ? 'FRIEND' : 'FAMILY';
+        const relationship = relation === 'FAMILY' ? (relationRaw !== 'friend' ? String((friendNFamily as any).relation || '').trim() : '') : '';
+        const userName = (user.fullName ?? `${(user as any).firstName ?? ''} ${(user as any).lastName ?? ''}`.trim()) || user.userID;
         try {
-          const searchResult = await friendFamilyRepository.searchFnf({
-            body: {
-              email: fnfEmail,
-              phone: fullPhoneNumber,
-              firstName: fnfFirstName,
-              lastName: fnfLastName,
-              roles: [fnfRole],
-            },
-            userID: user.userID,
+          const searchResult = await friendFamilyService.searchFnf(
             organizationID,
-          });
+            user.userID,
+            {
+              email: fnfEmail || undefined,
+              phone: fullPhoneNumber || undefined,
+              fullName: friendNFamilyFullName,
+              invite: fnfEmail ? 'email' : 'phone',
+              relation,
+              relationship,
+              emergencyContact: true,
+            },
+            authHeader,
+          );
           const memberId = searchResult?.invitedUser;
           if (searchResult?.success && memberId) {
-            await friendFamilyRepository.addFriendFamily({
-              body: {
-                memberId,
-                userId: user.userID,
-                userName: user.fullName ?? user.firstName ?? '',
-                memberName: friendNFamilyFullName,
-              },
+            await friendFamilyService.addMember(
               organizationID,
-            });
+              {
+                userId: user.userID,
+                memberId,
+                userName,
+                memberName: friendNFamilyFullName,
+                relation,
+                relationship,
+                emergencyContact: true,
+                manageHealth: false,
+              },
+              authHeader,
+            );
             logger.info({ event: 'service_createUser_friend_family_linked', memberId, userId: user.userID });
-          } else if (searchResult) {
-            logger.warn({ event: 'service_createUser_friend_family_not_found', result: searchResult });
+          } else {
+            logger.warn({ event: 'service_createUser_friend_family_not_found', message: 'F&F user not found; invite separately or add via add-member after invite' });
           }
         } catch (err) {
           logger.warn({ event: 'service_createUser_friend_family_failed', err: serializeError(err) });
@@ -301,29 +307,14 @@ export class UserService {
               const doctorFullName = doctor.namePrefix && String(doctor.namePrefix).toLowerCase().includes('dr')
                 ? `${doctor.namePrefix} ${doctor.fullName || doctor.firstName || ''}`.trim()
                 : (doctor.fullName || doctor.firstName || '');
-              const userFullName = user.fullName ?? `${user.firstName || ''} ${user.lastName || ''}`.trim();
-              const linkResult = await userLinkRepository.linkUser({
-                userID: user.userID,
-                organizationID,
-                body: {
-                  action: 'add',
-                  reporter: {
-                    id: doctorId,
-                    name: doctorFullName,
-                  },
-                  assignees: [
-                    {
-                      id: user.userID,
-                      name: userFullName || user.userID,
-                    },
-                  ],
-                },
+              await this.repository.saveDoctorPatientLink(doctorId, user.userID, organizationID);
+              await this.repository.updatePatientReporter(user.userID, organizationID, {
+                reporterId: doctorId,
+                reporterName: doctorFullName,
+                reporterProfilePic: (doctor as any).profilePic,
+                reporterEmail: (doctor as any).emailAddress,
               });
-              if (!linkResult) {
-                logger.warn({ event: 'service_createUser_doctor_link_failed', doctorId, userId: user.userID });
-              } else {
-                logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
-              }
+              logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
             }
           } catch (err) {
             logger.warn({ event: 'service_createUser_doctor_link_error', err: serializeError(err) });
@@ -1006,6 +997,17 @@ export class UserService {
         updates.emailAddress = String(updates.emailAddress).trim().toLowerCase();
       }
 
+      // Construct fullName if firstName or lastName is being updated
+      if (updates.firstName !== undefined || updates.lastName !== undefined) {
+        const firstName = updates.firstName !== undefined 
+          ? String(updates.firstName).trim() 
+          : String(existing.firstName || '').trim();
+        const lastName = updates.lastName !== undefined 
+          ? String(updates.lastName).trim() 
+          : String(existing.lastName || '').trim();
+        updates.fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      }
+
       // Handle name splitting if fullName is provided
       if (updates.fullName !== undefined && !updates.firstName && !updates.lastName) {
         const fullNameStr = String(updates.fullName).trim();
@@ -1174,6 +1176,106 @@ export class UserService {
       timer.end();
       throw err;
     }
+  }
+
+  /**
+   * Assign a patient (receiver) to a doctor (sender) in an organization.
+   * Uses the same table pattern as legacy link_unlink_user:
+   * - Link record: pk=USER#doctorId, sk=ASSIGNEE#patientId, sk1=ACTIVE
+   * - Patient record: reporterId, reporterName, reporterProfilePic, reporterEmail
+   */
+  async assignDoctor(
+    organizationId: string,
+    sender: { userId: string; name?: string; email?: string },
+    receiver: { userId: string; name?: string; email?: string },
+    correlationId?: string,
+  ): Promise<void> {
+    const timer = createPerformanceTimer(baseLogger, 'assignDoctor', correlationId);
+    const logger = createChildLogger(baseLogger, { organizationId, doctorId: sender.userId, patientId: receiver.userId });
+    logger.info({ event: 'service_assignDoctor_start' });
+
+    const doctor = await this.repository.getUser(sender.userId, organizationId);
+    if (!doctor) {
+      timer.end();
+      throw new UserNotFoundError(sender.userId);
+    }
+    const patient = await this.repository.getUser(receiver.userId, organizationId);
+    if (!patient) {
+      timer.end();
+      throw new UserNotFoundError(receiver.userId);
+    }
+
+    const doctorFullName =
+      (doctor as any).namePrefix && String((doctor as any).namePrefix).toLowerCase().includes('dr')
+        ? `${(doctor as any).namePrefix} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
+        : (doctor as any).fullName || (doctor as any).firstName || (sender as any).name || sender.userId;
+
+    await this.repository.saveDoctorPatientLink(sender.userId, receiver.userId, organizationId);
+    await this.repository.updatePatientReporter(receiver.userId, organizationId, {
+      reporterId: sender.userId,
+      reporterName: doctorFullName,
+      reporterProfilePic: (doctor as any).profilePic,
+      reporterEmail: (doctor as any).emailAddress ?? sender.email,
+    });
+
+    logger.info({ event: 'service_assignDoctor_success' });
+    timer.end();
+  }
+
+  /**
+   * List all patients assigned to a doctor in an organization.
+   * Uses legacy link records (USER#doctorId / ASSIGNEE#patientId, SCD_LINK#patientId).
+   */
+  async listDoctorPatients(doctorId: string, organizationId: string): Promise<Record<string, unknown>[]> {
+    const timer = createPerformanceTimer(baseLogger, 'listDoctorPatients');
+    const logger = createChildLogger(baseLogger, { doctorId, organizationId });
+    logger.info({ event: 'service_listDoctorPatients_start' });
+
+    const links = await this.repository.listPatientIdsForDoctor(doctorId);
+    if (links.length === 0) {
+      timer.end();
+      return [];
+    }
+
+    const doctor = await this.repository.getUser(doctorId, organizationId);
+    const doctorName = doctor
+      ? `${(doctor as any).namePrefix || ''} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
+      : '';
+
+    const users: Record<string, unknown>[] = [];
+    for (const { patientId, patientOrgId, previouslyConsulted } of links) {
+      const orgId = patientOrgId || organizationId;
+      const user = await this.repository.getUser(patientId, orgId);
+      if (!user) continue;
+      const u = user as unknown as Record<string, unknown>;
+      users.push({
+        city: u.city || '',
+        state: u.state || '',
+        country: u.country || '',
+        fullName: u.fullName || '',
+        emailAddress: u.emailAddress || '',
+        phoneNumber: u.phoneNumber || '',
+        lastAppointment: (u as any).lastAppointment ?? null,
+        profilePic: u.profilePic || '',
+        reporterId: u.reporterId || '',
+        doctor: doctorName || (u.reporterName as string) || '',
+        patientId: u.userID || patientId,
+        userID: u.userID || patientId,
+        accountType: (u as any).isRpmUser ? 'RPM' : 'REGULAR',
+        status: (u as any).isActive !== false ? 'active' : 'inactive',
+        createdDate: u.createdDate ?? u.createdAt ?? null,
+        mrn: u.mrn ?? null,
+        gender: u.gender || '',
+        medicalHistory: (u as any).medicalHistory ?? null,
+        dateOfBirth: u.dateOfBirth ?? null,
+        patientOrgId: u.organizationID || orgId,
+        previouslyConsulted: previouslyConsulted ?? false,
+      });
+    }
+
+    logger.info({ event: 'service_listDoctorPatients_success', count: users.length });
+    timer.end();
+    return users;
   }
 
   async updateUserMetadata(userId: string, metadata: Record<string, unknown>): Promise<UserMetadata> {
@@ -1714,7 +1816,7 @@ export class UserService {
         organizationType: orgBasicDetails?.organizationType || orgBasicDetails?.organizationInfo?.organizationType || orgBasicDetails?.lsi_organizationType || (orgBasicDetails as any)?.orgType || (orgBasicDetails as any)?.type || '',
         scheduleConfiguration,
         roleName,
-        userRoles: itemRoleId,
+        userRoles: itemRoleId ? [itemRoleId] : [],
         roleType,
         roleId:itemRoleId,
         userPermissions,

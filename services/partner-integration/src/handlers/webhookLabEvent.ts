@@ -26,6 +26,9 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
   }
 
+  // Extract raw body for signature validation (before parsing)
+  const rawBody = typeof event.body === 'string' ? event.body : JSON.stringify(event.body || {});
+
   const body = parseJsonBody(event);
   if (body === null) {
     logger.warn({ event: 'webhookLabEvent_invalid_json' });
@@ -36,11 +39,34 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
   }
 
+  // Extract headers (normalize to lowercase keys for consistency)
+  const headers: Record<string, string> = {};
+  if (event.headers) {
+    for (const [key, value] of Object.entries(event.headers)) {
+      if (value) {
+        headers[key.toLowerCase()] = value;
+        // Also keep original case for compatibility
+        headers[key] = value;
+      }
+    }
+  }
+
   try {
-    const result = await processInboundWebhook(partnerId, body, logger);
+    const result = await processInboundWebhook(partnerId, body, logger, headers, rawBody);
     const duration = Date.now() - startTime;
     if (!result.accepted) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/webhooks/labs', 422, duration, requestId);
+      const statusCode = result.reason === 'INVALID_SIGNATURE' ? 401 : 422;
+      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/webhooks/labs', statusCode, duration, requestId);
+      
+      if (result.reason === 'INVALID_SIGNATURE') {
+        return ApiResponse.error(
+          401,
+          'PARTNER_INTEGRATION.WEBHOOK_SIGNATURE_INVALID',
+          responseOpts(event, requestId),
+          { code: 'WEBHOOK_SIGNATURE_INVALID', details: [{ message: 'Webhook signature validation failed' }] }
+        );
+      }
+      
       return ApiResponse.unprocessableEntity(
         'PARTNER_INTEGRATION.WEBHOOK_NOT_ACCEPTED',
         responseOpts(event, requestId),

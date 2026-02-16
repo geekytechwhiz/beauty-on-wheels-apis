@@ -10,7 +10,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -168,7 +168,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: true
-    target: node18
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
@@ -186,8 +186,6 @@ custom:
       - '.json'
   autoswagger:
     title: User Service API
-    description: RESTful API for managing users, organizations, files, and metadata
-    version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
     schemes:
@@ -195,23 +193,12 @@ custom:
       - http
     host: ${self:custom.apiHost, ''}
     generateSwaggerOnDeploy: true
-    type: openapi3
     swaggerFiles:
       - swagger.json
     useStage: true
     swaggerPath: swagger
     excludeStages:
       - production
-    swaggerOutputPath: swagger.json
-    tags:
-      - name: Health
-        description: Health check endpoints
-      - name: Users
-        description: User management operations
-      - name: Organizations
-        description: User-organization relationship operations
-      - name: Files
-        description: User file management operations
 
   logLevel:
     dev: debug
@@ -261,33 +248,15 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Health check endpoint
-            description: Returns the health status of the service
-            tags:
-              - Health
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            responses:
-              200:
-                description: Service is healthy
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/HealthResponse'
-                    example:
-                      status: "ok"
-                      service: "user-service"
-              500:
-                $ref: '#/components/responses/InternalServerError'
-  
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   createUser:
     handler: src/handlers/createUser.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -302,71 +271,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Create a new user
-            description: Creates a new user in the system with the provided information. organizationID and userID can be extracted from the access token if not provided in the request body.
-            tags:
-              - Users
-            headers:
-              - name: Authorization
-                description: Bearer token for authentication
-                schema:
-                  type: string
-                  format: bearer
-                required: true
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            requestBody:
-              description: User creation data
-              required: true
-              content:
-                application/json:
-                  schema:
-                    $ref: '#/components/schemas/CreateUserRequest'
-                  example:
-                    organizationID: "660e8400-e29b-41d4-a716-446655440001"
-                    userID: "550e8400-e29b-41d4-a716-446655440000"
-                    userInfo:
-                      name: "John Doe"
-                      namePrefix: "Dr."
-                      profilePic: "https://example.com/profile.jpg"
-                      contact:
-                        email: "john.doe@example.com"
-                        phone: "+1234567890"
-                        phoneCode: "+1"
-                      dateOfBirth: "1990-01-01"
-                      gender: "Male"
-                      specialty: "Cardiology"
-                      licenseNumber: "LIC123456"
-                      department: "Cardiology"
-                      bio: "Experienced cardiologist"
-                    userRole: ["role-id-1", "role-id-2"]
-                    userType: "STAFF"
-            responses:
-              201:
-                description: User created successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        userID: "550e8400-e29b-41d4-a716-446655440000"
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              401:
-                $ref: '#/components/responses/Unauthorized'
-              422:
-                $ref: '#/components/responses/UnprocessableEntity'
-              409:
-                $ref: '#/components/responses/Conflict'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
   getUserOrganization:
     handler: src/handlers/getUserOrganization.main
     timeout: 30
@@ -386,80 +290,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Get user with comprehensive organization details (with path parameters)
-            description: "Retrieves comprehensive user information including organization details, roles, permissions, preferences, account age, and more. Uses user ID and organization ID from URL path parameters if provided, otherwise extracts from authorization token."
-            tags:
-              - Users
-            headers:
-              - name: Authorization
-                description: Bearer token for authentication. Required for authorization. userId and organizationId can be extracted from token if not provided in path.
-                schema:
-                  type: string
-                  format: bearer
-                required: true
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID or ULID format). Optional - if not provided, will be extracted from token.
-                required: false
-                schema:
-                  type: string
-                  example: "660e8400-e29b-41d4-a716-446655440001"
-              - name: userId
-                description: Unique identifier of the user (UUID format). Optional - if not provided, will be extracted from token.
-                required: false
-                schema:
-                  type: string
-                  format: uuid
-                  example: "550e8400-e29b-41d4-a716-446655440000"
-            queryParameters:
-              - name: defaultProfile
-                description: Optional. If provided, returns data for the specified user profile (for family member access)
-                schema:
-                  type: string
-                required: false
-              - name: userType
-                description: Optional. User type filter
-                schema:
-                  type: string
-                required: false
-            responses:
-              200:
-                description: User retrieved successfully with comprehensive details
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        userID: "550e8400-e29b-41d4-a716-446655440000"
-                        organizationID: "660e8400-e29b-41d4-a716-446655440001"
-                        emailAddress: "john.doe@example.com"
-                        fullName: "John Doe"
-                        phoneNumber: "+1234567890"
-                        isActive: true
-                        createdDate: 1699123456789
-                        accountAge: { years: 2, months: 3, days: 15 }
-                        roleName: "Admin"
-                        userRoles: ["role-id-1"]
-                        permission: {}
-                        organizationName: "Example Organization"
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              401:
-                $ref: '#/components/responses/Unauthorized'
-              404:
-                $ref: '#/components/responses/NotFound'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-      # Endpoint without path parameters: /dev/user/organization
-      # Extracts userId and organizationId from authorization token
       - http:
           path: user/organization
           method: get
@@ -472,65 +302,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Get user with comprehensive organization details (from token)
-            description: "Retrieves comprehensive user information including organization details, roles, permissions, preferences, account age, and more. Extracts userId and organizationId from the authorization token."
-            tags:
-              - Users
-            headers:
-              - name: Authorization
-                description: Bearer token for authentication. Required - userId and organizationId will be extracted from this token.
-                schema:
-                  type: string
-                  format: bearer
-                required: true
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            queryParameters:
-              - name: defaultProfile
-                description: Optional. If provided, returns data for the specified user profile (for family member access)
-                schema:
-                  type: string
-                required: false
-              - name: userType
-                description: Optional. User type filter
-                schema:
-                  type: string
-                required: false
-            responses:
-              200:
-                description: User retrieved successfully with comprehensive details
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        userID: "550e8400-e29b-41d4-a716-446655440000"
-                        organizationID: "660e8400-e29b-41d4-a716-446655440001"
-                        emailAddress: "john.doe@example.com"
-                        fullName: "John Doe"
-                        phoneNumber: "+1234567890"
-                        isActive: true
-                        createdDate: 1699123456789
-                        accountAge: { years: 2, months: 3, days: 15 }
-                        roleName: "Admin"
-                        userRoles: ["role-id-1"]
-                        permission: {}
-                        organizationName: "Example Organization"
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              401:
-                $ref: '#/components/responses/Unauthorized'
-              404:
-                $ref: '#/components/responses/NotFound'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
   updateUser:
     handler: src/handlers/updateUser.main
     timeout: 10
@@ -548,67 +319,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Update user information
-            description: Updates user information. Only provided fields will be updated. userId and organizationId are extracted from the access token (authorizer).
-            tags:
-              - Users
-            headers:
-              - name: Authorization
-                description: Bearer token for authentication (must contain userID and organizationID)
-                schema:
-                  type: string
-                  format: bearer
-                required: true
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            requestBody:
-              description: User update data (all fields are optional)
-              required: true
-              content:
-                application/json:
-                  schema:
-                    $ref: '#/components/schemas/UpdateUserRequest'
-                  example:
-                    email: "john.doe.updated@example.com"
-                    firstName: "John"
-                    lastName: "Doe Updated"
-                    phone: "+1234567890"
-                    phoneCode: "+1"
-                    profilePic: "https://example.com/new-profile.jpg"
-                    namePrefix: "Dr."
-                    dateOfBirth: "1990-01-01"
-                    gender: "Male"
-                    specialty: "Cardiology"
-                    licenseNumber: "LIC123456"
-                    bio: "Updated biography"
-            responses:
-              200:
-                description: User updated successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        userID: "550e8400-e29b-41d4-a716-446655440000"
-                        emailAddress: "john.doe.updated@example.com"
-                        fullName: "John Doe Updated"
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              401:
-                $ref: '#/components/responses/Unauthorized'
-              404:
-                $ref: '#/components/responses/NotFound'
-              422:
-                $ref: '#/components/responses/UnprocessableEntity'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
   deleteUser:
     handler: src/handlers/deleteUser.main
     timeout: 10
@@ -620,48 +330,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Delete a user
-            description: Deletes a user from the system by user ID and organization ID
-            tags:
-              - Users
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            pathParameters:
-              - name: userId
-                description: Unique identifier of the user to delete (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-                  example: "550e8400-e29b-41d4-a716-446655440000"
-              - name: organizationId
-                description: Unique identifier of the organization (UUID or ULID format)
-                required: true
-                schema:
-                  type: string
-                  example: "660e8400-e29b-41d4-a716-446655440001"
-            responses:
-              200:
-                description: User deleted successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data: null
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              404:
-                $ref: '#/components/responses/NotFound'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   assignUserToOrganization:
     handler: src/handlers/assignUserToOrganization.main
     timeout: 10
@@ -673,62 +347,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Assign user to organization
-            description: Assigns a user to an organization. Requires userId and organizationId in the request body. Path parameters are available but not used by the handler.
-            tags:
-              - Users
-              - Organizations
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            pathParameters:
-              - name: userId
-                description: User identifier (available in path but handler reads from body)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-                  example: "550e8400-e29b-41d4-a716-446655440000"
-              - name: organizationId
-                description: Organization identifier (available in path but handler reads from body)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-                  example: "660e8400-e29b-41d4-a716-446655440001"
-            requestBody:
-              description: Assignment request data
-              required: true
-              content:
-                application/json:
-                  schema:
-                    $ref: '#/components/schemas/AssignUserToOrganizationRequest'
-                  example:
-                    userId: "550e8400-e29b-41d4-a716-446655440000"
-                    organizationId: "660e8400-e29b-41d4-a716-446655440001"
-            responses:
-              200:
-                description: User assigned to organization successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data: null
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              404:
-                $ref: '#/components/responses/NotFound'
-              422:
-                $ref: '#/components/responses/UnprocessableEntity'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   listUserOrganizations:
     handler: src/handlers/listUserOrganizations.main
     timeout: 5
@@ -740,46 +364,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: List user organizations
-            description: Retrieves all organizations associated with a user
-            tags:
-              - Users
-              - Organizations
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            pathParameters:
-              - name: userId
-                description: Unique identifier of the user (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-                  example: "550e8400-e29b-41d4-a716-446655440000"
-            responses:
-              200:
-                description: User organizations retrieved successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        - userId: "550e8400-e29b-41d4-a716-446655440000"
-                          organizationId: "660e8400-e29b-41d4-a716-446655440001"
-                          assignedAt: "2024-01-15T10:30:00Z"
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              404:
-                $ref: '#/components/responses/NotFound'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   updateUserMetadata:
     handler: src/handlers/updateUserMetadata.main
     timeout: 10
@@ -791,65 +381,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Update user metadata
-            description: Updates custom metadata for a user. Metadata can contain any key-value pairs.
-            tags:
-              - Users
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            pathParameters:
-              - name: userId
-                description: Unique identifier of the user (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-                  example: "550e8400-e29b-41d4-a716-446655440000"
-            requestBody:
-              description: User metadata object (key-value pairs)
-              required: true
-              content:
-                application/json:
-                  schema:
-                    $ref: '#/components/schemas/UpdateUserMetadataRequest'
-                  example:
-                    metadata:
-                      preferences:
-                        theme: "dark"
-                        notifications: true
-                      tags:
-                        - "premium"
-                        - "verified"
-                      customField: "customValue"
-            responses:
-              200:
-                description: User metadata updated successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        userId: "550e8400-e29b-41d4-a716-446655440000"
-                        metadata:
-                          preferences:
-                            theme: "dark"
-                            notifications: true
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              404:
-                $ref: '#/components/responses/NotFound'
-              422:
-                $ref: '#/components/responses/UnprocessableEntity'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   listUserFiles:
     handler: src/handlers/listUserFiles.main
     timeout: 5
@@ -861,48 +398,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: List user files
-            description: Retrieves all files associated with a user
-            tags:
-              - Users
-              - Files
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            pathParameters:
-              - name: userId
-                description: Unique identifier of the user (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-                  example: "550e8400-e29b-41d4-a716-446655440000"
-            responses:
-              200:
-                description: User files retrieved successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        - userId: "550e8400-e29b-41d4-a716-446655440000"
-                          fileId: "770e8400-e29b-41d4-a716-446655440002"
-                          fileName: "document.pdf"
-                          s3Key: "users/550e8400-e29b-41d4-a716-446655440000/files/document.pdf"
-                          uploadedAt: "2024-01-15T10:30:00Z"
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              404:
-                $ref: '#/components/responses/NotFound'
-              500:
-                $ref: '#/components/responses/InternalServerError'
-
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   listOrganizationUsers:
     handler: src/handlers/listOrganizationUsers.main
     timeout: 5
@@ -914,21 +415,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: List organization users
-            description: Retrieves all users associated with an organization
-            tags:
-              - Users
-              - Organizations
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            pathParameters:
-              - name: organizationId
-
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   listOrganizationUsersPost:
     handler: src/handlers/listOrganizationUsersPost.main
     timeout: 30
@@ -940,74 +432,139 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: List organization users (POST)
-            description: |
-              Retrieves users for an organization with flexible filtering.
-              Supports two scenarios:
-              1. { "organizationID": "...", "type": "STAFF" } - Filter by user type
-              2. { "organizationID": "...", "limit": 10 } - Limit results
-            tags:
-              - Users
-              - Organizations
-            headers:
-              - name: X-Correlation-Id
-                description: Request correlation ID for tracing
-                schema:
-                  type: string
-                required: false
-            requestBody:
-              description: Query parameters for user listing
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - organizationID
-                    properties:
-                      organizationID:
-                        type: string
-                        description: Organization ID
-                      limit:
-                        type: number
-                        description: Maximum number of users to return
-                      type:
-                        type: string
-                        description: Filter by user type (e.g., STAFF, USER, FNF)
-                  examples:
-                    withType:
-                      summary: Get users by type
-                      value:
-                        organizationID: "your-organization-id"
-                        type: "STAFF"
-                    withLimit:
-                      summary: Get users with limit
-                      value:
-                        organizationID: "your-organization-id"
-                        limit: 1
-            responses:
-              200:
-                description: Organization users retrieved successfully
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/SuccessResponse'
-                    example:
-                      data:
-                        - userID: "550e8400-e29b-41d4-a716-446655440000"
-                          organizationID: "660e8400-e29b-41d4-a716-446655440001"
-                          emailAddress: "john.doe@example.com"
-                          fullName: "John Doe"
-                      requestId: "req-123"
-              400:
-                $ref: '#/components/responses/BadRequest'
-              500:
-                $ref: '#/components/responses/InternalServerError'
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  assignDoctor:
+    handler: src/handlers/assignDoctor.main
+    
+    memorySize: 256
+    events:
+      - http:
+          path: user/assign-doctor
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  listDoctorPatients:
+    handler: src/handlers/listDoctorPatients.main
+    
+    memorySize: 256
+    events:
+      - http:
+          path: user/doctor-patient-list
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  friendFamilySearch:
+    handler: src/handlers/friendFamilySearch.main
+    
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/search
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  friendFamilyAddMember:
+    handler: src/handlers/friendFamilyAddMember.main
+    
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/add-member
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  friendFamilyUpdate:
+    handler: src/handlers/friendFamilyUpdate.main
+    
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/update
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  friendFamilyFetch:
+    handler: src/handlers/friendFamilyFetch.main
+    
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/fetch
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  friendFamilyDelete:
+    handler: src/handlers/friendFamilyDelete.main
+    
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/delete
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   activateDeactivateUser:
     handler: src/handlers/activateDeactivateUser.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1022,38 +579,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Activate or deactivate user
-            description: "Activates or deactivates a user in an organization. Body: action (ACTIVATE|DEACTIVATE), organizationID (optional from token), patientUserId (optional for acting on another user)."
-            tags:
-              - Users
-            requestBody:
-              description: action, organizationID, patientUserId
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - action
-                    properties:
-                      action:
-                        type: string
-                        enum: [ACTIVATE, DEACTIVATE]
-                      organizationID:
-                        type: string
-                      patientUserId:
-                        type: string
-            responses:
-              200:
-                description: User activated or deactivated
-              400:
-                description: Bad request
-              404:
-                description: User not found
-              500:
-                description: Internal server error
-
   validateContacts:
     handler: src/handlers/validateContacts.main
     timeout: 10
@@ -1065,35 +590,15 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Validate contacts
-            description: Checks if email and/or phone exist in Cognito. At least one of emailAddress or phoneNumber required.
-            tags:
-              - Users
-            requestBody:
-              description: emailAddress, phoneNumber (at least one)
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    properties:
-                      emailAddress:
-                        type: string
-                        format: email
-                      phoneNumber:
-                        type: string
-            responses:
-              200:
-                description: { emailAddressExists, phoneNumberExists }
-              400:
-                description: Bad request
-              500:
-                description: Internal server error
-
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   getOrganizationUserCount:
     handler: src/handlers/getOrganizationUserCount.main
-    timeout: 15
+    
     memorySize: 256
     events:
       - http:
@@ -1108,38 +613,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Get organization user count
-            description: "Returns user count items for an organization (pk=ORG_USER_COUNT#orgId). Optional filters: roleId, roleName, roleType, status."
-            tags:
-              - Users
-            requestBody:
-              description: organizationId (or from token), roleId, roleName, roleType, status
-              required: false
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    properties:
-                      organizationId:
-                        type: string
-                      roleId:
-                        type: string
-                      roleName:
-                        type: string
-                      roleType:
-                        type: string
-                      status:
-                        type: string
-            responses:
-              200:
-                description: Array of count items
-              400:
-                description: Bad request (missing organizationId)
-              500:
-                description: Internal server error
-
-  # S3 → EventBridge trigger (v3 safe)
   uploadUserFile:
     handler: src/handlers/s3/uploadUserFile.main
     timeout: 30
@@ -1160,7 +633,6 @@ functions:
     handler: src/handlers/sqs/userReminderEvent.main
     timeout: 30
     memorySize: 256
-    reservedConcurrentExecutions: 10
 
   userProfileStreamHandler:
     handler: src/handlers/stream/userProfileStreamHandler.main

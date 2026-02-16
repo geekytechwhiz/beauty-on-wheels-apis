@@ -35,3 +35,4 @@ export * from './lib/utils/error/custom-errors';
 export * from './lib/utils/error/error-translator';
 export * from './lib/utils/http/request-with-retry';
 export * from './lib/utils/http/circuit-breaker';
+export * from './lib/adapters/base/secrets-helper';

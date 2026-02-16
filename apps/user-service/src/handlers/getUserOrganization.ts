@@ -4,6 +4,7 @@ import { UserService } from '../services/user.service';
 import { createLogger, extractCorrelationId, serializeError, logHttpRequest, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { UserNotFoundError } from '../utils/errors';
+import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -38,32 +39,20 @@ export const main: APIGatewayProxyHandler = async (
   const defaultProfile = event.queryStringParameters?.defaultProfile?.trim();
   const userType = event.queryStringParameters?.userType?.trim();
 
-  // Extract from authorizer (available for both scenarios)
-  const authorizer = (event.requestContext as any)?.authorizer;
-  const requestingUserId = authorizer?.userID || authorizer?.userId;
+  const requestingUserId = getAuthorizerUserId(event);
   const authHeader = event.headers?.Authorization || event.headers?.authorization;
-
-  // Debug logging for authorizer (helpful for troubleshooting)
-  logger.debug({
-    event: 'authorizer_debug',
-    hasAuthorizer: !!authorizer,
-    authorizerKeys: authorizer ? Object.keys(authorizer) : [],
-    hasAuthHeader: !!authHeader,
-  });
 
   // Scenario 1: Try to get userId and organizationId from path parameters
   let userId = event.pathParameters?.userId?.trim();
   let organizationId = event.pathParameters?.organizationId?.trim();
 
-  // Normalize empty strings to undefined
   if (userId === '') userId = undefined;
   if (organizationId === '') organizationId = undefined;
 
-  // Scenario 2: If not provided in path, extract from authorization token
+  // Scenario 2: If not in path, use authorizer then optional JWT fallback
   if (!userId || !organizationId) {
-    // First try from authorizer
-    userId = userId || authorizer?.userID || authorizer?.userId || (event as any).userID || (event as any).userId;
-    organizationId = organizationId || authorizer?.organizationID || authorizer?.organizationId || (event as any).organizationID || (event as any).organizationId;
+    userId = userId || requestingUserId || (event as any).userID || (event as any).userId;
+    organizationId = organizationId || getAuthorizerOrganizationId(event) || (event as any).organizationID || (event as any).organizationId;
 
     // Fallback: Try to decode JWT token from Authorization header if authorizer is not available
     if ((!userId || !organizationId) && authHeader) {

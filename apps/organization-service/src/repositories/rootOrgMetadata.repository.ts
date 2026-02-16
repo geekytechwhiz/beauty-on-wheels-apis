@@ -1,4 +1,4 @@
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 
@@ -103,5 +103,27 @@ export class RootOrgMetadataRepository {
 
   async getOrgSupportedSpecialty(): Promise<Record<string, unknown> | undefined> {
     return this.getOrgMetaAttributes(SUPPORTED_SPECIALTY);
+  }
+
+  /**
+   * Put or overwrite SUPPORTED_VITALS metadata in the organization table (pk=ORG_META, sk=SUPPORTED_VITALS).
+   * Idempotent; safe to call on every health check or deploy.
+   */
+  async putOrgVitalsMetadata(attributes: unknown[]): Promise<void> {
+    const tableName = this.ensureTable();
+    const now = Date.now();
+    const item = {
+      pk: ORG_META,
+      sk: SUPPORTED_VITALS,
+      attributes,
+      createdDate: now,
+      modifiedDate: now,
+    };
+    await ddbDocClient.send(
+      new PutCommand({
+        TableName: tableName,
+        Item: item,
+      })
+    );
   }
 }

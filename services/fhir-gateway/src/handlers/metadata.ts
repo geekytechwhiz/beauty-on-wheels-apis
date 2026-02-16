@@ -9,7 +9,8 @@ export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   const auth = getAuthContext(
-    event.headers?.Authorization ?? event.headers?.authorization
+    event.headers?.Authorization ?? event.headers?.authorization,
+    event.requestContext
   );
   const clientId = auth?.clientId ?? 'anonymous';
   const statement = getClientCapability(clientId);

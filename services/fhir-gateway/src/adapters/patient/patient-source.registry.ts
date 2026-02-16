@@ -1,12 +1,12 @@
 /**
  * Resolves the Patient source adapter from env (PATIENT_SOURCE).
- * Default: "patient-service" when USER_SERVICE_URL is set, else "stub".
+ * Default: "patient-service" when user-service baseUrl is set in config, else "stub".
  */
 import type { PatientSourceAdapter, PatientSourceAdapterKey } from './patient-source.types';
 import { createUserServicePatientAdapter } from './user-service.patient.adapter';
-import { StubPatientAdapter } from './stub.patient.adapter';
+import { createStubPatientAdapter } from './stub.patient.adapter';
+import { getUserServiceEndpoints } from '../../config/domainEndpoints';
 
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL ?? '';
 const PATIENT_SOURCE = (process.env.PATIENT_SOURCE ?? '').trim().toLowerCase() as PatientSourceAdapterKey | '';
 
 let cachedAdapter: PatientSourceAdapter | null = null;
@@ -16,9 +16,9 @@ function createAdapter(key: PatientSourceAdapterKey): PatientSourceAdapter {
     case 'patient-service':
       return createUserServicePatientAdapter();
     case 'stub':
-      return new StubPatientAdapter();
+      return createStubPatientAdapter();
     default:
-      return USER_SERVICE_URL ? createUserServicePatientAdapter() : new StubPatientAdapter();
+      return createStubPatientAdapter();
   }
 }
 
@@ -27,10 +27,11 @@ function createAdapter(key: PatientSourceAdapterKey): PatientSourceAdapter {
  */
 export function getPatientSourceAdapter(): PatientSourceAdapter {
   if (cachedAdapter) return cachedAdapter;
+  const userServiceBaseUrl = getUserServiceEndpoints().baseUrl;
   const key: PatientSourceAdapterKey =
     PATIENT_SOURCE === 'patient-service' || PATIENT_SOURCE === 'stub'
       ? PATIENT_SOURCE
-      : USER_SERVICE_URL
+      : userServiceBaseUrl
         ? 'patient-service'
         : 'stub';
   cachedAdapter = createAdapter(key);

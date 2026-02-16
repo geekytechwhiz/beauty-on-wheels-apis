@@ -1,6 +1,6 @@
 import { isCanonicalLabEventType } from '@api-hub/integration-events';
 import type { CanonicalLabEventType } from '@api-hub/integration-events';
-import type { CanonicalLabWebhookResult, LabWebhookAdapter } from '../base/webhook.types';
+import type { CanonicalLabWebhookResult, LabWebhookAdapter, WebhookParseOptions } from '../base/webhook.types';
 
 /** Redcliffe webhook payload shape (e.g. booking_id, status). */
 interface RedcliffeWebhookPayload {
@@ -19,7 +19,7 @@ const STATUS_TO_CANONICAL: Record<string, CanonicalLabEventType> = {
 };
 
 export class RedcliffeWebhookAdapter implements LabWebhookAdapter {
-  parsePayload(body: unknown): CanonicalLabWebhookResult | null {
+  parsePayload(body: unknown, options?: WebhookParseOptions): CanonicalLabWebhookResult | null {
     if (!body || typeof body !== 'object') return null;
     const payload = body as RedcliffeWebhookPayload;
     const status = payload.status;

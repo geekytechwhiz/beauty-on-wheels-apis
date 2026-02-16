@@ -2,7 +2,7 @@ const { resolve } = require('path');
 const { existsSync } = require('fs');
 
 /**
- * Esbuild plugin to resolve NX workspace dependencies (@api-hub/*)
+ *  (@api-hub/*)
  * This ensures workspace packages are properly resolved from source files during bundling
  */
 module.exports = [

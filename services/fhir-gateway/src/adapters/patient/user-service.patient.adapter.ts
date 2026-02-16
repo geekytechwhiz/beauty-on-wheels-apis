@@ -1,13 +1,12 @@
 /**
  * Patient source adapter that calls an existing user/patient microservice.
  * Maps the service response to canonical Patient for FHIR exposure.
+ * Domain API URL and endpoint come from config (see config/domainEndpoints).
  */
 import type { Patient } from '@api-hub/canonical';
 import type { GetPatientOptions, PatientSourceAdapter } from './patient-source.types';
-
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL ?? '';
-/** e.g. "get-user-details?userID={id}" or "/users/{id}". */
-const USER_SERVICE_PATIENT_PATH = (process.env.USER_SERVICE_PATIENT_PATH ?? 'get-user-details?userID={id}').trim();
+import type { UserServiceEndpointConfig } from '../../config/domainEndpoints';
+import { getUserServiceEndpoints } from '../../config/domainEndpoints';
 
 export interface UserServicePatientAdapterConfig {
   baseUrl: string;
@@ -90,13 +89,16 @@ export class UserServicePatientAdapter implements PatientSourceAdapter {
   }
 }
 
-/** Factory: build adapter from env (USER_SERVICE_URL, USER_SERVICE_PATIENT_PATH). */
-export function createUserServicePatientAdapter(): PatientSourceAdapter {
-  if (!USER_SERVICE_URL) {
+/** Factory: build adapter from domain config (config/domainEndpoints). */
+export function createUserServicePatientAdapter(
+  config?: UserServiceEndpointConfig
+): PatientSourceAdapter {
+  const endpoints = config ?? getUserServiceEndpoints();
+  if (!endpoints.baseUrl) {
     throw new Error('USER_SERVICE_URL is required for user-service patient adapter');
   }
   return new UserServicePatientAdapter({
-    baseUrl: USER_SERVICE_URL,
-    pathTemplate: USER_SERVICE_PATIENT_PATH || 'get-user-details?userID={id}',
+    baseUrl: endpoints.baseUrl,
+    pathTemplate: endpoints.patientPath || undefined,
   });
 }

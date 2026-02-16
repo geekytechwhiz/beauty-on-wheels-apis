@@ -40,3 +40,10 @@ export function parseJsonBody(event: APIGatewayProxyEvent): unknown | null {
     return null;
   }
 }
+
+/**
+ * Extracts idempotency key from request headers (case-insensitive).
+ */
+export function getIdempotencyKey(event: APIGatewayProxyEvent): string | undefined {
+  return event.headers['Idempotency-Key'] ?? event.headers['idempotency-key'];
+}

@@ -1,70 +1,233 @@
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import { PutCommand, QueryCommand, DeleteCommand, UpdateCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb';
+import { docClient } from '../utils/db.config';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
-const lambdaClient = new LambdaClient({});
 
-type LambdaPayload = Record<string, unknown>;
+/** F&F mappings use the same user table as legacy: pk=INVITE_F&F#userId, sk=INVITEE#memberId */
+const TABLE_NAME = process.env.USER_TABLE || '';
+const INVITE_FF = 'INVITE_F&F';
+const INVITEE = 'INVITEE';
+const INVITER = 'INVITER';
 
-const parseLambdaPayload = (payload?: Uint8Array): any => {
-  if (!payload || payload.length === 0) return null;
-  const text = new TextDecoder().decode(payload);
-  if (!text) return null;
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed?.body && typeof parsed.body === 'string') {
-      try {
-        return JSON.parse(parsed.body);
-      } catch {
-        return parsed.body;
-      }
-    }
-    return parsed;
-  } catch {
-    return text;
-  }
-};
+export interface FriendFamilyMapping {
+  pk: string;
+  sk: string;
+  inviterName: string;
+  memberName: string;
+  relation: string;
+  relationship: string;
+  emergencyContact: boolean;
+  organizationID: string;
+  manageHealth?: boolean;
+  createdAt: number;
+  modifiedAt: number;
+}
+
+export interface SaveMappingInput {
+  organizationID: string;
+  userId: string;
+  memberId: string;
+  userName: string;
+  memberName: string;
+  relation: string;
+  relationship: string;
+  emergencyContact: boolean;
+  manageHealth?: boolean;
+}
 
 export class FriendFamilyRepository {
-  async searchFnf(payload: LambdaPayload): Promise<any | null> {
-    const functionName = process.env.SEARCH_FNF_LAMBDA;
-    const logger = createChildLogger(baseLogger, { functionName });
-    if (!functionName) {
-      logger.warn({ event: 'friend_family_search_missing' });
-      return null;
-    }
+  private tableName = TABLE_NAME;
+
+  async saveMapping(input: SaveMappingInput): Promise<void> {
+    const logger = createChildLogger(baseLogger, { userId: input.userId, memberId: input.memberId });
+    const date = Date.now();
+    const obj1 = {
+      pk: `${INVITE_FF}#${input.userId}`,
+      sk: `${INVITEE}#${input.memberId}`,
+      inviterName: input.userName,
+      memberName: input.memberName,
+      relation: (input.relation || 'FAMILY').toUpperCase(),
+      relationship: input.relationship || '',
+      emergencyContact: input.emergencyContact,
+      organizationID: input.organizationID,
+      manageHealth: input.manageHealth ?? false,
+      createdAt: date,
+      modifiedAt: date,
+    };
+    const obj2 = {
+      pk: `${INVITE_FF}#${input.memberId}`,
+      sk: `${INVITER}#${input.userId}`,
+      inviterName: input.userName,
+      memberName: input.memberName,
+      relation: (input.relation || 'FAMILY').toUpperCase(),
+      relationship: input.relationship || '',
+      emergencyContact: input.emergencyContact,
+      organizationID: input.organizationID,
+      manageHealth: input.manageHealth ?? false,
+      createdAt: date,
+      modifiedAt: date,
+    };
     try {
-      const response = await lambdaClient.send(
-        new InvokeCommand({
-          FunctionName: functionName,
-          Payload: Buffer.from(JSON.stringify(payload)),
-        }),
-      );
-      return parseLambdaPayload(response.Payload as Uint8Array | undefined);
+      await docClient.send(new PutCommand({ TableName: this.tableName, Item: obj1 }));
+      await docClient.send(new PutCommand({ TableName: this.tableName, Item: obj2 }));
+      logger.info({ event: 'friend_family_save_mapping_success' });
     } catch (err) {
-      logger.error({ event: 'friend_family_search_failed', err: serializeError(err) });
-      return null;
+      logger.error({ event: 'friend_family_save_mapping_error', err: serializeError(err) });
+      throw err;
     }
   }
 
-  async addFriendFamily(payload: LambdaPayload): Promise<any | null> {
-    const functionName = process.env.ADD_FRIEND_N_FAMILY_LAMBDA;
-    const logger = createChildLogger(baseLogger, { functionName });
-    if (!functionName) {
-      logger.warn({ event: 'friend_family_add_missing' });
-      return null;
-    }
+  async getMapping(userId: string, memberId: string, asInviter = false): Promise<FriendFamilyMapping | null> {
+    const pk = `${INVITE_FF}#${userId}`;
+    const sk = asInviter ? `${INVITER}#${memberId}` : `${INVITEE}#${memberId}`;
     try {
-      const response = await lambdaClient.send(
-        new InvokeCommand({
-          FunctionName: functionName,
-          Payload: Buffer.from(JSON.stringify(payload)),
-        }),
+      const result = await docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: '#pk = :pk AND #sk = :sk',
+          ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+          ExpressionAttributeValues: { ':pk': pk, ':sk': sk },
+        })
       );
-      return parseLambdaPayload(response.Payload as Uint8Array | undefined);
+      const item = result.Items?.[0];
+      return (item as FriendFamilyMapping) ?? null;
     } catch (err) {
-      logger.error({ event: 'friend_family_add_failed', err: serializeError(err) });
-      return null;
+      const logger = createChildLogger(baseLogger, { userId, memberId });
+      logger.error({ event: 'friend_family_get_mapping_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /** Get mapping from inviter's side: user added member (pk=userId, sk=INVITEE#memberId). */
+  async getUserMapping(userId: string, memberId: string): Promise<FriendFamilyMapping | null> {
+    return this.getMapping(userId, memberId, false);
+  }
+
+  /** Check if user already has an F&F (limit one per user in legacy). */
+  async checkFriendFamily(userId: string, inviterSide = false): Promise<FriendFamilyMapping | null> {
+    const skPrefix = inviterSide ? INVITER : INVITEE;
+    const params: QueryCommandInput = {
+      TableName: this.tableName,
+      KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+      ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+      ExpressionAttributeValues: { ':pk': `${INVITE_FF}#${userId}`, ':sk': `${skPrefix}#` },
+    };
+    try {
+      const result = await docClient.send(new QueryCommand(params));
+      const item = result.Items?.[0];
+      return (item as FriendFamilyMapping) ?? null;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { userId });
+      logger.error({ event: 'friend_family_check_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async deleteMapping(userId: string, memberId: string): Promise<void> {
+    const logger = createChildLogger(baseLogger, { userId, memberId });
+    try {
+      await docClient.send(
+        new DeleteCommand({
+          TableName: this.tableName,
+          Key: { pk: `${INVITE_FF}#${userId}`, sk: `${INVITEE}#${memberId}` },
+        })
+      );
+      await docClient.send(
+        new DeleteCommand({
+          TableName: this.tableName,
+          Key: { pk: `${INVITE_FF}#${memberId}`, sk: `${INVITER}#${userId}` },
+        })
+      );
+      logger.info({ event: 'friend_family_delete_mapping_success' });
+    } catch (err) {
+      logger.error({ event: 'friend_family_delete_mapping_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /** List invitees for a user (users this user added as F&F). */
+  async listInvitees(userId: string): Promise<FriendFamilyMapping[]> {
+    const params: QueryCommandInput = {
+      TableName: this.tableName,
+      KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+      ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+      ExpressionAttributeValues: { ':pk': `${INVITE_FF}#${userId}`, ':sk': `${INVITEE}#` },
+    };
+    const result = await docClient.send(new QueryCommand(params));
+    return (result.Items ?? []) as FriendFamilyMapping[];
+  }
+
+  /** List inviters for a user (users who added this user as F&F). */
+  async listInviters(userId: string): Promise<FriendFamilyMapping[]> {
+    const params: QueryCommandInput = {
+      TableName: this.tableName,
+      KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+      ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+      ExpressionAttributeValues: { ':pk': `${INVITE_FF}#${userId}`, ':sk': `${INVITER}#` },
+    };
+    const result = await docClient.send(new QueryCommand(params));
+    return (result.Items ?? []) as FriendFamilyMapping[];
+  }
+
+  async updateMapping(
+    userId: string,
+    memberId: string,
+    updates: Partial<Pick<FriendFamilyMapping, 'memberName' | 'relation' | 'relationship' | 'emergencyContact' | 'manageHealth'>>
+  ): Promise<void> {
+    const date = Date.now();
+    const sets: string[] = ['modifiedAt = :modifiedAt'];
+    const names: Record<string, string> = {};
+    const values: Record<string, unknown> = { ':modifiedAt': date };
+    if (updates.memberName !== undefined) {
+      sets.push('#memberName = :memberName');
+      names['#memberName'] = 'memberName';
+      values[':memberName'] = updates.memberName;
+    }
+    if (updates.relation !== undefined) {
+      sets.push('#relation = :relation');
+      names['#relation'] = 'relation';
+      values[':relation'] = updates.relation.toUpperCase();
+    }
+    if (updates.relationship !== undefined) {
+      sets.push('#relationship = :relationship');
+      names['#relationship'] = 'relationship';
+      values[':relationship'] = updates.relationship;
+    }
+    if (updates.emergencyContact !== undefined) {
+      sets.push('#emergencyContact = :emergencyContact');
+      names['#emergencyContact'] = 'emergencyContact';
+      values[':emergencyContact'] = updates.emergencyContact;
+    }
+    if (updates.manageHealth !== undefined) {
+      sets.push('#manageHealth = :manageHealth');
+      names['#manageHealth'] = 'manageHealth';
+      values[':manageHealth'] = updates.manageHealth;
+    }
+    if (sets.length <= 1) return;
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk: `${INVITE_FF}#${userId}`, sk: `${INVITEE}#${memberId}` },
+          UpdateExpression: 'SET ' + sets.join(', '),
+          ExpressionAttributeNames: names,
+          ExpressionAttributeValues: values,
+        })
+      );
+      await docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: { pk: `${INVITE_FF}#${memberId}`, sk: `${INVITER}#${userId}` },
+          UpdateExpression: 'SET ' + sets.join(', '),
+          ExpressionAttributeNames: names,
+          ExpressionAttributeValues: values,
+        })
+      );
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { userId, memberId });
+      logger.error({ event: 'friend_family_update_mapping_error', err: serializeError(err) });
+      throw err;
     }
   }
 }

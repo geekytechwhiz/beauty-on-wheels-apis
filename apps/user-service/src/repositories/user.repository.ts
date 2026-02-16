@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand, QueryCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
@@ -1377,6 +1377,238 @@ export class UserRepository {
     } catch (err) {
       logger.error({ event: 'updateUserVerification_error', err: serializeError(err) });
       throw err;
+    }
+  }
+
+  /**
+   * List all patient IDs for a doctor. Matches legacy doctor_patient_list pattern:
+   * - pk=USER#doctorId, begins_with(sk, ASSIGNEE#|DIETICIAN#|HEALTHCOACH#|CAREMANAGER#) with sk1 <> INACTIVE
+   * - pk=USER#doctorId, begins_with(sk, SCD_LINK#) for previously consulted (no sk1 filter)
+   */
+  async listPatientIdsForDoctor(doctorId: string): Promise<{ patientId: string; patientOrgId?: string; previouslyConsulted?: boolean }[]> {
+    const logger = createChildLogger(baseLogger, { doctorId });
+    const seen = new Set<string>();
+    const result: { patientId: string; patientOrgId?: string; previouslyConsulted?: boolean }[] = [];
+
+    const activeLinkPrefixes = ['ASSIGNEE#', 'DIETICIAN#', 'HEALTHCOACH#', 'CAREMANAGER#'];
+    for (const skPrefix of activeLinkPrefixes) {
+      let lastKey: Record<string, unknown> | undefined;
+      do {
+        const params: QueryCommandInput = {
+          TableName: USER_TABLE_NAME,
+          KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+          FilterExpression: '#sk1 <> :inactive',
+          ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk', '#sk1': 'sk1' },
+          ExpressionAttributeValues: {
+            ':pk': `USER#${doctorId}`,
+            ':sk': skPrefix,
+            ':inactive': 'INACTIVE',
+          },
+        };
+        if (lastKey) params.ExclusiveStartKey = lastKey as Record<string, unknown>;
+
+        const response = await docClient.send(new QueryCommand(params));
+        const items = response.Items ?? [];
+        lastKey = response.LastEvaluatedKey;
+
+        for (const item of items) {
+          const sk = (item.sk as string) || '';
+          const patientId = sk.includes('#') ? sk.split('#')[1] : sk;
+          if (patientId && !seen.has(patientId)) {
+            seen.add(patientId);
+            result.push({
+              patientId,
+              patientOrgId: (item as any).organizationID ?? (item as any).patientOrgId,
+              previouslyConsulted: false,
+            });
+          }
+        }
+      } while (lastKey);
+    }
+
+    const scdPrefix = 'SCD_LINK#';
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+      const params: QueryCommandInput = {
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
+        ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+        ExpressionAttributeValues: {
+          ':pk': `USER#${doctorId}`,
+          ':sk': scdPrefix,
+        },
+      };
+      if (lastKey) params.ExclusiveStartKey = lastKey as Record<string, unknown>;
+
+      const response = await docClient.send(new QueryCommand(params));
+      const items = response.Items ?? [];
+      lastKey = response.LastEvaluatedKey;
+
+      for (const item of items) {
+        const sk = (item.sk as string) || '';
+        const patientId = sk.includes('#') ? sk.split('#')[1] : sk;
+        if (patientId && !seen.has(patientId)) {
+          seen.add(patientId);
+          result.push({
+            patientId,
+            patientOrgId: (item as any).organizationID ?? (item as any).patientOrgId,
+            previouslyConsulted: true,
+          });
+        }
+      }
+    } while (lastKey);
+
+    logger.info({ event: 'listPatientIdsForDoctor_success', doctorId, count: result.length });
+    return result;
+  }
+
+  /**
+   * Find a user in an organization by email or phone (for F&F search).
+   * Queries org users and filters by emailAddress or phoneNumber/phoneCode.
+   */
+  async findUserByEmailOrPhoneInOrg(
+    organizationId: string,
+    email?: string,
+    phone?: string
+  ): Promise<UserResponse | null> {
+    if (!email && !phone) return null;
+    const result = await docClient.send(
+      new QueryCommand({
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+        ExpressionAttributeValues: {
+          ':pk': userOrgPk(organizationId),
+          ':skPrefix': 'USER#',
+        },
+        Limit: 100,
+      }),
+    );
+    const items = result.Items ?? [];
+    const emailNorm = email ? String(email).trim().toLowerCase() : '';
+    const phoneNorm = phone ? String(phone).replace(/\s/g, '') : '';
+    for (const item of items) {
+      const u = item as any;
+      if (emailNorm && String(u?.emailAddress ?? '').toLowerCase() === emailNorm) {
+        return mapToUserResponse(u);
+      }
+      if (phoneNorm) {
+        const userPhone = [String(u?.phoneCode ?? ''), String(u?.phoneNumber ?? '')].filter(Boolean).join('').replace(/\s/g, '');
+        if (userPhone && (userPhone === phoneNorm || userPhone.endsWith(phoneNorm) || phoneNorm.endsWith(userPhone))) {
+          return mapToUserResponse(u);
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Save or update doctor–patient link. Matches legacy link_unlink_user pattern:
+   * pk = USER#doctorId, sk = ASSIGNEE#patientId, sk1 = ACTIVE, organizationID, createdDate, modifiedDate.
+   */
+  async saveDoctorPatientLink(doctorId: string, patientId: string, organizationId: string): Promise<void> {
+    const logger = createChildLogger(baseLogger, { doctorId, patientId, organizationId });
+    const pk = `USER#${doctorId}`;
+    const sk = `ASSIGNEE#${patientId}`;
+    const now = Date.now();
+
+    const existing = await docClient.send(
+      new GetCommand({
+        TableName: USER_TABLE_NAME,
+        Key: { pk, sk },
+      }),
+    );
+
+    if (existing.Item) {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: { pk, sk },
+          UpdateExpression: 'SET #modifiedDate = :modifiedDate, #sk1 = :sk1',
+          ExpressionAttributeNames: { '#modifiedDate': 'modifiedDate', '#sk1': 'sk1' },
+          ExpressionAttributeValues: { ':modifiedDate': now, ':sk1': 'ACTIVE' },
+        }),
+      );
+      logger.info({ event: 'saveDoctorPatientLink_updated' });
+    } else {
+      await docClient.send(
+        new PutCommand({
+          TableName: USER_TABLE_NAME,
+          Item: {
+            pk,
+            sk,
+            sk1: 'ACTIVE',
+            organizationID: organizationId,
+            createdDate: now,
+            modifiedDate: now,
+          },
+        }),
+      );
+      logger.info({ event: 'saveDoctorPatientLink_created' });
+    }
+  }
+
+  /**
+   * Update patient record with reporter (doctor) info. Matches legacy updateUserBasicDetails.
+   * Updates both ORG#orgId/USER#patientId (api-hub) and USER#patientId/USER_BASIC_DETAILS#orgId (legacy).
+   */
+  async updatePatientReporter(
+    patientId: string,
+    organizationId: string,
+    reporter: { reporterId: string; reporterName: string; reporterProfilePic?: string; reporterEmail?: string },
+  ): Promise<void> {
+    const logger = createChildLogger(baseLogger, { patientId, organizationId });
+    const now = Date.now();
+    const exprNames: Record<string, string> = {
+      '#modifiedDate': 'modifiedDate',
+      '#reporterId': 'reporterId',
+      '#reporterName': 'reporterName',
+    };
+    const exprValues: Record<string, unknown> = {
+      ':modifiedDate': now,
+      ':reporterId': reporter.reporterId,
+      ':reporterName': reporter.reporterName,
+    };
+    let updateExpr = 'SET #modifiedDate = :modifiedDate, #reporterId = :reporterId, #reporterName = :reporterName';
+    if (reporter.reporterProfilePic !== undefined) {
+      exprNames['#reporterProfilePic'] = 'reporterProfilePic';
+      exprValues[':reporterProfilePic'] = reporter.reporterProfilePic;
+      updateExpr += ', #reporterProfilePic = :reporterProfilePic';
+    }
+    if (reporter.reporterEmail !== undefined) {
+      exprNames['#reporterEmail'] = 'reporterEmail';
+      exprValues[':reporterEmail'] = reporter.reporterEmail;
+      updateExpr += ', #reporterEmail = :reporterEmail';
+    }
+
+    const updates = { ExpressionAttributeNames: exprNames, ExpressionAttributeValues: exprValues, UpdateExpression: updateExpr };
+
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: { pk: userOrgPk(organizationId), sk: userPk(patientId) },
+          ...updates,
+        }),
+      );
+      logger.info({ event: 'updatePatientReporter_org_user' });
+    } catch (err) {
+      logger.warn({ event: 'updatePatientReporter_org_user_failed', err: serializeError(err) });
+    }
+
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: { pk: userPk(patientId), sk: `USER_BASIC_DETAILS#${organizationId}` },
+          ...updates,
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+      logger.info({ event: 'updatePatientReporter_legacy' });
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name !== 'ConditionalCheckFailedException') {
+        logger.warn({ event: 'updatePatientReporter_legacy_failed', err: serializeError(err) });
+      }
     }
   }
 }

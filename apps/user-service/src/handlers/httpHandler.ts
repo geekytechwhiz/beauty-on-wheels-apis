@@ -10,13 +10,25 @@ import {
   updateUserSchema,
   assignUserToOrganizationSchema,
   updateUserMetadataSchema,
+  assignDoctorSchema,
+  listDoctorPatientsSchema,
 } from '../validation/user.validation';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
+import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../utils/helpers';
 import { getOrganization } from '../services/organization.service';
 import { PackageRepository } from '../repositories/package.repositrory';
 import { RoleRepository } from '../repositories/role.repository';
+import { FriendFamilyService } from '../services/friendFamily.service';
+import {
+  addMemberFriendFamilySchema,
+  friendFamilySearchSchema,
+  updateFriendFamilySchema,
+  fetchFriendFamilySchema,
+  deleteFriendFamilySchema,
+} from '../validation/friendFamily.validation';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+const friendFamilyService = new FriendFamilyService();
 const userService = new UserService();
 const organizationRepository = new OrganizationRepository();
 const userRepository = new UserRepository();
@@ -45,19 +57,10 @@ export async function createUser(event: APIGatewayProxyEvent, context?: Context)
   }
 
   if (!body?.organizationID) {
-    if ((event as any).organizationID) {
-      body.organizationID = (event as any).organizationID;
-    } else if ((event as any).requestContext?.authorizer?.organizationID) {
-      body.organizationID = (event as any).requestContext.authorizer.organizationID;
-    }
+    body.organizationID = (event as any).organizationID ?? getAuthorizerOrganizationId(event);
   }
-
   if (!body?.userID) {
-    if ((event as any).userID) {
-      body.userID = (event as any).userID;
-    } else if ((event as any).requestContext?.authorizer?.userID) {
-      body.userID = (event as any).requestContext.authorizer.userID;
-    }
+    body.userID = (event as any).userID ?? getAuthorizerUserId(event);
   }
   logger.info({ event: 'createUser_organization_check', organizationID: body.organizationID, userID: body.userID });
   const validation = createUserSchema.safeParse(body);
@@ -373,25 +376,17 @@ export async function getUser(event: APIGatewayProxyEvent, context?: Context): P
   const pathParams = event.pathParameters || {};
   const authorizer = (event.requestContext as any)?.authorizer;
 
-  // Scenario 1: Get userId and organizationId from path parameters - safe string operations
-  let userId: string | undefined = (pathParams?.userId && typeof pathParams.userId === 'string') 
-    ? pathParams.userId.trim() 
+  // Scenario 1: Get userId and organizationId from path parameters
+  let userId: string | undefined = (pathParams?.userId && typeof pathParams.userId === 'string')
+    ? pathParams.userId.trim()
     : ((pathParams?.userID && typeof pathParams.userID === 'string') ? pathParams.userID.trim() : undefined);
   let organizationId: string | undefined = (pathParams?.organizationId && typeof pathParams.organizationId === 'string')
     ? pathParams.organizationId.trim()
     : ((pathParams?.organizationID && typeof pathParams.organizationID === 'string') ? pathParams.organizationID.trim() : undefined);
 
-  // Scenario 2: If not in pathParams, check event.requestContext?.authorizer - safe property access
-  if (!userId && authorizer) {
-    userId = (authorizer.userID && typeof authorizer.userID === 'string') 
-      ? authorizer.userID 
-      : ((authorizer.userId && typeof authorizer.userId === 'string') ? authorizer.userId : undefined);
-  }
-  if (!organizationId && authorizer) {
-    organizationId = (authorizer.organizationID && typeof authorizer.organizationID === 'string')
-      ? authorizer.organizationID
-      : ((authorizer.organizationId && typeof authorizer.organizationId === 'string') ? authorizer.organizationId : undefined);
-  }
+  // Scenario 2: If not in pathParams, use authorizer helpers
+  if (!userId) userId = getAuthorizerUserId(event);
+  if (!organizationId) organizationId = getAuthorizerOrganizationId(event);
 
   // Scenario 3: Also check event object directly - safe property access
   if (!userId && event && typeof event === 'object') {
@@ -610,49 +605,8 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   
   const baseLogContext = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
 
-  // Extract from authorizer token
-  const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)?.authorizer;
-  console.log("AUTHORIZER ", authorizer);
-  
-  // Extract userID from token
-  let requestUserId: string | undefined;
-  if (authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestUserId = (claims['custom:userID'] as string) ?? (claims['custom:userId'] as string);
-  }
-  if (!requestUserId && authorizer) {
-    requestUserId = (authorizer.userId as string) ?? (authorizer.userID as string);
-  }
-  
-  // Extract organizationID from token
-  let requestOrgId: string | undefined;
-  
-  // Path 1: From claims['custom:organizationID'] - YOUR TOKEN FORMAT
-  if (authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestOrgId = (claims['custom:organizationID'] as string) ?? 
-                   (claims['custom:organizationId'] as string);
-  }
-  console.log("REQ ORG ID : 1 ", requestOrgId);
-  // Path 2: From claims.organizationID (standard claim)
-  if (!requestOrgId && authorizer?.claims) {
-    const claims = authorizer.claims as Record<string, unknown>;
-    requestOrgId = (claims.organizationID as string) ?? (claims.organizationId as string);
-  }
-  console.log("REQ ORG ID : 2 ", requestOrgId);
-  // Path 3: Direct from authorizer (custom authorizer)
-  if (!requestOrgId && authorizer) {
-    requestOrgId = (authorizer.organizationID as string) ?? (authorizer.organizationId as string);
-  }
-
-  console.log("REQ ORG ID : 3 ", requestOrgId);
-  
-  baseLogContext.info({ 
-    event: 'token_data_extracted', 
-    requestUserId,
-    requestOrgId,
-    source: 'claims[custom:*]'
-  });
+  const requestUserId = getAuthorizerUserId(event);
+  const requestOrgId = getAuthorizerOrganizationId(event);
 
   let body: any;
   try {
@@ -668,17 +622,11 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     );
   }
 
-  // Extract from body (with token fallback)
+  // Extract from body; fallback to authorizer (token) when body does not send them
   const bodyUserId = body?.userId || body?.userID;
   const bodyOrganizationId = body?.organizationId || body?.organizationID;
-  
-  // Prioritize token values, fallback to body for backward compatibility
-  const userId = requestUserId || bodyUserId;
-  const organizationId = requestOrgId || bodyOrganizationId;
-
-  console.log("USER ID ", userId);
-  console.log("ORGANIZATION ID ", organizationId);
-  console.log("From Token - UserID:", requestUserId, "OrgID:", requestOrgId);
+  const userId = bodyUserId || requestUserId;
+  const organizationId = bodyOrganizationId || requestOrgId;
 
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
@@ -835,38 +783,6 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
             return composed.startsWith('+') ? composed : `+${composed}`;
           };
           
-          // Check if email is being changed (only if srcRegisEntity is 'email')
-          if (emailInput !== undefined && srcRegisEntity === 'email') {
-            const existingEmail = normalizeEmail((existing as any).emailAddress);
-            const newEmail = normalizeEmail(emailInput);
-            
-            // Only block if the email is actually different
-            if (existingEmail !== newEmail) {
-              return ApiResponse.badRequest(
-                'COMMON.BAD_REQUEST',
-                { requestId: correlationId, event },
-                { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED' },
-              );
-            }
-          }
-          
-          // Check if phone is being changed (only if srcRegisEntity is 'phone' or 'phone_number')
-          if (phoneInput !== undefined && (srcRegisEntity === 'phone' || srcRegisEntity === 'phone_number')) {
-            const existingPhoneCode = (existing as any).phoneCode || body.phoneCode;
-            const newPhoneCode = body.phoneCode || existingPhoneCode;
-            const existingPhone = normalizePhone((existing as any).phoneNumber, existingPhoneCode);
-            const newPhone = normalizePhone(phoneInput, newPhoneCode);
-            
-            // Only block if the phone is actually different
-            if (existingPhone !== newPhone) {
-              return ApiResponse.badRequest(
-                'COMMON.BAD_REQUEST',
-                { requestId: correlationId, event },
-                { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED' },
-              );
-            }
-          }
-
           setIfPresent(userData, 'profilePic', body.profilePic);
           setIfPresent(userData, 'firstName', body.firstName);
           setIfPresent(userData, 'middleName', body.middleName);
@@ -1060,16 +976,11 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     if (data.phone !== undefined) userData.phoneNumber = data.phone;
     if (data.phoneCode !== undefined) userData.phoneCode = data.phoneCode;
     
-    // Map name fields - combine firstName and lastName into fullName
-    if (data.firstName !== undefined || data.lastName !== undefined) {
-      const firstName = data.firstName ?? '';
-      const lastName = data.lastName ?? '';
-      userData.firstName = firstName;
-      userData.lastName = lastName;
-      userData.fullName = `${firstName} ${lastName}`.trim();
-    } else if (data.fullName !== undefined || data.name !== undefined) {
-      userData.fullName = data.fullName ?? data.name;
-    }
+    // Map name fields - firstName and lastName (fullName will be constructed in service)
+    if (data.firstName !== undefined) userData.firstName = data.firstName;
+    if (data.lastName !== undefined) userData.lastName = data.lastName;
+    if (data.fullName !== undefined) userData.fullName = data.fullName;
+    if (data.name !== undefined) userData.fullName = data.name;
 
     // Map address fields
     if (data.address !== undefined) userData.address = data.address;
@@ -1123,14 +1034,11 @@ export async function deleteUser(event: APIGatewayProxyEvent, context?: Context)
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const userId = event.pathParameters?.userId;
-  const organizationIdFromPath = event.pathParameters?.organizationId;
-  const authorizer = (event.requestContext as any)?.authorizer;
   const organizationId =
-    organizationIdFromPath ||
+    event.pathParameters?.organizationId ||
     (event as any).organizationId ||
     (event as any).organizationID ||
-    authorizer?.organizationID ||
-    authorizer?.organizationId;
+    getAuthorizerOrganizationId(event);
 
   if (!userId) {
     const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
@@ -1242,6 +1150,421 @@ export async function assignUserToOrganization(event: APIGatewayProxyEvent, cont
       { requestId: correlationId, event },
       { code: 'ASSIGN_USER_ORG_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
+  }
+}
+
+const PATH_ASSIGN_DOCTOR = '/user/assign-doctor';
+const PATH_DOCTOR_PATIENT_LIST = '/user/doctor-patient-list';
+
+export async function assignDoctor(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+  logger.info({ event: 'assignDoctor_received' });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    logger.error({ event: 'assignDoctor_parse_error', err: serializeError(err) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 400, duration, correlationId);
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
+    );
+  }
+
+  const validation = assignDoctorSchema.safeParse(body);
+  if (!validation.success) {
+    logger.warn({ event: 'assignDoctor_validation_error', errors: validation.error.issues });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
+      {
+        code: 'VALIDATION_ERROR',
+        details: validation.error.issues.map((e) => ({
+          field: e.path.map(String).join('.'),
+          message: e.message,
+        })),
+      },
+    );
+  }
+
+  const { organizationId, sender, receiver } = validation.data;
+  try {
+    await userService.assignDoctor(organizationId, sender, receiver, correlationId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 200, duration, correlationId);
+    return ApiResponse.ok(
+      { message: 'Patient assigned to doctor successfully!' },
+      'USER.ASSIGN_DOCTOR_SUCCESS',
+      { requestId: correlationId, event },
+    );
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if (err instanceof UserNotFoundError) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 404, duration, correlationId);
+      return ApiResponse.notFound(
+        'USER.USER_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'USER_NOT_FOUND', details: [{ message: (err as Error).message }] },
+      );
+    }
+    if ((err as Error)?.message === 'DOCTOR_NOT_LINKED_WITH_USER') {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 502, duration, correlationId);
+      return ApiResponse.badRequest(
+        'USER.DOCTOR_NOT_LINKED',
+        { requestId: correlationId, event },
+        { code: 'DOCTOR_NOT_LINKED_WITH_USER' },
+      );
+    }
+    logger.error({ event: 'assignDoctor_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 500, duration, correlationId);
+    return ApiResponse.internalServerError(
+      'USER.ASSIGN_DOCTOR_FAILED',
+      { requestId: correlationId, event },
+      { code: 'ASSIGN_DOCTOR_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
+    );
+  }
+}
+
+export async function listDoctorPatients(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+  logger.info({ event: 'listDoctorPatients_received' });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    logger.error({ event: 'listDoctorPatients_parse_error', err: serializeError(err) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_DOCTOR_PATIENT_LIST, 400, duration, correlationId);
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
+    );
+  }
+
+  const validation = listDoctorPatientsSchema.safeParse(body);
+  if (!validation.success) {
+    logger.warn({ event: 'listDoctorPatients_validation_error', errors: validation.error.issues });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_DOCTOR_PATIENT_LIST, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
+      {
+        code: 'VALIDATION_ERROR',
+        details: validation.error.issues.map((e) => ({
+          field: e.path.map(String).join('.'),
+          message: e.message,
+        })),
+      },
+    );
+  }
+
+  const { organizationId, doctorId } = validation.data;
+  try {
+    const users = await userService.listDoctorPatients(doctorId, organizationId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_DOCTOR_PATIENT_LIST, 200, duration, correlationId);
+    return ApiResponse.ok(
+      { users },
+      'USER.LIST_DOCTOR_PATIENTS_SUCCESS',
+      { requestId: correlationId, event },
+    );
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'listDoctorPatients_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_DOCTOR_PATIENT_LIST, 500, duration, correlationId);
+    return ApiResponse.internalServerError(
+      'USER.LIST_DOCTOR_PATIENTS_FAILED',
+      { requestId: correlationId, event },
+      { code: 'LIST_DOCTOR_PATIENTS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
+    );
+  }
+}
+
+const PATH_FNF_SEARCH = '/user/friend-family/search';
+const PATH_FNF_ADD = '/user/friend-family/add-member';
+const PATH_FNF_UPDATE = '/user/friend-family/update';
+const PATH_FNF_FETCH = '/user/friend-family/fetch';
+const PATH_FNF_DELETE = '/user/friend-family/delete';
+
+export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+  const authHeader = event.headers?.Authorization ?? event.headers?.authorization;
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = body as Record<string, unknown>;
+  const userID = (b.userID as string) ?? getAuthorizerUserId(event);
+  const organizationID = (b.organizationID as string) ?? getAuthorizerOrganizationId(event);
+  const validation = friendFamilySearchSchema.safeParse({ ...b, organizationID });
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+  if (!userID || !organizationID?.trim()) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+
+  try {
+    const result = await friendFamilyService.searchFnf(organizationID, userID, validation.data, authHeader);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
+    if (result.success && result.invitedUser) {
+      return ApiResponse.ok(
+        { invitedUser: result.invitedUser, ...(result.data && { data: result.data }) },
+        'FRIEND_FAMILY.SEARCH_SUCCESS',
+        { requestId: correlationId, event },
+      );
+    }
+    return ApiResponse.ok(
+      { message: 'User not found; invite via create user with friendNFamily' },
+      'FRIEND_FAMILY.USER_NOT_FOUND',
+      { requestId: correlationId, event },
+    );
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    const msg = (err as Error)?.message;
+    if (['ORGANIZATION_NOT_EXIST', 'ORGANIZATION_IS_ON_HOLD'].includes(msg ?? '')) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+      return ApiResponse.badRequest(`FRIEND_FAMILY.${msg}`, { requestId: correlationId, event }, { code: msg! });
+    }
+    if (['USER_CANNOT_INVITE_MORE_FNF', 'USER_ALREADY_INVITED_BY_SOMEONE', 'USER_ALREADY_INVITED', 'EMAIL_OR_PHONE_REQUIRED'].includes(msg ?? '')) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
+      return ApiResponse.badRequest(`FRIEND_FAMILY.${msg}`, { requestId: correlationId, event }, { code: msg! });
+    }
+    logger.error({ event: 'friendFamilySearch_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyAddMember(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+  const authHeader = event.headers?.Authorization ?? event.headers?.authorization;
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = body as Record<string, unknown>;
+  const userIdFromAuth = getAuthorizerUserId(event);
+  const userId = (b.userId as string) ?? (b.userID as string) ?? userIdFromAuth;
+  const organizationID = (b.organizationID as string) ?? getAuthorizerOrganizationId(event);
+  const payload = { ...b, userId, organizationID } as Record<string, unknown>;
+  const validation = addMemberFriendFamilySchema.safeParse(payload);
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+  if (!userId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+  const orgId = validation.data.organizationID ?? organizationID;
+  if (!orgId || !orgId.trim()) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+
+  try {
+    const { organizationID: _omit, ...addBody } = validation.data;
+    const data = await friendFamilyService.addMember(orgId, { ...addBody, userId }, authHeader);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 200, duration, correlationId);
+    return ApiResponse.ok(data, 'FRIEND_FAMILY.ADD_MEMBER_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if (err instanceof UserNotFoundError) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 404, duration, correlationId);
+      return ApiResponse.notFound('USER.USER_NOT_FOUND', { requestId: correlationId, event }, { code: 'USER_NOT_FOUND', details: [{ message: (err as Error).message }] });
+    }
+    const msg = (err as Error)?.message;
+    if (['ORGANIZATION_NOT_EXIST', 'ORGANIZATION_IS_ON_HOLD', 'ORGANIZATION_MISMATCH'].includes(msg ?? '')) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 400, duration, correlationId);
+      return ApiResponse.badRequest(`FRIEND_FAMILY.${msg}`, { requestId: correlationId, event }, { code: msg! });
+    }
+    logger.error({ event: 'friendFamilyAddMember_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_ADD, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyUpdate(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = body as Record<string, unknown>;
+  const userId = (b.userId as string) ?? (b.userID as string) ?? getAuthorizerUserId(event);
+  const organizationID = (b.organizationID as string) ?? getAuthorizerOrganizationId(event);
+  const validation = updateFriendFamilySchema.safeParse({ ...b, organizationID });
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+  if (!userId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+  const orgId = validation.data.organizationID ?? organizationID;
+  if (!orgId?.trim()) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+
+  try {
+    await friendFamilyService.updateMember(userId, orgId, validation.data);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 200, duration, correlationId);
+    return ApiResponse.ok(null, 'FRIEND_FAMILY.UPDATE_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if ((err as Error)?.message === 'MEMBER_NOT_FOUND') {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 400, duration, correlationId);
+      return ApiResponse.badRequest('FRIEND_FAMILY.MEMBER_NOT_FOUND', { requestId: correlationId, event }, { code: 'MEMBER_NOT_FOUND' });
+    }
+    logger.error({ event: 'friendFamilyUpdate_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_UPDATE, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyFetch(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body ?? {};
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const b = (body as Record<string, unknown>) ?? {};
+  const userId = (b.userId as string) ?? (b.userID as string) ?? getAuthorizerUserId(event);
+  const validation = fetchFriendFamilySchema.safeParse({ userId: userId ?? '' });
+  if (!validation.success || !userId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] });
+  }
+
+  try {
+    const data = await friendFamilyService.fetchMembers(userId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 200, duration, correlationId);
+    return ApiResponse.ok(data, 'FRIEND_FAMILY.FETCH_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'friendFamilyFetch_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_FETCH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+export async function friendFamilyDelete(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+  }
+
+  const validation = deleteFriendFamilySchema.safeParse(body);
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
+      code: 'VALIDATION_ERROR',
+      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
+    });
+  }
+
+  const { userID, memberID, organizationID } = validation.data;
+  try {
+    await friendFamilyService.deleteMember(userID, memberID, organizationID);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 201, duration, correlationId);
+    return ApiResponse.created({ userID, memberID, organizationID: organizationID ?? null }, 'FRIEND_FAMILY.DELETE_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if ((err as Error)?.message === 'FNF_DOES_NOT_EXIST') {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 400, duration, correlationId);
+      return ApiResponse.badRequest('FRIEND_FAMILY.FNF_DOES_NOT_EXIST', { requestId: correlationId, event }, { code: 'FNF_DOES_NOT_EXIST' });
+    }
+    logger.error({ event: 'friendFamilyDelete_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 500, duration, correlationId);
+    return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
   }
 }
 

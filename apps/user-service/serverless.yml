@@ -353,6 +353,40 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+  setLogoutRequired:
+    handler: src/handlers/setLogoutRequired.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/logout-required
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  putAssignedPackages:
+    handler: src/handlers/putAssignedPackages.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/assigned-packages
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   assignUserToOrganization:
     handler: src/handlers/assignUserToOrganization.main
     timeout: 10
@@ -569,6 +603,24 @@ functions:
       - http:
           path: user/friend-family/delete
           method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  friendFamilyCheck:
+    handler: src/handlers/friendFamilyCheck.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/check
+          method: get
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}

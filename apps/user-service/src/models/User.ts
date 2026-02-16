@@ -107,6 +107,10 @@ export interface User {
   weightInLbs?: string;
   zip?: string;
   itemType?: string;
+  /** Assigned package list for this user in this org (full replace via PUT assigned-packages). */
+  assignedPackages?: Array<{ id: string; name: string; start?: string; end?: string }>;
+  /** Lowercase package names for quick lookup (mirrors assignedPackages). */
+  assignedPackagesName?: string[];
 }
 
 /**

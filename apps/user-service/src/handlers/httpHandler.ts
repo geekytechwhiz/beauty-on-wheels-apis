@@ -12,6 +12,7 @@ import {
   updateUserMetadataSchema,
   assignDoctorSchema,
   listDoctorPatientsSchema,
+  assignedPackagesSchema,
 } from '../validation/user.validation';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../utils/helpers';
@@ -1575,6 +1576,178 @@ export async function friendFamilyDelete(event: APIGatewayProxyEvent, context?: 
     logger.error({ event: 'friendFamilyDelete_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_DELETE, 500, duration, correlationId);
     return ApiResponse.internalServerError('FRIEND_FAMILY.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+  }
+}
+
+const PATH_LOGOUT_REQUIRED = '/user/{userId}/organization/{organizationId}/logout-required';
+const PATH_FNF_CHECK = '/user/friend-family/check';
+const PATH_ASSIGNED_PACKAGES = '/user/{userId}/organization/{organizationId}/assigned-packages';
+
+/**
+ * PUT /user/{userId}/organization/{organizationId}/logout-required
+ * Sets logoutRequired = true for the user-org (used by package_trigger_handler, package_dbstream_lambda, feature_trigger_handler).
+ */
+export async function setLogoutRequired(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const userId = event.pathParameters?.userId;
+  const organizationId = event.pathParameters?.organizationId;
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
+
+  if (!userId || !organizationId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_LOGOUT_REQUIRED, 400, duration, correlationId);
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId and organizationId are required in path' }] },
+    );
+  }
+
+  try {
+    await userService.updateUser(userId, organizationId, { logoutRequired: true }, correlationId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_LOGOUT_REQUIRED, 200, duration, correlationId);
+    return ApiResponse.ok({ logoutRequired: true }, 'USER.LOGOUT_REQUIRED_SET', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if (err instanceof UserNotFoundError) {
+      logHttpRequest(logger, event.httpMethod || 'PUT', PATH_LOGOUT_REQUIRED, 404, duration, correlationId);
+      return ApiResponse.notFound('USER.USER_NOT_FOUND', { requestId: correlationId, event }, { code: 'USER_NOT_FOUND', details: [{ message: err.message }] });
+    }
+    logger.error({ event: 'setLogoutRequired_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_LOGOUT_REQUIRED, 500, duration, correlationId);
+    return ApiResponse.internalServerError(
+      'USER.SET_LOGOUT_REQUIRED_FAILED',
+      { requestId: correlationId, event },
+      { code: 'SET_LOGOUT_REQUIRED_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
+    );
+  }
+}
+
+/**
+ * GET /user/friend-family/check?inviterId=&inviteeId=
+ * Returns the F&F invite entry if inviterId invited inviteeId (used by common-backend addons.service checkFnFUser).
+ */
+export async function friendFamilyCheck(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const query = event.queryStringParameters || {};
+  const inviterId = (query.inviterId ?? '').trim();
+  const inviteeId = (query.inviteeId ?? '').trim();
+  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+
+  if (!inviterId || !inviteeId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', PATH_FNF_CHECK, 400, duration, correlationId);
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'inviterId and inviteeId query parameters are required' }] },
+    );
+  }
+
+  try {
+    const mapping = await friendFamilyService.checkInvite(inviterId, inviteeId);
+    const duration = Date.now() - startTime;
+    if (!mapping) {
+      logHttpRequest(logger, event.httpMethod || 'GET', PATH_FNF_CHECK, 404, duration, correlationId);
+      return ApiResponse.notFound(
+        'FRIEND_FAMILY.INVITE_NOT_FOUND',
+        { requestId: correlationId, event },
+        { code: 'INVITE_NOT_FOUND', details: [{ message: 'No friend-family invite found for this inviter and invitee' }] },
+      );
+    }
+    logHttpRequest(logger, event.httpMethod || 'GET', PATH_FNF_CHECK, 200, duration, correlationId);
+    return ApiResponse.ok(mapping, 'FRIEND_FAMILY.CHECK_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'friendFamilyCheck_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'GET', PATH_FNF_CHECK, 500, duration, correlationId);
+    return ApiResponse.internalServerError(
+      'FRIEND_FAMILY.INTERNAL_SERVER_ERROR',
+      { requestId: correlationId, event },
+      { code: 'INTERNAL_SERVER_ERROR', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
+    );
+  }
+}
+
+/**
+ * PUT /user/{userId}/organization/{organizationId}/assigned-packages
+ * Full replace of assignedPackages and assignedPackagesName for user in org (used by package_module user_manage_plan).
+ * Response: 200 + { data: { success: true } } so package module can check data.success.
+ */
+export async function putAssignedPackages(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const userId = event.pathParameters?.userId;
+  const organizationId = event.pathParameters?.organizationId;
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
+
+  if (!userId || !organizationId) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_ASSIGNED_PACKAGES, 400, duration, correlationId);
+    return ApiResponse.badRequest(
+      'COMMON.BAD_REQUEST',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'userId and organizationId are required in path' }] },
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body ?? {};
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_ASSIGNED_PACKAGES, 400, duration, correlationId);
+    return ApiResponse.badRequest(
+      'COMMON.INVALID_JSON',
+      { requestId: correlationId, event },
+      { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
+    );
+  }
+
+  const validation = assignedPackagesSchema.safeParse(body);
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_ASSIGNED_PACKAGES, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity(
+      'COMMON.VALIDATION_ERROR',
+      { requestId: correlationId, event },
+      {
+        code: 'VALIDATION_ERROR',
+        details: validation.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      },
+    );
+  }
+
+  const { assignedPackages, assignedPackagesName } = validation.data;
+
+  try {
+    await userService.updateUser(userId, organizationId, { assignedPackages, assignedPackagesName }, correlationId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_ASSIGNED_PACKAGES, 200, duration, correlationId);
+    return ApiResponse.ok(
+      { success: true },
+      'USER.ASSIGNED_PACKAGES_UPDATED',
+      { requestId: correlationId, event },
+    );
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    if (err instanceof UserNotFoundError) {
+      logHttpRequest(logger, event.httpMethod || 'PUT', PATH_ASSIGNED_PACKAGES, 404, duration, correlationId);
+      return ApiResponse.notFound('USER.USER_NOT_FOUND', { requestId: correlationId, event }, { code: 'USER_NOT_FOUND', details: [{ message: err.message }] });
+    }
+    logger.error({ event: 'putAssignedPackages_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', PATH_ASSIGNED_PACKAGES, 500, duration, correlationId);
+    return ApiResponse.internalServerError(
+      'USER.ASSIGNED_PACKAGES_UPDATE_FAILED',
+      { requestId: correlationId, event },
+      { code: 'ASSIGNED_PACKAGES_UPDATE_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
+    );
   }
 }
 

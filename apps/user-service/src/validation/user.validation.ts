@@ -294,3 +294,14 @@ export const listDoctorPatientsSchema = z.object({
   doctorId: z.string().min(1, 'doctorId is required'),
 });
 
+/** PUT assigned-packages: full replace of assignedPackages and assignedPackagesName for user in org. */
+export const assignedPackagesSchema = z.object({
+  assignedPackages: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    start: z.string().optional(),
+    end: z.string().optional(),
+  })).default([]),
+  assignedPackagesName: z.array(z.string()).default([]),
+});
+

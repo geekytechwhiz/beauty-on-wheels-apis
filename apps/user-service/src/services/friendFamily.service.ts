@@ -1,6 +1,6 @@
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { UserRepository } from '../repositories/user.repository';
-import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
+import { FriendFamilyRepository, type FriendFamilyMapping } from '../repositories/friendFamily.repository';
 import { UserNotFoundError } from '../utils/errors';
 import { getOrganization } from './organization.service';
 
@@ -216,5 +216,13 @@ export class FriendFamilyService {
     }
     const [uid, mid] = mapping1 ? [userID, memberID] : [memberID, userID];
     await friendFamilyRepository.deleteMapping(uid, mid);
+  }
+
+  /**
+   * Check if a Friend & Family invite entry exists (inviterId invited inviteeId).
+   * Used by common-backend addons.service checkFnFUser.
+   */
+  async checkInvite(inviterId: string, inviteeId: string): Promise<FriendFamilyMapping | null> {
+    return friendFamilyRepository.getUserMapping(inviterId, inviteeId);
   }
 }

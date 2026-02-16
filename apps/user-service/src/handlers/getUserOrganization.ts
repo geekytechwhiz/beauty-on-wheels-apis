@@ -138,8 +138,6 @@ export const main: APIGatewayProxyHandler = async (
       userType,
       authHeader,
     );
-    console.log("USER DATA : ", userData);
-    console.log("USER ORGANIZATION : ", userId , organizationId , authHeader);
 
     // Call API endpoint to get userPermissions & role meta: /org/{organizationId}/users/{userId}/permissions
     // Only call when we have both IDs and an auth header

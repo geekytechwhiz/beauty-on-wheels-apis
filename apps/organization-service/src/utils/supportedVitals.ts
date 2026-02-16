@@ -67,12 +67,14 @@ export interface DeviceListResponse {
 }
 
 /**
- * Fetch organization device list from device service (POST /devices/list with action: 'organization').
- * Returns items array or null on failure.
+ * Fetch device list from device service (POST /devices/list).
+ * @param organizationId - organization ID
+ * @param action - 'organization' = all global devices; 'patient' = devices assigned to this org (legacy get_device_list PATIENT)
  */
 export async function fetchOrganizationDevices(
   organizationId: string,
-  authHeader?: string
+  authHeader?: string,
+  action: 'organization' | 'patient' = 'patient'
 ): Promise<Array<{ supportedVitals?: string[] }> | null> {
   const baseUrl = process.env.DEVICE_API_BASE_URL;
   if (!baseUrl) return null;
@@ -83,7 +85,7 @@ export async function fetchOrganizationDevices(
     const res = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ action: 'organization', organizationID: organizationId }),
+      body: JSON.stringify({ action, organizationID: organizationId }),
     });
     if (!res.ok) return null;
     const body = (await res.json()) as DeviceListResponse;
@@ -92,4 +94,23 @@ export async function fetchOrganizationDevices(
   } catch {
     return null;
   }
+}
+
+/**
+ * Extract vital codes from org's stored supportedVitals (legacy format: array of { [code]: {...} } or array of strings).
+ */
+export function vitalCodesFromOrgSupportedVitals(supportedVitals: unknown): string[] {
+  if (!Array.isArray(supportedVitals) || supportedVitals.length === 0) return [];
+  const codes: string[] = [];
+  for (const item of supportedVitals) {
+    if (typeof item === 'string' && item.trim()) {
+      codes.push(item.trim());
+      continue;
+    }
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      const key = Object.keys(item)[0];
+      if (key && typeof key === 'string' && key.trim()) codes.push(key.trim());
+    }
+  }
+  return codes;
 }

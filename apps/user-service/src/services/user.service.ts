@@ -675,40 +675,27 @@ export class UserService {
       distance: 'km',
     };
 
-    // Safe units extraction with error handling
+    // Safe units extraction (match legacy getUserUnits: sign_up/get_user_profile/dynamodb.js)
     const orgUnitsKeys = (orgUnits && typeof orgUnits === 'object') ? Object.keys(orgUnits) : [];
     const userUnits: Record<string, string> = {};
     try {
       for (const key of orgUnitsKeys) {
         if (typeof key !== 'string') continue;
-        
         const defaultUnitArray = orgUnits[key];
         const preferredUnit = preferredUnits[key];
-        
-        if (Array.isArray(defaultUnitArray) && defaultUnitArray.length > 0 && typeof preferredUnit === 'string') {
-          const defaultUnit = defaultUnitArray.includes(preferredUnit)
-            ? preferredUnit
-            : (typeof defaultUnitArray[0] === 'string' ? defaultUnitArray[0] : preferredUnit);
+        if (Array.isArray(defaultUnitArray) && defaultUnitArray.length > 0) {
+          const defaultUnit =
+            typeof preferredUnit === 'string' && defaultUnitArray.includes(preferredUnit)
+              ? preferredUnit
+              : (typeof defaultUnitArray[0] === 'string' ? defaultUnitArray[0] : preferredUnit || '');
           userUnits[key] = (typeof user[key] === 'string' && user[key]) || defaultUnit;
         }
       }
     } catch (err) {
       // Continue with defaults if unit extraction fails
     }
-    
-    // Ensure all expected units are present
-    const units = {
-      glucometerUnit: userUnits.glucometerUnit || 'mmol/L',
-      heartBeatUnit: userUnits.heartBeatUnit || 'bpm',
-      oximeterUnit: userUnits.oximeterUnit || 'SpO2',
-      cholesterolUnit: userUnits.cholesterolUnit || 'mg/dL',
-      distance: userUnits.distance || 'km',
-      temperatureUnit: userUnits.temperatureUnit || 'C',
-      bloodPressureUnit: userUnits.bloodPressureUnit || 'mmHg',
-      water: userUnits.water || 'l',
-      heightUnit: userUnits.heightUnit || 'cm',
-      weightUnit: userUnits.weightUnit || 'kg',
-    };
+    // Legacy returns only keys defined in org's units config (can be {} when org has no units)
+    const units = userUnits;
 
     // Determine userType - prefer DB userType (source of truth), then userCat, then roleType/request param
     let finalUserType = 'USER'; // Default
@@ -1702,6 +1689,16 @@ export class UserService {
       //   uniquePermissions = this.getUniquePermissions(userPermissions);
       // }
 
+      // Fetch user permissions list from role API (GET /org/{orgId}/users/{userId}/permissions) for userPermissions field
+      let userPermissionsList: unknown[] | null = null;
+      if (authHeader && userOrgId && actualUserId) {
+        try {
+          userPermissionsList = await roleRepository.getUserPermissionsList(userOrgId, actualUserId, authHeader);
+        } catch (err) {
+          logger.warn({ event: 'getUserWithOrganizationDetails_permissions_api_failed', err: serializeError(err) });
+        }
+      }
+
       // Calculate account age
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
 
@@ -1723,6 +1720,47 @@ export class UserService {
       const currencies = await this.repository.getCurrenciesForCountryCode(
         userBasicDetails.countryCode || orgBasicDetails?.organizationInfo?.address?.countryCode || ''
       );
+
+      // Resolve units from org defaultSetting and user overrides (match legacy getUserUnits: sign_up/get_user_profile/dynamodb.js)
+      const orgDefaultSetting = orgBasicDetails?.organizationInfo?.defaultSetting
+        ?? orgBasicDetails?.defaultSetting
+        ?? {};
+      const orgUnits = (orgDefaultSetting && typeof orgDefaultSetting === 'object' && orgDefaultSetting.units)
+        ? orgDefaultSetting.units
+        : {};
+      const preferredUnits: Record<string, string> = {
+        bloodPressureUnit: 'mmHg',
+        glucometerUnit: 'mmol/L',
+        heartBeatUnit: 'bpm',
+        heightUnit: 'cm',
+        oximeterUnit: 'SpO2',
+        temperatureUnit: 'C',
+        weightUnit: 'kg',
+        cholesterolUnit: 'mg/dL',
+        water: 'l',
+        distance: 'km',
+      };
+      const orgUnitsKeys = (orgUnits && typeof orgUnits === 'object') ? Object.keys(orgUnits) : [];
+      const userUnits: Record<string, string> = {};
+      try {
+        const u = userBasicDetails as any;
+        for (const key of orgUnitsKeys) {
+          if (typeof key !== 'string') continue;
+          const defaultUnitArray = orgUnits[key];
+          const preferredUnit = preferredUnits[key];
+          if (Array.isArray(defaultUnitArray) && defaultUnitArray.length > 0) {
+            const defaultUnit =
+              typeof preferredUnit === 'string' && defaultUnitArray.includes(preferredUnit)
+                ? preferredUnit
+                : (typeof defaultUnitArray[0] === 'string' ? defaultUnitArray[0] : preferredUnit || '');
+            userUnits[key] = (typeof u[key] === 'string' && u[key]) || (u.unitsSettings?.[key]) || defaultUnit;
+          }
+        }
+      } catch {
+        // continue with defaults
+      }
+      // Legacy returns only keys defined in org's units config (can be {} when org has no units)
+      const units = userUnits;
 
       // Get email/phone verification status (matches original: getEmailPhoneVerifiedStatus)
       let emailVerified = false;
@@ -1803,7 +1841,7 @@ export class UserService {
         userRoles: itemRoleId ? [itemRoleId] : [],
         roleType,
         roleId:itemRoleId,
-        userPermissions,
+        userPermissions: (userPermissionsList && userPermissionsList.length > 0) ? userPermissionsList : userPermissions,
         changePassword: userBasicDetails.changePassword || false,
         isRpmUser: userBasicDetails.isRpmUser || false,
         lastAppointment: userBasicDetails.lastAppointment || '',
@@ -1860,15 +1898,16 @@ export class UserService {
           debugMode: (userBasicDetails as any).debugMode || false,
         },
         communicationSettings: {
-          sms: (userBasicDetails as any).sms !== undefined ? (userBasicDetails as any).sms : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.sms,
-          chat_with_push: (userBasicDetails as any).chat_with_push !== undefined ? (userBasicDetails as any).chat_with_push : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.chat_with_push,
-          email: (userBasicDetails as any).email !== undefined ? (userBasicDetails as any).email : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.email,
-          push: (userBasicDetails as any).push !== undefined ? (userBasicDetails as any).push : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.push,
-          chat: (userBasicDetails as any).chat !== undefined ? (userBasicDetails as any).chat : orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.chat,
+          sms: (userBasicDetails as any).sms !== undefined ? (userBasicDetails as any).sms : (orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.sms ?? true),
+          chat_with_push: (userBasicDetails as any).chat_with_push !== undefined ? (userBasicDetails as any).chat_with_push : (orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.chat_with_push ?? true),
+          email: (userBasicDetails as any).email !== undefined ? (userBasicDetails as any).email : (orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.email ?? true),
+          push: (userBasicDetails as any).push !== undefined ? (userBasicDetails as any).push : (orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.push ?? true),
+          chat: (userBasicDetails as any).chat !== undefined ? (userBasicDetails as any).chat : (orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.chat ?? false),
         },
         tabBar: orgBasicDetails?.organizationInfo?.defaultSetting?.tabBar || [],
         dateFormat: userBasicDetails.dateFormat || orgBasicDetails?.organizationInfo?.defaultSetting?.dateFormat?.[0] || 'MM/DD/YYYY',
         acceptedAppForms: userBasicDetails.acceptedAppForms || [],
+        units,
         isDefault,
         definedRoleCode,
       };

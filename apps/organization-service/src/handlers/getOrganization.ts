@@ -5,7 +5,7 @@ import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError
 import { OrganizationNotFoundError } from '../utils/errors';
 import { ApiResponse } from '@api-hub/utils';
 import { getMobileScreens } from '../utils/lambda.utils';
-import { fetchOrganizationDevices, buildSupportedVitalsArray } from '../utils/supportedVitals';
+import { fetchOrganizationDevices, buildSupportedVitalsArray, vitalCodesFromOrgSupportedVitals } from '../utils/supportedVitals';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -289,25 +289,27 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       transformed.linkedOrganizations = [];
     }
 
-    // Add supportedVitals - from organization devices (POST /devices/list)
+    // Add supportedVitals: merge org-stored vitals (sleep, steps, activity, hydration, etc.) with assigned devices' vitals (legacy: get_vitals_tile_order uses orgDetails.supportedVitals; devices from assigned list)
     if (!isRootOrg) {
       try {
         const authHeader =
           event.headers?.Authorization ||
           event.headers?.authorization ||
           event.headers?.AUTHORIZATION;
-        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader);
-        const allCodes: string[] = [];
+        const storedCodes = vitalCodesFromOrgSupportedVitals(organization.supportedVitals);
+        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'patient');
+        const deviceCodes: string[] = [];
         if (Array.isArray(deviceItems)) {
           for (const item of deviceItems) {
             const vitals = item?.supportedVitals;
             if (Array.isArray(vitals)) {
               for (const code of vitals) {
-                if (typeof code === 'string' && code.trim()) allCodes.push(code.trim());
+                if (typeof code === 'string' && code.trim()) deviceCodes.push(code.trim());
               }
             }
           }
         }
+        const allCodes = [...new Set([...storedCodes, ...deviceCodes])];
         transformed.supportedVitals = buildSupportedVitalsArray(allCodes);
       } catch (err) {
         logger.warn({ event: 'getOrganization_supported_vitals_failed', err: serializeError(err) });

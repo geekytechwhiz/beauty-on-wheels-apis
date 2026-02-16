@@ -5,6 +5,7 @@ import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError
 import { OrganizationNotFoundError } from '../utils/errors';
 import { ApiResponse } from '@api-hub/utils';
 import { getMobileScreens } from '../utils/lambda.utils';
+import { fetchOrganizationDevices, buildSupportedVitalsArray } from '../utils/supportedVitals';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
@@ -287,7 +288,35 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     } else {
       transformed.linkedOrganizations = [];
     }
-    
+
+    // Add supportedVitals - from organization devices (POST /devices/list)
+    if (!isRootOrg) {
+      try {
+        const authHeader =
+          event.headers?.Authorization ||
+          event.headers?.authorization ||
+          event.headers?.AUTHORIZATION;
+        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader);
+        const allCodes: string[] = [];
+        if (Array.isArray(deviceItems)) {
+          for (const item of deviceItems) {
+            const vitals = item?.supportedVitals;
+            if (Array.isArray(vitals)) {
+              for (const code of vitals) {
+                if (typeof code === 'string' && code.trim()) allCodes.push(code.trim());
+              }
+            }
+          }
+        }
+        transformed.supportedVitals = buildSupportedVitalsArray(allCodes);
+      } catch (err) {
+        logger.warn({ event: 'getOrganization_supported_vitals_failed', err: serializeError(err) });
+        transformed.supportedVitals = [];
+      }
+    } else {
+      transformed.supportedVitals = [];
+    }
+
     // Add mobileScreens - fetch from lambda
     let mobileScreensValue = orgRecord.mobileScreens;
     if (mobileScreensValue === undefined || mobileScreensValue === null) {

@@ -38,6 +38,7 @@ provider:
     ROLE_API_URL: ${self:custom.roleApiUrl.${self:provider.stage}}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
     GET_ONBOARDING_SCREENS_LAMBDA: ${self:provider.stage}_global_get_onboarding_screens
+    DEVICE_API_BASE_URL: ${self:custom.deviceApiUrl.${self:provider.stage}}
 
   tags:
     Service: ${self:service}
@@ -112,6 +113,10 @@ custom:
     dev: https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev
     stg: https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg
     prd: https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd
+  deviceApiUrl:
+    dev: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
+    stg: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
+    prd: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
   esbuild:
     bundle: true
     minify: false

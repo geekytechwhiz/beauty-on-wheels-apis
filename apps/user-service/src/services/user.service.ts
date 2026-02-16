@@ -1689,11 +1689,24 @@ export class UserService {
       //   uniquePermissions = this.getUniquePermissions(userPermissions);
       // }
 
-      // Fetch user permissions list from role API (GET /org/{orgId}/users/{userId}/permissions) for userPermissions field
+      // Fetch user permissions list from role API (GET /org/{orgId}/users/{userId}/permissions). API returns role objects; we need features array for userPermissions.
       let userPermissionsList: unknown[] | null = null;
       if (authHeader && userOrgId && actualUserId) {
         try {
-          userPermissionsList = await roleRepository.getUserPermissionsList(userOrgId, actualUserId, authHeader);
+          const rawList = await roleRepository.getUserPermissionsList(userOrgId, actualUserId, authHeader);
+          if (Array.isArray(rawList) && rawList.length > 0) {
+            const featuresFromRoles: any[] = [];
+            for (const roleItem of rawList) {
+              const r = roleItem as { features?: any[] | Record<string, unknown> };
+              const feats = r?.features;
+              if (Array.isArray(feats)) {
+                featuresFromRoles.push(...feats);
+              } else if (feats && typeof feats === 'object') {
+                featuresFromRoles.push(...Object.values(feats));
+              }
+            }
+            userPermissionsList = featuresFromRoles.length > 0 ? featuresFromRoles : null;
+          }
         } catch (err) {
           logger.warn({ event: 'getUserWithOrganizationDetails_permissions_api_failed', err: serializeError(err) });
         }

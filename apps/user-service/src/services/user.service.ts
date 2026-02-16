@@ -10,11 +10,9 @@ import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
 import { FriendFamilyService } from './friendFamily.service';
-import { UserLinkRepository } from '../repositories/userLink.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const friendFamilyService = new FriendFamilyService();
-const userLinkRepository = new UserLinkRepository();
 function generateSortableId() {
   const now = Date.now();
   const timePart = now.toString(36).toUpperCase().padStart(6, '0');
@@ -304,29 +302,14 @@ export class UserService {
               const doctorFullName = doctor.namePrefix && String(doctor.namePrefix).toLowerCase().includes('dr')
                 ? `${doctor.namePrefix} ${doctor.fullName || doctor.firstName || ''}`.trim()
                 : (doctor.fullName || doctor.firstName || '');
-              const userFullName = user.fullName ?? `${user.firstName || ''} ${user.lastName || ''}`.trim();
-              const linkResult = await userLinkRepository.linkUser({
-                userID: user.userID,
-                organizationID,
-                body: {
-                  action: 'add',
-                  reporter: {
-                    id: doctorId,
-                    name: doctorFullName,
-                  },
-                  assignees: [
-                    {
-                      id: user.userID,
-                      name: userFullName || user.userID,
-                    },
-                  ],
-                },
+              await this.repository.saveDoctorPatientLink(doctorId, user.userID, organizationID);
+              await this.repository.updatePatientReporter(user.userID, organizationID, {
+                reporterId: doctorId,
+                reporterName: doctorFullName,
+                reporterProfilePic: (doctor as any).profilePic,
+                reporterEmail: (doctor as any).emailAddress,
               });
-              if (!linkResult) {
-                logger.warn({ event: 'service_createUser_doctor_link_failed', doctorId, userId: user.userID });
-              } else {
-                logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
-              }
+              logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
             }
           } catch (err) {
             logger.warn({ event: 'service_createUser_doctor_link_error', err: serializeError(err) });
@@ -1192,8 +1175,9 @@ export class UserService {
 
   /**
    * Assign a patient (receiver) to a doctor (sender) in an organization.
-   * Calls the legacy link_unlink_user Lambda (USER_LINK_LAMBDA) to create
-   * reporter/assignee link and set reporterId on the patient.
+   * Uses the same table pattern as legacy link_unlink_user:
+   * - Link record: pk=USER#doctorId, sk=ASSIGNEE#patientId, sk1=ACTIVE
+   * - Patient record: reporterId, reporterName, reporterProfilePic, reporterEmail
    */
   async assignDoctor(
     organizationId: string,
@@ -1219,25 +1203,15 @@ export class UserService {
     const doctorFullName =
       (doctor as any).namePrefix && String((doctor as any).namePrefix).toLowerCase().includes('dr')
         ? `${(doctor as any).namePrefix} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
-        : (doctor as any).fullName || (doctor as any).firstName || '';
-    const patientFullName =
-      (patient as any).fullName ?? `${(patient as any).firstName || ''} ${(patient as any).lastName || ''}`.trim();
+        : (doctor as any).fullName || (doctor as any).firstName || (sender as any).name || sender.userId;
 
-    const linkResult = await userLinkRepository.linkUser({
-      userID: receiver.userId,
-      organizationID: organizationId,
-      body: {
-        action: 'add',
-        reporter: { id: sender.userId, name: doctorFullName || sender.userId },
-        assignees: [{ id: receiver.userId, name: patientFullName || receiver.userId }],
-      },
+    await this.repository.saveDoctorPatientLink(sender.userId, receiver.userId, organizationId);
+    await this.repository.updatePatientReporter(receiver.userId, organizationId, {
+      reporterId: sender.userId,
+      reporterName: doctorFullName,
+      reporterProfilePic: (doctor as any).profilePic,
+      reporterEmail: (doctor as any).emailAddress ?? sender.email,
     });
-
-    if (!linkResult) {
-      logger.warn({ event: 'service_assignDoctor_link_failed' });
-      timer.end();
-      throw new Error('DOCTOR_NOT_LINKED_WITH_USER');
-    }
 
     logger.info({ event: 'service_assignDoctor_success' });
     timer.end();
@@ -1276,6 +1250,7 @@ export class UserService {
         fullName: u.fullName || '',
         emailAddress: u.emailAddress || '',
         phoneNumber: u.phoneNumber || '',
+        lastAppointment: (u as any).lastAppointment ?? null,
         profilePic: u.profilePic || '',
         reporterId: u.reporterId || '',
         doctor: doctorName || (u.reporterName as string) || '',
@@ -1286,6 +1261,7 @@ export class UserService {
         createdDate: u.createdDate ?? u.createdAt ?? null,
         mrn: u.mrn ?? null,
         gender: u.gender || '',
+        medicalHistory: (u as any).medicalHistory ?? null,
         dateOfBirth: u.dateOfBirth ?? null,
         patientOrgId: u.organizationID || orgId,
         previouslyConsulted: previouslyConsulted ?? false,

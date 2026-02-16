@@ -71,7 +71,19 @@ console.log("USER DATA 1421 URL : ", url);
 
       const body = (await response.json()) as any;
       logger.info({ event: 'get_user_permission_api_success' });
-      return this.filterFeaturesByOrgPermissions(body?.data.items ?? body, orgFetaures);
+      const result = body?.data.items ?? body;
+      const items = Array.isArray(result) ? result : [];
+      // Flatten: API returns items = [{ roleId, features: [f1, f2, ...] }, ...]; we need a single Feature[]
+      let features: Feature[] = [];
+      if (items.length > 0) {
+        const firstItemFeatures = items[0]?.features;
+        if (Array.isArray(firstItemFeatures)) {
+          features = firstItemFeatures;
+        } else if (firstItemFeatures && typeof firstItemFeatures === 'object') {
+          features = Object.values(firstItemFeatures);
+        }
+      }
+      return this.filterFeaturesByOrgPermissions(features, orgFetaures);
     } catch (err) {
       logger.error({ event: 'get_user_permission_api_failed', err: serializeError(err) });
       return null;
@@ -83,18 +95,16 @@ console.log("USER DATA 1421 URL : ", url);
     features: Feature[],
     orgFeatures: OrgFeature[],
   ): Promise<Feature[]> {
-    console.log("USER DATA FEATURES : ", features.length);
     console.log("USER DATA ORG FEATURES : ", orgFeatures.length);
+    const featureKeySet = new Set(features.map((f) => f.featureKey));
+    const result: Feature[] = [];
     const orgFeatureMap = new Map<string, OrgFeature>();
     for (const orgFeature of orgFeatures) {
       orgFeatureMap.set(orgFeature.featureKey, orgFeature);
     }
-  
-    const featureKeySet = new Set(features.map((f) => f.featureKey));
-    const result: Feature[] = [];
-  
     // Keep features present in orgFeatures, but remove functionalities with access=false
     for (const feature of features) {
+      // console.log("USER DATA FEATURE : ", JSON.stringify(feature));
       const orgFeature = orgFeatureMap.get(feature.featureKey);
       if (!orgFeature) continue; // skip if org doesn’t have this feature
   
@@ -121,23 +131,17 @@ console.log("USER DATA 1421 URL : ", url);
       });
     }
   
-    // Add extra orgFeatures not in default list (only with allowed functionalities)
+    // Add only missing features from orgFeatures with access false
     for (const orgFeature of orgFeatures) {
       if (!featureKeySet.has(orgFeature.featureKey)) {
-        const filteredFunctionalities = (orgFeature.functionalities || []).filter(
-          (func) => func.access !== false,
-        );
-  
-        if (filteredFunctionalities.length === 0) continue; // skip if all are disabled
-  
-        const fakeFunctionalities = filteredFunctionalities.map((func) => ({
+        const functionalitiesWithAccessFalse = (orgFeature.functionalities || []).map((func) => ({
           ...func,
           access: false,
         }));
-  
+
         result.push({
           ...orgFeature,
-          functionalities: fakeFunctionalities,
+          functionalities: functionalitiesWithAccessFalse,
           itemType: "Feature",
         });
       }

@@ -10,7 +10,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -168,7 +168,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: true
-    target: node18
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json

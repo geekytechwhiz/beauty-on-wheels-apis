@@ -49,15 +49,9 @@ export class FriendFamilyService {
     if (!user) {
       return { success: false };
     }
+    console.log('User Details', JSON.stringify(user));
     const memberId = (user as any).userID ?? (user as any).userId;
-    const existingLink = await friendFamilyRepository.checkFriendFamily(memberId, true);
-    if (existingLink) {
-      const inviterId = existingLink.sk.split('#')[1];
-      if (inviterId !== userID) {
-        throw new Error('USER_ALREADY_INVITED_BY_SOMEONE');
-      }
-      throw new Error('USER_ALREADY_INVITED');
-    }
+     
     // FriendModelData: email (EmailObjectModelData), phone (PhoneObjectModelData), invitedUser (string)
     const emailAddress = (user as any).emailAddress ?? '';
     const phoneNumber = (user as any).phoneNumber ?? '';

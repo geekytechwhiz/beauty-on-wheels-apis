@@ -39,10 +39,7 @@ export class FriendFamilyService {
     if (ORG_NON_AVAILABLE.includes(status)) {
       throw new Error('ORGANIZATION_IS_ON_HOLD');
     }
-    const existing = await friendFamilyRepository.checkFriendFamily(userID, false);
-    if (existing) {
-      throw new Error('USER_CANNOT_INVITE_MORE_FNF');
-    }
+   
     const email = body.email?.trim() || '';
     const phone = (body.phone ?? '').toString().replace(/\s/g, '');
     if (!email && !phone) {

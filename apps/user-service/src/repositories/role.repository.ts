@@ -101,19 +101,21 @@ export class RoleRepository {
 
       const body = (await response.json()) as { data?: { items?: unknown[] }; items?: unknown[] };
       logger.info({ event: 'get_user_permission_api_success' });
-      const result = body?.data?.items ?? body?.items ?? body;
-      const items = Array.isArray(result) ? result : [];
+      const result = body?.data?.items ?? body;
+      const roleFeatures = Array.isArray(result) ? result : [];
       // Flatten: API returns items = [{ roleId, features: [f1, f2, ...] }, ...]; we need a single Feature[]
       let features: Feature[] = [];
-      if (items.length > 0) {
-        const firstItemFeatures = items[0]?.features;
+      if (roleFeatures.length > 0) {
+        const firstItemFeatures = roleFeatures[0]?.features as Feature[];
         if (Array.isArray(firstItemFeatures)) {
           features = firstItemFeatures;
         } else if (firstItemFeatures && typeof firstItemFeatures === 'object') {
           features = Object.values(firstItemFeatures);
         }
       }
-      return this.filterFeaturesByOrgPermissions(features, orgFetaures);
+      const updatedFeatures= await this.filterFeaturesByOrgPermissions(features, orgFetaures);
+      roleFeatures[0].features = updatedFeatures as Feature[];
+      return roleFeatures;
     } catch (err) {
       logger.error({ event: 'get_user_permission_api_failed', err: serializeError(err) });
       return null;

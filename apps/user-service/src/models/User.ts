@@ -142,4 +142,5 @@ export interface UserResponse {
   createdAt: number;
   roleName: string;
   definedRoleCode: string;
+  specialty: string;
 }

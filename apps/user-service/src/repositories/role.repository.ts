@@ -40,6 +40,37 @@ export class RoleRepository {
     }
   }
 
+  /**
+   * Fetches the raw user permissions list from the role API.
+   * Returns data.items (array of role objects with features, roleType, definedRoleCode, etc.) or null on failure.
+   */
+  async getUserPermissionsList(
+    organizationId: string,
+    userId: string,
+    authHeader?: string,
+  ): Promise<unknown[] | null> {
+    const baseUrl = process.env.ROLE_API_URL;
+    const logger = createChildLogger(baseLogger, { organizationId, userId });
+    if (!baseUrl) {
+      logger.warn({ event: 'user_permissions_list_api_missing' });
+      return null;
+    }
+    const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/users/${userId}/permissions`;
+    try {
+      const response = await fetch(url, { method: 'GET', headers: buildHeaders(authHeader) });
+      if (!response.ok) {
+        logger.warn({ event: 'get_user_permissions_list_non_ok', status: response.status });
+        return null;
+      }
+      const body = (await response.json()) as { data?: { items?: unknown[] }; items?: unknown[] };
+      const items = body?.data?.items ?? body?.items;
+      return Array.isArray(items) ? items : null;
+    } catch (err) {
+      logger.error({ event: 'get_user_permissions_list_failed', err: serializeError(err) });
+      return null;
+    }
+  }
+
   async getUserPermission(
     organizationId: string,
     userId: string,
@@ -55,7 +86,6 @@ export class RoleRepository {
     }
 
     const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/users/${userId}/permissions`;
-console.log("USER DATA 1421 URL : ", url);
     try {
       logger.info({ event: 'get_user_permission_api_start', url });
       const response = await fetch(url, {
@@ -69,9 +99,9 @@ console.log("USER DATA 1421 URL : ", url);
         return null;
       }
 
-      const body = (await response.json()) as any;
+      const body = (await response.json()) as { data?: { items?: unknown[] }; items?: unknown[] };
       logger.info({ event: 'get_user_permission_api_success' });
-      const result = body?.data.items ?? body;
+      const result = body?.data?.items ?? body?.items ?? body;
       const items = Array.isArray(result) ? result : [];
       // Flatten: API returns items = [{ roleId, features: [f1, f2, ...] }, ...]; we need a single Feature[]
       let features: Feature[] = [];
@@ -95,7 +125,6 @@ console.log("USER DATA 1421 URL : ", url);
     features: Feature[],
     orgFeatures: OrgFeature[],
   ): Promise<Feature[]> {
-    console.log("USER DATA ORG FEATURES : ", orgFeatures.length);
     const featureKeySet = new Set(features.map((f) => f.featureKey));
     const result: Feature[] = [];
     const orgFeatureMap = new Map<string, OrgFeature>();

@@ -1689,6 +1689,16 @@ export class UserService {
       //   uniquePermissions = this.getUniquePermissions(userPermissions);
       // }
 
+      // Fetch user permissions list from role API (GET /org/{orgId}/users/{userId}/permissions) for userPermissions field
+      let userPermissionsList: unknown[] | null = null;
+      if (authHeader && userOrgId && actualUserId) {
+        try {
+          userPermissionsList = await roleRepository.getUserPermissionsList(userOrgId, actualUserId, authHeader);
+        } catch (err) {
+          logger.warn({ event: 'getUserWithOrganizationDetails_permissions_api_failed', err: serializeError(err) });
+        }
+      }
+
       // Calculate account age
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
 
@@ -1831,7 +1841,7 @@ export class UserService {
         userRoles: itemRoleId ? [itemRoleId] : [],
         roleType,
         roleId:itemRoleId,
-        userPermissions,
+        userPermissions: (userPermissionsList && userPermissionsList.length > 0) ? userPermissionsList : userPermissions,
         changePassword: userBasicDetails.changePassword || false,
         isRpmUser: userBasicDetails.isRpmUser || false,
         lastAppointment: userBasicDetails.lastAppointment || '',

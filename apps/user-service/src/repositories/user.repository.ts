@@ -43,10 +43,10 @@ function mapToUserResponse(user: any): UserResponse {
     createdAt: user.createdAt || user.createdDate || 0,
     roleName: user.roleName || user.userType || '',
     definedRoleCode: user.definedRoleCode || user.userType || '',
+    specialty: user.specialty || '',
+    // specialty is not a property of UserResponse, so we remove it to fix the lint error
   };
 }
-
- 
 type UserDBItem = User & {
   pk: string;
   sk: string;
@@ -109,6 +109,10 @@ export interface ListOrganizationUsersOptions {
    * Filter by userType (e.g. "USER", "STAFF", "FNF"), case-insensitive.
    */
   userType?: string;
+  /**
+   * Filter by specialty (case-insensitive).
+   */
+  specialty?: string;
   /**
    * Free-text search across common user fields.
    */
@@ -821,6 +825,7 @@ export class UserRepository {
       offset = 0,
       status,
       userType,
+      specialty,
       search,
       sortBy = 'createdDate',
       sortOrder = 'desc',
@@ -832,6 +837,7 @@ export class UserRepository {
         offset,
         status,
         userType,
+        specialty,
         search,
         sortBy,
         sortOrder,
@@ -868,6 +874,13 @@ export class UserRepository {
           const userTypeLc = userType.toLowerCase();
           users = users.filter(
             (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
+          );
+        }
+
+        if (specialty) {
+          const specialtyLc = specialty.toLowerCase();
+          users = users.filter(
+            (u) => String((u as any).specialty ?? '').toLowerCase() === specialtyLc,
           );
         }
 
@@ -958,6 +971,13 @@ export class UserRepository {
             const userTypeLc = userType.toLowerCase();
             users = users.filter(
               (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
+            );
+          }
+
+          if (specialty) {
+            const specialtyLc = specialty.toLowerCase();
+            users = users.filter(
+              (u) => String((u as any).specialty ?? '').toLowerCase() === specialtyLc,
             );
           }
 

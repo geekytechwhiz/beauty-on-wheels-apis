@@ -1783,6 +1783,7 @@ export async function listOrganizationUsers(
   const rawOffset = qp.offset ?? qp.page ?? qp.pageIndex;
   const rawStatus = qp.status;
   const rawUserType = qp.userType;
+  const rawSpecialty = qp.specialty;
   const rawSearch = qp.search ?? qp.q;
   const rawSortBy = qp.sortBy;
   const rawSortOrder = qp.sortOrder ?? qp.order;
@@ -1906,6 +1907,7 @@ export async function listOrganizationUsers(
       offset,
       status: rawStatus || undefined,
       userType: rawUserType || undefined,
+      specialty: rawSpecialty || undefined,
       search: rawSearch || undefined,
       sortBy,
       sortOrder,

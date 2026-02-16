@@ -72,18 +72,20 @@ console.log("USER DATA 1421 URL : ", url);
       const body = (await response.json()) as any;
       logger.info({ event: 'get_user_permission_api_success' });
       const result = body?.data.items ?? body;
-      const items = Array.isArray(result) ? result : [];
+      const roleFeatures = Array.isArray(result) ? result : [];
       // Flatten: API returns items = [{ roleId, features: [f1, f2, ...] }, ...]; we need a single Feature[]
       let features: Feature[] = [];
-      if (items.length > 0) {
-        const firstItemFeatures = items[0]?.features;
+      if (roleFeatures.length > 0) {
+        const firstItemFeatures = roleFeatures[0]?.features;
         if (Array.isArray(firstItemFeatures)) {
           features = firstItemFeatures;
         } else if (firstItemFeatures && typeof firstItemFeatures === 'object') {
           features = Object.values(firstItemFeatures);
         }
       }
-      return this.filterFeaturesByOrgPermissions(features, orgFetaures);
+      const updatedFeatures= await this.filterFeaturesByOrgPermissions(features, orgFetaures);
+      roleFeatures[0].features = updatedFeatures;
+      return roleFeatures;
     } catch (err) {
       logger.error({ event: 'get_user_permission_api_failed', err: serializeError(err) });
       return null;

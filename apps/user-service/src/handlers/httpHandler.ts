@@ -1338,22 +1338,27 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
     const result = await friendFamilyService.searchFnf(organizationID, userID, validation.data, authHeader);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
-    if (result.success && result.invitedUser) {
+    if (result.success && result.invitedUser && result.data) {
       return ApiResponse.ok(
-        { invitedUser: result.invitedUser },
+        result.data,
         'FRIEND_FAMILY.SEARCH_SUCCESS',
         { requestId: correlationId, event },
       );
     }
-    // User not found: return either email(object) or phone(object) so client can invite via create user with friendNFamily
+    // User not found: FriendModelData with email and/or phone (isVerified: "false") for invite flow
     const emailVal = (validation.data.email ?? '').toString().trim();
     const phoneVal = (validation.data.phone ?? '').toString().trim();
-    const data =
-      emailVal.length > 0
-        ? { email: { email: emailVal } }
-        : phoneVal.length > 0
-          ? { phone: { phone: phoneVal } }
-          : { email: { email: '' } };
+    const data: {
+      email?: { isVerified: string; emailId: string; userId?: string | null };
+      phone?: { isVerified: string; phoneNumb: string; userId?: string | null };
+      invitedUser?: string;
+    } = {};
+    if (emailVal.length > 0) {
+      data.email = { isVerified: 'false', emailId: emailVal, userId: null };
+    }
+    if (phoneVal.length > 0) {
+      data.phone = { isVerified: 'false', phoneNumb: phoneVal, userId: null };
+    }
     return ApiResponse.ok(data, 'FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;

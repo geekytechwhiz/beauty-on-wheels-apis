@@ -58,7 +58,25 @@ export class FriendFamilyService {
       }
       throw new Error('USER_ALREADY_INVITED');
     }
-    return { success: true, invitedUser: memberId, data: { email: { userId: memberId }, phone: { userId: memberId } } };
+    // FriendModelData: email (EmailObjectModelData), phone (PhoneObjectModelData), invitedUser (string)
+    const emailAddress = (user as any).emailAddress ?? '';
+    const phoneNumber = (user as any).phoneNumber ?? '';
+    const phoneCode = (user as any).phoneCode ?? '';
+    const phoneNumb = [String(phoneCode), String(phoneNumber)].filter(Boolean).join('').trim() || phoneNumber;
+    const data: {
+      email?: { isVerified: string; emailId: string; userId: string };
+      phone?: { isVerified: string; phoneNumb: string; userId: string };
+      invitedUser: string;
+    } = {
+      invitedUser: memberId,
+    };
+    if (emailAddress) {
+      data.email = { isVerified: 'true', emailId: emailAddress, userId: memberId };
+    }
+    if (phoneNumb) {
+      data.phone = { isVerified: 'true', phoneNumb, userId: memberId };
+    }
+    return { success: true, invitedUser: memberId, data };
   }
 
   async addMember(

@@ -11,10 +11,14 @@ import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
 import { FriendFamilyRepository } from '../repositories/friendFamily.repository';
 import { UserLinkRepository } from '../repositories/userLink.repository';
+import { RoleRepository } from '../repositories/role.repository';
+import { PackageRepository } from '../repositories/package.repositrory';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const friendFamilyRepository = new FriendFamilyRepository();
 const userLinkRepository = new UserLinkRepository();
+const roleRepository = new RoleRepository();
+const packageRepository = new PackageRepository();
 function generateSortableId() {
   const now = Date.now();
   const timePart = now.toString(36).toUpperCase().padStart(6, '0');
@@ -1326,7 +1330,7 @@ export class UserService {
 
       // First, try to get the user using the organizationId (new schema: pk=ORG#orgId, sk=USER#userId)
       let userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
-      console.log("USER DATA 1286 USERVICE : ", userBasicDetails);
+      // console.log("USER DATA 1286 USERVICE : ", userBasicDetails);
       // If not found with organizationId, try legacy schema (pk=USER#userId, sk=USER_DETAILS)
       if (!userBasicDetails) {
         userBasicDetails = await this.repository.getUser(actualUserId);
@@ -1370,7 +1374,6 @@ export class UserService {
 
       // Get all related user data items (preferences, metadata, etc.) using pk=USER#userId
       const allUserData = await this.repository.getAllUserData(actualUserId);
-      console.log("USER DATA 1326 ALL USER DATA : ", allUserData);
       
       // Check if definedRoleCode exists in any item in allUserData
       const itemWithDefinedRoleCode = allUserData.find((item: any) => item.definedRoleCode);
@@ -1413,9 +1416,9 @@ export class UserService {
         
         // Get role permissions from ROLES_TABLE (matches original: line 115)
         // This returns the detailed features array with functionalities
-        const rolePermissionsFromRolesTable = await this.repository.getRolePermissions(itemRoleId, userOrgId);
+        const orgFetaures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
+        const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(userOrgId, actualUserId,orgFetaures, authHeader);
         
-        console.log('getUserWithOrganizationDetails - rolePermissionsFromRolesTable:', JSON.stringify(rolePermissionsFromRolesTable, null, 2));
         logger.debug({ 
           event: 'role_permissions_from_roles_table_result', 
           roleId, 

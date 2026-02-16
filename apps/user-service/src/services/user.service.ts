@@ -9,9 +9,14 @@ import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { notifyUser } from './notification.service';
-import { FriendFamilyService } from './friendFamily.service';
+import { RoleRepository } from '../repositories/role.repository';
+import { PackageRepository } from '../repositories/package.repositrory';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+const roleRepository = new RoleRepository();
+const packageRepository = new PackageRepository();
+import { FriendFamilyService } from './friendFamily.service';
+
 const friendFamilyService = new FriendFamilyService();
 function generateSortableId() {
   const now = Date.now();
@@ -1427,8 +1432,7 @@ export class UserService {
 
       // First, try to get the user using the organizationId (new schema: pk=ORG#orgId, sk=USER#userId)
       let userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
-      // If not found with organizationId, try legacy schema (pk=USER#userId, sk=USER_DETAILS)
-      if (!userBasicDetails) {
+        if (!userBasicDetails) {
         userBasicDetails = await this.repository.getUser(actualUserId);
       }
 
@@ -1465,7 +1469,7 @@ export class UserService {
 
       // Get all related user data items (preferences, metadata, etc.) using pk=USER#userId
       const allUserData = await this.repository.getAllUserData(actualUserId);
-
+      
       // Check if definedRoleCode exists in any item in allUserData
       const itemWithDefinedRoleCode = allUserData.find((item: any) => item.definedRoleCode);
       const itemRoleId =
@@ -1500,11 +1504,11 @@ export class UserService {
       if (itemRoleId) {
         // roleId = filteredRoles[0];
         logger.debug({ event: 'fetching_role_permissions_from_roles_table', roleId, userOrgId });
+         
+ 
+        const orgFetaures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
+        const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(userOrgId, actualUserId,orgFetaures, authHeader);
         
-        // Get role permissions from ROLES_TABLE (matches original: line 115)
-        // This returns the detailed features array with functionalities
-        const rolePermissionsFromRolesTable = await this.repository.getRolePermissions(itemRoleId, userOrgId);
-
         logger.debug({ 
           event: 'role_permissions_from_roles_table_result', 
           roleId, 

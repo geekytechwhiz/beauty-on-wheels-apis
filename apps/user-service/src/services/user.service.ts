@@ -1508,7 +1508,7 @@ export class UserService {
 
           // Match original: index.js line 115-119
           // const roleDetails = await DB.getRolePermissions(filteredRoles[0], organizationID);
-          // const definedRoleCode = roleDetails[0]?.definedRoleCode ?? null;
+          // const definedRoleCode = orgFeaturesroleDetails[0]?.definedRoleCode ?? null;
           // The original just takes the first item from getRolePermissions result
           const roleDetailsFirstItem = roleItems[0];
 
@@ -1520,6 +1520,7 @@ export class UserService {
               return sk === `ROLE#${roleId}` || sk.startsWith(`ROLE#${roleId}#`);
             }) || roleDetailsFirstItem;
 
+            console.log("roleHeader: ");
           // Extract fields - match original: index.js line 116-120
           roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || roleDetailsFirstItem?.roleName || roleDetailsFirstItem?.definedRoleCode || '';
           isDefault = roleHeader?.isDefault ?? roleDetailsFirstItem?.isDefault ?? false;
@@ -1531,23 +1532,11 @@ export class UserService {
 
           // Only set userPermissions from ROLES_TABLE if not already set from API
           if (!userPermissions || userPermissions.length === 0) {
-            const headerFeatures = roleHeader?.features;
-            if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
-              userPermissions = headerFeatures;
-            } else if (headerFeatures && typeof headerFeatures === 'object') {
-              userPermissions = Object.values(headerFeatures);
-            } else {
-              const featureItems = roleItems.filter((it: any) => {
-                const sk = String(it.SK || it.sk || '');
-                return (
-                  it.itemType === 'Feature' ||
-                  !!it.featureKey ||
-                  sk.includes('#FEATURE#') ||
-                  sk.startsWith('MODULE#')
-                );
-              });
-              userPermissions = featureItems;
-            }
+            console.log("here")
+            // console.log("ROLE DETAILS FIRST ITEM FEATURES: ", JSON.stringify(roleDetailsFirstItem?.features));
+            const headerFeatures = roleDetailsFirstItem?.features;
+            console.log("headerFeatures: ", JSON.stringify(headerFeatures));
+            userPermissions = headerFeatures;
           }
 
           // Ensure userPermissions is always an array
@@ -1618,8 +1607,8 @@ export class UserService {
           logger.debug({ event: 'using_role_from_user_basic_details', roleId });
           if (roleId) {
             // Try ROLES_TABLE first
-            const rolePermissionsFromRolesTable = await this.repository.getRolePermissions(roleId, userOrgId);
-            if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
+            const orgFetaures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
+            const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(userOrgId, actualUserId,orgFetaures, authHeader);            if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
               const roleItems = rolePermissionsFromRolesTable;
               const roleHeader =
                 roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
@@ -1634,6 +1623,7 @@ export class UserService {
               definedRoleCode = definedRoleCodeFromUserTable ?? roleHeader?.definedRoleCode ?? null;
               roleType = roleHeader?.roleType ?? null;
 
+              // console.log("ROLE HEADER FEATURES: ", roleHeader);
               const headerFeatures = roleHeader?.features;
               if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
                 userPermissions = headerFeatures;
@@ -1686,31 +1676,9 @@ export class UserService {
       // Step 3: Get unique permissions (matches original: line 122)
       // permissionResponse.permissions is an array of permission objects
       // if (permissionResponse.permissions && permissionResponse.permissions.length > 0) {
-      //   uniquePermissions = this.getUniquePermissions(userPermissions);
+        uniquePermissions = this.getUniquePermissions(userPermissions);
       // }
 
-      // Fetch user permissions list from role API (GET /org/{orgId}/users/{userId}/permissions). API returns role objects; we need features array for userPermissions.
-      let userPermissionsList: unknown[] | null = null;
-      if (authHeader && userOrgId && actualUserId) {
-        try {
-          const rawList = await roleRepository.getUserPermissionsList(userOrgId, actualUserId, authHeader);
-          if (Array.isArray(rawList) && rawList.length > 0) {
-            const featuresFromRoles: any[] = [];
-            for (const roleItem of rawList) {
-              const r = roleItem as { features?: any[] | Record<string, unknown> };
-              const feats = r?.features;
-              if (Array.isArray(feats)) {
-                featuresFromRoles.push(...feats);
-              } else if (feats && typeof feats === 'object') {
-                featuresFromRoles.push(...Object.values(feats));
-              }
-            }
-            userPermissionsList = featuresFromRoles.length > 0 ? featuresFromRoles : null;
-          }
-        } catch (err) {
-          logger.warn({ event: 'getUserWithOrganizationDetails_permissions_api_failed', err: serializeError(err) });
-        }
-      }
 
       // Calculate account age
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
@@ -1854,7 +1822,7 @@ export class UserService {
         userRoles: itemRoleId ? [itemRoleId] : [],
         roleType,
         roleId:itemRoleId,
-        userPermissions: (userPermissionsList && userPermissionsList.length > 0) ? userPermissionsList : userPermissions,
+        userPermissions,
         changePassword: userBasicDetails.changePassword || false,
         isRpmUser: userBasicDetails.isRpmUser || false,
         lastAppointment: userBasicDetails.lastAppointment || '',

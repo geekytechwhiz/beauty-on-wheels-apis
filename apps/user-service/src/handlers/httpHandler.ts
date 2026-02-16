@@ -1345,19 +1345,19 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
         { requestId: correlationId, event },
       );
     }
-    // User not found: FriendModelData with email and/or phone (isVerified: "false") for invite flow
+    // User not found: FriendModelData with email and/or phone (isVerified: false), userId null for invite flow
     const emailVal = (validation.data.email ?? '').toString().trim();
     const phoneVal = (validation.data.phone ?? '').toString().trim();
     const data: {
-      email?: { isVerified: string; emailId: string; userId?: string | null };
-      phone?: { isVerified: string; phoneNumb: string; userId?: string | null };
+      email?: { isVerified: boolean; emailId: string; userId: string | null };
+      phone?: { isVerified: boolean; phoneNumb: string; userId: string | null };
       invitedUser?: string;
     } = {};
     if (emailVal.length > 0) {
-      data.email = { isVerified: 'false', emailId: emailVal, userId: null };
+      data.email = { isVerified: false, emailId: emailVal, userId: null };
     }
     if (phoneVal.length > 0) {
-      data.phone = { isVerified: 'false', phoneNumb: phoneVal, userId: null };
+      data.phone = { isVerified: false, phoneNumb: phoneVal, userId: null };
     }
     return ApiResponse.ok(data, 'FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event });
   } catch (err) {

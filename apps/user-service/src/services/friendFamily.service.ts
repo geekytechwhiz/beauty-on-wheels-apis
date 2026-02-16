@@ -64,17 +64,17 @@ export class FriendFamilyService {
     const phoneCode = (user as any).phoneCode ?? '';
     const phoneNumb = [String(phoneCode), String(phoneNumber)].filter(Boolean).join('').trim() || phoneNumber;
     const data: {
-      email?: { isVerified: string; emailId: string; userId: string };
-      phone?: { isVerified: string; phoneNumb: string; userId: string };
+      email?: { isVerified: boolean; emailId: string; userId: string };
+      phone?: { isVerified: boolean; phoneNumb: string; userId: string };
       invitedUser: string;
     } = {
       invitedUser: memberId,
     };
     if (emailAddress) {
-      data.email = { isVerified: 'true', emailId: emailAddress, userId: memberId };
+      data.email = { isVerified: true, emailId: emailAddress, userId: memberId };
     }
     if (phoneNumb) {
-      data.phone = { isVerified: 'true', phoneNumb, userId: memberId };
+      data.phone = { isVerified: true, phoneNumb, userId: memberId };
     }
     return { success: true, invitedUser: memberId, data };
   }

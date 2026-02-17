@@ -353,6 +353,40 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+  setLogoutRequired:
+    handler: src/handlers/setLogoutRequired.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/logout-required
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  putAssignedPackages:
+    handler: src/handlers/putAssignedPackages.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/assigned-packages
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   assignUserToOrganization:
     handler: src/handlers/assignUserToOrganization.main
     timeout: 10
@@ -395,6 +429,176 @@ functions:
       - http:
           path: user/{userId}/metadata
           method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  getSchedulePreferences:
+    handler: src/handlers/getSchedulePreferences.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/preferences
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  putSchedulePreferences:
+    handler: src/handlers/putSchedulePreferences.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/preferences
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  listSchedules:
+    handler: src/handlers/listSchedules.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  createSchedule:
+    handler: src/handlers/createSchedule.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  getSchedule:
+    handler: src/handlers/getSchedule.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/{scheduleId}
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  updateSchedule:
+    handler: src/handlers/updateSchedule.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/{scheduleId}
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  deleteSchedule:
+    handler: src/handlers/deleteSchedule.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/{scheduleId}
+          method: delete
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  listScheduleExclusions:
+    handler: src/handlers/listScheduleExclusions.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/exclusions
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  addScheduleExclusions:
+    handler: src/handlers/addScheduleExclusions.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/exclusions
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  deleteScheduleExclusions:
+    handler: src/handlers/deleteScheduleExclusions.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: user/{userId}/organization/{organizationId}/schedule/exclusions
+          method: delete
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
@@ -569,6 +773,24 @@ functions:
       - http:
           path: user/friend-family/delete
           method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  friendFamilyCheck:
+    handler: src/handlers/friendFamilyCheck.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: user/friend-family/check
+          method: get
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}

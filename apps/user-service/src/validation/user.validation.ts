@@ -291,6 +291,21 @@ export const assignDoctorSchema = z.object({
 /** List patients assigned to a doctor. Matches legacy doctor-patient-list API body. */
 export const listDoctorPatientsSchema = z.object({
   organizationId: z.string().min(1, 'organizationId is required'),
-  doctorId: z.string().min(1, 'doctorId is required'),
+  doctorId: z.string().optional(),
+  showActiveAppointment: z.boolean().optional(),
+}).refine((data) => !!data.doctorId || data.showActiveAppointment === true, {
+  path: ['doctorId'],
+  message: 'doctorId is required when showActiveAppointment is not true',
+});
+
+/** PUT assigned-packages: full replace of assignedPackages and assignedPackagesName for user in org. */
+export const assignedPackagesSchema = z.object({
+  assignedPackages: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    start: z.string().optional(),
+    end: z.string().optional(),
+  })).default([]),
+  assignedPackagesName: z.array(z.string()).default([]),
 });
 

@@ -74,17 +74,7 @@ function userPk(userId: string): string {
   return `USER#${userId}`;
 }
 
-function userDetailsSk(): string {
-  return 'USER_DETAILS';
-}
-
-// function userOrgSk(organizationId: string): string {
-//   return `USER_ORG#${organizationId}`;
-// }
-
-function userMetadataSk(): string {
-  return 'USER_METADATA';
-}
+ 
 
 function userFileSk(fileId: string): string {
   return `USER_FILE#${fileId}`;
@@ -94,9 +84,10 @@ const userOrgPk = (organizationId: string): string => {
   return `ORG#${organizationId}`;
 };
 
-const orgUserCountPk = (organizationId: string): string => {
-  return `ORG_USER_COUNT#${organizationId}`;
+const orgSK = ( ): string => {
+  return `ORG#`;
 };
+ 
 
 export interface ListOrganizationUsersOptions {
   limit?: number;
@@ -155,23 +146,32 @@ export class UserRepository {
     const logger = createChildLogger(baseLogger, { userId, organizationId });
     logger.info({ event: 'user_get_start', message: 'Getting user' });
     try {
-      const result = await docClient.send(
-        new GetCommand({
-          TableName: USER_TABLE_NAME,
-          Key: organizationId
-            ? {
-                // New schema layout in this service: pk=ORG#orgId, sk=USER#userId
-                pk: userOrgPk(organizationId),
-                sk: userPk(userId),
-              }
-            : {
-                // Legacy layout: pk=USER#userId, sk=USER_DETAILS
-                pk: userPk(userId),
-                sk: userDetailsSk(),
-              },
-        }),
-      );
-      logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
+      let result;
+      if (organizationId) {
+        result = await docClient.send(
+          new GetCommand({
+            TableName: USER_TABLE_NAME,
+            Key: {
+              pk: userOrgPk(organizationId),
+              sk: userPk(userId),
+            },
+          }),
+        );
+      } else {
+        const queryResult = await docClient.send(
+          new QueryCommand({
+            TableName: USER_TABLE_NAME,
+            KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+            ExpressionAttributeValues: {
+              ':pk': userPk(userId),
+              ':skPrefix': 'ORG#',
+            },
+            Limit: 1,
+          }),
+        );
+        result = { Item: queryResult.Items?.[0] };
+      }
+      
       if (!result.Item || result.Item.isDeleted === true || result.Item.deleted === true) {
         logger.info({ event: 'user_get_not_found', message: 'User not found' });
         return null;
@@ -365,7 +365,7 @@ export class UserRepository {
     const logger = createChildLogger(baseLogger, {
       userId,
       pk: userPk(userId),
-      skPrefix: 'USER#',
+      skPrefix: 'ORG#',
     });
     console.info({
       event: 'user_orgs_list_start',
@@ -379,7 +379,7 @@ export class UserRepository {
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
           ExpressionAttributeValues: {
             ':pk': userPk(userId),
-            ':skPrefix': 'USER#',
+            ':skPrefix': 'ORG#',
           },
         }),
       );
@@ -537,7 +537,7 @@ export class UserRepository {
     const now = new Date().toISOString();
     const item = {
       pk: userPk(userId),
-      sk: userMetadataSk(),
+      sk: orgSK(),
       userId,
       metadata,
       updatedAt: now,
@@ -563,27 +563,33 @@ export class UserRepository {
   async getUserMetadata(userId: string): Promise<UserMetadata | null> {
     try {
       const result = await docClient.send(
-        new GetCommand({
+        new QueryCommand({
           TableName: USER_TABLE_NAME,
-          Key: {
-            pk: userPk(userId),
-            sk: userMetadataSk(),
+          KeyConditionExpression: "pk = :pk AND begins_with(sk, :sk)",
+          ExpressionAttributeValues: {
+            ":pk": userPk(userId),
+            ":sk": "ORG#",
           },
-        }),
+          Limit: 1, // optional if you expect only one
+        })
       );
-
-      if (!result.Item) {
-        return null;
-      }
-
+  
+      const item = result.Items?.[0];
+  
+      if (!item) return null;
+  
       return {
-        userId: result.Item.userId as string,
-        metadata: (result.Item.metadata as Record<string, unknown>) || {},
-        updatedAt: result.Item.updatedAt as string,
+        userId: item.userId as string,
+        metadata: (item.metadata as Record<string, unknown>) || {},
+        updatedAt: item.updatedAt as string,
       };
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_metadata_get_error', err: serializeError(err), message: 'Failed to get user metadata' });
+      logger.error({
+        event: "user_metadata_get_error",
+        err: serializeError(err),
+        message: "Failed to get user metadata",
+      });
       throw err;
     }
   }
@@ -779,7 +785,7 @@ export class UserRepository {
         },
         ExpressionAttributeValues: {
           ':pk': `USER#${userId}`,
-          ':sk': 'ORG#',
+          ':sk': orgSK()
         },
       };
 

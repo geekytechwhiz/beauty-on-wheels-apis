@@ -146,23 +146,32 @@ export class UserRepository {
     const logger = createChildLogger(baseLogger, { userId, organizationId });
     logger.info({ event: 'user_get_start', message: 'Getting user' });
     try {
-      const result = await docClient.send(
-        new GetCommand({
-          TableName: USER_TABLE_NAME,
-          Key: organizationId
-            ? {
-                // New schema layout in this service: pk=ORG#orgId, sk=USER#userId
-                pk: userOrgPk(organizationId),
-                sk: userPk(userId),
-              }
-            : {
-                // Legacy layout: pk=USER#userId, sk=USER_DETAILS
-                pk: userPk(userId),
-                sk: orgSK(),
-              },
-        }),
-      );
-      logger.info({ event: 'user_get_success', message: 'User retrieved successfully', result: result.Item });
+      let result;
+      if (organizationId) {
+        result = await docClient.send(
+          new GetCommand({
+            TableName: USER_TABLE_NAME,
+            Key: {
+              pk: userOrgPk(organizationId),
+              sk: userPk(userId),
+            },
+          }),
+        );
+      } else {
+        const queryResult = await docClient.send(
+          new QueryCommand({
+            TableName: USER_TABLE_NAME,
+            KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+            ExpressionAttributeValues: {
+              ':pk': userPk(userId),
+              ':skPrefix': 'ORG#',
+            },
+            Limit: 1,
+          }),
+        );
+        result = { Item: queryResult.Items?.[0] };
+      }
+      
       if (!result.Item || result.Item.isDeleted === true || result.Item.deleted === true) {
         logger.info({ event: 'user_get_not_found', message: 'User not found' });
         return null;

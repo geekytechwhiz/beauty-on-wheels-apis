@@ -215,6 +215,15 @@ functions:
           method: post
           cors: true
 
+  deviceUserDelete:
+    handler: src/handlers/deviceUserDelete.handler
+    events:
+      - http:
+          path: devices/user/delete
+          method: post
+          cors: true
+    description: Delete single user-device mapping by userId and configDevice id
+
   deviceList:
     handler: src/handlers/deviceList.handler
     events:
@@ -321,6 +330,15 @@ functions:
     events:
       - http:
           path: devices/{deviceId}/metadata
+          method: put
+          cors: true
+
+  # Device Reading Timestamp API
+  deviceReadingTimestampUpdate:
+    handler: src/handlers/deviceReadingTimestampUpdate.handler
+    events:
+      - http:
+          path: devices/{userId}/{configDeviceId}/update
           method: put
           cors: true
 

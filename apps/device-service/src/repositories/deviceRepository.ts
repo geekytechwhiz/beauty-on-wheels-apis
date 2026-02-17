@@ -231,4 +231,45 @@ export class DeviceRepository {
     const devices = await this.getUserDevices(userId, { deviceId });
     return devices.length > 0 ? devices[0] : null;
   }
+
+  /**
+   * Update lastReadingTimeStamp for a user-device entry
+   */
+  async updateLastReadingTimeStamp(userId: string, configDeviceId: string, lastReadingTimeStamp: number): Promise<DeviceUserEntry> {
+    const logger = createChildLogger(baseLogger, { userId, configDeviceId });
+    try {
+      await this.docClient.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: {
+            pk: `DEVICE_LIST#${userId}`,
+            sk: `DETAILS#${configDeviceId}`,
+          },
+          UpdateExpression: 'SET lastReadingTimeStamp = :lastReadingTimeStamp, modifiedDate = :modifiedDate',
+          ExpressionAttributeValues: {
+            ':lastReadingTimeStamp': lastReadingTimeStamp,
+            ':modifiedDate': Date.now(),
+          },
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+          ReturnValues: 'ALL_NEW',
+        }),
+      );
+
+      // Fetch the updated device entry
+      const updatedDevice = await this.getDeviceByConfigId(userId, configDeviceId);
+      if (!updatedDevice) {
+        throw new DeviceNotFoundError(configDeviceId);
+      }
+
+      logger.info({ event: 'last_reading_timestamp_updated', configDeviceId, lastReadingTimeStamp });
+      return updatedDevice;
+    } catch (err) {
+      const code = (err as { name?: string })?.name;
+      if (code === 'ConditionalCheckFailedException') {
+        throw new DeviceNotFoundError(configDeviceId);
+      }
+      logger.error({ event: 'update_last_reading_timestamp_error', err: serializeError(err) });
+      throw err;
+    }
+  }
 }

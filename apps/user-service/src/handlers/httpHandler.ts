@@ -27,6 +27,16 @@ import {
   fetchFriendFamilySchema,
   deleteFriendFamilySchema,
 } from '../validation/friendFamily.validation';
+import {
+  putSchedulePreferencesSchema,
+  listSchedulesSchema,
+  createScheduleSchema,
+  updateScheduleSchema,
+  listExclusionsSchema,
+  addExclusionsSchema,
+} from '../validation/schedule.validation';
+import * as scheduleService from '../services/schedule.service';
+import type { SchedulePreferences } from '../models/Schedule';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const friendFamilyService = new FriendFamilyService();
@@ -2117,6 +2127,353 @@ export async function listOrganizationUsers(
       { requestId: correlationId, event },
       { code: 'LIST_ORG_USERS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] },
     );
+  }
+}
+
+// ---------- Schedule / availability endpoints ----------
+
+const SCHEDULE_PATH = '/user/{userId}/organization/{organizationId}/schedule';
+
+function parsePathParams(event: APIGatewayProxyEvent): { userId?: string; organizationId?: string; scheduleId?: string } {
+  const p = event.pathParameters || {};
+  return {
+    userId: (p.userId as string)?.trim() || undefined,
+    organizationId: (p.organizationId as string)?.trim() || undefined,
+    scheduleId: (p.scheduleId as string)?.trim() || undefined,
+  };
+}
+
+export async function getSchedulePreferences(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId } = parsePathParams(event);
+  if (!userId || !organizationId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId and organizationId are required' }] });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const data = await scheduleService.getSchedulePreferences(userId, organizationId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 200, duration, correlationId);
+    return ApiResponse.ok(data ?? {}, 'SCHEDULE.PREFERENCES_FETCHED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'getSchedulePreferences_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.FETCH_PREFERENCES_FAILED', { requestId: correlationId, event }, { code: 'FETCH_PREFERENCES_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function putSchedulePreferences(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId } = parsePathParams(event);
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] });
+  }
+  const validation = putSchedulePreferencesSchema.safeParse({ userId, organizationId, ...(body as object) });
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: validation.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })) });
+  }
+  const { userId: _uid, organizationId: _oid, ...prefsFields } = validation.data;
+  const prefs = prefsFields as SchedulePreferences;
+  const logger = createChildLogger(baseLogger, { correlationId, userId: validation.data.userId, organizationId: validation.data.organizationId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const data = await scheduleService.putSchedulePreferences(validation.data.userId, validation.data.organizationId, prefs);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 200, duration, correlationId);
+    return ApiResponse.ok(data, 'SCHEDULE.PREFERENCES_UPDATED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'putSchedulePreferences_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.UPDATE_PREFERENCES_FAILED', { requestId: correlationId, event }, { code: 'UPDATE_PREFERENCES_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function listSchedules(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId } = parsePathParams(event);
+  const startDate = event.queryStringParameters?.startDate?.trim();
+  const endDate = event.queryStringParameters?.endDate?.trim();
+  const scheduleType = event.queryStringParameters?.scheduleType?.trim();
+  const validation = listSchedulesSchema.safeParse({ userId, organizationId, startDate: startDate || '', endDate: endDate || '', scheduleType });
+  if (!validation.success || !userId || !organizationId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId, organizationId, startDate (YYYYMMDD), endDate (YYYYMMDD) are required' }] });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const items = await scheduleService.listSchedules(validation.data.userId, validation.data.organizationId, validation.data.startDate, validation.data.endDate, validation.data.scheduleType);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 200, duration, correlationId);
+    return ApiResponse.ok({ items }, 'SCHEDULE.LIST_SUCCESS', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'listSchedules_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.LIST_FAILED', { requestId: correlationId, event }, { code: 'LIST_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function getSchedule(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId, scheduleId } = parsePathParams(event);
+  if (!userId || !organizationId || !scheduleId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId, organizationId, scheduleId are required' }] });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, scheduleId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const data = await scheduleService.getSchedule(userId, organizationId, scheduleId);
+    const duration = Date.now() - startTime;
+    if (!data) {
+      logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 404, duration, correlationId);
+      return ApiResponse.notFound('SCHEDULE.NOT_FOUND', { requestId: correlationId, event }, { code: 'SCHEDULE_NOT_FOUND', details: [{ message: 'Schedule not found' }] });
+    }
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 200, duration, correlationId);
+    return ApiResponse.ok(data, 'SCHEDULE.FETCHED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'getSchedule_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || SCHEDULE_PATH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.FETCH_FAILED', { requestId: correlationId, event }, { code: 'FETCH_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function createSchedule(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId } = parsePathParams(event);
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] });
+  }
+  const validation = createScheduleSchema.safeParse({ userId, organizationId, ...(body as object) });
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: validation.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })) });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId: validation.data.userId, organizationId: validation.data.organizationId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const data = await scheduleService.createSchedule(validation.data.userId, validation.data.organizationId, {
+      scheduleId: validation.data.scheduleId,
+      scheduleType: validation.data.scheduleType,
+      scheduleTitle: validation.data.scheduleTitle,
+      scheduleNote: validation.data.scheduleNote,
+      startDate: validation.data.startDate,
+      endDate: validation.data.endDate,
+      frequency: validation.data.frequency,
+      dayOfWeek: validation.data.dayOfWeek,
+      timeSlots: validation.data.timeSlots,
+      leaveType: validation.data.leaveType,
+      isEnabled: validation.data.isEnabled,
+      queueCapacity: validation.data.queueCapacity,
+      maxCapacity: validation.data.maxCapacity,
+    });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || SCHEDULE_PATH, 201, duration, correlationId);
+    return ApiResponse.ok(data, 'SCHEDULE.CREATED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'createSchedule_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || SCHEDULE_PATH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.CREATE_FAILED', { requestId: correlationId, event }, { code: 'CREATE_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function updateSchedule(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId, scheduleId } = parsePathParams(event);
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] });
+  }
+  const validation = updateScheduleSchema.safeParse({ userId, organizationId, scheduleId, ...(body as object) });
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: validation.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })) });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId: validation.data.userId, organizationId: validation.data.organizationId, scheduleId: validation.data.scheduleId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const data = await scheduleService.updateSchedule(validation.data.userId, validation.data.organizationId, validation.data.scheduleId, {
+      scheduleTitle: validation.data.scheduleTitle,
+      scheduleNote: validation.data.scheduleNote,
+      startDate: validation.data.startDate,
+      endDate: validation.data.endDate,
+      frequency: validation.data.frequency,
+      dayOfWeek: validation.data.dayOfWeek,
+      timeSlots: validation.data.timeSlots,
+      leaveType: validation.data.leaveType,
+      isEnabled: validation.data.isEnabled,
+      queueCapacity: validation.data.queueCapacity,
+      maxCapacity: validation.data.maxCapacity,
+    });
+    const duration = Date.now() - startTime;
+    if (!data) {
+      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 404, duration, correlationId);
+      return ApiResponse.notFound('SCHEDULE.NOT_FOUND', { requestId: correlationId, event }, { code: 'SCHEDULE_NOT_FOUND', details: [{ message: 'Schedule not found' }] });
+    }
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 200, duration, correlationId);
+    return ApiResponse.ok(data, 'SCHEDULE.UPDATED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'updateSchedule_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || SCHEDULE_PATH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.UPDATE_FAILED', { requestId: correlationId, event }, { code: 'UPDATE_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function deleteSchedule(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId, scheduleId } = parsePathParams(event);
+  if (!userId || !organizationId || !scheduleId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || SCHEDULE_PATH, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId, organizationId, scheduleId are required' }] });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, scheduleId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    await scheduleService.deleteSchedule(userId, organizationId, scheduleId);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || SCHEDULE_PATH, 200, duration, correlationId);
+    return ApiResponse.ok({ scheduleId }, 'SCHEDULE.DELETED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'deleteSchedule_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || SCHEDULE_PATH, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.DELETE_FAILED', { requestId: correlationId, event }, { code: 'DELETE_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function listScheduleExclusions(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId } = parsePathParams(event);
+  const startDate = event.queryStringParameters?.startDate?.trim();
+  const endDate = event.queryStringParameters?.endDate?.trim();
+  const validation = listExclusionsSchema.safeParse({ userId, organizationId, startDate: startDate || '', endDate: endDate || '' });
+  if (!validation.success || !userId || !organizationId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `${SCHEDULE_PATH}/exclusions`, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId, organizationId, startDate (YYYYMMDD), endDate (YYYYMMDD) are required' }] });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const items = await scheduleService.listExclusions(validation.data.userId, validation.data.organizationId, validation.data.startDate, validation.data.endDate);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `${SCHEDULE_PATH}/exclusions`, 200, duration, correlationId);
+    return ApiResponse.ok({ items }, 'SCHEDULE.EXCLUSIONS_LISTED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'listScheduleExclusions_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'GET', event.path || `${SCHEDULE_PATH}/exclusions`, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.LIST_EXCLUSIONS_FAILED', { requestId: correlationId, event }, { code: 'LIST_EXCLUSIONS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function addScheduleExclusions(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId } = parsePathParams(event);
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || `${SCHEDULE_PATH}/exclusions`, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] });
+  }
+  const validation = addExclusionsSchema.safeParse({ userId, organizationId, ...(body as object) });
+  if (!validation.success) {
+    const duration = Date.now() - startTime;
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || `${SCHEDULE_PATH}/exclusions`, 400, duration, correlationId);
+    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: validation.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })) });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId: validation.data.userId, organizationId: validation.data.organizationId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    await scheduleService.addExclusions(validation.data.userId, validation.data.organizationId, validation.data.exclusions);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || `${SCHEDULE_PATH}/exclusions`, 200, duration, correlationId);
+    return ApiResponse.ok(null, 'SCHEDULE.EXCLUSIONS_ADDED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'addScheduleExclusions_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || `${SCHEDULE_PATH}/exclusions`, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.ADD_EXCLUSIONS_FAILED', { requestId: correlationId, event }, { code: 'ADD_EXCLUSIONS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
+  }
+}
+
+export async function deleteScheduleExclusions(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
+  const startTime = Date.now();
+  const correlationId = extractCorrelationId(event);
+  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { userId, organizationId } = parsePathParams(event);
+  const scheduleId = event.queryStringParameters?.scheduleId?.trim();
+  if (!userId || !organizationId) {
+    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `${SCHEDULE_PATH}/exclusions`, 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId and organizationId are required' }] });
+  }
+  const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, ...(awsRequestId && { awsRequestId }) });
+  try {
+    const count = await scheduleService.deleteExclusions(userId, organizationId, scheduleId || undefined);
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `${SCHEDULE_PATH}/exclusions`, 200, duration, correlationId);
+    return ApiResponse.ok({ deleted: count }, 'SCHEDULE.EXCLUSIONS_DELETED', { requestId: correlationId, event });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'deleteScheduleExclusions_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'DELETE', event.path || `${SCHEDULE_PATH}/exclusions`, 500, duration, correlationId);
+    return ApiResponse.internalServerError('SCHEDULE.DELETE_EXCLUSIONS_FAILED', { requestId: correlationId, event }, { code: 'DELETE_EXCLUSIONS_FAILED', details: [{ message: (err as Error)?.message || 'Unknown error' }] });
   }
 }
 

@@ -356,7 +356,7 @@ export class UserRepository {
     const logger = createChildLogger(baseLogger, {
       userId,
       pk: userPk(userId),
-      skPrefix: 'USER#',
+      skPrefix: 'ORG#',
     });
     console.info({
       event: 'user_orgs_list_start',
@@ -370,7 +370,7 @@ export class UserRepository {
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
           ExpressionAttributeValues: {
             ':pk': userPk(userId),
-            ':skPrefix': 'USER#',
+            ':skPrefix': 'ORG#',
           },
         }),
       );

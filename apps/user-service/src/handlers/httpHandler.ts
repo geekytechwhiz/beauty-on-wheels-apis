@@ -1457,7 +1457,7 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
     if (phoneVal.length > 0) {
       data.phone = { isVerified: false, phoneNumb: phoneVal, userId: null };
     }
-    return ApiResponse.ok(data, 'FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event });
+    return ApiResponse.ok({ message: 'User not found' }, 'FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     const msg = (err as Error)?.message;

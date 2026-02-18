@@ -298,14 +298,16 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
           event.headers?.AUTHORIZATION;
         const storedCodes = vitalCodesFromOrgSupportedVitals(organization.supportedVitals);
         const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'patient');
+        const getDeviceId = (item: any) => item?.deviceId ?? item?.device_id ?? item?.id;
+        const devices = Array.isArray(deviceItems)
+          ? deviceItems.filter((item, index, arr) => index === arr.findIndex((x) => getDeviceId(x) === getDeviceId(item)))
+          : [];
         const deviceCodes: string[] = [];
-        if (Array.isArray(deviceItems)) {
-          for (const item of deviceItems) {
-            const vitals = item?.supportedVitals;
-            if (Array.isArray(vitals)) {
-              for (const code of vitals) {
-                if (typeof code === 'string' && code.trim()) deviceCodes.push(code.trim());
-              }
+        for (const item of devices) {
+          const vitals = item?.supportedVitals;
+          if (Array.isArray(vitals)) {
+            for (const code of vitals) {
+              if (typeof code === 'string' && code.trim()) deviceCodes.push(code.trim());
             }
           }
         }

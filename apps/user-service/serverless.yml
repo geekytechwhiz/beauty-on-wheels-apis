@@ -213,7 +213,7 @@ custom:
     stg: us-east-1_wttVwD9Ax
     prd: us-east-1_0uZJvIS5R
 
-  stageUrls:F
+  stageUrls:
     dev:
       WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
       PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
@@ -522,6 +522,18 @@ functions:
     
     memorySize: 256
     events:
+      - http:
+          path: user/doctor-patient-list
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
       - http:
           path: user/doctor-patient-list
           method: post

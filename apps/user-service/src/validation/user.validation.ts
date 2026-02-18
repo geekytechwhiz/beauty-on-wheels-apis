@@ -288,14 +288,30 @@ export const assignDoctorSchema = z.object({
   { message: 'Sender (doctor) and receiver (patient) must be different users', path: ['receiver'] },
 );
 
-/** List patients assigned to a doctor. Matches legacy doctor-patient-list API body. */
+/** List patients assigned to a doctor or all patients in organization (front desk view).
+ * Supports query parameters for microservice standard:
+ * - doctorId: optional, if provided returns doctor's patients
+ * - organizationId: required
+ * - showConsultations: optional boolean, if true includes previouslyConsulted field
+ */
+export const listDoctorPatientsQuerySchema = z.object({
+  organizationId: z.string().min(1, 'organizationId is required'),
+  doctorId: z.string().optional(),
+  showConsultations: z.union([z.string(), z.boolean()]).optional().transform((val) => {
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'string') {
+      const lower = val.toLowerCase();
+      return lower === 'true' || lower === '1';
+    }
+    return false;
+  }),
+});
+
+/** Legacy POST body schema for backward compatibility */
 export const listDoctorPatientsSchema = z.object({
   organizationId: z.string().min(1, 'organizationId is required'),
   doctorId: z.string().optional(),
-  showActiveAppointment: z.boolean().optional(),
-}).refine((data) => !!data.doctorId || data.showActiveAppointment === true, {
-  path: ['doctorId'],
-  message: 'doctorId is required when showActiveAppointment is not true',
+  showConsultations: z.boolean().optional(),
 });
 
 /** PUT assigned-packages: full replace of assignedPackages and assignedPackagesName for user in org. */

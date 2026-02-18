@@ -14,13 +14,27 @@ import {
 } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
-import { listDoctorPatientsSchema } from '../validation/user.validation';
+import { listDoctorPatientsSchema, listDoctorPatientsQuerySchema } from '../validation/user.validation';
 import { UserNotFoundError } from '../utils/errors';
 import { PATH_DOCTOR_PATIENT_LIST } from '../utils/constants';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 
+/**
+ * List patients assigned to a doctor or all patients in organization (front desk view).
+ * Supports both GET (query params) and POST (body) for backward compatibility.
+ * 
+ * Query parameters (GET):
+ * - organizationId: required
+ * - doctorId: optional, if provided returns doctor's patients; if omitted returns all patients in org
+ * - showConsultations: optional boolean, if true includes previouslyConsulted field
+ * 
+ * Body (POST - legacy):
+ * - organizationId: required
+ * - doctorId: optional
+ * - showConsultations: optional boolean
+ */
 export async function listDoctorPatients(
   event: APIGatewayProxyEvent,
   context?: Context,
@@ -32,36 +46,53 @@ export async function listDoctorPatients(
     correlationId,
     ...(awsRequestId && { awsRequestId }),
   });
-  logger.info({ event: 'listDoctorPatients_received' });
+  logger.info({ event: 'listDoctorPatients_received', method: event.httpMethod });
 
-  let body: unknown;
-  try {
-    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-  } catch (err) {
-    logger.error({
-      event: 'listDoctorPatients_parse_error',
-      err: serializeError(err as Error),
-    });
-    const duration = Date.now() - startTime;
-    logHttpRequest(
-      logger,
-      event.httpMethod || 'POST',
-      PATH_DOCTOR_PATIENT_LIST,
-      400,
-      duration,
-      correlationId,
-    );
-    return ApiResponse.badRequest(
-      'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
-      {
-        code: 'BAD_REQUEST',
-        details: [{ message: 'Invalid JSON body' }],
-      },
-    );
+  const httpMethod = event.httpMethod?.toUpperCase() || 'POST';
+  const isGet = httpMethod === 'GET';
+
+  // Parse input: GET uses query params, POST uses body
+  let input: unknown;
+  if (isGet) {
+    const queryParams = event.queryStringParameters || {};
+    input = {
+      organizationId: queryParams.organizationId,
+      doctorId: queryParams.doctorId,
+      showConsultations: queryParams.showConsultations,
+    };
+  } else {
+    try {
+      input = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    } catch (err) {
+      logger.error({
+        event: 'listDoctorPatients_parse_error',
+        err: serializeError(err as Error),
+      });
+      const duration = Date.now() - startTime;
+      logHttpRequest(
+        logger,
+        httpMethod,
+        PATH_DOCTOR_PATIENT_LIST,
+        400,
+        duration,
+        correlationId,
+      );
+      return ApiResponse.badRequest(
+        'COMMON.INVALID_JSON',
+        { requestId: correlationId, event },
+        {
+          code: 'BAD_REQUEST',
+          details: [{ message: 'Invalid JSON body' }],
+        },
+      );
+    }
   }
 
-  const validation = listDoctorPatientsSchema.safeParse(body);
+  // Validate input based on method
+  const validation = isGet
+    ? listDoctorPatientsQuerySchema.safeParse(input)
+    : listDoctorPatientsSchema.safeParse(input);
+
   if (!validation.success) {
     logger.warn({
       event: 'listDoctorPatients_validation_error',
@@ -70,7 +101,7 @@ export async function listDoctorPatients(
     const duration = Date.now() - startTime;
     logHttpRequest(
       logger,
-      event.httpMethod || 'POST',
+      httpMethod,
       PATH_DOCTOR_PATIENT_LIST,
       400,
       duration,
@@ -89,16 +120,66 @@ export async function listDoctorPatients(
     );
   }
 
-  const { organizationId, doctorId } = validation.data;
+  const { organizationId, doctorId, showConsultations = false } = validation.data;
+
   try {
-    const users = await userService.listDoctorPatients(
-      doctorId as string,
-      organizationId as string,
-    );
+    let users: Record<string, unknown>[];
+
+    if (doctorId) {
+      // Doctor-specific view: get patients assigned to this doctor
+      logger.info({ event: 'listDoctorPatients_doctor_view', doctorId, organizationId });
+      const doctorPatients = await userService.listDoctorPatients(
+        doctorId,
+        organizationId,
+      );
+
+      // Conditionally include previouslyConsulted field based on showConsultations flag
+      users = doctorPatients.map((patient) => {
+        const result = { ...patient };
+        if (!showConsultations && 'previouslyConsulted' in result) {
+          delete result.previouslyConsulted;
+        }
+        return result;
+      });
+    } else {
+      // Organization-level view (front desk): get all patients in organization
+      logger.info({ event: 'listDoctorPatients_organization_view', organizationId });
+      const orgUsers = await userService.listOrganizationUsers(organizationId, {
+        userType: 'USER',
+      });
+
+      // Transform to match expected format
+      users = orgUsers.map((user) => {
+        const u = user as any;
+        return {
+          city: user.city || '',
+          state: u.state || '',
+          country: u.country || '',
+          fullName: user.fullName || '',
+          emailAddress: user.emailAddress || '',
+          phoneNumber: user.phoneNumber || '',
+          lastAppointment: u.lastAppointment ?? null,
+          profilePic: user.profilePic || '',
+          reporterId: u.reporterId || '',
+          doctor: u.reporterName || '',
+          patientId: user.userID,
+          userID: user.userID,
+          accountType: u.isRpmUser ? 'RPM' : 'REGULAR',
+          status: u.isActive !== false ? 'active' : 'inactive',
+          createdDate: user.createdDate ?? null,
+          mrn: u.mrn ?? null,
+          gender: u.gender || '',
+          medicalHistory: u.medicalHistory ?? null,
+          dateOfBirth: u.dateOfBirth ?? null,
+          patientOrgId: user.organizationID || organizationId,
+        };
+      });
+    }
+
     const duration = Date.now() - startTime;
     logHttpRequest(
       logger,
-      event.httpMethod || 'POST',
+      httpMethod,
       PATH_DOCTOR_PATIENT_LIST,
       200,
       duration,
@@ -114,7 +195,7 @@ export async function listDoctorPatients(
     if (err instanceof UserNotFoundError) {
       logHttpRequest(
         logger,
-        event.httpMethod || 'POST',
+        httpMethod,
         PATH_DOCTOR_PATIENT_LIST,
         404,
         duration,
@@ -135,7 +216,7 @@ export async function listDoctorPatients(
     });
     logHttpRequest(
       logger,
-      event.httpMethod || 'POST',
+      httpMethod,
       PATH_DOCTOR_PATIENT_LIST,
       500,
       duration,

@@ -633,11 +633,32 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     );
   }
 
-  // Extract from body; fallback to authorizer (token) when body does not send them
-  const bodyUserId = body?.userId || body?.userID;
-  const bodyOrganizationId = body?.organizationId || body?.organizationID;
-  const userId = bodyUserId || requestUserId;
-  const organizationId = bodyOrganizationId || requestOrgId;
+  // Extract from body; fallback to authorizer (token); then JWT decode if authorizer didn't pass context
+  let userId = body?.userId || body?.userID || requestUserId;
+  let organizationId = body?.organizationId || body?.organizationID || requestOrgId;
+
+  if ((!userId || !organizationId) && (event.headers?.Authorization || event.headers?.authorization)) {
+    try {
+      const authHeader = event.headers?.Authorization || event.headers?.authorization || '';
+      const token = String(authHeader).replace(/^Bearer\s+/i, '').trim();
+      const base64Url = token.split('.')[1];
+      if (base64Url) {
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          Buffer.from(base64, 'base64')
+            .toString()
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const decoded = JSON.parse(jsonPayload);
+        if (!userId) userId = decoded['custom:userID'] || decoded['custom:userId'] || decoded.userID || decoded.userId || decoded.sub;
+        if (!organizationId) organizationId = decoded['custom:organizationID'] || decoded['custom:organizationId'] || decoded.organizationID || decoded.organizationId;
+      }
+    } catch {
+      // JWT decode failed; will return 401 below if still missing
+    }
+  }
 
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
@@ -654,8 +675,17 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
   const logger = createChildLogger(baseLogger, { correlationId, userId: resolvedUserId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'updateUser_received', eventData: event });
 
-  const action = body?.action ? String(body.action).toUpperCase() : undefined;
+  // Normalize action to support post_manage_user_profile aliases (GEN, UNITS, COMM)
+  let action = body?.action ? String(body.action).toUpperCase() : undefined;
   if (action) {
+    const actionAliases: Record<string, string> = {
+      GEN: 'GENERAL_SETTINGS',
+      UNITS: 'UNITS_SETTINGS',
+      COMM: 'COMMUNICATION_SETTINGS',
+      UPLOAD_IMAGE: 'UPLOAD',
+      DELETE_IMAGE: 'DELETE',
+    };
+    action = actionAliases[action] ?? action;
     const duration = Date.now() - startTime;
     const hasOwn = (obj: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(obj, key);
     const setIfPresent = (target: Record<string, unknown>, key: string, value: unknown) => {
@@ -697,6 +727,7 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
     try {
       const existing = await userService.getUser(userId, organizationId);
       const userData: Record<string, unknown> = {};
+      let isWorkingHoursUpdate = false;
 
       switch (action) {
         case 'LANGUAGE': {
@@ -778,21 +809,22 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
           const srcRegisEntity = String((existing as any).srcRegisEntity || '').toLowerCase();
           const emailInput = hasOwn(body, 'emailAddress') ? body.emailAddress : (hasOwn(body, 'email') ? body.email : undefined);
           const phoneInput = hasOwn(body, 'phoneNumber') ? body.phoneNumber : (hasOwn(body, 'phone') ? body.phone : undefined);
-          
-          // Normalize email for comparison
-          const normalizeEmail = (email: any): string => {
-            if (!email) return '';
-            return String(email).trim().toLowerCase();
-          };
-          
-          // Normalize phone for comparison (with phoneCode)
-          const normalizePhone = (phone: any, phoneCode?: any): string => {
-            if (!phone) return '';
-            const phoneStr = String(phone).trim();
-            const code = phoneCode ? String(phoneCode).trim() : '';
-            const composed = code ? `${code}${phoneStr}`.trim() : phoneStr;
-            return composed.startsWith('+') ? composed : `+${composed}`;
-          };
+
+          // Restrict email/phone changes per post_manage_user_profile: email-registered users cannot change email, phone-registered cannot change phone
+          if (srcRegisEntity === 'email' && emailInput !== undefined) {
+            return ApiResponse.badRequest(
+              'USER.EMAIL_CHANGE_NOT_ALLOWED',
+              { requestId: correlationId, event },
+              { code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED', details: [{ message: 'Email address change not allowed for email-registered users' }] },
+            );
+          }
+          if (srcRegisEntity === 'phone' && phoneInput !== undefined) {
+            return ApiResponse.badRequest(
+              'USER.PHONE_CHANGE_NOT_ALLOWED',
+              { requestId: correlationId, event },
+              { code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED', details: [{ message: 'Phone number change not allowed for phone-registered users' }] },
+            );
+          }
           
           setIfPresent(userData, 'profilePic', body.profilePic);
           setIfPresent(userData, 'firstName', body.firstName);
@@ -910,12 +942,24 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
               { code: 'VALIDATION_ERROR', details: [{ field: 'workingHours', message: validationMessage }] },
             );
           }
-          userData.workingHours = body.workingHours;
+          // Normalize: ensure days with available: false include availableHours: [] so saturday/sunday persist correctly
+          const hours = body.workingHours as Record<string, { available: boolean; availableHours?: Array<{ from: string; to: string }> }>;
+          const normalized: Record<string, { available: boolean; availableHours: Array<{ from: string; to: string }> }> = {};
+          const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          for (const day of days) {
+            const d = hours[day];
+            normalized[day] = {
+              available: !!d?.available,
+              availableHours: d?.available ? (Array.isArray(d.availableHours) ? d.availableHours : []) : [],
+            };
+          }
+          userData.workingHours = normalized;
           if (body?.slotDurationInMinutes !== undefined) {
             userData.slotDurationInMinutes = body.slotDurationInMinutes;
           } else {
             userData.slotDurationInMinutes = 30;
           }
+          isWorkingHoursUpdate = true;
           break;
         }
         default: {
@@ -928,13 +972,29 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
       }
 
       await userService.updateUser(resolvedUserId, resolvedOrganizationId, userData, correlationId);
+
+      // Sync workingHours to schedule preferences so getSchedulePreferences returns consistent data
+      if (isWorkingHoursUpdate && userData.workingHours) {
+        try {
+          const existingPrefs = await scheduleService.getSchedulePreferences(resolvedUserId, resolvedOrganizationId);
+          const prefs: SchedulePreferences = {
+            ...(existingPrefs || {}),
+            workingHours: userData.workingHours as SchedulePreferences['workingHours'],
+            slotDurationInMinutes: (userData.slotDurationInMinutes as number) ?? existingPrefs?.slotDurationInMinutes ?? 30,
+          };
+          await scheduleService.putSchedulePreferences(resolvedUserId, resolvedOrganizationId, prefs);
+        } catch (syncErr) {
+          logger.warn({ event: 'updateUser_schedule_prefs_sync_failed', err: serializeError(syncErr) });
+        }
+      }
+
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/user', 200, duration, correlationId);
       return ApiResponse.ok(
         {}, 
         { 
           title: 'Success', 
           description: 'The operation completed successfully.' 
-        }, 
+        },
         { requestId: correlationId, event }
       );
     } catch (err) {

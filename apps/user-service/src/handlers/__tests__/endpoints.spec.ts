@@ -59,6 +59,19 @@ vi.mock('@api-hub/logger', () => ({
   logHttpRequest: vi.fn(),
 }));
 
+vi.mock('../../utils/helpers', () => ({
+  getAuthorizerUserId: vi.fn((e: any) => e?.requestContext?.authorizer?.userID),
+  getAuthorizerOrganizationId: vi.fn((e: any) => e?.requestContext?.authorizer?.organizationID),
+  getUserIdAndOrganizationIdFromToken: vi.fn(() => ({ sub: 'test-sub' })),
+}));
+
+vi.mock('../../services/cognito.service', () => ({
+  CognitoService: vi.fn().mockImplementation(function (this: any) {
+    this.getUserAttributes = vi.fn().mockResolvedValue({ userID: 'user-1', organizationID: 'org-1' });
+    return this;
+  }),
+}));
+
 import { __userServiceMocks } from '../../services/user.service';
 import { __friendFamilyMocks } from '../../services/friendFamily.service';
 
@@ -179,12 +192,17 @@ describe('friendFamilySearch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOk.mockResolvedValue({ statusCode: 200, body: '{}' });
-    __friendFamilyMocks.searchFnf.mockResolvedValue({ success: true, invitedUser: 'member-1' });
+    __friendFamilyMocks.searchFnf.mockResolvedValue({
+      success: true,
+      invitedUser: 'member-1',
+      data: { invitedUser: 'member-1', email: { isVerified: true, emailId: 'fnf@example.com', userId: 'member-1' } },
+    });
   });
 
   it('returns 200 with invitedUser when search finds user', async () => {
     const { friendFamilySearch } = await import('../httpHandler');
     const event = createMockEvent({
+      headers: { Authorization: 'Bearer test-token' },
       body: JSON.stringify({
         organizationID: 'org-1',
         userID: 'user-1',

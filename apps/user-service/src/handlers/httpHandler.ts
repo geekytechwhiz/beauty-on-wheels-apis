@@ -15,7 +15,7 @@ import {
   assignedPackagesSchema,
 } from '../validation/user.validation';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
-import { getAuthorizerUserId, getAuthorizerOrganizationId, getUserIdAndOrganizationIdFromToken } from '../utils/helpers';
+import { getAuthorizerUserId, getAuthorizerOrganizationId, getUserIdAndOrganizationIdFromToken, buildCreateUserPayloadFromFnfSearch } from '../utils/helpers';
 import { getOrganization } from '../services/organization.service';
 import { PackageRepository } from '../repositories/package.repositrory';
 import { RoleRepository } from '../repositories/role.repository';
@@ -1378,6 +1378,7 @@ const PATH_FNF_UPDATE = '/user/friend-family/update';
 const PATH_FNF_FETCH = '/user/friend-family/fetch';
 const PATH_FNF_DELETE = '/user/friend-family/delete';
 
+
 export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
@@ -1405,59 +1406,107 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
   // Resolve userID and organizationID only from Cognito (JWT claims then AdminGetUser)
   const fromToken = getUserIdAndOrganizationIdFromToken(authHeader);
     let userID = "";
-    let organizationID = ""; 
+    let organizationID =fromToken.organizationId; 
   if ( fromToken.sub) {
     const region = process.env.REGION ?? process.env.AWS_REGION ?? 'us-east-1';
     const userPoolId = process.env.COGNITO_USER_POOL_ID ?? '';
     const cognitoService = new CognitoService(region, userPoolId);
     const attrs = await cognitoService.getUserAttributes(fromToken.sub);
-    userID =   attrs.userID ?? "";
-    organizationID = attrs.organizationID ?? "";
+    userID =   attrs.userID ?? ""; 
   }
-
-  if (!userID || !organizationID?.trim()) {
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 401, duration, correlationId);
-    return ApiResponse.unauthorized('FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event }, { code: 'USER_NOT_FOUND' });
-  }
-
-  const resolvedOrgId = organizationID as string;
-  const validation = friendFamilySearchSchema.safeParse({ ...b, organizationID: resolvedOrgId });
-  if (!validation.success) {
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
-    return ApiResponse.unprocessableEntity('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, {
-      code: 'VALIDATION_ERROR',
-      details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
-    });
-  }
+ 
+  const validation = friendFamilySearchSchema.safeParse({ ...b, organizationID: organizationID });
+   
 
   try {
-    const result = await friendFamilyService.searchFnf(resolvedOrgId, userID, validation.data, authHeader);
+    const result = await friendFamilyService.searchFnf(organizationID as string, userID, validation.data as any, authHeader);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
+
     if (result.success && result.invitedUser && result.data) {
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
       return ApiResponse.ok(
         result.data,
         'FRIEND_FAMILY.SEARCH_SUCCESS',
         { requestId: correlationId, event },
       );
     }
-    // User not found: FriendModelData with email and/or phone (isVerified: false), userId null for invite flow
-    const emailVal = (validation.data.email ?? '').toString().trim();
-    const phoneVal = (validation.data.phone ?? '').toString().trim();
-    const data: {
-      email?: { isVerified: boolean; emailId: string; userId: string | null };
-      phone?: { isVerified: boolean; phoneNumb: string; userId: string | null };
-      invitedUser?: string;
-    } = {};
-    if (emailVal.length > 0) {
-      data.email = { isVerified: false, emailId: emailVal, userId: null };
+
+    // User not found: run full invite flow (createUser) then return invitedUser + data or UNABLE_TO_INVITE_USER
+    logger.info({ event: 'friend_family_search_invite_flow_start' });
+    try {
+      await friendFamilyService.checkFriendFamilyLimit(userID);
+      const userData = buildCreateUserPayloadFromFnfSearch(validation.data as any, organizationID as string, userID) as any;
+      const roleIds = Array.isArray(userData.userRole) ? userData.userRole.map((r: string) => String(r)) : [];
+      if (roleIds.length > 0) {
+        try {
+          const rolePermissions = await userRepository.getRolePermissions(roleIds[0], organizationID as string,);
+          if (rolePermissions?.length > 0) {
+            const exactMatch = rolePermissions.find((item: any) => item.SK === `ROLE#${roleIds[0]}`) || rolePermissions[0];
+            const definedRoleCode = exactMatch?.definedRoleCode;
+            if (definedRoleCode != null) userData.definedRoleCode = String(definedRoleCode);
+          }
+        } catch (roleErr) {
+          logger.warn({ event: 'friend_family_invite_role_fetch_warn', err: serializeError(roleErr) });
+        }
+      }
+
+      const newUser = await userService.createUser(
+        userData,
+        organizationID as string,
+        userID,
+        correlationId,
+        authHeader,
+        undefined,
+        undefined,
+      );
+
+      if (roleIds.length > 0) {
+        try {
+          await assignUserRole(
+            roleIds[0],
+            organizationID as string,
+            newUser.userID,
+            validation?.data?.fullName ?? '',
+            (validation?.data?.email ?? '').toString().trim(),
+            (validation?.data?.phone ?? '').toString().trim(),
+            '',
+            authHeader,
+          );
+        } catch (assignErr) {
+          logger.warn({ event: 'friend_family_invite_assign_role_warn', err: serializeError(assignErr) });
+        }
+      }
+
+      const emailVal = (validation?.data?.email ?? '').toString().trim();
+      const phoneVal = (validation?.data?.phone ?? '').toString().trim();
+      const inviteData: Record<string, unknown> = { invitedUser: newUser.userID };
+      if (emailVal.length > 0) {
+        (inviteData as any).email = { isVerified: true, emailId: emailVal, userId: newUser.userID };
+      }
+      if (phoneVal.length > 0) {
+        (inviteData as any).phone = { isVerified: true, phoneNumb: phoneVal, userId: newUser.userID };
+      }
+      const durationInvite = Date.now() - startTime;
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, durationInvite, correlationId);
+      return ApiResponse.ok(inviteData, 'FRIEND_FAMILY.INVITE_SUCCESS', { requestId: correlationId, event });
+    } catch (inviteErr) {
+      const durationInvite = Date.now() - startTime;
+      if (inviteErr instanceof UserAlreadyExistsError) {
+        logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 409, durationInvite, correlationId);
+        return ApiResponse.conflict(
+          'FRIEND_FAMILY.UNABLE_TO_INVITE_USER',
+          { requestId: correlationId, event },
+          { code: 'UNABLE_TO_INVITE_USER', details: [{ message: (inviteErr as Error).message }] },
+        );
+      }
+      logger.error({ event: 'friend_family_invite_error', err: serializeError(inviteErr) });
+      logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, durationInvite, correlationId);
+      return ApiResponse.badRequest(
+        'FRIEND_FAMILY.UNABLE_TO_INVITE_USER',
+        { requestId: correlationId, event },
+        { code: 'UNABLE_TO_INVITE_USER', details: [{ message: (inviteErr as Error)?.message || 'Unable to invite user' }] },
+      );
     }
-    if (phoneVal.length > 0) {
-      data.phone = { isVerified: false, phoneNumb: phoneVal, userId: null };
-    }
-    return ApiResponse.ok(data, 'FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     const msg = (err as Error)?.message;

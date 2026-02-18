@@ -67,3 +67,41 @@ export function getUserIdAndOrganizationIdFromToken(authHeader: string | undefin
   }
 }
 
+/** Parse phone into phoneCode and number (e.g. +919876543210 -> +91, 9876543210). */
+export function parsePhoneForCreateUser(phone: string): { phoneCode: string; phoneNumber: string } {
+  const raw = (phone ?? '').toString().replace(/\s/g, '').trim();
+  if (!raw) return { phoneCode: '', phoneNumber: '' };
+  const match = raw.match(/^(\+\d{1,4})(.*)$/);
+  if (match) {
+    return { phoneCode: match[1], phoneNumber: (match[2] ?? '').trim() };
+  }
+  return { phoneCode: '', phoneNumber: raw };
+}
+
+/**
+ * Build createUser payload from F&F search body for the "user not found → invite" flow.
+ * Maps fullName, email, phone, roles to the shape expected by userService.createUser.
+ */
+export function buildCreateUserPayloadFromFnfSearch(
+  body: {
+    fullName: string;
+    email?: string;
+    phone?: string;
+    roles?: string[];
+  },
+  _organizationID: string,
+  _inviterUserID: string,
+): Record<string, unknown> {
+  const email = (body.email ?? '').toString().trim();
+  const phoneRaw = (body.phone ?? '').toString().replace(/\s/g, '').trim();
+  const { phoneCode, phoneNumber } = parsePhoneForCreateUser(phoneRaw);
+  const roles = Array.isArray(body.roles) ? body.roles.map(String) : [];
+  return {
+    fullName: (body.fullName ?? '').trim(),
+    emailAddress: email || '',
+    phoneNumber: phoneNumber || '',
+    phoneCode: phoneCode || '',
+    userType: 'USER',
+    userRole: roles,
+  };
+}

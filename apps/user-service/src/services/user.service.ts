@@ -67,12 +67,7 @@ export class UserService {
         throw new Error('Organization is not available');
       }
 
-      // Check if user already exists (must pass organizationId since getUser requires it)
-      // const existing = await this.repository.getUser(data.userID, organizationID);
-      // if (existing) {
-      //   throw new UserAlreadyExistsError(data.userID);
-      // }
-
+ 
       // Normalize legacy aliases
       if (!data.emailAddress && (data as any).email) data.emailAddress = (data as any).email;
       if (!data.phoneNumber && (data as any).phone_number) data.phoneNumber = String((data as any).phone_number).trim();

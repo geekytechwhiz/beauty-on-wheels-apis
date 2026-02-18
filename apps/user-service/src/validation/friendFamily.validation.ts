@@ -24,7 +24,9 @@ export const addMemberFriendFamilySchema = z
     memberName: z.string().min(1, 'Member name is required'),
     relation: relationSchema,
     relationship: z.string(),
-    emergencyContact: z.boolean({ required_error: 'Emergency contact is required' }),
+    emergencyContact: z.boolean().refine((val) => typeof val === 'boolean', {
+      message: 'Emergency contact is required',
+    }),
     manageHealth: z.boolean().optional(),
   })
   .refine(
@@ -46,7 +48,9 @@ export const friendFamilySearchSchema = z
     invite: z.string().min(1, 'Invite is required'),
     relation: relationSchema,
     relationship: z.string().optional(),
-    emergencyContact: z.boolean({ required_error: 'Emergency contact is required' }),
+    emergencyContact: z.boolean().refine((val) => typeof val === 'boolean', {
+      message: 'Emergency contact is required',
+    }),
     roles: z.array(z.string()).optional(),
   })
   .refine(

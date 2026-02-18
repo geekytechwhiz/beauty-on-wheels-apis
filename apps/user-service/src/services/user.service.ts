@@ -1780,6 +1780,7 @@ export class UserService {
         heightInFeet: userBasicDetails.heightInFeet || '',
         cloudOpt: userBasicDetails.cloudOpt || '',
         country: userBasicDetails.country || '',
+        slotDurationInMinutes: userBasicDetails.slotDurationInMinutes || 15,
         language: userBasicDetails.language || orgBasicDetails?.organizationInfo?.defaultSetting?.languages?.[0]?.langCode || 'en',
         dateOfBirth: userBasicDetails.dateOfBirth || '',
         address: userBasicDetails.address || '',

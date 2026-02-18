@@ -21,7 +21,7 @@ import { PATH_ASSIGNED_PACKAGES } from '../utils/constants';
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 
-export async function putAssignedPackages(
+ async function putAssignedPackages(
   event: APIGatewayProxyEvent,
   context?: Context,
 ): Promise<APIGatewayProxyResult> {

@@ -25,7 +25,7 @@ const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 const organizationRepository = new OrganizationRepository();
 
-export async function getUser(
+ async function getUser(
   event: APIGatewayProxyEvent,
   context?: Context,
 ): Promise<APIGatewayProxyResult> {

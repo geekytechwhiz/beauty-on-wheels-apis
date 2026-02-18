@@ -23,7 +23,7 @@ import { updateUserSchema } from '../validation/user.validation';
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 
-export async function updateUser(
+  async function updateUser(
   event: APIGatewayProxyEvent,
   context?: Context,
 ): Promise<APIGatewayProxyResult> {

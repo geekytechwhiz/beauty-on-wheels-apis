@@ -62,7 +62,7 @@ vi.mock('@api-hub/logger', () => ({
 vi.mock('../../utils/helpers', () => ({
   getAuthorizerUserId: vi.fn((e: any) => e?.requestContext?.authorizer?.userID),
   getAuthorizerOrganizationId: vi.fn((e: any) => e?.requestContext?.authorizer?.organizationID),
-  getUserIdAndOrganizationIdFromToken: vi.fn(() => ({ sub: 'test-sub' })),
+  getUserIdAndOrganizationIdFromToken: vi.fn(() => ({ sub: 'test-sub', organizationId: 'org-1' })),
 }));
 
 vi.mock('../../services/cognito.service', () => ({
@@ -105,7 +105,7 @@ describe('assignDoctor', () => {
   });
 
   it('returns 200 when assignDoctor succeeds', async () => {
-    const { handler: assignDoctor } = await import('../assign-doctor');
+    const { handler: assignDoctor } = await import('../assignDoctor');
     __userServiceMocks.assignDoctor.mockResolvedValue(undefined);
     const event = createMockEvent({
       body: JSON.stringify({
@@ -123,7 +123,7 @@ describe('assignDoctor', () => {
   });
 
   it('returns 400 when body is invalid JSON', async () => {
-    const { handler: assignDoctor } = await import('../assign-doctor');
+    const { handler: assignDoctor } = await import('../assignDoctor');
     mockBadRequest.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: 'not json' });
 
@@ -134,7 +134,7 @@ describe('assignDoctor', () => {
   });
 
   it('returns 404 when UserNotFoundError', async () => {
-    const { handler: assignDoctor } = await import('../assign-doctor');
+    const { handler: assignDoctor } = await import('../assignDoctor');
     const { UserNotFoundError } = await import('../../utils/errors');
     __userServiceMocks.assignDoctor.mockRejectedValue(new UserNotFoundError('doctor-1'));
     mockNotFound.mockResolvedValue({ statusCode: 404, body: '{}' });
@@ -161,7 +161,7 @@ describe('listDoctorPatients', () => {
   });
 
   it('returns 200 with users array', async () => {
-    const { listDoctorPatients } = await import('../list-doctor-patients');
+    const { listDoctorPatients } = await import('../listDoctorPatients');
     const event = createMockEvent({
       body: JSON.stringify({ organizationId: 'org-1', doctorId: 'doctor-1' }),
     });
@@ -174,7 +174,7 @@ describe('listDoctorPatients', () => {
   });
 
   it('returns 400 when validation fails', async () => {
-    const { listDoctorPatients } = await import('../list-doctor-patients');
+    const { listDoctorPatients } = await import('../listDoctorPatients');
     mockUnprocessableEntity.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: JSON.stringify({}) });
 
@@ -197,7 +197,7 @@ describe('friendFamilySearch', () => {
   });
 
   it('returns 200 with invitedUser when search finds user', async () => {
-    const { main: friendFamilySearch } = await import('../friend-family-search');
+    const { main: friendFamilySearch } = await import('../friendFamilySearch');
     const event = createMockEvent({
       headers: { Authorization: 'Bearer test-token' },
       body: JSON.stringify({
@@ -221,7 +221,7 @@ describe('friendFamilySearch', () => {
   });
 
   it('returns 401 when userID missing', async () => {
-    const { main: friendFamilySearch } = await import('../friend-family-search');
+    const { main: friendFamilySearch } = await import('../friendFamilySearch');
     mockUnauthorized.mockResolvedValue({ statusCode: 401, body: '{}' });
     const event = createMockEvent({
       body: JSON.stringify({
@@ -248,7 +248,7 @@ describe('friendFamilyAddMember', () => {
   });
 
   it('returns 200 when add member succeeds', async () => {
-    const { main: friendFamilyAddMember } = await import('../friend-family-add-member');
+    const { main: friendFamilyAddMember } = await import('../friendFamilyAddMember');
     const event = createMockEvent({
       body: JSON.stringify({
         organizationID: 'org-1',
@@ -271,7 +271,7 @@ describe('friendFamilyAddMember', () => {
   });
 
   it('returns 404 when UserNotFoundError', async () => {
-    const { main: friendFamilyAddMember } = await import('../friend-family-add-member');
+    const { main: friendFamilyAddMember } = await import('../friendFamilyAddMember');
     const { UserNotFoundError } = await import('../../utils/errors');
     __friendFamilyMocks.addMember.mockRejectedValue(new UserNotFoundError('member-1'));
     mockNotFound.mockResolvedValue({ statusCode: 404, body: '{}' });
@@ -303,7 +303,7 @@ describe('friendFamilyUpdate', () => {
   });
 
   it('returns 200 when update succeeds', async () => {
-    const { main: friendFamilyUpdate } = await import('../friend-family-update');
+    const { main: friendFamilyUpdate } = await import('../friendFamilyUpdate');
     const event = createMockEvent({
       body: JSON.stringify({
         organizationID: 'org-1',
@@ -324,7 +324,7 @@ describe('friendFamilyUpdate', () => {
   });
 
   it('returns 400 when MEMBER_NOT_FOUND', async () => {
-    const { main: friendFamilyUpdate } = await import('../friend-family-update');
+    const { main: friendFamilyUpdate } = await import('../friendFamilyUpdate');
     __friendFamilyMocks.updateMember.mockRejectedValue(new Error('MEMBER_NOT_FOUND'));
     mockBadRequest.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({
@@ -347,7 +347,7 @@ describe('friendFamilyFetch', () => {
   });
 
   it('returns 200 with invitee and inviter', async () => {
-    const { main: friendFamilyFetch } = await import('../friend-family-fetch');
+    const { main: friendFamilyFetch } = await import('../friendFamilyFetch');
     const event = createMockEvent({
       body: JSON.stringify({ userId: 'user-1' }),
       requestContext: { authorizer: { userID: 'user-1' } } as any,
@@ -361,7 +361,7 @@ describe('friendFamilyFetch', () => {
   });
 
   it('returns 400 when userId missing', async () => {
-    const { main: friendFamilyFetch } = await import('../friend-family-fetch');
+    const { main: friendFamilyFetch } = await import('../friendFamilyFetch');
     mockBadRequest.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: JSON.stringify({}) });
 
@@ -380,7 +380,7 @@ describe('friendFamilyDelete', () => {
   });
 
   it('returns 201 when delete succeeds', async () => {
-    const { main: friendFamilyDelete } = await import('../friend-family-delete');
+    const { main: friendFamilyDelete } = await import('../friendFamilyDelete');
     const event = createMockEvent({
       body: JSON.stringify({ userID: 'user-1', memberID: 'member-1', organizationID: 'org-1' }),
     });
@@ -393,7 +393,7 @@ describe('friendFamilyDelete', () => {
   });
 
   it('returns 400 when FNF_DOES_NOT_EXIST', async () => {
-    const { main: friendFamilyDelete } = await import('../friend-family-delete');
+    const { main: friendFamilyDelete } = await import('../friendFamilyDelete');
     __friendFamilyMocks.deleteMember.mockRejectedValue(new Error('FNF_DOES_NOT_EXIST'));
     mockBadRequest.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({
@@ -407,7 +407,7 @@ describe('friendFamilyDelete', () => {
   });
 
   it('returns 400 when validation fails', async () => {
-    const { main: friendFamilyDelete } = await import('../friend-family-delete');
+    const { main: friendFamilyDelete } = await import('../friendFamilyDelete');
     mockUnprocessableEntity.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: JSON.stringify({}) });
 

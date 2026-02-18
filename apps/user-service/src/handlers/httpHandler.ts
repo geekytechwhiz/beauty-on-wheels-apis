@@ -28,6 +28,9 @@ import {
   fetchFriendFamilySchema,
   deleteFriendFamilySchema,
 } from '../validation/friendFamily.validation';
+import { SchedulePreferences } from '../models/Schedule';
+import { scheduleServiceClient } from '../clients/scheduleService.client';
+
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const friendFamilyService = new FriendFamilyService();
 const userService = new UserService();
@@ -963,18 +966,32 @@ export async function updateUser(event: APIGatewayProxyEvent, context?: Context)
 
       await userService.updateUser(resolvedUserId, resolvedOrganizationId, userData, correlationId);
 
-      // Sync workingHours to schedule preferences so getSchedulePreferences returns consistent data
+      // Sync workingHours to schedule preferences via Schedule service API (Common API Gateway)
       if (isWorkingHoursUpdate && userData.workingHours) {
-        try {
-          const existingPrefs = await scheduleService.getSchedulePreferences(resolvedUserId, resolvedOrganizationId);
-          const prefs: SchedulePreferences = {
-            ...(existingPrefs || {}),
-            workingHours: userData.workingHours as SchedulePreferences['workingHours'],
-            slotDurationInMinutes: (userData.slotDurationInMinutes as number) ?? existingPrefs?.slotDurationInMinutes ?? 30,
-          };
-          await scheduleService.putSchedulePreferences(resolvedUserId, resolvedOrganizationId, prefs);
-        } catch (syncErr) {
-          logger.warn({ event: 'updateUser_schedule_prefs_sync_failed', err: serializeError(syncErr) });
+        if (!scheduleServiceClient) {
+          logger.warn({ event: 'updateUser_schedule_prefs_skipped', reason: 'SCHEDULE_SERVICE_API_URL not set' });
+        } else {
+          try {
+            const authHeader = event.headers?.Authorization ?? event.headers?.authorization;
+            const existingPrefs = await scheduleServiceClient.getSchedulePreferences(
+              resolvedUserId,
+              resolvedOrganizationId,
+              authHeader,
+            );
+            const prefs: SchedulePreferences = {
+              ...(existingPrefs || {}),
+              workingHours: userData.workingHours as SchedulePreferences['workingHours'],
+              slotDurationInMinutes: (userData.slotDurationInMinutes as number) ?? existingPrefs?.slotDurationInMinutes ?? 30,
+            };
+            await scheduleServiceClient.putSchedulePreferences(
+              resolvedUserId,
+              resolvedOrganizationId,
+              prefs,
+              authHeader,
+            );
+          } catch (syncErr) {
+            logger.warn({ event: 'updateUser_schedule_prefs_sync_failed', err: serializeError(syncErr) });
+          }
         }
       }
 
@@ -1335,7 +1352,7 @@ export async function listDoctorPatients(event: APIGatewayProxyEvent, context?: 
 
   const { organizationId, doctorId } = validation.data;
   try {
-    const users = await userService.listDoctorPatients(doctorId, organizationId);
+    const users = await userService.listDoctorPatients(doctorId as string, organizationId as string);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_DOCTOR_PATIENT_LIST, 200, duration, correlationId);
     return ApiResponse.ok(
@@ -1368,6 +1385,12 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   const authHeader = event.headers?.Authorization ?? event.headers?.authorization;
 
+  if (!authHeader?.trim()) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 401, duration, correlationId);
+    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
+  }
+
   let body: unknown;
   try {
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
@@ -1377,26 +1400,29 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
     return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
-  const b = body as Record<string, unknown>;
-  let userID = (b.userID as string) ?? getAuthorizerUserId(event);
-  let organizationID = (b.organizationID as string) ?? getAuthorizerOrganizationId(event);
+  const b = body != null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
 
-  // When not in body or authorizer, fetch from Cognito user pool (JWT claims then AdminGetUser)
-  if ((!userID || !organizationID) && authHeader) {
-    const fromToken = getUserIdAndOrganizationIdFromToken(authHeader);
-    if (fromToken.userId) userID = userID ?? fromToken.userId;
-    if (fromToken.organizationId) organizationID = organizationID ?? fromToken.organizationId;
-    if ((!userID || !organizationID) && fromToken.sub) {
-      const region = process.env.REGION ?? process.env.AWS_REGION ?? 'us-east-1';
-      const userPoolId = process.env.COGNITO_USER_POOL_ID ?? '';
-      const cognitoService = new CognitoService(region, userPoolId);
-      const attrs = await cognitoService.getUserAttributes(fromToken.sub);
-      if (attrs.userID) userID = userID ?? attrs.userID;
-      if (attrs.organizationID) organizationID = organizationID ?? attrs.organizationID;
-    }
+  // Resolve userID and organizationID only from Cognito (JWT claims then AdminGetUser)
+  const fromToken = getUserIdAndOrganizationIdFromToken(authHeader);
+    let userID = "";
+    let organizationID = ""; 
+  if ( fromToken.sub) {
+    const region = process.env.REGION ?? process.env.AWS_REGION ?? 'us-east-1';
+    const userPoolId = process.env.COGNITO_USER_POOL_ID ?? '';
+    const cognitoService = new CognitoService(region, userPoolId);
+    const attrs = await cognitoService.getUserAttributes(fromToken.sub);
+    userID =   attrs.userID ?? "";
+    organizationID = attrs.organizationID ?? "";
   }
 
-  const validation = friendFamilySearchSchema.safeParse({ ...b, organizationID });
+  if (!userID || !organizationID?.trim()) {
+    const duration = Date.now() - startTime;
+    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 401, duration, correlationId);
+    return ApiResponse.unauthorized('FRIEND_FAMILY.USER_NOT_FOUND', { requestId: correlationId, event }, { code: 'USER_NOT_FOUND' });
+  }
+
+  const resolvedOrgId = organizationID as string;
+  const validation = friendFamilySearchSchema.safeParse({ ...b, organizationID: resolvedOrgId });
   if (!validation.success) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 400, duration, correlationId);
@@ -1405,14 +1431,9 @@ export async function friendFamilySearch(event: APIGatewayProxyEvent, context?: 
       details: validation.error.issues.map((e) => ({ field: e.path.map(String).join('.'), message: e.message })),
     });
   }
-  if (!userID || !organizationID?.trim()) {
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 401, duration, correlationId);
-    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: 'UNAUTHORIZED' });
-  }
 
   try {
-    const result = await friendFamilyService.searchFnf(organizationID, userID, validation.data, authHeader);
+    const result = await friendFamilyService.searchFnf(resolvedOrgId, userID, validation.data, authHeader);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
     if (result.success && result.invitedUser && result.data) {

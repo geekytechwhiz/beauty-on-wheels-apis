@@ -213,7 +213,7 @@ custom:
     stg: us-east-1_wttVwD9Ax
     prd: us-east-1_0uZJvIS5R
 
-  stageUrls:
+  stageUrls:F
     dev:
       WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
       PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
@@ -266,7 +266,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   createUser:
-    handler: src/handlers/createUser.main
+    handler: src/handlers/create-user.main
     
     memorySize: 256
     events:
@@ -283,7 +283,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   getUser:
-    handler: src/handlers/getUser.main
+    handler: src/handlers/get-user.main
     timeout: 30
     memorySize: 512
     events:
@@ -331,7 +331,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   updateUser:
-    handler: src/handlers/updateUser.main
+    handler: src/handlers/update-user.main
     timeout: 10
     memorySize: 256
     events:
@@ -348,7 +348,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   deleteUser:
-    handler: src/handlers/deleteUser.main
+    handler: src/handlers/delete-user.main
     timeout: 10
     memorySize: 256
     events:
@@ -365,7 +365,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   setLogoutRequired:
-    handler: src/handlers/setLogoutRequired.main
+    handler: src/handlers/set-logout-required.main
     timeout: 10
     memorySize: 256
     events:
@@ -382,7 +382,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   putAssignedPackages:
-    handler: src/handlers/putAssignedPackages.main
+    handler: src/handlers/put-assigned-packages.main
     timeout: 10
     memorySize: 256
     events:
@@ -399,7 +399,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   assignUserToOrganization:
-    handler: src/handlers/assignUserToOrganization.handler
+    handler: src/handlers/assign-user-to-organization.handler
     timeout: 10
     memorySize: 256
     events:
@@ -416,7 +416,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listUserOrganizations:
-    handler: src/handlers/listUserOrganizations.main
+    handler: src/handlers/list-user-organizations.main
     timeout: 5
     memorySize: 256
     events:
@@ -433,7 +433,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   updateUserMetadata:
-    handler: src/handlers/updateUserMetadata.main
+    handler: src/handlers/update-user-metadata.main
     timeout: 10
     memorySize: 256
     events:
@@ -450,7 +450,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listUserFiles:
-    handler: src/handlers/listUserFiles.main
+    handler: src/handlers/list-user-files.main
     timeout: 5
     memorySize: 256
     events:
@@ -467,7 +467,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listOrganizationUsers:
-    handler: src/handlers/listOrganizationUsers.main
+    handler: src/handlers/list-organization-users.main
     timeout: 5
     memorySize: 256
     events:
@@ -501,7 +501,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   assignDoctor:
-    handler: src/handlers/assignDoctor.handler
+    handler: src/handlers/assign-doctor.handler
     
     memorySize: 256
     events:
@@ -518,7 +518,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listDoctorPatients:
-    handler: src/handlers/listDoctorPatients.main
+    handler: src/handlers/list-doctor-patients.main
     
     memorySize: 256
     events:
@@ -535,7 +535,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   friendFamilySearch:
-    handler: src/handlers/friendFamilySearch.main
+    handler: src/handlers/friend-family-search.main
     
     memorySize: 256
     events:
@@ -553,7 +553,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyAddMember:
-    handler: src/handlers/friendFamilyAddMember.main
+    handler: src/handlers/friend-family-add-member.main
     
     memorySize: 256
     events:
@@ -571,7 +571,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyUpdate:
-    handler: src/handlers/friendFamilyUpdate.main
+    handler: src/handlers/friend-family-update.main
     
     memorySize: 256
     events:
@@ -589,7 +589,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyFetch:
-    handler: src/handlers/friendFamilyFetch.main
+    handler: src/handlers/friend-family-fetch.main
     
     memorySize: 256
     events:
@@ -607,7 +607,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyDelete:
-    handler: src/handlers/friendFamilyDelete.main
+    handler: src/handlers/friend-family-delete.main
     
     memorySize: 256
     events:
@@ -625,7 +625,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyCheck:
-    handler: src/handlers/friendFamilyCheck.main
+    handler: src/handlers/friend-family-check.main
     timeout: 5
     memorySize: 256
     events:
@@ -643,7 +643,7 @@ functions:
             resultTtlInSeconds: 0
 
   activateDeactivateUser:
-    handler: src/handlers/activateDeactivateUser.main
+    handler: src/handlers/ctivate-deactivate-user.main
     
     memorySize: 256
     events:

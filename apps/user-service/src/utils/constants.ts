@@ -1,2 +1,10 @@
 export const PATH_ASSIGN_DOCTOR = '/user/assign-doctor';
-export const PATH_DOCTOR_PATIENT_LIST = '/user/doctor-patient-list';
+export const PATH_DOCTOR_PATIENT_LIST = '/user/doctor-patient-list'; 
+export const PATH_FNF_SEARCH = '/user/friend-family/search';
+export const PATH_FNF_ADD = '/user/friend-family/add-member';
+export const PATH_FNF_UPDATE = '/user/friend-family/update';
+export const PATH_FNF_FETCH = '/user/friend-family/fetch';
+export const PATH_FNF_DELETE = '/user/friend-family/delete';
+export const PATH_LOGOUT_REQUIRED = '/user/{userId}/organization/{organizationId}/logout-required';
+export const PATH_FNF_CHECK = '/user/friend-family/check';
+export const PATH_ASSIGNED_PACKAGES = '/user/{userId}/organization/{organizationId}/assigned-packages';

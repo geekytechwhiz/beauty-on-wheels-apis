@@ -46,6 +46,8 @@ export class FriendFamilyService {
       throw new Error('EMAIL_OR_PHONE_REQUIRED');
     }
     const user = await userRepository.findUserByEmailOrPhoneInOrg(organizationID, email || undefined, phone || undefined);
+    console.log('User Repository Response', JSON.stringify(user));
+    
     if (!user) {
       return { success: false };
     }

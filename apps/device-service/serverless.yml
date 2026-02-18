@@ -333,12 +333,12 @@ functions:
           method: put
           cors: true
 
-  # Device Reading Timestamp API
+  # Device Reading Timestamp API (literal 'reading-timestamp' avoids API Gateway sibling variable conflict with devices/{deviceId})
   deviceReadingTimestampUpdate:
     handler: src/handlers/deviceReadingTimestampUpdate.handler
     events:
       - http:
-          path: devices/{userId}/{configDeviceId}/update
+          path: devices/reading-timestamp/{userId}/{configDeviceId}/update
           method: put
           cors: true
 

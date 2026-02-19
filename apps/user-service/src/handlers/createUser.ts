@@ -336,9 +336,20 @@ export async function createUser(
       hasDefinedRoleCode: userData.definedRoleCode !== undefined,
       definedRoleCode: userData.definedRoleCode,
     });
-
+    const rolePermissions = await userRepository.getRolePermissions(
+      roleIds[0],
+      body.organizationID,
+    );
+    if (rolePermissions && rolePermissions.length > 0) {
+      const exactRoleMatch =
+        rolePermissions.find(
+          (item: any) => item.SK === `ROLE#${roleIds[0]}`,
+        ) || rolePermissions[0];
+      userData.roleName = exactRoleMatch?.roleName || '';
+    }
     const result = await userService.createUser(
       userData,
+      userData.roleName,
       body.organizationID,
       body.userID,
       correlationId,

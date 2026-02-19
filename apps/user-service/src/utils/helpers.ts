@@ -105,3 +105,30 @@ export function buildCreateUserPayloadFromFnfSearch(
     userRole: roles,
   };
 }
+
+export const mapUserResponse=(users: any[])=>{
+  return users.map((user) => {
+    return {
+      city: user.city || '',
+      state: user.state || '',
+      country: user.country || '',
+      fullName: user.fullName || '',
+      emailAddress: user.emailAddress || '',
+      phoneNumber: user.phoneNumber || '',
+      lastAppointment: user.lastAppointment ?? null,
+      profilePic: user.profilePic || '',
+      reporterId: user.reporterId || '',
+      doctor: user.reporterName || '',
+      patientId: user.userID,
+      userID: user.userID,
+      accountType: user.isRpmUser ? 'RPM' : 'REGULAR',
+      status: user.isActive !== false ? 'active' : 'inactive',
+      createdDate: user.createdDate ?? null,
+      mrn: user.mrn ?? null,
+      gender: user.gender || '',
+      medicalHistory: user.medicalHistory ?? null,
+      dateOfBirth: user.dateOfBirth ?? null,
+      patientOrgId: user.organizationID,
+    };
+  });
+};  

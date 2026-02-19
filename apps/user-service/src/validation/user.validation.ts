@@ -295,8 +295,12 @@ export const assignDoctorSchema = z.object({
  * - showConsultations: optional boolean, if true includes previouslyConsulted field
  */
 export const listDoctorPatientsQuerySchema = z.object({
-  userType: z.enum(['doctor', 'frontdesk']), 
+  userType: z.enum(['doctor', 'frontdesk', 'staff', 'user'])
+  .transform((val) => val.toLowerCase()), 
+  organizationID: z.string().min(1, 'organizationId is required'),
+  userID: z.string().min(1, 'userId is required'),
 });
+
 
 /** Legacy POST body schema for backward compatibility */
 export const listDoctorPatientsSchema = z.object({

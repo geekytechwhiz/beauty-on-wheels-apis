@@ -40,6 +40,7 @@ export class UserService {
 
   async createUser(
     data: Partial<User>,
+    roleName: string,
     organizationID?: string,
     invitedBy?: string,
     correlationId?: string,
@@ -107,6 +108,9 @@ export class UserService {
 
       const userTypeUpper = String(data.userType || '').toUpperCase();
 
+      if(userTypeUpper === 'STAFF' || userTypeUpper === 'USER' ) {
+        throw new Error('Invalid user type, only STAFF and USER are allowed');
+      }
       // STAFF: email required
       if (userTypeUpper === 'STAFF' && !normalizedEmail) {
         throw new Error('STAFF must have an email address');
@@ -173,6 +177,7 @@ export class UserService {
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
                 role: JSON.stringify(userRoleArray),
+                roleName: roleName,
                 permissions: JSON.stringify(permissionIds),
               },
             }

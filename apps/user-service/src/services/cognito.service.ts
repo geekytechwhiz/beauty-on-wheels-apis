@@ -165,6 +165,7 @@ export class CognitoService {
         userID?: string;
         organizationID?: string;
         role?: string;
+        roleName: string;
         permissions?: string;
       };
     }

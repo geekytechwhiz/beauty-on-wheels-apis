@@ -41,7 +41,7 @@ function mapToUserResponse(user: any): UserResponse {
     sk1: user.sk1 || user.userType || 'USER',
     status: user.status !== undefined ? user.status : (user.isActive !== undefined ? user.isActive : true),
     createdAt: user.createdAt || user.createdDate || 0,
-    roleName: user.roleName || user.userType || '',
+    roleName: user.roleName ,
     definedRoleCode: user.definedRoleCode || user.userType || '',
     specialty: user.specialty || '',
     // specialty is not a property of UserResponse, so we remove it to fix the lint error
@@ -116,6 +116,11 @@ export interface ListOrganizationUsersOptions {
    * Sort direction. Defaults to "desc".
    */
   sortOrder?: 'asc' | 'desc';
+
+  /**
+   * Filter by previouslyConsulted field.
+   */
+  previouslyConsulted?: boolean;
 }
 
 export class UserRepository {
@@ -835,6 +840,7 @@ export class UserRepository {
       search,
       sortBy = 'createdDate',
       sortOrder = 'desc',
+      previouslyConsulted,
     } = options;
 
     try {
@@ -847,6 +853,7 @@ export class UserRepository {
         search,
         sortBy,
         sortOrder,
+        previouslyConsulted,
       });
 
       // First try with lowercase key names (pk/sk)
@@ -854,21 +861,38 @@ export class UserRepository {
         const queryLimit =
           typeof limit === 'number' && limit > 0 ? limit + Math.max(offset, 0) : undefined;
 
+        const userTypeNorm = userType?.trim();
+        const filterParts: string[] = [];
+        const exprNames: Record<string, string> = {};
+        const exprValues: Record<string, unknown> = {
+          ':pk': `ORG#${organizationId}`,
+          ':skPrefix': 'USER#',
+        };
+        if (userTypeNorm) {
+          exprNames['#ut'] = 'userType';
+          exprNames['#it'] = 'itemType';
+          exprValues[':userTypeVal'] = userTypeNorm.toUpperCase();
+          filterParts.push('(#ut = :userTypeVal OR #it = :userTypeVal)');
+        }
+
         const result = await docClient.send(
           new QueryCommand({
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
-            ExpressionAttributeValues: {
-              ':pk': `ORG#${organizationId}`,
-              ':skPrefix': 'USER#',
-            },
+            ExpressionAttributeValues: exprValues,
+            ...(filterParts.length > 0
+              ? {
+                  FilterExpression: filterParts.join(' AND '),
+                  ExpressionAttributeNames: exprNames,
+                }
+              : {}),
             ...(queryLimit ? { Limit: queryLimit } : {}),
           }),
         );
 
         let users = (result.Items ?? []).map(mapToUserResponse);
 
-        // In-memory filtering
+        // In-memory filtering (for attributes not in FilterExpression)
         if (status) {
           const statusLc = status.toLowerCase();
           users = users.filter(
@@ -876,7 +900,7 @@ export class UserRepository {
           );
         }
 
-        if (userType) {
+        if (userType && !userTypeNorm) {
           const userTypeLc = userType.toLowerCase();
           users = users.filter(
             (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
@@ -952,14 +976,31 @@ export class UserRepository {
               ? limit + Math.max(offset, 0)
               : undefined;
 
+          const userTypeNormFb = userType?.trim();
+          const filterPartsFb: string[] = [];
+          const exprNamesFb: Record<string, string> = {};
+          const exprValuesFb: Record<string, unknown> = {
+            ':pk': userOrgPk(organizationId),
+            ':skPrefix': 'USER#',
+          };
+          if (userTypeNormFb) {
+            exprNamesFb['#ut'] = 'userType';
+            exprNamesFb['#it'] = 'itemType';
+            exprValuesFb[':userTypeVal'] = userTypeNormFb.toUpperCase();
+            filterPartsFb.push('(#ut = :userTypeVal OR #it = :userTypeVal)');
+          }
+
           const fallbackResult = await docClient.send(
             new QueryCommand({
               TableName: USER_TABLE_NAME,
               KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
-              ExpressionAttributeValues: {
-                ':pk': userOrgPk(organizationId),
-                ':skPrefix': 'USER#',
-              },
+              ExpressionAttributeValues: exprValuesFb,
+              ...(filterPartsFb.length > 0
+                ? {
+                    FilterExpression: filterPartsFb.join(' AND '),
+                    ExpressionAttributeNames: exprNamesFb,
+                  }
+                : {}),
               ...(queryLimit ? { Limit: queryLimit } : {}),
             }),
           );
@@ -973,7 +1014,7 @@ export class UserRepository {
             );
           }
 
-          if (userType) {
+          if (userType && !userTypeNormFb) {
             const userTypeLc = userType.toLowerCase();
             users = users.filter(
               (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
@@ -1031,6 +1072,7 @@ export class UserRepository {
             return users.slice(safeOffset);
           }
           return users;
+
         }
 
         // Any other error, bubble up to outer catch

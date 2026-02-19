@@ -1029,6 +1029,7 @@ export class UserRepository {
       'ALL-PATIENT': 'USER',
       'ASSIGNED-PATIENT': 'ASSIGNEE',
       'LAB-PATIENT': 'LAB_PATIENT',
+      'ALL': 'USER',
     };
     try {
       console.info('listOrganizationUsers', organizationId, {
@@ -1064,6 +1065,9 @@ export class UserRepository {
           exprValues[':userTypeVal'] = userTypeVal;
           filterParts.push('#ut = :userTypeVal');
         }
+        if (filterType === 'ALL') {
+          exprValues[':skPrefix'] = 'USER#';
+        }
 
         const result = await docClient.send(
           new QueryCommand({
@@ -1090,7 +1094,7 @@ export class UserRepository {
           );
         }
 
-        if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
+        if (filterType !== 'ALL' && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
           const filterTypeLc = String(filterTypePrefix[filterType as keyof typeof filterTypePrefix]).toLowerCase();
           users = users.filter(
             (u) => String((u as any).userType ?? '').toLowerCase() === filterTypeLc,

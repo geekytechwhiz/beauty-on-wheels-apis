@@ -17,15 +17,13 @@ import { UserService } from '../services/user.service';
 import { listDoctorPatientsQuerySchema } from '../validation/user.validation';
 import { UserNotFoundError } from '../utils/errors';
 import { PATH_DOCTOR_PATIENT_LIST } from '../utils/constants';
-import {
-  getAuthorizerOrganizationId,
-  getAuthorizerUserId,
+import { 
   mapUserResponse,
 } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
-type Filter = "staff" | "all-patient" | "assigned-patient" | "lab-patient";
+type Filter = "staff" | "all-patient" | "assigned-patient" | "lab-patient" | "all";
 type RequestBody = {
   filter: Filter;
   showConsultations: boolean;
@@ -83,6 +81,12 @@ export async function listDoctorPatients(
   try {
     switch (filter) {
       case 'assigned-patient':
+        logger.info({
+          event: 'listDoctorPatients_branch',
+          filter: 'assigned-patient',
+          organizationID,
+          userID,
+        });
         users = await userService.listDoctorPatients(
           userID || '',
           organizationID || '',
@@ -91,43 +95,76 @@ export async function listDoctorPatients(
           requestId: correlationId,
           event,
         });
-        case 'all-patient':
-          let patientList = await userService.listOrganizationUsers(
-            organizationID || '',
-            {
-              filter: filter?.toUpperCase(),
-              previouslyConsulted: showConsultations ? true : false,
-            },
-          ) 
-          return ApiResponse.ok(mapUserResponse(patientList), 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
-            requestId: correlationId,
-            event,
-          });
-          case 'lab-patient':
-            const labPatientList = await userService.listOrganizationUsers(
-              organizationID || '',
-              {
-                filter: filter?.toUpperCase(),
-                previouslyConsulted: showConsultations ? true : false,
-              },
-            )
-            return ApiResponse.ok(labPatientList, 'USER.LIST_LAB_PATIENTS_SUCCESS', {
-              requestId: correlationId,
-              event,
-            });
-            case 'staff':
-              const staffList = await userService.listOrganizationUsers(
-                organizationID || '',
-                {
-                  filter: filter?.toUpperCase(),
-                  previouslyConsulted: showConsultations ? true : false
-                },
-              )
-              return ApiResponse.ok(mapUserResponse(staffList), 'USER.LIST_STAFF_SUCCESS', { 
-                requestId: correlationId,
-                event,
-              });
-            }
+      case 'all-patient':
+        logger.info({
+          event: 'listDoctorPatients_branch',
+          filter: 'all-patient',
+          organizationID,
+          showConsultations,
+        });
+        const patientList = await userService.listOrganizationUsers(
+          organizationID || '',
+          {
+            filter: filter?.toUpperCase(),
+            previouslyConsulted: showConsultations ? true : false,
+          },
+        );
+        return ApiResponse.ok(mapUserResponse(patientList), 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
+          requestId: correlationId,
+          event,
+        });
+      case 'lab-patient':
+        logger.info({
+          event: 'listDoctorPatients_branch',
+          filter: 'lab-patient',
+          organizationID,
+          showConsultations,
+        });
+        const labPatientList = await userService.listOrganizationUsers(
+          organizationID || '',
+          {
+            filter: filter?.toUpperCase(),
+            previouslyConsulted: showConsultations ? true : false,
+          },
+        );
+        return ApiResponse.ok(labPatientList, 'USER.LIST_LAB_PATIENTS_SUCCESS', {
+          requestId: correlationId,
+          event,
+        });
+      case 'staff':
+      case 'all':
+        logger.info({
+          event: 'listDoctorPatients_branch',
+          filter,
+          organizationID,
+          showConsultations,
+        });
+        const staffList = await userService.listOrganizationUsers(
+          organizationID || '',
+          {
+            filter: filter?.toUpperCase(),
+            previouslyConsulted: showConsultations ? true : false,
+          },
+        );
+        return ApiResponse.ok(mapUserResponse(staffList), 'USER.LIST_STAFF_SUCCESS', {
+          requestId: correlationId,
+          event,
+        });
+      default:
+        logger.warn({
+          event: 'listDoctorPatients_branch',
+          filter,
+          message: 'unhandled filter, falling through',
+        });
+        return ApiResponse.badRequest(
+          'USER.LIST_DOCTOR_PATIENTS_FAILED',
+          { requestId: correlationId, event },
+          {
+            code: 'LIST_DOCTOR_PATIENTS_FAILED',
+            details: [{ message: `Invalid filter: ${filter}` }],
+          },
+        );
+    }
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {

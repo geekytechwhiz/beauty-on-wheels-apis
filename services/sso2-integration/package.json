@@ -1,0 +1,40 @@
+{
+  "name": "sso-myvitalrx",
+  "version": "1.0.0",
+  "description": "AWS Serverless SSO between HMS (Hospital Management System) and MyVitalRx",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "offline": "serverless offline --aws-profile ci",
+    "offline:dev": "serverless offline",
+    "deploy:dev": "serverless deploy --stage dev --aws-profile ci",
+    "deploy:prod": "serverless deploy --stage prod --aws-profile ci",
+    "seed": "ts-node scripts/seed-hms-client.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.540.0",
+    "@aws-sdk/credential-providers": "^3.967.0",
+    "@aws-sdk/lib-dynamodb": "^3.540.0",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.136",
+    "@types/jest": "^29.5.12",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.11.28",
+    "@types/uuid": "^9.0.8",
+    "@typescript-eslint/eslint-plugin": "^7.2.0",
+    "@typescript-eslint/parser": "^7.2.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "serverless-dynamodb-local": "^0.2.40",
+    "serverless-esbuild": "^1.57.0",
+    "serverless-offline": "^14.4.0",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.2"
+  }
+}

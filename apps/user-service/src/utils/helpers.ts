@@ -251,6 +251,24 @@ export function mapDoctorPatientResponse(users: any[]): DoctorPatientResponse[] 
 }
 
 /**
+ * Maps UserResponse array to AllPatientResponse array
+ * Used for the \"all-patient\" filter response shape
+ */
+export function mapAllPatientResponse(users: any[]): import('../models').AllPatientResponse[] {
+  return users.map((user) => {
+    const base = mapBaseUserResponse(user);
+    const reporterName = user.reporterName || user.doctorName || '';
+    return {
+      ...base,
+      deleteFlag: user.deleteFlag ?? null,
+      reporterProfilePic: user.reporterProfilePic || '',
+      reporterName,
+      doctorName: user.doctorName || reporterName,
+    };
+  });
+}
+
+/**
  * Legacy function: Maps UserResponse array to patient response format
  * @deprecated Use mapPatientResponse instead
  */

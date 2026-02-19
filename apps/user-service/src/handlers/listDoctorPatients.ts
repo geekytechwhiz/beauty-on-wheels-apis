@@ -18,7 +18,7 @@ import { listDoctorPatientsQuerySchema } from '../validation/user.validation';
 import { UserNotFoundError } from '../utils/errors';
 import { PATH_DOCTOR_PATIENT_LIST } from '../utils/constants';
 import {
-  mapPatientResponse,
+  mapAllPatientResponse,
   mapLabPatientResponse,
   mapAssignedPatientResponse,
   mapDoctorPatientResponse,
@@ -112,7 +112,7 @@ export async function listDoctorPatients(
             previouslyConsulted: showConsultations ? true : false,
           },
         );
-        const mappedPatientList = mapPatientResponse(patientList);
+        const mappedPatientList = mapAllPatientResponse(patientList);
         return ApiResponse.ok(mappedPatientList, 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
           requestId: correlationId,
           event,

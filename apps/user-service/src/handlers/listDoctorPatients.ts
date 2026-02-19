@@ -146,7 +146,9 @@ export async function listDoctorPatients(
             previouslyConsulted: showConsultations ? true : false,
           },
         );
-        return ApiResponse.ok(mapUserResponse(staffList), 'USER.LIST_STAFF_SUCCESS', {
+        // For staff listing, return the repository's UserResponse objects directly
+        // (mapUserResponse is tailored for patient views and would produce misleading empty fields)
+        return ApiResponse.ok(staffList, 'USER.LIST_STAFF_SUCCESS', {
           requestId: correlationId,
           event,
         });

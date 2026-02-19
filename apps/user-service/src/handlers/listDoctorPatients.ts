@@ -43,6 +43,13 @@ export async function listDoctorPatients(
   const organizationID = getAuthorizerOrganizationId(event);
   const userID = getAuthorizerUserId(event);
 
+  logger.info({
+    event: 'listDoctorPatients_start',
+    userType,
+    showConsultations,
+    organizationID,
+    userID,
+  });
   const validation = listDoctorPatientsQuerySchema.safeParse({
     userType,
     organizationID,

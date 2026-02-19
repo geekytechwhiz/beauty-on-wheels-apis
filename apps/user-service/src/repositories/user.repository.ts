@@ -1452,6 +1452,7 @@ export class UserRepository {
    * List all patient IDs for a doctor. Matches legacy doctor_patient_list pattern:
    * - pk=USER#doctorId, begins_with(sk, ASSIGNEE#|DIETICIAN#|HEALTHCOACH#|CAREMANAGER#) with sk1 <> INACTIVE
    * - pk=USER#doctorId, begins_with(sk, SCD_LINK#) for previously consulted (no sk1 filter)
+   * Tries pk/sk first; on ValidationException (PK), retries with PK/SK for tables using uppercase key names.
    */
   async listPatientIdsForDoctor(doctorId: string): Promise<{ patientId: string; patientOrgId?: string; previouslyConsulted?: boolean }[]> {
     const logger = createChildLogger(baseLogger, { doctorId });
@@ -1529,6 +1530,7 @@ export class UserRepository {
     logger.info({ event: 'listPatientIdsForDoctor_success', doctorId, count: result.length });
     return result;
   }
+
 
   /**
    * Find a user in an organization by email or phone (for F&F search).

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FilterType } from '../types/feature-types';
 
 export const createUserSchema = z.object({
   userInfo: z.object({
@@ -295,7 +296,7 @@ export const assignDoctorSchema = z.object({
  * - showConsultations: optional boolean, if true includes previouslyConsulted field
  */
 export const listDoctorPatientsQuerySchema = z.object({
-  filter: z.enum(['assigned-patient', 'all-patient', 'lab-patient', 'staff'])
+  filter: z.nativeEnum(FilterType)
   .transform((val) => val.toLowerCase()), 
   organizationID: z.string().min(1, 'organizationId is required'),
   userID: z.string().optional(),

@@ -8,4 +8,5 @@ export * from './StaffResponse';
 export * from './PatientResponse';
 export * from './LabPatientResponse';
 export * from './AssignedPatientResponse';
+export * from './DoctorPatientResponse';
 

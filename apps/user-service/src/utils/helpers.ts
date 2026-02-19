@@ -6,6 +6,7 @@ import type {
   PatientResponse,
   LabPatientResponse,
   AssignedPatientResponse,
+  DoctorPatientResponse,
 } from '../models';
 
 export const getCorrelationId = (headers: Record<string, string | undefined>): string =>
@@ -226,6 +227,20 @@ export function mapAssignedPatientResponse(users: any[]): AssignedPatientRespons
  * Transforms repository user data to staff-specific response format
  */
 export function mapStaffResponse(users: any[]): StaffResponse[] {
+  return users.map((user) => {
+    const base = mapBaseUserResponse(user);
+    return {
+      ...base,
+      sk2: user.sk2 || user.specialty || undefined,
+    };
+  });
+}
+
+/**
+ * Maps UserResponse array to DoctorPatientResponse array
+ * Used for doctor/staff rows in doctor-patient listing
+ */
+export function mapDoctorPatientResponse(users: any[]): DoctorPatientResponse[] {
   return users.map((user) => {
     const base = mapBaseUserResponse(user);
     return {

@@ -17,18 +17,18 @@ import { UserService } from '../services/user.service';
 import { listDoctorPatientsQuerySchema } from '../validation/user.validation';
 import { UserNotFoundError } from '../utils/errors';
 import { PATH_DOCTOR_PATIENT_LIST } from '../utils/constants';
-import { 
+import {
   mapPatientResponse,
   mapLabPatientResponse,
   mapAssignedPatientResponse,
-  mapStaffResponse,
+  mapDoctorPatientResponse,
 } from '../utils/helpers';
+import { FilterType } from '../types/feature-types';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
-type Filter = "staff" | "all-patient" | "assigned-patient" | "lab-patient" | "all";
 type RequestBody = {
-  filter: Filter;
+  filter: FilterType;
   showConsultations: boolean;
   organizationID: string;
   userID?: string;
@@ -151,9 +151,9 @@ export async function listDoctorPatients(
             previouslyConsulted: showConsultations ? true : false,
           },
         );
-        // Map to StaffResponse format with all required fields
-        const mappedStaffList = mapStaffResponse(staffList);
-        return ApiResponse.ok(mappedStaffList, 'USER.LIST_STAFF_SUCCESS', {
+        // Map to DoctorPatientResponse format with all required fields
+        const mappedDoctorStaffList = mapDoctorPatientResponse(staffList);
+        return ApiResponse.ok(mappedDoctorStaffList, 'USER.LIST_STAFF_SUCCESS', {
           requestId: correlationId,
           event,
         });

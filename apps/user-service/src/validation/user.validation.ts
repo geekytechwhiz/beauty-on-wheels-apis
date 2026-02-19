@@ -295,16 +295,7 @@ export const assignDoctorSchema = z.object({
  * - showConsultations: optional boolean, if true includes previouslyConsulted field
  */
 export const listDoctorPatientsQuerySchema = z.object({
-  organizationId: z.string().min(1, 'organizationId is required'),
-  doctorId: z.string().optional(),
-  showConsultations: z.union([z.string(), z.boolean()]).optional().transform((val) => {
-    if (typeof val === 'boolean') return val;
-    if (typeof val === 'string') {
-      const lower = val.toLowerCase();
-      return lower === 'true' || lower === '1';
-    }
-    return false;
-  }),
+  userType: z.enum(['doctor', 'frontdesk']), 
 });
 
 /** Legacy POST body schema for backward compatibility */

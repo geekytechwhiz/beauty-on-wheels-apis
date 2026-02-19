@@ -18,7 +18,10 @@ import { listDoctorPatientsQuerySchema } from '../validation/user.validation';
 import { UserNotFoundError } from '../utils/errors';
 import { PATH_DOCTOR_PATIENT_LIST } from '../utils/constants';
 import { 
-  mapUserResponse,
+  mapPatientResponse,
+  mapLabPatientResponse,
+  mapAssignedPatientResponse,
+  mapStaffResponse,
 } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -77,7 +80,6 @@ export async function listDoctorPatients(
       },
     );
   }
-  let users: Record<string, unknown>[];
   try {
     switch (filter) {
       case 'assigned-patient':
@@ -87,11 +89,12 @@ export async function listDoctorPatients(
           organizationID,
           userID,
         });
-        users = await userService.listDoctorPatients(
+        const assignedPatients = await userService.listDoctorPatients(
           userID || '',
           organizationID || '',
         );
-        return ApiResponse.ok(users, 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
+        const mappedAssignedPatients = mapAssignedPatientResponse(assignedPatients);
+        return ApiResponse.ok(mappedAssignedPatients, 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
           requestId: correlationId,
           event,
         });
@@ -109,7 +112,8 @@ export async function listDoctorPatients(
             previouslyConsulted: showConsultations ? true : false,
           },
         );
-        return ApiResponse.ok(mapUserResponse(patientList), 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
+        const mappedPatientList = mapPatientResponse(patientList);
+        return ApiResponse.ok(mappedPatientList, 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
           requestId: correlationId,
           event,
         });
@@ -127,7 +131,8 @@ export async function listDoctorPatients(
             previouslyConsulted: showConsultations ? true : false,
           },
         );
-        return ApiResponse.ok(labPatientList, 'USER.LIST_LAB_PATIENTS_SUCCESS', {
+        const mappedLabPatientList = mapLabPatientResponse(labPatientList);
+        return ApiResponse.ok(mappedLabPatientList, 'USER.LIST_LAB_PATIENTS_SUCCESS', {
           requestId: correlationId,
           event,
         });
@@ -146,9 +151,9 @@ export async function listDoctorPatients(
             previouslyConsulted: showConsultations ? true : false,
           },
         );
-        // For staff listing, return the repository's UserResponse objects directly
-        // (mapUserResponse is tailored for patient views and would produce misleading empty fields)
-        return ApiResponse.ok(staffList, 'USER.LIST_STAFF_SUCCESS', {
+        // Map to StaffResponse format with all required fields
+        const mappedStaffList = mapStaffResponse(staffList);
+        return ApiResponse.ok(mappedStaffList, 'USER.LIST_STAFF_SUCCESS', {
           requestId: correlationId,
           event,
         });

@@ -102,6 +102,72 @@ export class ScheduleServiceClient {
     }
   }
 
+  /**
+   * Get latest active appointments for an organization.
+   * Calls API endpoint to fetch non-cancelled future appointments.
+   * Returns appointments with userId, userPackageId, userAddonId, scheduleId, meta, patientOrgId.
+   */
+  async getLatestActiveAppointments(
+    organizationId: string,
+    authHeader?: string,
+  ): Promise<Array<{
+    userId: string;
+    userPackageId: string | null;
+    userAddonId: string | null;
+    scheduleId: string;
+    meta: Record<string, unknown>;
+    patientOrgId: string;
+  }>> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    // Assuming the schedule service has an endpoint like /get-latest-active-appointments
+    // Adjust the endpoint path based on actual API structure
+    const url = `${this.baseUrl}/get-latest-active-appointments`;
+    const body = { organizationID: organizationId };
+
+    try {
+      const response = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authHeader ? { Authorization: authHeader } : {}),
+        },
+        timeout: this.timeoutMs,
+      });
+      const data = response.data?.data ?? response.data ?? [];
+      if (!Array.isArray(data)) return [];
+      
+      // Filter and map to expected format
+      return data
+        .filter((item: any) =>
+          item.meta &&
+          Object.keys(item.meta).length > 0 &&
+          item.pk &&
+          item.meta.userId &&
+          item.pk.includes(item.meta.userId)
+        )
+        .map((item: any) => ({
+          userId: item.meta.userId,
+          userPackageId: item.meta.userPackageId || null,
+          userAddonId: item.meta.userAddonId || null,
+          scheduleId: item.id,
+          meta: item.meta || {},
+          patientOrgId: item.participantInfo
+            ?.filter((p: any) => p.userType === 'USER')
+            ?.map((p: any) => p.organizationID)
+            ?.join(',') || '',
+        }));
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
+      const status = axiosErr?.response?.status;
+      if (status === 404) return [];
+      logger.error({
+        event: 'scheduleServiceClient_getLatestActiveAppointments_error',
+        err: serializeError(err),
+        status,
+      });
+      throw err;
+    }
+  }
+
   private normalizePreferences(data: Record<string, unknown>): SchedulePreferences {
     return {
       workingHours: data.workingHours as SchedulePreferences['workingHours'],

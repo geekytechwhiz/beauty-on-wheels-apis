@@ -294,12 +294,14 @@ export const assignDoctorSchema = z.object({
  * - doctorId: optional, if provided returns doctor's patients
  * - organizationId: required
  * - showConsultations: optional boolean, if true includes previouslyConsulted field
+ * - showActiveAppointment: optional boolean, if true returns only patients with active appointments
  */
 export const listDoctorPatientsQuerySchema = z.object({
   filter: z.nativeEnum(FilterType)
   .transform((val) => val.toLowerCase()), 
   organizationID: z.string().min(1, 'organizationId is required'),
   userID: z.string().optional(),
+  showActiveAppointment: z.boolean().optional(),
 });
 
 

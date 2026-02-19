@@ -1046,17 +1046,17 @@ export class UserRepository {
 
         const userTypeNorm = userType?.trim()?.toLocaleLowerCase();
         const userTypePrefix = {
-          "staff": 'STAFF#',
-          'all-patient': 'USER#',
-          'assigned-patient': 'ASSIGNEE#',
-          'lab-patient': 'LAB_PATIENT#',
+          "staff": 'STAFF',
+          'all-patient': 'USER',
+          'assigned-patient': 'ASSIGNEE',
+          'lab-patient': 'LAB_PATIENT',
         };
 
         const filterParts: string[] = [];
         const exprNames: Record<string, string> = {};
         const exprValues: Record<string, unknown> = {
           ':pk': `ORG#${organizationId}`,
-          ':skPrefix':userTypePrefix[userTypeNorm as keyof typeof userTypePrefix],
+          ':skPrefix':`${userTypePrefix[userTypeNorm as keyof typeof userTypePrefix]}#`,
         };
         if (userTypeNorm) {
           exprNames['#ut'] = 'userType';

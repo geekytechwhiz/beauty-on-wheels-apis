@@ -1,0 +1,96 @@
+service: myvitalrx-sso
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    JWT_SECRET: ${env:JWT_SECRET, 'change-in-production'}
+    SESSION_EXPIRY: ${env:SESSION_EXPIRY, '3600'}
+    APP_ISSUER: ${env:APP_ISSUER, 'myvitalrx-sso'}
+    APP_BASE_URL: ${env:APP_BASE_URL, 'https://app.myvitalrx.com'}
+    API_BASE_URL: ${env:API_BASE_URL, ''}
+    HMS_CLIENTS_TABLE: ${self:custom.hmsClientsTableName}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt HMSClientsTable.Arn
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+custom:
+  hmsClientsTableName: ${self:service}-hms-clients-${self:provider.stage}
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: false
+
+functions:
+  health:
+    handler: src/handlers/health.handler
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
+  ssoLaunch:
+    handler: src/handlers/sso/launch.handler
+    events:
+      - http:
+          path: /sso/launch
+          method: get
+          cors: true
+
+  ssoRegister:
+    handler: src/handlers/sso/register.handler
+    events:
+      - http:
+          path: /sso/register
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    HMSClientsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.hmsClientsTableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: clientId
+            AttributeType: S
+          - AttributeName: hmsId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: clientId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: hmsId-index
+            KeySchema:
+              - AttributeName: hmsId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+  Outputs:
+    ServiceEndpoint:
+      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
+      Description: MyVitalRx SSO API endpoint
+    SSOLaunchUrl:
+      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/sso/launch'
+      Description: SSO Launch endpoint URL for HMS integration

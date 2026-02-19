@@ -1059,10 +1059,10 @@ export class UserRepository {
           ':skPrefix': 'USER#',
         };
         if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
+          const userTypeVal = filterTypePrefix[filterType as keyof typeof filterTypePrefix];
           exprNames['#ut'] = 'userType';
-          exprNames['#it'] = 'itemType';
-          exprValues[':userTypeVal'] = filterTypePrefix[filterType as keyof typeof filterTypePrefix];
-          filterParts.push('(#ut = :userTypeVal OR #it = :userTypeVal)');
+          exprValues[':userTypeVal'] = userTypeVal;
+          filterParts.push('#ut = :userTypeVal');
         }
 
         const result = await docClient.send(
@@ -1093,8 +1093,7 @@ export class UserRepository {
         if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
           const filterTypeLc = String(filterTypePrefix[filterType as keyof typeof filterTypePrefix]).toLowerCase();
           users = users.filter(
-            (u) =>
-              String((u as any).userType ?? (u as any).itemType ?? '').toLowerCase() === filterTypeLc,
+            (u) => String((u as any).userType ?? '').toLowerCase() === filterTypeLc,
           );
         }
 
@@ -1176,11 +1175,11 @@ export class UserRepository {
             ':pk': userOrgPk(organizationId),
             ':skPrefix': 'USER#',
           };
-          if (filterType) {
+          if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
+            const userTypeValFb = filterTypePrefix[filterType as keyof typeof filterTypePrefix];
             exprNamesFb['#ut'] = 'userType';
-            exprNamesFb['#it'] = 'itemType';
-            exprValuesFb[':userTypeVal'] = filterTypePrefix[filterType as keyof typeof filterTypePrefix].toUpperCase();
-            filterPartsFb.push('(#ut = :userTypeVal OR #it = :userTypeVal)');
+            exprValuesFb[':userTypeVal'] = userTypeValFb;
+            filterPartsFb.push('#ut = :userTypeVal');
           }
 
           const fallbackResult = await docClient.send(

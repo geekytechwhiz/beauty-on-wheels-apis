@@ -298,7 +298,7 @@ export const listDoctorPatientsQuerySchema = z.object({
   filter: z.enum(['assigned-patient', 'all-patient', 'lab-patient', 'staff'])
   .transform((val) => val.toLowerCase()), 
   organizationID: z.string().min(1, 'organizationId is required'),
-  userID: z.string().min(1, 'userId is required'),
+  userID: z.string().optional(),
 });
 
 

@@ -1056,7 +1056,7 @@ export class UserRepository {
         const exprNames: Record<string, string> = {};
         const exprValues: Record<string, unknown> = {
           ':pk': `ORG#${organizationId}`,
-          ':skPrefix':userTypePrefix ,
+          ':skPrefix':userTypePrefix[userTypeNorm as keyof typeof userTypePrefix],
         };
         if (userTypeNorm) {
           exprNames['#ut'] = 'userType';

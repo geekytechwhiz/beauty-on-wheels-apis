@@ -70,6 +70,14 @@ export async function listDoctorPatients(
       event: 'listDoctorPatients_validation_error',
       errors: validation.error.issues,
     });
+    return ApiResponse.badRequest(
+      'USER.LIST_DOCTOR_PATIENTS_FAILED',
+      { requestId: correlationId, event },
+      {
+        code: 'LIST_DOCTOR_PATIENTS_FAILED',
+        details: [{ message: validation.error.issues[0].message }],
+      },
+    );
   }
   let users: Record<string, unknown>[];
   try {

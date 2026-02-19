@@ -25,7 +25,13 @@ import {
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
-
+type UserType = "staff" | "all-patient" | "assigned-patient" | "lab-patient";
+type RequestBody = {
+  userType: UserType;
+  showConsultations: boolean;
+  organizationID: string;
+  userID?: string;
+};
 export async function listDoctorPatients(
   event: APIGatewayProxyEvent,
   context?: Context,
@@ -37,12 +43,15 @@ export async function listDoctorPatients(
     correlationId,
     ...(awsRequestId && { awsRequestId }),
   });
-  const userType = event.pathParameters?.userType;
-  const showConsultations =
-    event.queryStringParameters?.showConsultations || false;
-  const organizationID = getAuthorizerOrganizationId(event);
-  const userID = getAuthorizerUserId(event);
+  const {userType, showConsultations, organizationID, userID}:RequestBody = event.body ? JSON.parse(event.body) as RequestBody : {
+    userType: 'staff',
+    showConsultations: false,
+    organizationID: '',
+    userID: '',
+  };
 
+   
+  // staff, all-patient, assigned-patient, lab-patient
   logger.info({
     event: 'listDoctorPatients_start',
     userType,
@@ -65,7 +74,7 @@ export async function listDoctorPatients(
   let users: Record<string, unknown>[];
   try {
     switch (userType) {
-      case 'doctor':
+      case 'assigned-patient':
         users = await userService.listDoctorPatients(
           userID || '',
           organizationID || '',
@@ -74,20 +83,43 @@ export async function listDoctorPatients(
           requestId: correlationId,
           event,
         });
-      default:
-        const response = await userService.listOrganizationUsers(
-          organizationID || '',
-          {
-            userType: userType?.toUpperCase(),
-            previouslyConsulted: showConsultations ? true : false,
-          },
-        );
-        const mappedresponse = mapUserResponse(response);
-        return ApiResponse.ok(mappedresponse, 'USER.LIST_USERS_SUCCESS', {
-          requestId: correlationId,
-          event,
-        });
-    }
+        case 'all-patient':
+          let patientList = await userService.listOrganizationUsers(
+            organizationID || '',
+            {
+              userType: userType?.toUpperCase(),
+              previouslyConsulted: showConsultations ? true : false,
+            },
+          ) 
+          return ApiResponse.ok(mapUserResponse(patientList), 'USER.LIST_DOCTOR_PATIENTS_SUCCESS', {
+            requestId: correlationId,
+            event,
+          });
+          case 'lab-patient':
+            const labPatientList = await userService.listOrganizationUsers(
+              organizationID || '',
+              {
+                userType: userType?.toUpperCase(),
+                previouslyConsulted: showConsultations ? true : false,
+              },
+            )
+            return ApiResponse.ok(labPatientList, 'USER.LIST_LAB_PATIENTS_SUCCESS', {
+              requestId: correlationId,
+              event,
+            });
+            case 'staff':
+              const staffList = await userService.listOrganizationUsers(
+                organizationID || '',
+                {
+                  userType: userType?.toUpperCase(),
+                  previouslyConsulted: showConsultations ? true : false,
+                },
+              )
+              return ApiResponse.ok(mapUserResponse(staffList), 'USER.LIST_STAFF_SUCCESS', { 
+                requestId: correlationId,
+                event,
+              });
+            }
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof UserNotFoundError) {

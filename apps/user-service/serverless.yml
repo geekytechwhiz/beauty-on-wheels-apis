@@ -523,19 +523,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: user/list/type/{userType}
-          method: get
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-      - http:
-          path: user/doctor-patient-list
+          path: user/list
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -546,6 +534,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+       
   friendFamilySearch:
     handler: src/handlers/friendFamilySearch.main
     

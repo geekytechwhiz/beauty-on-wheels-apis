@@ -523,7 +523,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: user/{userType}/list
+          path: user/list/type/{userType}
           method: get
           cors:
             origin: ${self:custom.cors.origin}

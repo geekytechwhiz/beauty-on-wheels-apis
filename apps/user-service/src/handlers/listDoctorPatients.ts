@@ -25,9 +25,9 @@ import {
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
-type UserType = "staff" | "all-patient" | "assigned-patient" | "lab-patient";
+type Filter = "staff" | "all-patient" | "assigned-patient" | "lab-patient";
 type RequestBody = {
-  userType: UserType;
+  filter: Filter;
   showConsultations: boolean;
   organizationID: string;
   userID?: string;
@@ -43,8 +43,8 @@ export async function listDoctorPatients(
     correlationId,
     ...(awsRequestId && { awsRequestId }),
   });
-  const {userType, showConsultations, organizationID, userID}:RequestBody = event.body ? JSON.parse(event.body) as RequestBody : {
-    userType: 'staff',
+  const {filter: filter, showConsultations, organizationID, userID}:RequestBody = event.body ? JSON.parse(event.body) as RequestBody : {
+    filter: 'staff',
     showConsultations: false,
     organizationID: '',
     userID: '',
@@ -54,13 +54,13 @@ export async function listDoctorPatients(
   // staff, all-patient, assigned-patient, lab-patient
   logger.info({
     event: 'listDoctorPatients_start',
-    userType,
+    filter: filter,
     showConsultations,
     organizationID,
     userID,
   });
   const validation = listDoctorPatientsQuerySchema.safeParse({
-    userType,
+    filter: filter,
     organizationID,
     userID,
   });
@@ -81,7 +81,7 @@ export async function listDoctorPatients(
   }
   let users: Record<string, unknown>[];
   try {
-    switch (userType) {
+    switch (filter) {
       case 'assigned-patient':
         users = await userService.listDoctorPatients(
           userID || '',
@@ -95,7 +95,7 @@ export async function listDoctorPatients(
           let patientList = await userService.listOrganizationUsers(
             organizationID || '',
             {
-              userType: userType?.toUpperCase(),
+              filter: filter?.toUpperCase(),
               previouslyConsulted: showConsultations ? true : false,
             },
           ) 
@@ -107,7 +107,7 @@ export async function listDoctorPatients(
             const labPatientList = await userService.listOrganizationUsers(
               organizationID || '',
               {
-                userType: userType?.toUpperCase(),
+                filter: filter?.toUpperCase(),
                 previouslyConsulted: showConsultations ? true : false,
               },
             )
@@ -119,8 +119,8 @@ export async function listDoctorPatients(
               const staffList = await userService.listOrganizationUsers(
                 organizationID || '',
                 {
-                  userType: userType?.toUpperCase(),
-                  previouslyConsulted: showConsultations ? true : false,
+                  filter: filter?.toUpperCase(),
+                  previouslyConsulted: showConsultations ? true : false
                 },
               )
               return ApiResponse.ok(mapUserResponse(staffList), 'USER.LIST_STAFF_SUCCESS', { 

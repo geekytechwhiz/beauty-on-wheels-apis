@@ -117,7 +117,7 @@ export interface ListOrganizationUsersOptions {
   /**
    * Filter by userType (e.g. "USER", "STAFF", "FNF"), case-insensitive.
    */
-  userType?: string;
+  filter?: string;
   /**
    * Filter by specialty (case-insensitive).
    */
@@ -1016,20 +1016,26 @@ export class UserRepository {
       limit,
       offset = 0,
       status,
-      userType,
+      filter,
       specialty,
       search,
       sortBy = 'createdDate',
       sortOrder = 'desc',
       previouslyConsulted,
     } = options;
-
+    const filterType = filter?.trim()?.toUpperCase();
+    const filterTypePrefix = {
+      "STAFF": 'STAFF',
+      'ALL-PATIENT': 'USER',
+      'ASSIGNED-PATIENT': 'ASSIGNEE',
+      'LAB-PATIENT': 'LAB_PATIENT',
+    };
     try {
       console.info('listOrganizationUsers', organizationId, {
         limit,
         offset,
         status,
-        userType,
+        filter,
         specialty,
         search,
         sortBy,
@@ -1044,24 +1050,18 @@ export class UserRepository {
             ? limit + Math.max(offset, 0)
             : undefined;
 
-        const userTypeNorm = userType?.trim()?.toLocaleLowerCase();
-        const userTypePrefix = {
-          "staff": 'STAFF',
-          'all-patient': 'USER',
-          'assigned-patient': 'ASSIGNEE',
-          'lab-patient': 'LAB_PATIENT',
-        };
+      
 
         const filterParts: string[] = [];
         const exprNames: Record<string, string> = {};
         const exprValues: Record<string, unknown> = {
           ':pk': `ORG#${organizationId}`,
-          ':skPrefix':`${userTypePrefix[userTypeNorm as keyof typeof userTypePrefix]}#`,
+          ':skPrefix': 'USER#',
         };
-        if (userTypeNorm) {
+        if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
           exprNames['#ut'] = 'userType';
           exprNames['#it'] = 'itemType';
-          exprValues[':userTypeVal'] = userTypePrefix[userTypeNorm as keyof typeof userTypePrefix];
+          exprValues[':userTypeVal'] = filterTypePrefix[filterType as keyof typeof filterTypePrefix];
           filterParts.push('(#ut = :userTypeVal OR #it = :userTypeVal)');
         }
 
@@ -1090,11 +1090,11 @@ export class UserRepository {
           );
         }
 
-        if (userType && !userTypeNorm) {
-          const userTypeLc = userTypePrefix[userType as keyof typeof userTypePrefix].toLowerCase();
+        if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
+          const filterTypeLc = String(filterTypePrefix[filterType as keyof typeof filterTypePrefix]).toLowerCase();
           users = users.filter(
             (u) =>
-              String((u as any).userType ?? '').toLowerCase() === userTypeLc,
+              String((u as any).userType ?? (u as any).itemType ?? '').toLowerCase() === filterTypeLc,
           );
         }
 
@@ -1169,18 +1169,17 @@ export class UserRepository {
             typeof limit === 'number' && limit > 0
               ? limit + Math.max(offset, 0)
               : undefined;
-
-          const userTypeNormFb = userType?.trim();
+ 
           const filterPartsFb: string[] = [];
           const exprNamesFb: Record<string, string> = {};
           const exprValuesFb: Record<string, unknown> = {
             ':pk': userOrgPk(organizationId),
             ':skPrefix': 'USER#',
           };
-          if (userTypeNormFb) {
+          if (filterType) {
             exprNamesFb['#ut'] = 'userType';
             exprNamesFb['#it'] = 'itemType';
-            exprValuesFb[':userTypeVal'] = userTypeNormFb.toUpperCase();
+            exprValuesFb[':userTypeVal'] = filterTypePrefix[filterType as keyof typeof filterTypePrefix].toUpperCase();
             filterPartsFb.push('(#ut = :userTypeVal OR #it = :userTypeVal)');
           }
 
@@ -1208,13 +1207,13 @@ export class UserRepository {
             );
           }
 
-          if (userType && !userTypeNormFb) {
-            const userTypeLc = userType.toLowerCase();
-            users = users.filter(
-              (u) =>
-                String((u as any).userType ?? '').toLowerCase() === userTypeLc,
-            );
-          }
+            if (filterType ) {
+              const filterTypeLc = filterTypePrefix[filterType as keyof typeof filterTypePrefix].toLowerCase();
+              users = users.filter(
+                (u) =>
+                  String((u as any).userType ?? '').toLowerCase() === filterTypeLc,
+              );
+            }
 
           if (specialty) {
             const specialtyLc = specialty.toLowerCase();

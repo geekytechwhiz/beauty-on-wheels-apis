@@ -108,8 +108,8 @@ export class UserService {
 
       const userTypeUpper = String(data.userType || '').toUpperCase();
 
-      if(userTypeUpper === 'STAFF' || userTypeUpper === 'USER' ) {
-        throw new Error('Invalid user type, only STAFF and USER are allowed');
+      if(userTypeUpper === 'STAFF' || userTypeUpper === 'USER'   || userTypeUpper === 'ADMIN' || userTypeUpper === 'FNF') {
+        throw new Error(`Invalid user type ${userTypeUpper}, only STAFF and USER are allowed`);
       }
       // STAFF: email required
       if (userTypeUpper === 'STAFF' && !normalizedEmail) {

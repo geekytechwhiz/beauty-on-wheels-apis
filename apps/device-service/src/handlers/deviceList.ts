@@ -181,7 +181,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
       const deviceList = recommendations.map((recommendation: any) => {
         // Try to get full device details from global repository
         const globalDevice = deviceMap.get(recommendation.deviceId);
-        const referredBy = recommendation.doctorData?.doctorId || recommendation.doctorData?.doctorName || undefined;
+        const referredBy = recommendation.doctorData?.doctorName || '';
         const referredOn = recommendation.doctorData?.recommendTime;
         return {
           category: recommendation.category || globalDevice?.category,

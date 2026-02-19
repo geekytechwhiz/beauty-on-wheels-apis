@@ -521,7 +521,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listDoctorPatients:
-    handler: src/handlers/listDoctorPatients.main
+    handler: src/handlers/listUsers.main
     
     memorySize: 256
     events:

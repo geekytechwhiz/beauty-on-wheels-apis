@@ -161,7 +161,7 @@ describe('listDoctorPatients', () => {
   });
 
   it('returns 200 with users array', async () => {
-    const { listDoctorPatients } = await import('../listDoctorPatients');
+    const { listDoctorPatients } = await import('../listUsers');
     const event = createMockEvent({
       body: JSON.stringify({ organizationId: 'org-1', doctorId: 'doctor-1' }),
     });
@@ -174,7 +174,7 @@ describe('listDoctorPatients', () => {
   });
 
   it('returns 400 when validation fails', async () => {
-    const { listDoctorPatients } = await import('../listDoctorPatients');
+    const { listDoctorPatients } = await import('../listUsers');
     mockUnprocessableEntity.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: JSON.stringify({}) });
 

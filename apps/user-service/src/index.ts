@@ -3,7 +3,7 @@ export * from './handlers/getUser';
 export * from './handlers/updateUser';
 export * from './handlers/deleteUser';
 export * from './handlers/assignDoctor';
-export * from './handlers/listDoctorPatients';
+export * from './handlers/listUsers';
 export * from './handlers/setLogoutRequired';
 export * from './handlers/putAssignedPackages';
 export * from './handlers/listUserOrganizations';

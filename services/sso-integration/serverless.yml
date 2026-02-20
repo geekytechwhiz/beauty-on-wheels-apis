@@ -1,4 +1,4 @@
-service: myvitalrx-sso
+service: sso-integration
 
 frameworkVersion: '3'
 

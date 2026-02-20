@@ -28,7 +28,7 @@ export async function handler(
 
   const response: HealthResponse = {
     status: 'healthy',
-    service: 'myvitalrx-sso',
+    service: 'sso-integration',
     version: process.env.npm_package_version || '1.0.0',
     timestamp: new Date().toISOString(),
     requestId: awsRequestId || correlationId,

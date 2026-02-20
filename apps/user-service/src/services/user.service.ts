@@ -55,7 +55,6 @@ export class UserService {
     }
     const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID, organizationID, invitedBy });
     logger.info({ event: 'service_createUser_start' });
-
     try {
       if (!organizationID) throw new Error('organizationID is required');
       data.organizationID = organizationID;

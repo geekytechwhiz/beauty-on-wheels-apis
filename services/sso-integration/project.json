@@ -1,0 +1,86 @@
+{
+  "name": "sso-integration",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "services/sso-integration/src",
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/services/sso-integration",
+        "main": "services/sso-integration/src/handlers/sso/launch.ts",
+        "tsConfig": "services/sso-integration/tsconfig.app.json",
+        "assets": [],
+        "bundle": true,
+        "platform": "node",
+        "target": "node20",
+        "format": ["cjs"],
+        "generatePackageJson": false,
+        "esbuildOptions": {
+          "sourcemap": true,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["services/sso-integration/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/services/sso-integration"],
+      "options": {
+        "jestConfig": "services/sso-integration/jest.config.ts",
+        "passWithNoTests": true
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx serverless offline",
+        "cwd": "services/sso-integration"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx serverless deploy --stage {args.stage}",
+        "cwd": "services/sso-integration"
+      }
+    },
+    "deploy:dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx serverless deploy --stage dev",
+        "cwd": "services/sso-integration"
+      }
+    },
+    "deploy:stg": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx serverless deploy --stage stg",
+        "cwd": "services/sso-integration"
+      }
+    },
+    "deploy:prd": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx serverless deploy --stage prd",
+        "cwd": "services/sso-integration"
+      }
+    },
+    "remove": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx serverless remove --stage {args.stage}",
+        "cwd": "services/sso-integration"
+      }
+    }
+  },
+  "tags": ["scope:service", "type:lambda", "domain:sso"]
+}

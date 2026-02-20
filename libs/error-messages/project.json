@@ -1,0 +1,26 @@
+{
+  "name": "error-messages",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/error-messages/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/error-messages",
+        "main": "libs/error-messages/src/index.ts",
+        "tsConfig": "libs/error-messages/tsconfig.lib.json",
+        "assets": ["libs/error-messages/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/error-messages/**/*.ts"]
+      }
+    }
+  }
+}

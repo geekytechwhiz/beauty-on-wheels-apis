@@ -54,6 +54,8 @@ services/partner-integration/.esbuild
 services/partner-registry/.esbuild
 services/fhir-gateway/.esbuild
 services/authorizer-service/.esbuild
+services/sso-integration/.esbuild
+services/sso-integration/.env
 
 # Serverless build artifacts
 **/.serverless/

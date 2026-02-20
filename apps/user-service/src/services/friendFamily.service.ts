@@ -64,7 +64,7 @@ export class FriendFamilyService {
     }
     const user = await userRepository.findUserByEmailOrPhoneInOrg(organizationID, email || undefined, phone || undefined);
     
-
+    console.log("USER: ", user);
     if (!user) {
       // User not found: check inviter F&F limit before handler runs invite flow
       const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);

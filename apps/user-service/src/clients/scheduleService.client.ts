@@ -43,6 +43,13 @@ export class ScheduleServiceClient {
     const url = `${this.baseUrl}/fetch-availability-schedule`;
     const body = { userID: userId, organizationID: organizationId };
 
+    logger.info({
+      event: 'scheduleServiceClient_getPreferences_start',
+      url,
+      hasAuth: !!authHeader,
+      timeoutMs: this.timeoutMs,
+    });
+
     try {
       const response = await axios.post(url, body, {
         headers: {
@@ -52,16 +59,34 @@ export class ScheduleServiceClient {
         timeout: this.timeoutMs,
       });
       const data = response.data?.data ?? response.data ?? null;
-      if (!data) return null;
+      if (!data) {
+        logger.info({
+          event: 'scheduleServiceClient_getPreferences_empty',
+          status: response.status,
+        });
+        return null;
+      }
+      logger.info({
+        event: 'scheduleServiceClient_getPreferences_success',
+        status: response.status,
+        hasWorkingHours: !!(data as Record<string, unknown>)?.workingHours,
+      });
       return this.normalizePreferences(data);
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
       const status = axiosErr?.response?.status;
-      if (status === 404) return null;
+      if (status === 404) {
+        logger.info({
+          event: 'scheduleServiceClient_getPreferences_not_found',
+          status: 404,
+        });
+        return null;
+      }
       logger.error({
         event: 'scheduleServiceClient_getPreferences_error',
         err: serializeError(err),
         status,
+        responseMessage: axiosErr?.response?.data?.message,
       });
       throw err;
     }
@@ -85,18 +110,34 @@ export class ScheduleServiceClient {
       ...prefs,
     };
 
+    logger.info({
+      event: 'scheduleServiceClient_putPreferences_start',
+      url,
+      hasAuth: !!authHeader,
+      hasWorkingHours: !!prefs.workingHours,
+      hasAvailability: !!prefs.availability,
+      timeoutMs: this.timeoutMs,
+    });
+
     try {
-      await axios.post(url, body, {
+      const response = await axios.post(url, body, {
         headers: {
           'Content-Type': 'application/json',
           ...(authHeader ? { Authorization: authHeader } : {}),
         },
         timeout: this.timeoutMs,
       });
+      logger.info({
+        event: 'scheduleServiceClient_putPreferences_success',
+        status: response.status,
+      });
     } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
       logger.error({
         event: 'scheduleServiceClient_putPreferences_error',
         err: serializeError(err),
+        status: axiosErr?.response?.status,
+        responseMessage: axiosErr?.response?.data?.message,
       });
       throw err;
     }
@@ -104,7 +145,8 @@ export class ScheduleServiceClient {
 
   /**
    * Get latest active appointments for an organization.
-   * Calls API endpoint to fetch non-cancelled future appointments.
+   * When APPOINTMENT_SCHEDULES_API_URL is set (e.g. dev), calls POST /fetch/schedules with
+   * { fromDate, toDate, organizationID }. Otherwise calls get-latest-active-appointments.
    * Returns appointments with userId, userPackageId, userAddonId, scheduleId, meta, patientOrgId.
    */
   async getLatestActiveAppointments(
@@ -119,10 +161,180 @@ export class ScheduleServiceClient {
     patientOrgId: string;
   }>> {
     const logger = createChildLogger(baseLogger, { organizationId });
-    // Assuming the schedule service has an endpoint like /get-latest-active-appointments
-    // Adjust the endpoint path based on actual API structure
+    const appointmentSchedulesBaseUrl = process.env.APPOINTMENT_SCHEDULES_API_URL ?? '';
+
+    logger.info({
+      event: 'scheduleServiceClient_getLatestActiveAppointments_start',
+      organizationId,
+      hasAuth: !!authHeader,
+      useFetchSchedulesApi: !!appointmentSchedulesBaseUrl,
+      appointmentSchedulesBaseUrl: appointmentSchedulesBaseUrl || undefined,
+    });
+
+    if (appointmentSchedulesBaseUrl) {
+      return this.fetchSchedulesAppointments(organizationId, authHeader, appointmentSchedulesBaseUrl);
+    }
+    return this.getLatestActiveAppointmentsFromLegacy(organizationId, authHeader);
+  }
+
+  /**
+   * Dev appointment list API: POST /fetch/schedules with fromDate, toDate, organizationID.
+   * Used when APPOINTMENT_SCHEDULES_API_URL is set (e.g. dev environment).
+   */
+  private async fetchSchedulesAppointments(
+    organizationId: string,
+    authHeader: string | undefined,
+    baseUrl: string,
+  ): Promise<Array<{
+    userId: string;
+    userPackageId: string | null;
+    userAddonId: string | null;
+    scheduleId: string;
+    meta: Record<string, unknown>;
+    patientOrgId: string;
+  }>> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    const url = `${baseUrl.replace(/\/$/, '')}/fetch/schedules`;
+    const now = Date.now();
+    const toDate = now + 7 * 24 * 60 * 60 * 1000; // next 7 days for "active" window
+    const body = {
+      fromDate: now,
+      toDate,
+      organizationID: organizationId,
+    };
+
+    logger.info({
+      event: 'scheduleServiceClient_fetchSchedules_request',
+      url,
+      fromDate: now,
+      toDate,
+      organizationId,
+      hasAuth: !!authHeader,
+      timeoutMs: this.timeoutMs,
+    });
+
+    try {
+      const response = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/plain, */*',
+          ...(authHeader ? { Authorization: authHeader } : {}),
+        },
+        timeout: this.timeoutMs,
+      });
+      const data = response.data?.data ?? response.data ?? [];
+      const rawList = Array.isArray(data) ? data : (data?.schedules && Array.isArray(data.schedules) ? data.schedules : []);
+      logger.info({
+        event: 'scheduleServiceClient_fetchSchedules_response',
+        status: response.status,
+        rawCount: rawList.length,
+        responseIsArray: Array.isArray(response.data?.data ?? response.data),
+      });
+      const mapped = this.mapFetchSchedulesResponse(rawList, organizationId, logger);
+      logger.info({
+        event: 'scheduleServiceClient_fetchSchedules_success',
+        mappedCount: mapped.length,
+      });
+      return mapped;
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
+      const status = axiosErr?.response?.status;
+      if (status === 404) {
+        logger.info({
+          event: 'scheduleServiceClient_fetchSchedules_not_found',
+          status: 404,
+        });
+        return [];
+      }
+      logger.error({
+        event: 'scheduleServiceClient_fetchSchedules_error',
+        err: serializeError(err),
+        status,
+        responseMessage: axiosErr?.response?.data?.message,
+        url,
+      });
+      throw err;
+    }
+  }
+
+  /**
+   * Map /fetch/schedules response to getLatestActiveAppointments format.
+   * Handles both legacy shape (pk, meta, id, participantInfo) and flat shape (userId, id, etc.).
+   */
+  private mapFetchSchedulesResponse(
+    rawList: any[],
+    defaultOrgId: string,
+    logger: ReturnType<typeof createChildLogger>,
+  ): Array<{
+    userId: string;
+    userPackageId: string | null;
+    userAddonId: string | null;
+    scheduleId: string;
+    meta: Record<string, unknown>;
+    patientOrgId: string;
+  }> {
+    const filtered = rawList.filter((item: any) => {
+      const userId = item?.meta?.userId ?? item?.userId;
+      return userId && (item?.id ?? item?.scheduleId);
+    });
+    const dropped = rawList.length - filtered.length;
+    if (dropped > 0) {
+      logger.info({
+        event: 'scheduleServiceClient_mapFetchSchedules_filtered',
+        rawCount: rawList.length,
+        afterFilterCount: filtered.length,
+        dropped,
+      });
+    }
+    return filtered.map((item: any) => {
+        const userId = item.meta?.userId ?? item.userId;
+        const userPackageId = item.meta?.userPackageId ?? item.userPackageId ?? null;
+        const userAddonId = item.meta?.userAddonId ?? item.userAddonId ?? null;
+        const scheduleId = String(item.id ?? item.scheduleId ?? '');
+        const meta = item.meta && typeof item.meta === 'object' ? item.meta : {};
+        const patientOrgId =
+          item.participantInfo
+            ?.filter((p: any) => p.userType === 'USER')
+            ?.map((p: any) => p.organizationID)
+            ?.join(',') ||
+          item.organizationID ||
+          defaultOrgId;
+        return {
+          userId,
+          userPackageId: userPackageId ?? null,
+          userAddonId: userAddonId ?? null,
+          scheduleId,
+          meta: { ...meta, userId, userPackageId, userAddonId },
+          patientOrgId,
+        };
+      });
+  }
+
+  /**
+   * Legacy: get latest active appointments via get-latest-active-appointments endpoint.
+   */
+  private async getLatestActiveAppointmentsFromLegacy(
+    organizationId: string,
+    authHeader?: string,
+  ): Promise<Array<{
+    userId: string;
+    userPackageId: string | null;
+    userAddonId: string | null;
+    scheduleId: string;
+    meta: Record<string, unknown>;
+    patientOrgId: string;
+  }>> {
+    const logger = createChildLogger(baseLogger, { organizationId });
     const url = `${this.baseUrl}/get-latest-active-appointments`;
     const body = { organizationID: organizationId };
+
+    logger.info({
+      event: 'scheduleServiceClient_getLatestActiveAppointments_legacy_request',
+      url,
+      organizationId,
+      hasAuth: !!authHeader,
+      timeoutMs: this.timeoutMs,
+    });
 
     try {
       const response = await axios.post(url, body, {
@@ -133,36 +345,58 @@ export class ScheduleServiceClient {
         timeout: this.timeoutMs,
       });
       const data = response.data?.data ?? response.data ?? [];
-      if (!Array.isArray(data)) return [];
-      
-      // Filter and map to expected format
-      return data
-        .filter((item: any) =>
-          item.meta &&
-          Object.keys(item.meta).length > 0 &&
-          item.pk &&
-          item.meta.userId &&
-          item.pk.includes(item.meta.userId)
-        )
-        .map((item: any) => ({
-          userId: item.meta.userId,
-          userPackageId: item.meta.userPackageId || null,
-          userAddonId: item.meta.userAddonId || null,
-          scheduleId: item.id,
-          meta: item.meta || {},
-          patientOrgId: item.participantInfo
-            ?.filter((p: any) => p.userType === 'USER')
-            ?.map((p: any) => p.organizationID)
-            ?.join(',') || '',
-        }));
+      if (!Array.isArray(data)) {
+        logger.warn({
+          event: 'scheduleServiceClient_getLatestActiveAppointments_legacy_non_array',
+          status: response.status,
+          dataType: typeof response.data,
+        });
+        return [];
+      }
+
+      const filtered = data.filter((item: any) =>
+        item.meta &&
+        Object.keys(item.meta).length > 0 &&
+        item.pk &&
+        item.meta.userId &&
+        item.pk.includes(item.meta.userId)
+      );
+      const mapped = filtered.map((item: any) => ({
+        userId: item.meta.userId,
+        userPackageId: item.meta.userPackageId || null,
+        userAddonId: item.meta.userAddonId || null,
+        scheduleId: item.id,
+        meta: item.meta || {},
+        patientOrgId: item.participantInfo
+          ?.filter((p: any) => p.userType === 'USER')
+          ?.map((p: any) => p.organizationID)
+          ?.join(',') || '',
+      }));
+
+      logger.info({
+        event: 'scheduleServiceClient_getLatestActiveAppointments_legacy_success',
+        status: response.status,
+        rawCount: data.length,
+        mappedCount: mapped.length,
+        dropped: data.length - filtered.length,
+      });
+      return mapped;
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
       const status = axiosErr?.response?.status;
-      if (status === 404) return [];
+      if (status === 404) {
+        logger.info({
+          event: 'scheduleServiceClient_getLatestActiveAppointments_legacy_not_found',
+          status: 404,
+        });
+        return [];
+      }
       logger.error({
         event: 'scheduleServiceClient_getLatestActiveAppointments_error',
         err: serializeError(err),
         status,
+        url,
+        responseMessage: axiosErr?.response?.data?.message,
       });
       throw err;
     }

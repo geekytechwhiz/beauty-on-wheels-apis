@@ -52,6 +52,7 @@ provider:
     ROLE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ROLE_API_URL, ''}
     ORGANIZATION_API_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_API_URL, ''}
     SCHEDULE_SERVICE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.SCHEDULE_SERVICE_API_URL, ''}
+    APPOINTMENT_SCHEDULES_API_URL: ${self:custom.stageUrls.${self:provider.stage}.APPOINTMENT_SCHEDULES_API_URL, ''}
     SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}
     PACKAGE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.PACKAGE_SERVICE_BASE_URL, ''}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
@@ -222,6 +223,8 @@ custom:
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
       PACKAGE_SERVICE_BASE_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
       SCHEDULE_SERVICE_API_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
+      # Dev appointment list API for showActiveAppointment (POST /fetch/schedules)
+      APPOINTMENT_SCHEDULES_API_URL: 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'
 
     stg:
       WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'

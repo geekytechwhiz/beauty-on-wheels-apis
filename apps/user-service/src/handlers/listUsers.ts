@@ -55,8 +55,17 @@ export async function listDoctorPatients(
     userID: '',
   };
   const { filter, showConsultations = false, showActiveAppointment = false, organizationID, userID } = body;
-
-   
+  console.log("FILTER : USERID :", userID, filter);
+   if(filter === 'assigned-patient' && !userID) {
+    return ApiResponse.badRequest(
+      'USER.LIST_DOCTOR_PATIENTS_FAILED',
+      { requestId: correlationId, event },
+      {
+        code: 'LIST_DOCTOR_PATIENTS_FAILED',
+        details: [{ message: 'User ID is required for assigned-patient filter' }],
+      },
+    );
+  }
   // staff, all-patient, assigned-patient, lab-patient
   logger.info({
     event: 'listDoctorPatients_start',

@@ -49,6 +49,7 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
     const attrs = await cognitoService.getUserAttributes(fromToken.sub);
     userID = attrs.userID ?? ""; 
   }
+  
 
   if (!organizationID) {
     const duration = Date.now() - startTime;
@@ -85,7 +86,6 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
   try {
     const result = await friendFamilyService.searchFnf(organizationID as string, userID, validation.data as any, authHeader);
     const duration = Date.now() - startTime;
-
     if (result.success && result.invitedUser && result.data) {
       logHttpRequest(logger, event.httpMethod || 'POST', PATH_FNF_SEARCH, 200, duration, correlationId);
       return ApiResponse.ok(
@@ -119,11 +119,10 @@ export async function main(event: APIGatewayProxyEvent, context?: Context): Prom
           logger.warn({ event: 'friend_family_invite_role_fetch_warn', err: serializeError(roleErr) });
         }
       }
-
       const newUser = await userService.createUser(
         userData,
-        organizationID as string,
         userID,
+        organizationID as string,
         correlationId,
         authHeader,
         undefined,

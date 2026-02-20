@@ -161,6 +161,14 @@ custom:
     prd: warn
 
 functions:
+  health:
+    handler: src/handlers/health.handler
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
   deviceRegister:
     handler: src/handlers/deviceRegister.handler
     events:

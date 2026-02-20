@@ -4,53 +4,65 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: nodejs18.x
+  runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   memorySize: 256
   timeout: 30
   environment:
-    JWT_SECRET: ${env:JWT_SECRET, 'change-in-production'}
-    SESSION_EXPIRY: ${env:SESSION_EXPIRY, '3600'}
-    APP_ISSUER: ${env:APP_ISSUER, 'myvitalrx-sso'}
-    APP_BASE_URL: ${env:APP_BASE_URL, 'https://app.myvitalrx.com'}
-    API_BASE_URL: ${env:API_BASE_URL, ''}
-    HMS_CLIENTS_TABLE: ${self:custom.hmsClientsTableName}
+    NODE_ENV: ${self:provider.stage}
+    SERVICE_NAME: ${self:service}
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, ''}
+    HMS_BASE_URL: ${env:HMS_BASE_URL, ''}
+    HMS_API_KEY: ${env:HMS_API_KEY, ''}
+    HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, ''}
     USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, ''}
+    ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, ''}
+    ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, ''}
+    RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
+    RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
   iam:
     role:
       statements:
         - Effect: Allow
           Action:
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:Query
-            - dynamodb:Scan
-          Resource:
-            - !GetAtt HMSClientsTable.Arn
-        # SSO only performs AdminInitiateAuth; user-service owns Cognito user creation
-        - Effect: Allow
-          Action:
             - cognito-idp:AdminInitiateAuth
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminSetUserPassword
+            - cognito-idp:AdminUpdateUserAttributes
+            - cognito-idp:AdminGetUser
           Resource:
-            - !Sub 'arn:aws:cognito-idp:us-east-1:${AWS::AccountId}:userpool/us-east-1_AK1HTxdlX'
+            - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
 
 plugins:
-  - serverless-plugin-typescript
+  - serverless-esbuild
+  - serverless-dotenv-plugin
   - serverless-offline
 
 custom:
-  hmsClientsTableName: ${self:service}-hms-clients-${self:provider.stage}
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node20
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - '@aws-sdk/client-cognito-identity-provider'
+  dotenv:
+    logging: false
   serverless-offline:
-    httpPort: 3000
-    noPrependStageInUrl: false
+    httpPort: 3005
+    noPrependStageInUrl: true
 
 functions:
   health:
     handler: src/handlers/health.handler
+    description: Health check endpoint
     events:
       - http:
           path: /health
@@ -59,43 +71,73 @@ functions:
 
   ssoLaunch:
     handler: src/handlers/sso/launch.handler
+    description: SSO launch endpoint for HMS integration
+    timeout: 30
     events:
       - http:
           path: /sso/launch
           method: get
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
 
-  ssoRegister:
-    handler: src/handlers/sso/register.handler
+  # ---------------------------------------------------------------------------
+  # Appointments Endpoints (Phase 1)
+  # ---------------------------------------------------------------------------
+
+  appointmentsToday:
+    handler: src/handlers/appointments/todays.handler
+    description: Get today's appointments for the authenticated doctor
+    timeout: 15
     events:
       - http:
-          path: /sso/register
-          method: post
-          cors: true
+          path: /appointments/today
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          # TODO: Add Cognito authorizer once JWT flow is tested
+          # authorizer:
+          #   type: COGNITO_USER_POOLS
+          #   authorizerId:
+          #     Ref: CognitoAuthorizer
+
+  patientEMR:
+    handler: src/handlers/appointments/patient-emr.handler
+    description: Get patient EMR summary for last 3 visits
+    timeout: 15
+    events:
+      - http:
+          path: /appointments/{patientId}/emr
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          request:
+            parameters:
+              paths:
+                patientId: true
+          # TODO: Add Cognito authorizer once JWT flow is tested
+          # authorizer:
+          #   type: COGNITO_USER_POOLS
+          #   authorizerId:
+          #     Ref: CognitoAuthorizer
 
 resources:
-  Resources:
-    HMSClientsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:custom.hmsClientsTableName}
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: clientId
-            AttributeType: S
-          - AttributeName: hmsId
-            AttributeType: S
-        KeySchema:
-          - AttributeName: clientId
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          - IndexName: hmsId-index
-            KeySchema:
-              - AttributeName: hmsId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-
   Outputs:
     ServiceEndpoint:
       Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
@@ -103,3 +145,9 @@ resources:
     SSOLaunchUrl:
       Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/sso/launch'
       Description: SSO Launch endpoint URL for HMS integration
+    AppointmentsTodayUrl:
+      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/appointments/today'
+      Description: Today's appointments endpoint
+    PatientEMRUrl:
+      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/appointments/{patientId}/emr'
+      Description: Patient EMR summary endpoint

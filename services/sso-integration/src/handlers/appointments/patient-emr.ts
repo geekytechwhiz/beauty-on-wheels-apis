@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/logger';
-import { getSSOController } from '../../controllers/sso.controller';
+import { getAppointmentsController } from '../../controllers/appointments.controller';
 
 const logger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -13,21 +13,21 @@ export async function handler(
 
   logger.info({
     event: 'lambda_invocation_start',
-    handler: 'sso/launch',
+    handler: 'appointments/patient-emr',
     correlationId,
     awsRequestId,
     httpMethod: event.httpMethod,
     path: event.path,
-    hasQueryParams: !!event.queryStringParameters,
+    pathParameters: event.pathParameters,
   });
 
   try {
-    const controller = getSSOController();
-    const result = await controller.handleLaunch(event);
+    const controller = getAppointmentsController();
+    const result = await controller.handleGetPatientEMR(event);
 
     logger.info({
       event: 'lambda_invocation_complete',
-      handler: 'sso/launch',
+      handler: 'appointments/patient-emr',
       correlationId,
       statusCode: result.statusCode,
     });
@@ -36,7 +36,7 @@ export async function handler(
   } catch (error) {
     logger.error({
       event: 'lambda_invocation_error',
-      handler: 'sso/launch',
+      handler: 'appointments/patient-emr',
       correlationId,
       err: serializeError(error as Error),
     });

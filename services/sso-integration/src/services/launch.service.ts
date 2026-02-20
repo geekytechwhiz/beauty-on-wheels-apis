@@ -1,217 +1,272 @@
-/**
- * Launch Service - Verifies HMS launch tokens; ensures user exists via user-service; issues Cognito tokens
- *
- * Flow:
- * 1. Verify launch_token (JWT or HMS /verify)
- * 2. Extract doctor_uid, tenant_id (e.g. hmsId)
- * 3. GET user-service /internal/users/by-external-id (provider, external_id, tenant_id)
- * 4. If 404 → POST user-service /internal/users (external_id, provider, tenant_id, role, source)
- * 5. Cognito AdminInitiateAuth (SSO does not create Cognito users; user-service does)
- * 6. Return id_token, access_token, refresh_token, doctor_uid to handler
- */
+import { createLogger, createChildLogger, serializeError, createPerformanceTimer } from '@api-hub/logger';
+import { getHMSAdapter } from './hms.adapter';
+import { getUserServiceClient } from './user.client';
+import { getRoleServiceClient } from './role.client';
+import { getCognitoService } from './cognito.service';
+import {
+  CognitoTokens,
+  SSOError,
+  SSOLaunchResponse,
+  User,
+  HMSVerifiedPayload,
+} from '../types';
 
-import * as jwt from 'jsonwebtoken';
-import { HMSClientService } from './hms-client.service';
-import { TokenService } from './token.service';
-import { CognitoService } from './cognito.service';
-import { UserServiceClient } from '../clients/user-service.client';
-import { logger } from '../utils/logger';
-import { LaunchTokenPayload, SessionTokenPayload } from '../types';
-import { IHMSLaunchProvider } from '../providers/hms-launch.provider';
-import { JWTLaunchProvider } from '../providers/jwt-launch.provider';
-import { getConfig } from '../config';
+const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
-/** Result of processLaunch when Cognito is configured: Cognito tokens + doctor_uid */
-export interface LaunchResultWithCognito {
-  doctor_uid: string;
-  id_token: string;
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  userId: string;
-  hmsId: string;
-  clientId: string;
-  sessionToken?: string;
-}
+const HMS_PROVIDER = 'HMS';
+const HMS_DOCTOR_ROLE = 'ROLE_HMS_DOCTOR';
+const SSO_SOURCE = 'SSO_HMS';
 
-/** Legacy result when Cognito is not configured (sessionToken only) */
-export interface LaunchResultLegacy {
-  sessionToken: string;
-  userId: string;
-  hmsId: string;
-  clientId: string;
-}
-
-export type ProcessLaunchResult = LaunchResultWithCognito | LaunchResultLegacy;
-
-export function isLaunchResultWithCognito(r: ProcessLaunchResult): r is LaunchResultWithCognito {
-  return 'id_token' in r && 'doctor_uid' in r;
+export interface LaunchResult {
+  tokens: CognitoTokens;
+  user: {
+    id: string;
+    externalId: string;
+    provider: string;
+    tenantId: string;
+    doctorId: number;
+  };
 }
 
 export class LaunchService {
-  private hmsClientService: HMSClientService;
-  private tokenService: TokenService;
-  private cognitoService: CognitoService;
-  private userServiceClient: UserServiceClient;
-  private launchProvider: IHMSLaunchProvider;
+  private readonly logger = createChildLogger(baseLogger, { component: 'LaunchService' });
+  private readonly hmsAdapter = getHMSAdapter();
+  private readonly userClient = getUserServiceClient();
+  private readonly roleClient = getRoleServiceClient();
+  private readonly cognitoService = getCognitoService();
 
-  constructor(
-    hmsClientService?: HMSClientService,
-    tokenService?: TokenService,
-    cognitoService?: CognitoService,
-    userServiceClient?: UserServiceClient,
-    launchProvider?: IHMSLaunchProvider
-  ) {
-    this.hmsClientService = hmsClientService || new HMSClientService();
-    this.tokenService = tokenService || new TokenService();
-    this.cognitoService = cognitoService || new CognitoService();
-    this.userServiceClient = userServiceClient || new UserServiceClient();
-    this.launchProvider = launchProvider || new JWTLaunchProvider(this.hmsClientService);
-  }
+  async processLaunch(
+    launchToken: string,
+    correlationId: string
+  ): Promise<LaunchResult> {
+    const logger = createChildLogger(this.logger, { correlationId });
+    const timer = createPerformanceTimer(logger, 'launch_flow');
 
-  /**
-   * Verify launch token from HMS using configured provider
-   * Extracts clientId from token and delegates to provider
-   */
-  async verifyLaunchToken(launchToken: string): Promise<LaunchTokenPayload | null> {
-    try {
-      // Decode without verify first to get clientId for provider lookup
-      const decoded = jwt.decode(launchToken) as Record<string, unknown> | null;
-      if (!decoded) {
-        logger.warn('Launch token invalid or malformed');
-        return null;
-      }
-
-      // Support clientId, client_id, or aud (common JWT conventions)
-      const clientId =
-        (decoded.clientId as string) ||
-        (decoded.client_id as string) ||
-        (decoded.aud as string);
-      if (!clientId) {
-        logger.warn('Launch token missing clientId (expected clientId, client_id, or aud)', {
-          payloadKeys: Object.keys(decoded),
-        });
-        return null;
-      }
-
-      // Verify client exists and is active
-      const hmsClient = await this.hmsClientService.getClient(clientId);
-      if (!hmsClient || !hmsClient.active) {
-        logger.warn('HMS client not found or inactive', { clientId });
-        return null;
-      }
-
-      // Delegate to provider for token verification
-      // Future: could select provider based on client.providerType config
-      const payload = await this.launchProvider.verifyLaunchToken(launchToken, clientId);
-      
-      if (payload) {
-        logger.info('Launch token verified', {
-          clientId,
-          provider: this.launchProvider.getProviderType(),
-        });
-      }
-      
-      return payload;
-    } catch (error) {
-      logger.warn('Launch token verification failed', { error: (error as Error).message });
-      return null;
-    }
-  }
-
-  /**
-   * Create JWT session from verified launch token payload
-   */
-  createSession(launchPayload: LaunchTokenPayload): string {
-    const sessionId = require('crypto').randomBytes(16).toString('hex');
-    const scope = launchPayload.permissions || launchPayload.roles || ['user:read'];
-
-    const payload: Omit<SessionTokenPayload, 'iat' | 'exp' | 'jti'> = {
-      sub: launchPayload.sub,
-      hmsId: launchPayload.hmsId,
-      clientId: launchPayload.clientId,
-      sessionId,
-      email: launchPayload.email,
-      name: launchPayload.name,
-      scope,
-      iss: process.env.APP_ISSUER || getConfig().appIssuer,
-      aud: 'myvitalrx-app',
-    };
-
-    const sessionToken = this.tokenService.generateSessionToken(payload);
-    logger.info('Session created', {
-      userId: launchPayload.sub,
-      hmsId: launchPayload.hmsId,
-      clientId: launchPayload.clientId,
+    logger.info({
+      event: 'launch_flow_start',
+      tokenLength: launchToken.length,
     });
 
-    return sessionToken;
+    try {
+      const hmsPayload = await this.verifyToken(launchToken, correlationId);
+
+      const user = await this.resolveUser(hmsPayload, correlationId);
+
+      this.validateUserStatus(user, correlationId);
+
+      await this.ensureRoleAssignment(user.id, correlationId);
+
+      const tokens = await this.authenticateUser(user, correlationId);
+
+      timer.end();
+
+      logger.info({
+        event: 'launch_flow_success',
+        userId: user.id,
+        tenantId: user.tenantId,
+      });
+
+      return {
+        tokens,
+        user: {
+          id: user.id,
+          externalId: user.externalId,
+          provider: user.provider,
+          tenantId: user.tenantId,
+          doctorId: hmsPayload.doctorId,
+        },
+      };
+    } catch (error) {
+      timer.end();
+
+      if (error instanceof SSOError) {
+        logger.warn({
+          event: 'launch_flow_error',
+          errorCode: error.code,
+          statusCode: error.statusCode,
+          message: error.message,
+        });
+        throw error;
+      }
+
+      logger.error({
+        event: 'launch_flow_unexpected_error',
+        err: serializeError(error as Error),
+      });
+
+      throw SSOError.internalError(
+        'An unexpected error occurred during SSO launch',
+        error as Error
+      );
+    }
   }
 
-  /**
-   * Full launch flow:
-   * 1. Verify launch_token; get doctor_uid, tenant_id (hmsId)
-   * 2. user-service: GET by-external-id; if 404, POST create SSO user
-   * 3. Cognito AdminInitiateAuth (user created by user-service, not SSO)
-   * 4. Return tokens + doctor_uid
-   *
-   * When Cognito + user-service are configured: full flow. Otherwise legacy sessionToken only.
-   */
-  async processLaunch(launchToken: string): Promise<ProcessLaunchResult | null> {
-    const payload = await this.verifyLaunchToken(launchToken);
-    if (!payload) return null;
+  private async verifyToken(
+    launchToken: string,
+    correlationId: string
+  ): Promise<HMSVerifiedPayload> {
+    const logger = createChildLogger(this.logger, { correlationId });
 
-    const doctor_uid = payload.sub;
-    const userId = payload.sub;
-    const hmsId = payload.hmsId;
-    const clientId = payload.clientId;
-    const tenant_id = payload.hmsId;
+    logger.info({ event: 'step_verify_token_start' });
 
-    if (this.cognitoService.isConfigured() && this.userServiceClient.isConfigured()) {
-      let user = await this.userServiceClient.getByExternalId({
-        provider: 'HMS',
-        external_id: doctor_uid,
-        tenant_id,
+    const payload = await this.hmsAdapter.verifyLaunchToken(launchToken, correlationId);
+
+    logger.info({
+      event: 'step_verify_token_complete',
+      tenantId: payload.tenantId,
+    });
+
+    return payload;
+  }
+
+  private async resolveUser(
+    hmsPayload: HMSVerifiedPayload,
+    correlationId: string
+  ): Promise<User> {
+    const logger = createChildLogger(this.logger, { correlationId });
+
+    logger.info({
+      event: 'step_resolve_user_start',
+      tenantId: hmsPayload.tenantId,
+    });
+
+    let user = await this.userClient.findByExternalId(
+      {
+        provider: HMS_PROVIDER,
+        externalId: hmsPayload.doctorUid,
+        tenantId: hmsPayload.tenantId,
+      },
+      correlationId
+    );
+
+    if (!user) {
+      logger.info({
+        event: 'user_not_found_creating',
+        tenantId: hmsPayload.tenantId,
       });
-      if (!user) {
-        try {
-          user = await this.userServiceClient.createSsoUser({
-            external_id: doctor_uid,
-            provider: 'HMS',
-            tenant_id,
-            role: 'DOCTOR',
-            source: 'SSO_HMS',
-          });
-        } catch (err) {
-          logger.error('User-service create SSO user failed', err as Error, {
-            doctor_uid,
-            tenant_id,
-          });
-          throw err;
-        }
-      }
-      const tokens = await this.cognitoService.authenticateUser(doctor_uid);
-      const result: LaunchResultWithCognito = {
-        doctor_uid,
-        id_token: tokens.id_token,
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_in: tokens.expires_in,
-        userId: user?.userID ?? doctor_uid,
-        hmsId,
-        clientId,
-      };
-      logger.info('SSO launch with Cognito tokens', { doctor_uid, hmsId, clientId });
-      return result;
+
+      user = await this.userClient.createUser(
+        {
+          externalId: hmsPayload.doctorUid,
+          provider: HMS_PROVIDER,
+          tenantId: hmsPayload.tenantId,
+          role: 'DOCTOR',
+          source: SSO_SOURCE,
+          email: hmsPayload.doctorEmail,
+          phone: hmsPayload.doctorPhone,
+          firstName: hmsPayload.doctorName?.split(' ')[0],
+          lastName: hmsPayload.doctorName?.split(' ').slice(1).join(' '),
+        },
+        correlationId
+      );
+
+      logger.info({
+        event: 'user_created',
+        userId: user.id,
+      });
+    } else {
+      logger.info({
+        event: 'user_found',
+        userId: user.id,
+        userStatus: user.status,
+      });
     }
 
-    const sessionToken = this.createSession(payload);
-    logger.info('SSO launch (legacy session token)', { userId, hmsId, clientId });
-    return {
-      sessionToken,
+    return user;
+  }
+
+  private validateUserStatus(user: User, correlationId: string): void {
+    const logger = createChildLogger(this.logger, { correlationId });
+
+    if (user.status === 'INACTIVE') {
+      logger.warn({
+        event: 'user_inactive',
+        userId: user.id,
+        status: user.status,
+      });
+      throw SSOError.userInactive('User account is inactive');
+    }
+
+    if (user.status === 'PENDING') {
+      logger.info({
+        event: 'user_pending_allowed',
+        userId: user.id,
+        status: user.status,
+      });
+    }
+
+    logger.debug({
+      event: 'user_status_valid',
+      userId: user.id,
+      status: user.status,
+    });
+  }
+
+  private async ensureRoleAssignment(
+    userId: string,
+    correlationId: string
+  ): Promise<void> {
+    const logger = createChildLogger(this.logger, { correlationId });
+
+    logger.info({
+      event: 'step_ensure_role_start',
       userId,
-      hmsId,
-      clientId,
+      roleCode: HMS_DOCTOR_ROLE,
+    });
+
+    await this.roleClient.ensureRoleAssignment(
+      {
+        userId,
+        roleCode: HMS_DOCTOR_ROLE,
+      },
+      correlationId
+    );
+
+    logger.info({
+      event: 'step_ensure_role_complete',
+      userId,
+      roleCode: HMS_DOCTOR_ROLE,
+    });
+  }
+
+  private async authenticateUser(
+    user: User,
+    correlationId: string
+  ): Promise<CognitoTokens> {
+    const logger = createChildLogger(this.logger, { correlationId });
+
+    logger.info({
+      event: 'step_cognito_auth_start',
+      userId: user.id,
+    });
+
+    const tokens = await this.cognitoService.authenticateUser(user, correlationId);
+
+    logger.info({
+      event: 'step_cognito_auth_complete',
+      userId: user.id,
+      hasTokens: !!tokens.accessToken,
+    });
+
+    return tokens;
+  }
+
+  formatResponse(result: LaunchResult): SSOLaunchResponse {
+    return {
+      success: true,
+      data: {
+        tokens: result.tokens,
+        user: result.user,
+      },
     };
   }
+}
+
+let launchServiceInstance: LaunchService | null = null;
+
+export function getLaunchService(): LaunchService {
+  if (!launchServiceInstance) {
+    launchServiceInstance = new LaunchService();
+  }
+  return launchServiceInstance;
 }

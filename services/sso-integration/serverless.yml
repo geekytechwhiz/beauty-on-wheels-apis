@@ -137,17 +137,3 @@ functions:
           #   authorizerId:
           #     Ref: CognitoAuthorizer
 
-resources:
-  Outputs:
-    ServiceEndpoint:
-      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
-      Description: MyVitalRx SSO API endpoint
-    SSOLaunchUrl:
-      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/sso/launch'
-      Description: SSO Launch endpoint URL for HMS integration
-    AppointmentsTodayUrl:
-      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/appointments/today'
-      Description: Today's appointments endpoint
-    PatientEMRUrl:
-      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/appointments/{patientId}/emr'
-      Description: Patient EMR summary endpoint

@@ -252,8 +252,34 @@ const userService = new UserService();
           break;
         }
         case 'UNITS_SETTINGS': {
-          const unitsSettings = body?.unitsSettings ?? body?.units;
+          // Support both wrapped format and flat format
+          let unitsSettings = body?.unitsSettings ?? body?.units;
+          
+          // If no wrapper provided, build from flat fields
           if (!unitsSettings) {
+            const unitKeys = [
+              'glucometerUnit',
+              'weightUnit',
+              'heightUnit',
+              'temperatureUnit',
+              'distanceUnit',
+              'bloodPressureUnit',
+              'cholesterolUnit',
+              'bloodGlucoseUnit',
+              'oximeterUnit',
+            ];
+            const builtSettings: Record<string, unknown> = {};
+            for (const key of unitKeys) {
+              if (hasOwn(body, key)) {
+                builtSettings[key] = body[key];
+              }
+            }
+            if (Object.keys(builtSettings).length > 0) {
+              unitsSettings = builtSettings;
+            }
+          }
+          
+          if (!unitsSettings || Object.keys(unitsSettings).length === 0) {
             return ApiResponse.unprocessableEntity(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
@@ -262,7 +288,7 @@ const userService = new UserService();
                 details: [
                   {
                     field: 'unitsSettings',
-                    message: 'unitsSettings is required',
+                    message: 'At least one unit setting is required (e.g., glucometerUnit, weightUnit)',
                   },
                 ],
               },
@@ -272,9 +298,25 @@ const userService = new UserService();
           break;
         }
         case 'COMMUNICATION_SETTINGS': {
-          const communicationSettings =
+          // Support both wrapped format and flat format
+          let communicationSettings =
             body?.communicationSettings ?? body?.notifications;
+          
+          // If no wrapper provided, build from flat fields
           if (!communicationSettings) {
+            const commKeys = ['email', 'sms', 'push', 'inApp', 'whatsapp'];
+            const builtSettings: Record<string, unknown> = {};
+            for (const key of commKeys) {
+              if (hasOwn(body, key)) {
+                builtSettings[key] = body[key];
+              }
+            }
+            if (Object.keys(builtSettings).length > 0) {
+              communicationSettings = builtSettings;
+            }
+          }
+          
+          if (!communicationSettings || Object.keys(communicationSettings).length === 0) {
             return ApiResponse.unprocessableEntity(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
@@ -283,7 +325,7 @@ const userService = new UserService();
                 details: [
                   {
                     field: 'communicationSettings',
-                    message: 'communicationSettings is required',
+                    message: 'At least one communication setting is required (e.g., email, sms, push)',
                   },
                 ],
               },

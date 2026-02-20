@@ -107,9 +107,9 @@ export class UserService {
       const phoneNumberForDB = rawPhone || '';
 
       const userTypeUpper = String(data.userType || '').toUpperCase();
-
-      if(userTypeUpper === 'STAFF' || userTypeUpper === 'USER'   || userTypeUpper === 'ADMIN' || userTypeUpper === 'FNF') {
-        throw new Error(`Invalid user type ${userTypeUpper}, only STAFF and USER are allowed`);
+      const allowedUserTypes = ['STAFF', 'USER', 'ADMIN', 'FNF'];
+      if (!allowedUserTypes.includes(userTypeUpper)) {
+        throw new Error(`Invalid user type ${userTypeUpper}, only ${allowedUserTypes.join(', ')} are allowed`);
       }
       // STAFF: email required
       if (userTypeUpper === 'STAFF' && !normalizedEmail) {

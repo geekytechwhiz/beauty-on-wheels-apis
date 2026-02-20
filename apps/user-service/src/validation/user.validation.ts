@@ -21,7 +21,9 @@ export const createUserSchema = z.object({
     licenseNumber: z.string().optional(),
     contact: z.object({
       email: z.union([
-        z.string().email(),
+        z.string()
+          .transform((val) => (typeof val === 'string' ? val.replace(/\^@/, '@') : val))
+          .pipe(z.string().email()),
         z.literal(''),
         z.null(),
       ]).optional(),

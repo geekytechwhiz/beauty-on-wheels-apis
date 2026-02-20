@@ -386,37 +386,6 @@ const userService = new UserService();
             ? body.phone
             : undefined;
 
-          if (srcRegisEntity === 'email' && emailInput !== undefined) {
-            return ApiResponse.badRequest(
-              'USER.EMAIL_CHANGE_NOT_ALLOWED',
-              { requestId: correlationId, event },
-              {
-                code: 'EMAIL_ADDRESS_CHANGE_NOT_ALLOWED',
-                details: [
-                  {
-                    message:
-                      'Email address change not allowed for email-registered users',
-                  },
-                ],
-              },
-            );
-          }
-          if (srcRegisEntity === 'phone' && phoneInput !== undefined) {
-            return ApiResponse.badRequest(
-              'USER.PHONE_CHANGE_NOT_ALLOWED',
-              { requestId: correlationId, event },
-              {
-                code: 'PHONE_NUMBER_CHANGE_NOT_ALLOWED',
-                details: [
-                  {
-                    message:
-                      'Phone number change not allowed for phone-registered users',
-                  },
-                ],
-              },
-            );
-          }
-
           setIfPresent(userData, 'profilePic', body.profilePic);
           setIfPresent(userData, 'firstName', body.firstName);
           setIfPresent(userData, 'middleName', body.middleName);

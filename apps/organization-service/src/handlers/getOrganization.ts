@@ -85,17 +85,21 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
               const user = await userRepository.getUser(organizationId, adminId, authHeader);
               if (!user) return adminDetail;
               const mergedAddress = adminDetail?.adminAddress ?? buildAdminAddress(user);
+              const adminRoleValue = adminDetail?.adminRole ?? user?.adminRole ?? user?.role;
+              const roleNameValue = adminDetail?.roleName ?? user?.roleName ?? user?.role;
+              const postalCodeValue = adminDetail?.postalCode ?? user?.postalCode ?? user?.zip;
               return {
                 ...(mergedAddress && { adminAddress: mergedAddress }),
                 adminId: adminDetail?.adminId ?? adminId,
                 adminName: adminDetail?.adminName ?? user?.fullName ?? user?.name,
-                ...(adminDetail?.adminRole && { adminRole: adminDetail.adminRole }),
+                ...(adminRoleValue && { adminRole: adminRoleValue }),
                 emailAddress: adminDetail?.emailAddress ?? user?.emailAddress,
                 namePrefix: adminDetail?.namePrefix ?? user?.namePrefix,
                 phoneCode: adminDetail?.phoneCode ?? user?.phoneCode,
                 phoneNumber: adminDetail?.phoneNumber ?? user?.phoneNumber,
+                ...(postalCodeValue && { postalCode: postalCodeValue }),
                 profilePic: adminDetail?.profilePic ?? user?.profilePic ?? '',
-                ...(adminDetail?.roleName && { roleName: adminDetail.roleName }),
+                ...(roleNameValue && { roleName: roleNameValue }),
               };
             } catch (err) {
               logger.warn({ event: 'getOrganization_admin_user_failed', adminId, err: serializeError(err) });

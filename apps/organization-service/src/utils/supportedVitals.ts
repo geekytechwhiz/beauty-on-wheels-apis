@@ -11,24 +11,52 @@ export interface VitalMeta {
 }
 
 const VITAL_METADATA: Record<string, VitalMeta> = {
+  // Non-device vitals (from apps/fitness integrations)
   steps: { code: 'steps', activityType: 'stepCounts', device: false, displayName: 'Steps', vitalType: 'Steps' },
   duration: { code: 'duration', activityType: 'duration', device: false, displayName: 'Activity', vitalType: 'Activity' },
-  bloodPressure: { code: 'bloodPressure', device: true, displayName: 'Blood Pressure', vitalType: 'BloodPressure' },
-  oximeter: { code: 'oximeter', device: true, displayName: 'Oximeter', vitalType: 'Oximeter' },
-  glucose: { code: 'glucose', device: true, displayName: 'Glucose', vitalType: 'Glucose' },
-  weight: { code: 'weight', device: true, displayName: 'Weight', vitalType: 'Weight' },
-  bodyComposition: { code: 'bodyComposition', device: true, displayName: 'Body Composition', vitalType: 'BodyComposition' },
-  cholesterol: { code: 'cholesterol', device: true, displayName: 'Cholesterol', vitalType: 'Cholesterol' },
-  bodyTemperature: { code: 'bodyTemperature', device: true, displayName: 'Body Temperature', vitalType: 'BodyTemperature' },
   hydration: { code: 'hydration', device: false, displayName: 'Hydration', vitalType: 'Hydration' },
   sleep: { code: 'sleep', device: false, displayName: 'Sleep', vitalType: 'Sleep' },
-  ecg: { code: 'ecg', device: true, displayName: 'ECG', vitalType: 'ECG' },
+  
+  // Blood Pressure devices
+  bloodPressure: { code: 'bloodPressure', device: true, displayName: 'Blood Pressure', vitalType: 'BloodPressure' },
   pulseRate: { code: 'pulseRate', device: true, displayName: 'Pulse Rate', vitalType: 'PulseRate' },
   heartRate: { code: 'heartRate', device: true, displayName: 'Heart Rate', vitalType: 'HeartRate' },
   pulse: { code: 'pulse', device: true, displayName: 'Pulse', vitalType: 'Pulse' },
-  bloodGlucose: { code: 'bloodGlucose', device: true, displayName: 'Blood Glucose', vitalType: 'BloodGlucose' },
   irregularHeartbeatDetection: { code: 'irregularHeartbeatDetection', device: true, displayName: 'Irregular Heartbeat', vitalType: 'IrregularHeartbeatDetection' },
   atrialFibrillationDetection: { code: 'atrialFibrillationDetection', device: true, displayName: 'Atrial Fibrillation', vitalType: 'AtrialFibrillationDetection' },
+  ecg: { code: 'ecg', device: true, displayName: 'ECG', vitalType: 'ECG' },
+  
+  // Oximeter devices
+  oximeter: { code: 'oximeter', device: true, displayName: 'Oximeter', vitalType: 'Oximeter' },
+  bloodOxygenSaturation: { code: 'bloodOxygenSaturation', device: true, displayName: 'Blood Oxygen Saturation', vitalType: 'BloodOxygenSaturation' },
+  
+  // Glucose devices
+  glucose: { code: 'glucose', device: true, displayName: 'Glucose', vitalType: 'Glucose' },
+  bloodGlucose: { code: 'bloodGlucose', device: true, displayName: 'Blood Glucose', vitalType: 'BloodGlucose' },
+  
+  // Body Composition/Weight devices
+  weight: { code: 'weight', device: true, displayName: 'Weight', vitalType: 'Weight' },
+  bodyComposition: { code: 'bodyComposition', device: true, displayName: 'Body Composition', vitalType: 'BodyComposition' },
+  bmi: { code: 'bmi', device: true, displayName: 'BMI', vitalType: 'BMI' },
+  bodyFat: { code: 'bodyFat', device: true, displayName: 'Body Fat', vitalType: 'BodyFat' },
+  bodyFatPercentage: { code: 'bodyFatPercentage', device: true, displayName: 'Body Fat Percentage', vitalType: 'BodyFatPercentage' },
+  visceralFat: { code: 'visceralFat', device: true, displayName: 'Visceral Fat', vitalType: 'VisceralFat' },
+  skeletalMusclePercentage: { code: 'skeletalMusclePercentage', device: true, displayName: 'Skeletal Muscle Percentage', vitalType: 'SkeletalMusclePercentage' },
+  muscleMass: { code: 'muscleMass', device: true, displayName: 'Muscle Mass', vitalType: 'MuscleMass' },
+  boneMass: { code: 'boneMass', device: true, displayName: 'Bone Mass', vitalType: 'BoneMass' },
+  bodyWater: { code: 'bodyWater', device: true, displayName: 'Body Water', vitalType: 'BodyWater' },
+  restingMetabolism: { code: 'restingMetabolism', device: true, displayName: 'Resting Metabolism', vitalType: 'RestingMetabolism' },
+  bmr: { code: 'bmr', device: true, displayName: 'BMR', vitalType: 'BMR' },
+  proteinRate: { code: 'proteinRate', device: true, displayName: 'Protein Rate', vitalType: 'ProteinRate' },
+  subcutaneousFat: { code: 'subcutaneousFat', device: true, displayName: 'Subcutaneous Fat', vitalType: 'SubcutaneousFat' },
+  metabolicAge: { code: 'metabolicAge', device: true, displayName: 'Metabolic Age', vitalType: 'MetabolicAge' },
+  obesityLevel: { code: 'obesityLevel', device: true, displayName: 'Obesity Level', vitalType: 'ObesityLevel' },
+  
+  // Temperature devices
+  bodyTemperature: { code: 'bodyTemperature', device: true, displayName: 'Body Temperature', vitalType: 'BodyTemperature' },
+  
+  // Cholesterol devices
+  cholesterol: { code: 'cholesterol', device: true, displayName: 'Cholesterol', vitalType: 'Cholesterol' },
 };
 
 function toPascalCase(s: string): string {

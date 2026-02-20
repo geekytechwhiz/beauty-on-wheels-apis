@@ -7,8 +7,15 @@ provider:
   runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-sso-integration-bucket
+    serverSideEncryption: AES256
   memorySize: 256
   timeout: 30
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
   environment:
     NODE_ENV: ${self:provider.stage}
     SERVICE_NAME: ${self:service}
@@ -24,18 +31,16 @@ provider:
     ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, ''}
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - cognito-idp:AdminInitiateAuth
-            - cognito-idp:AdminCreateUser
-            - cognito-idp:AdminSetUserPassword
-            - cognito-idp:AdminUpdateUserAttributes
-            - cognito-idp:AdminGetUser
-          Resource:
-            - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminInitiateAuth
+        - cognito-idp:AdminCreateUser
+        - cognito-idp:AdminSetUserPassword
+        - cognito-idp:AdminUpdateUserAttributes
+        - cognito-idp:AdminGetUser
+      Resource:
+        - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
 
 plugins:
   - serverless-esbuild
@@ -56,7 +61,7 @@ custom:
   dotenv:
     logging: false
   serverless-offline:
-    httpPort: 3005
+    httpPort: 3000
     noPrependStageInUrl: true
 
 functions:

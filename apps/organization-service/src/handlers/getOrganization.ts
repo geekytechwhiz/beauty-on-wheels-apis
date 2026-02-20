@@ -315,7 +315,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
             }
           }
         }
-        const allCodes = [...new Set([...storedCodes, ...deviceCodes])];
+        const allCodes = [...new Set([ ...deviceCodes])];
         transformed.supportedVitals = buildSupportedVitalsArray(allCodes);
       } catch (err) {
         logger.warn({ event: 'getOrganization_supported_vitals_failed', err: serializeError(err) });

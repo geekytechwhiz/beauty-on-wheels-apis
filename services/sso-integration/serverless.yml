@@ -16,6 +16,9 @@ provider:
     APP_BASE_URL: ${env:APP_BASE_URL, 'https://app.myvitalrx.com'}
     API_BASE_URL: ${env:API_BASE_URL, ''}
     HMS_CLIENTS_TABLE: ${self:custom.hmsClientsTableName}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+    USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, ''}
+    USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, ''}
   iam:
     role:
       statements:
@@ -28,6 +31,12 @@ provider:
             - dynamodb:Scan
           Resource:
             - !GetAtt HMSClientsTable.Arn
+        # SSO only performs AdminInitiateAuth; user-service owns Cognito user creation
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminInitiateAuth
+          Resource:
+            - !Sub 'arn:aws:cognito-idp:us-east-1:${AWS::AccountId}:userpool/us-east-1_AK1HTxdlX'
 
 plugins:
   - serverless-plugin-typescript

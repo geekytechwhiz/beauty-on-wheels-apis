@@ -5,17 +5,16 @@
 import * as jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
 import { SessionTokenPayload, AuthorizedContext } from '../types';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'change-in-production';
-const SESSION_EXPIRY = parseInt(process.env.SESSION_EXPIRY || '3600', 10);
+import { getConfig } from '../config';
 
 export class TokenService {
   private secret: string;
   private expiresIn: number;
 
   constructor() {
-    this.secret = JWT_SECRET;
-    this.expiresIn = SESSION_EXPIRY;
+    const config = getConfig();
+    this.secret = config.jwtSecret;
+    this.expiresIn = config.sessionExpiry;
   }
 
   generateSessionToken(payload: Omit<SessionTokenPayload, 'iat' | 'exp' | 'jti'>): string {

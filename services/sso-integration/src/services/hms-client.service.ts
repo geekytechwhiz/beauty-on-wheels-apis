@@ -9,31 +9,63 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
+  QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { logger } from '../utils/logger';
 import { HMSClient } from '../types';
 
-const TABLE_NAME = process.env.HMS_CLIENTS_TABLE || '';
-const USE_IN_MEMORY = process.env.IS_OFFLINE === 'true' || process.env.USE_IN_MEMORY_STORAGE === 'true';
+import { getConfig } from '../config';
+
+const getTableName = (): string => {
+  try {
+    return getConfig().hmsClientsTable;
+  } catch {
+    // Fallback if config not loaded yet
+    return process.env.HMS_CLIENTS_TABLE || '';
+  }
+};
+
+const getUseInMemory = (): boolean => {
+  try {
+    return getConfig().useInMemoryStorage;
+  } catch {
+    // Fallback if config not loaded yet
+    return process.env.IS_OFFLINE === 'true' || process.env.USE_IN_MEMORY_STORAGE === 'true';
+  }
+};
 
 // In-memory store for local development (no AWS credentials needed)
 const memoryStore = new Map<string, HMSClient>();
 
 let docClient: DynamoDBDocumentClient | null = null;
 
-if (!USE_IN_MEMORY && TABLE_NAME) {
-  try {
-    const client = new DynamoDBClient({});
-    docClient = DynamoDBDocumentClient.from(client);
-  } catch {
-    logger.warn('DynamoDB client init failed, using in-memory storage');
-    docClient = null;
+function initDynamoClient(): void {
+  const useInMemory = getUseInMemory();
+  const tableName = getTableName();
+  
+  if (!useInMemory && tableName) {
+    try {
+      const client = new DynamoDBClient({});
+      docClient = DynamoDBDocumentClient.from(client);
+    } catch {
+      logger.warn('DynamoDB client init failed, using in-memory storage');
+      docClient = null;
+    }
   }
 }
 
+// Initialize on module load
+initDynamoClient();
+
 export class HMSClientService {
   private useDynamo(): boolean {
-    return !USE_IN_MEMORY && !!docClient && !!TABLE_NAME;
+    const useInMemory = getUseInMemory();
+    const tableName = getTableName();
+    return !useInMemory && !!docClient && !!tableName;
+  }
+
+  private getTableName(): string {
+    return getTableName();
   }
 
   async getClient(clientId: string): Promise<HMSClient | null> {
@@ -41,7 +73,7 @@ export class HMSClientService {
       try {
         const result = await docClient!.send(
           new GetCommand({
-            TableName: TABLE_NAME,
+            TableName: this.getTableName(),
             Key: { clientId },
           })
         );
@@ -58,14 +90,21 @@ export class HMSClientService {
   async getClientByHmsId(hmsId: string): Promise<HMSClient | null> {
     if (this.useDynamo()) {
       try {
+        // Query the GSI hmsId-index to find client by hmsId
         const result = await docClient!.send(
-          new GetCommand({
-            TableName: TABLE_NAME,
-            Key: { clientId: hmsId },
+          new QueryCommand({
+            TableName: this.getTableName(),
+            IndexName: 'hmsId-index',
+            KeyConditionExpression: 'hmsId = :hmsId',
+            ExpressionAttributeValues: {
+              ':hmsId': hmsId,
+            },
+            Limit: 1, // hmsId should be unique, but limit to first match
           })
         );
-        return (result.Item as HMSClient) || null;
-      } catch {
+        return (result.Items && result.Items.length > 0 ? (result.Items[0] as HMSClient) : null) || null;
+      } catch (error) {
+        logger.warn('DynamoDB query by hmsId failed, falling back to in-memory', { error: (error as Error).message });
         for (const client of memoryStore.values()) {
           if (client.hmsId === hmsId) return client;
         }
@@ -98,7 +137,7 @@ export class HMSClientService {
       try {
         await docClient!.send(
           new PutCommand({
-            TableName: TABLE_NAME,
+            TableName: this.getTableName(),
             Item: fullClient,
           })
         );

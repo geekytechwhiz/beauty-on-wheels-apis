@@ -8,3 +8,4 @@ export const PATH_FNF_DELETE = '/user/friend-family/delete';
 export const PATH_LOGOUT_REQUIRED = '/user/{userId}/organization/{organizationId}/logout-required';
 export const PATH_FNF_CHECK = '/user/friend-family/check';
 export const PATH_ASSIGNED_PACKAGES = '/user/{userId}/organization/{organizationId}/assigned-packages';
+export const PATH_V2_USER_LIST = '/v2/user/list';

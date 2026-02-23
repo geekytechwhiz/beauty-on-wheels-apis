@@ -5,6 +5,7 @@ env:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-device-service-bucket'
     STACK_NAME: 'stg-device-service'
+    SEED_DEVICE_LIST: ''
 
 phases:
   install:
@@ -75,6 +76,12 @@ phases:
 
   post_build:
     commands:
+      - |
+        if [ "$SEED_DEVICE_LIST" = "true" ]; then
+          cd "$CODEBUILD_SRC_DIR/apps/device-service/scripts/device-list" && node insert-device-list.js --env "$STAGE" || echo "⚠️ Device list seed failed."
+        else
+          echo "⏭️ Device list seed skipped (SEED_DEVICE_LIST not true)."
+        fi
       - echo "✅ Build done, artifacts ready in packaged.yaml"
 
 artifacts:

@@ -129,13 +129,16 @@ export class GlobalDeviceRepository {
 
   async getDevicesByOrganization(organizationId: string): Promise<OrganizationDevice[]> {
     const logger = createChildLogger(baseLogger, { organizationId });
+
+    const normalizedpk = organizationId.toUpperCase() === 'ROOT' ? 'DEVICE_LIST' : `ORG_DEVICES#${organizationId}`;
+ 
     try {
       const result = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk',
           ExpressionAttributeValues: {
-            ':pk': `ORG_DEVICES#${organizationId}`,
+            ':pk': normalizedpk,
           },
         }),
       );

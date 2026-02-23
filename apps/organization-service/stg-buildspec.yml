@@ -5,7 +5,7 @@ env:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-organization-service-bucket'
     STACK_NAME: 'stg-organization-service'
-    SEED_ORG_VITALS: ''
+    SEED_META: ''
 
 phases:
   install:
@@ -77,10 +77,10 @@ phases:
   post_build:
     commands:
       - |
-        if [ "$SEED_ORG_VITALS" = "true" ]; then
+        if [ "$SEED_META" = "true" ]; then
           cd "$CODEBUILD_SRC_DIR/apps/organization-service" && node src/utils/mitadata/insert-org-vitals.js --env "$STAGE" || echo "⚠️ Org vitals seed failed."
         else
-          echo "⏭️ Org vitals seed skipped (SEED_ORG_VITALS not true)."
+          echo "⏭️ Org vitals seed skipped (SEED_META not true)."
         fi
       - echo "✅ Build done, artifacts ready in packaged.yaml"
 

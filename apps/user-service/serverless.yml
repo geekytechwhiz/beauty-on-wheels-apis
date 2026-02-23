@@ -225,6 +225,15 @@ custom:
     stg: us-east-1_wttVwD9Ax
     prd: us-east-1_0uZJvIS5R
 
+  # Only the stream creation timestamp differs per stage — everything else is dynamic
+  userTableStreamTimestamp:
+    dev: '2025-12-24T06:52:16.060'
+    stg: '2026-01-23T11:08:57.849'
+    prd: ''
+
+  # Full DynamoDB Stream ARN built dynamically from region, accountId, stage, and timestamp
+  userTableStreamArn: 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/user-table-${self:provider.stage}/stream/${self:custom.userTableStreamTimestamp.${self:provider.stage}}'
+
   stageUrls:
     dev:
       WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
@@ -788,8 +797,7 @@ functions:
     events:
       - stream:
           type: dynamodb
-          arn:
-            Fn::ImportValue: ${self:provider.stage}-UserTableStreamArn
+          arn: ${self:custom.userTableStreamArn}
           batchSize: 10
           startingPosition: LATEST
           functionResponseType: ReportBatchItemFailures

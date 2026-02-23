@@ -836,6 +836,7 @@ export class UserService {
 
     // Transform to match expected response structure - all string fields use safeString
     return {
+      userCat: Array.isArray(user.userCat) ? user.userCat : [],
       userID: this.safeString(user.userID),
       emailVerified: this.safeBoolean(user.emailVerified),
       phoneVerified: this.safeBoolean(user.phoneVerified),

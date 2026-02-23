@@ -27,6 +27,12 @@ export interface V2UserListServiceParams {
 }
 
 interface UserItem {
+  inviteDetails?: {
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  };
   userID: string;
   fullName: string;
   firstName: string;
@@ -74,6 +80,9 @@ function mapToUserItem(item: Record<string, unknown>): UserItem {
     status: item.status !== undefined ? Boolean(item.status) : true,
     specialty: item.specialty ? String(item.specialty) : undefined,
     department: item.department ? String(item.department) : undefined,
+    inviteDetails: item.inviteDetails
+      ? (item.inviteDetails as UserItem['inviteDetails'])
+      : undefined,
   };
 }
 
@@ -308,6 +317,7 @@ export class V2UserListService {
     requestId?: string,
   ): V2UserListResponse<UserItem> {
     const mappedItems = items.map(mapToUserItem);
+    console.log("MAPPED ITEMS: ", mappedItems);
     const nextCursor = lastEvaluatedKey
       ? this.repository.encodeCursor(lastEvaluatedKey)
       : null;

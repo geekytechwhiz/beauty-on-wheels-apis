@@ -43,6 +43,12 @@ export interface User {
   heightInFeet?: string;
   insuranceDetails?: Record<string, unknown>;
   inviteCode?: string;
+  inviteDetails?: {
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  };
   invitedBy?: string;
   invitedID?: string;
   isActive?: boolean;
@@ -134,6 +140,12 @@ export interface UserResponse {
   city: string;
   roleType: string;
   isActive: boolean;
+  inviteDetails?: {
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  };
   accountType: string;
   emailAddress: string;
   userID: string;

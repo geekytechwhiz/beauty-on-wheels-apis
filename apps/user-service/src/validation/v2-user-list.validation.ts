@@ -25,7 +25,7 @@ const sortSchema = z.object({
 export const v2UserListSchema = z.object({
   organizationId: z.string().min(1, 'organizationId is required'),
   context: z.nativeEnum(UserListContext, {
-    errorMap: () => ({ message: `context must be one of: ${UserListContextValues.join(', ')}` }),
+    message: `context must be one of: ${UserListContextValues.join(', ')}`,
   }),
   filters: filtersSchema,
   pagination: paginationSchema,

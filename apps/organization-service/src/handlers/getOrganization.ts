@@ -300,24 +300,16 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
           event.headers?.Authorization ||
           event.headers?.authorization ||
           event.headers?.AUTHORIZATION;
-        const storedCodes = vitalCodesFromOrgSupportedVitals(organization.supportedVitals);
-        logger.info({ event: 'getOrganization_supported_vitals_stored_codes', storedCodes: storedCodes });
-        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'patient');
-        const getDeviceId = (item: any) => item?.deviceId ?? item?.device_id ?? item?.id;
-        const devices = Array.isArray(deviceItems)
-          ? deviceItems.filter((item, index, arr) => index === arr.findIndex((x) => getDeviceId(x) === getDeviceId(item)))
-          : [];
-        const deviceCodes: string[] = [];
-        for (const item of devices) {
-          const vitals = item?.supportedVitals;
-          if (Array.isArray(vitals)) {
-            for (const code of vitals) {
-              if (typeof code === 'string' && code.trim()) deviceCodes.push(code.trim());
-            }
-          }
-        }
-        const allCodes = [...new Set([ ...deviceCodes])];
-        transformed.supportedVitals = buildSupportedVitalsArray(allCodes);
+       
+        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'organization');
+        
+          const uniqueVitals = Array.from(
+            new Set(
+              deviceItems?.flatMap(device => device.supportedVitals ?? [])
+            )
+          );
+       
+        transformed.supportedVitals = buildSupportedVitalsArray(uniqueVitals);
         logger.info({ event: 'getOrganization_supported_vitals_success', supportedVitals: transformed.supportedVitals });
       } catch (err) {
         logger.warn({ event: 'getOrganization_supported_vitals_failed', err: serializeError(err) });

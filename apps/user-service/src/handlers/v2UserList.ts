@@ -88,11 +88,14 @@ export async function v2UserList(
     });
 
     const authHeader = event.headers?.Authorization || event.headers?.authorization;
-
+    const normalizedFilters = {
+      ...filters,
+      userTypes: [...new Set(filters?.userTypes?.map(t => ["patient","patients"].includes(t?.toLowerCase()) ? "USER" : t) ?? [])],
+    };
     const result = await v2UserListService.listUsers({
       organizationId,
       context: userListContext,
-      filters,
+      filters:normalizedFilters,
       pagination: {
         limit: pagination?.limit ?? 20,
         cursor: pagination?.cursor ?? null,

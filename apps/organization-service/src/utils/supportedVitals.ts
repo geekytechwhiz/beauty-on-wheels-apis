@@ -102,7 +102,7 @@ export interface DeviceListResponse {
 export async function fetchOrganizationDevices(
   organizationId: string,
   authHeader?: string,
-  action: 'organization' | 'patient' = 'patient'
+  action: 'organization' | 'patient' = 'organization'
 ): Promise<Array<{ supportedVitals?: string[] }> | null> {
   const baseUrl = process.env.DEVICE_API_BASE_URL;
   if (!baseUrl) return null;

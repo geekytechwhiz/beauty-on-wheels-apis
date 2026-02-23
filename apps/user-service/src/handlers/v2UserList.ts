@@ -88,9 +88,18 @@ export async function v2UserList(
     });
 
     const authHeader = event.headers?.Authorization || event.headers?.authorization;
+    // Normalize patient-related userTypes to USER (backend stores patients as userType USER)
     const normalizedFilters = {
       ...filters,
-      userTypes: [...new Set(filters?.userTypes?.map(t => ["patient","patients"].includes(t?.toLowerCase()) ? "USER" : t) ?? [])],
+      userTypes: [
+        ...new Set(
+          (filters?.userTypes ?? []).map((t) =>
+            ['patient', 'patients', 'PATIENT'].includes(String(t?.toLowerCase?.() ?? t))
+              ? 'USER'
+              : t
+          )
+        ),
+      ],
     };
     const result = await v2UserListService.listUsers({
       organizationId,

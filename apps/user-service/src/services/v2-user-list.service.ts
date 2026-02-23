@@ -27,12 +27,10 @@ export interface V2UserListServiceParams {
 }
 
 interface UserItem {
-  inviteDetails?: {
-    email: boolean;
-    emailUpdatedAt: string;
-    sms: boolean;
-    smsUpdatedAt: string;
-  };
+  pk?: string;
+  sk?: string;
+  sk1?: string;
+  sk2?: string;
   userID: string;
   fullName: string;
   firstName: string;
@@ -52,13 +50,28 @@ interface UserItem {
   createdDate: number;
   modifiedDate: number;
   status: boolean;
+  createdAt?: number;
   specialty?: string;
   department?: string;
+  reporterName?: string;
+  reporterProfilePic?: string;
+  doctorName?: string;
+  deleteFlag?: null;
+  inviteDetails?: {
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  };
   [key: string]: unknown;
 }
 
 function mapToUserItem(item: Record<string, unknown>): UserItem {
   return {
+    pk: item.pk != null ? String(item.pk) : undefined,
+    sk: item.sk != null ? String(item.sk) : undefined,
+    sk1: item.sk1 != null ? String(item.sk1) : undefined,
+    sk2: item.sk2 != null ? String(item.sk2) : undefined,
     userID: String(item.userID ?? item.userId ?? ''),
     fullName: String(item.fullName ?? ''),
     firstName: String(item.firstName ?? ''),
@@ -78,8 +91,13 @@ function mapToUserItem(item: Record<string, unknown>): UserItem {
     createdDate: Number(item.createdDate ?? item.createdAt ?? 0),
     modifiedDate: Number(item.modifiedDate ?? 0),
     status: item.status !== undefined ? Boolean(item.status) : true,
+    createdAt: item.createdAt != null ? Number(item.createdAt) : undefined,
     specialty: item.specialty ? String(item.specialty) : undefined,
     department: item.department ? String(item.department) : undefined,
+    reporterName: item.reporterName != null ? String(item.reporterName) : undefined,
+    reporterProfilePic: item.reporterProfilePic != null ? String(item.reporterProfilePic) : undefined,
+    doctorName: item.doctorName != null ? String(item.doctorName) : undefined,
+    deleteFlag: item.deleteFlag as null | undefined,
     inviteDetails: item.inviteDetails
       ? (item.inviteDetails as UserItem['inviteDetails'])
       : undefined,
@@ -129,7 +147,8 @@ export class V2UserListService {
           return this.handleDoctorSelection(params);
 
         case UserListContext.PATIENT_CHAT_LIST:
-          return this.handlePatientChatList(params);
+        case UserListContext.PATIENT_LIST:
+          return this.handlePatientList(params);
 
         default:
           throw new Error(`Invalid context: ${context}`);
@@ -285,23 +304,31 @@ export class V2UserListService {
     return this.buildResponse(result.items, result.lastEvaluatedKey, requestId);
   }
 
-  private async handlePatientChatList(
+  /**
+   * Frontdesk – Patient List: list all patients of the organization.
+   * Context: PATIENT_LIST or PATIENT_CHAT_LIST.
+   * Respects filters; defaults: userTypes ['USER'] (patients), isActive true.
+   */
+  private async handlePatientList(
     params: V2UserListServiceParams,
   ): Promise<V2UserListResponse<UserItem>> {
     const { organizationId, filters, pagination, sort, requestId } = params;
     const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    logger.info({ event: 'v2_patient_chat_list_start' });
+    logger.info({ event: 'v2_patient_list_start', context: params.context });
 
     const modifiedFilters: V2UserListFilters = {
       ...filters,
-      userTypes: ['USER'],
-      isActive: true,
+      userTypes:
+        filters?.userTypes && filters.userTypes.length > 0
+          ? filters.userTypes
+          : ['USER'],
+      isActive: filters?.isActive !== undefined ? filters.isActive : true,
     };
 
     const result = await this.repository.queryOrganizationUsers({
       organizationId,
-      context: UserListContext.PATIENT_CHAT_LIST,
+      context: UserListContext.PATIENT_LIST,
       filters: modifiedFilters,
       pagination,
       sort,
@@ -317,7 +344,6 @@ export class V2UserListService {
     requestId?: string,
   ): V2UserListResponse<UserItem> {
     const mappedItems = items.map(mapToUserItem);
-    console.log("MAPPED ITEMS: ", mappedItems);
     const nextCursor = lastEvaluatedKey
       ? this.repository.encodeCursor(lastEvaluatedKey)
       : null;

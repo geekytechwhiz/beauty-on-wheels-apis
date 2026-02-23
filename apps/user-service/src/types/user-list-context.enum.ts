@@ -6,7 +6,10 @@ export enum UserListContext {
   PAST_CONSULTATIONS = 'PAST_CONSULTATIONS',
   ACTIVE_CONSULTATIONS = 'ACTIVE_CONSULTATIONS',
   DOCTOR_SELECTION = 'DOCTOR_SELECTION',
+  /** Frontdesk – Patient List: list all patients of the organization (e.g. for chat). */
   PATIENT_CHAT_LIST = 'PATIENT_CHAT_LIST',
+  /** Frontdesk – Patient List (alias). Same as PATIENT_CHAT_LIST. */
+  PATIENT_LIST = 'PATIENT_LIST',
 }
 
 export const UserListContextValues = Object.values(UserListContext);

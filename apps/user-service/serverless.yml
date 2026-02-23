@@ -45,6 +45,7 @@ provider:
     SECRET_STAGE: ${opt:secretStage, 'DEV'}
     SECRET_MANAGER_NAME: ${opt:secretStage, 'DEV'}_DEMO_SECRETMANAGER 
     SMS_API_URL: https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev/send-sms
+    SEND_EMAIL_API_URL: ${env:SEND_EMAIL_API_URL, 'https://dtzbyn9f4g.execute-api.us-east-1.amazonaws.com/dev/send-email'}
     DLT_CONTENT_ID: '1207176413550655404'
     PORTAL_LINK: ${self:custom.stageUrls.${self:provider.stage}.PORTAL_LINK, ''}
     WEB_URL: ${self:custom.stageUrls.${self:provider.stage}.WEB_URL, ''}
@@ -87,6 +88,16 @@ provider:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_roles_and_permissions/index/*
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_packages
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.stage}_global_common_packages/index/*
+
+    # DynamoDB Streams (for invite notification stream handler)
+    - Effect: Allow
+      Action:
+        - dynamodb:GetRecords
+        - dynamodb:GetShardIterator
+        - dynamodb:DescribeStream
+        - dynamodb:ListStreams
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-${self:provider.stage}/stream/*
 
     # S3 (user files)
     - Effect: Allow
@@ -768,6 +779,22 @@ functions:
     #       batchSize: 10
     #       startingPosition: LATEST
     #       functionResponseType: ReportBatchItemFailures
+
+  inviteNotificationStreamHandler:
+    handler: src/handlers/stream/inviteNotificationStreamHandler.main
+    timeout: 30
+    memorySize: 256
+    description: Listens to user-table DynamoDB Stream; sends email/SMS when inviteDetails changes
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::ImportValue: ${self:provider.stage}-UserTableStreamArn
+          batchSize: 10
+          startingPosition: LATEST
+          functionResponseType: ReportBatchItemFailures
+          filterPatterns:
+            - eventName: [MODIFY]
 
   notificationConsumer:
     handler: src/consumers/notification.handler

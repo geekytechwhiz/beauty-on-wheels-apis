@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AWS SAM CLI Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "sso-myvitalrx"
+
+# ── Dev ───────────────────────────────────────────────────────────────────────
+[dev]
+[dev.deploy.parameters]
+stack_name        = "sso-myvitalrx-dev"
+s3_bucket         = "sso-myvitalrx-sam-artifacts-dev"
+s3_prefix         = "sso-myvitalrx"
+region            = "us-east-1"
+confirm_changeset = true
+capabilities      = "CAPABILITY_IAM"
+parameter_overrides = "Env=dev"
+tags              = "Project=SSO-MyVitalRx Environment=dev"
+
+# ── Staging ───────────────────────────────────────────────────────────────────
+[staging]
+[staging.deploy.parameters]
+stack_name        = "sso-myvitalrx-staging"
+s3_bucket         = "sso-myvitalrx-sam-artifacts-staging"
+s3_prefix         = "sso-myvitalrx"
+region            = "us-east-1"
+confirm_changeset = true
+capabilities      = "CAPABILITY_IAM"
+parameter_overrides = "Env=staging"
+tags              = "Project=SSO-MyVitalRx Environment=staging"
+
+# ── Production ────────────────────────────────────────────────────────────────
+[prod]
+[prod.deploy.parameters]
+stack_name        = "sso-myvitalrx-prod"
+s3_bucket         = "sso-myvitalrx-sam-artifacts-prod"
+s3_prefix         = "sso-myvitalrx"
+region            = "us-east-1"
+confirm_changeset = true
+capabilities      = "CAPABILITY_IAM"
+parameter_overrides = "Env=prod"
+tags              = "Project=SSO-MyVitalRx Environment=prod"

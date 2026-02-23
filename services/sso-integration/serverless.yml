@@ -22,7 +22,7 @@ provider:
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, ''}
-    HMS_BASE_URL: ${env:HMS_BASE_URL, ''}
+    HMS_BASE_URL: ${env:HMS_BASE_URL, 'https://qahms.zmtrutech.com'}
     HMS_API_KEY: ${env:HMS_API_KEY, ''}
     HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, ''}

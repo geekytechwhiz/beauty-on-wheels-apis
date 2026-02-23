@@ -1,0 +1,267 @@
+service: aws-serverless-sso
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, "us-east-1"}
+  stage: ${opt:stage, "dev"}
+  memorySize: 256
+  timeout: 29
+
+  environment:
+    STAGE: ${sls:stage}
+    REGION: ${self:provider.region}
+    COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+    COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+    COGNITO_DOMAIN: ${self:custom.cognitoDomain}
+    CALLBACK_URL: ${self:custom.callbackUrl}
+    LOGOUT_REDIRECT_URL: ${self:custom.logoutUrl}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminInitiateAuth
+            - cognito-idp:AdminUserGlobalSignOut
+            - cognito-idp:ListUsers
+            - cognito-idp:DescribeUserPool
+          Resource:
+            - !GetAtt CognitoUserPool.Arn
+
+  logs:
+    restApi:
+      accessLogging: true
+      executionLogging: true
+      level: INFO
+
+custom:
+  # ─── Change this domain prefix — it must be globally unique ──────────────────
+  cognitoDomain: ${self:service}-${sls:stage}-auth-domain
+  callbackUrl: ${env:CALLBACK_URL, "http://localhost:3001/auth/callback"}
+  logoutUrl: ${env:LOGOUT_REDIRECT_URL, "http://localhost:3001"}
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: "node18"
+    platform: "node"
+    concurrency: 10
+    packager: npm
+    exclude:
+      - "@aws-sdk/*"
+
+  serverless-offline:
+    httpPort: 3001
+    lambdaPort: 3002
+    noPrependStageInUrl: false
+
+# ─── Lambda Functions ──────────────────────────────────────────────────────────
+functions:
+
+  # ── Auth: Redirect to Cognito Hosted UI ──────────────────────────────────────
+  login:
+    handler: src/handlers/auth/login.handler
+    description: Redirects the user to the Cognito Hosted UI login page
+    events:
+      - http:
+          path: /auth/login
+          method: GET
+          cors: true
+
+  # ── Auth: OAuth2 Authorization Code → Token Exchange ─────────────────────────
+  callback:
+    handler: src/handlers/auth/callback.handler
+    description: Receives the authorization code from Cognito and exchanges it for JWT tokens
+    events:
+      - http:
+          path: /auth/callback
+          method: GET
+          cors: true
+
+  # ── Auth: Logout & Token Revocation ──────────────────────────────────────────
+  logout:
+    handler: src/handlers/auth/logout.handler
+    description: Revokes the user session and redirects to the logout URL
+    events:
+      - http:
+          path: /auth/logout
+          method: GET
+          cors: true
+
+  # ── Auth: Refresh Access Token ────────────────────────────────────────────────
+  refreshToken:
+    handler: src/handlers/auth/refresh.handler
+    description: Issues a new access token using a valid refresh token
+    events:
+      - http:
+          path: /auth/refresh
+          method: POST
+          cors: true
+
+  # ── Custom Lambda JWT Authorizer ──────────────────────────────────────────────
+  jwtAuthorizer:
+    handler: src/handlers/authorizer/jwtAuthorizer.handler
+    description: Custom Lambda authorizer that validates Cognito JWTs
+
+  # ── Protected API: User Profile ───────────────────────────────────────────────
+  getProfile:
+    handler: src/handlers/api/profile.handler
+    description: Returns the authenticated user's profile (protected by Cognito Authorizer)
+    events:
+      - http:
+          path: /api/profile
+          method: GET
+          cors: true
+          authorizer:
+            name: CognitoUserPoolAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+            identitySource: method.request.header.Authorization
+
+  # ── Public API: Health Check ──────────────────────────────────────────────────
+  healthCheck:
+    handler: src/handlers/api/health.handler
+    description: Public health-check endpoint (no authentication required)
+    events:
+      - http:
+          path: /health
+          method: GET
+          cors: true
+
+# ─── CloudFormation Resources ─────────────────────────────────────────────────
+resources:
+  Resources:
+
+    # ── Cognito User Pool ───────────────────────────────────────────────────────
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      DeletionPolicy: Retain
+      Properties:
+        UserPoolName: ${self:service}-${sls:stage}-user-pool
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireUppercase: true
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: false
+        Schema:
+          - AttributeDataType: String
+            Name: email
+            Required: true
+            Mutable: true
+          - AttributeDataType: String
+            Name: name
+            Required: false
+            Mutable: true
+        AccountRecovery:
+          RecoveryMechanisms:
+            - Name: verified_email
+              Priority: 1
+        AdminCreateUserConfig:
+          AllowAdminCreateUserOnly: false
+        MfaConfiguration: "OFF"
+        UserPoolTags:
+          Project: ${self:service}
+          Stage: ${sls:stage}
+
+    # ── Cognito User Pool Client ────────────────────────────────────────────────
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-${sls:stage}-client
+        UserPoolId: !Ref CognitoUserPool
+        GenerateSecret: false
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_USER_SRP_AUTH
+        AllowedOAuthFlows:
+          - code
+        AllowedOAuthScopes:
+          - email
+          - openid
+          - profile
+        AllowedOAuthFlowsUserPoolClient: true
+        CallbackURLs:
+          - ${self:custom.callbackUrl}
+        LogoutURLs:
+          - ${self:custom.logoutUrl}
+        SupportedIdentityProviders:
+          - COGNITO
+        PreventUserExistenceErrors: ENABLED
+        AccessTokenValidity: 1
+        IdTokenValidity: 1
+        RefreshTokenValidity: 30
+        TokenValidityUnits:
+          AccessToken: hours
+          IdToken: hours
+          RefreshToken: days
+
+    # ── Cognito Hosted UI Domain ────────────────────────────────────────────────
+    CognitoUserPoolDomain:
+      Type: AWS::Cognito::UserPoolDomain
+      Properties:
+        Domain: ${self:custom.cognitoDomain}
+        UserPoolId: !Ref CognitoUserPool
+
+    # ── API Gateway Gateway Response for 401 (Unauthorized) ────────────────────
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+        ResponseType: UNAUTHORIZED
+        RestApiId: !Ref ApiGatewayRestApi
+        StatusCode: "401"
+
+    # ── API Gateway Gateway Response for 403 (Forbidden) ───────────────────────
+    GatewayResponseForbidden:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+        ResponseType: ACCESS_DENIED
+        RestApiId: !Ref ApiGatewayRestApi
+        StatusCode: "403"
+
+  # ── Stack Outputs ─────────────────────────────────────────────────────────────
+  Outputs:
+    UserPoolId:
+      Description: Cognito User Pool ID
+      Value: !Ref CognitoUserPool
+      Export:
+        Name: ${self:service}-${sls:stage}-UserPoolId
+
+    UserPoolClientId:
+      Description: Cognito User Pool App Client ID
+      Value: !Ref CognitoUserPoolClient
+      Export:
+        Name: ${self:service}-${sls:stage}-UserPoolClientId
+
+    CognitoHostedUIDomain:
+      Description: Cognito Hosted UI base URL
+      Value: !Join
+        - ""
+        - - "https://"
+          - ${self:custom.cognitoDomain}
+          - ".auth."
+          - ${self:provider.region}
+          - ".amazoncognito.com"
+      Export:
+        Name: ${self:service}-${sls:stage}-CognitoHostedUIDomain

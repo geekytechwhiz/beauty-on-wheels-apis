@@ -217,18 +217,21 @@ custom:
   logLevel:
     dev: debug
     stg: info
+    nvstg: info
     prd: warn
 
   # Cognito User Pool IDs per stage (used for searchFnF and other Cognito lookups)
   cognitoUserPoolId:
     dev: us-east-1_AK1HTxdlX
     stg: us-east-1_wttVwD9Ax
+    nvstg: us-east-1_wttVwD9Ax
     prd: us-east-1_0uZJvIS5R
 
   # Only the stream creation timestamp differs per stage — everything else is dynamic
   userTableStreamTimestamp:
     dev: '2025-12-24T06:52:16.060'
     stg: '2026-01-23T11:08:57.849'
+    nvstg: '2026-01-23T11:08:57.849'
     prd: ''
 
   # Full DynamoDB Stream ARN built dynamically from region, accountId, stage, and timestamp
@@ -254,6 +257,15 @@ custom:
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
       PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
       SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
+    nvstg:
+      WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
+      PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
+      ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
+      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/stg'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/nvstg'
+      PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
+      SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
+      APPOINTMENT_SCHEDULES_API_URL: 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'
     prd:
       WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
       PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
@@ -812,135 +824,7 @@ functions:
       - sns:
           arn: ${self:provider.environment.USER_EVENTS_TOPIC_ARN}
 
-  # FHIR Endpoints
-  # getPatient:
-  #   handler: src/handlers/fhir/getPatient.main
-  #   timeout: 5
-  #   memorySize: 256
-  #   events:
-  #     - http:
-  #         path: fhir/Patient/{id}
-  #         method: get
-  #         cors:
-  #           origin: ${self:custom.cors.origin}
-  #           headers: ${self:custom.cors.headers}
-  #         documentation:
-  #           summary: Get Patient by ID (FHIR)
-  #           description: Retrieves a Patient resource in FHIR R4 format
-  #           tags:
-  #             - FHIR
-  #           pathParameters:
-  #             - name: id
-  #               description: Patient ID (same as user ID)
-  #               required: true
-  #               schema:
-  #                 type: string
-  #                 format: uuid
-  #           responses:
-  #             200:
-  #               description: Patient resource retrieved successfully
-  #               content:
-  #                 application/fhir+json:
-  #                   schema:
-  #                     type: object
-  #             404:
-  #               description: Patient not found
-  #               content:
-  #                 application/fhir+json:
-  #                   schema:
-  #                     type: object
-  #             500:
-  #               description: Internal server error
-  #               content:
-  #                 application/fhir+json:
-  #                   schema:
-  #                     type: object
-
-  # listUserOrganizationsFhir:
-  #   handler: src/handlers/fhir/listUserOrganizations.main
-  #   timeout: 5
-  #   memorySize: 256
-  #   events:
-  #     - http:
-  #         path: fhir/Patient/{id}/organizations
-  #         method: get
-  #         cors:
-  #           origin: ${self:custom.cors.origin}
-  #           headers: ${self:custom.cors.headers}
-  #         documentation:
-  #           summary: List Patient Organizations (FHIR Bundle)
-  #           description: Retrieves organizations associated with a patient as a FHIR Bundle
-  #           tags:
-  #             - FHIR
-  #           pathParameters:
-  #             - name: id
-  #               description: Patient ID (same as user ID)
-  #               required: true
-  #               schema:
-  #                 type: string
-  #                 format: uuid
-            # responses:
-            #   200:
-            #     description: Organizations retrieved successfully as FHIR Bundle
-            #     content:
-            #       application/fhir+json:
-            #         schema:
-                      # type: object
-              # 404:
-              #   description: Patient not found
-              #   content:
-              #     application/fhir+json:
-              #       schema:
-              #         type: object
-              # 500:
-                # description: Internal server error
-                # content:
-                #   application/fhir+json:
-                #     schema:
-                #       type: object
-
-  # listUserFilesFhir:
-  #   handler: src/handlers/fhir/listUserFiles.main
-  #   timeout: 5
-  #   memorySize: 256
-  #   events:
-  #     - http:
-  #         path: fhir/Patient/{id}/files
-  #         method: get
-  #         cors:
-  #           origin: ${self:custom.cors.origin}
-  #           headers: ${self:custom.cors.headers}
-  #         documentation:
-  #           summary: List Patient Files (FHIR Bundle)
-  #           description: Retrieves files associated with a patient as a FHIR Bundle of DocumentReference resources
-  #           tags:
-  #             - FHIR
-  #           pathParameters:
-  #             - name: id
-  #               description: Patient ID (same as user ID)
-  #               required: true
-  #               schema:
-  #                 type: string
-  #                 format: uuid
-  #           responses:
-  #             200:
-  #               description: Files retrieved successfully as FHIR Bundle
-  #               content:
-  #                 application/fhir+json:
-  #                   schema:
-  #                     type: object
-  #             404:
-  #               description: Patient not found
-  #               content:
-  #                 application/fhir+json:
-  #                   schema:
-  #                     type: object
-  #             500:
-  #               description: Internal server error
-  #               content:
-  #                 application/fhir+json:
-  #                   schema:
-  #                     type: object
+   
 
 resources:
   Resources:
@@ -1078,7 +962,7 @@ resources:
   Outputs:
     UserServiceBaseUrl:
       Description: "Base URL for the User Service"
-      Value: ${self:custom.stageUrls.${opt:stage, 'dev'}.USER_SERVICE_BASE_URL}
+      Value: ${self:custom.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
       Export:
         Name: ${self:provider.stage}-UserServiceBaseUrl
     UserRemindersQueueUrl:

@@ -78,7 +78,11 @@ phases:
     commands:
       - |
         if [ "$SEED_META" = "true" ]; then
-          cd "$CODEBUILD_SRC_DIR/apps/device-service/scripts/device-list" && node insert-device-list.js --env "$STAGE" || echo "⚠️ Device list seed failed."
+          cd "$CODEBUILD_SRC_DIR/apps/device-service"
+          export DEVICE_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/DEVICE_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
+          [ -z "$DEVICE_TABLE" ] && export DEVICE_TABLE="device-table-$STAGE"
+          cd scripts/device-list
+          node insert-device-list.js --env "$STAGE" || echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)."
         else
           echo "⏭️ Device list seed skipped (SEED_META not true)."
         fi

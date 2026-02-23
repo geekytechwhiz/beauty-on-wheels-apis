@@ -1,3 +1,5 @@
+# CodeBuild (when SEED_META=true) runs insert-org-vitals.js and needs dynamodb:PutItem on
+# organization-table-<stage>. See CODEBUILD-IAM.md for the CodeBuild role policy.
 service: organization-service
 
 frameworkVersion: '3'

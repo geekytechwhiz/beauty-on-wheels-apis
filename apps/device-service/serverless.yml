@@ -1,3 +1,5 @@
+# CodeBuild (when SEED_META=true) runs scripts/device-list/insert-device-list.js and needs
+# dynamodb:PutItem/BatchWriteItem on device-table-<stage>. See CODEBUILD-IAM.md for the CodeBuild role policy.
 service: device-service
 
 frameworkVersion: '3.x'

@@ -83,7 +83,16 @@ phases:
           cd "$CODEBUILD_SRC_DIR/apps/organization-service"
           export ORGANIZATION_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/ORGANIZATION_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
           [ -z "$ORGANIZATION_TABLE" ] && export ORGANIZATION_TABLE="organization-table-$STAGE"
-          node "$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/insert-org-vitals.js" --env "$STAGE" || echo "⚠️ Org vitals seed failed (check CodeBuild role has dynamodb:PutItem on $ORGANIZATION_TABLE)."
+          echo "🌱 Seeding org vitals metadata into $ORGANIZATION_TABLE (stage=$STAGE)"
+          DATA_FILE="$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/data/org-vitals.json"
+          if [ ! -f "$DATA_FILE" ]; then
+            echo "ERROR: Org vitals data not found: $DATA_FILE (ensure src/utils/mitadata/data/org-vitals.json is committed)"
+            exit 1
+          fi
+          node "$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/insert-org-vitals.js" --env "$STAGE" || {
+            echo "⚠️ Org vitals seed failed (check CodeBuild role has dynamodb:PutItem on $ORGANIZATION_TABLE)"
+            exit 1
+          }
         else
           echo "⏭️ Org vitals seed skipped (SEED_META not true)."
         fi

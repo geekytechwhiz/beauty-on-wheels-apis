@@ -80,10 +80,17 @@ phases:
         if [ "$SEED_META" = "true" ]; then
           cd "$CODEBUILD_SRC_DIR/apps/device-service"
           export DEVICE_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/DEVICE_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
-          if [ -z "$DEVICE_TABLE" ]; then
-            export DEVICE_TABLE="device-table-$STAGE"
+          [ -z "$DEVICE_TABLE" ] && export DEVICE_TABLE="device-table-$STAGE"
+          echo "🌱 Seeding device list metadata into $DEVICE_TABLE (stage=$STAGE)"
+          DATA_FILE="$CODEBUILD_SRC_DIR/apps/device-service/scripts/device-list/data/device-list.json"
+          if [ ! -f "$DATA_FILE" ]; then
+            echo "ERROR: Device list data not found: $DATA_FILE (ensure scripts/device-list/data/device-list.json is committed)"
+            exit 1
           fi
-          node "$CODEBUILD_SRC_DIR/apps/device-service/scripts/device-list/insert-device-list.js" --env "$STAGE" || echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)."
+          node "$CODEBUILD_SRC_DIR/apps/device-service/scripts/device-list/insert-device-list.js" --env "$STAGE" || {
+            echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)"
+            exit 1
+          }
         else
           echo "⏭️ Device list seed skipped (SEED_META not true)."
         fi

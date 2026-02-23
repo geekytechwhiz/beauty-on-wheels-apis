@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    STAGE: 'nvstg'
+    STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'nvstg-mvx-organization-service-bucket'
     STACK_NAME: 'nvstg-organization-service'
     SEED_META: 'true'

@@ -14,7 +14,7 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
-    name: ${self:custom.stageUrls.${self:provider.stage}.deploymentBucket}
+    name: ${self:provider.stage}-mvx-user-service-bucket
     serverSideEncryption: AES256
   memorySize: 512
   timeout: 30

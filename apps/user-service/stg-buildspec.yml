@@ -2,9 +2,9 @@ version: 0.2
 
 env:
   variables:
-    STAGE: 'nvstg'
-    DEPLOYMENT_BUCKET: 'nvstg-mvx-user-service-bucket'
-    STACK_NAME: 'nvstg-user-service'
+    STAGE: 'stg'
+    DEPLOYMENT_BUCKET: 'stg-mvx-user-service-bucket'
+    STACK_NAME: 'stg-user-service'
     # Prevent esbuild "The service was stopped" / "write EPIPE" (OOM) during serverless package.
     # Use CodeBuild MEDIUM (7GB) or LARGE (15GB). serverless.yml limits esbuild concurrency and disables sourcemaps for nvstg.
     NODE_OPTIONS: '--max-old-space-size=4096'

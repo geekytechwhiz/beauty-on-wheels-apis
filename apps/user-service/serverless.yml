@@ -178,10 +178,16 @@ package:
   individually: true
   
 custom:
+  # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
+  sourcemapsByStage:
+    dev: true
+    nvstg: false
+    stg: false
+    prd: false
   esbuild:
     bundle: true
     minify: false
-    sourcemap: true
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
     target: node20
     platform: node
     format: cjs
@@ -189,6 +195,9 @@ custom:
     external:
       - aws-sdk
     keepNames: true
+    # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
+    concurrency: 8
+    zipConcurrency: 8
     # Resolve NX workspace dependencies (@api-hub/* packages)
     plugins: esbuild-plugins.js
     # Ensure proper module resolution

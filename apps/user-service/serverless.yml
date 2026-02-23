@@ -14,7 +14,7 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
-    name: ${self:provider.stage}-mvx-user-service-bucket
+    name: ${self:custom.stageUrls.${self:provider.stage}.deploymentBucket}
     serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
@@ -226,21 +226,18 @@ custom:
   logLevel:
     dev: debug
     stg: info
-    nvstg: info
     prd: warn
 
   # Cognito User Pool IDs per stage (used for searchFnF and other Cognito lookups)
   cognitoUserPoolId:
     dev: us-east-1_AK1HTxdlX
     stg: us-east-1_wttVwD9Ax
-    nvstg: us-east-1_wttVwD9Ax
     prd: us-east-1_0uZJvIS5R
 
   # Only the stream creation timestamp differs per stage — everything else is dynamic
   userTableStreamTimestamp:
     dev: '2025-12-24T06:52:16.060'
     stg: '2026-01-23T11:08:57.849'
-    nvstg: '2026-01-23T11:08:57.849'
     prd: ''
 
   # Full DynamoDB Stream ARN built dynamically from region, accountId, stage, and timestamp
@@ -257,6 +254,7 @@ custom:
       SCHEDULE_SERVICE_API_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
       # Dev appointment list API for showActiveAppointment (POST /fetch/schedules)
       APPOINTMENT_SCHEDULES_API_URL: 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'
+      deploymentBucket: dev-mvx-user-service-bucket
 
     stg:
       WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
@@ -266,15 +264,7 @@ custom:
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
       PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
       SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
-    nvstg:
-      WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
-      PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
-      ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
-      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/stg'
-      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/nvstg'
-      PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
-      SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
-      APPOINTMENT_SCHEDULES_API_URL: 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'
+      deploymentBucket: nvstg-mvx-user-service-bucket
     prd:
       WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
       PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
@@ -283,6 +273,7 @@ custom:
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
       PACKAGE_SERVICE_BASE_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
       SCHEDULE_SERVICE_API_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
+      deploymentBucket: nvprd-mvx-user-service-bucket
 
   cors:
     origin: ${env:CORS_ORIGIN, '*'}

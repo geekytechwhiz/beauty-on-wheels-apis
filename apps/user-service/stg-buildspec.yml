@@ -50,7 +50,7 @@ phases:
         grep 'S3Key:' packaged.yaml | awk '{print $2}' \
           | while read key; do
               printf " → %-80s " "$key"
-              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/stg/null 2>&1; then
+              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
                 echo "FOUND"
               else
                 echo "MISSING!"

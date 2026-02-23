@@ -5,6 +5,8 @@ env:
     STAGE: 'nvstg'
     DEPLOYMENT_BUCKET: 'nvstg-mvx-user-service-bucket'
     STACK_NAME: 'nvstg-user-service'
+    # Prevent esbuild "The service was stopped" (OOM) during serverless package. Use CodeBuild MEDIUM (7GB) or larger.
+    NODE_OPTIONS: '--max-old-space-size=4096'
 
 phases:
   install:
@@ -17,7 +19,6 @@ phases:
   build:
     commands:
       - cd apps/user-service
-      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
       - npx serverless package --stage "$STAGE" --package .serverless
 
       # 2) select create vs update s3 keys

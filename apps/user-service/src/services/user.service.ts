@@ -1854,6 +1854,7 @@ export class UserService {
         bio: userBasicDetails.bio || '',
         workingHours: userBasicDetails.workingHours || {},
         userType: userCategory,
+        userCat: Array.isArray(userBasicDetails.userCat) ? userBasicDetails.userCat : (userBasicDetails.userCat ? [userBasicDetails.userCat] : []),
         fnfDetails: fnfDetails ? {
           userID: userId,
           firstName: fnfDetails.firstName || '',

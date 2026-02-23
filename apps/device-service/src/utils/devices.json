@@ -1079,7 +1079,7 @@
           "companyIdentifier": 11719,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Dr+trust+Logo.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/tracky.png",
           "devices": [
             {
               "name": "JPD BPM",
@@ -1291,7 +1291,7 @@
           "companyIdentifier": 11719,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/health-sense-logo.jpg",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/tracky.png",
           "devices": [
             {
               "name": "Lea One",
@@ -1335,7 +1335,89 @@
               "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/health-sense-logo.jpg",
               "companyIdentifier": 11719,
               "template": 12
-            }
+            },
+            {
+                  "name": "QN-Scale",
+                  "displayName": "Tracky Smart Body Composition Scale",
+                  "noOfUsers": 1,
+                  "category": 3,
+                  "countriesSupported": [
+                    "IND"
+                  ],
+                  "deviceId": "TR-CS20Q",
+                  "deviceGroupId": 714,
+                  "deviceIncludedGroupId": 0,
+                  "deviceSecondaryIncludedGroupId": 0,
+                  "useExtensionProtocol": false,
+                  "supportsUserAuthentication": false,
+                  "requiresPairing": false,
+                  "requireDataForPairing": true,
+                  "enabled": true,
+                  "isAutoSyncSupported": false,
+                  "autoSyncDelay": 0,
+                  "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/TR-CS20Q.png",
+                  "externalVideoLink": "",
+                  "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
+                  "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
+                  "templateId": 12,
+                  "deviceDetails": "deviceDetails_CS20Q_weighing_scale",
+                  "supportedVitals": [
+                    "bodyComposition",
+                    "weight",
+                    "bodyFat",
+                    "bmi",
+                    "muscleMass",
+                    "boneMass",
+                    "bodyWater",
+                    "bmr",
+                    "visceralFat",
+                    "proteinRate",
+                    "subcutaneousFat",
+                    "metabolicAge",
+                    "obesityLevel"
+                  ]
+                },
+            {
+                  "name": "QN-Scale",
+                  "displayName": "Tracky Smart body Scale(8 electrodes)",
+                  "noOfUsers": 1,
+                  "category": 3,
+                  "countriesSupported": [
+                    "IND"
+                  ],
+                  "deviceId": "TR-CS10B",
+                  "deviceGroupId": 0,
+                  "deviceIncludedGroupId": 0,
+                  "deviceSecondaryIncludedGroupId": 0,
+                  "useExtensionProtocol": false,
+                  "supportsUserAuthentication": false,
+                  "requiresPairing": false,
+                  "requireDataForPairing": true,
+                  "enabled": true,
+                  "isAutoSyncSupported": false,
+                  "autoSyncDelay": 0,
+                  "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/TR-CS10B.png",
+                  "externalVideoLink": "",
+                  "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
+                  "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
+                  "templateId": 16,
+                  "deviceDetails": "deviceDetails_CS10B_weighing_scale",
+                  "supportedVitals": [
+                    "bodyComposition",
+                    "weight",
+                    "bodyFat",
+                    "bmi",
+                    "muscleMass",
+                    "boneMass",
+                    "bodyWater",
+                    "bmr",
+                    "visceralFat",
+                    "proteinRate",
+                    "subcutaneousFat",
+                    "metabolicAge",
+                    "obesityLevel"
+                  ]
+                }
           ]
         }
       ]
@@ -1473,7 +1555,7 @@
           "companyIdentifier": 11719,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Dr+trust+Logo.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/tracky.png",
           "devices": [
             {
               "name": "My Oximeter",
@@ -1555,6 +1637,45 @@
               "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
               "companyIdentifier": 526,
               "template": 5
+            }
+          ]
+        },
+        {
+          "manufacturerName": "Tracky",
+          "companyIdentifier": 11719,
+          "enabled": true,
+          "enableAllDevices": true,
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/tracky.png",
+          "devices": [
+            {
+              "name": "My Thermometer",
+              "displayName": "Smart Infrared Dual-Mode Thermometer",
+              "noOfUsers": 1,
+              "category": 5,
+              "countriesSupported": [
+                "IND"
+              ],
+              "deviceId": "TR-FR400",
+              "deviceGroupId": 0,
+              "deviceIncludedGroupId": 0,
+              "deviceSecondaryIncludedGroupId": 0,
+              "useExtensionProtocol": false,
+              "supportsUserAuthentication": false,
+              "requiresPairing": false,
+              "enabled": true,
+
+              "requireDataForPairing": true,
+              "isAutoSyncSupported": true,
+              "autoSyncDelay": 0,
+              "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/TR-FR400.png",
+              "externalVideoLink": "",
+              "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
+              "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
+              "templateId": 17,
+              "deviceDetails": "deviceDetails_tracky_thermometer",
+              "supportedVitals": [
+                "BodyTemperature"
+              ]
             }
           ]
         }

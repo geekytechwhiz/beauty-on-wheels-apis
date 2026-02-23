@@ -2,10 +2,10 @@ version: 0.2
 
 env:
   variables:
-    STAGE: 'stg'
-    DEPLOYMENT_BUCKET: 'stg-mvx-organization-service-bucket'
-    STACK_NAME: 'stg-organization-service'
-    SEED_META: ''
+    STAGE: 'nvstg'
+    DEPLOYMENT_BUCKET: 'nvstg-mvx-organization-service-bucket'
+    STACK_NAME: 'nvstg-organization-service'
+    SEED_META: 'true'
 
 phases:
   install:

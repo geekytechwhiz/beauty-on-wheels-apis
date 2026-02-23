@@ -2,9 +2,9 @@ version: 0.2
 
 env:
   variables:
-    STAGE: 'stg'
-    DEPLOYMENT_BUCKET: 'stg-mvx-user-service-bucket'
-    STACK_NAME: 'stg-user-service'
+    STAGE: 'nvstg'
+    DEPLOYMENT_BUCKET: 'nvstg-mvx-user-service-bucket'
+    STACK_NAME: 'nvstg-user-service'
 
 phases:
   install:

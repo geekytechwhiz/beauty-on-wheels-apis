@@ -301,6 +301,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
           event.headers?.authorization ||
           event.headers?.AUTHORIZATION;
         const storedCodes = vitalCodesFromOrgSupportedVitals(organization.supportedVitals);
+        logger.info({ event: 'getOrganization_supported_vitals_stored_codes', storedCodes: storedCodes });
         const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'patient');
         const getDeviceId = (item: any) => item?.deviceId ?? item?.device_id ?? item?.id;
         const devices = Array.isArray(deviceItems)
@@ -317,6 +318,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         }
         const allCodes = [...new Set([ ...deviceCodes])];
         transformed.supportedVitals = buildSupportedVitalsArray(allCodes);
+        logger.info({ event: 'getOrganization_supported_vitals_success', supportedVitals: transformed.supportedVitals });
       } catch (err) {
         logger.warn({ event: 'getOrganization_supported_vitals_failed', err: serializeError(err) });
         transformed.supportedVitals = [];

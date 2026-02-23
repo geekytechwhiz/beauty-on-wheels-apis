@@ -1045,6 +1045,39 @@ export class UserService {
     }
   }
 
+  async updateRecentInvite(
+    userId: string,
+    organizationId: string,
+    options: { email?: boolean; sms?: boolean },
+    correlationId?: string,
+  ): Promise<{
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  }> {
+    const timer = createPerformanceTimer(baseLogger, 'updateRecentInvite', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId });
+    logger.info({ event: 'service_updateRecentInvite_start', options });
+
+    try {
+      // Verify user exists
+      const existing = await this.repository.getUser(userId, organizationId);
+      if (!existing) {
+        throw new UserNotFoundError(userId);
+      }
+
+      const result = await this.repository.updateRecentInvite(userId, organizationId, options);
+      timer.end();
+      logger.info({ event: 'service_updateRecentInvite_success', result });
+      return result;
+    } catch (err) {
+      logger.error({ event: 'service_updateRecentInvite_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
   async activateDeactivateUser(
     organizationId: string,
     targetUserId: string,
@@ -1225,6 +1258,7 @@ export class UserService {
     }
 
     const doctor = await this.repository.getUser(doctorId, organizationId);
+    console.log("DOCTOR: ", doctor);
     const doctorName = doctor
       ? `${(doctor as any).namePrefix || ''} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
       : '';
@@ -1234,6 +1268,7 @@ export class UserService {
       const orgId = patientOrgId || organizationId;
       const user = await this.repository.getUser(patientId, orgId);
       if (!user) continue;
+      console.log("USER: ", user);
       const u = user as unknown as Record<string, unknown>;
       users.push({
         city: u.city || '',
@@ -1833,6 +1868,7 @@ export class UserService {
         isActive: userBasicDetails.isActive || false,
         emergencyContact: userBasicDetails.emergencyContact || {},
         insuranceDetails: userBasicDetails.insuranceDetails || {},
+        inviteDetails: userBasicDetails.inviteDetails || undefined,
         medicalHistory: userBasicDetails.medicalHistory || {},
         namePrefix: userBasicDetails.namePrefix || '',
         mfaEnabled: (userBasicDetails as any).mfaEnabled || false,

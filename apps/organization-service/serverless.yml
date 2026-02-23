@@ -16,7 +16,7 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
-    name: ${self:provider.stage}-mvx-organization-service-bucket
+    name: ${self:custom.deploymentBucket.${self:provider.stage}}
     serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
@@ -119,6 +119,10 @@ custom:
     dev: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
     stg: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
     prd: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
+  deploymentBucket:
+    dev: dev-mvx-organization-service-bucket
+    stg: nvstg-mvx-organization-service-bucket
+    prd: nvprd-mvx-organization-service-bucket
   esbuild:
     bundle: true
     minify: false

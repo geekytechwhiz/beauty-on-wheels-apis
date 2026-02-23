@@ -81,7 +81,7 @@ phases:
           cd "$CODEBUILD_SRC_DIR/apps/organization-service"
           export ORGANIZATION_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/ORGANIZATION_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
           [ -z "$ORGANIZATION_TABLE" ] && export ORGANIZATION_TABLE="organization-table-$STAGE"
-          node src/utils/mitadata/insert-org-vitals.js --env "$STAGE" || echo "⚠️ Org vitals seed failed (check CodeBuild role has dynamodb:PutItem on $ORGANIZATION_TABLE)."
+          node "$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/insert-org-vitals.js" --env "$STAGE" || echo "⚠️ Org vitals seed failed (check CodeBuild role has dynamodb:PutItem on $ORGANIZATION_TABLE)."
         else
           echo "⏭️ Org vitals seed skipped (SEED_META not true)."
         fi

@@ -83,8 +83,7 @@ phases:
           if [ -z "$DEVICE_TABLE" ]; then
             export DEVICE_TABLE="device-table-$STAGE"
           fi
-          cd scripts/device-list
-          node insert-device-list.js --env "$STAGE" || echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)."
+          node "$CODEBUILD_SRC_DIR/apps/device-service/scripts/device-list/insert-device-list.js" --env "$STAGE" || echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)."
         else
           echo "⏭️ Device list seed skipped (SEED_META not true)."
         fi

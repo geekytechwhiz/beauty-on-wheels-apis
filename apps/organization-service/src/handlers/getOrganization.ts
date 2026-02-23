@@ -302,7 +302,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
           event.headers?.AUTHORIZATION;
         const storedCodes = vitalCodesFromOrgSupportedVitals(organization.supportedVitals);
         logger.info({ event: 'getOrganization_supported_vitals_stored_codes', storedCodes: storedCodes });
-        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'patient');
+        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'organization');
         const getDeviceId = (item: any) => item?.deviceId ?? item?.device_id ?? item?.id;
         const devices = Array.isArray(deviceItems)
           ? deviceItems.filter((item, index, arr) => index === arr.findIndex((x) => getDeviceId(x) === getDeviceId(item)))

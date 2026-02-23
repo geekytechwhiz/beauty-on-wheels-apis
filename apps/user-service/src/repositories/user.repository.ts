@@ -18,7 +18,7 @@ import {
   UserFile,
   UserResponse,
 } from '../models';
-import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
+import { UserNotFoundError, UserAlreadyExistsError, InviteUpdateTooSoonError } from '../utils/errors';
 import { getRoleDetails } from '../services/role.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -204,7 +204,7 @@ export class UserRepository {
         );
         result = { Item: queryResult.Items?.[0] };
       }
-
+      console.log("RESULT: ", result);
       if (
         !result.Item ||
         result.Item.isDeleted === true ||
@@ -2066,6 +2066,181 @@ export class UserRepository {
           err: serializeError(err),
         });
       }
+    }
+  }
+
+  /**
+   * Update recent invite details for a user
+   * Updates the inviteDetails attribute in the user table
+   */
+  async updateRecentInvite(
+    userId: string,
+    organizationId: string,
+    options: { email?: boolean; sms?: boolean },
+  ): Promise<{
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  }> {
+    const logger = createChildLogger(baseLogger, { userId, organizationId });
+    const currentTimestamp = new Date().toISOString();
+
+    // Get existing inviteDetails if any
+    let existingInviteDetails: {
+      email?: boolean;
+      emailUpdatedAt?: string;
+      sms?: boolean;
+      smsUpdatedAt?: string;
+    } = {};
+
+    try {
+      const getResponse = await docClient.send(
+        new GetCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
+          },
+        }),
+      );
+
+      if (getResponse.Item?.inviteDetails) {
+        existingInviteDetails = getResponse.Item.inviteDetails as typeof existingInviteDetails;
+      }
+    } catch (err) {
+      logger.debug({
+        event: 'get_invite_details_error',
+        message: 'Could not fetch existing inviteDetails, will create new',
+        err: serializeError(err),
+      });
+    }
+
+    // Merge existing with updates
+    const inviteDetails = {
+      ...existingInviteDetails,
+    };
+
+    const now = Date.now();
+
+    // Validate email update - check if 24 hours have passed since last update
+    if (options.email !== undefined && options.email === true) {
+      if (existingInviteDetails.emailUpdatedAt) {
+        const lastEmailUpdate = new Date(existingInviteDetails.emailUpdatedAt).getTime();
+        const hoursSinceUpdate = (now - lastEmailUpdate) / (1000 * 60 * 60);
+
+        if (hoursSinceUpdate < 24) {
+          logger.warn({
+            event: 'email_invite_update_too_soon',
+            lastUpdatedAt: existingInviteDetails.emailUpdatedAt,
+            hoursSinceUpdate: hoursSinceUpdate.toFixed(2),
+          });
+          throw new InviteUpdateTooSoonError(
+            'email',
+            existingInviteDetails.emailUpdatedAt,
+            hoursSinceUpdate
+          );
+        }
+      }
+      // Allow update if emailUpdatedAt doesn't exist (first time setting)
+      inviteDetails.email = options.email;
+      inviteDetails.emailUpdatedAt = currentTimestamp;
+    }
+
+    // Validate sms update - check if 24 hours have passed since last update
+    if (options.sms !== undefined && options.sms === true) {
+      if (existingInviteDetails.smsUpdatedAt) {
+        const lastSmsUpdate = new Date(existingInviteDetails.smsUpdatedAt).getTime();
+        const hoursSinceUpdate = (now - lastSmsUpdate) / (1000 * 60 * 60);
+
+        if (hoursSinceUpdate < 24) {
+          logger.warn({
+            event: 'sms_invite_update_too_soon',
+            lastUpdatedAt: existingInviteDetails.smsUpdatedAt,
+            hoursSinceUpdate: hoursSinceUpdate.toFixed(2),
+          });
+          throw new InviteUpdateTooSoonError(
+            'sms',
+            existingInviteDetails.smsUpdatedAt,
+            hoursSinceUpdate
+          );
+        }
+      }
+      // Allow update if smsUpdatedAt doesn't exist (first time setting)
+      inviteDetails.sms = options.sms;
+      inviteDetails.smsUpdatedAt = currentTimestamp;
+    }
+
+    // Handle setting to false (no time restriction)
+    if (options.email !== undefined && options.email === false) {
+      inviteDetails.email = false;
+      // Don't update emailUpdatedAt when setting to false
+      if (!existingInviteDetails.emailUpdatedAt) {
+        inviteDetails.emailUpdatedAt = currentTimestamp;
+      }
+    }
+
+    if (options.sms !== undefined && options.sms === false) {
+      inviteDetails.sms = false;
+      // Don't update smsUpdatedAt when setting to false
+      if (!existingInviteDetails.smsUpdatedAt) {
+        inviteDetails.smsUpdatedAt = currentTimestamp;
+      }
+    }
+
+    // Ensure all required fields are present
+    const finalInviteDetails = {
+      email: inviteDetails.email ?? false,
+      emailUpdatedAt: inviteDetails.emailUpdatedAt ?? currentTimestamp,
+      sms: inviteDetails.sms ?? false,
+      smsUpdatedAt: inviteDetails.smsUpdatedAt ?? currentTimestamp,
+    };
+
+    // Build update expression
+    const updateParts: string[] = ['modifiedDate = :modifiedDate'];
+    const exprNames: Record<string, string> = {
+      '#inviteDetails': 'inviteDetails',
+    };
+    const exprValues: Record<string, unknown> = {
+      ':modifiedDate': Date.now(),
+      ':inviteDetails': finalInviteDetails,
+    };
+
+    updateParts.push('#inviteDetails = :inviteDetails');
+
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
+          },
+          UpdateExpression: `SET ${updateParts.join(', ')}`,
+          ExpressionAttributeNames: exprNames,
+          ExpressionAttributeValues: exprValues,
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+
+      logger.info({
+        event: 'invite_details_updated',
+        message: 'Invite details updated successfully',
+        inviteDetails: finalInviteDetails,
+      });
+
+      return finalInviteDetails;
+    } catch (err: unknown) {
+      const code = (err as { name?: string })?.name;
+      if (code === 'ConditionalCheckFailedException') {
+        throw new UserNotFoundError(userId);
+      }
+      logger.error({
+        event: 'update_invite_details_error',
+        err: serializeError(err),
+        message: 'Failed to update invite details',
+      });
+      throw err;
     }
   }
 }

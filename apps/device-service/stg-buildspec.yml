@@ -2,9 +2,9 @@ version: 0.2
 
 env:
   variables:
-    STAGE: 'nvstg'
-    DEPLOYMENT_BUCKET: 'nvstg-mvx-device-service-bucket'
-    STACK_NAME: 'nvstg-device-service'
+    STAGE: 'stg'
+    DEPLOYMENT_BUCKET: 'stg-mvx-device-service-bucket'
+    STACK_NAME: 'stg-device-service'
     SEED_META: 'true'
 
 phases:

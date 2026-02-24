@@ -1,0 +1,130 @@
+{
+ 
+    "createdAt": 1769076563764,
+    "deleted": false,
+    "email": "rootadmin@yopmail.com",
+    "gsi1pk": "ORG_LIST",
+    "gsi1sk": "ORG#ROOT",
+    "itemType": "ORG_DETAILS",
+    "lsi_createdAt": 1769076563764,
+    "lsi_entityType": "ORG_DETAILS",
+    "lsi_organizationType": "ROOT",
+    "lsi_status": "ACTIVE",
+    "modifiedBy": "ROOT_ADMIN",
+    "modifiedDate": 1769078007726,
+    "name": "ROOT",
+    "noOfBranches": "null",
+    "organizationId": "ROOT",
+    "organizationInfo": {
+     "address": {
+      "address": "3rd Floor, Plot No. 10, Rajiv Gandhi Chandigarh Technology Park",
+      "city": "Chandigarh",
+      "country": "India",
+      "countryCode": "IND",
+      "postalCode": "160101",
+      "state": "Delhi"
+     },
+     "defaultSetting": {
+      "chat_session_expire_after": 600000,
+      "dateFormat": [
+       "dd.MM.yyyy",
+       "dd/MM/yyyy",
+       "dd-MM-yyyy",
+       "MM/dd/yyyy",
+       "yyyy-MM-dd",
+       "MM.dd.yyyy"
+      ],
+      "edit_message_limit": 60000,
+      "languages": [
+       {
+        "countryCode": "US",
+        "emojiCode": "U+1F1FA U+1F1F8",
+        "label": "English",
+        "langCode": "en"
+       }
+      ],
+      "missed_reminder_after": 30,
+      "notifications": {
+       "chat": false,
+       "chat_with_push": true,
+       "email": true,
+       "push": true,
+       "sms": true
+      },
+      "schedule_reminder_before": [
+       {
+        "days": 1,
+        "hours": 0,
+        "minutes": 0
+       },
+       {
+        "days": 0,
+        "hours": 1,
+        "minutes": 0
+       }
+      ],
+      "units": {
+       "bloodPressureUnit": [
+        "mmHg",
+        "kPa"
+       ],
+       "cholesterolUnit": [
+        "mg/dL",
+        "mmol/L"
+       ],
+       "distance": [
+        "km",
+        "m",
+        "miles"
+       ],
+       "glucometerUnit": [
+        "mmol/L",
+        "mg/dL"
+       ],
+       "heartBeatUnit": [
+        "bpm",
+        "Hz"
+       ],
+       "heightUnit": [
+        "cm",
+        "in"
+       ],
+       "oximeterUnit": [
+        "SpO2",
+        "mmHg"
+       ],
+       "temperatureUnit": [
+        "C",
+        "F"
+       ],
+       "water": [
+        "ml",
+        "l",
+        "glass"
+       ],
+       "weightUnit": [
+        "kg",
+        "lb"
+       ]
+      }
+     },
+     "emailAddress": "hr@fiminiq.com",
+     "modifiedDate": 1769076563764,
+     "noOfBranches": "null",
+     "organizationID": "ROOT",
+     "organizationName": "Firminiq",
+     "organizationSize": "501",
+     "organizationType": "CORPORATE",
+     "phoneCode": "+91",
+     "phoneNumber": "5545464000"
+    },
+    "organizationSize": "",
+    "organizationType": "CORPORATE",
+    "parentOrgId": "ROOT",
+    "phone": "",
+    "phoneCode": "+91",
+    "phoneNumber": "",
+    "postalCode": "",
+    "state": "Delhi",
+    "status": "ACTIVE"
+   }

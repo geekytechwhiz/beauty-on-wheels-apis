@@ -101,10 +101,10 @@ phases:
               exit 1
             }
           }
-          # Run the compiled JavaScript
+          # Run the compiled JavaScript (from device-service root so paths resolve correctly)
           echo "🚀 Running device list seed script..."
-          cd "$CODEBUILD_SRC_DIR/apps/device-service/deviceScripts/device-list"
-          node dist/index.js --env "$STAGE" || {
+          cd "$CODEBUILD_SRC_DIR/apps/device-service"
+          node deviceScripts/device-list/dist/index.js --env "$STAGE" || {
             echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)"
             exit 1
           }

@@ -11,7 +11,7 @@ import {
   V2UserListMeta,
   V2UserListResponse
 } from '../types/user-list-context.enum';
-import { mapToActiveConsultationUser, mapToPastConsultationUser, mapToUserItem } from '../utils/responseMapper';
+import { mapToActiveConsultationUser, mapToPatientListItem, mapToPastConsultationUser, mapToUserItem } from '../utils/responseMapper';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -255,7 +255,7 @@ export class V2UserListService {
       sort,
       correlationId: requestId,
     });
-
+    console.log("RESULT DATA : ",result);
     return this.buildResponse(result.items, UserListContext.PATIENT_LIST,result.lastEvaluatedKey, requestId);
   }
 
@@ -300,6 +300,11 @@ export class V2UserListService {
         };
 
       case UserListContext.PATIENT_LIST:
+        return {
+          ...envelope,
+          data: { items: items.map(mapToPatientListItem) },
+        };
+
       case UserListContext.PATIENT_CHAT_LIST:
         return {
           ...envelope,

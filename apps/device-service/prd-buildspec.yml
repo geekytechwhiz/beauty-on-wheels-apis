@@ -87,8 +87,23 @@ phases:
             echo "ERROR: Devices JSON not found: $DEVICES_FILE (ensure src/utils/devices.json is committed)"
             exit 1
           fi
-          npx tsx "$CODEBUILD_SRC_DIR/apps/device-service/deviceScripts/device-list/index.ts" --env "$STAGE" || {
-            echo " Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)"
+          cd "$CODEBUILD_SRC_DIR/apps/device-service/deviceScripts/device-list"
+          # Compile TypeScript to JavaScript (using root-level TypeScript if available)
+          echo "🔨 Compiling TypeScript..."
+          cd "$CODEBUILD_SRC_DIR/apps/device-service" && npx tsc --project deviceScripts/device-list/tsconfig.json || {
+            echo "⚠️ TypeScript compilation failed - trying local install..."
+            cd "$CODEBUILD_SRC_DIR/apps/device-service/deviceScripts/device-list"
+            npm install --no-save typescript @types/node --legacy-peer-deps
+            npx tsc --project tsconfig.json || {
+              echo "⚠️ TypeScript compilation failed"
+              exit 1
+            }
+          }
+          # Run the compiled JavaScript
+          echo "🚀 Running device list seed script..."
+          cd "$CODEBUILD_SRC_DIR/apps/device-service/deviceScripts/device-list"
+          node dist/index.js --env "$STAGE" || {
+            echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)"
             exit 1
           }
         else

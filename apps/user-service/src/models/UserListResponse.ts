@@ -384,7 +384,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     sk?: string;
     sk1?: string;
     sk2?: string;
-    userID: string;
+    patientId: string;
     fullName: string;
     firstName: string;
     lastName: string;

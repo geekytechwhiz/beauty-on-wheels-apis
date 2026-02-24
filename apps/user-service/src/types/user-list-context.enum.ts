@@ -45,7 +45,7 @@ export interface V2UserListRequest {
 
 export interface V2UserListMeta {
   requestId: string;
-  timestamp: number;
+  timestamp: string;
   version: string;
   nextCursor?: string | null;
 }

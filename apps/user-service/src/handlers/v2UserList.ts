@@ -63,16 +63,15 @@ export async function v2UserList(
       );
 
       return ApiResponse.badRequest(
+        'Validation Error',
+        { requestId: correlationId },
         {
-          title: 'Validation Error',
-          description: 'Request validation failed',
-          severity: 'error',
+          code: 'VALIDATION_ERROR',
+          details: validation.error.issues.map((issue) => ({
+            message: issue.message,
+            field: issue.path.join('.'),
+          })),
         },
-        validation.error.issues.map((issue) => ({
-          message: issue.message,
-          field: issue.path.join('.'),
-        })),
-        { correlationId },
       );
     }
 
@@ -168,11 +167,9 @@ export async function v2UserList(
       return ApiResponse.badRequest(
         {
           title: 'Bad Request',
-          description: errorMessage,
-          severity: 'error',
+          description: errorMessage,  
         },
-        [{ message: errorMessage }],
-        { correlationId },
+        { requestId: correlationId },
       );
     }
 
@@ -180,10 +177,8 @@ export async function v2UserList(
       {
         title: 'Internal Server Error',
         description: 'Failed to fetch users',
-        severity: 'error',
       },
-      [{ message: errorMessage }],
-      { correlationId },
+      { requestId: correlationId },
     );
   }
 }

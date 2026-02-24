@@ -16,34 +16,9 @@
 // ============================================================
 // Every use-case response: success, statusCode, message, data, error: null, meta
 
-export interface ApiResponseMessage {
-  title: string;
-  description: string;
-  severity: string;
-}
+import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSort } from "../types/user-list-context.enum";
 
-export interface ApiResponseMeta {
-  requestId: string;
-  timestamp: string;
-  version: string;
-}
-
-export interface ApiResponseBody<T> {
-  success: boolean;
-  statusCode: number;
-  message: ApiResponseMessage;
-  data: T;
-  error: null;
-  meta: ApiResponseMeta;
-}
-
-export type ApiResponse<T> = ApiResponseBody<T>;
-
-// ============================================================
-// SHARED / BASE INTERFACES
-// ============================================================
-
-  // ─── Shared: Medical History ───────────────────────────────
+   
   export interface MedicalHistory {
     allergies: unknown[];
     symptoms: unknown[];
@@ -129,13 +104,7 @@ export type ApiResponse<T> = ApiResponseBody<T>;
     reporterProfilePic?: string;
     doctorName?: string;
   }
-  
-  export interface AdminDashboardData {
-    items: AdminDashboardStaffItem[];
-  }
-
-  export type AdminDashboardResponse = ApiResponse<AdminDashboardData>;
-
+   
   // ============================================================
   // 2. ADMIN CHAT STAFF LIST
   //    Use case: Staff list for admin to communicate with
@@ -149,12 +118,7 @@ export type ApiResponse<T> = ApiResponseBody<T>;
     phoneCode: string;
     postalCode: string;
   }
-  
-  export interface AdminChatStaffListData {
-    items: AdminChatStaffItem[];
-  }
-  
-  export type AdminChatStaffListResponse = ApiResponse<AdminChatStaffListData>;
+   
   
   // ============================================================
   // 3. PATIENT DETAILS — CARE TEAM
@@ -251,9 +215,7 @@ export type ApiResponse<T> = ApiResponseBody<T>;
     dietician: unknown[];
     healthCoach: unknown[];
   }
-
-  export type PatientDetailsCareTeamResponse = ApiResponse<PatientDetailsCareTeamData>;
-
+ 
   // ============================================================
   // 4. FRONTDESK APPOINTMENT — PATIENT LIST
   //    Use case: View patients with past consultations (same doctor)
@@ -266,10 +228,7 @@ export type ApiResponse<T> = ApiResponseBody<T>;
   export interface FrontdeskAppointmentPatientListData {
     users: FrontdeskAppointmentPatientItem[];
   }
-  
-  export type FrontdeskAppointmentPatientListResponse =
-    ApiResponse<FrontdeskAppointmentPatientListData>;
-  
+   
   // ============================================================
   // 5. DOCTOR DASHBOARD — PATIENT LIST
   //    Use case: All patients of the doctor
@@ -283,10 +242,7 @@ export type ApiResponse<T> = ApiResponseBody<T>;
   export interface DoctorDashboardPatientListData {
     users: DoctorDashboardPatientItem[];
   }
-  
-  export type DoctorDashboardPatientListResponse =
-    ApiResponse<DoctorDashboardPatientListData>;
-  
+   
   // ============================================================
   // 6. LAB ADMIN DASHBOARD — ACTIVE APPOINTMENTS
   //    Use case: Retrieve active appointments with full service detail
@@ -412,6 +368,82 @@ export type ApiResponse<T> = ApiResponseBody<T>;
     namePrefix: string;
   }
   
+  export interface V2UserListServiceParams {
+    organizationId: string;
+    context: UserListContext;
+    filters?: V2UserListFilters;
+    pagination?: V2UserListPagination;
+    sort?: V2UserListSort;
+    requestId: string;
+    authUserId?: string;
+    authHeader?: string;
+  }
+  
+  export interface UserItem {
+    pk?: string;
+    sk?: string;
+    sk1?: string;
+    sk2?: string;
+    userID: string;
+    fullName: string;
+    firstName: string;
+    lastName: string;
+    emailAddress: string;
+    phoneNumber: string;
+    phoneCode: string;
+    organizationID: string;
+    profilePic: string;
+    mrn: string;
+    isActive: boolean;
+    isRpmUser: boolean;
+    userType: string;
+    roleType: string;
+    roleID: string;
+    roleName: string;
+    definedRoleCode: string;
+    createdDate: number;
+    modifiedDate: number;
+    status: boolean;
+    createdAt?: number;
+    specialty?: string;
+    department?: string;
+    reporterName?: string;
+    reporterProfilePic?: string;
+    doctorName?: string;
+    deleteFlag?: null;
+    postalCode?: string;
+    inviteDetails?: {
+      email: boolean;
+      emailUpdatedAt: string;
+      sms: boolean;
+      smsUpdatedAt: string;
+    };
+    [key: string]: unknown;
+  }
+  
+  export interface PatientUserItem {
+    city: string;
+    state: string;
+    country: string;
+    fullName: string;
+    emailAddress: string;
+    phoneNumber: string;
+    lastAppointment: string;
+    profilePic: string;
+    reporterId: string;
+    doctor: string;
+    patientId: string;
+    accountType: string;
+    status: string;
+    createdDate: number;
+    mrn: string;
+    gender: string;
+    medicalHistory: { allergies: unknown[]; symptoms: unknown[]; chronicDiseases: unknown[] };
+    dateOfBirth: string;
+    patientOrgId: string;
+    previouslyConsulted?: boolean;
+    activeService?: unknown[];
+  } 
   export interface ActiveServiceReferredBy {
     emailAddress: string;
     specialty: string;
@@ -470,10 +502,7 @@ export type ApiResponse<T> = ApiResponseBody<T>;
   
   export interface LabAdminDashboardData {
     users: LabAdminDashboardPatientItem[];
-  }
-  
-  export type LabAdminDashboardResponse = ApiResponse<LabAdminDashboardData>;
-  
+  } 
   // ============================================================
   // 7. PATIENT DETAILS — DOCTOR LIST
   //    Use case: Get list of doctors while creating lab test / prescription
@@ -486,9 +515,7 @@ export type ApiResponse<T> = ApiResponseBody<T>;
   export interface PatientDetailsDoctorListData {
     items: PatientDetailsDoctorItem[];
   }
-
-  export type PatientDetailsDoctorListResponse = ApiResponse<PatientDetailsDoctorListData>;
-
+ 
   // ============================================================
   // 8. FRONTDESK CHAT — PATIENT LIST
   //    Use case: Retrieve patients of organization for frontdesk chat
@@ -543,5 +570,4 @@ export type ApiResponse<T> = ApiResponseBody<T>;
   export interface FrontdeskChatPatientListData {
     items: FrontdeskChatPatientItem[];
   }
-
-  export type FrontdeskChatPatientListResponse = ApiResponse<FrontdeskChatPatientListData>; 
+ 

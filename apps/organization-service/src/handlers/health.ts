@@ -24,6 +24,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'org_vitals_metadata_insert_failed', err: (err as Error)?.message });
   }
 
+   
   const duration = Date.now() - startTime;
   logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/health', 200, duration, correlationId);
 

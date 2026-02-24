@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { batchWriteItems } from './dynamodb';
 import { CATEGORY, DEVICE_LIST, SCRIPT_EXECUTE_COMPLETED, ERROR, S3_BUCKET, S3_KEY, FILE_KEY, FILE_TYPE_KEY, DEVICE_TABLE, REGION } from './constants';
 import { readFile } from 'fs';

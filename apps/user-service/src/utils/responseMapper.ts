@@ -49,6 +49,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
   export function mapToUserItem(item: Record<string, unknown>): UserItem {
     return {
       ...item,
+      accountType: String(item.accountType ?? ''),
       pk: item.pk != null ? String(item.pk) : undefined,
       sk: item.sk != null ? String(item.sk) : undefined,
       sk1: item.sk1 != null ? String(item.sk1) : undefined,

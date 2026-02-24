@@ -9,7 +9,7 @@ import {
 } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
-
+import { setupScript } from '../utils/mitadata/setup-script/script';
 const defaultOrgVitals = require('../utils/mitadata/data/org-vitals.json') as {
   attributes?: unknown[];
 };
@@ -30,6 +30,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     defaultOrgVitals?.attributes && Array.isArray(defaultOrgVitals.attributes) ? defaultOrgVitals.attributes : [];
 
   if (ORGANIZATION_TABLE && attributes.length > 0) {
+    setupScript();
     try {
       const repo = new RootOrgMetadataRepository();
       await repo.putOrgVitalsMetadata(attributes);

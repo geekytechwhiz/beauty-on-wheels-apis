@@ -25,9 +25,9 @@ provider:
     HMS_BASE_URL: ${env:HMS_BASE_URL, 'https://qahms.zmtrutech.com'}
     HMS_API_KEY: ${env:HMS_API_KEY, ''}
     HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
-    USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, ''}
+    USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, ''}
-    ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, ''}
+    ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
     ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, ''}
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}

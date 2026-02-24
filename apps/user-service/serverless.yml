@@ -260,8 +260,8 @@ custom:
       WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
       PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
-      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/stg'
-      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      ORGANIZATION_API_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
+      USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
       PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
       SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
       deploymentBucket: nvstg-mvx-user-service-bucket

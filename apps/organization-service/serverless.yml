@@ -109,18 +109,15 @@ package:
 custom:
   userServiceUrl:
     dev: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
-    stg: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
-    nvstg: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
+    stg: https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg/user
     prd: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
   roleApiUrl:
     dev: https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev
     stg: https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg
-    nvstg: https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg
     prd: https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd
   deviceApiUrl:
     dev: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
-    stg: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
-    nvstg: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
+    stg: https://0o74c84ww4.execute-api.us-east-1.amazonaws.com/stg
     prd: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
   deploymentBucket:
     dev: dev-mvx-organization-service-bucket

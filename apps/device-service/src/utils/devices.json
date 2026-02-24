@@ -18,7 +18,9 @@
               "displayName": "OMRON Complete™",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7530T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -33,16 +35,24 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp7900",
-              "supportedVitals": ["bloodPressure", "ecg"]
+              "supportedVitals": [
+                "bloodPressure",
+                "ecg"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "X4 Smart",
               "displayName": "Omron X4 Smart",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7155T_ESL",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 613,
@@ -57,16 +67,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_x4_smart",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "X4 Smart K4",
               "displayName": "Omron X4 Smart (variant / K4)",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7155T_K4-ESL",
               "ACDeviceInfoUserDataServiceUUIDKey": "FE4A",
               "deviceGroupId": 0,
@@ -82,16 +99,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_x4_smart",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP7000",
               "displayName": "Omron Evolv™",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7600T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 287,
@@ -106,16 +130,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp7000",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP5250",
               "displayName": "Omron BP5250",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7151T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 352,
@@ -130,16 +161,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp5250",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP5350",
               "displayName": "Omron BP5350",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7320T-ZV",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 350,
@@ -154,16 +192,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp5350",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP5350 K4",
               "displayName": "Omron BP5350",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7341T_K4-Z",
               "ACDeviceInfoUserDataServiceUUIDKey": "FE4A",
               "deviceGroupId": 0,
@@ -179,16 +224,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp5350",
-              "supportedVitals": ["bloodPressure", "pulseRate", "irregularHeartbeatDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "irregularHeartbeatDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP5450",
               "displayName": "Omron BP5450",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7343T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 351,
@@ -203,16 +257,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp5450",
-              "supportedVitals": ["bloodPressure", "pulseRate", "irregularHeartbeatDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "irregularHeartbeatDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP7350",
               "displayName": "Omron BP7350 “7 Series Upper Arm”",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7340T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 339,
@@ -227,16 +290,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp7350",
-              "supportedVitals": ["bloodPressure", "pulseRate", "irregularHeartbeatDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "irregularHeartbeatDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP7350 K4",
               "displayName": "Omron BP7350 K4 “7 Series Upper Arm”",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7340T_K4-Z",
               "ACDeviceInfoUserDataServiceUUIDKey": "FE4A",
               "deviceGroupId": 0,
@@ -252,16 +324,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp7350",
-              "supportedVitals": ["bloodPressure", "pulseRate", "irregularHeartbeatDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "irregularHeartbeatDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP7450",
               "displayName": "Omron BP7450 “10 Series Upper Arm”",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7342T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 338,
@@ -276,16 +357,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp7450",
-              "supportedVitals": ["bloodPressure", "pulseRate", "irregularHeartbeatDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "irregularHeartbeatDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP7455CAN",
               "displayName": "Omron BP7455CAN “10 Series Upper Arm”",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7342T1-ACACD6",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 395,
@@ -300,16 +390,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp7455can",
-              "supportedVitals": ["bloodPressure", "pulseRate", "irregularHeartbeatDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "irregularHeartbeatDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP6350",
               "displayName": "Omron BP6350 “7 Series Wrist”",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-6231T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 331,
@@ -324,16 +423,24 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp6350",
-              "supportedVitals": ["bloodPressure", "pulseRate"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP4350",
               "displayName": "Omron BP4350 “Wrist Blood Pressure Monitor”",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-6232T-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 324,
@@ -348,16 +455,24 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp4350",
-              "supportedVitals": ["bloodPressure", "pulseRate"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-6161T-D/E",
               "displayName": "Omron RS3 Intelli IT",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-6161T-E",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 597,
@@ -372,16 +487,24 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_rs3_intelli_it",
-              "supportedVitals": ["bloodPressure", "pulseRate"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7361T-D",
               "displayName": "Omron M500 Intelli IT",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7361T-D",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 602,
@@ -396,16 +519,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7361t_d",
-              "supportedVitals": ["bloodPressure", "pulseRate", "atrialFibrillationDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "atrialFibrillationDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7155T-D",
               "displayName": "Omron M400 Intelli IT",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7155T-D",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 614,
@@ -420,16 +552,24 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7155t_d",
-              "supportedVitals": ["bloodPressure", "pulseRate"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7361T-EBK",
               "displayName": "Omron M7 Intelli IT",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7361T-EBK",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 600,
@@ -444,16 +584,25 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7361t_ebk",
-              "supportedVitals": ["bloodPressure", "pulseRate", "atrialFibrillationDetection"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate",
+                "atrialFibrillationDetection"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "M4 Intelli IT K4",
               "displayName": "Omron M4 Intelli IT",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7155T_K4-EBK",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 180,
@@ -468,16 +617,24 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_m4_intelli_it_k4",
-              "supportedVitals": ["bloodPressure", "pulseRate"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulseRate"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7155T-D K4",
               "displayName": "Omron M4/M400 (K4)",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7155T_K4-D",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 193,
@@ -492,16 +649,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7155t_k4_d",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-9601T-E3",
               "displayName": "Omron NightView",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-9601T-E3",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 632,
@@ -516,16 +680,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_9601t_e3",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7600T-E",
               "displayName": "Omron Evolv",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7600T-E",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 543,
@@ -540,16 +711,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7600t_e",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-6232T-D/E",
               "displayName": "Omron RS7 Intelli IT",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-6232T-E",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 580,
@@ -564,16 +742,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_6232t_de",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7143T2-ESL",
               "displayName": "Omron X2 Smart",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7143T2-ESL",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 647,
@@ -588,16 +773,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7143t2_esl",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-716CT2-Z",
               "displayName": "Omron BP7255 (5 Series)",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-716CT2-Z",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 186,
@@ -612,16 +804,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_716Ct2_z",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "BP5255",
               "displayName": "Omron",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-716BT2-ZAZ",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 185,
@@ -636,16 +835,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp5255",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7146T2-EBK",
               "displayName": "Omron M2 Intelli IT+",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7146T2-EBK",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 213,
@@ -660,16 +866,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7146t2_ebk",
-              "supportedVitals": ["bloodPressure"]
+              "supportedVitals": [
+                "bloodPressure"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             },
             {
               "name": "HEM-7146T2-ESL",
               "displayName": "Omron X2 Smart+",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HEM-7146T2-ESL",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 214,
@@ -684,9 +897,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_hem_7146t2_esl",
-              "supportedVitals": ["bloodPressure", "heartRate"]
+              "supportedVitals": [
+                "bloodPressure",
+                "heartRate"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 1
             }
           ]
         },
@@ -702,7 +921,9 @@
               "displayName": "FFORA D40D 2-in-1 Monitor – Blood Glucose & BP",
               "noOfUsers": 4,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "FORA_D40_BP",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -717,9 +938,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40",
-              "supportedVitals": ["bloodPressure", "glucose"]
+              "supportedVitals": [
+                "bloodPressure",
+                "glucose"
+              ],
+              "manufacturerName": "Fora Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/BeurerLogo.png",
+              "companyIdentifier": 1138,
+              "template": 13
             }
           ]
         },
@@ -735,7 +962,9 @@
               "displayName": "Beurer BM 96 Cardio Blood Pressure Monitor",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "BM96",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 96,
@@ -750,9 +979,16 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 8,
-              "deviceDetails": "deviceDetails_bm96", 
-              "supportedVitals": ["bloodPressure", "pulse", "ecg"]
+              "deviceDetails": "deviceDetails_bm96",
+              "supportedVitals": [
+                "bloodPressure",
+                "pulse",
+                "ecg"
+              ],
+              "manufacturerName": "Beurer GmbH",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/BeurerLogo.png",
+              "companyIdentifier": 1553,
+              "template": 8
             }
           ]
         },
@@ -768,7 +1004,9 @@
               "displayName": "A&D UA-651 Blood Pressure Monitor",
               "noOfUsers": 0,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "UA-651",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 651,
@@ -783,9 +1021,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 11,
               "deviceDetails": "deviceDetails_and",
-              "supportedVitals": ["bloodPressure", "pulse"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulse"
+              ],
+              "manufacturerName": "A&D Medical",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/A&DMedical.png",
+              "companyIdentifier": 105,
+              "template": 11
             }
           ]
         },
@@ -801,7 +1045,9 @@
               "displayName": "Dr Trust USA iCheck Connect BP Monitor 118",
               "noOfUsers": 2,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "BP2941",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 0,
@@ -816,9 +1062,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp2941",
-              "supportedVitals": ["bloodPressure", "pulse"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulse"
+              ],
+              "manufacturerName": "Dr Trust",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Dr+trust+Logo.png",
+              "companyIdentifier": 19289,
+              "template": 1
             }
           ]
         },
@@ -827,14 +1079,16 @@
           "companyIdentifier": 11719,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Dr+trust+Logo.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/tracky.png",
           "devices": [
             {
               "name": "JPD BPM",
               "displayName": "TRACKY Smart Blood Pressure Monitor",
               "noOfUsers": 1,
               "category": 1,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "JPD BPM",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 0,
@@ -849,9 +1103,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
               "deviceDetails": "deviceDetails_bp2941",
-              "supportedVitals": ["bloodPressure", "pulse"]
+              "supportedVitals": [
+                "bloodPressure",
+                "pulse"
+              ],
+              "manufacturerName": "Tracky",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Dr+trust+Logo.png",
+              "companyIdentifier": 11719,
+              "template": 1
             }
           ]
         }
@@ -875,7 +1135,9 @@
               "displayName": "Omron BCM-500",
               "noOfUsers": 4,
               "category": 3,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HBF-222T-Z",
               "deviceGroupId": 1,
               "deviceIncludedGroupId": 272,
@@ -890,16 +1152,29 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 2,
               "deviceDetails": "deviceDetails_bcm_500",
-              "supportedVitals": ["bodyComposition","weight","bodyFatPercentage","visceralFat","skeletalMusclePercentage","restingMetabolism","bmi"]
+              "supportedVitals": [
+                "bodyComposition",
+                "weight",
+                "bodyFatPercentage",
+                "visceralFat",
+                "skeletalMusclePercentage",
+                "restingMetabolism",
+                "bmi"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 2
             },
             {
               "name": "VIVA",
               "displayName": "Omron Body Composition Monitor VIVA",
               "noOfUsers": 4,
               "category": 3,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HBF-222T_E",
               "deviceGroupId": 1,
               "deviceIncludedGroupId": 520,
@@ -914,9 +1189,20 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 9,
               "deviceDetails": "deviceDetails_viva",
-              "supportedVitals": ["bodyComposition","weight","bodyFatPercentage","visceralFat","skeletalMusclePercentage","restingMetabolism","bmi"]
+              "supportedVitals": [
+                "bodyComposition",
+                "weight",
+                "bodyFatPercentage",
+                "visceralFat",
+                "skeletalMusclePercentage",
+                "restingMetabolism",
+                "bmi"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 9
             }
           ]
         },
@@ -932,7 +1218,9 @@
               "displayName": "Eagle Smart Connected Digital Weight Scale",
               "noOfUsers": 1,
               "category": 3,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "AAA002",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 0,
@@ -947,9 +1235,14 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 4,
               "deviceDetails": "deviceDetails_eagle_weighing_scale",
-              "supportedVitals": ["weight"]
+              "supportedVitals": [
+                "weight"
+              ],
+              "manufacturerName": "Eagle",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/eagle.png",
+              "companyIdentifier": 1136,
+              "template": 4
             }
           ]
         },
@@ -965,7 +1258,9 @@
               "displayName": "HealthSense Smart Weight Scale",
               "noOfUsers": 1,
               "category": 3,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "AAA013",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 0,
@@ -980,9 +1275,14 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 12,
               "deviceDetails": "deviceDetails_hs_weighing_scale",
-              "supportedVitals": ["weight"]
+              "supportedVitals": [
+                "weight"
+              ],
+              "manufacturerName": "Health Sense",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/health-sense-logo.jpg",
+              "companyIdentifier": 1137,
+              "template": 12
             }
           ]
         },
@@ -998,7 +1298,9 @@
               "displayName": "Tracky Advance Body Composition Scale",
               "noOfUsers": 1,
               "category": 3,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "weight_TR2024",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 0,
@@ -1013,9 +1315,26 @@
               "externalVideoLink": "",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 12,
               "deviceDetails": "deviceDetails_hs_weighing_scale",
-              "supportedVitals": ["bodyComposition", "weight", "bodyFat", "bmi", "muscleMass", "boneMass", "bodyWater", "bmr", "visceralFat", "proteinRate", "subcutaneousFat", "metabolicAge", "obesityLevel"]
+              "supportedVitals": [
+                "bodyComposition",
+                "weight",
+                "bodyFat",
+                "bmi",
+                "muscleMass",
+                "boneMass",
+                "bodyWater",
+                "bmr",
+                "visceralFat",
+                "proteinRate",
+                "subcutaneousFat",
+                "metabolicAge",
+                "obesityLevel"
+              ],
+              "manufacturerName": "Tracky",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/health-sense-logo.jpg",
+              "companyIdentifier": 11719,
+              "template": 12
             },
             {
                   "name": "QN-Scale",
@@ -1121,7 +1440,9 @@
               "displayName": "Omron SC-150 Digital Scale",
               "noOfUsers": 1,
               "category": 2,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HN-300T2-Z",
               "deviceGroupId": 1,
               "deviceIncludedGroupId": 274,
@@ -1136,16 +1457,23 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 10,
               "deviceDetails": "deviceDetails_sc_150",
-              "supportedVitals": ["weight"]
+              "supportedVitals": [
+                "weight"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 10
             },
             {
               "name": "HN-300T2 Intelli IT",
               "displayName": "Omron HN300T2 Intelli IT Smart Bathroom Scales",
               "noOfUsers": 1,
               "category": 2,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HN-300T2-EBK",
               "deviceGroupId": 1,
               "deviceIncludedGroupId": 530,
@@ -1160,9 +1488,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 7,
               "deviceDetails": "deviceDetails_hn_300t2_intelli_it",
-              "supportedVitals": ["weight", "bmi"]
+              "supportedVitals": [
+                "weight",
+                "bmi"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 7
             }
           ]
         }
@@ -1186,7 +1520,9 @@
               "displayName": "OMRON P300 Intelli IT Finger Pulse Oximeter",
               "noOfUsers": 1,
               "category": 4,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "HPO-300T",
               "deviceGroupId": 6,
               "deviceIncludedGroupId": 2,
@@ -1201,9 +1537,16 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 6,
               "deviceDetails": "deviceDetails_p300_intelli_it",
-              "supportedVitals": ["oximeter", "bloodOxygenSaturation", "pulseRate"]
+              "supportedVitals": [
+                "oximeter",
+                "bloodOxygenSaturation",
+                "pulseRate"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 6
             }
           ]
         },
@@ -1219,7 +1562,9 @@
               "displayName": "Tracky Pulse Oximeter",
               "noOfUsers": 1,
               "category": 4,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "TR-500G",
               "deviceGroupId": 6,
               "deviceIncludedGroupId": 2,
@@ -1234,9 +1579,16 @@
               "externalVideoLink": "",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 6,
               "deviceDetails": "deviceDetails_p300_intelli_it",
-              "supportedVitals": ["oximeter", "bloodOxygenSaturation", "pulseRate"]
+              "supportedVitals": [
+                "oximeter",
+                "bloodOxygenSaturation",
+                "pulseRate"
+              ],
+              "manufacturerName": "Tracky",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Dr+trust+Logo.png",
+              "companyIdentifier": 11719,
+              "template": 6
             }
           ]
         }
@@ -1260,7 +1612,9 @@
               "displayName": "Omron Eco Temp Intelli IT (MC-280B) Digital Thermometer",
               "noOfUsers": 1,
               "category": 5,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "MC-280B-E",
               "deviceGroupId": 19,
               "deviceIncludedGroupId": 640,
@@ -1275,9 +1629,14 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 5,
               "deviceDetails": "deviceDetails_eco_temp_intelli_it",
-              "supportedVitals": ["bodyTemperature"]
+              "supportedVitals": [
+                "bodyTemperature"
+              ],
+              "manufacturerName": "Omron Healthcare Co., LTD",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Omron+Logo.png",
+              "companyIdentifier": 526,
+              "template": 5
             }
           ]
         },
@@ -1340,7 +1699,9 @@
               "displayName": "Roche Accuchek Active Glucometer",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "meter+39576834",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 39576834,
@@ -1355,16 +1716,24 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 3,
               "deviceDetails": "deviceDetails_meter_plus",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Roche Diabetes Care AG",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 368,
+              "template": 3
             },
             {
               "name": "meter+39588394",
               "displayName": "Roche Accuchek Active Glucometer",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "meter+39588394",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 39588394,
@@ -1379,9 +1748,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 3,
               "deviceDetails": "deviceDetails_meter_plus",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Roche Diabetes Care AG",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 368,
+              "template": 3
             }
           ]
         },
@@ -1397,7 +1772,9 @@
               "displayName": "FORA D40D 2-in-1 Monitor – Blood Glucose & BP",
               "noOfUsers": 4,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "FORA_D40_BG",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -1412,9 +1789,16 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
-              "supportedVitals": ["bloodGlucose", "bloodPressure", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "bloodPressure",
+                "glucose"
+              ],
+              "manufacturerName": "Fora Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 1138,
+              "template": 13
             }
           ]
         },
@@ -1430,7 +1814,9 @@
               "displayName": "Andesfit ADF B27 Glucometer",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "ADF-B27",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 0,
@@ -1445,9 +1831,15 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 15,
               "deviceDetails": "deviceDetails_adf_b27",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "AndesFit",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 11718,
+              "template": 15
             }
           ]
         },
@@ -1463,7 +1855,9 @@
               "displayName": "Ascensia CONTOUR® PLUS ELITE",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "Contour7926H",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -1478,16 +1872,24 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Ascensia Diabetes Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 359,
+              "template": 13
             },
             {
               "name": "Contour7951H",
               "displayName": "Ascensia CONTOUR® CARE",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "Contour7951H",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -1502,16 +1904,24 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Ascensia Diabetes Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 359,
+              "template": 13
             },
             {
               "name": "Contour9267H",
               "displayName": "Ascensia CONTOUR® PLUS",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "Contour9267H",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -1526,16 +1936,24 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Ascensia Diabetes Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 359,
+              "template": 13
             },
             {
               "name": "Contour7976H",
               "displayName": "Ascensia CONTOUR® FIT",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "Contour7976H",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -1550,16 +1968,24 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Ascensia Diabetes Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 359,
+              "template": 13
             },
             {
               "name": "Contour7902H",
               "displayName": "Ascensia CONTOUR® NEXT GEN",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "Contour7902H",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -1574,16 +2000,24 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Ascensia Diabetes Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 359,
+              "template": 13
             },
             {
               "name": "Contour7922H",
               "displayName": "Ascensia CONTOUR® NEXT",
               "noOfUsers": 1,
               "category": 6,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "Contour7922H",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 337,
@@ -1598,9 +2032,15 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
-              "supportedVitals": ["bloodGlucose", "glucose"]
+              "supportedVitals": [
+                "bloodGlucose",
+                "glucose"
+              ],
+              "manufacturerName": "Ascensia Diabetes Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 359,
+              "template": 13
             }
           ]
         }
@@ -1624,7 +2064,9 @@
               "displayName": "FORA Test N’GO Advance Voice Cholesterol Kit",
               "noOfUsers": 1,
               "category": 14,
-              "countriesSupported": ["IND"],
+              "countriesSupported": [
+                "IND"
+              ],
               "deviceId": "TNG_ADVANCE",
               "deviceGroupId": 0,
               "deviceIncludedGroupId": 0,
@@ -1639,9 +2081,14 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 14,
               "deviceDetails": "deviceDetails_tng_advance",
-              "supportedVitals": ["cholesterol"]
+              "supportedVitals": [
+                "cholesterol"
+              ],
+              "manufacturerName": "Fora Care",
+              "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+              "companyIdentifier": 1138,
+              "template": 14
             }
           ]
         }

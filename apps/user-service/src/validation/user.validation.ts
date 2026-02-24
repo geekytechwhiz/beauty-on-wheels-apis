@@ -328,6 +328,7 @@ export const assignedPackagesSchema = z.object({
 export const updateRecentInviteSchema = z.object({
   userId: z.string().min(1, 'userId is required').optional(),
   organizationId: z.string().min(1, 'organizationId is required').optional(),
+  patientId: z.string().min(1, 'patientId is required').optional(),
   email: z.boolean().optional(),
   sms: z.boolean().optional(),
 });

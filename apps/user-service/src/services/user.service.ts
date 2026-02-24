@@ -1046,10 +1046,7 @@ export class UserService {
   }
 
   async updateRecentInvite(
-    userId: string,
-    organizationId: string,
-    options: { email?: boolean; sms?: boolean },
-    correlationId?: string,
+userId: string, organizationId: string, patientId: string, options: { email?: boolean; sms?: boolean; }, correlationId?: string,
   ): Promise<{
     email: boolean;
     emailUpdatedAt: string;
@@ -1057,17 +1054,17 @@ export class UserService {
     smsUpdatedAt: string;
   }> {
     const timer = createPerformanceTimer(baseLogger, 'updateRecentInvite', correlationId);
-    const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId });
+    const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, patientId });
     logger.info({ event: 'service_updateRecentInvite_start', options });
 
     try {
       // Verify user exists
-      const existing = await this.repository.getUser(userId, organizationId);
+      const existing = await this.repository.getUser(patientId, organizationId);
       if (!existing) {
-        throw new UserNotFoundError(userId);
+        throw new UserNotFoundError(patientId);
       }
 
-      const result = await this.repository.updateRecentInvite(userId, organizationId, options);
+      const result = await this.repository.updateRecentInvite(patientId, organizationId, options);
       timer.end();
       logger.info({ event: 'service_updateRecentInvite_success', result });
       return result;

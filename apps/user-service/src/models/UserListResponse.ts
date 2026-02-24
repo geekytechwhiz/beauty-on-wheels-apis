@@ -410,6 +410,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     reporterName?: string;
     reporterProfilePic?: string;
     doctorName?: string;
+    doctor?: string;
     deleteFlag?: null;
     postalCode?: string;
     inviteDetails?: {

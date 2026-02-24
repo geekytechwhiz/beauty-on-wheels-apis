@@ -46,6 +46,18 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
     };
   }
   
+  export function mapToPatientListItem(item: Record<string, unknown>): UserItem {
+    const base = mapToUserItem(item);
+    return {
+      ...base,
+      doctor: item.doctorName != null
+        ? String(item.doctorName)
+        : item.reporterName != null
+          ? String(item.reporterName)
+          : undefined,
+    };
+  }
+
   export function mapToUserItem(item: Record<string, unknown>): UserItem {
     return {
       ...item,

@@ -58,7 +58,7 @@ export class UserServiceClient {
     });
 
     try {
-      const response = await this.client.get<{ data: User }>('/internal/users/by-external-id', {
+      const response = await this.client.get<{ data: User }>(`/user/organization/${params.tenantId}/${params.externalId}`, {
         params: {
           provider: params.provider,
           external_id: params.externalId,
@@ -138,7 +138,7 @@ export class UserServiceClient {
 
     try {
       const response = await this.client.post<{ data: User }>(
-        '/internal/users',
+        '/user',
         {
           external_id: payload.externalId,
           provider: payload.provider,

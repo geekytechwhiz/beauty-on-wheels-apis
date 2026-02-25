@@ -1,4 +1,10 @@
-import { GetCommand, PutCommand, UpdateCommand, QueryCommand, ScanCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb';
+import {
+  GetCommand,
+  PutCommand,
+  UpdateCommand,
+  QueryCommand,
+  type QueryCommandInput,
+} from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import {
   createLogger,
@@ -1864,51 +1870,6 @@ export class UserRepository {
       doctorId,
       count: result.length,
     });
-    return result;
-  }
-
-  /**
-   * List all doctor IDs assigned to a patient using ASSIGNEE# mapping.
-   * Link records: pk=USER#doctorId, sk=ASSIGNEE#patientId, sk1=ACTIVE.
-   * Returns active assignee links only (sk1 <> INACTIVE).
-   */
-  async listAssignedDoctorIdsForPatient(patientId: string): Promise<{ doctorId: string; organizationID?: string }[]> {
-    const logger = createChildLogger(baseLogger, { patientId });
-    const assigneeSk = `ASSIGNEE#${patientId}`;
-    const result: { doctorId: string; organizationID?: string }[] = [];
-    let lastKey: Record<string, unknown> | undefined;
-
-    do {
-      const params: any = {
-        TableName: USER_TABLE_NAME,
-        FilterExpression: '#sk = :sk AND (attribute_not_exists(#sk1) OR #sk1 <> :inactive)',
-        ExpressionAttributeNames: { '#sk': 'sk', '#sk1': 'sk1' },
-        ExpressionAttributeValues: {
-          ':sk': assigneeSk,
-          ':inactive': 'INACTIVE',
-        },
-      };
-      if (lastKey) params.ExclusiveStartKey = lastKey;
-
-      const response = await docClient.send(new ScanCommand(params));
-      const items = response.Items ?? [];
-      lastKey = response.LastEvaluatedKey;
-
-      for (const item of items) {
-        const pk = (item.pk as string) || '';
-        if (pk.startsWith('USER#')) {
-          const doctorId = pk.slice(5);
-          if (doctorId) {
-            result.push({
-              doctorId,
-              organizationID: (item as any).organizationID ?? (item as any).organizationId,
-            });
-          }
-        }
-      }
-    } while (lastKey);
-
-    logger.info({ event: 'listAssignedDoctorIdsForPatient_success', patientId, count: result.length });
     return result;
   }
 

@@ -91,6 +91,31 @@ export interface OrgDevice {
   modifiedDate: number;
 }
 
+/** DynamoDB item shape for ORG_DEVICES (full record with all extended fields). */
+export interface OrgDeviceItem {
+  pk: string;
+  sk: string;
+  category: string;
+  countriesSupported: string[];
+  createdDate: number;
+  deviceDetails: string;
+  deviceId: string;
+  deviceImage: string;
+  displayName: string;
+  enabled: boolean;
+  isAutoSyncSupported: boolean;
+  manufacturerImage: string;
+  manufacturerName: string;
+  modifiedDate: number;
+  name: string;
+  organizationID: string;
+  sk1: string;
+  sk2: string;
+  sk3: string;
+  supportedVitals: string[];
+  template: number;
+}
+
 export interface DeviceRecommendation {
   pk: string; // RECOMMEND
   sk: string; // ${deviceId.toUpperCase().split(' ').join('_')}#${patientUserId}
@@ -126,3 +151,23 @@ export interface GlobalDevice {
   countriesSupported?: string[];
   [key: string]: unknown;
 }
+
+export type OrganizationDevice = {
+  
+  category: string;
+  countriesSupported: string[];
+  createdDate: number; // epoch timestamp
+  deviceDetails: string;
+  deviceId: string;
+  deviceImage: string;
+  displayName: string;
+  enabled: boolean;
+  isAutoSyncSupported: boolean;
+  manufacturerImage: string;
+  manufacturerName: string;
+  modifiedDate: number; // epoch timestamp
+  name: string;
+  organizationID: string; 
+  supportedVitals: string[];
+  template: number;
+};

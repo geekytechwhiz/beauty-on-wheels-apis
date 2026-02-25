@@ -52,7 +52,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     });
 
     // Scenario 1: Return only device category names
-    if (action === 'deviceCategory') {
+    if (action?.toLowerCase() === 'devicecategory') {
       logger.info({ event: 'deviceList_category_names' });
       
       // Get all devices from DynamoDB
@@ -82,11 +82,11 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     }
 
     // Scenario 2: Return devices for organization (ROOT or specific org)
-    if (action === 'organization' && organizationID) {
+    if (action?.toLowerCase() === 'organization' && organizationID) {
       logger.info({ event: 'deviceList_organization', organizationID, searchValue });
       
       // Get all devices from DynamoDB
-      let allDevices = await globalDeviceRepository.getDevicesByCategory();
+      let allDevices = await globalDeviceRepository.getDevicesByOrganization(organizationID);
       
       // Filter enabled devices
       allDevices = allDevices.filter((d) => d.enabled === true);
@@ -126,7 +126,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     }
 
     // Scenario 3: Return devices for a specific organization (patient action)
-    if (action === 'patient' && organizationID) {
+    if (action?.toLowerCase() === 'patient' && organizationID) {
       logger.info({ event: 'deviceList_patient', organizationID });
       
       // Get organization-specific devices from DynamoDB
@@ -166,7 +166,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     }
 
     // Scenario 4: Return recommended devices for a patient
-    if (action === 'recommend' && patientUserId) {
+    if (action?.toLowerCase() === 'recommend' && patientUserId) {
       logger.info({ event: 'deviceList_recommend', patientUserId });
       
       // Get patient recommendations from DynamoDB
@@ -181,7 +181,8 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
       const deviceList = recommendations.map((recommendation: any) => {
         // Try to get full device details from global repository
         const globalDevice = deviceMap.get(recommendation.deviceId);
-        
+        const referredBy = recommendation.doctorData?.doctorName || '';
+        const referredOn = recommendation.doctorData?.recommendTime;
         return {
           category: recommendation.category || globalDevice?.category,
           deviceId: recommendation.deviceId,
@@ -196,6 +197,8 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
           supportedVitals: recommendation.supportedVitals || globalDevice?.supportedVitals || [],
           status: recommendation.status, // Include recommendation status (UNPAIRED/PAIRED)
           doctorData: recommendation.doctorData, // Include doctor information
+          referredBy: referredBy,
+          referredOn: referredOn,
         };
       });
       

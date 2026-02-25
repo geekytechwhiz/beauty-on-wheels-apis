@@ -1,0 +1,144 @@
+service: sso-integration
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-sso-integration-bucket
+    serverSideEncryption: AES256
+  memorySize: 256
+  timeout: 30
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    SERVICE_NAME: ${self:service}
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, ''}
+    HMS_BASE_URL: ${env:HMS_BASE_URL, 'https://qahms.zmtrutech.com'}
+    HMS_API_KEY: ${env:HMS_API_KEY, ''}
+    HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
+    USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
+    USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, ''}
+    ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
+    ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, ''}
+    RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
+    RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminInitiateAuth
+        - cognito-idp:AdminCreateUser
+        - cognito-idp:AdminSetUserPassword
+        - cognito-idp:AdminUpdateUserAttributes
+        - cognito-idp:AdminGetUser
+      Resource:
+        - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node20
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - '@aws-sdk/client-cognito-identity-provider'
+  dotenv:
+    logging: false
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
+functions:
+  health:
+    handler: src/handlers/health.handler
+    description: Health check endpoint
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
+  ssoLaunch:
+    handler: src/handlers/sso/launch.handler
+    description: SSO launch endpoint for HMS integration
+    timeout: 30
+    events:
+      - http:
+          path: /sso/launch
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+
+  # ---------------------------------------------------------------------------
+  # Appointments Endpoints (Phase 1)
+  # ---------------------------------------------------------------------------
+
+  appointmentsToday:
+    handler: src/handlers/appointments/todays.handler
+    description: Get today's appointments for the authenticated doctor
+    timeout: 15
+    events:
+      - http:
+          path: /appointments/today
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          # TODO: Add Cognito authorizer once JWT flow is tested
+          # authorizer:
+          #   type: COGNITO_USER_POOLS
+          #   authorizerId:
+          #     Ref: CognitoAuthorizer
+
+  patientEMR:
+    handler: src/handlers/appointments/patient-emr.handler
+    description: Get patient EMR summary for last 3 visits
+    timeout: 15
+    events:
+      - http:
+          path: /appointments/{patientId}/emr
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          request:
+            parameters:
+              paths:
+                patientId: true
+          # TODO: Add Cognito authorizer once JWT flow is tested
+          # authorizer:
+          #   type: COGNITO_USER_POOLS
+          #   authorizerId:
+          #     Ref: CognitoAuthorizer
+

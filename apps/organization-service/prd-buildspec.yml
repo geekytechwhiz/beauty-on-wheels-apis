@@ -5,6 +5,7 @@ env:
     STAGE: 'prd'
     DEPLOYMENT_BUCKET: 'prd-mvx-organization-service-bucket'
     STACK_NAME: 'prd-organization-service'
+    SEED_META: ''
 
 phases:
   install:
@@ -49,7 +50,7 @@ phases:
         grep 'S3Key:' packaged.yaml | awk '{print $2}' \
           | while read key; do
               printf " → %-80s " "$key"
-              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/prd/null 2>&1; then
+              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
                 echo "FOUND"
               else
                 echo "MISSING!"
@@ -75,6 +76,24 @@ phases:
 
   post_build:
     commands:
+      - |
+        if [ "$SEED_META" = "true" ]; then
+          cd "$CODEBUILD_SRC_DIR/apps/organization-service"
+          export ORGANIZATION_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/ORGANIZATION_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
+          [ -z "$ORGANIZATION_TABLE" ] && export ORGANIZATION_TABLE="organization-table-$STAGE"
+          echo "🌱 Seeding org vitals metadata into $ORGANIZATION_TABLE (stage=$STAGE)"
+          DATA_FILE="$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/data/org-vitals.json"
+          if [ ! -f "$DATA_FILE" ]; then
+            echo "ERROR: Org vitals data not found: $DATA_FILE (ensure src/utils/mitadata/data/org-vitals.json is committed)"
+            exit 1
+          fi
+          node "$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/insert-org-vitals.js" --env "$STAGE" || {
+            echo "⚠️ Org vitals seed failed (check CodeBuild role has dynamodb:PutItem on $ORGANIZATION_TABLE)"
+            exit 1
+          }
+        else
+          echo "⏭️ Org vitals seed skipped (SEED_META not true)."
+        fi
       - echo "✅ Build done, artifacts ready in packaged.yaml"
 
 artifacts:

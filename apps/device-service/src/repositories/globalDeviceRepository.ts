@@ -1,6 +1,6 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { GlobalDevice } from '../models';
+import {  GlobalDevice, OrganizationDevice } from '../models';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { DeviceNotFoundError, DeviceAlreadyDeletedError } from '../utils/errors';
 
@@ -126,6 +126,28 @@ export class GlobalDeviceRepository {
     }
   }
 
+
+  async getDevicesByOrganization(organizationId: string): Promise<OrganizationDevice[]> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+
+    const normalizedpk = organizationId.toUpperCase() === 'ROOT' ? 'DEVICE_LIST' : `ORG_DEVICES#${organizationId}`;
+ 
+    try {
+      const result = await this.docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: 'pk = :pk',
+          ExpressionAttributeValues: {
+            ':pk': normalizedpk,
+          },
+        }),
+      );
+      return result.Items && result.Items.length > 0 ? (result.Items as OrganizationDevice[]) : [];
+    } catch (err) {
+      logger.error({ event: 'get_devices_by_organization_error', err: serializeError(err) });
+      throw err;
+    }
+  } 
   /**
    * Get device by deviceId
    * Note: sk3 is not a key attribute, so we query by pk and filter by sk3

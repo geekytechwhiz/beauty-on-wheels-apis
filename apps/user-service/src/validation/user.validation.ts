@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FilterType } from '../types/feature-types';
 
 export const createUserSchema = z.object({
   userInfo: z.object({
@@ -20,7 +21,9 @@ export const createUserSchema = z.object({
     licenseNumber: z.string().optional(),
     contact: z.object({
       email: z.union([
-        z.string().email(),
+        z.string()
+          .transform((val) => (typeof val === 'string' ? val.replace(/\^@/, '@') : val))
+          .pipe(z.string().email()),
         z.literal(''),
         z.null(),
       ]).optional(),
@@ -288,14 +291,27 @@ export const assignDoctorSchema = z.object({
   { message: 'Sender (doctor) and receiver (patient) must be different users', path: ['receiver'] },
 );
 
-/** List patients assigned to a doctor. Matches legacy doctor-patient-list API body. */
+/** List patients assigned to a doctor or all patients in organization (front desk view).
+ * Supports query parameters for microservice standard:
+ * - doctorId: optional, if provided returns doctor's patients
+ * - organizationId: required
+ * - showConsultations: optional boolean, if true includes previouslyConsulted field
+ * - showActiveAppointment: optional boolean, if true returns only patients with active appointments
+ */
+export const listDoctorPatientsQuerySchema = z.object({
+  filter: z.nativeEnum(FilterType)
+  .transform((val) => val.toLowerCase()), 
+  organizationID: z.string().min(1, 'organizationId is required'),
+  userID: z.string().optional(),
+  showActiveAppointment: z.boolean().optional(),
+});
+
+
+/** Legacy POST body schema for backward compatibility */
 export const listDoctorPatientsSchema = z.object({
   organizationId: z.string().min(1, 'organizationId is required'),
   doctorId: z.string().optional(),
-  showActiveAppointment: z.boolean().optional(),
-}).refine((data) => !!data.doctorId || data.showActiveAppointment === true, {
-  path: ['doctorId'],
-  message: 'doctorId is required when showActiveAppointment is not true',
+  showConsultations: z.boolean().optional(),
 });
 
 /** PUT assigned-packages: full replace of assignedPackages and assignedPackagesName for user in org. */
@@ -309,3 +325,10 @@ export const assignedPackagesSchema = z.object({
   assignedPackagesName: z.array(z.string()).default([]),
 });
 
+export const updateRecentInviteSchema = z.object({
+  userId: z.string().min(1, 'userId is required').optional(),
+  organizationId: z.string().min(1, 'organizationId is required').optional(),
+  patientId: z.string().min(1, 'patientId is required').optional(),
+  email: z.boolean().optional(),
+  sms: z.boolean().optional(),
+});

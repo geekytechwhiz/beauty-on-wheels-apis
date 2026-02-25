@@ -18,7 +18,7 @@ export interface User {
   bloodGroup?: string;
   changePassword?: boolean;
   code?: string;
-  city?: string;
+  roleName: string;
   chiefMedicalIssue?: string;
   cloudOpt?: string;
   country?: string;
@@ -43,6 +43,12 @@ export interface User {
   heightInFeet?: string;
   insuranceDetails?: Record<string, unknown>;
   inviteCode?: string;
+  inviteDetails?: {
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  };
   invitedBy?: string;
   invitedID?: string;
   isActive?: boolean;
@@ -96,6 +102,7 @@ export interface User {
   state?: string;
   stateCode?: string;
   street?: string;
+  city?: string;
   userCat?: string[];
   userID: string;
   userTimeZone?: string;
@@ -133,6 +140,12 @@ export interface UserResponse {
   city: string;
   roleType: string;
   isActive: boolean;
+  inviteDetails?: {
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  };
   accountType: string;
   emailAddress: string;
   userID: string;
@@ -143,7 +156,7 @@ export interface UserResponse {
   postalCode: string;
   sk1: string;
   status: boolean;
-  createdAt: number;
+  createdAt: number; 
   roleName: string;
   definedRoleCode: string;
   specialty: string;

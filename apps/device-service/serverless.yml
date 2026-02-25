@@ -1,3 +1,5 @@
+# CodeBuild (when SEED_META=true) runs scripts/device-list/insert-device-list.js and needs
+# dynamodb:PutItem/BatchWriteItem on device-table-<stage>. See CODEBUILD-IAM.md for the CodeBuild role policy.
 service: device-service
 
 frameworkVersion: '3.x'
@@ -161,6 +163,14 @@ custom:
     prd: warn
 
 functions:
+  health:
+    handler: src/handlers/health.handler
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
   deviceRegister:
     handler: src/handlers/deviceRegister.handler
     events:
@@ -324,8 +334,15 @@ functions:
           method: get
           cors: true
 
+getOrganizationDevice:
+    handler: src/handlers/getOrganizationDevice.handler
+    events:
+      - http:
+          path: devices/org/{organizationId}
+          method: get
+          cors: true
   # Device Metadata API
-  deviceMetadataUpdate:
+deviceMetadataUpdate:
     handler: src/handlers/deviceMetadataUpdate.handler
     events:
       - http:
@@ -334,7 +351,7 @@ functions:
           cors: true
 
   # Device Reading Timestamp API (literal 'reading-timestamp' avoids API Gateway sibling variable conflict with devices/{deviceId})
-  deviceReadingTimestampUpdate:
+deviceReadingTimestampUpdate:
     handler: src/handlers/deviceReadingTimestampUpdate.handler
     events:
       - http:
@@ -343,7 +360,7 @@ functions:
           cors: true
 
   # Device Files API
-  deviceFileUpload: 
+deviceFileUpload: 
     handler: src/handlers/deviceFileUpload.handler
     events:
       - http:

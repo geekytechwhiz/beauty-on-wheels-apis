@@ -106,6 +106,46 @@ export class CognitoService {
   }
 
   /**
+   * Get custom user attributes (userID, organizationID) from Cognito User Pool by username (e.g. JWT sub).
+   * Used when authorizer or JWT claims do not provide these (e.g. for searchFnF).
+   */
+  async getUserAttributes(username: string): Promise<{ userID?: string; organizationID?: string }> {
+    if (!this.userPoolId) {
+      logger.debug({
+        event: 'cognito_get_user_attrs_skipped',
+        message: 'Cognito User Pool ID not configured',
+      });
+      return {};
+    }
+    try {
+      const cmd = new AdminGetUserCommand({
+        UserPoolId: this.userPoolId,
+        Username: username,
+      });
+      const res = await this.client.send(cmd);
+      const attrs = res.UserAttributes ?? [];
+      const getAttr = (name: string) => attrs.find((a) => a.Name === name)?.Value;
+      return {
+        userID: getAttr('custom:userID') ?? undefined,
+        organizationID: getAttr('custom:organizationID') ?? undefined,
+      };
+    } catch (err) {
+      if (err instanceof UserNotFoundException) {
+        logger.debug({ event: 'cognito_get_user_attrs_not_found', username });
+        return {};
+      }
+      logger.warn({
+        event: 'cognito_get_user_attrs_error',
+        username,
+        userPoolId: this.userPoolId,
+        err: serializeError(err),
+        message: 'Failed to get user attributes from Cognito',
+      });
+      return {};
+    }
+  }
+
+  /**
    * Create a new user in Cognito User Pool
    * @param email - User email address
    * @throws Error if user creation fails
@@ -125,6 +165,7 @@ export class CognitoService {
         userID?: string;
         organizationID?: string;
         role?: string;
+        roleName: string;
         permissions?: string;
       };
     }

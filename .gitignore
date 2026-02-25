@@ -54,6 +54,8 @@ services/partner-integration/.esbuild
 services/partner-registry/.esbuild
 services/fhir-gateway/.esbuild
 services/authorizer-service/.esbuild
+services/sso-integration/.esbuild
+services/sso-integration/.env
 
 # Serverless build artifacts
 **/.serverless/
@@ -73,4 +75,5 @@ api-endpoints-export.xlsx
 *.xlsx
 
 myVitalRx/
-scripts/    
+# Only ignore top-level scripts/ (e.g. script outputs). App-specific scripts (e.g. device-service seed data) stay tracked.
+/scripts/    

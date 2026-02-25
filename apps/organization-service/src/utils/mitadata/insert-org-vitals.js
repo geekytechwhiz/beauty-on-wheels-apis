@@ -105,7 +105,7 @@ async function insertOrgVitalsMetadata(options) {
 }
 
 // ---------------------------------------------------------------------------
-// CLI
+// CLI — table name: ORGANIZATION_TABLE (from serverless) > --table > organization-table-<env>
 // ---------------------------------------------------------------------------
 
 const DEFAULT_PROFILE = 'ci-user';
@@ -116,8 +116,8 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const out = {
     profile: process.env.AWS_PROFILE || DEFAULT_PROFILE,
-    table: null,
-    env: DEFAULT_ENV,
+    table: process.env.ORGANIZATION_TABLE || null,
+    env: process.env.STAGE || process.env.SERVERLESS_STAGE || DEFAULT_ENV,
     dryRun: false,
     dataPath: path.join(__dirname, 'data', 'org-vitals.json'),
   };

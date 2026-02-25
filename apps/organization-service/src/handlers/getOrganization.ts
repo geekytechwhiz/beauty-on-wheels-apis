@@ -85,17 +85,21 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
               const user = await userRepository.getUser(organizationId, adminId, authHeader);
               if (!user) return adminDetail;
               const mergedAddress = adminDetail?.adminAddress ?? buildAdminAddress(user);
+              const adminRoleValue = adminDetail?.adminRole ?? user?.adminRole ?? user?.role;
+              const roleNameValue = adminDetail?.roleName ?? user?.roleName ?? user?.role;
+              const postalCodeValue = adminDetail?.postalCode ?? user?.postalCode ?? user?.zip;
               return {
                 ...(mergedAddress && { adminAddress: mergedAddress }),
                 adminId: adminDetail?.adminId ?? adminId,
                 adminName: adminDetail?.adminName ?? user?.fullName ?? user?.name,
-                ...(adminDetail?.adminRole && { adminRole: adminDetail.adminRole }),
+                ...(adminRoleValue && { adminRole: adminRoleValue }),
                 emailAddress: adminDetail?.emailAddress ?? user?.emailAddress,
                 namePrefix: adminDetail?.namePrefix ?? user?.namePrefix,
                 phoneCode: adminDetail?.phoneCode ?? user?.phoneCode,
                 phoneNumber: adminDetail?.phoneNumber ?? user?.phoneNumber,
+                ...(postalCodeValue && { postalCode: postalCodeValue }),
                 profilePic: adminDetail?.profilePic ?? user?.profilePic ?? '',
-                ...(adminDetail?.roleName && { roleName: adminDetail.roleName }),
+                ...(roleNameValue && { roleName: roleNameValue }),
               };
             } catch (err) {
               logger.warn({ event: 'getOrganization_admin_user_failed', adminId, err: serializeError(err) });
@@ -296,21 +300,17 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
           event.headers?.Authorization ||
           event.headers?.authorization ||
           event.headers?.AUTHORIZATION;
-        const storedCodes = vitalCodesFromOrgSupportedVitals(organization.supportedVitals);
-        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'patient');
-        const deviceCodes: string[] = [];
-        if (Array.isArray(deviceItems)) {
-          for (const item of deviceItems) {
-            const vitals = item?.supportedVitals;
-            if (Array.isArray(vitals)) {
-              for (const code of vitals) {
-                if (typeof code === 'string' && code.trim()) deviceCodes.push(code.trim());
-              }
-            }
-          }
-        }
-        const allCodes = [...new Set([...storedCodes, ...deviceCodes])];
-        transformed.supportedVitals = buildSupportedVitalsArray(allCodes);
+       
+        const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'organization');
+        
+          const uniqueVitals = Array.from(
+            new Set(
+              deviceItems?.flatMap(device => device.supportedVitals ?? [])
+            )
+          );
+       
+        transformed.supportedVitals = buildSupportedVitalsArray(uniqueVitals);
+        logger.info({ event: 'getOrganization_supported_vitals_success', supportedVitals: transformed.supportedVitals });
       } catch (err) {
         logger.warn({ event: 'getOrganization_supported_vitals_failed', err: serializeError(err) });
         transformed.supportedVitals = [];

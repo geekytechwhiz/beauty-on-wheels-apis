@@ -5,11 +5,14 @@ env:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-user-service-bucket'
     STACK_NAME: 'stg-user-service'
+    # Prevent esbuild "The service was stopped" / "write EPIPE" (OOM) during serverless package.
+    # Use CodeBuild MEDIUM (7GB) or LARGE (15GB). serverless.yml limits esbuild concurrency and disables sourcemaps for nvstg.
+    NODE_OPTIONS: '--max-old-space-size=4096'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
       - npm install -g serverless@3 --force
       - npm install --legacy-peer-deps
@@ -17,7 +20,6 @@ phases:
   build:
     commands:
       - cd apps/user-service
-      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
       - npx serverless package --stage "$STAGE" --package .serverless
 
       # 2) select create vs update s3 keys
@@ -50,7 +52,7 @@ phases:
         grep 'S3Key:' packaged.yaml | awk '{print $2}' \
           | while read key; do
               printf " → %-80s " "$key"
-              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/stg/null 2>&1; then
+              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
                 echo "FOUND"
               else
                 echo "MISSING!"

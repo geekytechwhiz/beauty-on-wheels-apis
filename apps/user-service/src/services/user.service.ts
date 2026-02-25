@@ -40,6 +40,7 @@ export class UserService {
 
   async createUser(
     data: Partial<User>,
+    roleName: string,
     organizationID?: string,
     invitedBy?: string,
     correlationId?: string,
@@ -54,7 +55,6 @@ export class UserService {
     }
     const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID, organizationID, invitedBy });
     logger.info({ event: 'service_createUser_start' });
-
     try {
       if (!organizationID) throw new Error('organizationID is required');
       data.organizationID = organizationID;
@@ -67,12 +67,7 @@ export class UserService {
         throw new Error('Organization is not available');
       }
 
-      // Check if user already exists (must pass organizationId since getUser requires it)
-      // const existing = await this.repository.getUser(data.userID, organizationID);
-      // if (existing) {
-      //   throw new UserAlreadyExistsError(data.userID);
-      // }
-
+ 
       // Normalize legacy aliases
       if (!data.emailAddress && (data as any).email) data.emailAddress = (data as any).email;
       if (!data.phoneNumber && (data as any).phone_number) data.phoneNumber = String((data as any).phone_number).trim();
@@ -111,7 +106,10 @@ export class UserService {
       const phoneNumberForDB = rawPhone || '';
 
       const userTypeUpper = String(data.userType || '').toUpperCase();
-
+      const allowedUserTypes = ['STAFF', 'USER', 'ADMIN', 'FNF'];
+      if (!allowedUserTypes.includes(userTypeUpper)) {
+        throw new Error(`Invalid user type ${userTypeUpper}, only ${allowedUserTypes.join(', ')} are allowed`);
+      }
       // STAFF: email required
       if (userTypeUpper === 'STAFF' && !normalizedEmail) {
         throw new Error('STAFF must have an email address');
@@ -178,6 +176,7 @@ export class UserService {
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
                 role: JSON.stringify(userRoleArray),
+                roleName: roleName,
                 permissions: JSON.stringify(permissionIds),
               },
             }
@@ -837,6 +836,7 @@ export class UserService {
 
     // Transform to match expected response structure - all string fields use safeString
     return {
+      userCat: Array.isArray(user.userCat) ? user.userCat : [],
       userID: this.safeString(user.userID),
       emailVerified: this.safeBoolean(user.emailVerified),
       phoneVerified: this.safeBoolean(user.phoneVerified),
@@ -1045,6 +1045,36 @@ export class UserService {
     }
   }
 
+  async updateRecentInvite(
+userId: string, organizationId: string, patientId: string, options: { email?: boolean; sms?: boolean; }, correlationId?: string,
+  ): Promise<{
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  }> {
+    const timer = createPerformanceTimer(baseLogger, 'updateRecentInvite', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, userId, organizationId, patientId });
+    logger.info({ event: 'service_updateRecentInvite_start', options });
+
+    try {
+      // Verify user exists
+      const existing = await this.repository.getUser(patientId, organizationId);
+      if (!existing) {
+        throw new UserNotFoundError(patientId);
+      }
+
+      const result = await this.repository.updateRecentInvite(patientId, organizationId, options);
+      timer.end();
+      logger.info({ event: 'service_updateRecentInvite_success', result });
+      return result;
+    } catch (err) {
+      logger.error({ event: 'service_updateRecentInvite_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
   async activateDeactivateUser(
     organizationId: string,
     targetUserId: string,
@@ -1225,6 +1255,7 @@ export class UserService {
     }
 
     const doctor = await this.repository.getUser(doctorId, organizationId);
+    console.log("DOCTOR: ", doctor);
     const doctorName = doctor
       ? `${(doctor as any).namePrefix || ''} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
       : '';
@@ -1234,6 +1265,7 @@ export class UserService {
       const orgId = patientOrgId || organizationId;
       const user = await this.repository.getUser(patientId, orgId);
       if (!user) continue;
+      console.log("USER: ", user);
       const u = user as unknown as Record<string, unknown>;
       users.push({
         city: u.city || '',
@@ -1833,6 +1865,7 @@ export class UserService {
         isActive: userBasicDetails.isActive || false,
         emergencyContact: userBasicDetails.emergencyContact || {},
         insuranceDetails: userBasicDetails.insuranceDetails || {},
+        inviteDetails: userBasicDetails.inviteDetails || undefined,
         medicalHistory: userBasicDetails.medicalHistory || {},
         namePrefix: userBasicDetails.namePrefix || '',
         mfaEnabled: (userBasicDetails as any).mfaEnabled || false,
@@ -1854,6 +1887,7 @@ export class UserService {
         bio: userBasicDetails.bio || '',
         workingHours: userBasicDetails.workingHours || {},
         userType: userCategory,
+        userCat: Array.isArray(userBasicDetails.userCat) ? userBasicDetails.userCat : (userBasicDetails.userCat ? [userBasicDetails.userCat] : []),
         fnfDetails: fnfDetails ? {
           userID: userId,
           firstName: fnfDetails.firstName || '',

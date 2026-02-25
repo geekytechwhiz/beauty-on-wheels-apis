@@ -1,3 +1,5 @@
+# CodeBuild (when SEED_META=true) runs insert-org-vitals.js and needs dynamodb:PutItem on
+# organization-table-<stage>. See CODEBUILD-IAM.md for the CodeBuild role policy.
 service: organization-service
 
 frameworkVersion: '3'
@@ -14,7 +16,7 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
-    name: ${self:provider.stage}-mvx-organization-service-bucket
+    name: ${self:custom.deploymentBucket.${self:provider.stage}}
     serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
@@ -107,7 +109,7 @@ package:
 custom:
   userServiceUrl:
     dev: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
-    stg: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
+    stg: https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg/user
     prd: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
   roleApiUrl:
     dev: https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev
@@ -115,8 +117,12 @@ custom:
     prd: https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd
   deviceApiUrl:
     dev: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
-    stg: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
+    stg: https://0o74c84ww4.execute-api.us-east-1.amazonaws.com/stg
     prd: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
+  deploymentBucket:
+    dev: dev-mvx-organization-service-bucket
+    stg: nvstg-mvx-organization-service-bucket
+    prd: nvprd-mvx-organization-service-bucket
   esbuild:
     bundle: true
     minify: false
@@ -169,6 +175,7 @@ custom:
   logLevel:
     dev: debug
     stg: info
+    nvstg: info
     prd: warn
 
   cors:

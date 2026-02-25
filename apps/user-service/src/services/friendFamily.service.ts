@@ -1,4 +1,4 @@
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger } from '@api-hub/logger';
 import { UserRepository } from '../repositories/user.repository';
 import { FriendFamilyRepository, type FriendFamilyMapping } from '../repositories/friendFamily.repository';
 import { UserNotFoundError } from '../utils/errors';
@@ -11,6 +11,23 @@ const friendFamilyRepository = new FriendFamilyRepository();
 const ORG_NON_AVAILABLE = ['hold', 'on_hold', 'disabled', 'not_exist'];
 
 export class FriendFamilyService {
+
+// async function checkFriendFamilyLimit(userID: string): Promise<boolean> {
+//   const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
+//   if (inviterHasInvitee) {
+//     throw new Error('USER_CANNOT_INVITE_MORE_FNF');
+//   }
+//   return true;
+// }
+// async function checkFriendFamilyLimit(userID: string): Promise<boolean> {
+//   const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
+//   if (inviterHasInvitee) {
+//     throw new Error('USER_CANNOT_INVITE_MORE_FNF');
+//   }
+//   return true;
+// }
+
+
   /**
    * Search for existing user by email/phone in org to add as F&F.
    * Returns { success, invitedUser } when user found and can be added; errors when already linked or org invalid.
@@ -39,19 +56,26 @@ export class FriendFamilyService {
     if (ORG_NON_AVAILABLE.includes(status)) {
       throw new Error('ORGANIZATION_IS_ON_HOLD');
     }
-   
+
     const email = body.email?.trim() || '';
     const phone = (body.phone ?? '').toString().replace(/\s/g, '');
     if (!email && !phone) {
       throw new Error('EMAIL_OR_PHONE_REQUIRED');
     }
     const user = await userRepository.findUserByEmailOrPhoneInOrg(organizationID, email || undefined, phone || undefined);
+    
+    console.log("USER: ", user);
     if (!user) {
+      // User not found: check inviter F&F limit before handler runs invite flow
+      const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
+      if (inviterHasInvitee) {
+        throw new Error('USER_CANNOT_INVITE_MORE_FNF');
+      }
+      logger.info({ event: 'friend_family_search_user_not_found_invite_path' });
       return { success: false };
     }
-    console.log('User Details', JSON.stringify(user));
-    const memberId = (user as any).userID ?? (user as any).userId;
-     
+
+    const memberId = (user as any).userID ?? (user as any).userId; 
     // FriendModelData: email (EmailObjectModelData), phone (PhoneObjectModelData), invitedUser (string)
     const emailAddress = (user as any).emailAddress ?? '';
     const phoneNumber = (user as any).phoneNumber ?? '';
@@ -225,4 +249,20 @@ export class FriendFamilyService {
   async checkInvite(inviterId: string, inviteeId: string): Promise<FriendFamilyMapping | null> {
     return friendFamilyRepository.getUserMapping(inviterId, inviteeId);
   }
+  async checkFriendFamilyLimit(userID: string): Promise<boolean> {
+    const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
+    if (inviterHasInvitee) {
+      throw new Error('USER_CANNOT_INVITE_MORE_FNF');
+    } 
+    // Invitee already linked to someone?
+    const inviteeInviterMapping = await friendFamilyRepository.checkFriendFamily(userID, true);
+    if (inviteeInviterMapping) {
+      const existingInviterId = inviteeInviterMapping.sk.split('#')[1];
+      if (existingInviterId === userID) {
+        throw new Error('USER_ALREADY_INVITED');
+      }
+      throw new Error('USER_ALREADY_INVITED_BY_SOMEONE');
+    }
+    return true;
+  } 
 }

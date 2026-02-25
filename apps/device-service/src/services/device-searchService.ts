@@ -1,18 +1,15 @@
-import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
+import { createChildLogger, createLogger } from '@api-hub/logger';
+import { DeviceRecommendation, GlobalDevice } from '../models';
+import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository'; 
 import { RecommendationRepository } from '../repositories/recommendationRepository';
-import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { OrgDevice, DeviceRecommendation, GlobalDevice } from '../models';
 
 const baseLogger = createLogger({ service: 'device-search-service', redactPII: true });
 
-export class DeviceSearchService {
-  private orgDeviceRepository: OrgDeviceRepository;
+export class DeviceSearchService { 
   private recommendationRepository: RecommendationRepository;
   private globalDeviceRepository: GlobalDeviceRepository;
 
-  constructor() {
-    this.orgDeviceRepository = new OrgDeviceRepository();
+  constructor() { 
     this.recommendationRepository = new RecommendationRepository();
     this.globalDeviceRepository = new GlobalDeviceRepository();
   }
@@ -61,7 +58,7 @@ export class DeviceSearchService {
    * Get device categories
    */
   async getDeviceCategories(): Promise<string[]> {
-    const logger = createChildLogger(baseLogger);
+    const logger = createChildLogger(baseLogger, {});
     logger.info({ event: 'service_getDeviceCategories_start' });
 
     const categories = await this.globalDeviceRepository.getCategories();

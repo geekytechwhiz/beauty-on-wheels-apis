@@ -1,8 +1,18 @@
 import { GetCommand, PutCommand, UpdateCommand, QueryCommand, ScanCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
-import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
+import {
+  createLogger,
+  serializeError,
+  createChildLogger,
+} from '@api-hub/logger';
+import {
+  User,
+  UserMetadata,
+  UserOrganization,
+  UserFile,
+  UserResponse,
+} from '../models';
+import { UserNotFoundError, UserAlreadyExistsError, InviteUpdateTooSoonError } from '../utils/errors';
 import { getRoleDetails } from '../services/role.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -39,9 +49,14 @@ function mapToUserResponse(user: any): UserResponse {
     pk: user.pk || '',
     postalCode: user.postalCode || user.zip || '',
     sk1: user.sk1 || user.userType || 'USER',
-    status: user.status !== undefined ? user.status : (user.isActive !== undefined ? user.isActive : true),
+    status:
+      user.status !== undefined
+        ? user.status
+        : user.isActive !== undefined
+          ? user.isActive
+          : true,
     createdAt: user.createdAt || user.createdDate || 0,
-    roleName: user.roleName || user.userType || '',
+    roleName: user.roleName,
     definedRoleCode: user.definedRoleCode || user.userType || '',
     specialty: user.specialty || '',
     // specialty is not a property of UserResponse, so we remove it to fix the lint error
@@ -74,8 +89,6 @@ function userPk(userId: string): string {
   return `USER#${userId}`;
 }
 
- 
-
 function userFileSk(fileId: string): string {
   return `USER_FILE#${fileId}`;
 }
@@ -84,10 +97,9 @@ const userOrgPk = (organizationId: string): string => {
   return `ORG#${organizationId}`;
 };
 
-const orgSK = ( ): string => {
+const orgSK = (): string => {
   return `ORG#`;
 };
- 
 
 export interface ListOrganizationUsersOptions {
   limit?: number;
@@ -99,7 +111,7 @@ export interface ListOrganizationUsersOptions {
   /**
    * Filter by userType (e.g. "USER", "STAFF", "FNF"), case-insensitive.
    */
-  userType?: string;
+  filter?: string;
   /**
    * Filter by specialty (case-insensitive).
    */
@@ -111,11 +123,21 @@ export interface ListOrganizationUsersOptions {
   /**
    * Field used for in-memory sorting. Defaults to "createdDate".
    */
-  sortBy?: 'createdDate' | 'fullName' | 'firstName' | 'lastName' | 'emailAddress';
+  sortBy?:
+    | 'createdDate'
+    | 'fullName'
+    | 'firstName'
+    | 'lastName'
+    | 'emailAddress';
   /**
    * Sort direction. Defaults to "desc".
    */
   sortOrder?: 'asc' | 'desc';
+
+  /**
+   * Filter by previouslyConsulted field.
+   */
+  previouslyConsulted?: boolean;
 }
 
 export class UserRepository {
@@ -126,7 +148,8 @@ export class UserRepository {
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: item,
-          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+          ConditionExpression:
+            'attribute_not_exists(pk) AND attribute_not_exists(sk)',
         }),
       );
       const logger = createChildLogger(baseLogger, { userId: user.userID });
@@ -137,7 +160,11 @@ export class UserRepository {
       if (code === 'ConditionalCheckFailedException') {
         throw new UserAlreadyExistsError(user.userID);
       }
-      logger.error({ event: 'user_create_error', err: serializeError(err), message: 'Failed to create user' });
+      logger.error({
+        event: 'user_create_error',
+        err: serializeError(err),
+        message: 'Failed to create user',
+      });
       throw err;
     }
   }
@@ -171,13 +198,20 @@ export class UserRepository {
         );
         result = { Item: queryResult.Items?.[0] };
       }
-      
-      if (!result.Item || result.Item.isDeleted === true || result.Item.deleted === true) {
+      console.log("RESULT: ", result);
+      if (
+        !result.Item ||
+        result.Item.isDeleted === true ||
+        result.Item.deleted === true
+      ) {
         logger.info({ event: 'user_get_not_found', message: 'User not found' });
         return null;
       }
 
-      logger.info({ event: 'user_get_success', message: 'User retrieved successfully' });
+      logger.info({
+        event: 'user_get_success',
+        message: 'User retrieved successfully',
+      });
       return result.Item as User;
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
@@ -192,7 +226,10 @@ export class UserRepository {
    */
   async getAllUserData(userId: string): Promise<any[]> {
     const logger = createChildLogger(baseLogger, { userId });
-    logger.info({ event: 'get_all_user_data_start', message: 'Getting all user data' });
+    logger.info({
+      event: 'get_all_user_data_start',
+      message: 'Getting all user data',
+    });
     try {
       const result = await docClient.send(
         new QueryCommand({
@@ -203,15 +240,26 @@ export class UserRepository {
           },
         }),
       );
-      logger.info({ event: 'get_all_user_data_success', count: result.Items?.length || 0 });
+      logger.info({
+        event: 'get_all_user_data_success',
+        count: result.Items?.length || 0,
+      });
       return result.Items || [];
     } catch (err) {
-      logger.error({ event: 'get_all_user_data_error', err: serializeError(err), message: 'Failed to get all user data' });
+      logger.error({
+        event: 'get_all_user_data_error',
+        err: serializeError(err),
+        message: 'Failed to get all user data',
+      });
       throw err;
     }
   }
 
-  async updateUser(userId: string, organizationId: string, updates: Partial<User>): Promise<void> {
+  async updateUser(
+    userId: string,
+    organizationId: string,
+    updates: Partial<User>,
+  ): Promise<void> {
     const updateParts: string[] = ['modifiedDate = :modifiedDate'];
     const exprNames: Record<string, string> = {};
     const exprValues: Record<string, unknown> = {
@@ -220,8 +268,15 @@ export class UserRepository {
 
     // Dynamically build update expression for all provided fields
     // Exclude internal fields that shouldn't be updated directly
-    const excludeFields = ['pk', 'sk', 'userID', 'organizationID', 'createdDate', 'modifiedDate'];
-    
+    const excludeFields = [
+      'pk',
+      'sk',
+      'userID',
+      'organizationID',
+      'createdDate',
+      'modifiedDate',
+    ];
+
     for (const [key, value] of Object.entries(updates)) {
       if (excludeFields.includes(key) || value === undefined) {
         continue;
@@ -230,7 +285,7 @@ export class UserRepository {
       // Handle reserved words and special characters in DynamoDB attribute names
       const attrName = `#${key}`;
       const attrValue = `:${key}`;
-      
+
       updateParts.push(`${attrName} = ${attrValue}`);
       exprNames[attrName] = key;
       exprValues[attrValue] = value;
@@ -239,7 +294,10 @@ export class UserRepository {
     if (updateParts.length === 1) {
       // Only modifiedDate was set, nothing to update
       const logger = createChildLogger(baseLogger, { userId });
-      logger.warn({ event: 'user_update_no_changes', message: 'No fields to update' });
+      logger.warn({
+        event: 'user_update_no_changes',
+        message: 'No fields to update',
+      });
       return;
     }
 
@@ -258,14 +316,22 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_updated', message: 'User updated', fields: Object.keys(updates) });
+      logger.info({
+        event: 'user_updated',
+        message: 'User updated',
+        fields: Object.keys(updates),
+      });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
       const logger = createChildLogger(baseLogger, { userId });
       if (code === 'ConditionalCheckFailedException') {
         throw new UserNotFoundError(userId);
       }
-      logger.error({ event: 'user_update_error', err: serializeError(err), message: 'Failed to update user' });
+      logger.error({
+        event: 'user_update_error',
+        err: serializeError(err),
+        message: 'Failed to update user',
+      });
       throw err;
     }
 
@@ -284,12 +350,19 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_updated_org_mapping', message: 'User org mapping updated', fields: Object.keys(updates) });
+      logger.info({
+        event: 'user_updated_org_mapping',
+        message: 'User org mapping updated',
+        fields: Object.keys(updates),
+      });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
       const logger = createChildLogger(baseLogger, { userId });
       if (code !== 'ConditionalCheckFailedException') {
-        logger.warn({ event: 'user_update_org_mapping_failed', err: serializeError(err) });
+        logger.warn({
+          event: 'user_update_org_mapping_failed',
+          err: serializeError(err),
+        });
       }
     }
   }
@@ -304,7 +377,8 @@ export class UserRepository {
             pk: userPk(userId),
             sk: userOrgPk(organizationId),
           },
-          UpdateExpression: 'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
+          UpdateExpression:
+            'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
           ExpressionAttributeValues: {
             ':isDeleted': true,
             ':updatedAt': now,
@@ -319,7 +393,8 @@ export class UserRepository {
             pk: userOrgPk(organizationId),
             sk: userPk(userId),
           },
-          UpdateExpression: 'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
+          UpdateExpression:
+            'SET isDeleted = :isDeleted, updatedAt = :updatedAt',
           ExpressionAttributeValues: {
             ':isDeleted': true,
             ':updatedAt': now,
@@ -335,7 +410,11 @@ export class UserRepository {
       if (code === 'ConditionalCheckFailedException') {
         throw new UserNotFoundError(userId);
       }
-      logger.error({ event: 'user_delete_error', err: serializeError(err), message: 'Failed to delete user' });
+      logger.error({
+        event: 'user_delete_error',
+        err: serializeError(err),
+        message: 'Failed to delete user',
+      });
       throw err;
     }
   }
@@ -351,7 +430,10 @@ export class UserRepository {
         }),
       );
     } catch (err) {
-      const logger = createChildLogger(baseLogger, { userId: user.userID, organizationId: user.organizationID });
+      const logger = createChildLogger(baseLogger, {
+        userId: user.userID,
+        organizationId: user.organizationID,
+      });
       logger.error({
         event: 'user_org_assign_error',
         err: serializeError(err),
@@ -406,7 +488,12 @@ export class UserRepository {
 
   async getOrganizationUserCounts(
     organizationId: string,
-    filters?: { roleId?: string; roleName?: string; roleType?: string; status?: string },
+    filters?: {
+      roleId?: string;
+      roleName?: string;
+      roleType?: string;
+      status?: string;
+    },
   ): Promise<Array<Record<string, unknown>>> {
     const logger = createChildLogger(baseLogger, { organizationId });
 
@@ -414,7 +501,10 @@ export class UserRepository {
     const pk = userOrgPk(organizationId);
     const allUsers: Array<Record<string, unknown>> = [];
     const keyCondition = 'pk = :pk AND begins_with(sk, :skPrefix)';
-    const expressionValues: Record<string, unknown> = { ':pk': pk, ':skPrefix': 'USER#' };
+    const expressionValues: Record<string, unknown> = {
+      ':pk': pk,
+      ':skPrefix': 'USER#',
+    };
 
     logger.info({ event: 'querying_users', pk, table: USER_TABLE_NAME });
 
@@ -430,19 +520,30 @@ export class UserRepository {
         ExclusiveStartKey?: Record<string, unknown>;
       } = {
         TableName: USER_TABLE_NAME,
-        KeyConditionExpression: useUppercaseKeys ? 'PK = :pk AND begins_with(SK, :skPrefix)' : keyCondition,
+        KeyConditionExpression: useUppercaseKeys
+          ? 'PK = :pk AND begins_with(SK, :skPrefix)'
+          : keyCondition,
         ExpressionAttributeValues: expressionValues,
       };
       if (lastKey) params.ExclusiveStartKey = lastKey;
 
-      let response: { Items?: unknown[]; LastEvaluatedKey?: Record<string, unknown> };
+      let response: {
+        Items?: unknown[];
+        LastEvaluatedKey?: Record<string, unknown>;
+      };
       try {
         response = await docClient.send(new QueryCommand(params));
       } catch (innerErr: unknown) {
         const name = (innerErr as { name?: string }).name;
-        const message = String((innerErr as { message?: string }).message ?? '');
+        const message = String(
+          (innerErr as { message?: string }).message ?? '',
+        );
         // Table may use PK/SK (uppercase) – retry with uppercase and re-paginate from start
-        if (!useUppercaseKeys && name === 'ValidationException' && message.includes('PK')) {
+        if (
+          !useUppercaseKeys &&
+          name === 'ValidationException' &&
+          message.includes('PK')
+        ) {
           useUppercaseKeys = true;
           lastKey = undefined;
           continue;
@@ -458,14 +559,17 @@ export class UserRepository {
     logger.info({ event: 'users_fetched', totalUsers: allUsers.length });
 
     // Group users by role and count them
-    const roleCountMap = new Map<string, {
-      roleId: string;
-      roleName: string;
-      definedRoleCode: string;
-      roleType: string;
-      status: string;
-      count: number;
-    }>();
+    const roleCountMap = new Map<
+      string,
+      {
+        roleId: string;
+        roleName: string;
+        definedRoleCode: string;
+        roleType: string;
+        status: string;
+        count: number;
+      }
+    >();
 
     for (const user of allUsers) {
       // Extract role information from user record
@@ -473,13 +577,17 @@ export class UserRepository {
       const roleName = String(user?.roleName || '');
       const definedRoleCode = String(user?.definedRoleCode || roleName || '');
       const roleType = String(user.roleType || user.userType || '');
-      
+
       // Determine status (ACTIVE/INACTIVE)
       let status = 'ACTIVE';
-      if (user.status === false || user.status === 'INACTIVE' || user.isActive === false) {
+      if (
+        user.status === false ||
+        user.status === 'INACTIVE' ||
+        user.isActive === false
+      ) {
         status = 'INACTIVE';
       }
-      
+
       // Skip if missing required fields
       if (!roleId) {
         logger.warn({ event: 'user_missing_role', userId: user.userID });
@@ -488,7 +596,7 @@ export class UserRepository {
 
       // Create unique key for role + status combination
       const mapKey = `${roleId}#${status}`;
-      
+
       if (roleCountMap.has(mapKey)) {
         // Increment count for existing role
         roleCountMap.get(mapKey)!.count++;
@@ -507,7 +615,7 @@ export class UserRepository {
 
     // Convert Map to array format matching ORG_USER_COUNT structure
     const countRecords: Array<Record<string, unknown>> = [];
-    
+
     for (const [, roleData] of roleCountMap.entries()) {
       countRecords.push({
         pk: `ORG_USER_COUNT#${organizationId}`,
@@ -523,17 +631,20 @@ export class UserRepository {
       });
     }
 
-    logger.info({ 
-      event: 'user_counts_calculated', 
+    logger.info({
+      event: 'user_counts_calculated',
       totalUsers: allUsers.length,
       uniqueRoles: countRecords.length,
-      counts: countRecords.map(r => ({ role: r.roleName, count: r.count }))
+      counts: countRecords.map((r) => ({ role: r.roleName, count: r.count })),
     });
 
     return countRecords;
   }
 
-  async updateUserMetadata(userId: string, metadata: Record<string, unknown>): Promise<void> {
+  async updateUserMetadata(
+    userId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
     const now = new Date().toISOString();
     const item = {
       pk: userPk(userId),
@@ -552,10 +663,17 @@ export class UserRepository {
         }),
       );
       const logger = createChildLogger(baseLogger, { userId });
-      logger.info({ event: 'user_metadata_updated', message: 'User metadata updated' });
+      logger.info({
+        event: 'user_metadata_updated',
+        message: 'User metadata updated',
+      });
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_metadata_update_error', err: serializeError(err), message: 'Failed to update user metadata' });
+      logger.error({
+        event: 'user_metadata_update_error',
+        err: serializeError(err),
+        message: 'Failed to update user metadata',
+      });
       throw err;
     }
   }
@@ -565,19 +683,19 @@ export class UserRepository {
       const result = await docClient.send(
         new QueryCommand({
           TableName: USER_TABLE_NAME,
-          KeyConditionExpression: "pk = :pk AND begins_with(sk, :sk)",
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
           ExpressionAttributeValues: {
-            ":pk": userPk(userId),
-            ":sk": "ORG#",
+            ':pk': userPk(userId),
+            ':sk': 'ORG#',
           },
           Limit: 1, // optional if you expect only one
-        })
+        }),
       );
-  
+
       const item = result.Items?.[0];
-  
+
       if (!item) return null;
-  
+
       return {
         userId: item.userId as string,
         metadata: (item.metadata as Record<string, unknown>) || {},
@@ -586,9 +704,9 @@ export class UserRepository {
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
       logger.error({
-        event: "user_metadata_get_error",
+        event: 'user_metadata_get_error',
         err: serializeError(err),
-        message: "Failed to get user metadata",
+        message: 'Failed to get user metadata',
       });
       throw err;
     }
@@ -613,10 +731,16 @@ export class UserRepository {
           Item: item,
         }),
       );
-      const logger = createChildLogger(baseLogger, { userId: userFile.userId, fileId: userFile.fileId });
+      const logger = createChildLogger(baseLogger, {
+        userId: userFile.userId,
+        fileId: userFile.fileId,
+      });
       logger.info({ event: 'user_file_created', message: 'User file created' });
     } catch (err) {
-      const logger = createChildLogger(baseLogger, { userId: userFile.userId, fileId: userFile.fileId });
+      const logger = createChildLogger(baseLogger, {
+        userId: userFile.userId,
+        fileId: userFile.fileId,
+      });
       logger.error({
         event: 'user_file_create_error',
         err: serializeError(err),
@@ -629,11 +753,17 @@ export class UserRepository {
   /**
    * Gets role permissions from DynamoDB
    */
-  async getRolePermissions(roleId: string, organizationId: string): Promise<any[]> {
+  async getRolePermissions(
+    roleId: string,
+    organizationId: string,
+  ): Promise<any[]> {
     const logger = createChildLogger(baseLogger, { roleId, organizationId });
     const ROLES_TABLE = process.env.ROLES_TABLE;
     if (!ROLES_TABLE) {
-      logger.warn({ event: 'getRolePermissions_missing_roles_table', message: 'ROLES_TABLE env var is not set' });
+      logger.warn({
+        event: 'getRolePermissions_missing_roles_table',
+        message: 'ROLES_TABLE env var is not set',
+      });
       return [];
     }
     try {
@@ -650,11 +780,14 @@ export class UserRepository {
         },
       };
 
-      console.log('getRolePermissions query params:',params);
+      console.log('getRolePermissions query params:', params);
 
       const result = await docClient.send(new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
-        console.log('getRolePermissions result (PK/SK):', JSON.stringify(result.Items, null, 2));
+        console.log(
+          'getRolePermissions result (PK/SK):',
+          JSON.stringify(result.Items, null, 2),
+        );
         logger.info({ event: 'getRolePermissions_success', roleId });
         return result.Items;
       }
@@ -663,7 +796,12 @@ export class UserRepository {
       const name = (err as { name?: string })?.name;
       const message = (err as { message?: string })?.message || '';
       // Some environments use lowercase keys (pk/sk) instead of (PK/SK). Retry if DynamoDB complains.
-      if (name === 'ValidationException' && (message.includes('PK') || message.includes('SK') || message.includes('key schema'))) {
+      if (
+        name === 'ValidationException' &&
+        (message.includes('PK') ||
+          message.includes('SK') ||
+          message.includes('key schema'))
+      ) {
         try {
           const fallbackParams = {
             TableName: ROLES_TABLE,
@@ -677,10 +815,18 @@ export class UserRepository {
               ':sk': `ROLE#${roleId}`,
             },
           };
-          const fallbackResult = await docClient.send(new QueryCommand(fallbackParams));
+          const fallbackResult = await docClient.send(
+            new QueryCommand(fallbackParams),
+          );
           if (fallbackResult.Items && fallbackResult.Items.length > 0) {
-            console.log('getRolePermissions result (pk/sk fallback):', JSON.stringify(fallbackResult.Items, null, 2));
-            logger.info({ event: 'getRolePermissions_success_fallback_pk_sk', roleId });
+            console.log(
+              'getRolePermissions result (pk/sk fallback):',
+              JSON.stringify(fallbackResult.Items, null, 2),
+            );
+            logger.info({
+              event: 'getRolePermissions_success_fallback_pk_sk',
+              roleId,
+            });
             return fallbackResult.Items;
           }
           return [];
@@ -693,7 +839,10 @@ export class UserRepository {
         }
       }
 
-      logger.error({ event: 'getRolePermissions_error', err: serializeError(err) });
+      logger.error({
+        event: 'getRolePermissions_error',
+        err: serializeError(err),
+      });
       return [];
     }
   }
@@ -724,22 +873,35 @@ export class UserRepository {
       };
 
       const result = await docClient.send(new QueryCommand(params));
-      if (result.Items && result.Items.length > 0 && Array.isArray(result.Items[0].currencies)) {
-        logger.info({ event: 'getCurrenciesForCountryCode_success', countryCode });
+      if (
+        result.Items &&
+        result.Items.length > 0 &&
+        Array.isArray(result.Items[0].currencies)
+      ) {
+        logger.info({
+          event: 'getCurrenciesForCountryCode_success',
+          countryCode,
+        });
         return result.Items[0].currencies;
       }
       return [];
     } catch (err) {
-      logger.error({ event: 'getCurrenciesForCountryCode_error', err: serializeError(err) });
+      logger.error({
+        event: 'getCurrenciesForCountryCode_error',
+        err: serializeError(err),
+      });
       return [];
     }
   }
 
   /**
    * Gets user preferences (for schedule configuration)
-   * 
+   *
    */
-  async getUserPreferences(userId: string, organizationId: string): Promise<any> {
+  async getUserPreferences(
+    userId: string,
+    organizationId: string,
+  ): Promise<any> {
     const logger = createChildLogger(baseLogger, { userId, organizationId });
     try {
       const params = {
@@ -759,13 +921,24 @@ export class UserRepository {
       if (result.Items && result.Items.length > 0) {
         const item = result.Items[0];
         // Filter out metadata fields
-        const { pk, sk, userID, createdDate, modifiedDate, organizationID, ...rest } = item;
+        const {
+          pk,
+          sk,
+          userID,
+          createdDate,
+          modifiedDate,
+          organizationID,
+          ...rest
+        } = item;
         logger.info({ event: 'getUserPreferences_success', userId });
         return rest;
       }
       return {};
     } catch (err) {
-      logger.error({ event: 'getUserPreferences_error', err: serializeError(err) });
+      logger.error({
+        event: 'getUserPreferences_error',
+        err: serializeError(err),
+      });
       return {};
     }
   }
@@ -785,7 +958,7 @@ export class UserRepository {
         },
         ExpressionAttributeValues: {
           ':pk': `USER#${userId}`,
-          ':sk': orgSK()
+          ':sk': orgSK(),
         },
       };
 
@@ -796,7 +969,10 @@ export class UserRepository {
       }
       return null;
     } catch (err) {
-      logger.error({ event: 'getUserBasicDetails_error', err: serializeError(err) });
+      logger.error({
+        event: 'getUserBasicDetails_error',
+        err: serializeError(err),
+      });
       return null;
     }
   }
@@ -817,7 +993,11 @@ export class UserRepository {
       return (result.Items ?? []) as UserFile[];
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId });
-      logger.error({ event: 'user_files_list_error', err: serializeError(err), message: 'Failed to list user files' });
+      logger.error({
+        event: 'user_files_list_error',
+        err: serializeError(err),
+        message: 'Failed to list user files',
+      });
       throw err;
     }
   }
@@ -830,45 +1010,77 @@ export class UserRepository {
       limit,
       offset = 0,
       status,
-      userType,
+      filter,
       specialty,
       search,
       sortBy = 'createdDate',
       sortOrder = 'desc',
+      previouslyConsulted,
     } = options;
-
+    const filterType = filter?.trim()?.toUpperCase();
+    const filterTypePrefix = {
+      "STAFF": 'STAFF',
+      'ALL-PATIENT': 'USER',
+      'ASSIGNED-PATIENT': 'ASSIGNEE',
+      'LAB-PATIENT': 'LAB_PATIENT',
+      'ALL': 'USER',
+    };
     try {
       console.info('listOrganizationUsers', organizationId, {
         limit,
         offset,
         status,
-        userType,
+        filter,
         specialty,
         search,
         sortBy,
         sortOrder,
+        previouslyConsulted,
       });
 
       // First try with lowercase key names (pk/sk)
       try {
         const queryLimit =
-          typeof limit === 'number' && limit > 0 ? limit + Math.max(offset, 0) : undefined;
+          typeof limit === 'number' && limit > 0
+            ? limit + Math.max(offset, 0)
+            : undefined;
+
+      
+
+        const filterParts: string[] = [];
+        const exprNames: Record<string, string> = {};
+        const exprValues: Record<string, unknown> = {
+          ':pk': `ORG#${organizationId}`,
+          ':skPrefix': 'USER#',
+        };
+        if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
+          const userTypeVal = filterTypePrefix[filterType as keyof typeof filterTypePrefix];
+          exprNames['#ut'] = 'userType';
+          exprValues[':userTypeVal'] = userTypeVal;
+          filterParts.push('#ut = :userTypeVal');
+        }
+        if (filterType === 'ALL') {
+          exprValues[':skPrefix'] = 'USER#';
+        }
 
         const result = await docClient.send(
           new QueryCommand({
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
-            ExpressionAttributeValues: {
-              ':pk': `ORG#${organizationId}`,
-              ':skPrefix': 'USER#',
-            },
+            ExpressionAttributeValues: exprValues,
+            ...(filterParts.length > 0
+              ? {
+                  FilterExpression: filterParts.join(' AND '),
+                  ExpressionAttributeNames: exprNames,
+                }
+              : {}),
             ...(queryLimit ? { Limit: queryLimit } : {}),
           }),
         );
 
         let users = (result.Items ?? []).map(mapToUserResponse);
 
-        // In-memory filtering
+        // In-memory filtering (for attributes not in FilterExpression)
         if (status) {
           const statusLc = status.toLowerCase();
           users = users.filter(
@@ -876,17 +1088,18 @@ export class UserRepository {
           );
         }
 
-        if (userType) {
-          const userTypeLc = userType.toLowerCase();
+        if (filterType !== 'ALL' && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
+          const filterTypeLc = String(filterTypePrefix[filterType as keyof typeof filterTypePrefix]).toLowerCase();
           users = users.filter(
-            (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
+            (u) => String((u as any).userType ?? '').toLowerCase() === filterTypeLc,
           );
         }
 
         if (specialty) {
           const specialtyLc = specialty.toLowerCase();
           users = users.filter(
-            (u) => String((u as any).specialty ?? '').toLowerCase() === specialtyLc,
+            (u) =>
+              String((u as any).specialty ?? '').toLowerCase() === specialtyLc,
           );
         }
 
@@ -896,7 +1109,9 @@ export class UserRepository {
             const fullName = String((u as any).fullName ?? '').toLowerCase();
             const firstName = String((u as any).firstName ?? '').toLowerCase();
             const lastName = String((u as any).lastName ?? '').toLowerCase();
-            const emailAddress = String((u as any).emailAddress ?? '').toLowerCase();
+            const emailAddress = String(
+              (u as any).emailAddress ?? '',
+            ).toLowerCase();
             return (
               fullName.includes(term) ||
               firstName.includes(term) ||
@@ -951,15 +1166,31 @@ export class UserRepository {
             typeof limit === 'number' && limit > 0
               ? limit + Math.max(offset, 0)
               : undefined;
+ 
+          const filterPartsFb: string[] = [];
+          const exprNamesFb: Record<string, string> = {};
+          const exprValuesFb: Record<string, unknown> = {
+            ':pk': userOrgPk(organizationId),
+            ':skPrefix': 'USER#',
+          };
+          if (filterType && filterTypePrefix[filterType as keyof typeof filterTypePrefix]) {
+            const userTypeValFb = filterTypePrefix[filterType as keyof typeof filterTypePrefix];
+            exprNamesFb['#ut'] = 'userType';
+            exprValuesFb[':userTypeVal'] = userTypeValFb;
+            filterPartsFb.push('#ut = :userTypeVal');
+          }
 
           const fallbackResult = await docClient.send(
             new QueryCommand({
               TableName: USER_TABLE_NAME,
               KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
-              ExpressionAttributeValues: {
-                ':pk': userOrgPk(organizationId),
-                ':skPrefix': 'USER#',
-              },
+              ExpressionAttributeValues: exprValuesFb,
+              ...(filterPartsFb.length > 0
+                ? {
+                    FilterExpression: filterPartsFb.join(' AND '),
+                    ExpressionAttributeNames: exprNamesFb,
+                  }
+                : {}),
               ...(queryLimit ? { Limit: queryLimit } : {}),
             }),
           );
@@ -973,17 +1204,20 @@ export class UserRepository {
             );
           }
 
-          if (userType) {
-            const userTypeLc = userType.toLowerCase();
-            users = users.filter(
-              (u) => String((u as any).userType ?? '').toLowerCase() === userTypeLc,
-            );
-          }
+            if (filterType ) {
+              const filterTypeLc = filterTypePrefix[filterType as keyof typeof filterTypePrefix].toLowerCase();
+              users = users.filter(
+                (u) =>
+                  String((u as any).userType ?? '').toLowerCase() === filterTypeLc,
+              );
+            }
 
           if (specialty) {
             const specialtyLc = specialty.toLowerCase();
             users = users.filter(
-              (u) => String((u as any).specialty ?? '').toLowerCase() === specialtyLc,
+              (u) =>
+                String((u as any).specialty ?? '').toLowerCase() ===
+                specialtyLc,
             );
           }
 
@@ -991,9 +1225,13 @@ export class UserRepository {
             const term = search.toLowerCase();
             users = users.filter((u) => {
               const fullName = String((u as any).fullName ?? '').toLowerCase();
-              const firstName = String((u as any).firstName ?? '').toLowerCase();
+              const firstName = String(
+                (u as any).firstName ?? '',
+              ).toLowerCase();
               const lastName = String((u as any).lastName ?? '').toLowerCase();
-              const emailAddress = String((u as any).emailAddress ?? '').toLowerCase();
+              const emailAddress = String(
+                (u as any).emailAddress ?? '',
+              ).toLowerCase();
               return (
                 fullName.includes(term) ||
                 firstName.includes(term) ||
@@ -1052,7 +1290,16 @@ export class UserRepository {
    * Queries: pk = USER_ROLE#orgId, sk1 = userId# using pk-sk1-index
    * Also calls API endpoint to get userPermission features
    */
-  async getUserRolesPermissions(userId: string, organizationId: string, authHeader?: string): Promise<{ permissions: any[]; roles: string[]; roleName?: string; userPermissions?: any[] }> {
+  async getUserRolesPermissions(
+    userId: string,
+    organizationId: string,
+    authHeader?: string,
+  ): Promise<{
+    permissions: any[];
+    roles: string[];
+    roleName?: string;
+    userPermissions?: any[];
+  }> {
     const logger = createChildLogger(baseLogger, { userId, organizationId });
     try {
       let data: any[] = [];
@@ -1078,7 +1325,10 @@ export class UserRepository {
         const result = await docClient.send(new QueryCommand(params));
         nextPaginationKey = result.LastEvaluatedKey;
         if (result.Items && result.Items.length > 0) {
-          console.log('getUserRolesPermissions items (pk/sk1):', JSON.stringify(result.Items, null, 2));
+          console.log(
+            'getUserRolesPermissions items (pk/sk1):',
+            JSON.stringify(result.Items, null, 2),
+          );
           data = data.concat(result.Items);
         }
       } while (nextPaginationKey);
@@ -1113,7 +1363,10 @@ export class UserRepository {
           const r2 = await docClient.send(new QueryCommand(params2));
           nextKey2 = r2.LastEvaluatedKey;
           if (r2.Items && r2.Items.length > 0) {
-            console.log('getUserRolesPermissions items (PK/SK1):', JSON.stringify(r2.Items, null, 2));
+            console.log(
+              'getUserRolesPermissions items (PK/SK1):',
+              JSON.stringify(r2.Items, null, 2),
+            );
             data = data.concat(r2.Items);
           }
         } while (nextKey2);
@@ -1122,7 +1375,10 @@ export class UserRepository {
       const roles: string[] = [];
       const promises: Promise<any>[] = [];
       console.log('getUserRolesPermissions - data items count:', data.length);
-      console.log('getUserRolesPermissions - data items:', JSON.stringify(data, null, 2));
+      console.log(
+        'getUserRolesPermissions - data items:',
+        JSON.stringify(data, null, 2),
+      );
       for (const role of data) {
         if (role.roleID) {
           console.log('Found roleID:', role.roleID);
@@ -1134,7 +1390,10 @@ export class UserRepository {
           roles.push(role.roleId);
           promises.push(this.getRoleDetails(organizationId, role.roleId));
         } else {
-          console.log('Role item missing roleID/roleId:', JSON.stringify(role, null, 2));
+          console.log(
+            'Role item missing roleID/roleId:',
+            JSON.stringify(role, null, 2),
+          );
         }
       }
 
@@ -1157,17 +1416,33 @@ export class UserRepository {
       // Call API endpoint to get userPermission features for the first role
       if (roles.length > 0 && authHeader) {
         try {
-          logger.debug({ event: 'calling_role_api_for_permissions', roleId: roles[0], organizationId });
-          const apiRoleDetails = await getRoleDetails(roles[0], organizationId, authHeader);
-          
-          if (apiRoleDetails && Array.isArray(apiRoleDetails) && apiRoleDetails.length > 0) {
+          logger.debug({
+            event: 'calling_role_api_for_permissions',
+            roleId: roles[0],
+            organizationId,
+          });
+          const apiRoleDetails = await getRoleDetails(
+            roles[0],
+            organizationId,
+            authHeader,
+          );
+
+          if (
+            apiRoleDetails &&
+            Array.isArray(apiRoleDetails) &&
+            apiRoleDetails.length > 0
+          ) {
             // Extract features from API response
-            const roleItem = apiRoleDetails.find((item: any) => 
-              String(item.SK || item.sk || '').startsWith(`ROLE#${roles[0]}`) ||
-              item.itemType === 'Role' ||
-              item.roleId === roles[0] ||
-              item.roleID === roles[0]
-            ) || apiRoleDetails[0];
+            const roleItem =
+              apiRoleDetails.find(
+                (item: any) =>
+                  String(item.SK || item.sk || '').startsWith(
+                    `ROLE#${roles[0]}`,
+                  ) ||
+                  item.itemType === 'Role' ||
+                  item.roleId === roles[0] ||
+                  item.roleID === roles[0],
+              ) || apiRoleDetails[0];
 
             // Get features from role item
             if (roleItem?.features) {
@@ -1190,27 +1465,39 @@ export class UserRepository {
               userPermissions = featureItems;
             }
 
-            logger.info({ 
-              event: 'role_api_permissions_fetched', 
-              roleId: roles[0], 
-              userPermissionsCount: userPermissions.length 
+            logger.info({
+              event: 'role_api_permissions_fetched',
+              roleId: roles[0],
+              userPermissionsCount: userPermissions.length,
             });
           }
         } catch (apiErr) {
-          logger.warn({ 
-            event: 'role_api_call_failed', 
+          logger.warn({
+            event: 'role_api_call_failed',
             err: serializeError(apiErr),
             roleId: roles[0],
-            organizationId 
+            organizationId,
           });
           // Continue without API permissions if call fails
         }
       }
 
-      logger.info({ event: 'getUserRolesPermissions_success', userId, rolesCount: roles.length });
-      return { permissions: roleFeaturePermission, roles, roleName, userPermissions };
+      logger.info({
+        event: 'getUserRolesPermissions_success',
+        userId,
+        rolesCount: roles.length,
+      });
+      return {
+        permissions: roleFeaturePermission,
+        roles,
+        roleName,
+        userPermissions,
+      };
     } catch (err) {
-      logger.error({ event: 'getUserRolesPermissions_error', err: serializeError(err) });
+      logger.error({
+        event: 'getUserRolesPermissions_error',
+        err: serializeError(err),
+      });
       return { permissions: [], roles: [] };
     }
   }
@@ -1223,7 +1510,10 @@ export class UserRepository {
   async getRoleDetails(organizationId: string, roleId: string): Promise<any[]> {
     const logger = createChildLogger(baseLogger, { organizationId, roleId });
     if (!ROLES_TABLE_NAME) {
-      logger.warn({ event: 'getRoleDetails_missing_roles_table', message: 'ROLES_TABLE env var is not set' });
+      logger.warn({
+        event: 'getRoleDetails_missing_roles_table',
+        message: 'ROLES_TABLE env var is not set',
+      });
       return [];
     }
     try {
@@ -1231,7 +1521,8 @@ export class UserRepository {
       const params = {
         TableName: ROLES_TABLE_NAME,
         KeyConditionExpression: '#PK = :PK AND begins_with(#SK, :SK)',
-        FilterExpression: '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
+        FilterExpression:
+          '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
         ExpressionAttributeNames: {
           '#PK': 'PK',
           '#SK': 'SK',
@@ -1248,16 +1539,26 @@ export class UserRepository {
 
       const result = await docClient.send(new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
-        logger.info({ event: 'getRoleDetails_success', organizationId, roleId, itemsCount: result.Items.length });
+        logger.info({
+          event: 'getRoleDetails_success',
+          organizationId,
+          roleId,
+          itemsCount: result.Items.length,
+        });
         return result.Items;
       }
-      
+
       // Fallback: try pk/sk format (lowercase) if PK/SK didn't work
-      logger.debug({ event: 'getRoleDetails_trying_lowercase_keys', organizationId, roleId });
+      logger.debug({
+        event: 'getRoleDetails_trying_lowercase_keys',
+        organizationId,
+        roleId,
+      });
       const fallbackParams = {
         TableName: ROLES_TABLE_NAME,
         KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
-        FilterExpression: '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
+        FilterExpression:
+          '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
         ExpressionAttributeNames: {
           '#pk': 'pk',
           '#sk': 'sk',
@@ -1272,25 +1573,46 @@ export class UserRepository {
         },
       };
 
-      const fallbackResult = await docClient.send(new QueryCommand(fallbackParams));
+      const fallbackResult = await docClient.send(
+        new QueryCommand(fallbackParams),
+      );
       if (fallbackResult.Items && fallbackResult.Items.length > 0) {
-        logger.info({ event: 'getRoleDetails_success_fallback', organizationId, roleId, itemsCount: fallbackResult.Items.length });
+        logger.info({
+          event: 'getRoleDetails_success_fallback',
+          organizationId,
+          roleId,
+          itemsCount: fallbackResult.Items.length,
+        });
         return fallbackResult.Items;
       }
 
-      logger.warn({ event: 'getRoleDetails_no_items_found', organizationId, roleId });
+      logger.warn({
+        event: 'getRoleDetails_no_items_found',
+        organizationId,
+        roleId,
+      });
       return [];
     } catch (err) {
       const name = (err as { name?: string })?.name;
       const message = (err as { message?: string })?.message || '';
       // If PK/SK format failed, try lowercase pk/sk
-      if (name === 'ValidationException' && (message.includes('PK') || message.includes('SK') || message.includes('key schema'))) {
+      if (
+        name === 'ValidationException' &&
+        (message.includes('PK') ||
+          message.includes('SK') ||
+          message.includes('key schema'))
+      ) {
         try {
-          logger.debug({ event: 'getRoleDetails_retry_lowercase', organizationId, roleId });
+          logger.debug({
+            event: 'getRoleDetails_retry_lowercase',
+            organizationId,
+            roleId,
+          });
           const retryParams = {
             TableName: ROLES_TABLE_NAME,
             KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
-            FilterExpression: '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
+            FilterExpression:
+              '(attribute_not_exists(deleteFlag) OR #deleteFlag <> :deleteFlag) AND (attribute_not_exists(isActive) OR #active = :active)',
             ExpressionAttributeNames: {
               '#pk': 'pk',
               '#sk': 'sk',
@@ -1304,16 +1626,33 @@ export class UserRepository {
               ':active': true,
             },
           };
-          const retryResult = await docClient.send(new QueryCommand(retryParams));
+          const retryResult = await docClient.send(
+            new QueryCommand(retryParams),
+          );
           if (retryResult.Items && retryResult.Items.length > 0) {
-            logger.info({ event: 'getRoleDetails_success_retry', organizationId, roleId, itemsCount: retryResult.Items.length });
+            logger.info({
+              event: 'getRoleDetails_success_retry',
+              organizationId,
+              roleId,
+              itemsCount: retryResult.Items.length,
+            });
             return retryResult.Items;
           }
         } catch (retryErr) {
-          logger.error({ event: 'getRoleDetails_retry_error', err: serializeError(retryErr), organizationId, roleId });
+          logger.error({
+            event: 'getRoleDetails_retry_error',
+            err: serializeError(retryErr),
+            organizationId,
+            roleId,
+          });
         }
       }
-      logger.error({ event: 'getRoleDetails_error', err: serializeError(err), organizationId, roleId });
+      logger.error({
+        event: 'getRoleDetails_error',
+        err: serializeError(err),
+        organizationId,
+        roleId,
+      });
       return [];
     }
   }
@@ -1347,10 +1686,17 @@ export class UserRepository {
       const command = new QueryCommand(params);
       const result = await docClient.send(command);
       const hasPendingTasks = (result.Count || 0) > 0;
-      logger.info({ event: 'checkCompletedTasks_success', userId, hasPendingTasks });
+      logger.info({
+        event: 'checkCompletedTasks_success',
+        userId,
+        hasPendingTasks,
+      });
       return !hasPendingTasks; // Return true if no pending tasks (completed)
     } catch (err) {
-      logger.error({ event: 'checkCompletedTasks_error', err: serializeError(err) });
+      logger.error({
+        event: 'checkCompletedTasks_error',
+        err: serializeError(err),
+      });
       return true; // Default to completed on error
     }
   }
@@ -1399,9 +1745,16 @@ export class UserRepository {
       };
 
       await docClient.send(new UpdateCommand(params));
-      logger.info({ event: 'updateUserVerification_success', userID, organizationId });
+      logger.info({
+        event: 'updateUserVerification_success',
+        userID,
+        organizationId,
+      });
     } catch (err) {
-      logger.error({ event: 'updateUserVerification_error', err: serializeError(err) });
+      logger.error({
+        event: 'updateUserVerification_error',
+        err: serializeError(err),
+      });
       throw err;
     }
   }
@@ -1410,13 +1763,31 @@ export class UserRepository {
    * List all patient IDs for a doctor. Matches legacy doctor_patient_list pattern:
    * - pk=USER#doctorId, begins_with(sk, ASSIGNEE#|DIETICIAN#|HEALTHCOACH#|CAREMANAGER#) with sk1 <> INACTIVE
    * - pk=USER#doctorId, begins_with(sk, SCD_LINK#) for previously consulted (no sk1 filter)
+   * Tries pk/sk first; on ValidationException (PK), retries with PK/SK for tables using uppercase key names.
    */
-  async listPatientIdsForDoctor(doctorId: string): Promise<{ patientId: string; patientOrgId?: string; previouslyConsulted?: boolean }[]> {
+  async listPatientIdsForDoctor(
+    doctorId: string,
+  ): Promise<
+    {
+      patientId: string;
+      patientOrgId?: string;
+      previouslyConsulted?: boolean;
+    }[]
+  > {
     const logger = createChildLogger(baseLogger, { doctorId });
     const seen = new Set<string>();
-    const result: { patientId: string; patientOrgId?: string; previouslyConsulted?: boolean }[] = [];
+    const result: {
+      patientId: string;
+      patientOrgId?: string;
+      previouslyConsulted?: boolean;
+    }[] = [];
 
-    const activeLinkPrefixes = ['ASSIGNEE#', 'DIETICIAN#', 'HEALTHCOACH#', 'CAREMANAGER#'];
+    const activeLinkPrefixes = [
+      'ASSIGNEE#',
+      'DIETICIAN#',
+      'HEALTHCOACH#',
+      'CAREMANAGER#',
+    ];
     for (const skPrefix of activeLinkPrefixes) {
       let lastKey: Record<string, unknown> | undefined;
       do {
@@ -1431,7 +1802,8 @@ export class UserRepository {
             ':inactive': 'INACTIVE',
           },
         };
-        if (lastKey) params.ExclusiveStartKey = lastKey as Record<string, unknown>;
+        if (lastKey)
+          params.ExclusiveStartKey = lastKey as Record<string, unknown>;
 
         const response = await docClient.send(new QueryCommand(params));
         const items = response.Items ?? [];
@@ -1444,7 +1816,8 @@ export class UserRepository {
             seen.add(patientId);
             result.push({
               patientId,
-              patientOrgId: (item as any).organizationID ?? (item as any).patientOrgId,
+              patientOrgId:
+                (item as any).organizationID ?? (item as any).patientOrgId,
               previouslyConsulted: false,
             });
           }
@@ -1464,7 +1837,8 @@ export class UserRepository {
           ':sk': scdPrefix,
         },
       };
-      if (lastKey) params.ExclusiveStartKey = lastKey as Record<string, unknown>;
+      if (lastKey)
+        params.ExclusiveStartKey = lastKey as Record<string, unknown>;
 
       const response = await docClient.send(new QueryCommand(params));
       const items = response.Items ?? [];
@@ -1477,14 +1851,19 @@ export class UserRepository {
           seen.add(patientId);
           result.push({
             patientId,
-            patientOrgId: (item as any).organizationID ?? (item as any).patientOrgId,
+            patientOrgId:
+              (item as any).organizationID ?? (item as any).patientOrgId,
             previouslyConsulted: true,
           });
         }
       }
     } while (lastKey);
 
-    logger.info({ event: 'listPatientIdsForDoctor_success', doctorId, count: result.length });
+    logger.info({
+      event: 'listPatientIdsForDoctor_success',
+      doctorId,
+      count: result.length,
+    });
     return result;
   }
 
@@ -1540,7 +1919,7 @@ export class UserRepository {
   async findUserByEmailOrPhoneInOrg(
     organizationId: string,
     email?: string,
-    phone?: string
+    phone?: string,
   ): Promise<UserResponse | null> {
     if (!email && !phone) return null;
     const result = await docClient.send(
@@ -1559,12 +1938,26 @@ export class UserRepository {
     const phoneNorm = phone ? String(phone).replace(/\s/g, '') : '';
     for (const item of items) {
       const u = item as any;
-      if (emailNorm && String(u?.emailAddress ?? '').toLowerCase() === emailNorm) {
+      if (
+        emailNorm &&
+        String(u?.emailAddress ?? '').toLowerCase() === emailNorm
+      ) {
         return mapToUserResponse(u);
       }
       if (phoneNorm) {
-        const userPhone = [String(u?.phoneCode ?? ''), String(u?.phoneNumber ?? '')].filter(Boolean).join('').replace(/\s/g, '');
-        if (userPhone && (userPhone === phoneNorm || userPhone.endsWith(phoneNorm) || phoneNorm.endsWith(userPhone))) {
+        const userPhone = [
+          String(u?.phoneCode ?? ''),
+          String(u?.phoneNumber ?? ''),
+        ]
+          .filter(Boolean)
+          .join('')
+          .replace(/\s/g, '');
+        if (
+          userPhone &&
+          (userPhone === phoneNorm ||
+            userPhone.endsWith(phoneNorm) ||
+            phoneNorm.endsWith(userPhone))
+        ) {
           return mapToUserResponse(u);
         }
       }
@@ -1576,8 +1969,16 @@ export class UserRepository {
    * Save or update doctor–patient link. Matches legacy link_unlink_user pattern:
    * pk = USER#doctorId, sk = ASSIGNEE#patientId, sk1 = ACTIVE, organizationID, createdDate, modifiedDate.
    */
-  async saveDoctorPatientLink(doctorId: string, patientId: string, organizationId: string): Promise<void> {
-    const logger = createChildLogger(baseLogger, { doctorId, patientId, organizationId });
+  async saveDoctorPatientLink(
+    doctorId: string,
+    patientId: string,
+    organizationId: string,
+  ): Promise<void> {
+    const logger = createChildLogger(baseLogger, {
+      doctorId,
+      patientId,
+      organizationId,
+    });
     const pk = `USER#${doctorId}`;
     const sk = `ASSIGNEE#${patientId}`;
     const now = Date.now();
@@ -1595,7 +1996,10 @@ export class UserRepository {
           TableName: USER_TABLE_NAME,
           Key: { pk, sk },
           UpdateExpression: 'SET #modifiedDate = :modifiedDate, #sk1 = :sk1',
-          ExpressionAttributeNames: { '#modifiedDate': 'modifiedDate', '#sk1': 'sk1' },
+          ExpressionAttributeNames: {
+            '#modifiedDate': 'modifiedDate',
+            '#sk1': 'sk1',
+          },
           ExpressionAttributeValues: { ':modifiedDate': now, ':sk1': 'ACTIVE' },
         }),
       );
@@ -1625,7 +2029,12 @@ export class UserRepository {
   async updatePatientReporter(
     patientId: string,
     organizationId: string,
-    reporter: { reporterId: string; reporterName: string; reporterProfilePic?: string; reporterEmail?: string },
+    reporter: {
+      reporterId: string;
+      reporterName: string;
+      reporterProfilePic?: string;
+      reporterEmail?: string;
+    },
   ): Promise<void> {
     const logger = createChildLogger(baseLogger, { patientId, organizationId });
     const now = Date.now();
@@ -1639,7 +2048,8 @@ export class UserRepository {
       ':reporterId': reporter.reporterId,
       ':reporterName': reporter.reporterName,
     };
-    let updateExpr = 'SET #modifiedDate = :modifiedDate, #reporterId = :reporterId, #reporterName = :reporterName';
+    let updateExpr =
+      'SET #modifiedDate = :modifiedDate, #reporterId = :reporterId, #reporterName = :reporterName';
     if (reporter.reporterProfilePic !== undefined) {
       exprNames['#reporterProfilePic'] = 'reporterProfilePic';
       exprValues[':reporterProfilePic'] = reporter.reporterProfilePic;
@@ -1651,7 +2061,11 @@ export class UserRepository {
       updateExpr += ', #reporterEmail = :reporterEmail';
     }
 
-    const updates = { ExpressionAttributeNames: exprNames, ExpressionAttributeValues: exprValues, UpdateExpression: updateExpr };
+    const updates = {
+      ExpressionAttributeNames: exprNames,
+      ExpressionAttributeValues: exprValues,
+      UpdateExpression: updateExpr,
+    };
 
     try {
       await docClient.send(
@@ -1663,24 +2077,208 @@ export class UserRepository {
       );
       logger.info({ event: 'updatePatientReporter_org_user' });
     } catch (err) {
-      logger.warn({ event: 'updatePatientReporter_org_user_failed', err: serializeError(err) });
+      logger.warn({
+        event: 'updatePatientReporter_org_user_failed',
+        err: serializeError(err),
+      });
     }
 
     try {
       await docClient.send(
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
-          Key: { pk: userPk(patientId), sk: `USER_BASIC_DETAILS#${organizationId}` },
+          Key: {
+            pk: userPk(patientId),
+            sk: `USER_BASIC_DETAILS#${organizationId}`,
+          },
           ...updates,
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
         }),
       );
       logger.info({ event: 'updatePatientReporter_legacy' });
     } catch (err: unknown) {
-      if ((err as { name?: string })?.name !== 'ConditionalCheckFailedException') {
-        logger.warn({ event: 'updatePatientReporter_legacy_failed', err: serializeError(err) });
+      if (
+        (err as { name?: string })?.name !== 'ConditionalCheckFailedException'
+      ) {
+        logger.warn({
+          event: 'updatePatientReporter_legacy_failed',
+          err: serializeError(err),
+        });
       }
     }
   }
-}
 
+  /**
+   * Update recent invite details for a user
+   * Updates the inviteDetails attribute in the user table
+   */
+  async updateRecentInvite(
+    userId: string,
+    organizationId: string,
+    options: { email?: boolean; sms?: boolean },
+  ): Promise<{
+    email: boolean;
+    emailUpdatedAt: string;
+    sms: boolean;
+    smsUpdatedAt: string;
+  }> {
+    const logger = createChildLogger(baseLogger, { userId, organizationId });
+    const currentTimestamp = new Date().toISOString();
+
+    // Get existing inviteDetails if any
+    let existingInviteDetails: {
+      email?: boolean;
+      emailUpdatedAt?: string;
+      sms?: boolean;
+      smsUpdatedAt?: string;
+    } = {};
+
+    
+    try {
+      const getResponse = await docClient.send(
+        new GetCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
+          },
+        }),
+      );
+      if (getResponse.Item?.inviteDetails) {
+        existingInviteDetails = getResponse.Item.inviteDetails as typeof existingInviteDetails;
+      }
+    } catch (err) {
+      logger.debug({
+        event: 'get_invite_details_error',
+        message: 'Could not fetch existing inviteDetails, will create new',
+        err: serializeError(err),
+      });
+    }
+
+    // Merge existing with updates
+    const inviteDetails = {
+      ...existingInviteDetails,
+    };
+
+    const now = Date.now();
+
+    // Validate email update - check if 24 hours have passed since last update
+    if (options.email !== undefined && options.email === true) {
+      if (existingInviteDetails.emailUpdatedAt) {
+        const lastEmailUpdate = new Date(existingInviteDetails.emailUpdatedAt).getTime();
+        const hoursSinceUpdate = (now - lastEmailUpdate) / (1000 * 60 * 60);
+
+        if (hoursSinceUpdate < 24) {
+          logger.warn({
+            event: 'email_invite_update_too_soon',
+            lastUpdatedAt: existingInviteDetails.emailUpdatedAt,
+            hoursSinceUpdate: hoursSinceUpdate.toFixed(2),
+          });
+          throw new InviteUpdateTooSoonError(
+            'email',
+            existingInviteDetails.emailUpdatedAt,
+            hoursSinceUpdate
+          );
+        }
+      }
+      // Allow update if emailUpdatedAt doesn't exist (first time setting)
+      inviteDetails.email = options.email;
+      inviteDetails.emailUpdatedAt = currentTimestamp;
+    }
+
+    // Validate sms update - check if 24 hours have passed since last update
+    if (options.sms !== undefined && options.sms === true) {
+      if (existingInviteDetails.smsUpdatedAt) {
+        const lastSmsUpdate = new Date(existingInviteDetails.smsUpdatedAt).getTime();
+        const hoursSinceUpdate = (now - lastSmsUpdate) / (1000 * 60 * 60);
+
+        if (hoursSinceUpdate < 24) {
+          logger.warn({
+            event: 'sms_invite_update_too_soon',
+            lastUpdatedAt: existingInviteDetails.smsUpdatedAt,
+            hoursSinceUpdate: hoursSinceUpdate.toFixed(2),
+          });
+          throw new InviteUpdateTooSoonError(
+            'sms',
+            existingInviteDetails.smsUpdatedAt,
+            hoursSinceUpdate
+          );
+        }
+      }
+      // Allow update if smsUpdatedAt doesn't exist (first time setting)
+      inviteDetails.sms = options.sms;
+      inviteDetails.smsUpdatedAt = currentTimestamp;
+    }
+
+    // Handle setting to false (no time restriction)
+    if (options.email !== undefined && options.email === false) {
+      inviteDetails.email = false;
+      // Don't update emailUpdatedAt when setting to false
+      if (!existingInviteDetails.emailUpdatedAt) {
+        inviteDetails.emailUpdatedAt = currentTimestamp;
+      }
+    }
+
+    if (options.sms !== undefined && options.sms === false) {
+      inviteDetails.sms = false;
+      // Don't update smsUpdatedAt when setting to false
+      if (!existingInviteDetails.smsUpdatedAt) {
+        inviteDetails.smsUpdatedAt = currentTimestamp;
+      }
+    }
+
+    // Ensure all required fields are present
+    const finalInviteDetails = {
+      email: inviteDetails.email ?? false,
+      emailUpdatedAt: inviteDetails.emailUpdatedAt ?? currentTimestamp,
+      sms: inviteDetails.sms ?? false,
+      smsUpdatedAt: inviteDetails.smsUpdatedAt ?? currentTimestamp,
+    };
+
+    // Build update expression
+    const updateParts: string[] = ['modifiedDate = :modifiedDate'];
+    const exprNames: Record<string, string> = {
+      '#inviteDetails': 'inviteDetails',
+    };
+    const exprValues: Record<string, unknown> = {
+      ':modifiedDate': Date.now(),
+      ':inviteDetails': finalInviteDetails,
+    };
+
+    updateParts.push('#inviteDetails = :inviteDetails');
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
+          },
+          UpdateExpression: `SET ${updateParts.join(', ')}`,
+          ExpressionAttributeNames: exprNames,
+          ExpressionAttributeValues: exprValues,
+          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        }),
+      );
+
+      logger.info({
+        event: 'invite_details_updated',
+        message: 'Invite details updated successfully',
+        inviteDetails: finalInviteDetails,
+      });
+
+      return finalInviteDetails;
+    } catch (err: unknown) {
+      const code = (err as { name?: string })?.name;
+      if (code === 'ConditionalCheckFailedException') {
+        throw new UserNotFoundError(userId);
+      }
+      logger.error({
+        event: 'update_invite_details_error',
+        err: serializeError(err),
+        message: 'Failed to update invite details',
+      });
+      throw err;
+    }
+  }
+}

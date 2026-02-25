@@ -129,8 +129,8 @@ export async function v2UserList(
 
     logger.info({
       event: 'v2_user_list_success',
-      count: result.data.items.length,
-      hasNextCursor: !!result.meta.nextCursor,
+      count: result.data?.items?.length ?? 0,
+      hasNextCursor: !!result.meta?.nextCursor,
       duration,
     });
 

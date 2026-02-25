@@ -283,7 +283,6 @@ export const assignDoctorSchema = z.object({
     userType: z.string().optional(),
     presenceStatus: z.string().optional(),
   }),
-  isReferred: z.boolean().optional(),
 }).refine(
   (data) => data.sender.userId !== data.receiver.userId,
   { message: 'Sender (doctor) and receiver (patient) must be different users', path: ['receiver'] },

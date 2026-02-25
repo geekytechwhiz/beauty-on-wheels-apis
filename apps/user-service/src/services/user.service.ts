@@ -1176,7 +1176,6 @@ export class UserService {
     sender: { userId: string; name?: string; email?: string },
     receiver: { userId: string; name?: string; email?: string },
     correlationId?: string,
-    isReferred?: boolean
   ): Promise<void> {
     const timer = createPerformanceTimer(baseLogger, 'assignDoctor', correlationId);
     const logger = createChildLogger(baseLogger, { organizationId, doctorId: sender.userId, patientId: receiver.userId });
@@ -1199,15 +1198,12 @@ export class UserService {
         : (doctor as any).fullName || (doctor as any).firstName || (sender as any).name || sender.userId;
 
     await this.repository.saveDoctorPatientLink(sender.userId, receiver.userId, organizationId);
-    
-    if(!isReferred){
-      await this.repository.updatePatientReporter(receiver.userId, organizationId, {
+    await this.repository.updatePatientReporter(receiver.userId, organizationId, {
       reporterId: sender.userId,
       reporterName: doctorFullName,
       reporterProfilePic: (doctor as any).profilePic,
       reporterEmail: (doctor as any).emailAddress ?? sender.email,
     });
-  }
 
     logger.info({ event: 'service_assignDoctor_success' });
     timer.end();

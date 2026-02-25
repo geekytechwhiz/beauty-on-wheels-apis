@@ -11,7 +11,7 @@ import {
   V2UserListMeta,
   V2UserListResponse
 } from '../types/user-list-context.enum';
-import { mapToActiveConsultationUser, mapToPatientListItem, mapToPastConsultationUser, mapToUserItem } from '../utils/responseMapper';
+import { mapToActiveConsultationUser, mapToPatientListItem, mapToPastConsultationUser, mapToPatientUser, mapToUserItem } from '../utils/responseMapper';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -320,7 +320,7 @@ export class V2UserListService {
       case UserListContext.DOCTOR_PATIENT_LIST:
         return {
           ...envelope,
-          data: { users: items.map(mapToPatientUser) },
+          data: { items: items.map(mapToPatientUser) },
         } as unknown as V2UserListResponse<UserItem>;
 
       case UserListContext.ACTIVE_CONSULTATIONS:
@@ -332,15 +332,12 @@ export class V2UserListService {
       case UserListContext.PATIENT_CARE_TEAM:
         return {
           ...envelope,
-          data: (items.length > 0 ? items[0] : {}) as Record<string, unknown>,
-        } as unknown as V2UserListResponse<UserItem>;
+          data: { items: items.map(mapToUserItem) },
+        };
 
       default:
         throw new Error(`Invalid context: ${context}`);
     }
   }
-}
-function mapToPatientUser(value: Record<string, unknown>, index: number, array: Record<string, unknown>[]): unknown {
-  throw new Error('Function not implemented.');
 }
 

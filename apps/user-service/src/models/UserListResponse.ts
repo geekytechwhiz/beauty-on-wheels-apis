@@ -404,7 +404,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     createdDate: number;
     modifiedDate: number;
     status: boolean;
-    createdAt?: number;
+    createdAt: number;
     specialty?: string;
     department?: string;
     reporterName?: string;
@@ -437,6 +437,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     accountType: string;
     status: string;
     createdDate: number;
+    createdAt: number;
     mrn: string;
     gender: string;
     medicalHistory: { allergies: unknown[]; symptoms: unknown[]; chronicDiseases: unknown[] };

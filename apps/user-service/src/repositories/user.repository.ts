@@ -2094,6 +2094,7 @@ export class UserRepository {
       smsUpdatedAt?: string;
     } = {};
 
+    
     try {
       const getResponse = await docClient.send(
         new GetCommand({
@@ -2104,7 +2105,6 @@ export class UserRepository {
           },
         }),
       );
-
       if (getResponse.Item?.inviteDetails) {
         existingInviteDetails = getResponse.Item.inviteDetails as typeof existingInviteDetails;
       }
@@ -2207,7 +2207,6 @@ export class UserRepository {
     };
 
     updateParts.push('#inviteDetails = :inviteDetails');
-
     try {
       await docClient.send(
         new UpdateCommand({

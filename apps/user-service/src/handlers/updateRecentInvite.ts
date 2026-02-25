@@ -93,8 +93,9 @@ async function updateRecentInvite(
   // Get userId and organizationId from body or authorizer
   let userId = validation.data.userId || requestUserId;
   let organizationId = validation.data.organizationId || requestOrgId;
+  let patientId = validation.data.patientId;
 
-  if (!userId || !organizationId) {
+  if (!userId || !organizationId || !patientId) {
     const duration = Date.now() - startTime;
     logHttpRequest(
       logger,
@@ -152,6 +153,7 @@ async function updateRecentInvite(
       event: 'updateRecentInvite_start',
       userId,
       organizationId,
+      patientId,
       email: validation.data.email,
       sms: validation.data.sms,
     });
@@ -159,6 +161,7 @@ async function updateRecentInvite(
     const result = await userService.updateRecentInvite(
       userId,
       organizationId,
+      patientId,
       {
         email: validation.data.email,
         sms: validation.data.sms,

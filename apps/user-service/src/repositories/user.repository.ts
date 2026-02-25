@@ -1929,6 +1929,10 @@ export class UserRepository {
   /**
    * Save or update doctor–patient link. Matches legacy link_unlink_user pattern:
    * pk = USER#doctorId, sk = ASSIGNEE#patientId, sk1 = ACTIVE, organizationID, createdDate, modifiedDate.
+   *
+   * Additionally creates a reverse mapping so we can easily fetch all assigned
+   * doctors for a given patient:
+   * pk = USER#patientId, sk = ASSIGNED_TO#doctorId, sk1 = ACTIVE, organizationID, createdDate, modifiedDate.
    */
   async saveDoctorPatientLink(
     doctorId: string,
@@ -1940,14 +1944,17 @@ export class UserRepository {
       patientId,
       organizationId,
     });
-    const pk = `USER#${doctorId}`;
-    const sk = `ASSIGNEE#${patientId}`;
+    const doctorPk = `USER#${doctorId}`;
+    const doctorSk = `ASSIGNEE#${patientId}`;
+    const patientPk = `USER#${patientId}`;
+    const patientSk = `ASSIGNED_TO#${doctorId}`;
     const now = Date.now();
 
+    // Upsert doctor -> patient link
     const existing = await docClient.send(
       new GetCommand({
         TableName: USER_TABLE_NAME,
-        Key: { pk, sk },
+        Key: { pk: doctorPk, sk: doctorSk },
       }),
     );
 
@@ -1955,7 +1962,7 @@ export class UserRepository {
       await docClient.send(
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
-          Key: { pk, sk },
+          Key: { pk: doctorPk, sk: doctorSk },
           UpdateExpression: 'SET #modifiedDate = :modifiedDate, #sk1 = :sk1',
           ExpressionAttributeNames: {
             '#modifiedDate': 'modifiedDate',
@@ -1970,8 +1977,8 @@ export class UserRepository {
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: {
-            pk,
-            sk,
+            pk: doctorPk,
+            sk: doctorSk,
             sk1: 'ACTIVE',
             organizationID: organizationId,
             createdDate: now,
@@ -1981,6 +1988,103 @@ export class UserRepository {
       );
       logger.info({ event: 'saveDoctorPatientLink_created' });
     }
+
+    // Upsert patient -> doctor reverse link
+    const reverseExisting = await docClient.send(
+      new GetCommand({
+        TableName: USER_TABLE_NAME,
+        Key: { pk: patientPk, sk: patientSk },
+      }),
+    );
+
+    if (reverseExisting.Item) {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: USER_TABLE_NAME,
+          Key: { pk: patientPk, sk: patientSk },
+          UpdateExpression: 'SET #modifiedDate = :modifiedDate, #sk1 = :sk1',
+          ExpressionAttributeNames: {
+            '#modifiedDate': 'modifiedDate',
+            '#sk1': 'sk1',
+          },
+          ExpressionAttributeValues: { ':modifiedDate': now, ':sk1': 'ACTIVE' },
+        }),
+      );
+      logger.info({ event: 'saveDoctorPatientLink_reverse_updated' });
+    } else {
+      await docClient.send(
+        new PutCommand({
+          TableName: USER_TABLE_NAME,
+          Item: {
+            pk: patientPk,
+            sk: patientSk,
+            sk1: 'ACTIVE',
+            organizationID: organizationId,
+            createdDate: now,
+            modifiedDate: now,
+          },
+        }),
+      );
+      logger.info({ event: 'saveDoctorPatientLink_reverse_created' });
+    }
+  }
+
+  /**
+   * List all doctor IDs assigned to a patient.
+   * Uses the reverse mapping created in saveDoctorPatientLink:
+   * pk = USER#patientId, sk begins_with ASSIGNED_TO#, sk1 <> INACTIVE.
+   */
+  async listAssignedDoctorIdsForPatient(
+    patientId: string,
+  ): Promise<
+    {
+      doctorId: string;
+      organizationID?: string;
+    }[]
+  > {
+    const logger = createChildLogger(baseLogger, { patientId });
+    const result: { doctorId: string; organizationID?: string }[] = [];
+    let lastKey: Record<string, unknown> | undefined;
+
+    do {
+      const params: QueryCommandInput = {
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :skPrefix)',
+        FilterExpression: '#sk1 <> :inactive',
+        ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk', '#sk1': 'sk1' },
+        ExpressionAttributeValues: {
+          ':pk': `USER#${patientId}`,
+          ':skPrefix': 'ASSIGNED_TO#',
+          ':inactive': 'INACTIVE',
+        },
+      };
+      if (lastKey) {
+        params.ExclusiveStartKey = lastKey as Record<string, unknown>;
+      }
+
+      const response = await docClient.send(new QueryCommand(params));
+      const items = response.Items ?? [];
+      lastKey = response.LastEvaluatedKey;
+
+      for (const item of items) {
+        const sk = (item.sk as string) || '';
+        const doctorId =
+          sk.includes('#') && sk.split('#')[1] ? sk.split('#')[1] : sk;
+        if (!doctorId) continue;
+
+        result.push({
+          doctorId,
+          organizationID: (item as any).organizationID,
+        });
+      }
+    } while (lastKey);
+
+    logger.info({
+      event: 'listAssignedDoctorIdsForPatient_success',
+      patientId,
+      count: result.length,
+    });
+    return result;
   }
 
   /**

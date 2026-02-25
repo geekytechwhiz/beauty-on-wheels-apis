@@ -11,7 +11,7 @@ import {
   V2UserListMeta,
   V2UserListResponse
 } from '../types/user-list-context.enum';
-import { mapToActiveConsultationUser, mapToPatientListItem, mapToPastConsultationUser, mapToUserItem } from '../utils/responseMapper';
+import { mapToActiveConsultationUser, mapToPatientListItem, mapToPastConsultationUser, mapToPatientUser, mapToUserItem } from '../utils/responseMapper';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -339,8 +339,5 @@ export class V2UserListService {
         throw new Error(`Invalid context: ${context}`);
     }
   }
-}
-function mapToPatientUser(value: Record<string, unknown>, index: number, array: Record<string, unknown>[]): unknown {
-  throw new Error('Function not implemented.');
 }
 

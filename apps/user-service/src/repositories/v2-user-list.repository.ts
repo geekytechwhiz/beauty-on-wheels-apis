@@ -285,111 +285,262 @@ export class V2UserListRepository {
   ): Promise<V2UserListQueryResult> {
     const logger = createChildLogger(baseLogger, { correlationId, doctorId, organizationId });
 
-    logger.info({ event: 'v2_doctor_patients_query_start', doctorId });
+    logger.info({ 
+      event: 'v2_doctor_patients_query_start', 
+      doctorId,
+      organizationId,
+      hasFilters: !!filters,
+      filters: filters ? {
+        hasSearch: !!filters.search,
+        hasUserTypes: !!filters.userTypes,
+        isActive: filters.isActive,
+        isRpmUser: filters.isRpmUser,
+      } : undefined,
+      pagination: pagination ? { limit: pagination.limit, hasCursor: !!pagination.cursor } : undefined,
+    });
 
     const patientLinks: string[] = [];
     const linkPrefixes = ['ASSIGNEE#', 'DIETICIAN#', 'HEALTHCOACH#', 'CAREMANAGER#'];
 
-    for (const prefix of linkPrefixes) {
-      let lastKey: Record<string, unknown> | undefined;
-      do {
-        const params: QueryCommandInput = {
-          TableName: USER_TABLE_NAME,
-          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-          FilterExpression: 'attribute_not_exists(#sk1) OR #sk1 <> :inactive',
-          ExpressionAttributeNames: { '#sk1': 'sk1' },
-          ExpressionAttributeValues: {
-            ':pk': `USER#${doctorId}`,
-            ':sk': prefix,
-            ':inactive': 'INACTIVE',
-          },
-          ...(lastKey && { ExclusiveStartKey: lastKey }),
-        };
+    try {
+      for (const prefix of linkPrefixes) {
+        logger.debug({ 
+          event: 'v2_doctor_patients_query_prefix_start', 
+          prefix,
+          doctorId,
+        });
 
-        const response = await docClient.send(new QueryCommand(params));
-        const items = response.Items ?? [];
-        lastKey = response.LastEvaluatedKey;
-
-        for (const item of items) {
-          const sk = String(item.sk ?? '');
-          const patientId = sk.includes('#') ? sk.split('#')[1] : sk;
-          if (patientId && !patientLinks.includes(patientId)) {
-            patientLinks.push(patientId);
-          }
-        }
-      } while (lastKey);
-    }
-
-    if (patientLinks.length === 0) {
-      return { items: [], lastEvaluatedKey: undefined };
-    }
-
-    const patientUsers: Record<string, unknown>[] = [];
-    for (const patientId of patientLinks) {
-      try {
-        const userResult = await docClient.send(
-          new QueryCommand({
+        let lastKey: Record<string, unknown> | undefined;
+        let queryIteration = 0;
+        do {
+          queryIteration++;
+          const params: QueryCommandInput = {
             TableName: USER_TABLE_NAME,
-            KeyConditionExpression: 'pk = :pk AND sk = :sk',
+            KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+            FilterExpression: 'attribute_not_exists(#sk1) OR #sk1 <> :inactive',
+            ExpressionAttributeNames: { '#sk1': 'sk1' },
             ExpressionAttributeValues: {
-              ':pk': `ORG#${organizationId}`,
-              ':sk': `USER#${patientId}`,
+              ':pk': `USER#${doctorId}`,
+              ':sk': prefix,
+              ':inactive': 'INACTIVE',
             },
-            Limit: 1,
-          }),
-        );
+            ...(lastKey && { ExclusiveStartKey: lastKey }),
+          };
 
-        if (userResult.Items && userResult.Items.length > 0) {
-          patientUsers.push(userResult.Items[0] as Record<string, unknown>);
-        }
-      } catch (err) {
-        logger.warn({
-          event: 'v2_doctor_patients_fetch_user_warning',
-          patientId,
-          err: serializeError(err),
+          logger.debug({
+            event: 'v2_doctor_patients_link_query',
+            prefix,
+            queryIteration,
+            pk: params.ExpressionAttributeValues?.[':pk'],
+            skPrefix: params.ExpressionAttributeValues?.[':sk'],
+            hasExclusiveStartKey: !!lastKey,
+          });
+
+          try {
+            const response = await docClient.send(new QueryCommand(params));
+            const items = response.Items ?? [];
+            lastKey = response.LastEvaluatedKey;
+
+            logger.debug({
+              event: 'v2_doctor_patients_link_query_result',
+              prefix,
+              queryIteration,
+              itemsCount: items.length,
+              hasLastEvaluatedKey: !!lastKey,
+            });
+
+            for (const item of items) {
+              const sk = String(item.sk ?? '');
+              const patientId = sk.includes('#') ? sk.split('#')[1] : sk;
+              
+              logger.debug({
+                event: 'v2_doctor_patients_extract_patient_id',
+                prefix,
+                sk,
+                extractedPatientId: patientId,
+                itemSk1: item.sk1,
+              });
+
+              if (patientId && !patientLinks.includes(patientId)) {
+                patientLinks.push(patientId);
+                logger.debug({
+                  event: 'v2_doctor_patients_patient_link_added',
+                  patientId,
+                  totalLinks: patientLinks.length,
+                });
+              }
+            }
+          } catch (queryErr) {
+            logger.error({
+              event: 'v2_doctor_patients_link_query_error',
+              prefix,
+              queryIteration,
+              err: serializeError(queryErr),
+              params: {
+                pk: params.ExpressionAttributeValues?.[':pk'],
+                skPrefix: params.ExpressionAttributeValues?.[':sk'],
+              },
+            });
+            throw queryErr;
+          }
+        } while (lastKey);
+
+        logger.info({
+          event: 'v2_doctor_patients_prefix_complete',
+          prefix,
+          patientLinksFound: patientLinks.length,
         });
       }
+
+      logger.info({
+        event: 'v2_doctor_patients_links_collected',
+        totalPatientLinks: patientLinks.length,
+        patientLinks: patientLinks.slice(0, 10), // Log first 10 to avoid huge logs
+      });
+
+      if (patientLinks.length === 0) {
+        logger.info({
+          event: 'v2_doctor_patients_no_links_found',
+          doctorId,
+        });
+        return { items: [], lastEvaluatedKey: undefined };
+      }
+
+      const patientUsers: Record<string, unknown>[] = [];
+      logger.info({
+        event: 'v2_doctor_patients_fetch_users_start',
+        totalPatientLinks: patientLinks.length,
+      });
+
+      for (let i = 0; i < patientLinks.length; i++) {
+        const patientId = patientLinks[i];
+        try {
+          logger.debug({
+            event: 'v2_doctor_patients_fetch_user_attempt',
+            patientId,
+            index: i + 1,
+            total: patientLinks.length,
+            organizationId,
+          });
+
+          const userResult = await docClient.send(
+            new QueryCommand({
+              TableName: USER_TABLE_NAME,
+              KeyConditionExpression: 'pk = :pk AND sk = :sk',
+              ExpressionAttributeValues: {
+                ':pk': `ORG#${organizationId}`,
+                ':sk': `USER#${patientId}`,
+              },
+              Limit: 1,
+            }),
+          );
+
+          if (userResult.Items && userResult.Items.length > 0) {
+            patientUsers.push(userResult.Items[0] as Record<string, unknown>);
+            logger.debug({
+              event: 'v2_doctor_patients_user_fetched',
+              patientId,
+              userFound: true,
+              totalFetched: patientUsers.length,
+            });
+          } else {
+            logger.debug({
+              event: 'v2_doctor_patients_user_not_found',
+              patientId,
+              organizationId,
+            });
+          }
+        } catch (err) {
+          logger.error({
+            event: 'v2_doctor_patients_fetch_user_error',
+            patientId,
+            index: i + 1,
+            total: patientLinks.length,
+            organizationId,
+            err: serializeError(err),
+          });
+        }
+      }
+
+      logger.info({
+        event: 'v2_doctor_patients_users_fetched',
+        totalPatientLinks: patientLinks.length,
+        totalUsersFetched: patientUsers.length,
+      });
+
+      let filteredUsers = patientUsers;
+
+      if (filters?.search) {
+        const beforeCount = filteredUsers.length;
+        filteredUsers = applySearchFilter(filteredUsers, filters.search);
+        logger.debug({
+          event: 'v2_doctor_patients_search_filter_applied',
+          searchTerm: filters.search,
+          beforeCount,
+          afterCount: filteredUsers.length,
+        });
+      }
+
+      if (typeof filters?.isActive === 'boolean') {
+        const beforeCount = filteredUsers.length;
+        filteredUsers = filteredUsers.filter(
+          (u) => u.isActive === filters.isActive,
+        );
+        logger.debug({
+          event: 'v2_doctor_patients_isactive_filter_applied',
+          isActive: filters.isActive,
+          beforeCount,
+          afterCount: filteredUsers.length,
+        });
+      }
+
+      if (typeof filters?.isRpmUser === 'boolean') {
+        const beforeCount = filteredUsers.length;
+        filteredUsers = filteredUsers.filter(
+          (u) => u.isRpmUser === filters.isRpmUser,
+        );
+        logger.debug({
+          event: 'v2_doctor_patients_isrpmuser_filter_applied',
+          isRpmUser: filters.isRpmUser,
+          beforeCount,
+          afterCount: filteredUsers.length,
+        });
+      }
+
+      filteredUsers = sortItems(filteredUsers, sort);
+
+      const limit = pagination?.limit || 20;
+      const paginatedItems = filteredUsers.slice(0, limit);
+      const hasMore = filteredUsers.length > limit;
+
+      let nextKey: Record<string, unknown> | undefined;
+      if (hasMore && paginatedItems.length > 0) {
+        const lastItem = paginatedItems[paginatedItems.length - 1];
+        nextKey = { pk: lastItem.pk, sk: lastItem.sk };
+      }
+
+      logger.info({
+        event: 'v2_doctor_patients_query_success',
+        count: paginatedItems.length,
+        totalFiltered: filteredUsers.length,
+        hasMore,
+        limit,
+      });
+
+      return {
+        items: paginatedItems,
+        lastEvaluatedKey: nextKey,
+      };
+    } catch (err) {
+      logger.error({
+        event: 'v2_doctor_patients_query_error',
+        doctorId,
+        organizationId,
+        err: serializeError(err),
+        patientLinksCount: patientLinks.length,
+      });
+      throw err;
     }
-
-    let filteredUsers = patientUsers;
-
-    if (filters?.search) {
-      filteredUsers = applySearchFilter(filteredUsers, filters.search);
-    }
-
-    if (typeof filters?.isActive === 'boolean') {
-      filteredUsers = filteredUsers.filter(
-        (u) => u.isActive === filters.isActive,
-      );
-    }
-
-    if (typeof filters?.isRpmUser === 'boolean') {
-      filteredUsers = filteredUsers.filter(
-        (u) => u.isRpmUser === filters.isRpmUser,
-      );
-    }
-
-    filteredUsers = sortItems(filteredUsers, sort);
-
-    const limit = pagination?.limit || 20;
-    const paginatedItems = filteredUsers.slice(0, limit);
-    const hasMore = filteredUsers.length > limit;
-
-    let nextKey: Record<string, unknown> | undefined;
-    if (hasMore && paginatedItems.length > 0) {
-      const lastItem = paginatedItems[paginatedItems.length - 1];
-      nextKey = { pk: lastItem.pk, sk: lastItem.sk };
-    }
-
-    logger.info({
-      event: 'v2_doctor_patients_query_success',
-      count: paginatedItems.length,
-    });
-
-    return {
-      items: paginatedItems,
-      lastEvaluatedKey: nextKey,
-    };
   }
 
   async queryPatientCareTeam(

@@ -326,7 +326,7 @@ export class V2UserListService {
       case UserListContext.ACTIVE_CONSULTATIONS:
         return {
           ...envelope,
-          data: { users: items.map(mapToActiveConsultationUser) },
+          data: { items: items.map(mapToActiveConsultationUser) },
         } as unknown as V2UserListResponse<UserItem>;
 
       case UserListContext.PATIENT_CARE_TEAM:

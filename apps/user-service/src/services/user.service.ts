@@ -1913,6 +1913,33 @@ export class UserService {
       if ((userBasicDetails as any).dietician) data.dietician = (userBasicDetails as any).dietician;
       if ((userBasicDetails as any).healthCoach) data.healthCoach = (userBasicDetails as any).healthCoach;
 
+      // Add all assigned doctors from ASSIGNEE# mapping (referenced array)
+      const assignedDoctorLinks = await this.repository.listAssignedDoctorIdsForPatient(actualUserId);
+      data.assignedDoctors = [];
+      for (const link of assignedDoctorLinks) {
+        const docDetails = await this.repository.getUser(link.doctorId, link.organizationID || userOrgId);
+        if (docDetails) {
+          data.assignedDoctors.push({
+            userID: docDetails.userID || link.doctorId,
+            fullName: docDetails.fullName ||
+              (docDetails.firstName && docDetails.lastName ? `${docDetails.firstName} ${docDetails.lastName}` : docDetails.firstName || ''),
+            profilePic: docDetails.profilePic || '',
+            specialty: docDetails.specialty || '',
+            emailAddress: docDetails.emailAddress || '',
+            organizationID: link.organizationID || docDetails.organizationID,
+          });
+        } else {
+          data.assignedDoctors.push({
+            userID: link.doctorId,
+            fullName: '',
+            profilePic: '',
+            specialty: '',
+            emailAddress: '',
+            organizationID: link.organizationID,
+          });
+        }
+      }
+
       // Fitness apps
       data.fitnessApps = {
         garmin: !!(userBasicDetails as any).garmin,

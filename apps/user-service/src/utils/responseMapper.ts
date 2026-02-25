@@ -18,6 +18,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
       accountType: String(item.accountType ?? ''),
       status: String(item.status ?? ''),
       createdDate: Number(item.createdDate ?? item.createdAt ?? 0),
+      createdAt: Number(item.createdAt ?? item.createdDate ?? Date.now()),
       mrn: String(item.mrn ?? ''),
       gender: String(item.gender ?? ''),
       medicalHistory: {
@@ -86,7 +87,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
       createdDate: Number(item.createdDate ?? item.createdAt ?? 0),
       modifiedDate: Number(item.modifiedDate ?? 0),
       status: item.status !== undefined ? Boolean(item.status) : true,
-      createdAt: item.createdAt != null ? Number(item.createdAt) : undefined,
+      createdAt: Number(item.createdAt ?? item.createdDate ?? Date.now()),
       specialty: item.specialty ? String(item.specialty) : undefined,
       department: item.department ? String(item.department) : undefined,
       reporterName: item.reporterName != null ? String(item.reporterName) : undefined,

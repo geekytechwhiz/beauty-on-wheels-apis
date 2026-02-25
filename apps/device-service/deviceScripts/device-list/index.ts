@@ -7,19 +7,20 @@ import * as path from 'path';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { DevicesData, DeviceDynamoDBItem } from './types';
 
-// Helper to get script directory - works when compiled to CommonJS
-// __dirname is available at runtime after TypeScript compiles to CommonJS
-declare const __dirname: string;
-
-const getScriptDir = (): string => {
-	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// Helper to get the device-service root directory
+// In CodeBuild, we run from device-service root, so __dirname is deviceScripts/device-list/dist/
+// We need to go up 3 levels: dist -> device-list -> deviceScripts -> device-service root
+const getDeviceServiceRoot = (): string => {
 	// @ts-ignore - __dirname exists at runtime after compilation to CommonJS
 	if (typeof __dirname !== 'undefined') {
 		// @ts-ignore
-		return __dirname;
+		const scriptDir = __dirname;
+		// From deviceScripts/device-list/dist/ -> go up 3 levels to device-service root
+		// dist/ -> ../ -> device-list/ -> ../../ -> deviceScripts/ -> ../../.. -> device-service/
+		return path.resolve(scriptDir, '../../..');
 	}
-	// Fallback: resolve from current working directory
-	return path.resolve(process.cwd(), 'deviceScripts/device-list');
+	// Fallback: use current working directory (should be device-service root in CodeBuild)
+	return process.cwd();
 };
 
 const readFileAsync = promisify(readFile);
@@ -120,9 +121,9 @@ const start = async (): Promise<void> => {
 		}
 
 		// Read devices.json from utils directory
-		// Path: deviceScripts/device-list -> deviceScripts -> device-service -> src/utils/devices.json
-		const scriptDir = getScriptDir();
-		const devicesJsonPath = path.resolve(scriptDir, '../../src/utils/devices.json');
+		// Get device-service root directory and resolve to src/utils/devices.json
+		const deviceServiceRoot = getDeviceServiceRoot();
+		const devicesJsonPath = path.resolve(deviceServiceRoot, 'src/utils/devices.json');
 		
 		console.log(`📂 Reading devices.json from: ${devicesJsonPath}`);
 		

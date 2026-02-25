@@ -384,7 +384,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     sk?: string;
     sk1?: string;
     sk2?: string;
-    userID: string;
+    patientId: string;
     fullName: string;
     firstName: string;
     lastName: string;
@@ -410,6 +410,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     reporterName?: string;
     reporterProfilePic?: string;
     doctorName?: string;
+    doctor?: string;
     deleteFlag?: null;
     postalCode?: string;
     inviteDetails?: {

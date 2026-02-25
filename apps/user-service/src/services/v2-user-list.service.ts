@@ -332,8 +332,8 @@ export class V2UserListService {
       case UserListContext.PATIENT_CARE_TEAM:
         return {
           ...envelope,
-          data: (items.length > 0 ? items[0] : {}) as Record<string, unknown>,
-        } as unknown as V2UserListResponse<UserItem>;
+          data: { items: items.map(mapToUserItem) },
+        };
 
       default:
         throw new Error(`Invalid context: ${context}`);

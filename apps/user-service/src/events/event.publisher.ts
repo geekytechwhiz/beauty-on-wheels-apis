@@ -27,7 +27,12 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
   const logger = createChildLogger(baseLogger, { correlationId: finalCorrelationId, eventType: evt.eventType });
 
   if (!topicArn) {
-    logger.warn({ event: 'events_topic_missing', msg: 'USER_EVENTS_TOPIC_ARN not set' });
+    logger.warn({
+      event: 'events_topic_missing',
+      condition: 'topic_not_configured',
+      eventType: evt.eventType,
+      message: 'USER_EVENTS_TOPIC_ARN not set; event not published; notifications (email/SMS) will not be sent',
+    });
     return;
   }
 
@@ -38,8 +43,22 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
     correlationId: finalCorrelationId,
   };
 
+  if (evt.eventType === 'UserCreatedNotificationRequested' && evt.data) {
+    const d = evt.data as { channels?: string[]; phone?: string; userId?: string };
+    logger.info({
+      event: 'sns_publish_attempt_user_created',
+      condition: 'before_publish',
+      eventType: evt.eventType,
+      userId: d.userId,
+      channels: d.channels,
+      hasPhone: !!d.phone,
+      smsInChannels: d.channels?.includes('sms'),
+      message: 'Publishing UserCreatedNotificationRequested to SNS',
+    });
+  }
+
   const message = JSON.stringify(envelope);
-  logger.info({ event: 'sns_publish_attempt', message: 'Publishing event to SNS', eventEnvelope: envelope });
+  logger.info({ event: 'sns_publish_attempt', condition: 'publish', message: 'Publishing event to SNS', eventType: envelope.eventType });
   try {
     await sns.send(
       new PublishCommand({
@@ -51,7 +70,12 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
         },
       }),
     );
-    logger.info({ event: 'sns_publish_success', message: 'Event published' });
+    logger.info({
+      event: 'sns_publish_success',
+      condition: 'publish_ok',
+      eventType: envelope.eventType,
+      message: 'Event published to SNS successfully',
+    });
   } catch (err: unknown) {
     const code = (err as { name?: string; code?: string })?.name || (err as { code?: string })?.code;
     const credentialErrors = [
@@ -64,6 +88,8 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
     if (isNonProdRelaxed() && credentialErrors.includes(code || '')) {
       logger.warn({
         event: 'sns_publish_skipped_nonprod_invalid_credentials',
+        condition: 'credentials_error',
+        eventType: envelope.eventType,
         code,
         message: (err as Error)?.message,
       });
@@ -71,9 +97,11 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
     }
     logger.error({
       event: 'sns_publish_error',
+      condition: 'publish_failed',
+      eventType: envelope.eventType,
       err: serializeError(err),
       code,
-      message: 'Failed to publish event',
+      message: 'Failed to publish event to SNS',
     });
     throw err;
   }

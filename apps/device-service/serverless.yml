@@ -334,15 +334,16 @@ functions:
           method: get
           cors: true
 
-getOrganizationDevice:
+  getOrganizationDevice:
     handler: src/handlers/getOrganizationDevice.handler
     events:
       - http:
           path: devices/org/{organizationId}
           method: get
           cors: true
+
   # Device Metadata API
-deviceMetadataUpdate:
+  deviceMetadataUpdate:
     handler: src/handlers/deviceMetadataUpdate.handler
     events:
       - http:
@@ -351,7 +352,7 @@ deviceMetadataUpdate:
           cors: true
 
   # Device Reading Timestamp API (literal 'reading-timestamp' avoids API Gateway sibling variable conflict with devices/{deviceId})
-deviceReadingTimestampUpdate:
+  deviceReadingTimestampUpdate:
     handler: src/handlers/deviceReadingTimestampUpdate.handler
     events:
       - http:
@@ -360,7 +361,7 @@ deviceReadingTimestampUpdate:
           cors: true
 
   # Device Files API
-deviceFileUpload: 
+  deviceFileUpload: 
     handler: src/handlers/deviceFileUpload.handler
     events:
       - http:

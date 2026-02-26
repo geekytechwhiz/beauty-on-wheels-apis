@@ -95,7 +95,7 @@ export interface DeviceListResponse {
 }
 
 /**
- * Fetch device list from device service (POST /devices/list).
+ * Fetch device list from device service (GET /devices/org/{organizationId}).
  * @param organizationId - organization ID
  * @param action - 'organization' = all global devices; 'patient' = devices assigned to this org (legacy get_device_list PATIENT)
  */
@@ -106,14 +106,14 @@ export async function fetchOrganizationDevices(
 ): Promise<Array<{ supportedVitals?: string[] }> | null> {
   const baseUrl = process.env.DEVICE_API_BASE_URL;
   if (!baseUrl) return null;
-  const url = `${baseUrl.replace(/\/$/, '')}/devices/list`;
+  const url = `${baseUrl.replace(/\/$/, '')}/devices/org/${organizationId}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authHeader) headers['Authorization'] = authHeader;
   try {
     const res = await fetch(url, {
-      method: 'POST',
+      method: 'GET',
       headers,
-      body: JSON.stringify({ action, organizationID: organizationId }),
+      // body: JSON.stringify({ action, organizationID: organizationId }),
     });
     if (!res.ok) return null;
     const body = (await res.json()) as DeviceListResponse;

@@ -280,4 +280,36 @@ export class OrgDeviceRepository {
     const device = await this.getOrgDevice(organizationId, deviceId);
     return device !== null && device.enabled === true;
   }
+
+  /**
+   * Upsert NON-DEVICES entry for an org: vitals that are supported by the org but have no devices.
+   * Access pattern: pk: ORG_DEVICES#{orgId}, sk: NON-DEVICES
+   */
+  async upsertNonDeviceVitals(organizationId: string, supportedVitals: string[]): Promise<void> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    const now = Date.now();
+
+    const entry = {
+      pk: `ORG_DEVICES#${organizationId}`,
+      sk: 'NON-DEVICES',
+      category: 'NON-DEVICES',
+      organizationID: organizationId,
+      supportedVitals,
+      createdDate: now,
+      modifiedDate: now,
+    };
+
+    try {
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: entry,
+        }),
+      );
+      logger.info({ event: 'non_device_vitals_upserted', supportedVitalsCount: supportedVitals.length });
+    } catch (err) {
+      logger.error({ event: 'non_device_vitals_upsert_error', err: serializeError(err) });
+      throw err;
+    }
+  }
 }

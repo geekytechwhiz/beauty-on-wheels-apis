@@ -157,6 +157,8 @@ async function assignDevicesToOrganization(
         logger.info({ event: 'device_registered_to_global', deviceId });
       }
 
+      
+
       // Step 3: Assign device to organization using ORG_DEVICES pattern
       // Organization device pattern: pk: ORG_DEVICES#{orgId}, sk: {deviceId}
       logger.info({ event: 'device_assigning_to_org', deviceId, orgId });
@@ -191,6 +193,24 @@ async function assignDevicesToOrganization(
         status: 'failed',
         error: errorMessage,
       });
+    }
+  }
+
+  // Identify missing vitals: input supportedVitals that have no device in the org
+  const inputSupportedVitals = data.supportedVitals ?? [];
+  if (inputSupportedVitals.length > 0) {
+    const orgDevices = await orgDeviceRepository.getOrgDevices(orgId);
+    const deviceCoveredVitals = new Set<string>();
+    for (const dev of orgDevices) {
+      if (dev.sk === 'NON-DEVICES') continue; // skip the NON-DEVICES metadata entry
+      for (const v of dev.supportedVitals ?? []) {
+        deviceCoveredVitals.add(v);
+      }
+    }
+    const missingVitals = inputSupportedVitals.filter((v) => !deviceCoveredVitals.has(v));
+    await orgDeviceRepository.upsertNonDeviceVitals(orgId, missingVitals);
+    if (missingVitals.length > 0) {
+      logger.info({ event: 'non_device_vitals_stored', missingVitals, count: missingVitals.length });
     }
   }
 

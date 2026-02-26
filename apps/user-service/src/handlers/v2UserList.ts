@@ -100,12 +100,13 @@ export async function v2UserList(
         ),
       ],
     };
+    // Don't set a default limit - if no limit provided, fetch all records internally
     const result = await v2UserListService.listUsers({
       organizationId,
       context: userListContext,
       filters:normalizedFilters,
       pagination: {
-        limit: pagination?.limit ?? 20,
+        limit: pagination?.limit, // undefined if not provided, which triggers fetch all
         cursor: pagination?.cursor ?? null,
       },
       sort: {

@@ -40,23 +40,40 @@ export class V2UserListService {
   /**
    * Handle pagination internally by fetching additional pages until we have
    * enough filtered items (excluding F&F users) to meet the requested limit.
+   * If requestedLimit is undefined, fetches all records.
    */
   private async fetchWithInternalPagination<T extends { items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }>(
     queryFn: (pagination: { limit: number; cursor?: string | null }) => Promise<T>,
-    requestedLimit: number,
+    requestedLimit: number | undefined,
     currentCursor?: string | null,
-    maxFetchLimit: number = 100,
-    maxIterations: number = 10,
+    maxFetchLimit: number = 1000,
+    maxIterations: number = 1000,
   ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const allFilteredItems: Record<string, unknown>[] = [];
     let currentPaginationCursor: string | null | undefined = currentCursor;
     let iterations = 0;
     let lastEvaluatedKey: Record<string, unknown> | undefined;
 
+    // If no limit specified, fetch all records (use large batch size and no iteration limit)
+    const fetchAll = requestedLimit === undefined;
+    const effectiveMaxIterations = fetchAll ? Number.MAX_SAFE_INTEGER : maxIterations;
+    
     // Fetch in larger batches to account for F&F filtering
-    const fetchLimit = Math.max(requestedLimit * 3, maxFetchLimit);
+    const fetchLimit = fetchAll 
+      ? maxFetchLimit 
+      : Math.max(requestedLimit * 3, maxFetchLimit);
 
-    while (allFilteredItems.length < requestedLimit && iterations < maxIterations) {
+    // Continue fetching until we have enough items or no more data
+    while (true) {
+      // Check if we should continue based on limit
+      if (!fetchAll && requestedLimit && allFilteredItems.length >= requestedLimit) {
+        break;
+      }
+      
+      if (iterations >= effectiveMaxIterations) {
+        break;
+      }
+
       iterations++;
 
       const result = await queryFn({
@@ -74,21 +91,26 @@ export class V2UserListService {
         ? this.repository.encodeCursor(result.lastEvaluatedKey)
         : null;
 
-      // If no more data or we have enough items, break
-      if (!result.lastEvaluatedKey || allFilteredItems.length >= requestedLimit) {
+      // If no more data, break
+      if (!result.lastEvaluatedKey) {
+        break;
+      }
+
+      // If not fetching all and we have enough items, break
+      if (!fetchAll && requestedLimit && allFilteredItems.length >= requestedLimit) {
         break;
       }
     }
 
-    // Take only the requested number of items
-    const paginatedItems = allFilteredItems.slice(0, requestedLimit);
+    // Take only the requested number of items (or all if fetchAll)
+    const paginatedItems = fetchAll 
+      ? allFilteredItems 
+      : allFilteredItems.slice(0, requestedLimit);
 
-    // Determine if there are more items available
-    // We have more if: we collected more than requested, OR there's more data in the DB
-    const hasMore = allFilteredItems.length > requestedLimit || !!lastEvaluatedKey;
+    // Determine if there are more items available (only if not fetching all)
+    const hasMore = !fetchAll && (allFilteredItems.length > (requestedLimit || 0) || !!lastEvaluatedKey);
 
     // Create cursor for next page if there are more items
-    // Use the last item from our filtered results to create the cursor
     let nextCursor: Record<string, unknown> | undefined;
     if (hasMore && paginatedItems.length > 0) {
       const lastItem = paginatedItems[paginatedItems.length - 1];
@@ -166,7 +188,8 @@ export class V2UserListService {
     const { organizationId, filters, pagination, sort, requestId } = params;
     const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
 
     const result = await this.fetchWithInternalPagination(
       async (paginationParams) => {
@@ -185,7 +208,7 @@ export class V2UserListService {
 
     logger.info({ 
       event: 'v2_admin_dashboard_filtered_fnf', 
-      requestedLimit,
+      requestedLimit: requestedLimit || 'ALL',
       returnedCount: result.items.length,
     });
 
@@ -199,7 +222,8 @@ export class V2UserListService {
     const { organizationId, filters, pagination, sort, requestId } = params;
     const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
 
     const result = await this.fetchWithInternalPagination(
       async (paginationParams) => {
@@ -235,7 +259,8 @@ export class V2UserListService {
       throw new Error('patientId is required for PATIENT_CARE_TEAM context');
     }
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
     const patientId = filters.patientId;
 
     const result = await this.fetchWithInternalPagination(
@@ -274,7 +299,8 @@ export class V2UserListService {
       throw new Error('doctorId is required for DOCTOR_PATIENT_LIST context');
     }
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
     const doctorId = filters.doctorId;
 
     const result = await this.fetchWithInternalPagination(
@@ -316,7 +342,8 @@ export class V2UserListService {
       userTypes: ['USER'],
     };
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
 
     const result = await this.fetchWithInternalPagination(
       async (paginationParams) => {
@@ -357,7 +384,8 @@ export class V2UserListService {
       isActive: true,
     };
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
 
     const result = await this.fetchWithInternalPagination(
       async (paginationParams) => {
@@ -390,7 +418,8 @@ export class V2UserListService {
     const { organizationId, filters, pagination, sort, requestId } = params;
     const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
 
     const result = await this.fetchWithInternalPagination(
       async (paginationParams) => {
@@ -438,7 +467,8 @@ export class V2UserListService {
       isActive: filters?.isActive !== undefined ? filters.isActive : true,
     };
 
-    const requestedLimit = pagination?.limit || 20;
+    // Pass undefined if no limit provided to fetch all records
+    const requestedLimit = pagination?.limit;
 
     const result = await this.fetchWithInternalPagination(
       async (paginationParams) => {

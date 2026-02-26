@@ -328,15 +328,40 @@ export class UserService {
         const isStaff = userTypeUpper === 'STAFF';
         const template = isStaff ? 'WELCOME_STAFF' : 'WELCOME_USER';
 
+        // Build notifyPhone from user (saved shape) with fallback to request data so SMS is sent when phone was provided
+        const phoneRaw = (user.phoneNumber && String(user.phoneNumber).trim()) || ((data as any).phoneNumber && String((data as any).phoneNumber).trim()) || '';
+        const phoneCodeRaw = String(user.phoneCode || (data as any).phoneCode || '').trim();
         let notifyPhone: string | undefined = undefined;
-        if (user.phoneNumber) {
-          const pc = String(user.phoneCode || '').trim();
-          const pn = String(user.phoneNumber || '').trim();
-          if (pc) {
-            notifyPhone = pc.startsWith('+') ? `${pc}${pn}` : `+${pc}${pn}`;
+        if (phoneRaw) {
+          if (phoneCodeRaw) {
+            notifyPhone = phoneCodeRaw.startsWith('+') ? `${phoneCodeRaw}${phoneRaw}` : `+${phoneCodeRaw}${phoneRaw}`;
+            logger.info({
+              event: 'service_createUser_notifyPhone_built',
+              condition: 'phone_and_code',
+              hasPhoneRaw: true,
+              hasPhoneCodeRaw: true,
+              notifyPhoneLength: notifyPhone?.length,
+              source: { fromUser: !!user.phoneNumber, fromData: !!(data as any).phoneNumber },
+            });
           } else {
-            notifyPhone = pn;
+            notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
+            logger.info({
+              event: 'service_createUser_notifyPhone_built',
+              condition: 'phone_only',
+              hasPhoneRaw: true,
+              hasPhoneCodeRaw: false,
+              notifyPhoneLength: notifyPhone?.length,
+              source: { fromUser: !!user.phoneNumber, fromData: !!(data as any).phoneNumber },
+            });
           }
+        } else {
+          logger.info({
+            event: 'service_createUser_notifyPhone_skipped',
+            condition: 'no_phone',
+            userPhoneNumber: !!user.phoneNumber,
+            dataPhoneNumber: !!(data as any).phoneNumber,
+            message: 'SMS will not be sent: no phone number from user or request data',
+          });
         }
 
         const deviceToken = (user as any).deviceToken || (user as any).device || undefined;
@@ -346,6 +371,15 @@ export class UserService {
           ...(notifyPhone ? ['sms'] : []),
           ...(deviceToken ? ['push'] : []),
         ];
+
+        logger.info({
+          event: 'service_createUser_channels_built',
+          channels,
+          emailIncluded: !!user.emailAddress,
+          smsIncluded: !!notifyPhone,
+          pushIncluded: !!deviceToken,
+          message: `Channels: email=${!!user.emailAddress}, sms=${!!notifyPhone}, push=${!!deviceToken}`,
+        });
 
         // Organization fields
         const orgAddress = orgDetails?.organizationAddress || orgDetails?.address || '';
@@ -407,9 +441,26 @@ export class UserService {
 
         const definedRoleCode = String((user as any).definedRoleCode || '').toUpperCase();
         const isFnfRole = definedRoleCode === 'FRIEND' || definedRoleCode === 'FAMILY';
+
         if (isFnfRole) {
-          logger.info({ event: 'service_createUser_notification_skipped', definedRoleCode });
+          logger.info({
+            event: 'service_createUser_notification_skipped',
+            condition: 'fnf_role',
+            definedRoleCode,
+            isFnfRole: true,
+            message: 'Notification skipped for FRIEND/FAMILY role; no email or SMS sent',
+          });
         } else {
+          logger.info({
+            event: 'service_createUser_notifyUser_calling',
+            condition: 'notification_send',
+            userId: user.userID,
+            channels,
+            hasPhone: !!notifyPhone,
+            hasEmail: !!user.emailAddress,
+            template,
+            message: 'Publishing UserCreatedNotificationRequested to SNS',
+          });
           await notifyUser({
             userId: user.userID,
             email: user.emailAddress,
@@ -421,9 +472,22 @@ export class UserService {
             templateData,
             correlationId,
           });
+          logger.info({
+            event: 'service_createUser_notifyUser_done',
+            condition: 'notification_published',
+            userId: user.userID,
+            channels,
+            message: 'notifyUser completed successfully',
+          });
         }
       } catch (notifyErr) {
-        logger.warn({ event: 'service_createUser_notification_failed', err: serializeError(notifyErr) });
+        logger.warn({
+          event: 'service_createUser_notification_failed',
+          condition: 'notify_error',
+          err: serializeError(notifyErr),
+          userId: user.userID,
+          message: 'notifyUser threw; check USER_EVENTS_TOPIC_ARN and SNS permissions',
+        });
       }
 
       logger.info({ event: 'service_createUser_success' });

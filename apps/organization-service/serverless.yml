@@ -141,6 +141,9 @@ custom:
       - '.js'
       - '.jsx'
       - '.json'
+    # Ensure .json (e.g. org-vitals.json) is inlined so health handler has default vitals in the bundle
+    loader:
+      .json: json
   autoswagger:
     title: Organization Service API
     description: RESTful API for managing organizations, users, metadata, and files

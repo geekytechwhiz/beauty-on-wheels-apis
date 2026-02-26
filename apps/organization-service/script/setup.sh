@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ====== CONFIG ======
-STAGE=$1
+STAGE="stg"
 REGION="us-east-1"
 USER_POOL_ID="us-east-1_wttVwD9Ax"
 

@@ -185,7 +185,12 @@ async function updateRecentInvite(
         title: 'Success',
         description: 'Invite details updated successfully.',
       },
-      { requestId: correlationId, event },
+      { requestId: correlationId, event , headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id,X-Requested-With',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+      },},
     );
   } catch (err) {
     const duration = Date.now() - startTime;

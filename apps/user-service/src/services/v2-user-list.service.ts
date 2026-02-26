@@ -137,6 +137,7 @@ export class V2UserListService {
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
     const { organizationId, filters, pagination, sort, requestId } = params;
+    const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
     if (!filters?.doctorId) {
       throw new Error('doctorId is required for DOCTOR_PATIENT_LIST context');
@@ -151,7 +152,21 @@ export class V2UserListService {
       requestId,
     );
 
-    return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
+    // Filter out F&F (Friend & Family) users from doctor's patient list
+    const filteredItems = result.items.filter((item) => {
+      const definedRoleCode = String(item.definedRoleCode || '').toUpperCase();
+      return definedRoleCode !== 'FRIEND' && definedRoleCode !== 'FAMILY';
+    });
+
+    logger.info({ 
+      event: 'v2_doctor_patient_list_filtered_fnf', 
+      doctorId: filters.doctorId,
+      originalCount: result.items.length,
+      filteredCount: filteredItems.length,
+      removedCount: result.items.length - filteredItems.length
+    });
+
+    return this.buildResponse(filteredItems, context, result.lastEvaluatedKey, requestId);
   }
 
   private async handlePastConsultations(
@@ -255,8 +270,21 @@ export class V2UserListService {
       sort,
       correlationId: requestId,
     });
-    console.log("RESULT DATA : ",result);
-    return this.buildResponse(result.items, UserListContext.PATIENT_LIST,result.lastEvaluatedKey, requestId);
+    
+    // Filter out F&F (Friend & Family) users from patient list
+    const filteredItems = result.items.filter((item) => {
+      const definedRoleCode = String(item.definedRoleCode || '').toUpperCase();
+      return definedRoleCode !== 'FRIEND' && definedRoleCode !== 'FAMILY';
+    });
+    
+    logger.info({ 
+      event: 'v2_patient_list_filtered_fnf', 
+      originalCount: result.items.length,
+      filteredCount: filteredItems.length,
+      removedCount: result.items.length - filteredItems.length
+    });
+    
+    return this.buildResponse(filteredItems, UserListContext.PATIENT_LIST, result.lastEvaluatedKey, requestId);
   }
 
   private buildEnvelope(

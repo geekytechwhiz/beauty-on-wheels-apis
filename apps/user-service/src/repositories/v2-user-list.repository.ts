@@ -299,8 +299,8 @@ export class V2UserListRepository {
       pagination: pagination ? { limit: pagination.limit, hasCursor: !!pagination.cursor } : undefined,
     });
 
-    const patientLinks: string[] = [];
-    const linkPrefixes = ['ASSIGNEE#', 'DIETICIAN#', 'HEALTHCOACH#', 'CAREMANAGER#'];
+    const patientLinks: Array<{ patientId: string; patientOrgId?: string }> = [];
+    const linkPrefixes = ['ASSIGNEE#', 'DIETICIAN#', 'HEALTHCOACH#', 'CAREMANAGER#', 'SCD_LINK#'];
 
     try {
       for (const prefix of linkPrefixes) {
@@ -310,6 +310,7 @@ export class V2UserListRepository {
           doctorId,
         });
 
+        const isScdLink = prefix === 'SCD_LINK#';
         let lastKey: Record<string, unknown> | undefined;
         let queryIteration = 0;
         do {
@@ -317,15 +318,23 @@ export class V2UserListRepository {
           const params: QueryCommandInput = {
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-            FilterExpression: 'attribute_not_exists(#sk1) OR #sk1 <> :inactive',
-            ExpressionAttributeNames: { '#sk1': 'sk1' },
             ExpressionAttributeValues: {
               ':pk': `USER#${doctorId}`,
               ':sk': prefix,
-              ':inactive': 'INACTIVE',
             },
             ...(lastKey && { ExclusiveStartKey: lastKey }),
           };
+
+          // SCD_LINK records have no filter (matches old getDoctorPatientLinks)
+          // Other link types filter by sk1 <> INACTIVE (matches old getDoctorPatient)
+          if (!isScdLink) {
+            params.FilterExpression = 'attribute_not_exists(#sk1) OR #sk1 <> :inactive';
+            params.ExpressionAttributeNames = { '#sk1': 'sk1' };
+            params.ExpressionAttributeValues = {
+              ...params.ExpressionAttributeValues,
+              ':inactive': 'INACTIVE',
+            };
+          }
 
           logger.debug({
             event: 'v2_doctor_patients_link_query',
@@ -334,6 +343,8 @@ export class V2UserListRepository {
             pk: params.ExpressionAttributeValues?.[':pk'],
             skPrefix: params.ExpressionAttributeValues?.[':sk'],
             hasExclusiveStartKey: !!lastKey,
+            isScdLink,
+            hasFilter: !!params.FilterExpression,
           });
 
           try {
@@ -353,21 +364,33 @@ export class V2UserListRepository {
               const sk = String(item.sk ?? '');
               const patientId = sk.includes('#') ? sk.split('#')[1] : sk;
               
+              // For SCD_LINK, extract patientOrgId from the record (matches old implementation)
+              const patientOrgId = isScdLink && item.patientOrgId 
+                ? String(item.patientOrgId) 
+                : undefined;
+              
               logger.debug({
                 event: 'v2_doctor_patients_extract_patient_id',
                 prefix,
                 sk,
                 extractedPatientId: patientId,
+                patientOrgId,
                 itemSk1: item.sk1,
+                isScdLink,
               });
 
-              if (patientId && !patientLinks.includes(patientId)) {
-                patientLinks.push(patientId);
-                logger.debug({
-                  event: 'v2_doctor_patients_patient_link_added',
-                  patientId,
-                  totalLinks: patientLinks.length,
-                });
+              if (patientId) {
+                // Check if this patientId already exists (avoid duplicates)
+                const existingLink = patientLinks.find(link => link.patientId === patientId);
+                if (!existingLink) {
+                  patientLinks.push({ patientId, patientOrgId });
+                  logger.debug({
+                    event: 'v2_doctor_patients_patient_link_added',
+                    patientId,
+                    patientOrgId,
+                    totalLinks: patientLinks.length,
+                  });
+                }
               }
             }
           } catch (queryErr) {
@@ -413,14 +436,21 @@ export class V2UserListRepository {
       });
 
       for (let i = 0; i < patientLinks.length; i++) {
-        const patientId = patientLinks[i];
+        const link = patientLinks[i];
+        const patientId = link.patientId;
+        // Use patientOrgId from SCD_LINK record if available, otherwise use organizationId parameter
+        // This matches old implementation: getUserDataBatch(patientId, patientOrgId)
+        const patientOrgId = link.patientOrgId || organizationId;
+        
         try {
           logger.debug({
             event: 'v2_doctor_patients_fetch_user_attempt',
             patientId,
+            patientOrgId,
             index: i + 1,
             total: patientLinks.length,
             organizationId,
+            usingLinkOrgId: !!link.patientOrgId,
           });
 
           const userResult = await docClient.send(
@@ -428,7 +458,7 @@ export class V2UserListRepository {
               TableName: USER_TABLE_NAME,
               KeyConditionExpression: 'pk = :pk AND sk = :sk',
               ExpressionAttributeValues: {
-                ':pk': `ORG#${organizationId}`,
+                ':pk': `ORG#${patientOrgId}`,
                 ':sk': `USER#${patientId}`,
               },
               Limit: 1,
@@ -440,6 +470,7 @@ export class V2UserListRepository {
             logger.debug({
               event: 'v2_doctor_patients_user_fetched',
               patientId,
+              patientOrgId,
               userFound: true,
               totalFetched: patientUsers.length,
             });
@@ -447,6 +478,7 @@ export class V2UserListRepository {
             logger.debug({
               event: 'v2_doctor_patients_user_not_found',
               patientId,
+              patientOrgId,
               organizationId,
             });
           }
@@ -454,6 +486,7 @@ export class V2UserListRepository {
           logger.error({
             event: 'v2_doctor_patients_fetch_user_error',
             patientId,
+            patientOrgId,
             index: i + 1,
             total: patientLinks.length,
             organizationId,

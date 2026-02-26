@@ -2,8 +2,6 @@ import { SNSEvent, Context } from 'aws-lambda';
 import { createLogger, serializeError } from '@api-hub/logger';
 import { sendEmail, sendSms, sendPush } from '../services/notification.delivery';
 import type {
-  UserCreatedNotificationRequestedData,
-  DeviceErrorNotificationRequestedData,
   RecommendationNotificationRequestedData,
   PaymentStatusNotificationRequestedData,
 } from '../events/event.types';
@@ -32,7 +30,7 @@ async function resolveContactForUserId(
 ): Promise<{ email?: string; phone?: string; deviceToken?: string }> {
   const user = await userRepository.getUser(userId, organizationId);
   if (!user) return {};
-  const u = user as Record<string, unknown>;
+  const u = user as unknown as Record<string, unknown>;
   const email = (u.emailAddress as string) || (u.email as string);
   const pc = String(u.phoneCode ?? '').trim();
   const pn = String(u.phoneNumber ?? '').trim();
@@ -43,33 +41,75 @@ async function resolveContactForUserId(
 
 async function deliver(payload: NotificationPayload): Promise<void> {
   const channels = normalizeChannels(payload.channels);
+  logger.info({
+    event: 'deliver_start',
+    condition: 'entry',
+    userId: payload.userId,
+    channels,
+    hasEmail: !!payload.email,
+    hasPhone: !!payload.phone,
+    hasDeviceToken: !!payload.deviceToken,
+    message: `Delivering to ${channels.length} channel(s)`,
+  });
   for (const ch of channels) {
     try {
       if (ch === 'email') {
         if (!payload.email) {
-          logger.warn({ event: 'skip_email_missing_address', userId: payload.userId });
+          logger.warn({
+            event: 'skip_email_missing_address',
+            condition: 'email_skipped',
+            userId: payload.userId,
+            message: 'Email channel in payload but no email address; skipping email',
+          });
           continue;
         }
+        logger.info({ event: 'deliver_email_sending', condition: 'email_send', userId: payload.userId });
         await sendEmail({ email: payload.email, template: payload.template, templateData: payload.templateData });
+        logger.info({ event: 'deliver_email_done', condition: 'email_success', userId: payload.userId });
       } else if (ch === 'sms') {
         if (!payload.phone) {
-          logger.warn({ event: 'skip_sms_missing_number', userId: payload.userId });
+          logger.warn({
+            event: 'skip_sms_missing_number',
+            condition: 'sms_skipped',
+            userId: payload.userId,
+            channels: payload.channels,
+            message: 'SMS channel in payload but payload.phone is missing; SMS will not be sent',
+          });
           continue;
         }
+        logger.info({
+          event: 'deliver_sms_sending',
+          condition: 'sms_send',
+          userId: payload.userId,
+          hasPhone: true,
+          template: payload.template,
+          message: 'Calling sendSms',
+        });
         await sendSms({ phone: payload.phone, template: payload.template, templateData: payload.templateData });
+        logger.info({ event: 'deliver_sms_done', condition: 'sms_success', userId: payload.userId, message: 'sendSms completed' });
       } else if (ch === 'push') {
+        logger.info({ event: 'deliver_push_sending', condition: 'push_send', userId: payload.userId });
         await sendPush({
           deviceToken: payload.deviceToken,
           template: payload.template,
           templateData: payload.templateData,
         });
+        logger.info({ event: 'deliver_push_done', condition: 'push_success', userId: payload.userId });
       } else {
-        logger.warn({ event: 'unknown_channel', channel: ch });
+        logger.warn({ event: 'unknown_channel', condition: 'unknown_channel', channel: ch, userId: payload.userId });
       }
     } catch (deliveryErr) {
-      logger.error({ event: 'delivery_failed', channel: ch, err: serializeError(deliveryErr) });
+      logger.error({
+        event: 'delivery_failed',
+        condition: 'delivery_error',
+        channel: ch,
+        userId: payload.userId,
+        err: serializeError(deliveryErr),
+        message: `Delivery failed for channel ${ch}`,
+      });
     }
   }
+  logger.info({ event: 'deliver_complete', condition: 'exit', userId: payload.userId, channels, message: 'deliver() finished' });
 }
 
 export const handler = async (event: SNSEvent, _context: Context) => {
@@ -95,6 +135,15 @@ export const handler = async (event: SNSEvent, _context: Context) => {
           template: data.template as string | undefined,
           templateData: data.templateData as Record<string, unknown> | undefined,
         };
+        logger.info({
+          event: 'UserCreatedNotificationRequested_received',
+          condition: 'user_created_payload',
+          userId: payload.userId,
+          channels: payload.channels,
+          hasPhone: !!payload.phone,
+          hasEmail: !!payload.email,
+          message: 'Parsed UserCreatedNotificationRequested; will call deliver()',
+        });
       } else if (eventType === 'DeviceErrorNotificationRequested') {
         payload = {
           userId: data.userId as string | undefined,

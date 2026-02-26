@@ -24,6 +24,90 @@ export class V2UserListService {
     this.repository = new V2UserListRepository();
   }
 
+  /**
+   * Filter out F&F (Friend & Family) users from the list.
+   * Excludes users with definedRoleCode of 'FRIEND' or 'FAMILY'.
+   */
+  private filterFriendFamilyUsers(
+    items: Record<string, unknown>[],
+  ): Record<string, unknown>[] {
+    return items.filter((item) => {
+      const definedRoleCode = String(item.definedRoleCode || '').toUpperCase();
+      return definedRoleCode !== 'FRIEND' && definedRoleCode !== 'FAMILY';
+    });
+  }
+
+  /**
+   * Handle pagination internally by fetching additional pages until we have
+   * enough filtered items (excluding F&F users) to meet the requested limit.
+   */
+  private async fetchWithInternalPagination<T extends { items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }>(
+    queryFn: (pagination: { limit: number; cursor?: string | null }) => Promise<T>,
+    requestedLimit: number,
+    currentCursor?: string | null,
+    maxFetchLimit: number = 100,
+    maxIterations: number = 10,
+  ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const allFilteredItems: Record<string, unknown>[] = [];
+    let currentPaginationCursor: string | null | undefined = currentCursor;
+    let iterations = 0;
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
+
+    // Fetch in larger batches to account for F&F filtering
+    const fetchLimit = Math.max(requestedLimit * 3, maxFetchLimit);
+
+    while (allFilteredItems.length < requestedLimit && iterations < maxIterations) {
+      iterations++;
+
+      const result = await queryFn({
+        limit: fetchLimit,
+        cursor: currentPaginationCursor,
+      });
+
+      // Filter out F&F users
+      const filteredBatch = this.filterFriendFamilyUsers(result.items);
+      allFilteredItems.push(...filteredBatch);
+
+      // Update cursor for next iteration
+      lastEvaluatedKey = result.lastEvaluatedKey;
+      currentPaginationCursor = result.lastEvaluatedKey
+        ? this.repository.encodeCursor(result.lastEvaluatedKey)
+        : null;
+
+      // If no more data or we have enough items, break
+      if (!result.lastEvaluatedKey || allFilteredItems.length >= requestedLimit) {
+        break;
+      }
+    }
+
+    // Take only the requested number of items
+    const paginatedItems = allFilteredItems.slice(0, requestedLimit);
+
+    // Determine if there are more items available
+    // We have more if: we collected more than requested, OR there's more data in the DB
+    const hasMore = allFilteredItems.length > requestedLimit || !!lastEvaluatedKey;
+
+    // Create cursor for next page if there are more items
+    // Use the last item from our filtered results to create the cursor
+    let nextCursor: Record<string, unknown> | undefined;
+    if (hasMore && paginatedItems.length > 0) {
+      const lastItem = paginatedItems[paginatedItems.length - 1];
+      // Create cursor from the last returned item (same format as repository)
+      nextCursor = {
+        pk: lastItem.pk || lastItem.PK,
+        sk: lastItem.sk || lastItem.SK,
+      };
+    } else if (hasMore && lastEvaluatedKey) {
+      // If we don't have items but there's more data, use the repository's cursor
+      nextCursor = lastEvaluatedKey;
+    }
+
+    return {
+      items: paginatedItems,
+      lastEvaluatedKey: nextCursor,
+    };
+  }
+
   async listUsers(
     params: V2UserListServiceParams,
   ): Promise<V2UserListResponse<UserItem>> {
@@ -80,14 +164,29 @@ export class V2UserListService {
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
     const { organizationId, filters, pagination, sort, requestId } = params;
+    const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    const result = await this.repository.queryOrganizationUsers({
-      organizationId,
-      context: UserListContext.ADMIN_DASHBOARD,
-      filters,
-      pagination,
-      sort,
-      correlationId: requestId,
+    const requestedLimit = pagination?.limit || 20;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryOrganizationUsers({
+          organizationId,
+          context: UserListContext.ADMIN_DASHBOARD,
+          filters,
+          pagination: paginationParams,
+          sort,
+          correlationId: requestId,
+        });
+      },
+      requestedLimit,
+      pagination?.cursor,
+    );
+
+    logger.info({ 
+      event: 'v2_admin_dashboard_filtered_fnf', 
+      requestedLimit,
+      returnedCount: result.items.length,
     });
 
     return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
@@ -98,14 +197,29 @@ export class V2UserListService {
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
     const { organizationId, filters, pagination, sort, requestId } = params;
+    const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    const result = await this.repository.queryStaffUsers(
-      organizationId,
-      filters,
-      pagination,
-      sort,
-      requestId,
+    const requestedLimit = pagination?.limit || 20;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryStaffUsers(
+          organizationId,
+          filters,
+          paginationParams,
+          sort,
+          requestId,
+        );
+      },
+      requestedLimit,
+      pagination?.cursor,
     );
+
+    logger.info({ 
+      event: 'v2_chat_staff_list_filtered_fnf', 
+      requestedLimit,
+      returnedCount: result.items.length,
+    });
 
     return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
   }
@@ -115,19 +229,36 @@ export class V2UserListService {
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
     const { organizationId, filters, pagination, sort, requestId } = params;
+    const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
     if (!filters?.patientId) {
       throw new Error('patientId is required for PATIENT_CARE_TEAM context');
     }
 
-    const result = await this.repository.queryPatientCareTeam(
-      filters.patientId,
-      organizationId,
-      filters,
-      pagination,
-      sort,
-      requestId,
+    const requestedLimit = pagination?.limit || 20;
+    const patientId = filters.patientId;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryPatientCareTeam(
+          patientId,
+          organizationId,
+          filters,
+          paginationParams,
+          sort,
+          requestId,
+        );
+      },
+      requestedLimit,
+      pagination?.cursor,
     );
+
+    logger.info({ 
+      event: 'v2_patient_care_team_filtered_fnf', 
+      patientId: filters.patientId,
+      requestedLimit,
+      returnedCount: result.items.length,
+    });
 
     return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
   }
@@ -137,19 +268,36 @@ export class V2UserListService {
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
     const { organizationId, filters, pagination, sort, requestId } = params;
+    const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
     if (!filters?.doctorId) {
       throw new Error('doctorId is required for DOCTOR_PATIENT_LIST context');
     }
 
-    const result = await this.repository.queryDoctorPatients(
-      filters.doctorId,
-      organizationId,
-      filters,
-      pagination,
-      sort,
-      requestId,
+    const requestedLimit = pagination?.limit || 20;
+    const doctorId = filters.doctorId;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryDoctorPatients(
+          doctorId,
+          organizationId,
+          filters,
+          paginationParams,
+          sort,
+          requestId,
+        );
+      },
+      requestedLimit,
+      pagination?.cursor,
     );
+
+    logger.info({ 
+      event: 'v2_doctor_patient_list_filtered_fnf', 
+      doctorId: filters.doctorId,
+      requestedLimit,
+      returnedCount: result.items.length,
+    });
 
     return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
   }
@@ -168,13 +316,27 @@ export class V2UserListService {
       userTypes: ['USER'],
     };
 
-    const result = await this.repository.queryOrganizationUsers({
-      organizationId,
-      context: UserListContext.PAST_CONSULTATIONS,
-      filters: modifiedFilters,
-      pagination,
-      sort,
-      correlationId: requestId,
+    const requestedLimit = pagination?.limit || 20;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryOrganizationUsers({
+          organizationId,
+          context: UserListContext.PAST_CONSULTATIONS,
+          filters: modifiedFilters,
+          pagination: paginationParams,
+          sort,
+          correlationId: requestId,
+        });
+      },
+      requestedLimit,
+      pagination?.cursor,
+    );
+
+    logger.info({ 
+      event: 'v2_past_consultations_filtered_fnf', 
+      requestedLimit,
+      returnedCount: result.items.length,
     });
 
     return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
@@ -195,16 +357,30 @@ export class V2UserListService {
       isActive: true,
     };
 
-    const result = await this.repository.queryOrganizationUsers({
-      organizationId,
-      context: UserListContext.ACTIVE_CONSULTATIONS,
-      filters: modifiedFilters,
-      pagination,
-      sort,
-      correlationId: requestId,
+    const requestedLimit = pagination?.limit || 20;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryOrganizationUsers({
+          organizationId,
+          context: UserListContext.ACTIVE_CONSULTATIONS,
+          filters: modifiedFilters,
+          pagination: paginationParams,
+          sort,
+          correlationId: requestId,
+        });
+      },
+      requestedLimit,
+      pagination?.cursor,
+    );
+
+    logger.info({ 
+      event: 'v2_active_consultations_filtered_fnf', 
+      requestedLimit,
+      returnedCount: result.items.length,
     });
 
-    return this.buildResponse(result.items, context,  result.lastEvaluatedKey, requestId);
+    return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
   }
 
   private async handleDoctorSelection(
@@ -212,14 +388,29 @@ export class V2UserListService {
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
     const { organizationId, filters, pagination, sort, requestId } = params;
+    const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    const result = await this.repository.queryDoctors(
-      organizationId,
-      filters,
-      pagination,
-      sort,
-      requestId,
+    const requestedLimit = pagination?.limit || 20;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryDoctors(
+          organizationId,
+          filters,
+          paginationParams,
+          sort,
+          requestId,
+        );
+      },
+      requestedLimit,
+      pagination?.cursor,
     );
+
+    logger.info({ 
+      event: 'v2_doctor_selection_filtered_fnf', 
+      requestedLimit,
+      returnedCount: result.items.length,
+    });
 
     return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
   }
@@ -247,16 +438,30 @@ export class V2UserListService {
       isActive: filters?.isActive !== undefined ? filters.isActive : true,
     };
 
-    const result = await this.repository.queryOrganizationUsers({
-      organizationId,
-      context: UserListContext.PATIENT_LIST,
-      filters: modifiedFilters,
-      pagination,
-      sort,
-      correlationId: requestId,
+    const requestedLimit = pagination?.limit || 20;
+
+    const result = await this.fetchWithInternalPagination(
+      async (paginationParams) => {
+        return this.repository.queryOrganizationUsers({
+          organizationId,
+          context: UserListContext.PATIENT_LIST,
+          filters: modifiedFilters,
+          pagination: paginationParams,
+          sort,
+          correlationId: requestId,
+        });
+      },
+      requestedLimit,
+      pagination?.cursor,
+    );
+    
+    logger.info({ 
+      event: 'v2_patient_list_filtered_fnf', 
+      requestedLimit,
+      returnedCount: result.items.length,
     });
-    console.log("RESULT DATA : ",result);
-    return this.buildResponse(result.items, UserListContext.PATIENT_LIST,result.lastEvaluatedKey, requestId);
+    
+    return this.buildResponse(result.items, UserListContext.PATIENT_LIST, result.lastEvaluatedKey, requestId);
   }
 
   private buildEnvelope(

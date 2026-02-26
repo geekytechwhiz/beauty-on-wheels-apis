@@ -1,11 +1,11 @@
 import { DeviceRepository } from '../repositories/deviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
+import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { DeviceUserEntry, Device } from '../models';
 import { DeviceNotFoundError, DeviceNotInOrganizationError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
-import { completeUserTask } from '../utils/task-completion';
 import { isThirdPartyApp } from '../validation/device.validation';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
@@ -14,122 +14,176 @@ export class DeviceService {
   private deviceRepository: DeviceRepository;
   private orgDeviceRepository: OrgDeviceRepository;
   private globalDeviceRepository: GlobalDeviceRepository;
+  private recommendationRepository: RecommendationRepository;
 
   constructor() {
     this.deviceRepository = new DeviceRepository();
     this.orgDeviceRepository = new OrgDeviceRepository();
     this.globalDeviceRepository = new GlobalDeviceRepository();
+    this.recommendationRepository = new RecommendationRepository();
   }
 
   /**
-   * Register/pair a device with a user
+   * Register/pair a device with a user (matches old structure behavior)
+   * Supports both create and update with field merging
    */
   async registerDevice(
     data: {
       userId: string;
       organizationId: string;
-      devices: {
-        configDeviceId: string;
-        displayName: string;
-        deviceCategory: string;
-        companyName: string;
-        modelName: string;
-        // platform: string;
-        // macAddress?: string;
-        // localName?: string;
-        // isAutoSyncEnabled: boolean;
-        // isAutoSyncSupported: boolean;
-        // isSync: boolean;
-        // usesExtensionProtocol: boolean;
-        // supportsUserAuthentication: boolean;
-        // autoSyncDelay: number;
-        // userIndex?: number;
-        // noOfUsers: number;
-        // lastReadingTimeStamp?: number;
-        // lastSequenceNumber?: string;
-        // databaseUpdateFlag?: boolean;
-        // databaseChangeIncrement?: number;
-        // isDeviceDeleted?: boolean;
-        // iOSIdentifier?: string;
-        // isEagleDevice?: boolean;
-        deviceCategoryNum?: string;
-      },
+      configDeviceId: string;
+      displayName?: string;
+      deviceCategory: string;
+      companyName?: string;
+      modelName?: string;
+      platform?: string;
+      macAddress?: string;
+      localName?: string;
+      isAutoSyncEnabled?: boolean;
+      isAutoSyncSupported?: boolean;
+      isSync?: boolean;
+      usesExtensionProtocol?: boolean;
+      supportsUserAuthentication?: boolean;
+      autoSyncDelay?: number;
+      userIndex?: number;
+      noOfUsers?: number;
+      lastReadingTimeStamp?: number;
+      lastSequenceNumber?: string;
+      databaseUpdateFlag?: boolean;
+      databaseChangeIncrement?: number;
+      isDeviceDeleted?: boolean;
+      iOSIdentifier?: string;
+      isEagleDevice?: boolean;
+      deviceCategoryNum?: string;
+      deviceId?: string;
     },
     correlationId?: string,
-  ): Promise<{ deviceId: string; configDeviceId: string }> {
-    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userId, configDeviceId: data.devices.configDeviceId });
+  ): Promise<{ deviceId: string; configDeviceId: string; isUpdate: boolean }> {
+    const logger = createChildLogger(baseLogger, { correlationId, userId: data.userId, configDeviceId: data.configDeviceId });
     logger.info({ event: 'service_registerDevice_start' });
 
     try {
-      // Check if device is already paired
-      const existing = await this.deviceRepository.getDeviceByConfigId(data.userId, data.devices.configDeviceId);
-      if (existing && existing.sk2 === 'STATUS#ACTIVE') {
-        logger.warn({ event: 'device_already_paired', configDeviceId: data.devices.configDeviceId });
-        // Return existing device info
-        return { deviceId: existing.deviceId, configDeviceId: data.devices.configDeviceId };
-      }
+      // Check if device already exists
+      const existing = await this.deviceRepository.getDeviceByConfigId(data.userId, data.configDeviceId);
+      
+      if (existing) {
+        // Device exists - update with merge logic (preserve existing values if new ones are missing/empty)
+        logger.info({ event: 'device_exists_updating', configDeviceId: data.configDeviceId });
+        
+        // Merge device data: use new value if provided and not empty string, otherwise use existing
+        const mergedDevice = {
+          deviceId: data.deviceId || existing.deviceId,
+          configDeviceId: data.configDeviceId,
+          macAddress: (data.macAddress !== undefined && data.macAddress !== '') ? data.macAddress : existing.macAddress,
+          displayName: (data.displayName !== undefined && data.displayName !== '') ? data.displayName : existing.displayName,
+          noOfUsers: data.noOfUsers !== undefined ? data.noOfUsers : existing.noOfUsers,
+          databaseUpdateFlag: data.databaseUpdateFlag !== undefined ? data.databaseUpdateFlag : existing.databaseUpdateFlag,
+          deviceCategory: (data.deviceCategory !== undefined && data.deviceCategory !== '') ? data.deviceCategory : existing.deviceCategory,
+          lastSequenceNumber: data.lastSequenceNumber !== undefined ? data.lastSequenceNumber : existing.lastSequenceNumber,
+          localName: (data.localName !== undefined && data.localName !== '') ? data.localName : existing.localName,
+          companyName: (data.companyName !== undefined && data.companyName !== '') ? data.companyName : existing.companyName,
+          modelName: (data.modelName !== undefined && data.modelName !== '') ? data.modelName : existing.modelName,
+          usesExtensionProtocol: data.usesExtensionProtocol !== undefined ? data.usesExtensionProtocol : existing.usesExtensionProtocol,
+          supportsUserAuthentication: data.supportsUserAuthentication !== undefined ? data.supportsUserAuthentication : existing.supportsUserAuthentication,
+          lastReadingTimeStamp: data.lastReadingTimeStamp !== undefined ? data.lastReadingTimeStamp : existing.lastReadingTimeStamp,
+          databaseChangeIncrement: data.databaseChangeIncrement !== undefined ? data.databaseChangeIncrement : existing.databaseChangeIncrement,
+          isDeviceDeleted: data.isDeviceDeleted !== undefined ? data.isDeviceDeleted : existing.isDeviceDeleted,
+          platform: (data.platform !== undefined && data.platform !== '') ? data.platform : existing.platform,
+          isAutoSyncEnabled: data.isAutoSyncEnabled !== undefined ? data.isAutoSyncEnabled : existing.isAutoSyncEnabled,
+          iOSIdentifier: (data.iOSIdentifier !== undefined && data.iOSIdentifier !== '') ? data.iOSIdentifier : existing.iOSIdentifier,
+          isAutoSyncSupported: data.isAutoSyncSupported !== undefined ? data.isAutoSyncSupported : existing.isAutoSyncSupported,
+          autoSyncDelay: data.autoSyncDelay !== undefined ? data.autoSyncDelay : existing.autoSyncDelay,
+          userIndex: data.userIndex !== undefined ? data.userIndex : existing.userIndex,
+          isEagleDevice: data.isEagleDevice !== undefined ? data.isEagleDevice : existing.isEagleDevice,
+          isSync: data.isSync !== undefined ? data.isSync : existing.isSync,
+          deviceCategoryNum: data.deviceCategoryNum !== undefined ? data.deviceCategoryNum : existing.deviceCategoryNum,
+        };
 
-      // For non-third-party devices, validate device is available in organization
-      if (!isThirdPartyApp(data.devices.deviceCategory)) {
-        const isAvailable = await this.orgDeviceRepository.isDeviceInOrganization(data.organizationId, data.devices.configDeviceId);
-        if (!isAvailable) {
-          // Try to get device from global device list to get the deviceId
-          const globalDevice = await this.globalDeviceRepository.getDeviceById(data.devices.configDeviceId);
-          if (!globalDevice || !globalDevice.enabled) {
-            throw new DeviceNotInOrganizationError(data.devices.configDeviceId, data.organizationId);
+        // Add update tracking
+        const updates = existing.updates || [];
+        updates.push({
+          updatedBy: data.userId,
+          updatedAt: Date.now(),
+        });
+
+        // Update device entry
+        const updatedDevice = await this.deviceRepository.updateDeviceEntry(mergedDevice, data.userId, updates);
+
+        // Check if device recommendation exists and update it
+        const recommendation = await this.recommendationRepository.getRecommendation(data.userId, data.configDeviceId);
+        if (recommendation) {
+          await this.recommendationRepository.updateRecommendationStatus(data.userId, data.configDeviceId, 'PAIRED');
+        }
+
+        logger.info({ event: 'device_updated', deviceId: updatedDevice.deviceId });
+        return { deviceId: updatedDevice.deviceId, configDeviceId: data.configDeviceId, isUpdate: true };
+      } else {
+        // Device doesn't exist - create new entry
+        logger.info({ event: 'device_not_exists_creating', configDeviceId: data.configDeviceId });
+
+        // For non-third-party devices, validate device is available in organization
+        if (!isThirdPartyApp(data.deviceCategory)) {
+          const isAvailable = await this.orgDeviceRepository.isDeviceInOrganization(data.organizationId, data.configDeviceId);
+          if (!isAvailable) {
+            // Try to get device from global device list
+            const globalDevice = await this.globalDeviceRepository.getDeviceById(data.configDeviceId);
+            if (!globalDevice || !globalDevice.enabled) {
+              throw new DeviceNotInOrganizationError(data.configDeviceId, data.organizationId);
+            }
           }
         }
-      }
 
-      // Create device user entry with defaults for required fields not in validation schema
-      const deviceEntry = await this.deviceRepository.createDeviceUserEntry({
-        userId: data.userId,
-        configDeviceId: data.devices.configDeviceId,
-        displayName: data.devices.displayName,
-        deviceCategory: data.devices.deviceCategory,
-        companyName: data.devices.companyName,
-        modelName: data.devices.modelName,
-        platform: '',
-        macAddress: undefined,
-        localName: undefined,
-        isAutoSyncEnabled: false,
-        isAutoSyncSupported: false,
-        isSync: false,
-        usesExtensionProtocol: false,
-        supportsUserAuthentication: false,
-        autoSyncDelay: 0,
-        userIndex: undefined,
-        noOfUsers: 1,
-        lastReadingTimeStamp: undefined,
-        lastSequenceNumber: undefined,
-        databaseUpdateFlag: undefined,
-        databaseChangeIncrement: undefined,
-        isDeviceDeleted: undefined,
-        iOSIdentifier: undefined,
-        isEagleDevice: undefined,
-        deviceCategoryNum: data.devices.deviceCategoryNum,
-      });
-      logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
-
-      // Publish event
-      await publishEvent(
-        {
-          eventType: 'Device.Paired',
+        // Create device user entry with provided values or defaults
+        const deviceEntry = await this.deviceRepository.createDeviceUserEntry({
           userId: data.userId,
-          organizationId: data.organizationId,
-          deviceId: deviceEntry.deviceId,
-          configDeviceId: data.devices.configDeviceId,
-          timestamp: Date.now(),
-        },
-        correlationId,
-      );
+          configDeviceId: data.configDeviceId,
+          displayName: data.displayName || '',
+          deviceCategory: data.deviceCategory,
+          companyName: data.companyName || '',
+          modelName: data.modelName || '',
+          platform: data.platform || '',
+          macAddress: data.macAddress,
+          localName: data.localName,
+          isAutoSyncEnabled: data.isAutoSyncEnabled ?? false,
+          isAutoSyncSupported: data.isAutoSyncSupported ?? false,
+          isSync: data.isSync ?? false,
+          usesExtensionProtocol: data.usesExtensionProtocol ?? false,
+          supportsUserAuthentication: data.supportsUserAuthentication ?? false,
+          autoSyncDelay: data.autoSyncDelay ?? 0,
+          userIndex: data.userIndex,
+          noOfUsers: data.noOfUsers ?? 1,
+          lastReadingTimeStamp: data.lastReadingTimeStamp,
+          lastSequenceNumber: data.lastSequenceNumber,
+          databaseUpdateFlag: data.databaseUpdateFlag,
+          databaseChangeIncrement: data.databaseChangeIncrement,
+          isDeviceDeleted: data.isDeviceDeleted,
+          iOSIdentifier: data.iOSIdentifier,
+          isEagleDevice: data.isEagleDevice,
+          deviceCategoryNum: data.deviceCategoryNum,
+        });
+        logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
 
-      // For non-third-party devices, trigger task completion
-      if (!isThirdPartyApp(data.devices.deviceCategory)) {
-        await completeUserTask(data.userId, data.organizationId, correlationId);
+        // Update device recommendation if it exists
+        const recommendation = await this.recommendationRepository.getRecommendation(data.userId, data.configDeviceId);
+        if (recommendation) {
+          await this.recommendationRepository.updateRecommendationStatus(data.userId, data.configDeviceId, 'PAIRED');
+        }
+
+        // Publish event
+        await publishEvent(
+          {
+            eventType: 'Device.Paired',
+            userId: data.userId,
+            organizationId: data.organizationId,
+            deviceId: deviceEntry.deviceId,
+            configDeviceId: data.configDeviceId,
+            timestamp: Date.now(),
+          },
+          correlationId,
+        );
+
+        return { deviceId: deviceEntry.deviceId, configDeviceId: data.configDeviceId, isUpdate: false };
       }
-
-      return { deviceId: deviceEntry.deviceId, configDeviceId: data.devices.configDeviceId };
     } catch (err) {
       logger.error({ event: 'service_registerDevice_error', err: serializeError(err) });
       throw err;

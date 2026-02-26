@@ -1206,6 +1206,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     sender: { userId: string; name?: string; email?: string },
     receiver: { userId: string; name?: string; email?: string },
     correlationId?: string,
+    isReferred?: boolean,
   ): Promise<void> {
     const timer = createPerformanceTimer(baseLogger, 'assignDoctor', correlationId);
     const logger = createChildLogger(baseLogger, { organizationId, doctorId: sender.userId, patientId: receiver.userId });
@@ -1228,12 +1229,14 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         : (doctor as any).fullName || (doctor as any).firstName || (sender as any).name || sender.userId;
 
     await this.repository.saveDoctorPatientLink(sender.userId, receiver.userId, organizationId);
+    if(!isReferred){
     await this.repository.updatePatientReporter(receiver.userId, organizationId, {
       reporterId: sender.userId,
       reporterName: doctorFullName,
       reporterProfilePic: (doctor as any).profilePic,
       reporterEmail: (doctor as any).emailAddress ?? sender.email,
     });
+  }
 
     logger.info({ event: 'service_assignDoctor_success' });
     timer.end();
@@ -1946,6 +1949,33 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       if ((userBasicDetails as any).careManager) data.careManager = (userBasicDetails as any).careManager;
       if ((userBasicDetails as any).dietician) data.dietician = (userBasicDetails as any).dietician;
       if ((userBasicDetails as any).healthCoach) data.healthCoach = (userBasicDetails as any).healthCoach;
+
+      // Add all assigned doctors from ASSIGNEE# mapping (referenced array)
+      const assignedDoctorLinks = await this.repository.listAssignedDoctorIdsForPatient(actualUserId);
+      data.assignedDoctors = [];
+      for (const link of assignedDoctorLinks) {
+        const docDetails = await this.repository.getUser(link.doctorId, link.organizationID || userOrgId);
+        if (docDetails) {
+          data.assignedDoctors.push({
+            userID: docDetails.userID || link.doctorId,
+            fullName: docDetails.fullName ||
+              (docDetails.firstName && docDetails.lastName ? `${docDetails.firstName} ${docDetails.lastName}` : docDetails.firstName || ''),
+            profilePic: docDetails.profilePic || '',
+            specialty: docDetails.specialty || '',
+            emailAddress: docDetails.emailAddress || '',
+            organizationID: link.organizationID || docDetails.organizationID,
+          });
+        } else {
+          data.assignedDoctors.push({
+            userID: link.doctorId,
+            fullName: '',
+            profilePic: '',
+            specialty: '',
+            emailAddress: '',
+            organizationID: link.organizationID,
+          });
+        }
+      }
 
       // Fitness apps
       data.fitnessApps = {

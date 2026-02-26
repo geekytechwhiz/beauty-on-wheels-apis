@@ -48,9 +48,9 @@ export async function handler(event: APIGatewayProxyEvent, context?: Context): P
     );
   }
 
-  const { organizationId, sender, receiver } = validation.data;
+  const { organizationId, sender, receiver, isReferred } = validation.data;
   try {
-    await userService.assignDoctor(organizationId, sender, receiver, correlationId);
+    await userService.assignDoctor(organizationId, sender, receiver, correlationId, isReferred || false);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH_ASSIGN_DOCTOR, 200, duration, correlationId);
     return ApiResponse.ok(

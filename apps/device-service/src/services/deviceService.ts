@@ -1,24 +1,37 @@
 import { DeviceRepository } from '../repositories/deviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
+import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { DeviceUserEntry, Device } from '../models';
 import { DeviceNotFoundError, DeviceNotInOrganizationError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { completeUserTask } from '../utils/task-completion';
-import { isThirdPartyApp } from '../validation/device.validation';
+import { isThirdPartyApp, isThirdPartyByCompanyName } from '../validation/device.validation';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
+
+export type DeviceUserRegistrationItem =
+  | { message: string; statusCode: number; configDeviceId: string; deviceId: string }
+  | {
+      statusCode: number;
+      configDeviceId?: string;
+      errorCode: string;
+      success: false;
+      message: Record<string, unknown> | string;
+    };
 
 export class DeviceService {
   private deviceRepository: DeviceRepository;
   private orgDeviceRepository: OrgDeviceRepository;
   private globalDeviceRepository: GlobalDeviceRepository;
+  private recommendationRepository: RecommendationRepository;
 
   constructor() {
     this.deviceRepository = new DeviceRepository();
     this.orgDeviceRepository = new OrgDeviceRepository();
     this.globalDeviceRepository = new GlobalDeviceRepository();
+    this.recommendationRepository = new RecommendationRepository();
   }
 
   /**
@@ -134,6 +147,175 @@ export class DeviceService {
       logger.error({ event: 'service_registerDevice_error', err: serializeError(err) });
       throw err;
     }
+  }
+
+  /**
+   * Patient-app device user registration (legacy pairing): register or update devices with full payload.
+   * Uses correct mapping to existing table: pk=DEVICE_LIST#userId, sk=DETAILS#configDeviceId, sk1=DEVICE#category, sk2=STATUS#ACTIVE.
+   * For non-third-party devices (by companyName), validates device exists in global list and is enabled.
+   * Updates RECOMMEND entry to PAIRED when present; invokes completeUserTask for real devices.
+   */
+  async registerOrUpdateDeviceUserFromPatientApp(
+    payload: {
+      userId: string;
+      organizationId: string;
+      devices: Array<{
+        configDeviceId: string;
+        displayName: string;
+        noOfUsers: number;
+        deviceCategory: string;
+        companyName: string;
+        modelName: string;
+        usesExtensionProtocol: boolean;
+        supportsUserAuthentication: boolean;
+        platform: string;
+        isAutoSyncEnabled: boolean;
+        isAutoSyncSupported: boolean;
+        autoSyncDelay: number;
+        isSync: boolean;
+        macAddress?: string;
+        localName?: string;
+        lastSequenceNumber?: string;
+        lastReadingTimeStamp?: number;
+        databaseUpdateFlag?: boolean;
+        databaseChangeIncrement?: number;
+        isDeviceDeleted?: boolean;
+        iOSIdentifier?: string;
+        userIndex?: number;
+        isEagleDevice?: boolean;
+        deviceCategoryNum?: string | number;
+      }>;
+    },
+    correlationId?: string,
+  ): Promise<{ items: DeviceUserRegistrationItem[] }> {
+    const logger = createChildLogger(baseLogger, { correlationId, userId: payload.userId });
+    logger.info({ event: 'registerOrUpdateDeviceUserFromPatientApp_start', deviceCount: payload.devices.length });
+
+    const items: DeviceUserRegistrationItem[] = [];
+    let anyRealDevice = false;
+
+    for (const device of payload.devices) {
+      try {
+        const isThirdParty = isThirdPartyByCompanyName(device.companyName);
+        if (!isThirdParty) {
+          const globalDevice = await this.globalDeviceRepository.getDeviceById(device.configDeviceId);
+          if (!globalDevice || globalDevice.enabled === false) {
+            items.push({
+              statusCode: 400,
+              configDeviceId: device.configDeviceId,
+              errorCode: 'DEVICE_NOT_AVAILABLE_TO_PAIR',
+              success: false,
+              message: { key: 'DEVICE.DEVICE_NOT_AVAILABLE_TO_PAIR' },
+            });
+            continue;
+          }
+          anyRealDevice = true;
+        }
+
+        const existing = await this.deviceRepository.getDeviceByConfigId(payload.userId, device.configDeviceId);
+        const now = Date.now();
+
+        if (existing && existing.sk2 === 'STATUS#ACTIVE') {
+          await this.deviceRepository.updateDeviceUserEntry(
+            payload.userId,
+            device.configDeviceId,
+            {
+              macAddress: device.macAddress,
+              displayName: device.displayName,
+              noOfUsers: device.noOfUsers,
+              databaseUpdateFlag: device.databaseUpdateFlag,
+              deviceCategory: device.deviceCategory,
+              lastSequenceNumber: device.lastSequenceNumber,
+              localName: device.localName,
+              companyName: device.companyName,
+              modelName: device.modelName,
+              usesExtensionProtocol: device.usesExtensionProtocol,
+              supportsUserAuthentication: device.supportsUserAuthentication,
+              lastReadingTimeStamp: device.lastReadingTimeStamp,
+              databaseChangeIncrement: device.databaseChangeIncrement,
+              isDeviceDeleted: device.isDeviceDeleted,
+              platform: device.platform,
+              isAutoSyncEnabled: device.isAutoSyncEnabled,
+              iOSIdentifier: device.iOSIdentifier,
+              isAutoSyncSupported: device.isAutoSyncSupported,
+              autoSyncDelay: device.autoSyncDelay,
+              userIndex: device.userIndex,
+              isEagleDevice: device.isEagleDevice,
+              isSync: device.isSync,
+              deviceCategoryNum: device.deviceCategoryNum,
+            },
+            { updatedBy: payload.userId, updatedAt: now },
+          );
+          const rec = await this.recommendationRepository.getRecommendation(payload.userId, device.configDeviceId);
+          if (rec) {
+            await this.recommendationRepository.updateRecommendationStatus(payload.userId, device.configDeviceId, 'PAIRED');
+          }
+          items.push({
+            message: 'Device updated successfully',
+            statusCode: 201,
+            configDeviceId: device.configDeviceId,
+            deviceId: existing.deviceId,
+          });
+        } else {
+          const entry = await this.deviceRepository.createDeviceUserEntryWithUpdates(
+            {
+              userId: payload.userId,
+              configDeviceId: device.configDeviceId,
+              displayName: device.displayName,
+              deviceCategory: device.deviceCategory,
+              companyName: device.companyName,
+              modelName: device.modelName,
+              platform: device.platform,
+              noOfUsers: device.noOfUsers,
+              usesExtensionProtocol: device.usesExtensionProtocol,
+              supportsUserAuthentication: device.supportsUserAuthentication,
+              isAutoSyncEnabled: device.isAutoSyncEnabled,
+              isAutoSyncSupported: device.isAutoSyncSupported,
+              isSync: device.isSync,
+              autoSyncDelay: device.autoSyncDelay,
+              macAddress: device.macAddress,
+              localName: device.localName,
+              lastSequenceNumber: device.lastSequenceNumber,
+              lastReadingTimeStamp: device.lastReadingTimeStamp,
+              databaseUpdateFlag: device.databaseUpdateFlag,
+              databaseChangeIncrement: device.databaseChangeIncrement,
+              isDeviceDeleted: device.isDeviceDeleted,
+              iOSIdentifier: device.iOSIdentifier,
+              userIndex: device.userIndex,
+              isEagleDevice: device.isEagleDevice,
+              deviceCategoryNum: device.deviceCategoryNum,
+            },
+            correlationId,
+          );
+          const rec = await this.recommendationRepository.getRecommendation(payload.userId, device.configDeviceId);
+          if (rec) {
+            await this.recommendationRepository.updateRecommendationStatus(payload.userId, device.configDeviceId, 'PAIRED');
+          }
+          items.push({
+            message: 'Device successfully paired with the user',
+            statusCode: 201,
+            configDeviceId: device.configDeviceId,
+            deviceId: entry.deviceId,
+          });
+        }
+      } catch (err) {
+        logger.error({ event: 'device_user_register_error', configDeviceId: device.configDeviceId, err: serializeError(err) });
+        items.push({
+          statusCode: 500,
+          configDeviceId: device.configDeviceId,
+          errorCode: 'REGISTRATION_FAILED',
+          success: false,
+          message: (err as Error).message,
+        });
+      }
+    }
+
+    if (anyRealDevice) {
+      await completeUserTask(payload.userId, payload.organizationId, correlationId);
+    }
+
+    logger.info({ event: 'registerOrUpdateDeviceUserFromPatientApp_done', itemCount: items.length });
+    return { items };
   }
 
   /**

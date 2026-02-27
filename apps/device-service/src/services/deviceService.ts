@@ -128,7 +128,35 @@ export class DeviceService {
             // Try to get device from global device list
             const globalDevice = await this.globalDeviceRepository.getDeviceById(data.configDeviceId);
             if (!globalDevice || !globalDevice.enabled) {
-              throw new DeviceNotInOrganizationError(data.configDeviceId, data.organizationId);
+              // throw new DeviceNotInOrganizationError(data.configDeviceId, data.organizationId);
+              const deviceEntry = await this.deviceRepository.createDeviceUserEntry({
+                userId: data.userId,
+                configDeviceId: data.configDeviceId,
+                displayName: data.displayName || '',
+                deviceCategory: data.deviceCategory,
+                companyName: data.companyName || '',
+                modelName: data.modelName || '',
+                platform: data.platform || '',
+                macAddress: data.macAddress,
+                localName: data.localName,
+                isAutoSyncEnabled: data.isAutoSyncEnabled ?? false,
+                isAutoSyncSupported: data.isAutoSyncSupported ?? false,
+                isSync: data.isSync ?? false,
+                usesExtensionProtocol: data.usesExtensionProtocol ?? false,
+                supportsUserAuthentication: data.supportsUserAuthentication ?? false,
+                autoSyncDelay: data.autoSyncDelay ?? 0,
+                userIndex: data.userIndex,
+                noOfUsers: data.noOfUsers ?? 1,
+                lastReadingTimeStamp: data.lastReadingTimeStamp,
+                lastSequenceNumber: data.lastSequenceNumber,
+                databaseUpdateFlag: data.databaseUpdateFlag,
+                databaseChangeIncrement: data.databaseChangeIncrement,
+                isDeviceDeleted: data.isDeviceDeleted,
+                iOSIdentifier: data.iOSIdentifier,
+                isEagleDevice: data.isEagleDevice,
+                deviceCategoryNum: data.deviceCategoryNum,
+              });
+              logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
             }
           }
         }

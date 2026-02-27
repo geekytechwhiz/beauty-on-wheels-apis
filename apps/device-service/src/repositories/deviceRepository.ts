@@ -272,4 +272,129 @@ export class DeviceRepository {
       throw err;
     }
   }
+
+  /**
+   * Update device entry with field merging logic (preserves existing values if new ones are missing/empty)
+   */
+  async updateDeviceEntry(
+    device: {
+      deviceId?: string;
+      configDeviceId: string;
+      macAddress?: string;
+      displayName?: string;
+      noOfUsers?: number;
+      databaseUpdateFlag?: boolean;
+      deviceCategory?: string;
+      lastSequenceNumber?: string;
+      localName?: string;
+      companyName?: string;
+      modelName?: string;
+      usesExtensionProtocol?: boolean;
+      supportsUserAuthentication?: boolean;
+      lastReadingTimeStamp?: number;
+      databaseChangeIncrement?: number;
+      isDeviceDeleted?: boolean;
+      platform?: string;
+      isAutoSyncEnabled?: boolean;
+      iOSIdentifier?: string;
+      isAutoSyncSupported?: boolean;
+      autoSyncDelay?: number;
+      userIndex?: number;
+      isEagleDevice?: boolean;
+      isSync?: boolean;
+      deviceCategoryNum?: string;
+    },
+    userId: string,
+    updates: Array<{ updatedBy: string; updatedAt: number }>,
+  ): Promise<DeviceUserEntry> {
+    const logger = createChildLogger(baseLogger, { userId, configDeviceId: device.configDeviceId });
+    try {
+      const now = Date.now();
+      const params: any = {
+        TableName: this.tableName,
+        Key: {
+          pk: `DEVICE_LIST#${userId}`,
+          sk: `DETAILS#${device.configDeviceId}`,
+        },
+        UpdateExpression: 'SET #modifiedDate = :modifiedDate, #sk2 = :sk2, #updates = list_append(if_not_exists(#updates, :emptyList), :updates)',
+        ExpressionAttributeValues: {
+          ':modifiedDate': now,
+          ':sk2': 'STATUS#ACTIVE',
+          ':updates': updates,
+          ':emptyList': [],
+        },
+        ExpressionAttributeNames: {
+          '#modifiedDate': 'modifiedDate',
+          '#sk2': 'sk2',
+          '#updates': 'updates',
+        },
+        ReturnValues: 'ALL_NEW',
+      };
+
+      // Helper to add attribute to update expression
+      const addAttribute = (attrName: string, attrValue: any) => {
+        params.UpdateExpression += `, #${attrName} = :${attrName}`;
+        params.ExpressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : '';
+        params.ExpressionAttributeNames[`#${attrName}`] = attrName;
+      };
+
+      const addBooleanAttribute = (attrName: string, attrValue: any) => {
+        params.UpdateExpression += `, #${attrName} = :${attrName}`;
+        params.ExpressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : false;
+        params.ExpressionAttributeNames[`#${attrName}`] = attrName;
+      };
+
+      const addNumberAttribute = (attrName: string, attrValue: any) => {
+        params.UpdateExpression += `, #${attrName} = :${attrName}`;
+        params.ExpressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : 0;
+        params.ExpressionAttributeNames[`#${attrName}`] = attrName;
+      };
+
+      // Add all device fields to update expression
+      if (device.deviceId !== undefined) {
+        addAttribute('deviceId', device.deviceId);
+      }
+      addAttribute('macAddress', device.macAddress);
+      addAttribute('displayName', device.displayName);
+      addNumberAttribute('noOfUsers', device.noOfUsers);
+      addBooleanAttribute('databaseUpdateFlag', device.databaseUpdateFlag);
+      addAttribute('deviceCategory', device.deviceCategory);
+      addAttribute('lastSequenceNumber', device.lastSequenceNumber);
+      addAttribute('localName', device.localName);
+      addAttribute('companyName', device.companyName);
+      addAttribute('modelName', device.modelName);
+      addBooleanAttribute('usesExtensionProtocol', device.usesExtensionProtocol);
+      addBooleanAttribute('supportsUserAuthentication', device.supportsUserAuthentication);
+      addNumberAttribute('userIndex', device.userIndex);
+      addAttribute('lastReadingTimeStamp', device.lastReadingTimeStamp);
+      addNumberAttribute('databaseChangeIncrement', device.databaseChangeIncrement);
+      addBooleanAttribute('isDeviceDeleted', device.isDeviceDeleted);
+      addAttribute('platform', device.platform);
+      addBooleanAttribute('isAutoSyncEnabled', device.isAutoSyncEnabled);
+      addBooleanAttribute('isAutoSyncSupported', device.isAutoSyncSupported);
+      addAttribute('iOSIdentifier', device.iOSIdentifier);
+      addNumberAttribute('autoSyncDelay', device.autoSyncDelay);
+      addBooleanAttribute('isEagleDevice', device.isEagleDevice);
+      addBooleanAttribute('isSync', device.isSync);
+      addAttribute('deviceCategoryNum', device.deviceCategoryNum);
+
+      await this.docClient.send(new UpdateCommand(params));
+
+      // Fetch the updated device entry
+      const updatedDevice = await this.getDeviceByConfigId(userId, device.configDeviceId);
+      if (!updatedDevice) {
+        throw new DeviceNotFoundError(device.configDeviceId);
+      }
+
+      logger.info({ event: 'device_entry_updated', configDeviceId: device.configDeviceId });
+      return updatedDevice;
+    } catch (err) {
+      const code = (err as { name?: string })?.name;
+      if (code === 'ConditionalCheckFailedException') {
+        throw new DeviceNotFoundError(device.configDeviceId);
+      }
+      logger.error({ event: 'device_entry_update_error', err: serializeError(err) });
+      throw err;
+    }
+  }
 }

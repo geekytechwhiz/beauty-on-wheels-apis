@@ -148,27 +148,27 @@ export class ApiResponse {
    * @param options - Response options
    * @param overrides - Optional { statusCode } (default 201)
    */
-  // static async success<T>(
-  //   data: T | null,
-  //   messageOrKey: Omit<UnifiedMessage, 'severity'> | string,
-  //   options: UnifiedResponseOptions,
-  //   overrides?: { statusCode?: number },
-  // ): Promise<APIGatewayProxyResult> {
-  //   const statusCode = overrides?.statusCode ?? 201;
-  //   const message = await resolveMessageInput(messageOrKey, options, false);
-  //   return createResponse(
-  //     statusCode,
-  //     {
-  //       success: true,
-  //       statusCode,
-  //       message: { ...message, severity: 'SUCCESS' },
-  //       data: Array.isArray(data) ? { items: data } : data ?? null,
-  //       error: null,
-  //       meta: buildMeta(options),
-  //     },
-  //     options.headers,
-  //   );
-  // }
+  static async success<T>(
+    data: T | null,
+    messageOrKey: Omit<UnifiedMessage, 'severity'> | string,
+    options: UnifiedResponseOptions,
+    overrides?: { statusCode?: number },
+  ): Promise<APIGatewayProxyResult> {
+    const statusCode = overrides?.statusCode ?? 201;
+    const message = await resolveMessageInput(messageOrKey, options, false);
+    return createResponse(
+      statusCode,
+      {
+        success: true,
+        statusCode,
+        message: { ...message, severity: 'SUCCESS' },
+        data: Array.isArray(data) ? { items: data } : data ?? null,
+        error: null,
+        meta: buildMeta(options),
+      },
+      options.headers,
+    );
+  }
 
   /**
    * Returns a 201 Created response

@@ -110,11 +110,11 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          # TODO: Add Cognito authorizer once JWT flow is tested
-          # authorizer:
-          #   type: COGNITO_USER_POOLS
-          #   authorizerId:
-          #     Ref: CognitoAuthorizer
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   patientEMR:
     handler: src/handlers/appointments/patient-emr.handler
@@ -136,9 +136,9 @@ functions:
             parameters:
               paths:
                 patientId: true
-          # TODO: Add Cognito authorizer once JWT flow is tested
-          # authorizer:
-          #   type: COGNITO_USER_POOLS
-          #   authorizerId:
-          #     Ref: CognitoAuthorizer
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 

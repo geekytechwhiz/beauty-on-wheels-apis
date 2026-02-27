@@ -34,10 +34,7 @@ export class CognitoService {
     });
   }
 
-  async authenticateUser(
-    user: User,
-    correlationId: string
-  ): Promise<CognitoTokens> {
+  async authenticateUser(user: User, correlationId: string): Promise<CognitoTokens> {
     const logger = createChildLogger(this.logger, { correlationId, userId: user.id });
     const startTime = Date.now();
 
@@ -88,10 +85,7 @@ export class CognitoService {
     }
   }
 
-  private async ensureCognitoUser(
-    user: User,
-    correlationId: string
-  ): Promise<string> {
+  private async ensureCognitoUser(user: User, correlationId: string): Promise<string> {
     const logger = createChildLogger(this.logger, { correlationId });
     const cognitoUsername = user.cognitoUsername || `sso_${user.provider.toLowerCase()}_${user.externalId}`;
 
@@ -165,6 +159,27 @@ export class CognitoService {
         userAttributes.push({ Name: 'name', Value: fullName });
       }
 
+      if (user.doctorId && user.doctorId > 0) {
+        userAttributes.push({
+          Name: 'custom:doctor_id',
+          Value: String(user.doctorId),
+        });
+      }
+
+      if (user.partnerSource) {
+        userAttributes.push({
+          Name: 'custom:partner_source',
+          Value: user.partnerSource,
+        });
+      }
+
+      if (user.launchSource) {
+        userAttributes.push({
+          Name: 'custom:launch_source',
+          Value: user.launchSource,
+        });
+      }
+
       await this.client.send(
         new AdminCreateUserCommand({
           UserPoolId: this.userPoolId,
@@ -209,6 +224,27 @@ export class CognitoService {
         { Name: 'custom:tenant_id', Value: user.tenantId },
         { Name: 'custom:user_id', Value: user.id },
       ];
+
+      if (user.doctorId && user.doctorId > 0) {
+        userAttributes.push({
+          Name: 'custom:doctor_id',
+          Value: String(user.doctorId),
+        });
+      }
+
+      if (user.partnerSource) {
+        userAttributes.push({
+          Name: 'custom:partner_source',
+          Value: user.partnerSource,
+        });
+      }
+
+      if (user.launchSource) {
+        userAttributes.push({
+          Name: 'custom:launch_source',
+          Value: user.launchSource,
+        });
+      }
 
       await this.client.send(
         new AdminUpdateUserAttributesCommand({

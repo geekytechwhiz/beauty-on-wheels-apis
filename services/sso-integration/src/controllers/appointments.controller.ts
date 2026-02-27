@@ -248,23 +248,9 @@ export class AppointmentsController {
       }
     }
 
-    // Fallback: Try to get from query params (for testing/development)
-    const queryDoctorId = event.queryStringParameters?.doctor_id;
-    if (queryDoctorId) {
-      const doctorId = parseInt(queryDoctorId, 10);
-      if (!isNaN(doctorId) && doctorId > 0) {
-        logger.debug({
-          event: 'doctor_id_from_query',
-          doctorId,
-        });
-        return doctorId;
-      }
-    }
-
     logger.warn({
       event: 'doctor_id_not_found',
       hasAuthorizerClaims: !!authorizerClaims,
-      hasQueryParam: !!queryDoctorId,
     });
 
     throw SSOError.unauthorized('Doctor ID not found in request');

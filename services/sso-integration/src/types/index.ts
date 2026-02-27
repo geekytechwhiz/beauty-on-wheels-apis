@@ -344,6 +344,9 @@ export interface User {
   lastName?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   cognitoUsername?: string;
+  doctorId?: number;
+  partnerSource?: string;
+  launchSource?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -380,10 +383,23 @@ export interface CognitoTokens {
   tokenType: string;
 }
 
+// -----------------------------------------------------------------------------
+// Teleconsultation DTOs
+// -----------------------------------------------------------------------------
+
+export interface TeleconsultationDetails {
+  doctorId: number;
+  tenantId: string;
+  appointments: Appointment[];
+  emrSummaries: PatientEMRSummary[];
+}
+
 export interface SSOLaunchResponse {
   success: true;
   data: {
     tokens: CognitoTokens;
+    redirectUrl: string;
+    teleconsultation: TeleconsultationDetails;
     user: {
       id: string;
       externalId: string;

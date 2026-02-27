@@ -50,13 +50,19 @@ export class SSOController {
       event: 'sso_launch_request',
       path: event.path,
       method: event.httpMethod,
-      hasToken: !!event.queryStringParameters?.token,
+      hasQueryParams: !!event.queryStringParameters,
+      hasBody: !!event.body,
     });
 
     try {
-      const launchToken = this.extractAndValidateToken(event, correlationId);
+      const { token: launchToken, module: requestedModule } = this.extractLaunchParams(
+        event,
+        correlationId
+      );
 
-      const result = await this.launchService.processLaunch(launchToken, correlationId);
+      const result = await this.launchService.processLaunch(launchToken, correlationId, {
+        requestedModule,
+      });
 
       const response = this.launchService.formatResponse(result);
 
@@ -67,6 +73,7 @@ export class SSOController {
         durationMs: duration,
         userId: result.user.id,
         tenantId: result.user.tenantId,
+        requestedModule,
       });
 
       return {
@@ -107,13 +114,8 @@ export class SSOController {
     }
   }
 
-  private extractAndValidateToken(
-    event: APIGatewayProxyEvent,
-    correlationId: string
-  ): string {
+  private extractAndValidateTokenFromValue(token: string | undefined, correlationId: string): string {
     const logger = createChildLogger(this.logger, { correlationId });
-
-    const token = event.queryStringParameters?.token;
 
     if (!token) {
       logger.warn({
@@ -154,6 +156,87 @@ export class SSOController {
     });
 
     return token;
+  }
+
+  private extractLaunchParams(
+    event: APIGatewayProxyEvent,
+    correlationId: string
+  ): { token: string; module?: string } {
+    const logger = createChildLogger(this.logger, { correlationId });
+
+    let rawToken: string | undefined;
+    let rawModule: string | undefined;
+
+    if (event.httpMethod.toUpperCase() === 'GET') {
+      rawToken = event.queryStringParameters?.token;
+      rawModule = event.queryStringParameters?.module ?? undefined;
+    } else if (event.httpMethod.toUpperCase() === 'POST') {
+      if (!event.body) {
+        logger.warn({
+          event: 'missing_body_for_post_launch',
+        });
+        throw SSOError.invalidRequest('Request body is required for POST /sso/launch');
+      }
+
+      try {
+        const parsed = JSON.parse(event.body) as {
+          token?: string;
+          module?: string;
+        };
+
+        rawToken = parsed.token;
+        rawModule = parsed.module;
+      } catch (error) {
+        logger.warn({
+          event: 'invalid_json_body',
+          err: serializeError(error as Error),
+        });
+        throw SSOError.invalidRequest('Request body must be valid JSON');
+      }
+    } else {
+      logger.warn({
+        event: 'unsupported_http_method',
+        method: event.httpMethod,
+      });
+      throw SSOError.invalidRequest('HTTP method not supported for /sso/launch');
+    }
+
+    const token = this.extractAndValidateTokenFromValue(rawToken, correlationId);
+    const module = this.validateModuleName(rawModule, correlationId);
+
+    logger.debug({
+      event: 'launch_params_extracted',
+      hasModule: !!module,
+    });
+
+    return { token, module };
+  }
+
+  private validateModuleName(
+    module: string | undefined,
+    correlationId: string
+  ): string | undefined {
+    const logger = createChildLogger(this.logger, { correlationId });
+
+    if (!module) {
+      return undefined;
+    }
+
+    const trimmed = module.trim().toLowerCase();
+
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const modulePattern = /^[a-z0-9_-]+$/;
+    if (!modulePattern.test(trimmed)) {
+      logger.warn({
+        event: 'module_invalid_format',
+      });
+      throw SSOError.invalidRequest('Module contains invalid characters');
+    }
+
+    return trimmed;
   }
 
   private errorResponse(

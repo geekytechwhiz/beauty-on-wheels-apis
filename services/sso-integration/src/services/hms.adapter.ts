@@ -156,7 +156,7 @@ export class HMSAdapter {
 
     try {
       const response = await this.client.post<HMSAppointmentsResponse>(
-        '/api/teleconsultation/todays-appointments',
+        '/api/teleconsultation/todays-appointments', // TODO: change to /api/teleconsultation/appointments/today
         { doctor_id: doctorId },
         {
           headers: {

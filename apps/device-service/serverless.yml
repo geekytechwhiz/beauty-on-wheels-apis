@@ -232,7 +232,13 @@ functions:
           path: devices/user/delete
           method: post
           cors: true
-    description: Delete single user-device mapping by userId and configDevice id
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+    description: Delete user-device mapping(s) by userId (from Bearer token) and devices array
 
   deviceList:
     handler: src/handlers/deviceList.handler

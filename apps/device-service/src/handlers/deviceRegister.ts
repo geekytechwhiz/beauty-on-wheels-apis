@@ -230,7 +230,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
       { items: messageArr },
       'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS',
       { requestId: correlationId, event },
-      { statusCode: 201 },
+      { statusCode },
     );
   } catch (err) {
     const duration = Date.now() - startTime;

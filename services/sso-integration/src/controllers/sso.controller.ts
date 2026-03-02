@@ -63,20 +63,31 @@ export class SSOController {
         correlationId
       );
 
-      const verified = await this.launchService.verifyLaunchToken(launchToken, correlationId);
+      // Process full launch flow: verify token, create/retrieve doctor, publish patient events
+      const launchResult = await this.launchService.processLaunch(launchToken, correlationId);
 
       const duration = Date.now() - startTime;
 
       logger.info({
         event: 'sso_launch_success',
         durationMs: duration,
-      doctorId: verified.doctorId,
-      tenantId: verified.tenantId,
+        doctorId: launchResult.doctor.id,
+        appointmentCount: launchResult.appointments.length,
+        patientEventsPublished: launchResult.patientEventsPublished,
       });
 
       return ApiResponse.ok(
-        verified,
-        { title: 'Success', description: 'Launch token verified successfully' },
+        {
+          doctor: {
+            id: launchResult.doctor.id,
+            externalId: launchResult.doctor.externalId,
+            provider: launchResult.doctor.provider,
+            tenantId: launchResult.doctor.tenantId,
+          },
+          appointments: launchResult.appointments,
+          patientEventsPublished: launchResult.patientEventsPublished,
+        },
+        { title: 'Success', description: 'Launch processed successfully' },
         {
           requestId: correlationId,
           event,

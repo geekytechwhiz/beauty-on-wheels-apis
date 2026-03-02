@@ -524,3 +524,5 @@ export interface RateLimitState {
   count: number;
   resetAt: number;
 }
+
+export type { DoctorCreationPayload, PatientCreationPayload } from './user-creation.types';

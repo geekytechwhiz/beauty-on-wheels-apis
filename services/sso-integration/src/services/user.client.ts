@@ -8,6 +8,7 @@ import {
   SSOError,
   ServiceClientConfig,
 } from '../types';
+import { DoctorCreationPayload, PatientCreationPayload } from '../types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -197,6 +198,186 @@ export class UserServiceClient {
 
       throw SSOError.userServiceError(
         'Unexpected error during user creation',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Creates a doctor user with full doctor structure.
+   * This method supports the complete doctor creation payload as per user service API.
+   * 
+   * @param doctorPayload - Full doctor creation payload
+   * @param externalId - External ID from provider (e.g., TruTech doctor_uid)
+   * @param provider - Provider name (e.g., "TruTech")
+   * @param tenantId - Tenant ID
+   * @param correlationId - Correlation ID for logging
+   * @returns Created user
+   */
+  async createDoctor(
+    doctorPayload: DoctorCreationPayload,
+    externalId: string,
+    provider: string,
+    tenantId: string,
+    correlationId: string,
+  ): Promise<User> {
+    const logger = createChildLogger(this.logger, { correlationId });
+    const startTime = Date.now();
+
+    logger.info({
+      event: 'doctor_create_start',
+      provider,
+      tenantId,
+      externalId,
+      doctorName: doctorPayload.userInfo.name,
+    });
+
+    try {
+      const response = await this.client.post<{ data: User }>(
+        '/user',
+        {
+          external_id: externalId,
+          provider,
+          tenant_id: tenantId,
+          ...doctorPayload,
+        },
+        {
+          headers: {
+            'X-Correlation-Id': correlationId,
+          },
+        }
+      );
+
+      const duration = Date.now() - startTime;
+
+      logger.info({
+        event: 'doctor_create_success',
+        durationMs: duration,
+        userId: response.data.data.id,
+      });
+
+      return response.data.data;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+
+        logger.error({
+          event: 'doctor_create_error',
+          durationMs: duration,
+          status: axiosError.response?.status,
+          err: serializeError(axiosError),
+        });
+
+        if (axiosError.response?.status === 409) {
+          throw SSOError.userServiceError('Doctor already exists', axiosError);
+        }
+
+        throw SSOError.userServiceError(
+          `Doctor creation failed: ${axiosError.message}`,
+          axiosError
+        );
+      }
+
+      logger.error({
+        event: 'doctor_create_unexpected_error',
+        durationMs: duration,
+        err: serializeError(error as Error),
+      });
+
+      throw SSOError.userServiceError(
+        'Unexpected error during doctor creation',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Creates a patient user with full patient structure.
+   * This method supports the complete patient creation payload as per user service API.
+   * 
+   * @param patientPayload - Full patient creation payload
+   * @param externalId - External ID from provider (e.g., TruTech patient id)
+   * @param provider - Provider name (e.g., "TruTech")
+   * @param tenantId - Tenant ID
+   * @param correlationId - Correlation ID for logging
+   * @returns Created user
+   */
+  async createPatient(
+    patientPayload: PatientCreationPayload,
+    externalId: string,
+    provider: string,
+    tenantId: string,
+    correlationId: string,
+  ): Promise<User> {
+    const logger = createChildLogger(this.logger, { correlationId });
+    const startTime = Date.now();
+
+    logger.info({
+      event: 'patient_create_start',
+      provider,
+      tenantId,
+      externalId,
+      patientName: patientPayload.userInfo.name,
+    });
+
+    try {
+      const response = await this.client.post<{ data: User }>(
+        '/user',
+        {
+          external_id: externalId,
+          provider,
+          tenant_id: tenantId,
+          ...patientPayload,
+        },
+        {
+          headers: {
+            'X-Correlation-Id': correlationId,
+          },
+        }
+      );
+
+      const duration = Date.now() - startTime;
+
+      logger.info({
+        event: 'patient_create_success',
+        durationMs: duration,
+        userId: response.data.data.id,
+      });
+
+      return response.data.data;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+
+        logger.error({
+          event: 'patient_create_error',
+          durationMs: duration,
+          status: axiosError.response?.status,
+          err: serializeError(axiosError),
+        });
+
+        if (axiosError.response?.status === 409) {
+          throw SSOError.userServiceError('Patient already exists', axiosError);
+        }
+
+        throw SSOError.userServiceError(
+          `Patient creation failed: ${axiosError.message}`,
+          axiosError
+        );
+      }
+
+      logger.error({
+        event: 'patient_create_unexpected_error',
+        durationMs: duration,
+        err: serializeError(error as Error),
+      });
+
+      throw SSOError.userServiceError(
+        'Unexpected error during patient creation',
         error as Error
       );
     }

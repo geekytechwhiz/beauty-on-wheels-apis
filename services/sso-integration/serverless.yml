@@ -31,6 +31,7 @@ provider:
     ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, ''}
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
+    PATIENT_CREATION_QUEUE_URL: !GetAtt PatientCreationQueue.QueueUrl
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -41,6 +42,23 @@ provider:
         - cognito-idp:AdminGetUser
       Resource:
         - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
+    # SQS permissions for patient event publishing
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:SendMessageBatch
+        - sqs:GetQueueUrl
+        - sqs:GetQueueAttributes
+      Resource:
+        - !GetAtt PatientCreationQueue.Arn
+    # SQS permissions for patient event consumer
+    - Effect: Allow
+      Action:
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - !GetAtt PatientCreationQueue.Arn
 
 plugins:
   - serverless-esbuild
@@ -142,3 +160,19 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
+  # ---------------------------------------------------------------------------
+  # Patient Creation Event Consumer (Background Worker)
+  # ---------------------------------------------------------------------------
+
+  patientCreationEventConsumer:
+    handler: src/handlers/patient-creation-event-consumer.handler
+    description: Background worker for processing patient creation events from SQS
+    timeout: 60
+    memorySize: 512
+    reservedConcurrentExecutions: 10
+    events:
+      - sqs:
+          arn: !GetAtt PatientCreationQueue.Arn
+          batchSize: 10
+          maximumBatchingWindowInSeconds: 5
+          functionResponseType: ReportBatchItemFailures

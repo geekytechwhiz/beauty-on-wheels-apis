@@ -6,6 +6,7 @@ import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { deviceListSchema } from '../validation/device.validation';
+import { getAuthorizerUserId } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
@@ -216,9 +217,8 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     }
 
     // Scenario 5: Return user-specific devices (backward compatibility)
-    const userIdFromAuth = (event.requestContext as any)?.authorizer?.userID || 
-                          (event.requestContext as any)?.authorizer?.userId || 
-                          userId;
+    // Try to get userId from authorizer context or JWT token, fallback to request body/query params
+    const userIdFromAuth = getAuthorizerUserId(event) || userId;
     
     if (userIdFromAuth) {
       logger.info({ event: 'deviceList_user_devices', userId: userIdFromAuth });

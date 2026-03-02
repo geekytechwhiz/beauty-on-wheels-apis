@@ -34,7 +34,7 @@ export class HMSAdapter {
       timeout: config.HMS_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': config.HMS_API_KEY,
+        'Authorization': `Bearer ${config.HMS_API_KEY}`,
       },
     });
 
@@ -115,15 +115,15 @@ export class HMSAdapter {
         event: 'hms_verify_success',
         durationMs: duration,
         tenantId: context?.tenant_id,
-        doctorId: context?.doctor_id,
+        doctorId: context?.drid,
         hasSessionId: !!context?.session_id,
       });
 
       return {
         doctorUid: doctor_uid,
-        doctorId: context?.doctor_id || 0,
-        doctorName: context?.doctor_name,
-        doctorEmail: context?.doctor_email,
+        doctorId: context?.drid || 0,
+        doctorName: context?.name,
+        doctorEmail: context?.email,
         doctorPhone: context?.doctor_phone,
         specialization: context?.specialization,
         department: context?.department,

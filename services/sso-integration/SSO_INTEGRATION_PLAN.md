@@ -87,8 +87,9 @@ This document outlines the plan for implementing SSO integration that:
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 3. Fetch Today's Appointments                                   │
-│    GET /doctor/appointments/today                               │
-│    Request: { doctor_id: 4 }                                    │
+│    POST /api/teleconsultation/todays-appointments              │
+│    Headers: { Authorization: Bearer <token> }                   │
+│    Request Body: { doctor_id: 4 }                               │
 │    Response: {                                                  │
 │      status: "success",                                         │
 │      appointments: [                                             │
@@ -382,10 +383,12 @@ export interface SSOConfig {
 - [ ] Log results (success/failure)
 - [ ] Handle retries for failed creations via event replay
 
-### Task 6: Update HMS Adapter
-- [ ] Update `getTodaysAppointments()` to use GET method
-- [ ] Update endpoint to `/doctor/appointments/today`
-- [ ] Handle new response structure
+### Task 6: Verify HMS Adapter
+- [ ] Verify `getTodaysAppointments()` uses POST method
+- [ ] Verify endpoint is `/api/teleconsultation/todays-appointments`
+- [ ] Verify request includes Authorization header with Bearer token
+- [ ] Verify request body includes `doctor_id`
+- [ ] Verify response structure handling
 
 ### Task 7: Integration Testing
 - [ ] Test doctor creation flow (synchronous)
@@ -415,18 +418,27 @@ export interface SSOConfig {
 
 ### HMS Adapter - Get Today's Appointments
 
-**Current:**
+**Confirmed Implementation:**
 ```typescript
 POST /api/teleconsultation/todays-appointments
-{ doctor_id: number }
+Headers: {
+  Authorization: Bearer <token>,
+  Content-Type: application/json
+}
+Body: {
+  doctor_id: number
+}
 ```
 
-**Should be:**
-```typescript
-GET /doctor/appointments/today?doctor_id=123
+**Example:**
+```bash
+curl --location 'https://qahms.zmtrutech.com/api/teleconsultation/todays-appointments' \
+--header 'Authorization: Bearer <token>' \
+--header 'Content-Type: application/json' \
+--data '{
+    "doctor_id": 4
+}'
 ```
-
-**Note:** Based on user's specification, it should be GET with query parameter, but the example shows POST with body. Need to confirm with user.
 
 ## Event-Driven Patient Processing Architecture
 
@@ -662,9 +674,8 @@ interface PatientCreationEvent {
 
 ## Questions to Resolve
 
-1. **Appointments API Method**: GET vs POST? User specified GET but example shows POST body.
-2. **Organization ID**: Should it come from HMS context or always from config?
-3. **South Africa Organization ID**: Which organization ID should be used for South Africa HMS integration?
+1. **Organization ID**: Should it come from HMS context or always from config?
+2. **South Africa Organization ID**: Which organization ID should be used for South Africa HMS integration?
 
 ## References
 

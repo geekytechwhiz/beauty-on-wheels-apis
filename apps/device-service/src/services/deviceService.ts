@@ -331,6 +331,8 @@ export class DeviceService {
             isEagleDevice: entry.isEagleDevice,
             deviceImage: globalDevice ? (globalDevice as any).deviceImage : undefined,
             deviceCategoryNum: entry.deviceCategoryNum ? parseInt(entry.deviceCategoryNum, 10) : undefined,
+            localName: entry.localName,
+            lastSequenceNumber: entry.lastSequenceNumber,
           } as Device;
         }),
       );

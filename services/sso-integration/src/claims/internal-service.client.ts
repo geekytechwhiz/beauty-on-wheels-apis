@@ -1,5 +1,5 @@
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
-import { getHMSAdapter } from '../services/hms.adapter';
+import { getTruTechAdapter } from '../adapters/TruTech.adapter';
 import { Appointment, PatientEMRSummary, SSOError } from '../types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -9,11 +9,11 @@ const baseLogger = createLogger({ service: 'sso-integration', redactPII: true })
  *
  * Thin wrapper around downstream teleconsultation-related APIs.
  * This client is intentionally minimal and delegates HTTP concerns
- * to the existing HMS adapter while providing a stable internal boundary.
+ * to the TruTech adapter while providing a stable internal boundary.
  */
 export class InternalServiceClient {
   private readonly logger = createChildLogger(baseLogger, { component: 'InternalServiceClient' });
-  private readonly hmsAdapter = getHMSAdapter();
+  private readonly truTechAdapter = getTruTechAdapter();
 
   async getTodaysAppointments(
     doctorId: number,
@@ -27,7 +27,7 @@ export class InternalServiceClient {
     });
 
     try {
-      const appointments = await this.hmsAdapter.getTodaysAppointments(doctorId, correlationId);
+      const appointments = await this.truTechAdapter.getTodaysAppointments(doctorId, correlationId);
 
       logger.info({
         event: 'internal_get_todays_appointments_success',
@@ -66,7 +66,7 @@ export class InternalServiceClient {
     });
 
     try {
-      const summary = await this.hmsAdapter.getPatientEMRSummary(patientId, correlationId);
+      const summary = await this.truTechAdapter.getPatientEMRSummary(patientId, correlationId);
 
       logger.info({
         event: 'internal_get_patient_emr_success',

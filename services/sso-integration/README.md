@@ -1,6 +1,6 @@
 # MyVitalRx SSO - Launch Flow
 
-Production SSO implementation for HMS (Hospital Management System) integration. Enables launch token verification and JWT session creation with **no changes required on HMS side**.
+Production SSO implementation for TruTech integration. Enables launch token verification and JWT session creation with **no changes required on TruTech side**.
 
 ## Endpoints
 
@@ -8,7 +8,7 @@ Production SSO implementation for HMS (Hospital Management System) integration. 
 |----------|--------|-------------|
 | `/health` | GET | Health check |
 | `/sso/launch` | GET | SSO launch - verify launch token, create session, redirect |
-| `/sso/register` | POST | Register HMS client (get client_id, launch_secret) |
+| `/sso/register` | POST | Register TruTech client (get client_id, launch_secret) |
 
 ## Quick Start
 
@@ -28,17 +28,15 @@ API_BASE_URL=https://xxx.execute-api.us-east-1.amazonaws.com/dev npx serverless 
 
 ## Launch Flow
 
-1. **Register HMS** → POST `/sso/register` → receive `client_id`, `launch_secret`, `launch_url`
-2. **HMS generates token** → JWT with user info, signed with `launch_secret`
-3. **HMS redirects user** → `GET /sso/launch?launch_token=JWT`
+1. **Register TruTech** → POST `/sso/register` → receive `client_id`, `launch_secret`, `launch_url`
+2. **TruTech generates token** → JWT with user info, signed with `launch_secret`
+3. **TruTech redirects user** → `GET /sso/launch?launch_token=JWT`
 4. **MyVitalRx** → Verifies token, creates session JWT, redirects to app with `session_token`
-
-See [HMS_LAUNCH_INTEGRATION.md](./HMS_LAUNCH_INTEGRATION.md) for full integration guide.
 
 ## Dependencies (shared libs)
 
 - **Logger**: Use `@api-hub/logger` only (e.g. `createLogger`, `createChildLogger`, `serializeError`). Do not introduce local or duplicate logging.
-- **DynamoDB**: When DynamoDB is needed (e.g. launch idempotency, HMS client registry), use the client from `@api-hub/utils` (`ddbClient`, `ddbDocClient`) — do not instantiate a separate DynamoDB client in this service.
+- **DynamoDB**: When DynamoDB is needed (e.g. launch idempotency, TruTech client registry), use the client from `@api-hub/utils` (`ddbClient`, `ddbDocClient`) — do not instantiate a separate DynamoDB client in this service.
 - **User creation**: Cognito and user records are created by **user-service** (POST /user). This service only looks up users and generates session tokens for existing users.
 
 ## Project Structure
@@ -53,7 +51,7 @@ src/
 ├── services/
 │   ├── launch.service.ts       # Token verification + session creation
 │   ├── token.service.ts        # JWT session handling
-│   └── hms-client.service.ts   # HMS client registry — use @api-hub/utils for DynamoDB
+│   └── tru-tech-client.service.ts   # TruTech client registry — use @api-hub/utils for DynamoDB
 ├── types/
 └── utils/
 ```

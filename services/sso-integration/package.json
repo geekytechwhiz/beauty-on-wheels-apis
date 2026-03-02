@@ -1,7 +1,7 @@
 {
   "name": "sso-integration",
   "version": "1.0.0",
-  "description": "MyVitalRx SSO - HMS Launch Flow with JWT Session",
+  "description": "MyVitalRx SSO - TruTech Launch Flow with JWT Session",
   "main": "index.js",
   "scripts": {
     "build": "tsc",

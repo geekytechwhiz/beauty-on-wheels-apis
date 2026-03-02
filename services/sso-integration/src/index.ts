@@ -1,6 +1,6 @@
 export * from './types';
 export * from './config/env';
-export * from './services/hms.adapter';
+export * from './adapters/TruTech.adapter';
 export * from './services/user.client'; 
 export * from './services/appointments.service';
 export * from './controllers/sso.controller';

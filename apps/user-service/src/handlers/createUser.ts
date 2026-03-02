@@ -220,6 +220,8 @@ export async function createUser(
       username: (userInfo as any).username || undefined,
     };
 
+
+
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
     let definedRoleCode: string | undefined;
@@ -237,7 +239,7 @@ export async function createUser(
           body.organizationID,
         );
         logger.info({
-          event: 'createUser_repo_query_result',
+          event: 'createUser_repo_query__result',
           rolePermissionsCount: rolePermissions?.length || 0,
           hasItems: rolePermissions && rolePermissions.length > 0,
         });

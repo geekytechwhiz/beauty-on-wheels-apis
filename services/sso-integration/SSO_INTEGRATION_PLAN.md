@@ -5,9 +5,9 @@
 **Region: South Africa**
 
 This document outlines the plan for implementing SSO integration that:
-1. Verifies launch tokens from HMS (Hospital Management System)
-2. Fetches doctor details from HMS appointments API
-3. Creates doctors and patients in our system based on HMS data
+1. Verifies launch tokens from TruTech
+2. Fetches doctor details from TruTech appointments API
+3. Creates doctors and patients in our system based on TruTech data
 
 **Note:** This integration is configured for South Africa region with appropriate defaults (phone codes, date formats, etc.)
 
@@ -40,7 +40,7 @@ This document outlines the plan for implementing SSO integration that:
 
 ### Existing Components
 
-1. **HMS Adapter** (`src/services/hms.adapter.ts`)
+1. **TruTech Adapter** (`src/adapters/TruTech.adapter.ts`)
    - ✅ `verifyLaunchToken()` - POST `/api/teleconsultation/verify`
    - ✅ `getTodaysAppointments()` - POST `/api/teleconsultation/todays-appointments`
    - ✅ `getPatientEMRSummary()` - POST `/api/teleconsultation/patient-emr-summary`
@@ -55,9 +55,9 @@ This document outlines the plan for implementing SSO integration that:
 ### Missing Components
 
 1. **Launch Service** - Referenced but not implemented
-2. **Doctor Creation Logic** - Need to map HMS doctor data to our doctor structure
-3. **Patient Creation Logic** - Need to map HMS patient data to our patient structure
-4. **Configuration File** - For default values not present in HMS data
+2. **Doctor Creation Logic** - Need to map TruTech doctor data to our doctor structure
+3. **Patient Creation Logic** - Need to map TruTech patient data to our patient structure
+4. **Configuration File** - For default values not present in TruTech data
 
 ## Integration Flow
 
@@ -113,8 +113,8 @@ This document outlines the plan for implementing SSO integration that:
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 4. Check if Doctor Exists in Our System                        │
-│    - Lookup by external_id (doctor_uid from HMS)              │
-│    - Provider: "HMS"                                           │
+│    - Lookup by external_id (doctor_uid from TruTech)          │
+│    - Provider: "TruTech"                                       │
 │    - Tenant ID: from context or config                          │
 └────────────────────┬────────────────────────────────────────────┘
                      │
@@ -213,7 +213,7 @@ This document outlines the plan for implementing SSO integration that:
 
 ## Data Mapping
 
-### Doctor Mapping (HMS → Our System)
+### Doctor Mapping (TruTech → Our System)
 
 | HMS Field | Our System Field | Notes |
 |-----------|------------------|--------|
@@ -232,7 +232,7 @@ This document outlines the plan for implementing SSO integration that:
 | - | `userType` | "STAFF" |
 | - | `organizationID` | From config (`defaultOrganizationID`) |
 
-### Patient Mapping (HMS → Our System)
+### Patient Mapping (TruTech → Our System)
 
 | HMS Field | Our System Field | Notes |
 |-----------|------------------|--------|
@@ -260,7 +260,7 @@ Create `src/config/sso-config.ts`:
 
 ```typescript
 export interface SSOConfig {
-  // Default organization ID for HMS users
+  // Default organization ID for TruTech users
   defaultOrganizationID: string;
   
   // Default role IDs
@@ -308,7 +308,7 @@ export interface SSOConfig {
     };
   };
   
-  // Phone code mapping (if HMS provides country codes)
+  // Phone code mapping (if TruTech provides country codes)
   phoneCodeMapping: Record<string, string>;
 }
 ```
@@ -325,17 +325,14 @@ export interface SSOConfig {
 ### Task 1a: Create Phone Number Processing Utility
 - [ ] Create `src/utils/phone-processor.ts`
 - [ ] Implement `processPhoneNumber()` function:
-  - Extract phoneCode if phone contains "+27" at the beginning
-  - Remove "+27" from phone number if extracted
-  - Handle phone numbers with leading "0" (replace with +27 phoneCode)
-  - Handle phone numbers without prefix (prepend +27 phoneCode)
-  - Clean multiple "+" characters
+  - Simple split: If phone starts with "+27", extract it as phoneCode and remove from phoneNumber
+  - Otherwise, use default phoneCode (+27) and use phone as phoneNumber
   - Return `{ phoneCode: string, phoneNumber: string }`
-- [ ] Add unit tests for all phone number scenarios
+- [ ] Add unit tests for phone number scenarios
 
 ### Task 2: Create Doctor Mapper Service
 - [ ] Create `src/services/doctor.mapper.ts`
-- [ ] Implement `mapHMSDoctorToOurSystem()` function
+- [ ] Implement `mapTruTechDoctorToOurSystem()` function
 - [ ] Handle missing fields with config defaults
 - [ ] Parse name into firstname/lastname if needed
 - [ ] Use `phone-processor` utility for phone number processing
@@ -345,7 +342,7 @@ export interface SSOConfig {
 
 ### Task 3: Create Patient Mapper Service
 - [ ] Create `src/services/patient.mapper.ts`
-- [ ] Implement `mapHMSPatientToOurSystem()` function
+- [ ] Implement `mapTruTechPatientToOurSystem()` function
 - [ ] Handle missing fields with config defaults
 - [ ] Format date of birth
 - [ ] Set name prefix based on gender
@@ -387,10 +384,10 @@ export interface SSOConfig {
 - [ ] Log results (success/failure)
 - [ ] Handle retries for failed creations via event replay
 
-### Task 6: Verify HMS Adapter
+### Task 6: Verify TruTech Adapter
 - [ ] Verify `getTodaysAppointments()` uses POST method
 - [ ] Verify endpoint is `/api/teleconsultation/todays-appointments`
-- [ ] Verify request includes Authorization header with Bearer token
+- [ ] Verify request includes X-API-Key header
 - [ ] Verify request body includes `doctor_id`
 - [ ] Verify response structure handling
 
@@ -400,10 +397,8 @@ export interface SSOConfig {
 - [ ] Test patient event consumer (background worker)
 - [ ] Test duplicate user handling (doctor and patient)
 - [ ] Test phone number processing:
-  - Phone with "+27" prefix (extract phoneCode)
-  - Phone with leading "0" (replace with +27 phoneCode)
-  - Phone without prefix (prepend +27 phoneCode)
-  - Phone with multiple "+" characters (clean properly)
+  - Phone with "+27" prefix (extract phoneCode, remove prefix from phoneNumber)
+  - Phone without "+27" prefix (use default phoneCode, use phone as phoneNumber)
 - [ ] Test patient validation:
   - Patient with email only (should succeed)
   - Patient with phone only (should succeed)
@@ -420,7 +415,7 @@ export interface SSOConfig {
 
 ## API Endpoints to Update
 
-### HMS Adapter - Get Today's Appointments
+### TruTech Adapter - Get Today's Appointments
 
 **Confirmed Implementation:**
 ```typescript
@@ -589,7 +584,7 @@ interface PatientCreationEvent {
      - Use defaults for other optional fields, log warning, continue
      - If phone provided, validate phone number processing (phoneCode extraction)
 
-7. **HMS API Failures**
+7. **TruTech API Failures**
    - Retry with exponential backoff
    - Return appropriate error codes
    - Log detailed error information
@@ -644,30 +639,26 @@ interface PatientCreationEvent {
 
 ### Phone Number Processing (Doctor & Patient)
 
-**Phone Code Extraction Logic:**
-- If phone number contains "+27" (at the beginning):
-  - Extract "+27" as `phoneCode`
-  - Remove "+27" from phone number to get `phoneNumber`
-  - Example: "+27123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"`
-  - Example: "+270372807" → `phoneCode: "+27"`, `phoneNumber: "0372807"`
-
-**Phone Number Cleaning (when +27 not present):**
+**Simple Phone Code and Number Split:**
 - **Default Phone Code**: `+27` (South Africa)
-- **Phone Number Cleaning**: HMS shows phone numbers like "++++++++++0372807"
-  - Remove all "+" characters
-  - If number starts with "0", replace "0" with "+27" as phoneCode, keep rest as phoneNumber
-  - If number doesn't start with "0" or "+27", use "+27" as phoneCode, keep number as phoneNumber
-  - Examples:
-    - "++++++++++0372807" → `phoneCode: "+27"`, `phoneNumber: "372807"` (after removing leading 0)
-    - "123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"`
-    - "+27123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"` (extracted)
+- **Processing Logic**:
+  - If phone number starts with "+27":
+    - Extract "+27" as `phoneCode`
+    - Remove "+27" prefix to get `phoneNumber`
+    - Example: "+27123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"`
+    - Example: "+270372807" → `phoneCode: "+27"`, `phoneNumber: "0372807"`
+  - Otherwise:
+    - Use default `phoneCode: "+27"`
+    - Use phone number as-is for `phoneNumber`
+    - Example: "123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"`
+    - Example: "0372807" → `phoneCode: "+27"`, `phoneNumber: "0372807"`
 
 **Validation Rules:**
 - **Doctor**: Phone is optional, but if provided, must be processed correctly
 - **Patient**: Either `email` OR `phone` is required (at least one must be present)
 
 ### Date Formats
-- **Input Format**: ISO 8601 (from HMS): `"2026-02-25T10:00:00.000000Z"`
+- **Input Format**: ISO 8601 (from TruTech): `"2026-02-25T10:00:00.000000Z"`
 - **Output Format**: `"DD-MM-YYYY"` (e.g., "25-02-2026")
 - **Date of Birth**: Parse from ISO format and convert to DD-MM-YYYY
 
@@ -680,5 +671,5 @@ interface PatientCreationEvent {
 
 - User Service API: `api-hub/apps/user-service/src/services/user.service.ts`
 - User Validation: `api-hub/apps/user-service/src/validation/user.validation.ts`
-- HMS Adapter: `api-hub/services/sso-integration/src/services/hms.adapter.ts`
+- TruTech Adapter: `api-hub/services/sso-integration/src/adapters/TruTech.adapter.ts`
 - Types: `api-hub/services/sso-integration/src/types/index.ts`

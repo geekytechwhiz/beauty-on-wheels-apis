@@ -36,16 +36,14 @@ export class TruTechAdapter {
   });
 
   constructor() {
-    const config: any = getEnvConfig();
+    const config = getEnvConfig();
 
-    // NOTE: Env vars still use HMS_* naming for backwards compatibility,
-    // but they point to the TruTech TeleconsultationController.
     this.client = axios.create({
-      baseURL: config.HMS_BASE_URL,
-      timeout: config.HMS_TIMEOUT_MS,
+      baseURL: config.TRU_TECH_BASE_URL,
+      timeout: config.TRU_TECH_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': config.HMS_API_KEY,
+        'X-API-Key': config.TRU_TECH_API_KEY,
       },
     });
 

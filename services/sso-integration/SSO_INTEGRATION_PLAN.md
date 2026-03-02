@@ -228,7 +228,7 @@ This document outlines the plan for implementing SSO integration that:
 | - | `userInfo.bio` | Default: "" (from config) |
 | - | `userRole` | Default: ["<doctor-role-id>"] (from config) |
 | - | `userType` | "STAFF" |
-| - | `organizationID` | From config or context |
+| - | `organizationID` | From config (`defaultOrganizationID`) |
 
 ### Patient Mapping (HMS → Our System)
 
@@ -250,7 +250,7 @@ This document outlines the plan for implementing SSO integration that:
 | - | `userRole` | Default: ["<patient-role-id>"] (from config) |
 | - | `userType` | "USER" |
 | - | `invite` | "phone" |
-| - | `organizationID` | From config or context |
+| - | `organizationID` | From config (`defaultOrganizationID`) |
 
 ## Configuration File Structure
 
@@ -339,6 +339,7 @@ export interface SSOConfig {
 - [ ] Use `phone-processor` utility for phone number processing
 - [ ] Use `doctorRoleId` from config for `userRole` field
 - [ ] Use `doctor.specialty` from config (default: "general") for `userInfo.specialty` field
+- [ ] Use `defaultOrganizationID` from config for `organizationID` field
 
 ### Task 3: Create Patient Mapper Service
 - [ ] Create `src/services/patient.mapper.ts`
@@ -348,6 +349,7 @@ export interface SSOConfig {
 - [ ] Set name prefix based on gender
 - [ ] Use `phone-processor` utility for phone number processing
 - [ ] Use `patientRoleId` from config for `userRole` field
+- [ ] Use `defaultOrganizationID` from config for `organizationID` field
 - [ ] Validate that either email OR phone is provided (required field validation)
 - [ ] Throw error if both email and phone are missing
 
@@ -671,11 +673,6 @@ interface PatientCreationEvent {
 - **Country Code**: `ZAF` (South Africa)
 - **Time Zone**: `Africa/Johannesburg` (SAST - UTC+2)
 - **Currency**: ZAR (if needed)
-
-## Questions to Resolve
-
-1. **Organization ID**: Should it come from HMS context or always from config?
-2. **South Africa Organization ID**: Which organization ID should be used for South Africa HMS integration?
 
 ## References
 

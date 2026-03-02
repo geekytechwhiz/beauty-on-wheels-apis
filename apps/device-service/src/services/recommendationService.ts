@@ -22,7 +22,7 @@ export class RecommendationService {
     doctorId: string,
     doctorName: string,
     organizationId: string,
-    devices: Array<{ deviceId: string; category: string; name: string }>,
+    devices: Array<{ deviceId: string; category: string; name: string; displayName?: string }>,
     correlationId?: string,
   ): Promise<void> {
     console.log("RECOMMEND DEVICES ", patientUserId, doctorId, doctorName, organizationId, devices, correlationId);
@@ -47,6 +47,7 @@ export class RecommendationService {
           deviceId: device.deviceId,
           category: device.category,
           name: device.name,
+          displayName: device.displayName,
         });
 
         // Publish event

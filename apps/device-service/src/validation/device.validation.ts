@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
-// Third-party apps that don't require organization validation
+// Third-party apps that don't require organization validation (by device category)
 const THIRD_PARTY_APPS = ['GOOGLEFIT', 'APPLEHEALTH', 'FITBIT', 'GARMIN', 'MANUAL'];
+
+// Third-party by company name (legacy patient-app pairing)
+export const ALLOWED_THIRD_PARTY_APPS = ['GOOGLEFIT', 'APPLEHEALTH', 'FITBIT', 'GARMIN', 'MANUAL'];
 
 // Device registration schema (POST /devices/register)
 export const deviceRegistrationSchema = z.object({
@@ -16,6 +19,43 @@ export const deviceRegistrationSchema = z.object({
         companyName: z.string().min(1),
         modelName: z.string().min(1),
         deviceCategoryNum: z.string().optional(),
+      }),
+    )
+    .min(1),
+});
+
+// Patient-app device user registration (legacy pairing) – full payload, correct table mapping
+export const deviceUserRegistrationSchema = z.object({
+  userId: z.string().min(1),
+  organizationId: z.string().min(1),
+  devices: z
+    .array(
+      z.object({
+        configDeviceId: z.string().min(1),
+        displayName: z.string().min(1),
+        noOfUsers: z.number(),
+        deviceCategory: z.string().min(1),
+        companyName: z.string().min(1),
+        modelName: z.string().min(1),
+        usesExtensionProtocol: z.boolean(),
+        supportsUserAuthentication: z.boolean(),
+        platform: z.string().min(1),
+        isAutoSyncEnabled: z.boolean(),
+        isAutoSyncSupported: z.boolean(),
+        autoSyncDelay: z.number(),
+        isSync: z.boolean(),
+        // optional / from app
+        macAddress: z.string().optional(),
+        localName: z.string().optional(),
+        lastSequenceNumber: z.string().optional(),
+        lastReadingTimeStamp: z.number().optional(),
+        databaseUpdateFlag: z.boolean().optional(),
+        databaseChangeIncrement: z.number().optional(),
+        isDeviceDeleted: z.boolean().optional(),
+        iOSIdentifier: z.string().optional(),
+        userIndex: z.number().optional(),
+        isEagleDevice: z.boolean().optional(),
+        deviceCategoryNum: z.union([z.string(), z.number()]).optional(),
       }),
     )
     .min(1),
@@ -143,7 +183,12 @@ export const errorNotificationSchema = z.object({
   { message: 'At least one of userId, email, phone, or deviceToken is required' }
 );
 
-// Helper function to check if device is third-party
+// Helper function to check if device is third-party (by category)
 export function isThirdPartyApp(deviceCategory: string): boolean {
   return THIRD_PARTY_APPS.includes(deviceCategory.toUpperCase());
+}
+
+// Helper: third-party by company name (legacy patient-app pairing)
+export function isThirdPartyByCompanyName(companyName: string): boolean {
+  return ALLOWED_THIRD_PARTY_APPS.includes((companyName || '').toUpperCase());
 }

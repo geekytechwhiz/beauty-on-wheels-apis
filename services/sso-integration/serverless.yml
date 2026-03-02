@@ -31,6 +31,7 @@ provider:
     ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, ''}
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
+    PATIENT_CREATION_QUEUE_URL: !GetAtt PatientCreationQueue.QueueUrl
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -41,6 +42,23 @@ provider:
         - cognito-idp:AdminGetUser
       Resource:
         - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
+    # SQS permissions for patient event publishing
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:SendMessageBatch
+        - sqs:GetQueueUrl
+        - sqs:GetQueueAttributes
+      Resource:
+        - !GetAtt PatientCreationQueue.Arn
+    # SQS permissions for patient event consumer
+    - Effect: Allow
+      Action:
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - !GetAtt PatientCreationQueue.Arn
 
 plugins:
   - serverless-esbuild
@@ -58,6 +76,7 @@ custom:
     tsconfig: ../../tsconfig.base.json
     external:
       - '@aws-sdk/client-cognito-identity-provider'
+      - '@aws-sdk/client-sqs'
   dotenv:
     logging: false
   serverless-offline:
@@ -76,7 +95,7 @@ functions:
 
   ssoLaunch:
     handler: src/handlers/sso/launch.handler
-    description: SSO launch endpoint for HMS integration
+    description: SSO launch endpoint for TruTech integration
     timeout: 30
     events:
       - http:
@@ -110,11 +129,11 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          # TODO: Add Cognito authorizer once JWT flow is tested
-          # authorizer:
-          #   type: COGNITO_USER_POOLS
-          #   authorizerId:
-          #     Ref: CognitoAuthorizer
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   patientEMR:
     handler: src/handlers/appointments/patient-emr.handler
@@ -136,9 +155,64 @@ functions:
             parameters:
               paths:
                 patientId: true
-          # TODO: Add Cognito authorizer once JWT flow is tested
-          # authorizer:
-          #   type: COGNITO_USER_POOLS
-          #   authorizerId:
-          #     Ref: CognitoAuthorizer
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
+  # ---------------------------------------------------------------------------
+  # Patient Creation Event Consumer (Background Worker)
+  # ---------------------------------------------------------------------------
+
+  patientCreationEventConsumer:
+    handler: src/handlers/patient-creation-event-consumer.handler
+    description: Background worker for processing patient creation events from SQS
+    timeout: 60
+    memorySize: 512
+    reservedConcurrentExecutions: 10
+    events:
+      - sqs:
+          arn: !GetAtt PatientCreationQueue.Arn
+          batchSize: 10
+          maximumBatchingWindowInSeconds: 5
+          functionResponseType: ReportBatchItemFailures
+
+# ---------------------------------------------------------------------------
+# CloudFormation Resources
+# ---------------------------------------------------------------------------
+
+resources:
+  Resources:
+    # SQS Queue for Patient Creation Events
+    PatientCreationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
+        VisibilityTimeoutSeconds: 300  # 5 minutes (should be >= Lambda timeout)
+        MessageRetentionPeriod: 1209600  # 14 days
+        ReceiveMessageWaitTimeSeconds: 0  # Short polling (immediate)
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt PatientCreationDLQ.Arn
+          maxReceiveCount: 3  # Retry 3 times before moving to DLQ
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+    # Dead Letter Queue for Failed Patient Creation Events
+    PatientCreationDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        MessageRetentionPeriod: 1209600  # 14 days
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless

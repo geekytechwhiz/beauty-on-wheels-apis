@@ -1,8 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createLogger, createChildLogger, extractCorrelationId, serializeError } from '@api-hub/logger';
+import { ApiResponse } from '@api-hub/utils';
 import { getAppointmentsService } from '../services/appointments.service';
 import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
-import { SSOError, SSOErrorResponse } from '../types';
+import { SSOError } from '../types';
 import { loadEnvConfig } from '../config/env';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -32,6 +33,7 @@ export class AppointmentsController {
       });
       return this.errorResponse(
         SSOError.internalError('Service configuration error'),
+        event,
         correlationId,
         {}
       );
@@ -43,6 +45,7 @@ export class AppointmentsController {
     if (!rateLimitResult.allowed) {
       return this.errorResponse(
         SSOError.rateLimitExceeded(),
+        event,
         correlationId,
         rateLimitHeaders
       );
@@ -62,7 +65,6 @@ export class AppointmentsController {
         correlationId
       );
 
-      const response = this.appointmentsService.formatAppointmentsResponse(appointments);
       const duration = Date.now() - startTime;
 
       logger.info({
@@ -72,16 +74,19 @@ export class AppointmentsController {
         appointmentCount: appointments.length,
       });
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Correlation-Id': correlationId,
-          'Cache-Control': 'private, max-age=60',
-          ...rateLimitHeaders,
+      return ApiResponse.ok(
+        this.appointmentsService.formatAppointmentsResponse(appointments),
+        { title: 'Success', description: 'Today\'s appointments fetched successfully' },
+        {
+          requestId: correlationId,
+          event,
+          headers: {
+            'X-Correlation-Id': correlationId,
+            'Cache-Control': 'private, max-age=60',
+            ...rateLimitHeaders,
+          },
         },
-        body: JSON.stringify(response),
-      };
+      );
     } catch (error) {
       const duration = Date.now() - startTime;
 
@@ -92,7 +97,7 @@ export class AppointmentsController {
           errorCode: error.code,
           statusCode: error.statusCode,
         });
-        return this.errorResponse(error, correlationId, rateLimitHeaders);
+        return this.errorResponse(error, event, correlationId, rateLimitHeaders);
       }
 
       logger.error({
@@ -103,6 +108,7 @@ export class AppointmentsController {
 
       return this.errorResponse(
         SSOError.internalError('An unexpected error occurred'),
+        event,
         correlationId,
         rateLimitHeaders
       );
@@ -130,6 +136,7 @@ export class AppointmentsController {
       });
       return this.errorResponse(
         SSOError.internalError('Service configuration error'),
+        event,
         correlationId,
         {}
       );
@@ -141,6 +148,7 @@ export class AppointmentsController {
     if (!rateLimitResult.allowed) {
       return this.errorResponse(
         SSOError.rateLimitExceeded(),
+        event,
         correlationId,
         rateLimitHeaders
       );
@@ -163,7 +171,6 @@ export class AppointmentsController {
         correlationId
       );
 
-      const response = this.appointmentsService.formatEMRResponse(emrSummary);
       const duration = Date.now() - startTime;
 
       logger.info({
@@ -173,16 +180,19 @@ export class AppointmentsController {
         visitCount: emrSummary.visits.length,
       });
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Correlation-Id': correlationId,
-          'Cache-Control': 'private, max-age=300',
-          ...rateLimitHeaders,
+      return ApiResponse.ok(
+        this.appointmentsService.formatEMRResponse(emrSummary),
+        { title: 'Success', description: 'Patient EMR fetched successfully' },
+        {
+          requestId: correlationId,
+          event,
+          headers: {
+            'X-Correlation-Id': correlationId,
+            'Cache-Control': 'private, max-age=300',
+            ...rateLimitHeaders,
+          },
         },
-        body: JSON.stringify(response),
-      };
+      );
     } catch (error) {
       const duration = Date.now() - startTime;
 
@@ -193,7 +203,7 @@ export class AppointmentsController {
           errorCode: error.code,
           statusCode: error.statusCode,
         });
-        return this.errorResponse(error, correlationId, rateLimitHeaders);
+        return this.errorResponse(error, event, correlationId, rateLimitHeaders);
       }
 
       logger.error({
@@ -204,6 +214,7 @@ export class AppointmentsController {
 
       return this.errorResponse(
         SSOError.internalError('An unexpected error occurred'),
+        event,
         correlationId,
         rateLimitHeaders
       );
@@ -248,23 +259,9 @@ export class AppointmentsController {
       }
     }
 
-    // Fallback: Try to get from query params (for testing/development)
-    const queryDoctorId = event.queryStringParameters?.doctor_id;
-    if (queryDoctorId) {
-      const doctorId = parseInt(queryDoctorId, 10);
-      if (!isNaN(doctorId) && doctorId > 0) {
-        logger.debug({
-          event: 'doctor_id_from_query',
-          doctorId,
-        });
-        return doctorId;
-      }
-    }
-
     logger.warn({
       event: 'doctor_id_not_found',
       hasAuthorizerClaims: !!authorizerClaims,
-      hasQueryParam: !!queryDoctorId,
     });
 
     throw SSOError.unauthorized('Doctor ID not found in request');
@@ -308,28 +305,24 @@ export class AppointmentsController {
 
   private errorResponse(
     error: SSOError,
+    event: APIGatewayProxyEvent,
     correlationId: string,
     additionalHeaders: Record<string, string>
-  ): APIGatewayProxyResult {
-    const response: SSOErrorResponse = {
-      success: false,
-      error: {
-        code: error.code,
-        message: error.message,
+  ): Promise<APIGatewayProxyResult> {
+    return ApiResponse.error(
+      error.statusCode,
+      { title: 'Error', description: error.message, severity: 'ERROR' },
+      {
         requestId: correlationId,
+        event,
+        headers: {
+          'X-Correlation-Id': correlationId,
+          'Cache-Control': 'no-store',
+          ...additionalHeaders,
+        },
       },
-    };
-
-    return {
-      statusCode: error.statusCode,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Correlation-Id': correlationId,
-        'Cache-Control': 'no-store',
-        ...additionalHeaders,
-      },
-      body: JSON.stringify(response),
-    };
+      { code: error.code },
+    );
   }
 }
 

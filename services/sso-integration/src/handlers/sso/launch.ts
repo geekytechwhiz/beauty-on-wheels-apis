@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/logger';
+import { ApiResponse } from '@api-hub/utils';
 import { getSSOController } from '../../controllers/sso.controller';
 
 const logger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -41,20 +42,10 @@ export async function handler(
       err: serializeError(error as Error),
     });
 
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Correlation-Id': correlationId,
-      },
-      body: JSON.stringify({
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'An unexpected error occurred',
-          requestId: correlationId,
-        },
-      }),
-    };
+    return ApiResponse.internalServerError(
+      'COMMON.INTERNAL_ERROR',
+      { requestId: correlationId, event },
+      { code: 'INTERNAL_ERROR' },
+    );
   }
 }

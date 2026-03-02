@@ -240,6 +240,21 @@ functions:
             resultTtlInSeconds: 0
     description: Delete user-device mapping(s) by userId (from Bearer token) and devices array
 
+  deviceUserRegister:
+    handler: src/handlers/deviceUserRegister.handler
+    events:
+      - http:
+          path: devices/user/register
+          method: post
+          cors: true
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+    description: Patient-app device pairing/registration (legacy payload, correct table mapping)
+
   deviceList:
     handler: src/handlers/deviceList.handler
     events:

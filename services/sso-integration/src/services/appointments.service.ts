@@ -1,5 +1,5 @@
 import { createLogger, createChildLogger, serializeError, createPerformanceTimer } from '@api-hub/logger';
-import { getHMSAdapter } from './hms.adapter';
+import { getTruTechAdapter } from '../adapters/TruTech.adapter';
 import {
   Appointment,
   PatientEMRSummary,
@@ -12,7 +12,7 @@ const baseLogger = createLogger({ service: 'sso-integration', redactPII: true })
 
 export class AppointmentsService {
   private readonly logger = createChildLogger(baseLogger, { component: 'AppointmentsService' });
-  private readonly hmsAdapter = getHMSAdapter();
+  private readonly truTechAdapter = getTruTechAdapter();
 
   // ---------------------------------------------------------------------------
   // Get Today's Appointments for a Doctor
@@ -35,7 +35,7 @@ export class AppointmentsService {
         throw SSOError.invalidRequest('Invalid doctor ID');
       }
 
-      const appointments = await this.hmsAdapter.getTodaysAppointments(
+      const appointments = await this.truTechAdapter.getTodaysAppointments(
         doctorId,
         correlationId
       );
@@ -98,7 +98,7 @@ export class AppointmentsService {
         throw SSOError.invalidRequest('Invalid patient ID');
       }
 
-      const emrSummary = await this.hmsAdapter.getPatientEMRSummary(
+      const emrSummary = await this.truTechAdapter.getPatientEMRSummary(
         patientId,
         correlationId
       );

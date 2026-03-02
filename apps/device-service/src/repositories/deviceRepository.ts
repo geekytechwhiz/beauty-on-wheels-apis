@@ -115,6 +115,102 @@ export class DeviceRepository {
   }
 
   /**
+   * Create device user entry with updates array (patient-app pairing legacy mapping)
+   */
+  async createDeviceUserEntryWithUpdates(
+    data: {
+      userId: string;
+      configDeviceId: string;
+      displayName: string;
+      deviceCategory: string;
+      companyName: string;
+      modelName: string;
+      platform: string;
+      noOfUsers: number;
+      usesExtensionProtocol: boolean;
+      supportsUserAuthentication: boolean;
+      isAutoSyncEnabled: boolean;
+      isAutoSyncSupported: boolean;
+      isSync: boolean;
+      autoSyncDelay: number;
+      macAddress?: string;
+      localName?: string;
+      lastSequenceNumber?: string;
+      lastReadingTimeStamp?: number;
+      databaseUpdateFlag?: boolean;
+      databaseChangeIncrement?: number;
+      isDeviceDeleted?: boolean;
+      iOSIdentifier?: string;
+      userIndex?: number;
+      isEagleDevice?: boolean;
+      deviceCategoryNum?: string | number;
+    },
+    correlationId?: string,
+  ): Promise<DeviceUserEntry> {
+    const logger = createChildLogger(baseLogger, { userId: data.userId, configDeviceId: data.configDeviceId, correlationId });
+    const deviceId = this.generateDeviceId(data.userId, data.configDeviceId);
+    const now = Date.now();
+    const updates = [{ updatedBy: data.userId, updatedAt: now }];
+
+    const deviceCategoryNum =
+      data.deviceCategoryNum !== undefined
+        ? typeof data.deviceCategoryNum === 'number'
+          ? String(data.deviceCategoryNum)
+          : data.deviceCategoryNum
+        : undefined;
+
+    const item: DeviceUserEntry = {
+      pk: `DEVICE_LIST#${data.userId}`,
+      sk: `DETAILS#${data.configDeviceId}`,
+      sk1: `DEVICE#${data.deviceCategory}`,
+      sk2: 'STATUS#ACTIVE',
+      userId: data.userId,
+      deviceId,
+      configDeviceId: data.configDeviceId,
+      macAddress: data.macAddress ?? '',
+      displayName: data.displayName,
+      deviceCategory: data.deviceCategory,
+      companyName: data.companyName,
+      modelName: data.modelName,
+      platform: data.platform ?? '',
+      isAutoSyncEnabled: data.isAutoSyncEnabled,
+      isAutoSyncSupported: data.isAutoSyncSupported,
+      isSync: data.isSync,
+      userIndex: data.userIndex,
+      noOfUsers: data.noOfUsers,
+      lastReadingTimeStamp: data.lastReadingTimeStamp,
+      lastSequenceNumber: data.lastSequenceNumber,
+      localName: data.localName ?? '',
+      usesExtensionProtocol: data.usesExtensionProtocol,
+      supportsUserAuthentication: data.supportsUserAuthentication,
+      databaseUpdateFlag: data.databaseUpdateFlag,
+      databaseChangeIncrement: data.databaseChangeIncrement,
+      isDeviceDeleted: data.isDeviceDeleted,
+      iOSIdentifier: data.iOSIdentifier ?? '',
+      autoSyncDelay: data.autoSyncDelay,
+      isEagleDevice: data.isEagleDevice,
+      deviceCategoryNum,
+      updates,
+      createdDate: now,
+      modifiedDate: now,
+    };
+
+    try {
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: item,
+        }),
+      );
+      logger.info({ event: 'device_user_entry_created', deviceId });
+      return item;
+    } catch (err) {
+      logger.error({ event: 'device_user_entry_create_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /**
    * Get device by configDeviceId for a user
    */
   async getDeviceByConfigId(userId: string, configDeviceId: string): Promise<DeviceUserEntry | null> {

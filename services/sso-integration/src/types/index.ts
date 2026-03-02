@@ -1,23 +1,23 @@
 // =============================================================================
-// HMS API Types - Based on TeleconsultationController API Specification
+// TruTech API Types - Based on TeleconsultationController API Specification
 // =============================================================================
 
 // -----------------------------------------------------------------------------
 // Verify Token API Types
 // -----------------------------------------------------------------------------
 
-export interface HMSVerifyRequest {
+export interface TruTechVerifyRequest {
   launch_token: string;
 }
 
-export interface HMSVerifyResponse {
+export interface TruTechVerifyResponse {
   status: 'success' | 'error';
   doctor_uid?: string;
-  context?: HMSVerifyContext;
+  context?: TruTechVerifyContext;
   message?: string;
 }
 
-export interface HMSVerifyContext {
+export interface TruTechVerifyContext {
   tenant_id: string;
   drid: number;
   clinic_id?: string;
@@ -30,7 +30,7 @@ export interface HMSVerifyContext {
   expires_at?: string;
 }
 
-export interface HMSVerifiedPayload {
+export interface TruTechVerifiedPayload {
   doctorUid: string;
   doctorId: number;
   doctorName?: string;
@@ -48,29 +48,29 @@ export interface HMSVerifiedPayload {
 // Today's Appointments API Types
 // -----------------------------------------------------------------------------
 
-export interface HMSAppointmentsRequest {
+export interface TruTechAppointmentsRequest {
   doctor_id: number;
 }
 
-export interface HMSAppointmentsResponse {
+export interface TruTechAppointmentsResponse {
   status: 'success' | 'error';
-  appointments?: HMSAppointment[];
+  appointments?: TruTechAppointment[];
   message?: string;
 }
 
-export interface HMSAppointment {
+export interface TruTechAppointment {
   appointment_id: number;
   start_time: string;
   end_time: string;
   status: number;
   notes?: string;
-  patient: HMSPatient;
-  doctor: HMSDoctor;
-  consultation_type: HMSConsultationType;
-  visit: HMSVisit;
+  patient: TruTechPatient;
+  doctor: TruTechDoctor;
+  consultation_type: TruTechConsultationType;
+  visit: TruTechVisit;
 }
 
-export interface HMSPatient {
+export interface TruTechPatient {
   id: number;
   mrn: string;
   name: string;
@@ -81,7 +81,7 @@ export interface HMSPatient {
   email?: string;
 }
 
-export interface HMSDoctor {
+export interface TruTechDoctor {
   id: number;
   name: string;
   department?: string;
@@ -89,12 +89,12 @@ export interface HMSDoctor {
   email?: string;
 }
 
-export interface HMSConsultationType {
+export interface TruTechConsultationType {
   id: number;
   name: string;
 }
 
-export interface HMSVisit {
+export interface TruTechVisit {
   id: number;
   visit_type: number;
   created_at: string;
@@ -171,44 +171,44 @@ export enum VisitStatus {
 // Patient EMR Summary API Types
 // -----------------------------------------------------------------------------
 
-export interface HMSPatientEMRRequest {
+export interface TruTechPatientEMRRequest {
   patient_id: number;
 }
 
-export interface HMSPatientEMRResponse {
+export interface TruTechPatientEMRResponse {
   status: 'success' | 'error';
   patient_id?: number;
-  emr?: HMSEMRVisit[];
+  emr?: TruTechEMRVisit[];
   message?: string;
 }
 
-export interface HMSEMRVisit {
+export interface TruTechEMRVisit {
   visit_id: number;
   visit_type: string;
   date: string;
-  diagnosis?: HMSDiagnosis[];
-  vitals?: HMSVital[];
-  medicines?: HMSMedicine[];
-  investigations?: HMSInvestigation[];
-  services?: HMSService[];
-  allergies?: HMSAllergy[];
-  followups?: HMSFollowup[];
+  diagnosis?: TruTechDiagnosis[];
+  vitals?: TruTechVital[];
+  medicines?: TruTechMedicine[];
+  investigations?: TruTechInvestigation[];
+  services?: TruTechService[];
+  allergies?: TruTechAllergy[];
+  followups?: TruTechFollowup[];
 }
 
-export interface HMSDiagnosis {
+export interface TruTechDiagnosis {
   code?: string;
   name: string;
   type?: string;
 }
 
-export interface HMSVital {
+export interface TruTechVital {
   name: string;
   value: string;
   unit?: string;
   recorded_at?: string;
 }
 
-export interface HMSMedicine {
+export interface TruTechMedicine {
   name: string;
   dosage?: string;
   frequency?: string;
@@ -216,26 +216,26 @@ export interface HMSMedicine {
   instructions?: string;
 }
 
-export interface HMSInvestigation {
+export interface TruTechInvestigation {
   name: string;
   result?: string;
   status?: string;
   date?: string;
 }
 
-export interface HMSService {
+export interface TruTechService {
   name: string;
   status?: string;
   date?: string;
 }
 
-export interface HMSAllergy {
+export interface TruTechAllergy {
   allergen: string;
   reaction?: string;
   severity?: string;
 }
 
-export interface HMSFollowup {
+export interface TruTechFollowup {
   date: string;
   notes?: string;
   doctor_id?: number;
@@ -344,6 +344,9 @@ export interface User {
   lastName?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   cognitoUsername?: string;
+  doctorId?: number;
+  partnerSource?: string;
+  launchSource?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -380,10 +383,23 @@ export interface CognitoTokens {
   tokenType: string;
 }
 
+// -----------------------------------------------------------------------------
+// Teleconsultation DTOs
+// -----------------------------------------------------------------------------
+
+export interface TeleconsultationDetails {
+  doctorId: number;
+  tenantId: string;
+  appointments: Appointment[];
+  emrSummaries: PatientEMRSummary[];
+}
+
 export interface SSOLaunchResponse {
   success: true;
   data: {
     tokens: CognitoTokens;
+    redirectUrl: string;
+    teleconsultation: TeleconsultationDetails;
     user: {
       id: string;
       externalId: string;
@@ -419,7 +435,7 @@ export enum SSOErrorCode {
   FORBIDDEN = 'FORBIDDEN',
   NOT_FOUND = 'NOT_FOUND',
   INVALID_REQUEST = 'INVALID_REQUEST',
-  HMS_SERVICE_ERROR = 'HMS_SERVICE_ERROR',
+  TRU_TECH_SERVICE_ERROR = 'TRU_TECH_SERVICE_ERROR',
 }
 
 export class SSOError extends Error {
@@ -430,7 +446,7 @@ export class SSOError extends Error {
   constructor(
     code: SSOErrorCode,
     message: string,
-    statusCode: number = 500,
+    statusCode = 500,
     cause?: Error
   ) {
     super(message);
@@ -493,8 +509,8 @@ export class SSOError extends Error {
     return new SSOError(SSOErrorCode.INVALID_REQUEST, message, 400);
   }
 
-  static hmsServiceError(message: string, cause?: Error): SSOError {
-    return new SSOError(SSOErrorCode.HMS_SERVICE_ERROR, message, 503, cause);
+  static truTechServiceError(message: string, cause?: Error): SSOError {
+    return new SSOError(SSOErrorCode.TRU_TECH_SERVICE_ERROR, message, 503, cause);
   }
 }
 
@@ -539,7 +555,7 @@ export class InviteError extends Error {
   constructor(
     code: InviteErrorCode,
     message: string,
-    statusCode: number = 500,
+    statusCode = 500,
     cause?: Error
   ) {
     super(message);

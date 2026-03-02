@@ -1,11 +1,14 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import {
+  createLogger,
+  createChildLogger,
+  serializeError,
+} from '@api-hub/logger';
 import { getEnvConfig } from '../config/env';
 import {
-  HMSVerifyResponse,
-  HMSVerifiedPayload,
-  HMSAppointmentsResponse,
-  HMSAppointment,
+  TruTechVerifyResponse, 
+  TruTechAppointmentsResponse,
+  TruTechAppointment,
   Appointment,
   Patient,
   Doctor,
@@ -14,33 +17,39 @@ import {
   AppointmentStatus,
   VisitType,
   VisitStatus,
-  HMSPatientEMRResponse,
+  TruTechPatientEMRResponse,
   PatientEMRSummary,
   EMRVisit,
   SSOError,
+  TruTechVerifiedPayload,
 } from '../types';
 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true,
+});
 
-export class HMSAdapter {
+export class TruTechAdapter {
   private readonly client: AxiosInstance;
-  private readonly logger = createChildLogger(baseLogger, { component: 'HMSAdapter' });
+  private readonly logger = createChildLogger(baseLogger, {
+    component: 'TruTechAdapter',
+  });
 
   constructor() {
     const config = getEnvConfig();
 
     this.client = axios.create({
-      baseURL: config.HMS_BASE_URL,
-      timeout: config.HMS_TIMEOUT_MS,
+      baseURL: config.TRU_TECH_BASE_URL,
+      timeout: config.TRU_TECH_TIMEOUT_MS,
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.HMS_API_KEY}`,
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${config.TRU_TECH_API_KEY}`,
       },
     });
 
     this.client.interceptors.request.use((request) => {
       this.logger.debug({
-        event: 'hms_request_start',
+        event: 'tru_tech_request_start',
         method: request.method?.toUpperCase(),
         url: request.url,
       });
@@ -50,7 +59,7 @@ export class HMSAdapter {
     this.client.interceptors.response.use(
       (response) => {
         this.logger.debug({
-          event: 'hms_request_complete',
+          event: 'tru_tech_request_complete',
           status: response.status,
           url: response.config.url,
         });
@@ -58,13 +67,13 @@ export class HMSAdapter {
       },
       (error: AxiosError) => {
         this.logger.error({
-          event: 'hms_request_error',
+          event: 'tru_tech_request_error',
           status: error.response?.status,
           url: error.config?.url,
           message: error.message,
         });
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -75,44 +84,45 @@ export class HMSAdapter {
 
   async verifyLaunchToken(
     launchToken: string,
-    correlationId: string
-  ): Promise<HMSVerifiedPayload> {
+    correlationId: string,
+  ): Promise<TruTechVerifiedPayload> {
     const logger = createChildLogger(this.logger, { correlationId });
     const startTime = Date.now();
 
     logger.info({
-      event: 'hms_verify_start',
+      event: 'tru_tech_verify_start',
       tokenLength: launchToken.length,
     });
 
     try {
-      const response = await this.client.post<HMSVerifyResponse>(
+      const response = await this.client.post<TruTechVerifyResponse>(
         '/api/teleconsultation/verify',
         { launch_token: launchToken },
         {
           headers: {
             'X-Correlation-Id': correlationId,
           },
-        }
+        },
       );
 
       const duration = Date.now() - startTime;
 
       if (response.data.status !== 'success' || !response.data.doctor_uid) {
         logger.warn({
-          event: 'hms_verify_failed',
+          event: 'tru_tech_verify_failed',
           durationMs: duration,
           errorMessage: response.data.message,
         });
         throw SSOError.verificationFailed(
-          response.data.message || 'HMS token verification failed'
+          response.data.message ||
+            'TruTech teleconsultation token verification failed',
         );
       }
 
       const { doctor_uid, context } = response.data;
 
       logger.info({
-        event: 'hms_verify_success',
+        event: 'tru_tech_verify_success',
         durationMs: duration,
         tenantId: context?.tenant_id,
         doctorId: context?.drid,
@@ -133,7 +143,12 @@ export class HMSAdapter {
         expiresAt: context?.expires_at,
       };
     } catch (error) {
-      return this.handleAxiosError(error, 'hms_verify', startTime, logger);
+      return this.handleAxiosError(
+        error,
+        'tru_tech_verify',
+        startTime,
+        logger,
+      );
     }
   }
 
@@ -144,53 +159,58 @@ export class HMSAdapter {
 
   async getTodaysAppointments(
     doctorId: number,
-    correlationId: string
+    correlationId: string,
   ): Promise<Appointment[]> {
     const logger = createChildLogger(this.logger, { correlationId, doctorId });
     const startTime = Date.now();
 
     logger.info({
-      event: 'hms_appointments_start',
+      event: 'tru_tech_appointments_start',
       doctorId,
     });
 
     try {
-      const response = await this.client.post<HMSAppointmentsResponse>(
+      const response = await this.client.post<TruTechAppointmentsResponse>(
         '/api/teleconsultation/todays-appointments',
         { doctor_id: doctorId },
         {
           headers: {
             'X-Correlation-Id': correlationId,
           },
-        }
+        },
       );
 
       const duration = Date.now() - startTime;
 
       if (response.data.status !== 'success') {
         logger.warn({
-          event: 'hms_appointments_failed',
+          event: 'tru_tech_appointments_failed',
           durationMs: duration,
           errorMessage: response.data.message,
         });
-        throw SSOError.hmsServiceError(
-          response.data.message || 'Failed to fetch appointments'
+        throw SSOError.truTechServiceError(
+          response.data.message || 'Failed to fetch appointments',
         );
       }
 
       const appointments = (response.data.appointments || []).map(
-        this.normalizeAppointment
+        this.normalizeAppointment,
       );
 
       logger.info({
-        event: 'hms_appointments_success',
+        event: 'tru_tech_appointments_success',
         durationMs: duration,
         appointmentCount: appointments.length,
       });
 
       return appointments;
     } catch (error) {
-      return this.handleAxiosError(error, 'hms_appointments', startTime, logger);
+      return this.handleAxiosError(
+        error,
+        'tru_tech_appointments',
+        startTime,
+        logger,
+      );
     }
   }
 
@@ -201,32 +221,32 @@ export class HMSAdapter {
 
   async getPatientEMRSummary(
     patientId: number,
-    correlationId: string
+    correlationId: string,
   ): Promise<PatientEMRSummary> {
     const logger = createChildLogger(this.logger, { correlationId, patientId });
     const startTime = Date.now();
 
     logger.info({
-      event: 'hms_emr_start',
+      event: 'tru_tech_emr_start',
       patientId,
     });
 
     try {
-      const response = await this.client.post<HMSPatientEMRResponse>(
+      const response = await this.client.post<TruTechPatientEMRResponse>(
         '/api/teleconsultation/patient-emr-summary',
         { patient_id: patientId },
         {
           headers: {
             'X-Correlation-Id': correlationId,
           },
-        }
+        },
       );
 
       const duration = Date.now() - startTime;
 
       if (response.data.status !== 'success') {
         logger.warn({
-          event: 'hms_emr_failed',
+          event: 'tru_tech_emr_failed',
           durationMs: duration,
           errorMessage: response.data.message,
         });
@@ -235,15 +255,15 @@ export class HMSAdapter {
           throw SSOError.notFound('Patient not found');
         }
 
-        throw SSOError.hmsServiceError(
-          response.data.message || 'Failed to fetch patient EMR'
+        throw SSOError.truTechServiceError(
+          response.data.message || 'Failed to fetch patient EMR',
         );
       }
 
       const visits = (response.data.emr || []).map(this.normalizeEMRVisit);
 
       logger.info({
-        event: 'hms_emr_success',
+        event: 'tru_tech_emr_success',
         durationMs: duration,
         visitCount: visits.length,
       });
@@ -253,95 +273,102 @@ export class HMSAdapter {
         visits,
       };
     } catch (error) {
-      return this.handleAxiosError(error, 'hms_emr', startTime, logger);
+      return this.handleAxiosError(
+        error,
+        'tru_tech_emr',
+        startTime,
+        logger,
+      );
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Private: Normalize HMS Appointment to Internal Format
+  // Private: Normalize TruTech Appointment to Internal Format
   // ---------------------------------------------------------------------------
 
-  private normalizeAppointment(hmsAppointment: HMSAppointment): Appointment {
+  private normalizeAppointment(truTechAppointment: TruTechAppointment): Appointment {
     return {
-      appointmentId: hmsAppointment.appointment_id,
-      startTime: hmsAppointment.start_time,
-      endTime: hmsAppointment.end_time,
-      status: hmsAppointment.status as AppointmentStatus,
-      notes: hmsAppointment.notes,
+      appointmentId: truTechAppointment.appointment_id,
+      startTime: truTechAppointment.start_time,
+      endTime: truTechAppointment.end_time,
+      status: truTechAppointment.status as AppointmentStatus,
+      notes: truTechAppointment.notes,
       patient: {
-        id: hmsAppointment.patient.id,
-        mrn: hmsAppointment.patient.mrn,
-        name: hmsAppointment.patient.name,
-        gender: hmsAppointment.patient.gender,
-        age: hmsAppointment.patient.age,
-        dateOfBirth: hmsAppointment.patient.dob,
-        phone: hmsAppointment.patient.phone,
-        email: hmsAppointment.patient.email,
+        id: truTechAppointment.patient.id,
+        mrn: truTechAppointment.patient.mrn,
+        name: truTechAppointment.patient.name,
+        gender: truTechAppointment.patient.gender,
+        age: truTechAppointment.patient.age,
+        dateOfBirth: truTechAppointment.patient.dob,
+        phone: truTechAppointment.patient.phone,
+        email: truTechAppointment.patient.email,
       } as Patient,
       doctor: {
-        id: hmsAppointment.doctor.id,
-        name: hmsAppointment.doctor.name,
-        department: hmsAppointment.doctor.department,
-        phone: hmsAppointment.doctor.phone,
-        email: hmsAppointment.doctor.email,
+        id: truTechAppointment.doctor.id,
+        name: truTechAppointment.doctor.name,
+        department: truTechAppointment.doctor.department,
+        phone: truTechAppointment.doctor.phone,
+        email: truTechAppointment.doctor.email,
       } as Doctor,
       consultationType: {
-        id: hmsAppointment.consultation_type.id,
-        name: hmsAppointment.consultation_type.name,
+        id: truTechAppointment.consultation_type.id,
+        name: truTechAppointment.consultation_type.name,
       } as ConsultationType,
       visit: {
-        id: hmsAppointment.visit.id,
-        visitType: hmsAppointment.visit.visit_type as VisitType,
-        createdAt: hmsAppointment.visit.created_at,
-        status: hmsAppointment.visit.status as VisitStatus,
+        id: truTechAppointment.visit.id,
+        visitType: truTechAppointment.visit.visit_type as VisitType,
+        createdAt: truTechAppointment.visit.created_at,
+        status: truTechAppointment.visit.status as VisitStatus,
       } as Visit,
     };
   }
 
   // ---------------------------------------------------------------------------
-  // Private: Normalize HMS EMR Visit to Internal Format
+  // Private: Normalize TruTech EMR Visit to Internal Format
   // ---------------------------------------------------------------------------
 
-  private normalizeEMRVisit(hmsVisit: import('../types').HMSEMRVisit): EMRVisit {
+  private normalizeEMRVisit(
+    truTechVisit: import('../types').TruTechEMRVisit,
+  ): EMRVisit {
     return {
-      visitId: hmsVisit.visit_id,
-      visitType: hmsVisit.visit_type,
-      date: hmsVisit.date,
-      diagnosis: (hmsVisit.diagnosis || []).map((d) => ({
+      visitId: truTechVisit.visit_id,
+      visitType: truTechVisit.visit_type,
+      date: truTechVisit.date,
+      diagnosis: (truTechVisit.diagnosis || []).map((d) => ({
         code: d.code,
         name: d.name,
         type: d.type,
       })),
-      vitals: (hmsVisit.vitals || []).map((v) => ({
+      vitals: (truTechVisit.vitals || []).map((v) => ({
         name: v.name,
         value: v.value,
         unit: v.unit,
         recordedAt: v.recorded_at,
       })),
-      medicines: (hmsVisit.medicines || []).map((m) => ({
+      medicines: (truTechVisit.medicines || []).map((m) => ({
         name: m.name,
         dosage: m.dosage,
         frequency: m.frequency,
         duration: m.duration,
         instructions: m.instructions,
       })),
-      investigations: (hmsVisit.investigations || []).map((i) => ({
+      investigations: (truTechVisit.investigations || []).map((i) => ({
         name: i.name,
         result: i.result,
         status: i.status,
         date: i.date,
       })),
-      services: (hmsVisit.services || []).map((s) => ({
+      services: (truTechVisit.services || []).map((s) => ({
         name: s.name,
         status: s.status,
         date: s.date,
       })),
-      allergies: (hmsVisit.allergies || []).map((a) => ({
+      allergies: (truTechVisit.allergies || []).map((a) => ({
         allergen: a.allergen,
         reaction: a.reaction,
         severity: a.severity,
       })),
-      followups: (hmsVisit.followups || []).map((f) => ({
+      followups: (truTechVisit.followups || []).map((f) => ({
         date: f.date,
         notes: f.notes,
         doctorId: f.doctor_id,
@@ -357,7 +384,7 @@ export class HMSAdapter {
     error: unknown,
     operation: string,
     startTime: number,
-    logger: ReturnType<typeof createChildLogger>
+    logger: ReturnType<typeof createChildLogger>,
   ): never {
     const duration = Date.now() - startTime;
 
@@ -376,25 +403,28 @@ export class HMSAdapter {
         err: serializeError(axiosError),
       });
 
-      if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
-        throw SSOError.downstreamError('HMS request timed out', axiosError);
+      if (
+        axiosError.code === 'ECONNABORTED' ||
+        axiosError.code === 'ETIMEDOUT'
+      ) {
+        throw SSOError.downstreamError('TruTech request timed out', axiosError);
       }
 
       if (axiosError.response?.status === 401) {
-        throw SSOError.unauthorized('HMS API key invalid or missing');
+        throw SSOError.unauthorized('TruTech API key invalid or missing');
       }
 
       if (axiosError.response?.status === 404) {
-        throw SSOError.notFound('Resource not found in HMS');
+        throw SSOError.notFound('Resource not found in TruTech');
       }
 
       if (axiosError.response?.status && axiosError.response.status >= 500) {
-        throw SSOError.hmsServiceError('HMS service unavailable', axiosError);
+        throw SSOError.truTechServiceError('TruTech service unavailable', axiosError);
       }
 
-      throw SSOError.hmsServiceError(
-        `HMS request failed: ${axiosError.message}`,
-        axiosError
+      throw SSOError.truTechServiceError(
+        `TruTech request failed: ${axiosError.message}`,
+        axiosError,
       );
     }
 
@@ -406,16 +436,16 @@ export class HMSAdapter {
 
     throw SSOError.internalError(
       `Unexpected error during ${operation}`,
-      error as Error
+      error as Error,
     );
   }
 }
 
-let hmsAdapterInstance: HMSAdapter | null = null;
+let truTechAdapterInstance: TruTechAdapter | null = null;
 
-export function getHMSAdapter(): HMSAdapter {
-  if (!hmsAdapterInstance) {
-    hmsAdapterInstance = new HMSAdapter();
+export function getTruTechAdapter(): TruTechAdapter {
+  if (!truTechAdapterInstance) {
+    truTechAdapterInstance = new TruTechAdapter();
   }
-  return hmsAdapterInstance;
+  return truTechAdapterInstance;
 }

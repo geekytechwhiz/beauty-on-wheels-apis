@@ -2295,9 +2295,9 @@ export class UserRepository {
     // Ensure all required fields are present
     const finalInviteDetails = {
       email: inviteDetails.email ?? false,
-      emailUpdatedAt: inviteDetails.emailUpdatedAt ?? currentTimestamp,
+      emailUpdatedAt: inviteDetails.emailUpdatedAt ?? '0000-00-00 00:00:00',
       sms: inviteDetails.sms ?? false,
-      smsUpdatedAt: inviteDetails.smsUpdatedAt ?? currentTimestamp,
+      smsUpdatedAt: inviteDetails.smsUpdatedAt ?? '0000-00-00 00:00:00',
     };
 
     // Build update expression

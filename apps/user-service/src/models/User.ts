@@ -44,10 +44,10 @@ export interface User {
   insuranceDetails?: Record<string, unknown>;
   inviteCode?: string;
   inviteDetails?: {
-    email: boolean;
-    emailUpdatedAt: string;
-    sms: boolean;
-    smsUpdatedAt: string;
+    email?: boolean;
+    emailUpdatedAt?: string;
+    sms?: boolean;
+    smsUpdatedAt?: string;
   };
   invitedBy?: string;
   invitedID?: string;
@@ -141,10 +141,10 @@ export interface UserResponse {
   roleType: string;
   isActive: boolean;
   inviteDetails?: {
-    email: boolean;
-    emailUpdatedAt: string;
-    sms: boolean;
-    smsUpdatedAt: string;
+    email?: boolean;
+    emailUpdatedAt?: string;
+    sms?: boolean;
+    smsUpdatedAt?: string;
   };
   accountType: string;
   emailAddress: string;

@@ -1,31 +1,17 @@
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import {
-  createLogger,
-  extractCorrelationId,
-  extractAwsRequestId,
-  logHttpRequest,
-  createChildLogger,
-} from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { deviceRegistrationSchema } from '../validation/device.validation';
-import { extractUserContext, validateUserContext } from '../utils/authContext';
-import { parseRequestBody } from '../utils/requestParser';
-import { handleDeviceRegistrationError, type LogHttpRequestFn } from '../utils/errorHandler';
-import { registerDevices } from './helpers/deviceRegistration.helper';
-import { PATHS } from '../constants/paths';
-import { HTTP_METHODS } from '../constants/httpMethods';
-import { ERROR_CODES } from '../constants/errorCodes';
-import type { UserContext, DeviceRegistrationValidationPayload, ValidUserContext } from '../types/deviceRegistration.types';
+import { DeviceNotFoundError, DeviceNotInOrganizationError } from '../utils/errors';
+import { completeUserTask } from '../utils/task-completion';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
 
-/**
- * Device registration handler (POST /devices/register).
- * Parses body, validates user context and payload, registers each device, returns 201 with result items.
- * Preserves exact request/response contract and status codes.
- */
+// Third-party apps by companyName (matching old structure)
+const ALLOWED_THIRD_PARTY_APPS = ['GOOGLEFIT', 'APPLEHEALTH', 'FITBIT', 'GARMIN', 'MANUAL'];
+
 export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
@@ -33,74 +19,223 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'deviceRegister_received' });
 
-  const parseResult = parseRequestBody(event.body, logger, { parseErrorEvent: 'deviceRegister_parse_error' });
-  if (!parseResult.success) {
+  // Parse body
+  let body: unknown;
+  try {
+    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+  } catch (err) {
+    logger.error({ event: 'deviceRegister_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || HTTP_METHODS.POST, event.path || PATHS.DEVICES_REGISTER, 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: ERROR_CODES.BAD_REQUEST });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
-  const body = parseResult.body as Record<string, unknown> | undefined;
-  const authorizer = (event.requestContext as { authorizer?: unknown })?.authorizer;
-  logger.debug({ event: 'deviceRegister_authorizer', authorizer });
+  // Extract user context from authorizer (Cognito)
+  const authorizer = (event.requestContext as any)?.authorizer;
+  console.log('AUTHORIZER ', authorizer);
 
-  const userContext: UserContext = extractUserContext({
-    authorizer,
-    body: body ?? {},
-  });
-  logger.debug({ event: 'deviceRegister_user_context', userId: userContext.userId, organizationId: userContext.organizationId });
+  // For Cognito, claims are usually under authorizer.claims
+  const claims = (authorizer as any)?.claims || authorizer || {};
 
-  if (!validateUserContext(userContext)) {
-    logger.warn({ event: 'deviceRegister_missing_required_context', userId: userContext.userId, organizationId: userContext.organizationId });
+  const userId =
+    (claims as any)['custom:userID'] ||
+    (claims as any)['custom:userId'] ||
+    (claims as any).userID ||
+    (claims as any).userId ||
+    (claims as any).sub ||
+    (body as any).userId ||
+    (body as any).userID;
+
+  const organizationId =
+    (claims as any)['custom:organizationID'] ||
+    (claims as any)['custom:organizationId'] ||
+    (claims as any).organizationID ||
+    (claims as any).organizationId ||
+    (body as any).organizationId ||
+    (body as any).organizationID;
+
+  console.log('USER ID ', userId);
+  console.log('ORGANIZATION ID ', organizationId);
+
+  // Basic validation - check required fields
+  if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || HTTP_METHODS.POST, event.path || PATHS.DEVICES_REGISTER, 401, duration, correlationId);
-    return ApiResponse.unauthorized('COMMON.UNAUTHORIZED', { requestId: correlationId, event }, { code: ERROR_CODES.UNAUTHORIZED });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: [{ field: 'userId/organizationId', message: 'userId and organizationId are required' }] });
   }
 
-  const validatedContext = userContext as ValidUserContext;
-  const validationPayload: DeviceRegistrationValidationPayload = {
-    userId: validatedContext.userId,
-    organizationId: validatedContext.organizationId,
-    devices: body?.devices,
-  };
-  logger.debug({ event: 'deviceRegister_validation_payload', validationPayload });
-
-  const validation = deviceRegistrationSchema.safeParse(validationPayload);
-  if (!validation.success) {
-    logger.warn({ event: 'deviceRegister_validation_error', errors: validation.error.issues });
+  const devices = (body as any)?.devices;
+  if (!devices || !Array.isArray(devices) || devices.length === 0) {
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || HTTP_METHODS.POST, event.path || PATHS.DEVICES_REGISTER, 422, duration, correlationId);
-    return ApiResponse.unprocessableEntity(
-      'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
-      {
-        code: ERROR_CODES.VALIDATION_ERROR,
-        details: validation.error.issues.map((e) => ({
-          field: e.path.join('.'),
-          message: e.message,
-        })),
-      },
-    );
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: [{ field: 'devices', message: 'devices array is required' }] });
   }
+
+  const messageArr: Array<{
+    message?: string;
+    statusCode: number;
+    configDeviceId: string;
+    deviceId?: string;
+    errorCode?: string;
+    success?: boolean;
+  }> = [];
+  let isRealDevice = false;
 
   try {
-    const results = await registerDevices({
-      validatedPayload: validation.data,
-      deviceService,
-      correlationId,
-      logger,
-    });
+    // Process each device individually (matching old structure)
+    for (const device of devices) {
+      try {
+        // Per-device validation (matching old structure)
+        const deviceValidation = deviceRegistrationSchema.shape.devices.element.safeParse(device);
+        if (!deviceValidation.success) {
+          logger.warn({ event: 'device_validation_error', configDeviceId: device.configDeviceId, errors: deviceValidation.error.issues });
+          messageArr.push({
+            statusCode: 400,
+            configDeviceId: device.configDeviceId || '',
+            errorCode: 'VALIDATION_ERROR',
+            success: false,
+            message: deviceValidation.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', '),
+          });
+          continue;
+        }
+
+        // Check if third-party app by companyName (matching old structure)
+        const isThirdParty = device.companyName && ALLOWED_THIRD_PARTY_APPS.includes(device.companyName.toUpperCase());
+
+        if (isThirdParty) {
+          // Third-party device - register directly
+          const result = await deviceService.registerDevice(
+            {
+              userId,
+              organizationId,
+              configDeviceId: device.configDeviceId,
+              displayName: device.displayName,
+              deviceCategory: device.deviceCategory,
+              companyName: device.companyName,
+              modelName: device.modelName,
+              deviceCategoryNum: device.deviceCategoryNum,
+              // Optional fields
+              platform: device.platform,
+              macAddress: device.macAddress,
+              localName: device.localName,
+              isAutoSyncEnabled: device.isAutoSyncEnabled,
+              isAutoSyncSupported: device.isAutoSyncSupported,
+              isSync: device.isSync,
+              usesExtensionProtocol: device.usesExtensionProtocol,
+              supportsUserAuthentication: device.supportsUserAuthentication,
+              autoSyncDelay: device.autoSyncDelay,
+              userIndex: device.userIndex,
+              noOfUsers: device.noOfUsers,
+              lastReadingTimeStamp: device.lastReadingTimeStamp,
+              lastSequenceNumber: device.lastSequenceNumber,
+              databaseUpdateFlag: device.databaseUpdateFlag,
+              databaseChangeIncrement: device.databaseChangeIncrement,
+              isDeviceDeleted: device.isDeviceDeleted,
+              iOSIdentifier: device.iOSIdentifier,
+              isEagleDevice: device.isEagleDevice,
+            },
+            correlationId,
+          );
+
+          messageArr.push({
+            message: result.isUpdate ? 'Device updated successfully' : 'Device successfully paired with the user',
+            statusCode: 201,
+            configDeviceId: result.configDeviceId,
+            deviceId: result.deviceId,
+          });
+        } else {
+          // Non-third-party device - check if available (service will check org devices and global device list)
+          // Register device (service handles validation)
+          const result = await deviceService.registerDevice(
+            {
+              userId,
+              organizationId,
+              configDeviceId: device.configDeviceId,
+              displayName: device.displayName,
+              deviceCategory: device.deviceCategory,
+              companyName: device.companyName,
+              modelName: device.modelName,
+              deviceCategoryNum: device.deviceCategoryNum,
+              // Optional fields
+              platform: device.platform,
+              macAddress: device.macAddress,
+              localName: device.localName,
+              isAutoSyncEnabled: device.isAutoSyncEnabled,
+              isAutoSyncSupported: device.isAutoSyncSupported,
+              isSync: device.isSync,
+              usesExtensionProtocol: device.usesExtensionProtocol,
+              supportsUserAuthentication: device.supportsUserAuthentication,
+              autoSyncDelay: device.autoSyncDelay,
+              userIndex: device.userIndex,
+              noOfUsers: device.noOfUsers,
+              lastReadingTimeStamp: device.lastReadingTimeStamp,
+              lastSequenceNumber: device.lastSequenceNumber,
+              databaseUpdateFlag: device.databaseUpdateFlag,
+              databaseChangeIncrement: device.databaseChangeIncrement,
+              isDeviceDeleted: device.isDeviceDeleted,
+              iOSIdentifier: device.iOSIdentifier,
+              isEagleDevice: device.isEagleDevice,
+            },
+            correlationId,
+          );
+
+          messageArr.push({
+            message: result.isUpdate ? 'Device updated successfully' : 'Device successfully paired with the user',
+            statusCode: 201,
+            configDeviceId: result.configDeviceId,
+            deviceId: result.deviceId,
+          });
+
+          isRealDevice = true; // Mark that at least one real device was registered
+        }
+      } catch (err) {
+        logger.error({ event: 'device_register_error', configDeviceId: device.configDeviceId, err: serializeError(err) });
+        
+        if (err instanceof DeviceNotInOrganizationError) {
+          messageArr.push({
+            statusCode: 400,
+            configDeviceId: device.configDeviceId || '',
+            errorCode: 'DEVICE_NOT_AVAILABLE_TO_PAIR',
+            success: false,
+            message: err.message,
+          });
+        } else {
+          messageArr.push({
+            statusCode: 500,
+            configDeviceId: device.configDeviceId || '',
+            errorCode: 'REGISTRATION_FAILED',
+            success: false,
+            message: (err as Error).message || 'Device registration failed',
+          });
+        }
+      }
+    }
+
+    // Trigger task completion only once if at least one real device was registered (matching old structure)
+    if (isRealDevice) {
+      try {
+        await completeUserTask(userId, organizationId, correlationId);
+      } catch (err) {
+        // Don't fail the entire request if task completion fails
+        logger.warn({ event: 'task_completion_failed', err: serializeError(err) });
+      }
+    }
 
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || HTTP_METHODS.POST, event.path || PATHS.DEVICES_REGISTER, 201, duration, correlationId);
-    return ApiResponse.created(results, 'DEVICE.DEVICE_REGISTERED_SUCCESS', { requestId: correlationId, event });
-  } catch (err) {
-    return await handleDeviceRegistrationError(
-      err,
-      { correlationId, event, path: event.path || PATHS.DEVICES_REGISTER, method: event.httpMethod || HTTP_METHODS.POST },
-      logHttpRequest as LogHttpRequestFn,
-      logger,
-      startTime,
+    const hasErrors = messageArr.some((msg) => msg.statusCode >= 400);
+    const statusCode = hasErrors ? (messageArr.some((msg) => msg.statusCode >= 500) ? 500 : 400) : 201;
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', statusCode, duration, correlationId);
+    
+    return ApiResponse.success(
+      { items: messageArr },
+      'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS',
+      { requestId: correlationId, event },
+      { statusCode },
     );
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    logger.error({ event: 'deviceRegister_error', err: serializeError(err) });
+    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 500, duration, correlationId);
+    return ApiResponse.internalServerError('COMMON.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
   }
 };

@@ -22,9 +22,9 @@ provider:
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, ''}
-    TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
-    TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, ''}
-    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '5000'}
+    HMS_BASE_URL: ${env:HMS_BASE_URL, 'https://qahms.zmtrutech.com'}
+    HMS_API_KEY: ${env:HMS_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
+    HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, ''}
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}

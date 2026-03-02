@@ -19,11 +19,11 @@ export interface TruTechVerifyResponse {
 
 export interface TruTechVerifyContext {
   tenant_id: string;
-  doctor_id: number;
+  drid: number;
   clinic_id?: string;
   session_id?: string;
-  doctor_name?: string;
-  doctor_email?: string;
+  name?: string;
+  email?: string;
   doctor_phone?: string;
   specialization?: string;
   department?: string;
@@ -525,4 +525,68 @@ export interface RateLimitState {
   resetAt: number;
 }
 
-export type { DoctorCreationPayload, PatientCreationPayload } from './user-creation.types';
+// -----------------------------------------------------------------------------
+// Invite Error Types
+// -----------------------------------------------------------------------------
+
+export interface InviteErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    requestId?: string;
+  };
+}
+
+export enum InviteErrorCode {
+  INVALID_REQUEST = 'INVALID_REQUEST',
+  NOT_FOUND = 'NOT_FOUND',
+  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+}
+
+export class InviteError extends Error {
+  public readonly code: InviteErrorCode;
+  public readonly statusCode: number;
+  public override readonly cause?: Error;
+
+  constructor(
+    code: InviteErrorCode,
+    message: string,
+    statusCode = 500,
+    cause?: Error
+  ) {
+    super(message);
+    this.code = code;
+    this.statusCode = statusCode;
+    this.cause = cause;
+    this.name = 'InviteError';
+    Error.captureStackTrace(this, this.constructor);
+  }
+
+  static invalidRequest(message: string): InviteError {
+    return new InviteError(InviteErrorCode.INVALID_REQUEST, message, 400);
+  }
+
+  static notFound(message = 'Resource not found'): InviteError {
+    return new InviteError(InviteErrorCode.NOT_FOUND, message, 404);
+  }
+
+  static rateLimitExceeded(message = 'Rate limit exceeded'): InviteError {
+    return new InviteError(InviteErrorCode.RATE_LIMIT_EXCEEDED, message, 429);
+  }
+
+  static internalError(message: string, cause?: Error): InviteError {
+    return new InviteError(InviteErrorCode.INTERNAL_ERROR, message, 500, cause);
+  }
+
+  static unauthorized(message = 'Unauthorized'): InviteError {
+    return new InviteError(InviteErrorCode.UNAUTHORIZED, message, 401);
+  }
+
+  static forbidden(message = 'Access denied'): InviteError {
+    return new InviteError(InviteErrorCode.FORBIDDEN, message, 403);
+  }
+}

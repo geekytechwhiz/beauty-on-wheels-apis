@@ -222,7 +222,10 @@ async function updateRecentInvite(
         correlationId,
       );
       return await ApiResponse.tooManyRequests(
-        'USER.INVITE_UPDATE_TOO_SOON',
+        {
+          title: err.message,
+          description: 'An error occurred',
+        },
         { requestId: correlationId, event },
         {
           code: 'INVITE_UPDATE_TOO_SOON',
@@ -232,7 +235,7 @@ async function updateRecentInvite(
               field: err.field,
               lastUpdatedAt: err.lastUpdatedAt,
               hoursSinceUpdate: err.hoursSinceUpdate,
-            },
+            } as any,
           ],
         },
       );

@@ -42,8 +42,8 @@ export class TruTechAdapter {
       baseURL: config.TRU_TECH_BASE_URL,
       timeout: config.TRU_TECH_TIMEOUT_MS,
       headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': config.TRU_TECH_API_KEY,
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${config.TRU_TECH_API_KEY}`,
       },
     });
 
@@ -125,15 +125,15 @@ export class TruTechAdapter {
         event: 'tru_tech_verify_success',
         durationMs: duration,
         tenantId: context?.tenant_id,
-        doctorId: context?.doctor_id,
+        doctorId: context?.drid,
         hasSessionId: !!context?.session_id,
       });
 
       return {
         doctorUid: doctor_uid,
-        doctorId: context?.doctor_id || 0,
-        doctorName: context?.doctor_name,
-        doctorEmail: context?.doctor_email,
+        doctorId: context?.drid || 0,
+        doctorName: context?.name,
+        doctorEmail: context?.email,
         doctorPhone: context?.doctor_phone,
         specialization: context?.specialization,
         department: context?.department,

@@ -1,9 +1,12 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import {
+  createLogger,
+  createChildLogger,
+  serializeError,
+} from '@api-hub/logger';
 import { getEnvConfig } from '../config/env';
 import {
-  HMSVerifyResponse,
-  HMSVerifiedPayload,
+  HMSVerifyResponse, 
   HMSAppointmentsResponse,
   HMSAppointment,
   Appointment,
@@ -18,29 +21,35 @@ import {
   PatientEMRSummary,
   EMRVisit,
   SSOError,
+  TruTechVerifiedPayload,
 } from '../types';
 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true,
+});
 
-export class HMSAdapter {
+export class TruTechAdapter {
   private readonly client: AxiosInstance;
-  private readonly logger = createChildLogger(baseLogger, { component: 'HMSAdapter' });
+  private readonly logger = createChildLogger(baseLogger, {
+    component: 'TruTechAdapter',
+  });
 
   constructor() {
-    const config = getEnvConfig();
+    const config:any = getEnvConfig();
 
     this.client = axios.create({
-      baseURL: config.HMS_BASE_URL,
-      timeout: config.HMS_TIMEOUT_MS,
+      baseURL: config.TRU_TECH_BASE_URL,
+      timeout: config.TRU_TECH_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': config.HMS_API_KEY,
+        'X-API-Key': config.TRU_TECH_API_KEY,
       },
     });
 
     this.client.interceptors.request.use((request) => {
       this.logger.debug({
-        event: 'hms_request_start',
+        event: 'tru_tech_request_start',
         method: request.method?.toUpperCase(),
         url: request.url,
       });
@@ -50,7 +59,7 @@ export class HMSAdapter {
     this.client.interceptors.response.use(
       (response) => {
         this.logger.debug({
-          event: 'hms_request_complete',
+          event: 'tru_tech_request_complete',
           status: response.status,
           url: response.config.url,
         });
@@ -58,30 +67,30 @@ export class HMSAdapter {
       },
       (error: AxiosError) => {
         this.logger.error({
-          event: 'hms_request_error',
+          event: 'tru_tech_request_error',
           status: error.response?.status,
           url: error.config?.url,
           message: error.message,
         });
         return Promise.reject(error);
-      }
+      },
     );
   }
 
   // ---------------------------------------------------------------------------
   // Verify Launch Token
-  // POST /api/teleconsultation/verify
+  // POST /api/tru-tech/verify
   // ---------------------------------------------------------------------------
 
   async verifyLaunchToken(
     launchToken: string,
-    correlationId: string
-  ): Promise<HMSVerifiedPayload> {
+    correlationId: string,
+  ): Promise<TruTechVerifiedPayload> {
     const logger = createChildLogger(this.logger, { correlationId });
     const startTime = Date.now();
 
     logger.info({
-      event: 'hms_verify_start',
+      event: 'tru_tech_verify_start',
       tokenLength: launchToken.length,
     });
 
@@ -93,19 +102,19 @@ export class HMSAdapter {
           headers: {
             'X-Correlation-Id': correlationId,
           },
-        }
+        },
       );
 
       const duration = Date.now() - startTime;
 
       if (response.data.status !== 'success' || !response.data.doctor_uid) {
         logger.warn({
-          event: 'hms_verify_failed',
+          event: 'tru_tech_verify_failed',
           durationMs: duration,
           errorMessage: response.data.message,
         });
         throw SSOError.verificationFailed(
-          response.data.message || 'HMS token verification failed'
+          response.data.message || 'HMS token verification failed',
         );
       }
 
@@ -144,7 +153,7 @@ export class HMSAdapter {
 
   async getTodaysAppointments(
     doctorId: number,
-    correlationId: string
+    correlationId: string,
   ): Promise<Appointment[]> {
     const logger = createChildLogger(this.logger, { correlationId, doctorId });
     const startTime = Date.now();
@@ -162,7 +171,7 @@ export class HMSAdapter {
           headers: {
             'X-Correlation-Id': correlationId,
           },
-        }
+        },
       );
 
       const duration = Date.now() - startTime;
@@ -174,12 +183,12 @@ export class HMSAdapter {
           errorMessage: response.data.message,
         });
         throw SSOError.hmsServiceError(
-          response.data.message || 'Failed to fetch appointments'
+          response.data.message || 'Failed to fetch appointments',
         );
       }
 
       const appointments = (response.data.appointments || []).map(
-        this.normalizeAppointment
+        this.normalizeAppointment,
       );
 
       logger.info({
@@ -190,7 +199,12 @@ export class HMSAdapter {
 
       return appointments;
     } catch (error) {
-      return this.handleAxiosError(error, 'hms_appointments', startTime, logger);
+      return this.handleAxiosError(
+        error,
+        'hms_appointments',
+        startTime,
+        logger,
+      );
     }
   }
 
@@ -201,7 +215,7 @@ export class HMSAdapter {
 
   async getPatientEMRSummary(
     patientId: number,
-    correlationId: string
+    correlationId: string,
   ): Promise<PatientEMRSummary> {
     const logger = createChildLogger(this.logger, { correlationId, patientId });
     const startTime = Date.now();
@@ -219,7 +233,7 @@ export class HMSAdapter {
           headers: {
             'X-Correlation-Id': correlationId,
           },
-        }
+        },
       );
 
       const duration = Date.now() - startTime;
@@ -236,7 +250,7 @@ export class HMSAdapter {
         }
 
         throw SSOError.hmsServiceError(
-          response.data.message || 'Failed to fetch patient EMR'
+          response.data.message || 'Failed to fetch patient EMR',
         );
       }
 
@@ -302,7 +316,9 @@ export class HMSAdapter {
   // Private: Normalize HMS EMR Visit to Internal Format
   // ---------------------------------------------------------------------------
 
-  private normalizeEMRVisit(hmsVisit: import('../types').HMSEMRVisit): EMRVisit {
+  private normalizeEMRVisit(
+    hmsVisit: import('../types').HMSEMRVisit,
+  ): EMRVisit {
     return {
       visitId: hmsVisit.visit_id,
       visitType: hmsVisit.visit_type,
@@ -357,7 +373,7 @@ export class HMSAdapter {
     error: unknown,
     operation: string,
     startTime: number,
-    logger: ReturnType<typeof createChildLogger>
+    logger: ReturnType<typeof createChildLogger>,
   ): never {
     const duration = Date.now() - startTime;
 
@@ -376,7 +392,10 @@ export class HMSAdapter {
         err: serializeError(axiosError),
       });
 
-      if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
+      if (
+        axiosError.code === 'ECONNABORTED' ||
+        axiosError.code === 'ETIMEDOUT'
+      ) {
         throw SSOError.downstreamError('HMS request timed out', axiosError);
       }
 
@@ -394,7 +413,7 @@ export class HMSAdapter {
 
       throw SSOError.hmsServiceError(
         `HMS request failed: ${axiosError.message}`,
-        axiosError
+        axiosError,
       );
     }
 
@@ -406,16 +425,16 @@ export class HMSAdapter {
 
     throw SSOError.internalError(
       `Unexpected error during ${operation}`,
-      error as Error
+      error as Error,
     );
   }
 }
 
-let hmsAdapterInstance: HMSAdapter | null = null;
+let truTechAdapterInstance: TruTechAdapter | null = null;
 
-export function getHMSAdapter(): HMSAdapter {
-  if (!hmsAdapterInstance) {
-    hmsAdapterInstance = new HMSAdapter();
+export function getTruTechAdapter(): TruTechAdapter {
+  if (!truTechAdapterInstance) {
+    truTechAdapterInstance = new TruTechAdapter();
   }
-  return hmsAdapterInstance;
+  return truTechAdapterInstance;
 }

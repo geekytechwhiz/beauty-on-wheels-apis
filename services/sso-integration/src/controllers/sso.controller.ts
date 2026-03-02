@@ -1,10 +1,11 @@
 /* eslint-disable no-useless-escape */
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createLogger, createChildLogger, extractCorrelationId, serializeError } from '@api-hub/logger';
-import { getLaunchService } from '../services/launch.service';
+import { ApiResponse } from '@api-hub/utils'; 
 import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
-import { SSOError, SSOErrorResponse } from '../types';
+import { SSOError } from '../types';
 import { loadEnvConfig } from '../config/env';
+import { getLaunchService } from '../services/launch.service';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -30,6 +31,7 @@ export class SSOController {
       });
       return this.errorResponse(
         SSOError.internalError('Service configuration error'),
+        event,
         correlationId,
         {}
       );
@@ -41,6 +43,7 @@ export class SSOController {
     if (!rateLimitResult.allowed) {
       return this.errorResponse(
         SSOError.rateLimitExceeded(),
+        event,
         correlationId,
         rateLimitHeaders
       );
@@ -55,38 +58,36 @@ export class SSOController {
     });
 
     try {
-      const { token: launchToken, module: requestedModule } = this.extractLaunchParams(
+      const { token: launchToken } = this.extractLaunchParams(
         event,
         correlationId
       );
 
-      const result = await this.launchService.processLaunch(launchToken, correlationId, {
-        requestedModule,
-      });
-
-      const response = this.launchService.formatResponse(result);
+      const verified = await this.launchService.verifyLaunchToken(launchToken, correlationId);
 
       const duration = Date.now() - startTime;
 
       logger.info({
         event: 'sso_launch_success',
         durationMs: duration,
-        userId: result.user.id,
-        tenantId: result.user.tenantId,
-        requestedModule,
+      doctorId: verified.doctorId,
+      tenantId: verified.tenantId,
       });
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Correlation-Id': correlationId,
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache',
-          ...rateLimitHeaders,
+      return ApiResponse.ok(
+        verified,
+        { title: 'Success', description: 'Launch token verified successfully' },
+        {
+          requestId: correlationId,
+          event,
+          headers: {
+            'X-Correlation-Id': correlationId,
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            Pragma: 'no-cache',
+            ...rateLimitHeaders,
+          },
         },
-        body: JSON.stringify(response),
-      };
+      );
     } catch (error) {
       const duration = Date.now() - startTime;
 
@@ -97,7 +98,7 @@ export class SSOController {
           errorCode: error.code,
           statusCode: error.statusCode,
         });
-        return this.errorResponse(error, correlationId, rateLimitHeaders);
+        return this.errorResponse(error, event, correlationId, rateLimitHeaders);
       }
 
       logger.error({
@@ -108,6 +109,7 @@ export class SSOController {
 
       return this.errorResponse(
         SSOError.internalError('An unexpected error occurred'),
+        event,
         correlationId,
         rateLimitHeaders
       );
@@ -241,28 +243,24 @@ export class SSOController {
 
   private errorResponse(
     error: SSOError,
+    event: APIGatewayProxyEvent,
     correlationId: string,
     additionalHeaders: Record<string, string>
-  ): APIGatewayProxyResult {
-    const response: SSOErrorResponse = {
-      success: false,
-      error: {
-        code: error.code,
-        message: error.message,
+  ): Promise<APIGatewayProxyResult> {
+    return ApiResponse.error(
+      error.statusCode,
+      { title: 'Error', description: error.message, severity: 'ERROR' },
+      {
         requestId: correlationId,
+        event,
+        headers: {
+          'X-Correlation-Id': correlationId,
+          'Cache-Control': 'no-store',
+          ...additionalHeaders,
+        },
       },
-    };
-
-    return {
-      statusCode: error.statusCode,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Correlation-Id': correlationId,
-        'Cache-Control': 'no-store',
-        ...additionalHeaders,
-      },
-      body: JSON.stringify(response),
-    };
+      { code: error.code },
+    );
   }
 }
 

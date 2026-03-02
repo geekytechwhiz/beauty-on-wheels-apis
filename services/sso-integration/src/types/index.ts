@@ -30,7 +30,7 @@ export interface HMSVerifyContext {
   expires_at?: string;
 }
 
-export interface HMSVerifiedPayload {
+export interface TruTechVerifiedPayload {
   doctorUid: string;
   doctorId: number;
   doctorName?: string;
@@ -446,7 +446,7 @@ export class SSOError extends Error {
   constructor(
     code: SSOErrorCode,
     message: string,
-    statusCode: number = 500,
+    statusCode = 500,
     cause?: Error
   ) {
     super(message);

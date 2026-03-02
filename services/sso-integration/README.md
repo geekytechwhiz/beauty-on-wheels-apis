@@ -35,6 +35,12 @@ API_BASE_URL=https://xxx.execute-api.us-east-1.amazonaws.com/dev npx serverless 
 
 See [HMS_LAUNCH_INTEGRATION.md](./HMS_LAUNCH_INTEGRATION.md) for full integration guide.
 
+## Dependencies (shared libs)
+
+- **Logger**: Use `@api-hub/logger` only (e.g. `createLogger`, `createChildLogger`, `serializeError`). Do not introduce local or duplicate logging.
+- **DynamoDB**: When DynamoDB is needed (e.g. launch idempotency, HMS client registry), use the client from `@api-hub/utils` (`ddbClient`, `ddbDocClient`) — do not instantiate a separate DynamoDB client in this service.
+- **User creation**: Cognito and user records are created by **user-service** (POST /user). This service only looks up users and generates session tokens for existing users.
+
 ## Project Structure
 
 ```
@@ -47,7 +53,7 @@ src/
 ├── services/
 │   ├── launch.service.ts       # Token verification + session creation
 │   ├── token.service.ts        # JWT session handling
-│   └── hms-client.service.ts   # HMS client registry (DynamoDB)
+│   └── hms-client.service.ts   # HMS client registry — use @api-hub/utils for DynamoDB
 ├── types/
 └── utils/
 ```

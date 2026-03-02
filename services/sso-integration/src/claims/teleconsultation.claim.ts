@@ -1,12 +1,12 @@
 import { createLogger, createChildLogger, createPerformanceTimer, serializeError } from '@api-hub/logger';
-import { getInternalServiceClient } from './internal-service.client';
+import { getAppointmentsService } from '../services/appointments.service';
 import { Appointment, PatientEMRSummary, TeleconsultationDetails, SSOError } from '../types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
 export class TeleconsultationClaim {
   private readonly logger = createChildLogger(baseLogger, { component: 'TeleconsultationClaim' });
-  private readonly internalClient = getInternalServiceClient();
+  private readonly appointmentsService = getAppointmentsService();
 
   async getTeleconsultationDetails(
     doctorId: number,

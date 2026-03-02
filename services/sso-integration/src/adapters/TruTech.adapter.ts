@@ -36,14 +36,16 @@ export class TruTechAdapter {
   });
 
   constructor() {
-    const config:any = getEnvConfig();
+    const config: any = getEnvConfig();
 
+    // NOTE: Env vars still use HMS_* naming for backwards compatibility,
+    // but they point to the TruTech TeleconsultationController.
     this.client = axios.create({
-      baseURL: config.TRU_TECH_BASE_URL,
-      timeout: config.TRU_TECH_TIMEOUT_MS,
+      baseURL: config.HMS_BASE_URL,
+      timeout: config.HMS_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': config.TRU_TECH_API_KEY,
+        'X-API-Key': config.HMS_API_KEY,
       },
     });
 
@@ -79,7 +81,7 @@ export class TruTechAdapter {
 
   // ---------------------------------------------------------------------------
   // Verify Launch Token
-  // POST /api/tru-tech/verify
+  // POST /api/teleconsultation/verify
   // ---------------------------------------------------------------------------
 
   async verifyLaunchToken(
@@ -114,14 +116,15 @@ export class TruTechAdapter {
           errorMessage: response.data.message,
         });
         throw SSOError.verificationFailed(
-          response.data.message || 'HMS token verification failed',
+          response.data.message ||
+            'TruTech teleconsultation token verification failed',
         );
       }
 
       const { doctor_uid, context } = response.data;
 
       logger.info({
-        event: 'hms_verify_success',
+        event: 'tru_tech_verify_success',
         durationMs: duration,
         tenantId: context?.tenant_id,
         doctorId: context?.doctor_id,
@@ -142,7 +145,12 @@ export class TruTechAdapter {
         expiresAt: context?.expires_at,
       };
     } catch (error) {
-      return this.handleAxiosError(error, 'hms_verify', startTime, logger);
+      return this.handleAxiosError(
+        error,
+        'tru_tech_verify',
+        startTime,
+        logger,
+      );
     }
   }
 
@@ -159,13 +167,13 @@ export class TruTechAdapter {
     const startTime = Date.now();
 
     logger.info({
-      event: 'hms_appointments_start',
+      event: 'tru_tech_appointments_start',
       doctorId,
     });
 
     try {
       const response = await this.client.post<HMSAppointmentsResponse>(
-        '/api/teleconsultation/todays-appointments', // TODO: change to /api/teleconsultation/appointments/today
+        '/api/teleconsultation/todays-appointments',
         { doctor_id: doctorId },
         {
           headers: {
@@ -178,12 +186,12 @@ export class TruTechAdapter {
 
       if (response.data.status !== 'success') {
         logger.warn({
-          event: 'hms_appointments_failed',
+          event: 'tru_tech_appointments_failed',
           durationMs: duration,
           errorMessage: response.data.message,
         });
         throw SSOError.hmsServiceError(
-          response.data.message || 'Failed to fetch appointments',
+          response.data.message || 'Failed to fetch TruTech appointments',
         );
       }
 
@@ -192,7 +200,7 @@ export class TruTechAdapter {
       );
 
       logger.info({
-        event: 'hms_appointments_success',
+        event: 'tru_tech_appointments_success',
         durationMs: duration,
         appointmentCount: appointments.length,
       });
@@ -201,7 +209,7 @@ export class TruTechAdapter {
     } catch (error) {
       return this.handleAxiosError(
         error,
-        'hms_appointments',
+        'tru_tech_appointments',
         startTime,
         logger,
       );
@@ -221,7 +229,7 @@ export class TruTechAdapter {
     const startTime = Date.now();
 
     logger.info({
-      event: 'hms_emr_start',
+      event: 'tru_tech_emr_start',
       patientId,
     });
 
@@ -240,7 +248,7 @@ export class TruTechAdapter {
 
       if (response.data.status !== 'success') {
         logger.warn({
-          event: 'hms_emr_failed',
+          event: 'tru_tech_emr_failed',
           durationMs: duration,
           errorMessage: response.data.message,
         });
@@ -250,14 +258,14 @@ export class TruTechAdapter {
         }
 
         throw SSOError.hmsServiceError(
-          response.data.message || 'Failed to fetch patient EMR',
+          response.data.message || 'Failed to fetch TruTech patient EMR',
         );
       }
 
       const visits = (response.data.emr || []).map(this.normalizeEMRVisit);
 
       logger.info({
-        event: 'hms_emr_success',
+        event: 'tru_tech_emr_success',
         durationMs: duration,
         visitCount: visits.length,
       });
@@ -267,12 +275,17 @@ export class TruTechAdapter {
         visits,
       };
     } catch (error) {
-      return this.handleAxiosError(error, 'hms_emr', startTime, logger);
+      return this.handleAxiosError(
+        error,
+        'tru_tech_emr',
+        startTime,
+        logger,
+      );
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Private: Normalize HMS Appointment to Internal Format
+  // Private: Normalize TruTech Appointment to Internal Format
   // ---------------------------------------------------------------------------
 
   private normalizeAppointment(hmsAppointment: HMSAppointment): Appointment {
@@ -313,7 +326,7 @@ export class TruTechAdapter {
   }
 
   // ---------------------------------------------------------------------------
-  // Private: Normalize HMS EMR Visit to Internal Format
+  // Private: Normalize TruTech EMR Visit to Internal Format
   // ---------------------------------------------------------------------------
 
   private normalizeEMRVisit(
@@ -396,23 +409,33 @@ export class TruTechAdapter {
         axiosError.code === 'ECONNABORTED' ||
         axiosError.code === 'ETIMEDOUT'
       ) {
-        throw SSOError.downstreamError('HMS request timed out', axiosError);
+        throw SSOError.downstreamError(
+          'TruTech teleconsultation request timed out',
+          axiosError,
+        );
       }
 
       if (axiosError.response?.status === 401) {
-        throw SSOError.unauthorized('HMS API key invalid or missing');
+        throw SSOError.unauthorized(
+          'TruTech teleconsultation API key invalid or missing',
+        );
       }
 
       if (axiosError.response?.status === 404) {
-        throw SSOError.notFound('Resource not found in HMS');
+        throw SSOError.notFound(
+          'Resource not found in TruTech teleconsultation service',
+        );
       }
 
       if (axiosError.response?.status && axiosError.response.status >= 500) {
-        throw SSOError.hmsServiceError('HMS service unavailable', axiosError);
+        throw SSOError.hmsServiceError(
+          'TruTech teleconsultation service unavailable',
+          axiosError,
+        );
       }
 
       throw SSOError.hmsServiceError(
-        `HMS request failed: ${axiosError.message}`,
+        `TruTech teleconsultation request failed: ${axiosError.message}`,
         axiosError,
       );
     }

@@ -21,13 +21,14 @@ This document outlines the plan for implementing SSO integration that:
    - ✅ Fail entire flow if doctor creation fails
    - ✅ Need doctor ID for patient assignment
 
-2. **Patient Creation: ASYNCHRONOUS (Non-Blocking)**
-   - ✅ Fire and forget - don't wait for response
-   - ✅ Process in background (SQS queue + Lambda worker)
-   - ✅ Launch flow returns immediately
-   - ✅ Bulk processing - handle multiple patients concurrently
-   - ✅ Retry mechanism for failed creations
+2. **Patient Creation: EVENT-DRIVEN (Asynchronous, Non-Blocking)**
+   - ✅ Event-driven architecture - publish events, don't wait for response
+   - ✅ Process in background via event consumers (SQS queue + Lambda worker)
+   - ✅ Launch flow returns immediately after publishing events
+   - ✅ Bulk processing - handle multiple patients concurrently through events
+   - ✅ Retry mechanism for failed creations (event replay)
    - ✅ No impact on launch flow if patient creation fails
+   - ✅ Decoupled architecture - events enable scalability and resilience
 
 **Rationale:**
 - Doctor is critical for session creation
@@ -150,18 +151,20 @@ This document outlines the plan for implementing SSO integration that:
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6. Queue Patients for Bulk Creation (ASYNC)                     │
-│    🚀 FIRE AND FORGET - DON'T WAIT                              │
+│ 6. Publish Patient Creation Events (EVENT-DRIVEN)               │
+│    🚀 PUBLISH EVENTS - DON'T WAIT                               │
 │    - Extract unique patients from appointments                 │
-│    - Queue patient creation jobs (SQS/Lambda async)            │
-│    - Each patient creation runs in background                   │
+│    - Publish patient creation events to event bus (SQS)        │
+│    - Each patient creation event processed independently        │
 │    - No blocking - proceed immediately                         │
 │                                                                 │
-│    Queue Message: {                                             │
+│    Event Message: {                                             │
+│      eventType: "patient.creation.requested",                   │
 │      patient: { id, name, email, phone, ... },                  │
 │      doctorId: "<doctor-user-id>",                              │
 │      organizationID: "...",                                    │
-│      correlationId: "..."                                      │
+│      correlationId: "...",                                     │
+│      timestamp: "..."                                           │
 │    }                                                            │
 └────────────────────┬────────────────────────────────────────────┘
                      │
@@ -175,9 +178,10 @@ This document outlines the plan for implementing SSO integration that:
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 8. Background: Patient Creation (ASYNC)                       │
-│    🔄 Running in separate thread/process                        │
-│    For each patient in queue:                                   │
+│ 8. Background: Patient Creation Event Consumer (EVENT-DRIVEN)  │
+│    🔄 Event consumer processes events independently            │
+│    For each patient creation event:                            │
+│    - Event consumer receives event from queue                   │
 │    - Check if patient exists (by external_id)                 │
 │    - If not exists, create patient                              │
 │    POST /user                                                    │
@@ -212,15 +216,15 @@ This document outlines the plan for implementing SSO integration that:
 |-----------|------------------|--------|
 | `context.name` | `userInfo.name` | Split into firstname/lastname if needed |
 | `context.email` | `userInfo.contact.email` | Required for STAFF |
-| `doctor.phone` | `userInfo.contact.phone` | Clean phone number |
-| `doctor.department` | `userInfo.specialty` | Map department to specialty |
+| `doctor.phone` | `userInfo.contact.phone` | Clean phone number (see Phone Number Processing) |
+| `doctor.phone` | `userInfo.contact.phoneCode` | Extract from phone if contains "+27", else default "+27" |
 | `doctor.department` | `userInfo.department` | Keep as-is |
+| - | `userInfo.specialty` | Default: "general" (from config) |
 | - | `userInfo.namePrefix` | Default: "Dr" (from config) |
 | - | `userInfo.licenseNumber` | Default: "" (from config) |
 | - | `userInfo.workingHours` | Default: All days 07:00-21:00 (from config) |
 | - | `userInfo.slotDurationInMinutes` | Default: 15 (from config) |
 | - | `userInfo.bio` | Default: "" (from config) |
-| - | `userInfo.contact.phoneCode` | Default: "+27" (South Africa) (from config) |
 | - | `userRole` | Default: ["<doctor-role-id>"] (from config) |
 | - | `userType` | "STAFF" |
 | - | `organizationID` | From config or context |
@@ -230,14 +234,14 @@ This document outlines the plan for implementing SSO integration that:
 | HMS Field | Our System Field | Notes |
 |-----------|------------------|--------|
 | `patient.name` | `userInfo.name` | Full name |
-| `patient.email` | `userInfo.contact.email` | Optional |
-| `patient.phone` | `userInfo.contact.phone` | Required if no email |
+| `patient.email` | `userInfo.contact.email` | Required if no phone (either email OR phone required) |
+| `patient.phone` | `userInfo.contact.phone` | Required if no email (either email OR phone required) |
+| `patient.phone` | `userInfo.contact.phoneCode` | Extract from phone if contains "+27", else default "+27" |
 | `patient.gender` | `userInfo.gender` | "Male" / "Female" |
 | `patient.dob` | `userInfo.dateOfBirth` | Format: "DD-MM-YYYY" (South Africa format) |
 | `patient.age` | - | Parse to calculate DOB if needed |
 | `patient.mrn` | - | Store as external reference |
 | - | `userInfo.namePrefix` | Default: "Mr" / "Ms" (from gender) |
-| - | `userInfo.contact.phoneCode` | Default: "+27" (South Africa) (from config) |
 | - | `userInfo.assignDoctor` | From appointment doctor |
 | - | `userInfo.emergencyContact` | Default: {} (from config) |
 | - | `userInfo.friendNFamily` | Default: {} (from config) |
@@ -262,6 +266,7 @@ export interface SSOConfig {
   
   // Default doctor values
   doctor: {
+    specialty: string; // "general" (default specialty)
     namePrefix: string; // "Dr"
     licenseNumber: string; // "" or default
     slotDurationInMinutes: number; // 15
@@ -302,9 +307,6 @@ export interface SSOConfig {
   
   // Phone code mapping (if HMS provides country codes)
   phoneCodeMapping: Record<string, string>;
-  
-  // Department to Specialty mapping
-  departmentToSpecialtyMapping: Record<string, string>;
 }
 ```
 
@@ -317,12 +319,25 @@ export interface SSOConfig {
 - [ ] Add validation
 - [ ] Set South Africa defaults (phone code: +27, timezone: Africa/Johannesburg)
 
+### Task 1a: Create Phone Number Processing Utility
+- [ ] Create `src/utils/phone-processor.ts`
+- [ ] Implement `processPhoneNumber()` function:
+  - Extract phoneCode if phone contains "+27" at the beginning
+  - Remove "+27" from phone number if extracted
+  - Handle phone numbers with leading "0" (replace with +27 phoneCode)
+  - Handle phone numbers without prefix (prepend +27 phoneCode)
+  - Clean multiple "+" characters
+  - Return `{ phoneCode: string, phoneNumber: string }`
+- [ ] Add unit tests for all phone number scenarios
+
 ### Task 2: Create Doctor Mapper Service
 - [ ] Create `src/services/doctor.mapper.ts`
 - [ ] Implement `mapHMSDoctorToOurSystem()` function
 - [ ] Handle missing fields with config defaults
 - [ ] Parse name into firstname/lastname if needed
-- [ ] Clean phone numbers
+- [ ] Use `phone-processor` utility for phone number processing
+- [ ] Use `doctorRoleId` from config for `userRole` field
+- [ ] Use `doctor.specialty` from config (default: "general") for `userInfo.specialty` field
 
 ### Task 3: Create Patient Mapper Service
 - [ ] Create `src/services/patient.mapper.ts`
@@ -330,6 +345,10 @@ export interface SSOConfig {
 - [ ] Handle missing fields with config defaults
 - [ ] Format date of birth
 - [ ] Set name prefix based on gender
+- [ ] Use `phone-processor` utility for phone number processing
+- [ ] Use `patientRoleId` from config for `userRole` field
+- [ ] Validate that either email OR phone is provided (required field validation)
+- [ ] Throw error if both email and phone are missing
 
 ### Task 4: Enhance User Service Client
 - [ ] Update `createUser()` to support full doctor structure
@@ -343,24 +362,25 @@ export interface SSOConfig {
   - Verify launch token
   - Fetch appointments
   - Check/create doctor (SYNCHRONOUS - wait for response)
-  - Queue patients for bulk creation (ASYNCHRONOUS - fire and forget)
+  - Publish patient creation events (EVENT-DRIVEN - fire and forget)
   - Create session (don't wait for patient creation)
 - [ ] Implement `formatResponse()` method
 
-### Task 5a: Create Patient Queue Service
-- [ ] Create `src/services/patient-queue.service.ts`
-- [ ] Implement queue mechanism (SQS or Lambda async invocation)
-- [ ] Queue patient creation jobs in bulk
-- [ ] Don't wait for completion
-- [ ] Handle queue failures gracefully
+### Task 5a: Create Patient Event Publisher Service
+- [ ] Create `src/services/patient-event-publisher.service.ts`
+- [ ] Implement event publishing mechanism (SQS event bus)
+- [ ] Publish patient creation events in bulk
+- [ ] Don't wait for event processing
+- [ ] Handle event publishing failures gracefully
+- [ ] Include event metadata (correlationId, timestamp, eventType)
 
-### Task 5b: Create Patient Background Worker
-- [ ] Create `src/handlers/patient-creation-worker.ts` (Lambda handler)
-- [ ] Process patient creation from queue
+### Task 5b: Create Patient Event Consumer (Background Worker)
+- [ ] Create `src/handlers/patient-creation-event-consumer.ts` (Lambda handler)
+- [ ] Process patient creation events from event queue
 - [ ] Check if patient exists before creating
 - [ ] Create patient via User Service
 - [ ] Log results (success/failure)
-- [ ] Handle retries for failed creations
+- [ ] Handle retries for failed creations via event replay
 
 ### Task 6: Update HMS Adapter
 - [ ] Update `getTodaysAppointments()` to use GET method
@@ -369,15 +389,27 @@ export interface SSOConfig {
 
 ### Task 7: Integration Testing
 - [ ] Test doctor creation flow (synchronous)
-- [ ] Test patient queue creation (asynchronous)
-- [ ] Test patient background worker
+- [ ] Test patient event publishing (event-driven)
+- [ ] Test patient event consumer (background worker)
 - [ ] Test duplicate user handling (doctor and patient)
+- [ ] Test phone number processing:
+  - Phone with "+27" prefix (extract phoneCode)
+  - Phone with leading "0" (replace with +27 phoneCode)
+  - Phone without prefix (prepend +27 phoneCode)
+  - Phone with multiple "+" characters (clean properly)
+- [ ] Test patient validation:
+  - Patient with email only (should succeed)
+  - Patient with phone only (should succeed)
+  - Patient with both email and phone (should succeed)
+  - Patient with neither email nor phone (should fail)
 - [ ] Test error scenarios:
   - Doctor creation failure (should block)
-  - Patient queue failure (should not block)
-  - Patient creation failure in background (should retry)
-- [ ] Test bulk patient processing (multiple patients)
+  - Patient event publishing failure (should not block)
+  - Patient creation failure in event consumer (should retry via event replay)
+  - Patient missing both email and phone (should fail in event consumer)
+- [ ] Test bulk patient processing (multiple events)
 - [ ] Test launch flow doesn't wait for patient creation
+- [ ] Test event ordering and idempotency
 
 ## API Endpoints to Update
 
@@ -396,29 +428,31 @@ GET /doctor/appointments/today?doctor_id=123
 
 **Note:** Based on user's specification, it should be GET with query parameter, but the example shows POST with body. Need to confirm with user.
 
-## Asynchronous Patient Processing Architecture
+## Event-Driven Patient Processing Architecture
 
 ### Design Decision
 - **Doctor Creation**: Synchronous (blocking) - Must complete before proceeding
-- **Patient Creation**: Asynchronous (non-blocking) - Fire and forget, process in background
+- **Patient Creation**: Event-driven (asynchronous, non-blocking) - Publish events, process in background via event consumers
 
 ### Implementation Options
 
-#### Option 1: AWS SQS Queue (Recommended)
+#### Option 1: AWS SQS Event Bus (Recommended - Event-Driven)
 ```
-Launch Flow → Queue Patient Jobs → Return Response
+Launch Flow → Publish Patient Events → Return Response
                 ↓
-         SQS Queue
+         SQS Event Bus
                 ↓
-    Patient Worker Lambda
-    (Processes in background)
+    Patient Event Consumer Lambda
+    (Processes events in background)
 ```
 
 **Pros:**
-- Reliable delivery
-- Built-in retry mechanism
-- Dead letter queue for failed messages
-- Scalable (handles bulk processing)
+- Event-driven architecture (decoupled, scalable)
+- Reliable event delivery
+- Built-in retry mechanism (event replay)
+- Dead letter queue for failed events
+- Scalable (handles bulk event processing)
+- Event ordering and idempotency support
 
 **Cons:**
 - Requires SQS setup
@@ -458,35 +492,44 @@ Launch Flow → Spawn Background Thread → Return Response
 - No persistence if Lambda dies
 - Not recommended for production
 
-### Recommended: SQS Queue Approach
+### Recommended: SQS Event Bus Approach (Event-Driven)
 
-**Queue Structure:**
+**Event Structure:**
 ```typescript
-interface PatientCreationMessage {
-  patient: {
-    id: number;
-    name: string;
-    email?: string;
-    phone?: string;
-    gender: string;
-    dob?: string;
-    mrn?: string;
+interface PatientCreationEvent {
+  eventType: "patient.creation.requested";
+  eventId: string; // Unique event identifier
+  timestamp: string; // ISO 8601 timestamp
+  correlationId: string; // For tracing
+  data: {
+    patient: {
+      id: number;
+      name: string;
+      email?: string;
+      phone?: string;
+      gender: string;
+      dob?: string;
+      mrn?: string;
+    };
+    doctorId: string; // Our system's doctor user ID
+    organizationID: string;
+    tenantId: string;
   };
-  doctorId: string; // Our system's doctor user ID
-  organizationID: string;
-  tenantId: string;
-  correlationId: string;
-  retryCount?: number;
+  metadata?: {
+    retryCount?: number;
+    source: "sso-integration";
+  };
 }
 ```
 
-**Flow:**
+**Event-Driven Flow:**
 1. Launch service extracts unique patients from appointments
-2. Creates SQS messages for each patient
-3. Sends messages to queue (fire and forget)
-4. Returns response immediately (doesn't wait)
-5. Background worker processes queue messages
-6. Each patient creation is independent
+2. Publishes patient creation events to SQS event bus
+3. Events are published asynchronously (fire and forget)
+4. Returns response immediately (doesn't wait for event processing)
+5. Event consumer (Lambda) processes events independently
+6. Each patient creation event is processed independently
+7. Failed events can be replayed via DLQ or retry mechanism
 
 ## Error Handling
 
@@ -501,18 +544,19 @@ interface PatientCreationMessage {
    - Return error to user
    - Log detailed error information
 
-3. **Patient Queue Failure**
+3. **Patient Event Publishing Failure**
    - **NON-BLOCKING**: Log error but don't fail launch
-   - Retry queue send operation
-   - If queue unavailable, log and continue
-   - Launch flow succeeds even if queue fails
+   - Retry event publishing operation
+   - If event bus unavailable, log and continue
+   - Launch flow succeeds even if event publishing fails
 
-4. **Patient Creation Failure (Background)**
+4. **Patient Creation Failure (Event Consumer)**
    - **NON-BLOCKING**: Doesn't affect launch flow
-   - Log error in background worker
-   - Retry via SQS retry mechanism
+   - Log error in event consumer
+   - Retry via SQS retry mechanism (event replay)
    - Send to dead letter queue after max retries
-   - Alert/monitor for failed patient creations
+   - Alert/monitor for failed patient creation events
+   - Support manual event replay from DLQ
 
 5. **Patient Already Exists (Background)**
    - Lookup by external_id in background worker
@@ -524,7 +568,10 @@ interface PatientCreationMessage {
    - Use config defaults
    - Log warnings for missing critical fields
    - For doctor: Fail if critical fields missing
-   - For patient: Use defaults, log warning, continue
+   - For patient: 
+     - **Email OR Phone Required**: Fail patient creation if both email and phone are missing
+     - Use defaults for other optional fields, log warning, continue
+     - If phone provided, validate phone number processing (phoneCode extraction)
 
 7. **HMS API Failures**
    - Retry with exponential backoff
@@ -579,14 +626,29 @@ interface PatientCreationMessage {
 
 ## South Africa Specific Configuration
 
-### Phone Codes
+### Phone Number Processing (Doctor & Patient)
+
+**Phone Code Extraction Logic:**
+- If phone number contains "+27" (at the beginning):
+  - Extract "+27" as `phoneCode`
+  - Remove "+27" from phone number to get `phoneNumber`
+  - Example: "+27123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"`
+  - Example: "+270372807" → `phoneCode: "+27"`, `phoneNumber: "0372807"`
+
+**Phone Number Cleaning (when +27 not present):**
 - **Default Phone Code**: `+27` (South Africa)
 - **Phone Number Cleaning**: HMS shows phone numbers like "++++++++++0372807"
   - Remove all "+" characters
-  - If number starts with "0", replace with "+27"
-  - If number doesn't start with "0" or "+27", prepend "+27"
-  - Example: "++++++++++0372807" → "+270372807"
-  - Example: "1234567890" → "+271234567890"
+  - If number starts with "0", replace "0" with "+27" as phoneCode, keep rest as phoneNumber
+  - If number doesn't start with "0" or "+27", use "+27" as phoneCode, keep number as phoneNumber
+  - Examples:
+    - "++++++++++0372807" → `phoneCode: "+27"`, `phoneNumber: "372807"` (after removing leading 0)
+    - "123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"`
+    - "+27123456789" → `phoneCode: "+27"`, `phoneNumber: "123456789"` (extracted)
+
+**Validation Rules:**
+- **Doctor**: Phone is optional, but if provided, must be processed correctly
+- **Patient**: Either `email` OR `phone` is required (at least one must be present)
 
 ### Date Formats
 - **Input Format**: ISO 8601 (from HMS): `"2026-02-25T10:00:00.000000Z"`
@@ -602,12 +664,7 @@ interface PatientCreationMessage {
 
 1. **Appointments API Method**: GET vs POST? User specified GET but example shows POST body.
 2. **Organization ID**: Should it come from HMS context or always from config?
-3. **Doctor Role ID**: How to determine which role ID to use? From config or lookup?
-4. **Patient Role ID**: Same as above.
-5. **Phone Number Format**: HMS shows "++++++++++0372807" - how to clean this? (South Africa format: +27XXXXXXXXX)
-6. **Date Format**: HMS uses ISO format, we need "DD-MM-YYYY" - confirmed for South Africa.
-7. **Department to Specialty**: Need mapping table or use department as-is?
-8. **South Africa Organization ID**: Which organization ID should be used for South Africa HMS integration?
+3. **South Africa Organization ID**: Which organization ID should be used for South Africa HMS integration?
 
 ## References
 

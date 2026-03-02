@@ -134,6 +134,7 @@ export interface DeviceRecommendation {
   deviceId: string;
   category: string;
   name: string;
+  displayName?: string;
   patientUserId: string;
   createdDate: number;
   modifiedDate: number;

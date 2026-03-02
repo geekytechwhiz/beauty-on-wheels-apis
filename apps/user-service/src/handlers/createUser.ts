@@ -212,6 +212,7 @@ export async function createUser(
       medicalHistory: (userInfo as any).medicalHistory || {},
       insuranceDetails: (userInfo as any).insuranceDetails || {},
       workSchedule: (userInfo as any).workSchedule || {},
+      inviteDetails: (userInfo as any).inviteDetails || {},
       position: (userInfo as any).position || '',
       userTimeZone: (userInfo as any).userTimeZone || '',
       devices: (userInfo as any).devices || [],

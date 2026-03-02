@@ -78,7 +78,9 @@ This document outlines the plan for implementing SSO integration that:
 │      context: {                                                 │
 │        id: 9,                                                  │
 │        drid: 4,                                                │
-│        name: "ABDUL RASHID AHMED",                              │
+│        name: "ABDUL RASHID AHMED",
+|        department: "GENERAL DOCTORS",                       │
+│        phone: "+27619037807",                       │
 │        email: "abdul@hms.com"                                   │
 │      }                                                          │
 │    }                                                            │
@@ -99,7 +101,7 @@ This document outlines the plan for implementing SSO integration that:
 │            id: 4,                                               │
 │            name: "ABDUL RASHID AHMED",                          │
 │            department: "GENERAL DOCTORS",                       │
-│            phone: "++++++++++0372807",                          │
+│            phone: "+27619037807",                           │
 │            email: "abdul@hms.com"                               │
 │          },                                                     │
 │          patient: { ... }                                       │

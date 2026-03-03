@@ -44,6 +44,7 @@ export class TruTechAdapter {
       headers: {
         'Content-Type': 'application/json', 
         'Authorization': `Bearer ${config.TRU_TECH_API_KEY}`,
+        "token": config.TRU_TECH_API_KEY,
       },
     });
 

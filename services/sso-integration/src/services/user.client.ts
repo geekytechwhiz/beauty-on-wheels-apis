@@ -7,8 +7,8 @@ import {
   CreateUserPayload,
   SSOError,
   ServiceClientConfig,
-} from '../types';
-import { DoctorCreationPayload, PatientCreationPayload } from '../types';
+} from '../types'; 
+import { DoctorCreationPayload, PatientCreationPayload } from '../types/user-creation.types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 

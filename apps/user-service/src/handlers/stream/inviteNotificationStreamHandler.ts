@@ -2,6 +2,7 @@ import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
+import { WELCOME_MESSAGE } from '../../utils/constants';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -141,11 +142,8 @@ async function processRecord(
         await axios.post(
           SMS_API_URL,
           {
-            userId,
             phoneNumber,
-            fullName,
-            organizationID,
-            type: 'INVITE',
+            message: `${WELCOME_MESSAGE.replace('{{ORG_NAME}}', organizationID)}`
           },
           { timeout: 10_000 },
         );

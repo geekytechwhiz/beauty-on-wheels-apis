@@ -91,8 +91,8 @@ async function updateRecentInvite(
   }
 
   // Get userId and organizationId from body or authorizer
-  let userId = validation.data.userId || requestUserId;
-  let organizationId = validation.data.organizationId || requestOrgId;
+  let userId = validation.data.userId  
+  let organizationId = validation.data.organizationId  
   let patientId = validation.data.patientId;
 
   if (!userId || !organizationId || !patientId) {

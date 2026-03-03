@@ -34,7 +34,7 @@ export interface TruTechVerifiedPayload {
   doctorUid: string;
   doctorId: number;
   doctorName?: string;
-  doctorEmail?: string;
+  doctorEmail: string;
   doctorPhone?: string;
   specialization?: string;
   department?: string;

@@ -34,7 +34,7 @@ export interface TruTechVerifiedPayload {
   doctorUid: string;
   doctorId: number;
   doctorName?: string;
-  doctorEmail?: string;
+  doctorEmail: string;
   doctorPhone?: string;
   specialization?: string;
   department?: string;
@@ -335,8 +335,8 @@ export interface UserLookupParams {
 
 export interface User {
   id: string|number;
-  externalId: string;
-  provider: string;
+  externalId: string|number;
+  provider: string; 
   tenantId: string;
   email?: string;
   phone?: string;

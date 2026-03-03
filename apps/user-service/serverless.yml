@@ -236,10 +236,10 @@ custom:
 
   # Only the stream creation timestamp differs per stage — everything else is dynamic
   userTableStreamTimestamp:
-    dev: '2026-03-02T11:30:45.025'
+    dev: '2026-03-03T06:46:28.426'
     stg: '2026-01-23T11:08:57.849'
     prd: ''
-
+  
   # Full DynamoDB Stream ARN built dynamically from region, accountId, stage, and timestamp
   userTableStreamArn: 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/user-table-${self:provider.stage}/stream/${self:custom.userTableStreamTimestamp.${self:provider.stage}}'
 

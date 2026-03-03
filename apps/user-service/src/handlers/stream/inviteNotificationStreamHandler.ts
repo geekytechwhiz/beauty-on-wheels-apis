@@ -9,10 +9,10 @@ const SEND_EMAIL_API_URL = process.env.SEND_EMAIL_API_URL || '';
 const SMS_API_URL = process.env.SMS_API_URL || '';
 
 interface InviteDetails {
-  email: boolean;
-  emailUpdatedAt: string;
-  sms: boolean;
-  smsUpdatedAt: string;
+  email?: boolean;
+  emailUpdatedAt?: string;
+  sms?: boolean;
+  smsUpdatedAt?: string;
 }
 
 /**
@@ -50,13 +50,31 @@ async function processRecord(
   const oldItem = record.dynamodb.OldImage
     ? unmarshall(record.dynamodb.OldImage as Record<string, any>)
     : {};
-
+    console.log("NEW ITEM",newItem)
+    console.log("OLD ITEM",oldItem)
   const newInviteDetails = newItem.inviteDetails as InviteDetails | undefined;
   const oldInviteDetails = oldItem.inviteDetails as InviteDetails | undefined;
+  console.log("NEW INVITE DETAILS",newInviteDetails)
+  console.log("OLD INVITE DETAILS",oldInviteDetails)
+  // Skip if inviteDetails is not present in the new image or is an empty object
+  if (!newInviteDetails || (typeof newInviteDetails === 'object' && Object.keys(newInviteDetails).length === 0)) {
+    logger.info({ 
+      event: 'inviteNotificationStream_no_inviteDetails', 
+      message: 'inviteDetails not found or empty in NewImage, skipping',
+      hasInviteDetails: !!newInviteDetails,
+      inviteDetailsKeys: newInviteDetails ? Object.keys(newInviteDetails) : []
+    });
+    return;
+  }
 
-  // Skip if inviteDetails is not present in the new image
-  if (!newInviteDetails) {
-    logger.info({ event: 'inviteNotificationStream_no_inviteDetails', message: 'inviteDetails not found in NewImage, skipping' });
+  // Only process if email or sms is explicitly set to true
+  if (newInviteDetails.email !== true && newInviteDetails.sms !== true) {
+    logger.info({ 
+      event: 'inviteNotificationStream_no_action_needed', 
+      message: 'inviteDetails present but email and sms are not true, skipping',
+      email: newInviteDetails.email,
+      sms: newInviteDetails.sms
+    });
     return;
   }
 

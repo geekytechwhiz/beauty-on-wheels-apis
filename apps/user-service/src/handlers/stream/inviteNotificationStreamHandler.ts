@@ -15,6 +15,15 @@ interface InviteDetails {
   smsUpdatedAt?: string;
 }
 
+/**
+ * DynamoDB Stream handler for invite notifications.
+ *
+ * Fires on every MODIFY event on user-table.
+ * - If newImage.inviteDetails.email === true  → POST to SEND_EMAIL_API_URL
+ * - If newImage.inviteDetails.sms   === true  → POST to SMS_API_URL
+ *
+ * Only acts when inviteDetails has actually changed (old vs new comparison).
+ */
 async function processRecord(
   record: DynamoDBStreamEvent['Records'][number],
   correlationId: string,
@@ -32,30 +41,65 @@ async function processRecord(
     return;
   }
 
-   const oldItem = record?.dynamodb?.OldImage
-    ? unmarshall(record?.dynamodb?.OldImage as Record<string, any>)
-    : {};
-    
-  console.log("OLD ITEM",oldItem)
-  const oldInviteDetails = oldItem.inviteDetails as InviteDetails | undefined;
-  console.log("OLD INVITE DETAILS",oldInviteDetails)
+  if (!record.dynamodb?.NewImage) {
+    logger.warn({ event: 'inviteNotificationStream_no_image', message: 'No NewImage in stream record' });
+    return;
+  }
 
-  const userId = (oldItem.userID || oldItem.userId || '') as string;
-  const emailAddress = (oldItem.emailAddress || '') as string;
-  const phoneNumber = (oldItem.phoneNumber || '') as string;
-  const fullName = (oldItem.fullName || '') as string;
-  const organizationID = (oldItem.organizationID || '') as string;
+  const newItem = unmarshall(record.dynamodb.NewImage as Record<string, any>);
+  const oldItem = record.dynamodb.OldImage
+    ? unmarshall(record.dynamodb.OldImage as Record<string, any>)
+    : {};
+    console.log("NEW ITEM",newItem)
+    console.log("OLD ITEM",oldItem)
+  const newInviteDetails = newItem.inviteDetails as InviteDetails | undefined;
+  const oldInviteDetails = oldItem.inviteDetails as InviteDetails | undefined;
+  console.log("NEW INVITE DETAILS",newInviteDetails)
+  console.log("OLD INVITE DETAILS",oldInviteDetails)
+  // Skip if inviteDetails is not present in the new image or is an empty object
+  if (!newInviteDetails || (typeof newInviteDetails === 'object' && Object.keys(newInviteDetails).length === 0)) {
+    logger.info({ 
+      event: 'inviteNotificationStream_no_inviteDetails', 
+      message: 'inviteDetails not found or empty in NewImage, skipping',
+      hasInviteDetails: !!newInviteDetails,
+      inviteDetailsKeys: newInviteDetails ? Object.keys(newInviteDetails) : []
+    });
+    return;
+  }
+
+  // Only process if email or sms is explicitly set to true
+  if (newInviteDetails.email !== true && newInviteDetails.sms !== true) {
+    logger.info({ 
+      event: 'inviteNotificationStream_no_action_needed', 
+      message: 'inviteDetails present but email and sms are not true, skipping',
+      email: newInviteDetails.email,
+      sms: newInviteDetails.sms
+    });
+    return;
+  }
+
+  // Skip if inviteDetails has not changed
+  if (JSON.stringify(newInviteDetails) === JSON.stringify(oldInviteDetails)) {
+    logger.info({ event: 'inviteNotificationStream_unchanged', message: 'inviteDetails unchanged, skipping' });
+    return;
+  }
+
+  const userId = (newItem.userID || newItem.userId || '') as string;
+  const emailAddress = (newItem.emailAddress || '') as string;
+  const phoneNumber = (newItem.phoneNumber || '') as string;
+  const fullName = (newItem.fullName || '') as string;
+  const organizationID = (newItem.organizationID || '') as string;
 
   const recordLogger = createChildLogger(baseLogger, { correlationId, userId, organizationID, sequenceNumber });
 
   recordLogger.info({
     event: 'inviteNotificationStream_processing',
-    emailInvite: oldInviteDetails?.email,
-    smsInvite: oldInviteDetails?.sms,
+    emailInvite: newInviteDetails.email,
+    smsInvite: newInviteDetails.sms,
   });
 
   // ── Email notification ─────────────────────────────────────────────────────
-  if (oldInviteDetails?.email && oldInviteDetails?.email === true) {
+  if (newInviteDetails.email === true) {
     if (!SEND_EMAIL_API_URL) {
       recordLogger.warn({ event: 'inviteNotificationStream_email_no_url', message: 'SEND_EMAIL_API_URL not configured' });
     } else {
@@ -87,7 +131,7 @@ async function processRecord(
   }
 
   // ── SMS notification ───────────────────────────────────────────────────────
-  if (oldInviteDetails?.sms && oldInviteDetails?.sms === true) {
+  if (newInviteDetails.sms === true) {
     if (!SMS_API_URL) {
       recordLogger.warn({ event: 'inviteNotificationStream_sms_no_url', message: 'SMS_API_URL not configured' });
     } else {

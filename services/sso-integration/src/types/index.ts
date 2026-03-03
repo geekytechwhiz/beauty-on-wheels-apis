@@ -335,8 +335,8 @@ export interface UserLookupParams {
 
 export interface User {
   id: string|number;
-  externalId: string;
-  provider: string;
+  externalId: string|number;
+  provider: string; 
   tenantId: string;
   email?: string;
   phone?: string;

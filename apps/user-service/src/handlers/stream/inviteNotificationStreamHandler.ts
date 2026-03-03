@@ -2,11 +2,11 @@ import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
-import { WELCOME_MESSAGE } from '../../utils/constants';
+import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE } from '../../utils/constants';
+import { sendEmail } from '../../services/notification.delivery';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
-const SEND_EMAIL_API_URL = process.env.SEND_EMAIL_API_URL || '';
 const SMS_API_URL = process.env.SMS_API_URL || '';
 
 interface InviteDetails {
@@ -88,7 +88,6 @@ async function processRecord(
   const userId = (newItem.userID || newItem.userId || '') as string;
   const emailAddress = (newItem.emailAddress || '') as string;
   const phoneNumber = (newItem.phoneNumber || '') as string;
-  const fullName = (newItem.fullName || '') as string;
   const organizationID = (newItem.organizationID || '') as string;
 
   const recordLogger = createChildLogger(baseLogger, { correlationId, userId, organizationID, sequenceNumber });
@@ -101,33 +100,26 @@ async function processRecord(
 
   // ── Email notification ─────────────────────────────────────────────────────
   if (newInviteDetails.email === true) {
-    if (!SEND_EMAIL_API_URL) {
-      recordLogger.warn({ event: 'inviteNotificationStream_email_no_url', message: 'SEND_EMAIL_API_URL not configured' });
-    } else {
-      try {
-        recordLogger.info({ event: 'inviteNotificationStream_email_sending', emailAddress });
+    try {
+      recordLogger.info({ event: 'inviteNotificationStream_email_sending', emailAddress });
 
-        await axios.post(
-          SEND_EMAIL_API_URL,
-          {
-            userId,
-            emailAddress,
-            fullName,
-            organizationID,
-            type: 'INVITE',
-          },
-          { timeout: 10_000 },
-        );
+      await sendEmail({
+        email: emailAddress,
+        template: 'GENERIC_NOTIFICATION',
+        templateData: {
+          TITLE: INVITE_EMAIL_SUBJECT,
+          BODY: INVITE_EMAIL_MESSAGE,
+        },
+      });
 
-        recordLogger.info({ event: 'inviteNotificationStream_email_sent', emailAddress });
-      } catch (err) {
-        // Log and continue — do not let an email failure block SMS
-        recordLogger.error({
-          event: 'inviteNotificationStream_email_error',
-          emailAddress,
-          err: serializeError(err),
-        });
-      }
+      recordLogger.info({ event: 'inviteNotificationStream_email_sent', emailAddress });
+    } catch (err) {
+      // Log and continue — do not let an email failure block SMS
+      recordLogger.error({
+        event: 'inviteNotificationStream_email_error',
+        emailAddress,
+        err: serializeError(err),
+      });
     }
   }
 

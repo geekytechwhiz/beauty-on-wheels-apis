@@ -9,9 +9,18 @@ import {
   UserListContext,
   V2UserListFilters,
   V2UserListMeta,
-  V2UserListResponse
+  V2UserListResponse,
 } from '../types/user-list-context.enum';
-import { mapToActiveConsultationUser, mapToPatientListItem, mapToPastConsultationUser, mapToPatientUser, mapToUserItem } from '../utils/responseMapper';
+import {
+  mapToActiveConsultationUser,
+  mapToPatientListItem,
+  mapToPastConsultationUser,
+  mapToPatientUser,
+  mapToUserItem,
+} from '../utils/responseMapper';
+import { scheduleServiceClient } from '../clients/scheduleService.client';
+import { packageServiceClient } from '../clients/packageService.client';
+import { UserService } from './user.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -19,9 +28,11 @@ const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 export class V2UserListService {
   private repository: V2UserListRepository;
+  private userService: UserService;
 
   constructor() {
     this.repository = new V2UserListRepository();
+    this.userService = new UserService();
   }
 
   /**
@@ -373,42 +384,157 @@ export class V2UserListService {
     params: V2UserListServiceParams,
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
-    const { organizationId, filters, pagination, sort, requestId } = params;
-    const logger = createChildLogger(baseLogger, { correlationId: requestId });
+    const { organizationId, requestId, authHeader } = params;
+    const logger = createChildLogger(baseLogger, { correlationId: requestId, organizationId });
 
     logger.info({ event: 'v2_active_consultations_start' });
 
-    const modifiedFilters: V2UserListFilters = {
-      ...filters,
-      userTypes: ['USER'],
-      isActive: true,
-    };
+    if (!scheduleServiceClient) {
+      logger.warn({
+        event: 'v2_active_consultations_no_schedule_client',
+        message: 'SCHEDULE_SERVICE_API_URL not configured',
+      });
+      return this.buildResponse([], context, undefined, requestId);
+    }
 
-    // Pass undefined if no limit provided to fetch all records
-    const requestedLimit = pagination?.limit;
+    // Fetch latest active appointments for this organization
+    let appointmentInfo: Array<{
+      userId: string;
+      userPackageId: string | null;
+      userAddonId: string | null;
+      scheduleId: string;
+      meta: Record<string, unknown>;
+      patientOrgId: string;
+    }> = [];
 
-    const result = await this.fetchWithInternalPagination(
-      async (paginationParams) => {
-        return this.repository.queryOrganizationUsers({
-          organizationId,
-          context: UserListContext.ACTIVE_CONSULTATIONS,
-          filters: modifiedFilters,
-          pagination: paginationParams,
-          sort,
-          correlationId: requestId,
+    try {
+      appointmentInfo = await scheduleServiceClient.getLatestActiveAppointments(
+        organizationId,
+        authHeader,
+      );
+      console.log('appointmentInfo', JSON.stringify(appointmentInfo));
+      logger.info({
+        event: 'v2_active_consultations_appointments_fetched',
+        count: appointmentInfo.length,
+      });
+    } catch (err) {
+      logger.error({
+        event: 'v2_active_consultations_appointments_error',
+        err: serializeError(err),
+      });
+      throw err;
+    }
+
+    if (!appointmentInfo || appointmentInfo.length === 0) {
+      logger.info({
+        event: 'v2_active_consultations_no_appointments',
+      });
+      return this.buildResponse([], context, undefined, requestId);
+    }
+
+    // Fetch user services for appointments to build activeService
+    let userServices: any[] = [];
+    if (packageServiceClient) {
+      try {
+        const serviceRequests = appointmentInfo.map((appt) => {
+          const req: any = { userId: appt.userId };
+          if (appt.userAddonId) req.userAddonId = appt.userAddonId;
+          else if (appt.userPackageId) req.userPackageId = appt.userPackageId;
+          return req;
         });
-      },
-      requestedLimit,
-      pagination?.cursor,
-    );
+        console.log('serviceRequests', JSON.stringify(serviceRequests));
 
-    logger.info({ 
-      event: 'v2_active_consultations_filtered_fnf', 
-      requestedLimit,
-      returnedCount: result.items.length,
+        userServices = await packageServiceClient.getServicesByList(
+          serviceRequests,
+          authHeader,
+        );
+
+        console.log('userServices', JSON.stringify(userServices));
+
+        // Map schedule metadata to services
+        const scheduleMetaMap = new Map<string, Record<string, unknown>>();
+        appointmentInfo.forEach((appt) => {
+          if (appt.scheduleId && appt.meta) {
+            scheduleMetaMap.set(appt.scheduleId, appt.meta);
+          }
+        });
+
+        userServices.forEach((service) => {
+          if (Array.isArray(service.scheduled)) {
+            service.scheduled.forEach((schedule: any) => {
+              if (schedule.scheduleId && scheduleMetaMap.has(schedule.scheduleId)) {
+                schedule.meta = scheduleMetaMap.get(schedule.scheduleId);
+              }
+            });
+          }
+        });
+      } catch (serviceErr) {
+        logger.warn({
+          event: 'v2_active_consultations_services_fetch_warning',
+          err: serializeError(serviceErr as Error),
+          message: 'Failed to fetch user services, continuing without activeService',
+        });
+      }
+    } else {
+      logger.warn({
+        event: 'v2_active_consultations_no_package_client',
+        message: 'PACKAGE_API_URL not configured',
+      });
+    }
+
+    // Create map of userId -> activeService (single item, wrapped as array in mapper)
+    const activeServiceMap = new Map<string, any>();
+    appointmentInfo.forEach((appt) => {
+      const matchingService = userServices.find((service) => {
+        return (
+          (appt.userAddonId && service.userAddonId === appt.userAddonId) ||
+          (appt.userPackageId && service.userPackageId === appt.userPackageId)
+        );
+      });
+      if (matchingService) {
+        activeServiceMap.set(appt.userId, matchingService);
+      }
     });
 
-    return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
+    // Fetch user data for each appointment's patient
+    const patientList = await Promise.all(
+      appointmentInfo.map(async (appt) => {
+        try {
+          const user = await this.userService.getUser(
+            appt.userId,
+            appt.patientOrgId || organizationId,
+          );
+
+          const activeService = activeServiceMap.get(appt.userId);
+          return {
+            ...user,
+            activeService: activeService ? [activeService] : [],
+          } as Record<string, unknown>;
+        } catch (err) {
+          logger.warn({
+            event: 'v2_active_consultations_user_fetch_warning',
+            userId: appt.userId,
+            patientOrgId: appt.patientOrgId,
+            err: serializeError(err as Error),
+          });
+          return null;
+        }
+      }),
+    );
+
+    const validPatients = patientList.filter(
+      (p): p is Record<string, unknown> => p !== null,
+    );
+
+    logger.info({
+      event: 'v2_active_consultations_users_resolved',
+      totalAppointments: appointmentInfo.length,
+      validPatients: validPatients.length,
+    });
+
+    // v2 response for ACTIVE_CONSULTATIONS does not use pagination cursor today
+    // so we return all resolved patients as a single page.
+    return this.buildResponse(validPatients, context, undefined, requestId);
   }
 
   private async handleDoctorSelection(
@@ -546,11 +672,15 @@ export class V2UserListService {
           data: { items: items.map(mapToUserItem) },
         };
 
-      case UserListContext.PAST_CONSULTATIONS:
+      case UserListContext.PAST_CONSULTATIONS: {
+        const previouslyConsultedItems = items.filter((item) =>
+          Boolean((item as any).previouslyConsulted ?? false),
+        );
         return {
           ...envelope,
-          data: { users: items.map(mapToPastConsultationUser) },
+          data: { users: previouslyConsultedItems.map(mapToPastConsultationUser) },
         } as unknown as V2UserListResponse<UserItem>;
+      }
 
       case UserListContext.DOCTOR_PATIENT_LIST:
         return {

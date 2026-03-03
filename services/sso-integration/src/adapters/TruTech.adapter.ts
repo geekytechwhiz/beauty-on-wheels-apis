@@ -133,7 +133,7 @@ export class TruTechAdapter {
         doctorUid: doctor_uid,
         doctorId: context?.drid || 0,
         doctorName: context?.name,
-        doctorEmail: context?.email,
+        doctorEmail: context?.email || '',
         doctorPhone: context?.doctor_phone,
         specialization: context?.specialization,
         department: context?.department,

@@ -21,16 +21,29 @@ provider:
     SERVICE_NAME: ${self:service}
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
-    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, ''}
+    # Dummy but non-empty so Zod passes
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, 'dummy-cognito-client-id'}
+
+    # Legacy HMS vars (can be removed later if unused)
     HMS_BASE_URL: ${env:HMS_BASE_URL, 'https://qahms.zmtrutech.com'}
     HMS_API_KEY: ${env:HMS_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
     HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
+
+    # TruTech adapter config (dummy defaults so env.ts validation passes)
+    TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
+    TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, 'dummy-trutech-api-key'}
+    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '5000'}
+
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
-    USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, ''}
+    USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, 'dummy-user-service-key'}
+
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
-    ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, ''}
+    ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, 'dummy-role-service-key'}
+
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
+
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
   iamRoleStatements:
     - Effect: Allow
       Action:

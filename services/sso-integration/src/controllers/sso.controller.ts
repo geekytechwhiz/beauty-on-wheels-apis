@@ -22,32 +22,32 @@ export class SSOController {
 
     const startTime = Date.now();
 
-    try {
-      loadEnvConfig();
-    } catch (error) {
-      logger.error({
-        event: 'config_validation_error',
-        err: serializeError(error as Error),
-      });
-      return this.errorResponse(
-        SSOError.internalError('Service configuration error'),
-        event,
-        correlationId,
-        {}
-      );
-    }
+    // try {
+    //   loadEnvConfig();
+    // } catch (error) {
+    //   logger.error({
+    //     event: 'config_validation_error',
+    //     err: serializeError(error as Error),
+    //   });
+    //   return this.errorResponse(
+    //     SSOError.internalError('Service configuration error'),
+    //     event,
+    //     correlationId,
+    //     {}
+    //   );
+    // }
 
-    const rateLimitResult = checkRateLimit(event);
-    const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
+    // const rateLimitResult = checkRateLimit(event); // TODO: Uncomment this when we have a rate limit
+    // const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
 
-    if (!rateLimitResult.allowed) {
-      return this.errorResponse(
-        SSOError.rateLimitExceeded(),
-        event,
-        correlationId,
-        rateLimitHeaders
-      );
-    }
+    // if (!rateLimitResult.allowed) {
+    //   return this.errorResponse(
+    //     SSOError.rateLimitExceeded(),
+    //     event,
+    //     correlationId,
+    //     rateLimitHeaders
+    //   );
+    // }
 
     logger.info({
       event: 'sso_launch_request',
@@ -94,8 +94,7 @@ export class SSOController {
           headers: {
             'X-Correlation-Id': correlationId,
             'Cache-Control': 'no-store, no-cache, must-revalidate',
-            Pragma: 'no-cache',
-            ...rateLimitHeaders,
+            Pragma: 'no-cache', 
           },
         },
       );
@@ -109,7 +108,7 @@ export class SSOController {
           errorCode: error.code,
           statusCode: error.statusCode,
         });
-        return this.errorResponse(error, event, correlationId, rateLimitHeaders);
+        return this.errorResponse(error, event, correlationId, {});
       }
 
       logger.error({
@@ -122,7 +121,7 @@ export class SSOController {
         SSOError.internalError('An unexpected error occurred'),
         event,
         correlationId,
-        rateLimitHeaders
+        {}
       );
     }
   }

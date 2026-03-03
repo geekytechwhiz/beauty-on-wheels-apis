@@ -1,4 +1,8 @@
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import {
+  createLogger,
+  createChildLogger,
+  serializeError,
+} from '@api-hub/logger';
 import { getTruTechAdapter } from '../adapters/TruTech.adapter';
 import { getUserServiceClient } from './user.client';
 import { getDoctorMapperHelper } from '../utils/helper/doctor.mapper.helper';
@@ -6,7 +10,10 @@ import { getPatientEventPublisher } from './patient-event-publisher.service';
 import { getSSOConfig } from '../config/sso-config';
 import { SSOError, TruTechVerifiedPayload, Appointment, User } from '../types';
 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true,
+});
 
 export interface LaunchProcessResult {
   doctor: User;
@@ -22,7 +29,9 @@ export interface LaunchProcessResult {
  * - Patient event publishing (asynchronous, event-driven)
  */
 export class LaunchService {
-  private readonly logger = createChildLogger(baseLogger, { component: 'LaunchService' });
+  private readonly logger = createChildLogger(baseLogger, {
+    component: 'LaunchService',
+  });
   private readonly truTechAdapter = getTruTechAdapter();
   private readonly userServiceClient = getUserServiceClient();
   private readonly doctorMapper = getDoctorMapperHelper();
@@ -42,7 +51,10 @@ export class LaunchService {
     });
 
     try {
-      const payload = await this.truTechAdapter.verifyLaunchToken(launchToken, correlationId);
+      const payload = await this.truTechAdapter.verifyLaunchToken(
+        launchToken,
+        correlationId,
+      );
 
       logger.info({
         event: 'launch_verify_success',
@@ -67,7 +79,10 @@ export class LaunchService {
         err: serializeError(error as Error),
       });
 
-      throw SSOError.internalError('Failed to verify launch token', error as Error);
+      throw SSOError.internalError(
+        'Failed to verify launch token',
+        error as Error,
+      );
     }
   }
 
@@ -77,7 +92,7 @@ export class LaunchService {
    * 2. Fetch today's appointments
    * 3. Check/create doctor (synchronous - blocking)
    * 4. Publish patient creation events (asynchronous - fire and forget)
-   * 
+   *
    * @param launchToken - Launch token from TruTech
    * @param correlationId - Correlation ID for tracing
    * @returns Launch process result with doctor and appointments
@@ -94,7 +109,10 @@ export class LaunchService {
 
     try {
       // Step 1: Verify launch token
-      const verifiedPayload = await this.verifyLaunchToken(launchToken, correlationId);
+      const verifiedPayload = await this.verifyLaunchToken(
+        launchToken,
+        correlationId,
+      );
 
       // Step 2: Fetch today's appointments
       const appointments = await this.truTechAdapter.getTodaysAppointments(
@@ -108,32 +126,43 @@ export class LaunchService {
       });
 
       // Step 3: Check if doctor exists, create if not (SYNCHRONOUS - blocking)
-      const doctor = await this.ensureDoctorExists(
-        verifiedPayload,
-        appointments[0]?.doctor,
-        correlationId,
-      );
+      // const doctor = await this.ensureDoctorExists(
+      //   verifiedPayload,
+      //   appointments[0]?.doctor,
+      //   correlationId,
+      // );
 
       // Step 4: Publish patient creation events (ASYNCHRONOUS - fire and forget)
-      const patientEventsPublished = await this.publishPatientCreationEvents(
-        appointments,
-        doctor,
-        doctor.id,
-        verifiedPayload.tenantId,
-        correlationId,
-      );
+      // const patientEventsPublished = await this.publishPatientCreationEvents(
+      //   appointments,
+      //   doctor,
+      //   doctor.id,
+      //   verifiedPayload.tenantId,
+      //   correlationId,
+      // );
 
-      logger.info({
-        event: 'launch_process_success',
-        doctorId: doctor.id,
-        appointmentCount: appointments.length,
-        patientEventsPublished,
-      });
+      // logger.info({
+      //   event: 'launch_process_success',
+      //   doctorId: doctor.id,
+      //   appointmentCount: appointments.length,
+      //   patientEventsPublished,
+      // });
 
       return {
-        doctor,
+        doctor: {
+          id: verifiedPayload.doctorId,
+          externalId: verifiedPayload.doctorUid,
+          provider: 'TruTech',
+          tenantId: verifiedPayload.tenantId,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(), 
+          doctorId: verifiedPayload.doctorId,
+          partnerSource: 'HMS',
+          launchSource: 'TruTech',
+        },
         appointments,
-        patientEventsPublished,
+        patientEventsPublished: 0,
       };
     } catch (error) {
       if (error instanceof SSOError) {
@@ -159,7 +188,7 @@ export class LaunchService {
    * Ensures doctor exists in our system.
    * Checks by external_id, creates if not found.
    * This is SYNCHRONOUS and BLOCKING - must complete before proceeding.
-   * 
+   *
    * @param verifiedPayload - Verified payload from TruTech
    * @param appointmentDoctor - Optional doctor data from appointment
    * @param correlationId - Correlation ID for logging
@@ -232,7 +261,7 @@ export class LaunchService {
   /**
    * Publishes patient creation events for all unique patients in appointments.
    * This is ASYNCHRONOUS and NON-BLOCKING - fire and forget.
-   * 
+   *
    * @param appointments - Appointments from TruTech
    * @param doctor - Doctor user object (for getting doctor name)
    * @param doctorId - Our system's doctor user ID
@@ -276,9 +305,10 @@ export class LaunchService {
 
     // Get doctor name for patient assignment (use doctor's name from User object or fallback)
     // The User object may have firstName/lastName or a name field
-    const doctorName = (doctor as any).firstName || (doctor as any).lastName
-      ? `${(doctor as any).firstName || ''} ${(doctor as any).lastName || ''}`.trim()
-      : (doctor as any).name || undefined;
+    const doctorName =
+      (doctor as any).firstName || (doctor as any).lastName
+        ? `${(doctor as any).firstName || ''} ${(doctor as any).lastName || ''}`.trim()
+        : (doctor as any).name || undefined;
 
     // Create events for each unique patient
     const events = Array.from(uniquePatients.values()).map((patient) =>
@@ -294,7 +324,10 @@ export class LaunchService {
     );
 
     // Publish events in batch (fire and forget)
-    await this.patientEventPublisher.publishPatientCreationEventsBatch(events, correlationId);
+    await this.patientEventPublisher.publishPatientCreationEventsBatch(
+      events,
+      correlationId,
+    );
 
     logger.info({
       event: 'patient_events_publish_complete',
@@ -313,4 +346,3 @@ export function getLaunchService(): LaunchService {
   }
   return launchServiceInstance;
 }
-

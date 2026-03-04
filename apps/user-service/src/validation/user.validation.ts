@@ -149,6 +149,16 @@ export const createUserSchema = z.object({
   }
 });
 
+/**
+ * Schema for /users/validateusers endpoint.
+ * Currently validates that all three fields are non-empty strings.
+ */
+export const validateUserExistsSchema = z.object({
+  provider: z.string().min(1, 'provider is required'),
+  externalId: z.string().min(1, 'externalId is required'),
+  tenantId: z.string().optional(),
+});
+
 export const updateUserSchema = z.object({
   userId: z.string().optional(),
   profilePic: z.string().optional(),

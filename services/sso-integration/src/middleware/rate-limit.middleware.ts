@@ -1,7 +1,8 @@
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { createLogger, createChildLogger } from '@api-hub/logger';
 import { getEnvConfig } from '../config/env';
-import { SSOError, RateLimitState } from '../types';
+import { SSOError } from '../types/errors/sso-error';
+import { RateLimitState } from '../types/appointment.types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 const logger = createChildLogger(baseLogger, { component: 'RateLimitMiddleware' });

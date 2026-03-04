@@ -32,6 +32,9 @@ export interface DoctorCreationPayload {
   userRole: string[];
   userType: 'STAFF';
   organizationID: string;
+  externalId: string;
+  provider: string;
+  subDomain: string;
 }
 
 /**

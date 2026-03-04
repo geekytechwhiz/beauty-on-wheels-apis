@@ -1,36 +1,10 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { Patient } from '../types';
+import { PatientCreationEvent } from '../types/events';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
-export interface PatientCreationEvent {
-  eventType: 'patient.creation.requested';
-  eventId: string;
-  timestamp: string;
-  correlationId: string;
-  data: {
-    patient: {
-      id: number;
-      name: string;
-      email?: string;
-      phone?: string;
-      gender: string;
-      dob?: string;
-      mrn?: string;
-    };
-    doctorId: string;
-    doctorName?: string; // Doctor name for patient assignment
-    organizationID: string;
-    tenantId: string;
-    provider: string;
-    externalId: string;
-  };
-  metadata?: {
-    retryCount?: number;
-    source: 'sso-integration';
-  };
-}
 
 /**
  * Service for publishing patient creation events to SQS event bus.
@@ -236,12 +210,10 @@ export class PatientEventPublisher {
    */
   createPatientCreationEvent(
     patient: Patient,
-    doctorId: string,
-    organizationID: string,
-    tenantId: string,
+    doctorId: number|string,
+    organizationID: string, 
     provider: string,
-    correlationId: string,
-    doctorName?: string,
+    correlationId: string, 
   ): PatientCreationEvent {
     return {
       eventType: 'patient.creation.requested',
@@ -253,15 +225,13 @@ export class PatientEventPublisher {
           id: patient.id,
           name: patient.name,
           email: patient.email,
-          phone: patient.phone,
+          phone: patient.phone || null,
           gender: patient.gender,
-          dob: patient.dateOfBirth,
-          mrn: patient.mrn,
+          dob: patient.dob,
+          mrn: patient.mrn, 
         },
         doctorId,
-        doctorName,
         organizationID,
-        tenantId,
         provider,
         externalId: String(patient.id),
       },

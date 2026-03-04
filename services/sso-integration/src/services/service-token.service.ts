@@ -1,145 +1,152 @@
-import * as jwt from 'jsonwebtoken';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
-import { getEnvConfig } from '../config/env';
+import * as jwt from 'jsonwebtoken'
+import { randomUUID } from 'crypto'
 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+import {
+  createLogger,
+  createChildLogger,
+  serializeError
+} from '@api-hub/logger'
 
-const SERVICE_TOKEN_ISSUER = 'firminiq-integration';
-const SERVICE_TOKEN_AUDIENCE = 'myvitalrx-api';
-const SERVICE_TOKEN_SUBJECT = 'integration-hms';
-const SERVICE_TOKEN_EXPIRY_SECONDS = 60 * 60; // 1 hour
+import { getEnvConfig } from '../config/env'
+import {
+  ServiceTokenContext,
+  ServiceTokenResult
+} from '../types/launch.types'
+import { ServiceTokenPayload } from '../types/servicesToken.type'
 
-export type ServiceUserRole = 'PATIENT' | 'DOCTOR';
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true
+})
 
-export interface ServiceTokenContext {
-  userId: string;
-  role: ServiceUserRole;
-  appointmentId?: string | number;
-}
 
-export interface ServiceTokenResult {
-  token: string;
-  expiresIn: number;
-  userId: string;
-  role: ServiceUserRole;
-}
-
-/**
- * Service responsible for issuing and verifying internal service-level JWTs.
- *
- * These tokens:
- * - Are issued after HMS SSO launch (doctor/patient verified or created).
- * - Carry minimal user context needed by downstream APIs.
- * - Are signed with SERVICE_TOKEN_SECRET using HS256 (symmetric key).
- * - Are completely separate from Cognito access/ID tokens.
- */
 export class ServiceTokenService {
+
   private readonly logger = createChildLogger(baseLogger, {
-    component: 'ServiceTokenService',
-  });
-  private readonly secret: string;
+    component: 'ServiceTokenService'
+  })
+
+  private readonly secret: string
+  private readonly issuer: string
+  private readonly audience: string
 
   constructor() {
-    const env = getEnvConfig();
-    this.secret = env.SERVICE_TOKEN_SECRET;
+
+    this.secret = process.env.SERVICE_TOKEN_SECRET || ''
+    this.issuer = process.env.SERVICE_TOKEN_ISSUER || "firminiq-integration"
+    this.audience = process.env.SERVICE_TOKEN_AUDIENCE || "myvitalrx-api"
 
     if (!this.secret) {
+
       this.logger.warn({
-        event: 'service_token_secret_missing',
-        message:
-          'SERVICE_TOKEN_SECRET is not configured. Service tokens cannot be generated or verified.',
-      });
+        event: "service_token_secret_missing"
+      })
+
     }
+
   }
 
-  /**
-   * Generates a signed service-level JWT containing the provided user context.
-   *
-   * Payload shape:
-   * {
-   *   iss: "firminiq-integration",
-   *   aud: "myvitalrx-api",
-   *   sub: "integration-hms",
-   *   tenantId: "<organizationId>",
-   *   context: { userId, role, appointmentId? },
-   *   iat,
-   *   exp
-   * }
-   */
   generateToken(
     tenantId: string,
     context: ServiceTokenContext,
-    correlationId?: string,
+    correlationId?: string
   ): ServiceTokenResult {
-    const logger = createChildLogger(this.logger, { correlationId, tenantId, userId: context.userId });
+
+    const logger = createChildLogger(this.logger, {
+      correlationId,
+      tenantId,
+      userId: context.userId
+    })
 
     if (!this.secret) {
-      const error = new Error('SERVICE_TOKEN_SECRET is not configured');
+
+      const error = new Error("SERVICE_TOKEN_SECRET missing")
+
       logger.error({
-        event: 'service_token_generate_missing_secret',
-        err: serializeError(error),
-      });
-      throw error;
+        event: "service_token_generate_failed",
+        err: serializeError(error)
+      })
+
+      throw error
+
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const exp = now + SERVICE_TOKEN_EXPIRY_SECONDS;
+    const now = Math.floor(Date.now() / 1000)
 
-    const payload = {
-      iss: SERVICE_TOKEN_ISSUER,
-      aud: SERVICE_TOKEN_AUDIENCE,
-      sub: SERVICE_TOKEN_SUBJECT,
+    const payload: ServiceTokenPayload = {
+
+      iss: this.issuer,
+
+      aud: this.audience,
+
+      sub: "integration-hms",
+
+      tokenType: "SERVICE",
+
       tenantId,
-      context: {
-        userId: context.userId,
-        role: context.role,
-        ...(context.appointmentId != null && { appointmentId: context.appointmentId }),
-      },
-      iat: now,
-      exp,
-    };
 
-    const token = jwt.sign(payload, this.secret, {
-      algorithm: 'HS256',
-    });
+      context,
+
+      jti: randomUUID(),
+
+      iat: now,
+
+      exp: now + 3600
+
+    }
+
+    const token = jwt.sign(
+      payload,
+      this.secret,
+      { algorithm: "HS256" }
+    )
 
     logger.info({
-      event: 'service_token_generated',
-      role: context.role,
-      expiresIn: SERVICE_TOKEN_EXPIRY_SECONDS,
-    });
+      event: "service_token_generated",
+      role: context.role
+    })
 
     return {
       token,
-      expiresIn: SERVICE_TOKEN_EXPIRY_SECONDS,
+      expiresIn: 3600,
       userId: context.userId,
-      role: context.role,
-    };
-  }
-
-  /**
-   * Verifies a service token and returns the decoded payload.
-   * Intended for use by downstream APIs or middleware.
-   */
-  verifyToken(token: string): any {
-    if (!this.secret) {
-      throw new Error('SERVICE_TOKEN_SECRET is not configured');
+      role: context.role
     }
 
-    return jwt.verify(token, this.secret, {
-      algorithms: ['HS256'],
-      issuer: SERVICE_TOKEN_ISSUER,
-      audience: SERVICE_TOKEN_AUDIENCE,
-    });
   }
+
+  verifyToken(token: string): ServiceTokenPayload {
+
+    if (!this.secret) {
+
+      throw new Error("SERVICE_TOKEN_SECRET missing")
+
+    }
+
+    return jwt.verify(
+      token,
+      this.secret,
+      {
+        algorithms: ["HS256"],
+        issuer: this.issuer,
+        audience: this.audience
+      }
+    ) as ServiceTokenPayload
+
+  }
+
 }
 
-let serviceTokenServiceInstance: ServiceTokenService | null = null;
+let instance: ServiceTokenService | null = null
 
-export function getServiceTokenService(): ServiceTokenService {
-  if (!serviceTokenServiceInstance) {
-    serviceTokenServiceInstance = new ServiceTokenService();
+export function getServiceTokenService() {
+
+  if (!instance) {
+
+    instance = new ServiceTokenService()
+
   }
-  return serviceTokenServiceInstance;
-}
 
+  return instance
+
+}

@@ -3,7 +3,7 @@ import { createLogger, createChildLogger, extractCorrelationId, serializeError }
 import { ApiResponse } from '@api-hub/utils';
 import { getAppointmentsService } from '../services/appointments.service';
 import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
-import { SSOError } from '../types';
+import { SSOError } from '../types/errors/sso-error';
 import { loadEnvConfig } from '../config/env';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });

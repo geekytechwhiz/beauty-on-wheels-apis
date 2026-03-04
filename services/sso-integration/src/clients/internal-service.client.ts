@@ -1,5 +1,5 @@
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
-import { getTruTechAdapter } from '../adapters/TruTech.adapter';
+import { getTruTechAdapter } from '../adapters/trutech.adapter.ts';
 import { Appointment, PatientEMRSummary, SSOError } from '../types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });

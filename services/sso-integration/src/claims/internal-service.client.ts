@@ -14,7 +14,6 @@ const baseLogger = createLogger({ service: 'sso-integration', redactPII: true })
 export class InternalServiceClient {
   private readonly logger = createChildLogger(baseLogger, { component: 'InternalServiceClient' });
   private readonly truTechAdapter = getTruTechAdapter();
-
   async getTodaysAppointments(
     doctorId: number,
     correlationId: string

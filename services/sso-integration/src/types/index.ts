@@ -346,6 +346,8 @@ export interface User {
   cognitoUsername?: string;
   doctorId?: number;
   partnerSource?: string;
+  organizationId?: string;
+  
   launchSource?: string;
   createdAt: string;
   updatedAt: string;

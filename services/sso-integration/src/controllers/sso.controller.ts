@@ -2,9 +2,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createLogger, createChildLogger, extractCorrelationId, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils'; 
-import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
 import { SSOError } from '../types';
-import { loadEnvConfig } from '../config/env';
 import { getLaunchService } from '../services/launch.service';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -63,7 +61,8 @@ export class SSOController {
         correlationId
       );
 
-      // Process full launch flow: verify token, create/retrieve doctor, publish patient events
+      // Process full launch flow: verify token, create/retrieve doctor, publish patient events,
+      // and generate short-lived service token containing user context.
       const launchResult = await this.launchService.processLaunch(launchToken, correlationId);
 
       const duration = Date.now() - startTime;
@@ -86,6 +85,11 @@ export class SSOController {
           },
           appointments: launchResult.appointments,
           patientEventsPublished: launchResult.patientEventsPublished,
+          // Service token issued for downstream APIs; NOT a Cognito login token.
+          token: launchResult.serviceToken.token,
+          expiresIn: launchResult.serviceToken.expiresIn,
+          userId: launchResult.serviceToken.userId,
+          role: launchResult.serviceToken.role,
         },
         { title: 'Success', description: 'Launch processed successfully' },
         {

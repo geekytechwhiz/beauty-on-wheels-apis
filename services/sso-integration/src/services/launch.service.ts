@@ -8,6 +8,7 @@ import { getUserServiceClient } from './user.client';
 import { getDoctorMapperHelper } from '../utils/helper/doctor.mapper.helper';
 import { getPatientEventPublisher } from './patient-event-publisher.service';
 import { getSSOConfig } from '../config/sso-config';
+import { getServiceTokenService, ServiceTokenResult } from './service-token.service';
 import { SSOError, TruTechVerifiedPayload, Appointment, User } from '../types';
 
 const baseLogger = createLogger({
@@ -19,14 +20,32 @@ export interface LaunchProcessResult {
   doctor: User;
   appointments: Appointment[];
   patientEventsPublished: number;
+  serviceToken: ServiceTokenResult;
 }
 
 /**
- * Service for processing SSO launch requests.
- * Handles:
- * - Token verification
- * - Doctor creation/retrieval (synchronous)
- * - Patient event publishing (asynchronous, event-driven)
+ * High-level SSO launch flow (existing behavior):
+ *
+ * /sso/launch Lambda handler (`handlers/sso/launch.ts`)
+ *   → `SSOController.handleLaunch` (`controllers/sso.controller.ts`)
+ *   → `LaunchService.processLaunch` (this file)
+ *
+ * `processLaunch` orchestrates:
+ *   1) Verify HMS launch token with TruTech via
+ *      `TruTechAdapter.verifyLaunchToken` (`adapters/TruTech.adapter.ts`).
+ *   2) Fetch today's appointments via `TruTechAdapter.getTodaysAppointments`.
+ *   3) Ensure the doctor exists in our User Service via `ensureDoctorExists`,
+ *      which calls `UserServiceClient.createDoctor` (`services/user.client.ts`)
+ *      when the doctor is missing. The User Service creates the internal user
+ *      and the corresponding Cognito user.
+ *   4) (Planned / asynchronous) publish patient creation events using
+ *      `PatientEventPublisher` (`services/patient-event-publisher.service.ts`).
+ *      Those events are consumed by the `patient-creation-event-consumer`
+ *      Lambda, which calls `UserServiceClient.createPatient` to create patient
+ *      users (and their Cognito users) in the background.
+ *
+ * On successful launch, `SSOController.handleLaunch` returns an API Gateway
+ * response containing the doctor summary and the list of appointments.
  */
 export class LaunchService {
   private readonly logger = createChildLogger(baseLogger, {
@@ -36,6 +55,7 @@ export class LaunchService {
   private readonly userServiceClient = getUserServiceClient();
   private readonly doctorMapper = getDoctorMapperHelper();
   private readonly patientEventPublisher = getPatientEventPublisher();
+  private readonly serviceTokenService = getServiceTokenService();
 
   /**
    * Verifies launch token with TruTech.
@@ -126,12 +146,12 @@ export class LaunchService {
       });
       console.log("APPOINTMENTS ",appointments)
       // Step 3: Check if doctor exists, create if not (SYNCHRONOUS - blocking)
-      const doctor = await this.ensureDoctorExists(
+      const doctorUser = await this.ensureDoctorExists(
         verifiedPayload,
         appointments[0]?.doctor,
         correlationId,
       );
-      console.log("DOCTOR : ",doctor)
+      console.log("DOCTOR USER : ", doctorUser);
       // Step 4: Publish patient creation events (ASYNCHRONOUS - fire and forget)
       // const patientEventsPublished = await this.publishPatientCreationEvents(
       //   appointments,
@@ -148,6 +168,20 @@ export class LaunchService {
       //   patientEventsPublished,
       // });
 
+      // Step 5: Generate a short-lived service token containing user context
+      const primaryAppointmentId =
+        appointments[0]?.appointmentId ?? (appointments[0] as any)?.id;
+
+      const serviceToken = this.serviceTokenService.generateToken(
+        doctorUser.organizationID,
+        {
+          userId: doctorUser.id,
+          role: 'DOCTOR',
+          appointmentId: primaryAppointmentId,
+        },
+        correlationId,
+      );
+
       return {
         doctor: {
           id: verifiedPayload.doctorId,
@@ -156,13 +190,14 @@ export class LaunchService {
           tenantId: verifiedPayload.tenantId,
           status: 'ACTIVE',
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(), 
+          updatedAt: new Date().toISOString(),
           doctorId: verifiedPayload.doctorId,
           partnerSource: 'HMS',
           launchSource: 'TruTech',
         },
         appointments,
         patientEventsPublished: 0,
+        serviceToken,
       };
     } catch (error) {
       if (error instanceof SSOError) {

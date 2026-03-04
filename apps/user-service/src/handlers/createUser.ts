@@ -112,7 +112,7 @@ export async function createUser(
   if (body.provider === 'TruTech' && body.userID && body.organizationID) {
     await userRepository.checkUserExists(body.userID, body.organizationID);
   }
-  
+  console.log("BODY DATA AFTER TRUTECH CHECK USER EXISTS : ",body)
   try {
     const { userInfo, userRole, userType } = validation.data;
     const organizationID = body.organizationID;

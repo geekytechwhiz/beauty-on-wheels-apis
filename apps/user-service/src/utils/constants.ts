@@ -12,17 +12,15 @@ export const PATH_V2_USER_LIST = '/v2/user/list';
 export const WELCOME_MESSAGE = 'Welcome to {{ORG_NAME}}. Your account has been created. Thank you for MyVitalRx.';
 
 // Email templates and messages
-export const INVITE_EMAIL_SUBJECT = 'Welcome to Component Backend.';
-export const INVITE_EMAIL_MESSAGE = `
-\tHello,
-    <br> <br> You have been invited to join the backend component project. Your temporary credentials have been created.
-    <br> <br>You can log in with {{USER_EMAIL}}
-\t<br> <br>Please use the above login credential to access the component project.<br><br>
-\tIf you are unable to access the link above, please copy and paste the URL below directly into your browser:
-\t<br> <br>URL: <a href="{{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}" target="_blank">{{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}</a>
-\t<br><br>
-    {{CURRENT_YEAR}}<br><br>
-    This email message was sent from a notification-only address that cannot accept incoming email. Do not reply to this message.
+
+export const INVITE_EMAIL_SUBJECT = 'Welcome to {{ORG_NAME}}, {{USER_FIRST_NAME}}!';
+export const INVITE_EMAIL_MESSAGE = `Dear {{USER_FIRST_NAME}},
+<br><br>We welcome you to {{ORG_NAME}}, where your health and well-being are our top priorities. To get started and access our services, please sign in by clicking the link below:
+<br><br><a href="{{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}" target="_blank" style="color: blue; font-weight:bold">Download here</a>
+<br><br>Our entire medical team is committed to providing you with personalized and compassionate care. If you have any questions or need assistance, please do not hesitate to contact us.
+<br><br>We look forward to being your trusted partner in health.
+<br><br>Warm regards,
+<br><br>{{ORG_INFO}}
 `;
 export const SUCCESS_MESSAGE = 'Invitation sent successfully';
 export const SMS_MESSAGE = `You have been invited to join the backend component project. Your temporary credentials have been created.

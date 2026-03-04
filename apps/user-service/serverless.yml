@@ -750,6 +750,18 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+
+  validateUsers:
+    handler: src/handlers/validateUsers.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: users/validateusers
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
   getOrganizationUserCount:
     handler: src/handlers/getOrganizationUserCount.main
     

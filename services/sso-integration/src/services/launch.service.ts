@@ -8,7 +8,13 @@ import { getUserServiceClient } from './user.client';
 import { getDoctorMapperHelper } from '../utils/helper/doctor.mapper.helper';
 import { getPatientEventPublisher } from './patient-event-publisher.service';
 import { getSSOConfig } from '../config/sso-config';
-import { SSOError, TruTechVerifiedPayload, Appointment, User } from '../types';
+import {
+  SSOError,
+  TruTechVerifiedPayload,
+  Appointment,
+  User,
+  CognitoTokens,
+} from '../types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -113,8 +119,59 @@ export class LaunchService {
         launchToken,
         correlationId,
       );
-      console.log("VERIFIED PAYLOAD ",verifiedPayload)
-      // Step 2: Fetch today's appointments
+      console.log('VERIFIED PAYLOAD ', verifiedPayload);
+
+      // Step 2: Validate if corresponding user already exists in our system
+      const existingUser = await this.validateUserExists(
+        verifiedPayload,
+        correlationId,
+      );
+
+      // If user already exists in our system, we can generate Cognito JWT for that user.
+      // (Not yet wired into the final response – this only sets up the flow.)
+      if (existingUser) {
+        this.logger.info({
+          event: 'launch_user_exists',
+          correlationId,
+          userId: existingUser.id,
+        });
+      } else {
+        this.logger.info({
+          event: 'launch_user_not_found',
+          correlationId,
+        });
+
+        const logger = createChildLogger(this.logger, { correlationId });
+        const provider = 'TruTech';
+        const externalId = String(verifiedPayload.doctorUid);
+
+        this.logger.info({
+          event: 'doctor_ensure_create',
+          externalId,
+        });
+
+        const doctorPayload = this.doctorMapper.mapTruTechDoctorToOurSystem(
+          verifiedPayload,
+          correlationId,
+        );
+    
+        const newDoctor = await this.userServiceClient.createDoctor(
+          doctorPayload,
+          externalId,
+          provider,
+          verifiedPayload.tenantId,
+          correlationId || '',
+        );
+    
+        logger.info({
+          event: 'doctor_ensure_created',
+          userId: newDoctor.id,
+          externalId,
+        });
+    
+        console.log("NEW USER CREATED : ",newDoctor);
+      }
+      
       const appointments = await this.truTechAdapter.getTodaysAppointments(
         verifiedPayload.doctorId,
         correlationId,
@@ -126,12 +183,7 @@ export class LaunchService {
       });
       console.log("APPOINTMENTS ",appointments)
       // Step 3: Check if doctor exists, create if not (SYNCHRONOUS - blocking)
-      const doctor = await this.ensureDoctorExists(
-        verifiedPayload,
-        appointments[0]?.doctor,
-        correlationId,
-      );
-      console.log("DOCTOR : ",doctor)
+      
       // Step 4: Publish patient creation events (ASYNCHRONOUS - fire and forget)
       // const patientEventsPublished = await this.publishPatientCreationEvents(
       //   appointments,
@@ -257,6 +309,67 @@ export class LaunchService {
 
     return newDoctor;
   }
+
+  /**
+   * Validates whether the corresponding user already exists in our system.
+   * Unlike ensureDoctorExists, this function DOES NOT create a new user.
+   * It simply looks up by external_id + provider + tenantId and returns
+   * the existing user if found, otherwise null.
+   *
+   * @param verifiedPayload - Verified payload from TruTech
+   * @param correlationId - Correlation ID for logging
+   * @returns Existing user if found, otherwise null
+   */
+  private async validateUserExists(
+    verifiedPayload: TruTechVerifiedPayload,
+    correlationId: string,
+  ): Promise<User | null> {
+    const logger = createChildLogger(this.logger, { correlationId });
+    const provider = 'TruTech';
+    const externalId = String(verifiedPayload.doctorUid);
+
+    logger.info({
+      event: 'user_validate_start',
+      externalId,
+      provider,
+      tenantId: verifiedPayload.tenantId,
+    });
+
+    try {
+      const existingUser = await this.userServiceClient.findByExternalId(
+        {
+          provider,
+          externalId,
+          tenantId: verifiedPayload.tenantId,
+        },
+        correlationId,
+      );
+
+      if (existingUser) {
+        logger.info({
+          event: 'user_validate_exists',
+          userId: existingUser.id,
+          externalId,
+        });
+        return existingUser;
+      }
+
+      logger.info({
+        event: 'user_validate_not_found',
+        externalId,
+      });
+      return null;
+    } catch (error) {
+      logger.error({
+        event: 'user_validate_error',
+        err: serializeError(error as Error),
+        externalId,
+        provider,
+      });
+      throw error;
+    }
+  }
+
 
   /**
    * Publishes patient creation events for all unique patients in appointments.

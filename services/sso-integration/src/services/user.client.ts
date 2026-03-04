@@ -62,10 +62,10 @@ export class UserServiceClient {
     });
     console.log("FIND BY ID :",this.client)
     try {
-      const response = await this.client.get<{ data: User }>(`/user/organization/mm1usge33d4f9b61/01KJA3E9Q7HMQXAPYZTC85972B`, {
+      const response = await this.client.post<{ data: User }>(`/users/validateusers`, {
         params: {
           provider: params.provider,
-          external_id: params.externalId,
+          externalId: params.externalId,
           tenant_id: params.tenantId,
         },
         headers: {

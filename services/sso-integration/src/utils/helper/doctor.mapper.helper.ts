@@ -17,13 +17,11 @@ export class DoctorMapperHelper {
    * Maps TruTech verified payload and appointment doctor data to our system format.
    * 
    * @param verifiedPayload - Verified payload from TruTech token verification
-   * @param appointmentDoctor - Optional doctor data from appointment (may have additional fields)
    * @param correlationId - Correlation ID for logging
    * @returns Doctor creation payload for user service
    */
   mapTruTechDoctorToOurSystem(
     verifiedPayload: TruTechVerifiedPayload,
-    appointmentDoctor?: Doctor,
     correlationId?: string,
   ): DoctorCreationPayload {
     const logger = createChildLogger(this.logger, { correlationId });
@@ -32,14 +30,14 @@ export class DoctorMapperHelper {
     logger.info({
       event: 'doctor_mapping_start',
       doctorId: verifiedPayload.doctorId,
-      hasAppointmentDoctor: !!appointmentDoctor,
+      hasAppointmentDoctor: '',
     });
 
     // Use appointment doctor data if available, otherwise use verified payload
-    const doctorName = appointmentDoctor?.name || verifiedPayload.doctorName || '';
-    const doctorEmail = appointmentDoctor?.email || verifiedPayload.doctorEmail;
-    const doctorPhone = appointmentDoctor?.phone || verifiedPayload.doctorPhone;
-    const department = appointmentDoctor?.department || verifiedPayload.department || '';
+    const doctorName = verifiedPayload.doctorName || '';
+    const doctorEmail = verifiedPayload.doctorEmail;
+    const doctorPhone = verifiedPayload.doctorPhone;
+    const department = verifiedPayload.department || '';
 
     // Validate required fields
     if (!doctorName || doctorName.trim() === '') {

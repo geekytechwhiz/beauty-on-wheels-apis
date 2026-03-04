@@ -20,10 +20,8 @@ export class UserServiceClient {
     const envConfig = getEnvConfig();
     const baseUrl = config?.baseUrl || envConfig.USER_SERVICE_BASE_URL;
     // Use Bearer token auth instead of internal API key header
-    const organizationd = "mm1usge33d4f9b61";
-    const userId = "01KJA3E9Q7HMQXAPYZTC85972B";
     // const token = config?.apiKey || envConfig.USER_SERVICE_INTERNAL_API_KEY;
-    const token = "eyJraWQiOiJrb3JVYlwveXljUmNtY05EaEVNXC9MdFFPZE1MOElOSnJBdUh6MTU3TU5LMlE9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI5YzlkOGQzNS1hOTI4LTQzNzEtOTI3ZS02OWM1ZDg5ZDQ1NGIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLWVhc3QtMS5hbWF6b25hd3MuY29tXC91cy1lYXN0LTFfQUsxSFR4ZGxYIiwicGhvbmVfbnVtYmVyX3ZlcmlmaWVkIjp0cnVlLCJjb2duaXRvOnVzZXJuYW1lIjoiOWM5ZDhkMzUtYTkyOC00MzcxLTkyN2UtNjljNWQ4OWQ0NTRiIiwiY3VzdG9tOm9yZ2FuaXphdGlvbklEIjoibW0xdXNnZTMzZDRmOWI2MSIsImN1c3RvbTp1c2VySUQiOiIwMUtKQTNFOVE3SE1RWEFQWVpUQzg1OTcyQiIsImN1c3RvbTp1c2VyVHlwZSI6IlNUQUZGIiwiYXVkIjoiNnY2OHIyc3R0OWI0cmdyM3U4MzQ4YnNsc2kiLCJldmVudF9pZCI6ImQ0N2IxMzRiLWVkODUtNDNjMi05NzZhLTllZjljZWQyODc0NyIsInRva2VuX3VzZSI6ImlkIiwiY3VzdG9tOnNyYyI6InRydWV0ZWNoYWRtaW5AeW9wbWFpbC5jb20iLCJhdXRoX3RpbWUiOjE3NzIwMzQxMzMsInBob25lX251bWJlciI6Iis5MTk4OTA5MDk4MDkiLCJleHAiOjE3NzIwMzUwMzMsImN1c3RvbTpwZXJtaXNzaW9ucyI6IltdIiwiY3VzdG9tOnJvbGUiOiJbXCI3MTZmN2Q0Yi0yOGM0LTRiYWEtYWZjMS0yODQyMWE2ZDI2MDhcIl0iLCJpYXQiOjE3NzIwMzQxMzMsImVtYWlsIjoidHJ1ZXRlY2hhZG1pbkB5b3BtYWlsLmNvbSJ9.h6NmMyV37-JzyRqwvwhGr86zLiVaZeDtNur1ZSiy0RgdkCS-OUj6va5wygVY_iCPor7BZxKGyjHQfAOW7laOVs18WQASBfR_jioMmwtQiCGrCANsXGXlozEjGks4UXc-Ks1RyH1BStkOJtbCHRpFxJhThZzB3kbcx5WNNYll2b-6MjlxMCkmK7A2vzQDbSmpgoXUMfAXD48wydmWej1mX047AkCI75ZG4YBXYE1up-pL32Nz0tr5cRdlhfTHCHoAe8Po1myezfl1rAq02RiZnlYd0xuSukVO_S8Cm8R5OZl3Qr0OTsYBZJp0VJ7F2PItu58J-QQ5UvGRAkmyXkNLQQ"
+    // const token = "eyJraWQiOiJrb3JVYlwveXljUmNtY05EaEVNXC9MdFFPZE1MOElOSnJBdUh6MTU3TU5LMlE9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI5YzlkOGQzNS1hOTI4LTQzNzEtOTI3ZS02OWM1ZDg5ZDQ1NGIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLWVhc3QtMS5hbWF6b25hd3MuY29tXC91cy1lYXN0LTFfQUsxSFR4ZGxYIiwicGhvbmVfbnVtYmVyX3ZlcmlmaWVkIjp0cnVlLCJjb2duaXRvOnVzZXJuYW1lIjoiOWM5ZDhkMzUtYTkyOC00MzcxLTkyN2UtNjljNWQ4OWQ0NTRiIiwiY3VzdG9tOm9yZ2FuaXphdGlvbklEIjoibW0xdXNnZTMzZDRmOWI2MSIsImN1c3RvbTp1c2VySUQiOiIwMUtKQTNFOVE3SE1RWEFQWVpUQzg1OTcyQiIsImN1c3RvbTp1c2VyVHlwZSI6IlNUQUZGIiwiYXVkIjoiNnY2OHIyc3R0OWI0cmdyM3U4MzQ4YnNsc2kiLCJldmVudF9pZCI6ImQ0N2IxMzRiLWVkODUtNDNjMi05NzZhLTllZjljZWQyODc0NyIsInRva2VuX3VzZSI6ImlkIiwiY3VzdG9tOnNyYyI6InRydWV0ZWNoYWRtaW5AeW9wbWFpbC5jb20iLCJhdXRoX3RpbWUiOjE3NzIwMzQxMzMsInBob25lX251bWJlciI6Iis5MTk4OTA5MDk4MDkiLCJleHAiOjE3NzIwMzUwMzMsImN1c3RvbTpwZXJtaXNzaW9ucyI6IltdIiwiY3VzdG9tOnJvbGUiOiJbXCI3MTZmN2Q0Yi0yOGM0LTRiYWEtYWZjMS0yODQyMWE2ZDI2MDhcIl0iLCJpYXQiOjE3NzIwMzQxMzMsImVtYWlsIjoidHJ1ZXRlY2hhZG1pbkB5b3BtYWlsLmNvbSJ9.h6NmMyV37-JzyRqwvwhGr86zLiVaZeDtNur1ZSiy0RgdkCS-OUj6va5wygVY_iCPor7BZxKGyjHQfAOW7laOVs18WQASBfR_jioMmwtQiCGrCANsXGXlozEjGks4UXc-Ks1RyH1BStkOJtbCHRpFxJhThZzB3kbcx5WNNYll2b-6MjlxMCkmK7A2vzQDbSmpgoXUMfAXD48wydmWej1mX047AkCI75ZG4YBXYE1up-pL32Nz0tr5cRdlhfTHCHoAe8Po1myezfl1rAq02RiZnlYd0xuSukVO_S8Cm8R5OZl3Qr0OTsYBZJp0VJ7F2PItu58J-QQ5UvGRAkmyXkNLQQ"
     const timeout = config?.timeoutMs || 10000;
 
     this.client = axios.create({
@@ -32,7 +30,7 @@ export class UserServiceClient {
       headers: {
         'Content-Type': 'application/json',
         // Matches Postman setup: Authorization: Bearer <token>
-        Authorization: `Bearer ${token}`,
+        // Authorization: `Bearer ${token}`,
       },
     });
 
@@ -236,7 +234,7 @@ export class UserServiceClient {
       externalId,
       doctorName: doctorPayload.userInfo.name,
     });
-
+    console.log("DOCTOR PAYLOAD : ",doctorPayload , provider, tenantId, externalId)
     try {
       const response = await this.client.post<{ data: User }>(
         '/user',

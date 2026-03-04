@@ -96,6 +96,7 @@ export class TruTechAdapter {
     });
 
     try {
+      console.log("This client : ",this.client,launchToken)
       const response = await this.client.post<TruTechVerifyResponse>(
         '/api/teleconsultation/verify',
         { launch_token: launchToken },
@@ -107,7 +108,7 @@ export class TruTechAdapter {
       );
 
       const duration = Date.now() - startTime;
-
+      console.log("RESPONSE : ",response)
       if (response.data.status !== 'success' || !response.data.doctor_uid) {
         logger.warn({
           event: 'tru_tech_verify_failed',
@@ -144,6 +145,7 @@ export class TruTechAdapter {
         expiresAt: context?.expires_at,
       };
     } catch (error) {
+      console.log("ERROR : ",error)
       return this.handleAxiosError(
         error,
         'tru_tech_verify',

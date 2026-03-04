@@ -113,7 +113,7 @@ export class LaunchService {
         launchToken,
         correlationId,
       );
-
+      console.log("VERIFIED PAYLOAD ",verifiedPayload)
       // Step 2: Fetch today's appointments
       const appointments = await this.truTechAdapter.getTodaysAppointments(
         verifiedPayload.doctorId,
@@ -124,14 +124,14 @@ export class LaunchService {
         event: 'launch_appointments_fetched',
         appointmentCount: appointments.length,
       });
-
+      console.log("APPOINTMENTS ",appointments)
       // Step 3: Check if doctor exists, create if not (SYNCHRONOUS - blocking)
-      // const doctor = await this.ensureDoctorExists(
-      //   verifiedPayload,
-      //   appointments[0]?.doctor,
-      //   correlationId,
-      // );
-
+      const doctor = await this.ensureDoctorExists(
+        verifiedPayload,
+        appointments[0]?.doctor,
+        correlationId,
+      );
+      console.log("DOCTOR : ",doctor)
       // Step 4: Publish patient creation events (ASYNCHRONOUS - fire and forget)
       // const patientEventsPublished = await this.publishPatientCreationEvents(
       //   appointments,
@@ -203,31 +203,31 @@ export class LaunchService {
     const provider = 'TruTech';
     const externalId = String(verifiedPayload.doctorUid);
 
-    logger.info({
-      event: 'doctor_ensure_start',
-      externalId,
-      provider,
-      tenantId: verifiedPayload.tenantId,
-    });
+    // logger.info({
+    //   event: 'doctor_ensure_start',
+    //   externalId,
+    //   provider,
+    //   tenantId: verifiedPayload.tenantId,
+    // });
 
     // Check if doctor already exists
-    const existingDoctor = await this.userServiceClient.findByExternalId(
-      {
-        provider,
-        externalId,
-        tenantId: verifiedPayload.tenantId,
-      },
-      correlationId || '',
-    );
+    // const existingDoctor = await this.userServiceClient.findByExternalId(
+    //   {
+    //     provider,
+    //     externalId,
+    //     tenantId: verifiedPayload.tenantId,
+    //   },
+    //   correlationId || '',
+    // );
 
-    if (existingDoctor) {
-      logger.info({
-        event: 'doctor_ensure_exists',
-        userId: existingDoctor.id,
-        externalId,
-      });
-      return existingDoctor;
-    }
+    // if (existingDoctor) {
+    //   logger.info({
+    //     event: 'doctor_ensure_exists',
+    //     userId: existingDoctor.id,
+    //     externalId,
+    //   });
+    //   return existingDoctor;
+    // }
 
     // Doctor doesn't exist - create it
     logger.info({

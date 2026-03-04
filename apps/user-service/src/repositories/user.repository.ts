@@ -175,6 +175,27 @@ export class UserRepository {
     }
   }
 
+  async checkUserExists(userId: string, organizationId: string): Promise<boolean> {
+    const logger = createChildLogger(baseLogger, { userId });
+    logger.info({ event: 'user_check_exists_start', message: 'Checking if user exists' });
+    try {
+      const result = await docClient.send(
+        new GetCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: userOrgPk(organizationId),
+            sk: userPk(userId),
+          },
+        }),
+      );
+      return !!result.Item;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { userId });
+      logger.info({ event: 'user_check_exists_error', message: 'Failed to check if user exists' });
+      throw err;
+    }
+  }
+
   async getUser(userId: string, organizationId?: string): Promise<User | null> {
     const logger = createChildLogger(baseLogger, { userId, organizationId });
     logger.info({ event: 'user_get_start', message: 'Getting user' });

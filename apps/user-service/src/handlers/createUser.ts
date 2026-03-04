@@ -44,6 +44,7 @@ export async function createUser(
   logger.info({ event: 'createUser_received', eventData: event });
 
   let body: any;
+  console.log("EVENT BODY : ",event.body)
   try {
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
   } catch (err) {
@@ -108,6 +109,10 @@ export async function createUser(
     );
   }
 
+  if (body.provider === 'TruTech' && body.userID && body.organizationID) {
+    await userRepository.checkUserExists(body.userID, body.organizationID);
+  }
+  
   try {
     const { userInfo, userRole, userType } = validation.data;
     const organizationID = body.organizationID;

@@ -41,6 +41,16 @@ export function getLanguageFromHeaders(event: APIGatewayProxyEvent): string {
   return /^[a-z]{2,3}$/.test(language) ? language : 'en';
 }
 
+async function fetchJson(url: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => resolve(JSON.parse(data)));
+      res.on('error', reject);
+    });
+  });
+}
 /**
  * Fetches message JSON from CloudFront CDN for the given language
  */

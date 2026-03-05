@@ -117,8 +117,16 @@ export interface User {
   /** Assigned package list for this user in this org (full replace via PUT assigned-packages). */
   assignedPackages?: Array<{ id: string; name: string; start?: string; end?: string }>;
   /** Lowercase package names for quick lookup (mirrors assignedPackages). */
-  assignedPackagesName?: string[];
+  assignedPackagesName?: string[]; 
+  externalIdentity?: ExternalIdentity;
 }
+export interface ExternalIdentity {
+  providerId: string;
+  externalUserId: string;
+  externalHospitalId?: string;
+  subdomain?: string;
+  sourceSystem?: string;
+};
 
 /**
  * User Response Interface

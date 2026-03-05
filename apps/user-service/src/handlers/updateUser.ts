@@ -2,7 +2,6 @@ import {
   APIGatewayProxyEvent,
   APIGatewayProxyResult,
   Context,
-  APIGatewayProxyHandler,
 } from 'aws-lambda';
 import {
   createLogger,
@@ -12,6 +11,7 @@ import {
   serializeError,
   logHttpRequest,
 } from '@api-hub/logger';
+import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { ApiResponse } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { UserNotFoundError } from '../utils/errors';
@@ -19,11 +19,12 @@ import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../utils/helpe
 import { SchedulePreferences } from '../models/Schedule';
 import { scheduleServiceClient } from '../clients/scheduleService.client';
 import { updateUserSchema } from '../validation/user.validation';
+import { validateUpdateUser } from '../validation/request.validators';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 
-  async function updateUser(
+async function updateUser(
   event: APIGatewayProxyEvent,
   context?: Context,
 ): Promise<APIGatewayProxyResult> {
@@ -835,10 +836,36 @@ const userService = new UserService();
   }
 }
 
-export const main: APIGatewayProxyHandler = async (
-  event,
-  context: Context,
-) => {
-  return updateUser(event, context);
+const handler = async (req: LambdaRequest<any>) => {
+  const event: APIGatewayProxyEvent = {
+    ...req.event,
+    pathParameters: {
+      ...req.event.pathParameters,
+      userId: req.params?.userId ?? req.body?.userId ?? req.body?.userID ?? req.context?.user?.userId,
+      organizationId: req.params?.organizationId ?? req.body?.organizationId ?? req.body?.organizationID ?? req.context?.user?.organizationId,
+    },
+    body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {}),
+  };
+  const context = { awsRequestId: req.context?.awsRequestId } as Context;
+  const res = await updateUser(event, context);
+  const parsed = (() => {
+    try {
+      return JSON.parse(res.body || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  if (res.statusCode >= 400) {
+    const err: any = new Error(parsed?.details?.[0]?.message || parsed?.message || 'Request failed');
+    err.statusCode = res.statusCode;
+    err.code = parsed?.code || 'UPDATE_USER_FAILED';
+    err.details = parsed?.details;
+    throw err;
+  }
+  return parsed;
 };
+
+export const main = withLambdaHandler(handler, {
+  validator: validateUpdateUser,
+});
 

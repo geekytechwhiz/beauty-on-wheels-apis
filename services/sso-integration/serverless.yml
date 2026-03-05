@@ -47,6 +47,16 @@ provider:
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
 
+    # Schedule Service
+    SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://schedule-service.example.com'}
+    SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}
+
+    # Appointment Sync
+    APPOINTMENT_SYNC_MAX_RETRIES: ${env:APPOINTMENT_SYNC_MAX_RETRIES, '3'}
+    APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '1000'}
+    APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '10000'}
+    APPOINTMENT_SYNC_CONCURRENCY_LIMIT: ${env:APPOINTMENT_SYNC_CONCURRENCY_LIMIT, '5'}
+
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
   iamRoleStatements:
     - Effect: Allow
@@ -57,8 +67,17 @@ provider:
         - cognito-idp:AdminUpdateUserAttributes
         - cognito-idp:AdminGetUser
       Resource:
-        - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
-    # (SQS IAM permissions for patient event publishing/consumer temporarily disabled)
+        - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+    # SQS IAM permissions for patient event publishing/consumer (uncomment when enabling patient event consumer)
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - !GetAtt PatientCreationQueue.Arn
+        - !GetAtt PatientCreationDLQ.Arn
 
 plugins:
   - serverless-esbuild
@@ -161,58 +180,74 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
-  # ---------------------------------------------------------------------------
-  # Patient Creation Event Consumer / SQS (temporarily disabled)
-  # ---------------------------------------------------------------------------
+  appointmentSync:
+    handler: src/handlers/http/appointment-sync.handler
+    description: Sync today&apos;s appointments into schedule service
+    timeout: 30
+    events:
+      - http:
+          path: /appointments/sync
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+ 
+  patientCreationEventConsumer:
+    handler: src/handlers/events/patient-creation-event-consumer.handler
+    description: Background worker for processing patient creation events from SQS
+    timeout: 60
+    memorySize: 512
+    events:
+      - sqs:
+          arn: !GetAtt PatientCreationQueue.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
 
-  # patientCreationEventConsumer:
-  #   handler: src/handlers/patient-creation-event-consumer.handler
-  #   description: Background worker for processing patient creation events from SQS
-  #   timeout: 60
-  #   memorySize: 512
-  #   reservedConcurrentExecutions: 10
-  #   events:
-  #     - sqs:
-  #         arn: !GetAtt PatientCreationQueue.Arn
-  #         batchSize: 10
-  #         maximumBatchingWindowInSeconds: 5
-  #         functionResponseType: ReportBatchItemFailures
 
-# ---------------------------------------------------------------------------
-# CloudFormation Resources (SQS temporarily disabled)
-# ---------------------------------------------------------------------------
+resources:
+  Resources:
+    PatientCreationDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        MessageRetentionPeriod: 1209600  # 14 days
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
 
-# resources:
-#   Resources:
-#     # SQS Queue for Patient Creation Events
-#     PatientCreationQueue:
-#       Type: AWS::SQS::Queue
-#       Properties:
-#         QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
-#         VisibilityTimeoutSeconds: 300  # 5 minutes (should be >= Lambda timeout)
-#         MessageRetentionPeriod: 1209600  # 14 days
-#         ReceiveMessageWaitTimeSeconds: 0  # Short polling (immediate)
-#         RedrivePolicy:
-#           deadLetterTargetArn: !GetAtt PatientCreationDLQ.Arn
-#           maxReceiveCount: 3  # Retry 3 times before moving to DLQ
-#         Tags:
-#           - Key: Service
-#             Value: ${self:service}
-#           - Key: Stage
-#             Value: ${self:provider.stage}
-#           - Key: ManagedBy
-#             Value: serverless
-
-#     # Dead Letter Queue for Failed Patient Creation Events
-#     PatientCreationDLQ:
-#       Type: AWS::SQS::Queue
-#       Properties:
-#         QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
-#         MessageRetentionPeriod: 1209600  # 14 days
-#         Tags:
-#           - Key: Service
-#             Value: ${self:service}
-#           - Key: Stage
-#             Value: ${self:provider.stage}
-#           - Key: ManagedBy
-#             Value: serverless
+    # SQS Queue for Patient Creation Events
+    PatientCreationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
+        VisibilityTimeoutSeconds: 300  # 5 minutes (should be >= Lambda timeout)
+        MessageRetentionPeriod: 1209600  # 14 days
+        ReceiveMessageWaitTimeSeconds: 0  # Short polling (immediate)
+        RedrivePolicy:
+          Fn::Sub:
+            - '{"deadLetterTargetArn":"${DLQArn}","maxReceiveCount":3}'
+            - DLQArn:
+                Fn::GetAtt:
+                  - PatientCreationDLQ
+                  - Arn
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless

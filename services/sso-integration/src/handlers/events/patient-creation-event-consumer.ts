@@ -4,6 +4,7 @@ import { getSSOConfig } from '../../config/sso-config';
 import { getPatientMapperHelper } from '../../helper/patient.mapper';
 import { getUserServiceClient } from '../../clients/user.client'; 
 import { PatientCreationEvent } from '../../types/events';
+import { getAppointmentSyncService } from '../../services/appointment-sync.service';
  
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -146,4 +147,24 @@ async function processPatientCreationEvent(
     patientId: patient.id,
     userId: createdPatient.id,
   });
+
+  try {
+    const appointmentSyncService = getAppointmentSyncService();
+    await appointmentSyncService.reprocessPendingAppointments(
+      externalId,
+      correlationId,
+    );
+
+    logger.info({
+      event: 'pending_appointments_reprocess_triggered',
+      patientExternalId: externalId,
+      userId: createdPatient.id,
+    });
+  } catch (error) {
+    logger.error({
+      event: 'pending_appointments_reprocess_failed',
+      patientExternalId: externalId,
+      err: serializeError(error as Error),
+    });
+  }
 }

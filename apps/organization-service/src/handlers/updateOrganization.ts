@@ -1,13 +1,10 @@
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
-import { OrganizationNotFoundError } from '../utils/errors';
-import { ApiResponse } from '@api-hub/utils';
 import { updateOrganizationSchema } from '../validation/organization.validation';
 import { normalizeOrganizationPayload } from '../utils/organizationPayload';
+import { validateOrganizationIdParam } from '../validation/request.validators';
 
-const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 const organizationService = new OrganizationService();
 const rootOrgMetadataRepository = new RootOrgMetadataRepository();
 
@@ -35,51 +32,23 @@ const normalizeSupportedVitals = (
       const key = Object.keys(item as Record<string, unknown>)[0];
       if (!key) return item as Record<string, unknown>;
       const details = (item as Record<string, unknown>)[key];
-      if (!details || typeof details !== 'object') {
-        return { [key]: details };
-      }
+      if (!details || typeof details !== 'object') return { [key]: details };
       const { label, ...filtered } = details as Record<string, unknown>;
       return { [key]: filtered };
     });
 };
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
-  const startTime = Date.now();
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const organizationId = event.pathParameters?.organizationId;
+interface Params {
+  organizationId: string;
+}
 
-  if (!organizationId) {
-    const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.BAD_REQUEST',
-      { requestId: correlationId, event },
-      { code: 'BAD_REQUEST' },
-    );
-  }
-
-  const logger = createChildLogger(baseLogger, { correlationId, organizationId, ...(awsRequestId && { awsRequestId }) });
-  logger.info({ event: 'updateOrganization_received' });
-
-  let body: unknown;
-  try {
-    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-  } catch (err) {
-    logger.error({ event: 'updateOrganization_parse_error', err: serializeError(err) });
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
-      { code: 'BAD_REQUEST' },
-    );
-  }
+const handler = async (req: LambdaRequest<Params>) => {
+  const { organizationId } = req.params;
+  const body = req.body ?? {};
+  const { correlationId } = req.context;
 
   const normalized = normalizeOrganizationPayload(body);
-  const hasAdminDetails =
-    body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body as Record<string, unknown>, 'adminDetails');
+  const hasAdminDetails = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body as Record<string, unknown>, 'adminDetails');
   const adminDetails = normalized.data.adminDetails;
   if (!hasAdminDetails) {
     normalized.data.adminDetails = undefined;
@@ -102,72 +71,31 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     supportedVitalsInput.length > 0 &&
     supportedVitalsInput.every((item) => typeof item === 'string')
   ) {
-    try {
-      const supportedAttributes = await rootOrgMetadataRepository.getOrgSupportedVitals();
-      const matchedVitals = normalizeSupportedVitals(supportedVitalsInput, supportedAttributes);
-      normalized.data.supportedVitals = matchedVitals.length > 0 ? matchedVitals : undefined;
-    } catch (err) {
-      logger.warn({ event: 'updateOrganization_supportedVitals_error', err: serializeError(err) });
-    }
+    const supportedAttributes = await rootOrgMetadataRepository.getOrgSupportedVitals().catch(() => []);
+    const matchedVitals = normalizeSupportedVitals(supportedVitalsInput as string[], supportedAttributes);
+    normalized.data.supportedVitals = matchedVitals.length > 0 ? matchedVitals : undefined;
   }
+
   if (normalized.errors.length > 0) {
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
-      {
-        code: 'VALIDATION_ERROR',
-        details: normalized.errors.map((e) => ({
-          field: (e as any).field,
-          message: (e as any).message ?? 'Invalid request body',
-        })),
-      },
-    );
+    const err: any = new Error('Validation failed');
+    err.statusCode = 400;
+    err.code = 'VALIDATION_ERROR';
+    err.details = normalized.errors.map((e) => ({ field: (e as any).field, message: (e as any).message ?? 'Invalid request body' }));
+    throw err;
   }
 
   const validationResult = updateOrganizationSchema.safeParse(normalized.data);
   if (!validationResult.success) {
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest(
-      'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
-      {
-        code: 'VALIDATION_ERROR',
-        details: validationResult.error.issues.map((err) => ({
-          field: err.path.join('.'),
-          message: err.message,
-        })),
-      },
-    );
+    const err: any = new Error(validationResult.error.issues[0]?.message ?? 'Validation failed');
+    err.statusCode = 400;
+    err.code = 'VALIDATION_ERROR';
+    err.details = validationResult.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message }));
+    throw err;
   }
 
-  try {
-    const organization = await organizationService.updateOrganization(organizationId, validationResult.data, correlationId);
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 200, duration, correlationId);
-    return ApiResponse.ok(
-      organization,
-      'ORGANIZATION.ORGANIZATION_UPDATED_SUCCESS',
-      { requestId: correlationId, event },
-    );
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    if (err instanceof OrganizationNotFoundError) {
-      logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 404, duration, correlationId);
-      return ApiResponse.notFound(
-        'ORGANIZATION.ORGANIZATION_NOT_FOUND',
-        { requestId: correlationId, event },
-        { code: 'ORGANIZATION_NOT_FOUND' },
-      );
-    }
-    logger.error({ event: 'updateOrganization_error', err: serializeError(err) });
-    logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/organization/${organizationId}`, 500, duration, correlationId);
-    return ApiResponse.internalServerError(
-      'ORGANIZATION.UPDATE_ORGANIZATION_FAILED',
-      { requestId: correlationId, event },
-      { code: 'UPDATE_ORGANIZATION_FAILED' },
-    );
-  }
+  return organizationService.updateOrganization(organizationId, validationResult.data, correlationId);
 };
+
+export const main = withLambdaHandler(handler, {
+  validator: validateOrganizationIdParam,
+});

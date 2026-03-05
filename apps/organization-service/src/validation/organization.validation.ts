@@ -66,6 +66,7 @@ export const createOrganizationSchema = z.object({
   description: z.string().optional(),
   industry: z.string().optional(),
   size: z.enum(['SMALL', 'MEDIUM', 'LARGE']).optional(),
+  
 });
 
 export const updateOrganizationSchema = z.object({

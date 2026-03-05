@@ -243,6 +243,8 @@ importers:
 
   apps/user-service: {}
 
+  data-access: {}
+
   libs/access-audit: {}
 
   libs/auth:

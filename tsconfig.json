@@ -68,6 +68,12 @@
     },
     {
       "path": "./libs/fhir"
+    },
+    {
+      "path": "./backend"
+    },
+    {
+      "path": "./data-access"
     }
   ]
 }

@@ -99,7 +99,7 @@ export class LaunchService extends BaseService {
       }
 
       const mappedAppointments = this.truTechAdapter.mapAppointments(
-        appointmentsResponse,
+        appointmentsResponse.appointments || [],
       );
 
       return {

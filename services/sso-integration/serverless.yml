@@ -69,15 +69,15 @@ provider:
       Resource:
         - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
     # SQS IAM permissions for patient event publishing/consumer (uncomment when enabling patient event consumer)
-    # - Effect: Allow
-    #   Action:
-    #     - sqs:SendMessage
-    #     - sqs:ReceiveMessage
-    #     - sqs:DeleteMessage
-    #     - sqs:GetQueueAttributes
-    #   Resource:
-    #     - !GetAtt PatientCreationQueue.Arn
-    #     - !GetAtt PatientCreationDLQ.Arn
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - !GetAtt PatientCreationQueue.Arn
+        - !GetAtt PatientCreationDLQ.Arn
 
 plugins:
   - serverless-esbuild
@@ -201,59 +201,52 @@ functions:
             type: token
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+ 
+  patientCreationEventConsumer:
+    handler: src/handlers/events/patient-creation-event-consumer.handler
+    description: Background worker for processing patient creation events from SQS
+    timeout: 60
+    memorySize: 512
+    reservedConcurrentExecutions: 10
+    events:
+      - sqs:
+          arn: !GetAtt PatientCreationQueue.Arn
+          batchSize: 10
+          maximumBatchingWindowInSeconds: 5
+          functionResponseType: ReportBatchItemFailures
 
-  # ---------------------------------------------------------------------------
-  # Patient Creation Event Consumer / SQS (temporarily disabled)
-  # ---------------------------------------------------------------------------
 
-  # patientCreationEventConsumer:
-  #   handler: src/handlers/events/patient-creation-event-consumer.handler
-  #   description: Background worker for processing patient creation events from SQS
-  #   timeout: 60
-  #   memorySize: 512
-  #   reservedConcurrentExecutions: 10
-  #   events:
-  #     - sqs:
-  #         arn: !GetAtt PatientCreationQueue.Arn
-  #         batchSize: 10
-  #         maximumBatchingWindowInSeconds: 5
-  #         functionResponseType: ReportBatchItemFailures
+resources:
+  Resources:
+    # SQS Queue for Patient Creation Events
+    PatientCreationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
+        VisibilityTimeoutSeconds: 300  # 5 minutes (should be >= Lambda timeout)
+        MessageRetentionPeriod: 1209600  # 14 days
+        ReceiveMessageWaitTimeSeconds: 0  # Short polling (immediate)
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt PatientCreationDLQ.Arn
+          maxReceiveCount: 3  # Retry 3 times before moving to DLQ
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
 
-# ---------------------------------------------------------------------------
-# CloudFormation Resources (SQS temporarily disabled)
-# ---------------------------------------------------------------------------
-
-# resources:
-#   Resources:
-#     # SQS Queue for Patient Creation Events
-#     PatientCreationQueue:
-#       Type: AWS::SQS::Queue
-#       Properties:
-#         QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
-#         VisibilityTimeoutSeconds: 300  # 5 minutes (should be >= Lambda timeout)
-#         MessageRetentionPeriod: 1209600  # 14 days
-#         ReceiveMessageWaitTimeSeconds: 0  # Short polling (immediate)
-#         RedrivePolicy:
-#           deadLetterTargetArn: !GetAtt PatientCreationDLQ.Arn
-#           maxReceiveCount: 3  # Retry 3 times before moving to DLQ
-#         Tags:
-#           - Key: Service
-#             Value: ${self:service}
-#           - Key: Stage
-#             Value: ${self:provider.stage}
-#           - Key: ManagedBy
-#             Value: serverless
-
-#     # Dead Letter Queue for Failed Patient Creation Events
-#     PatientCreationDLQ:
-#       Type: AWS::SQS::Queue
-#       Properties:
-#         QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
-#         MessageRetentionPeriod: 1209600  # 14 days
-#         Tags:
-#           - Key: Service
-#             Value: ${self:service}
-#           - Key: Stage
-#             Value: ${self:provider.stage}
-#           - Key: ManagedBy
-#             Value: serverless
+    # Dead Letter Queue for Failed Patient Creation Events
+    PatientCreationDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        MessageRetentionPeriod: 1209600  # 14 days
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless

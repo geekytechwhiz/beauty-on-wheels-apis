@@ -47,6 +47,16 @@ provider:
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
 
+    # Schedule Service
+    SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://schedule-service.example.com'}
+    SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}
+
+    # Appointment Sync
+    APPOINTMENT_SYNC_MAX_RETRIES: ${env:APPOINTMENT_SYNC_MAX_RETRIES, '3'}
+    APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '1000'}
+    APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '10000'}
+    APPOINTMENT_SYNC_CONCURRENCY_LIMIT: ${env:APPOINTMENT_SYNC_CONCURRENCY_LIMIT, '5'}
+
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
   iamRoleStatements:
     - Effect: Allow
@@ -155,6 +165,28 @@ functions:
             parameters:
               paths:
                 patientId: true
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+
+  appointmentSync:
+    handler: src/handlers/http/appointment-sync.handler
+    description: Sync today&apos;s appointments into schedule service
+    timeout: 30
+    events:
+      - http:
+          path: /appointments/sync
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
           authorizer:
             name: authorizer
             type: token

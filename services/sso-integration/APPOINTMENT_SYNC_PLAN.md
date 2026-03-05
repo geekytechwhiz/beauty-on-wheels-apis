@@ -145,40 +145,44 @@ This document outlines the comprehensive plan for implementing the appointment s
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. Trigger Appointment Sync                                     │
-│    POST /appointments/sync?doctorId=<id>                       │
+│    POST /appointments/sync?doctorId=<id>                        │
 └────────────────────┬────────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 2. Doctor Validation                                            │
-│    - Check if doctor exists in database                         │
-│    - If not exists: throw error (already implemented)            │
-│    - If exists: fetch doctor details                            │
+│    - Fetch the doctor details from the myViatlrx DB             │
+│    - If not exists: throw error (already implemented)           │
+│    - If exists: return doctor details                           │
 └────────────────────┬────────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 3. Fetch Today's Appointments                                    │
+│ 3. Fetch Today's Appointments                                   │
 │    - Call external API (already implemented)                    │
 │    - If empty array: return success (already implemented)       │
-│    - If appointments exist: proceed to validation               │
+│    - If appointments exist: proceed to validation 
+     - Fetch all patient details and procced to appoint or user
+     creation          
 └────────────────────┬────────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 4. Process Each Appointment                                     │
-│    For each appointment:                                         │
-│    ├─ Validate Patient                                          │
-│    ├─ Check Duplicate Schedule                                  │
-│    ├─ Create Schedule (if not duplicate)                        │
-│    └─ Update Schedule Status to ACCEPTED                        │
+│ 4. Push to SQS queue to Process Each Appointment                │
+│    For each appointment:                                        │
+│    ├
+│    ├─ Check Duplicate Schedule through dynamoDB is_key exist with 
+        appoinmentid(unique) Need to confirm                      │
+│    ├─ Create Schedule Use idempotency key and status as ACCEPTED
+      in schedule service. 
+│                         
 └────────────────────┬────────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 5. Handle Pending Appointments                                  │
 │    - Reprocess appointments marked as pending                   │
-│    - Trigger after patient creation completes                    │
+│    - Trigger after patient creation completes                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

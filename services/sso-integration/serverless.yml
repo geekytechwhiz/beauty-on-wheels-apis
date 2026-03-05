@@ -76,8 +76,12 @@ provider:
         - sqs:DeleteMessage
         - sqs:GetQueueAttributes
       Resource:
-        - !GetAtt PatientCreationQueue.Arn
-        - !GetAtt PatientCreationDLQ.Arn
+        - Fn::GetAtt:
+            - PatientCreationQueue
+            - Arn
+        - Fn::GetAtt:
+            - PatientCreationDLQ
+            - Arn
 
 plugins:
   - serverless-esbuild
@@ -209,7 +213,10 @@ functions:
     memorySize: 512
     events:
       - sqs:
-          arn: !GetAtt PatientCreationQueue.Arn
+          arn:
+            Fn::GetAtt:
+              - PatientCreationQueue
+              - Arn
           batchSize: 10
           functionResponseType: ReportBatchItemFailures
 
@@ -238,7 +245,10 @@ resources:
         MessageRetentionPeriod: 1209600
         ReceiveMessageWaitTimeSeconds: 0
         RedrivePolicy:
-          deadLetterTargetArn: !GetAtt PatientCreationDLQ.Arn
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - PatientCreationDLQ
+              - Arn
           maxReceiveCount: 3
         Tags:
           - Key: Service

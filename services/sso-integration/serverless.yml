@@ -207,12 +207,10 @@ functions:
     description: Background worker for processing patient creation events from SQS
     timeout: 60
     memorySize: 512
-    reservedConcurrentExecutions: 10
     events:
       - sqs:
           arn: !GetAtt PatientCreationQueue.Arn
           batchSize: 10
-          maximumBatchingWindowInSeconds: 5
           functionResponseType: ReportBatchItemFailures
 
 

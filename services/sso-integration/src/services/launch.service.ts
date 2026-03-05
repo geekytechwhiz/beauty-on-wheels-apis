@@ -60,25 +60,26 @@ export class LaunchService extends BaseService {
         verifyResponse.context,
       );
 
-      const appointments :any = await this.fetchAppointments(
+      const appointmentsResponse = await this.fetchAppointments(
         verifyResponse.context.drid,
         ctx,
       );
+
+      const rawAppointments = appointmentsResponse.appointments ?? [];
 
       this.logger.info({
         event: 'launch_appointments_fetched',
         correlationId,
         doctorId: verifyResponse.context.drid,
-        appointmentCount: appointments?.length ?? 0,
+        appointmentCount: rawAppointments.length,
       });
-      
 
       let eventsPublished = 0;
 
-      if ((appointments?.length ?? 0) > 0) {
+      if (rawAppointments.length > 0) {
         eventsPublished = await this.publishPatientCreationEvents(
           doctor,
-          appointments,
+          rawAppointments,
           verifyResponse.context,
           ctx,
         );
@@ -97,9 +98,13 @@ export class LaunchService extends BaseService {
         });
       }
 
+      const mappedAppointments = this.truTechAdapter.mapAppointments(
+        appointmentsResponse,
+      );
+
       return {
         doctor,
-        appointments: appointments?.map((appointment:any) => this.truTechAdapter.mapAppointments(appointment as unknown as TruTechAppointment[])) || [],
+        appointments: mappedAppointments,
         patientEventsPublished: eventsPublished,
         serviceToken,
       };
@@ -218,13 +223,13 @@ export class LaunchService extends BaseService {
   private async fetchAppointments(
     doctorId: number,
     ctx: RequestContext,
-  ): Promise< TruTechAppointment[] | undefined> {
+  ): Promise<TruTechAppointmentsResponse> {
     const response = await this.truTechClient.getTodaysAppointments(
       doctorId,
       ctx.correlationId,
     );
 
-    return response.appointments;
+    return response;
   }
 
   private async publishPatientCreationEvents(

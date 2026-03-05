@@ -304,7 +304,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  createUserV1:
+  createUser:
     handler: src/handlers/createUser.main
     
     memorySize: 256
@@ -321,13 +321,13 @@ functions:
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
-  getUserV1:
+  getUser:
     handler: src/handlers/getUser.main
     timeout: 30
     memorySize: 512
     events:
       - http:
-          path: v1/user/bio
+          path: user/bio
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -338,7 +338,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  getUserOrganizationV1:
+  getUserOrganization:
     handler: src/handlers/getUserOrganization.main
     timeout: 30
     memorySize: 512
@@ -346,7 +346,7 @@ functions:
       # Endpoint with path parameters: /dev/user/organization/{organizationId}/{userId}
       # If path parameters are provided, they will be used; otherwise, userId and organizationId will be extracted from token
       - http:
-          path: v1/user/organization/{organizationId}/{userId}
+          path: user/organization/{organizationId}/{userId}
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -358,7 +358,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
       - http:
-          path: v1/user/organization
+          path: user/organization
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -369,7 +369,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  updateUserV1:
+  updateUser:
     handler: src/handlers/updateUser.main
     timeout: 10
     memorySize: 256
@@ -386,13 +386,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  deleteUserV1:
+  deleteUser:
     handler: src/handlers/deleteUser.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: v1/user/{userId}/organization/{organizationId}
+          path: user/{userId}/organization/{organizationId}
           method: delete
           cors:
             origin: ${self:custom.cors.origin}
@@ -403,13 +403,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  setLogoutRequiredV1:
+  setLogoutRequired:
     handler: src/handlers/setLogoutRequired.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: v1/user/{userId}/organization/{organizationId}/logout-required
+          path: user/{userId}/organization/{organizationId}/logout-required
           method: put
           cors:
             origin: ${self:custom.cors.origin}
@@ -420,13 +420,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  putAssignedPackagesV1:
+  putAssignedPackages:
     handler: src/handlers/putAssignedPackages.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: v1/user/{userId}/organization/{organizationId}/assigned-packages
+          path: user/{userId}/organization/{organizationId}/assigned-packages
           method: put
           cors:
             origin: ${self:custom.cors.origin}
@@ -437,13 +437,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  assignUserToOrganizationV1:
+  assignUserToOrganization:
     handler: src/handlers/assignUserToOrganization.handler
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: v1/user/{userId}/organization/{organizationId}
+          path: user/{userId}/organization/{organizationId}
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -454,13 +454,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  listUserOrganizationsV1:
+  listUserOrganizations:
     handler: src/handlers/listUserOrganizations.main
     timeout: 5
     memorySize: 256
     events:
       - http:
-          path: v1/user/{userId}/organizations
+          path: user/{userId}/organizations
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -471,13 +471,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  updateUserMetadataV1:
+  updateUserMetadata:
     handler: src/handlers/updateUserMetadata.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: v1/user/{userId}/metadata
+          path: user/{userId}/metadata
           method: put
           cors:
             origin: ${self:custom.cors.origin}
@@ -488,7 +488,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  updateRecentInviteV1:
+  updateRecentInvite:
     handler: src/handlers/updateRecentInvite.main
     timeout: 10
     memorySize: 256
@@ -505,13 +505,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  listUserFilesV1:
+  listUserFiles:
     handler: src/handlers/listUserFiles.main
     timeout: 5
     memorySize: 256
     events:
       - http:
-          path: v1/user/{userId}/files
+          path: user/{userId}/files
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -522,7 +522,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  listOrganizationUsersV1:
+  listOrganizationUsers:
     handler: src/handlers/listOrganizationUsers.main
     timeout: 5
     memorySize: 256
@@ -539,7 +539,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  listOrganizationUsersPostV1:
+  listOrganizationUsersPost:
     handler: src/handlers/listOrganizationUsersPost.main
     timeout: 30
     memorySize: 512
@@ -556,13 +556,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  assignDoctorV1:
+  assignDoctor:
     handler: src/handlers/assignDoctor.handler
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/assign-doctor
+          path: user/assign-doctor
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -573,13 +573,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  listDoctorPatientsV1:
+  listDoctorPatients:
     handler: src/handlers/listUsers.main
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/list
+          path: user/list
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -591,7 +591,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  v2UserListV1:
+  v2UserList:
     handler: src/handlers/v2UserList.main
     timeout: 30
     memorySize: 512
@@ -609,13 +609,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
        
-  friendFamilySearchV1:
+  friendFamilySearch:
     handler: src/handlers/friendFamilySearch.main
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/friend-family/search
+          path: user/friend-family/search
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -627,13 +627,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  friendFamilyAddMemberV1:
+  friendFamilyAddMember:
     handler: src/handlers/friendFamilyAddMember.main
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/friend-family/add-member
+          path: user/friend-family/add-member
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -645,13 +645,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  friendFamilyUpdateV1:
+  friendFamilyUpdate:
     handler: src/handlers/friendFamilyUpdate.main
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/friend-family/update
+          path: user/friend-family/update
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -663,13 +663,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  friendFamilyFetchV1:
+  friendFamilyFetch:
     handler: src/handlers/friendFamilyFetch.main
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/friend-family/fetch
+          path: user/friend-family/fetch
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -681,13 +681,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  friendFamilyDeleteV1:
+  friendFamilyDelete:
     handler: src/handlers/friendFamilyDelete.main
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/friend-family/delete
+          path: user/friend-family/delete
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -699,13 +699,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  friendFamilyCheckV1:
+  friendFamilyCheck:
     handler: src/handlers/friendFamilyCheck.main
     timeout: 5
     memorySize: 256
     events:
       - http:
-          path: v1/user/friend-family/check
+          path: user/friend-family/check
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -717,13 +717,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  activateDeactivateUserV1:
+  activateDeactivateUser:
     handler: src/handlers/activateDeactivateUser.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: v1/user/activate-deactivate
+          path: user/activate-deactivate
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -734,13 +734,13 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  validateContactsV1:
+  validateContacts:
     handler: src/handlers/validateContacts.main
     timeout: 10
     memorySize: 256
     events:
       - http:
-          path: v1/user/validate-contacts
+          path: user/validate-contacts
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -752,7 +752,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  validateUsersV1:
+  validateUsers:
     handler: src/handlers/validateUsers.main
     timeout: 10
     memorySize: 256
@@ -763,13 +763,13 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-  getOrganizationUserCountV1:
+  getOrganizationUserCount:
     handler: src/handlers/getOrganizationUserCount.main
     
     memorySize: 256
     events:
       - http:
-          path: v1/user/organization-user-count
+          path: user/organization-user-count
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -780,7 +780,7 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-  uploadUserFileV1:
+  uploadUserFile:
     handler: src/handlers/s3/uploadUserFile.main
     timeout: 30
     memorySize: 512

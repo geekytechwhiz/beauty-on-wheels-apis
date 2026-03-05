@@ -1,0 +1,11 @@
+{
+  "name": "device-list-script",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/device-service/deviceScripts/device-list",
+  "projectType": "library",
+  "tags": [
+    "type:tool"
+  ],
+  "targets": {}
+}
+

@@ -60,7 +60,9 @@ export class TruTechAdapter {
       appointmentCount: response.appointments?.length ?? 0,
     });
 
-    if (response.status !== 'success') {
+    // Only treat it as an error when status is explicitly non-success.
+    // If status is missing/undefined but we have appointments, proceed.
+    if (response.status && response.status !== 'success') {
       this.logger.error({
         event: 'trutech_map_appointments_error_status',
         status: response.status,

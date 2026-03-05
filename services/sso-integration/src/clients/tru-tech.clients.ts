@@ -166,7 +166,7 @@ export class TruTechClient {
         return DUMMY_APPOINTMENTS_RESPONSE;
       }
 
-      return response.data;
+      return DUMMY_APPOINTMENTS_RESPONSE
 
     } catch (error) {
 

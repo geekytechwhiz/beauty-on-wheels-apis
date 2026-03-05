@@ -233,7 +233,7 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
-        VisibilityTimeoutSeconds: 300
+        VisibilityTimeout: 300
         MessageRetentionPeriod: 1209600
         ReceiveMessageWaitTimeSeconds: 0
         RedrivePolicy:

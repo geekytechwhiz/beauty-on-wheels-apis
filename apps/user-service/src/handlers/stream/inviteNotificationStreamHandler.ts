@@ -4,6 +4,7 @@ import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
 import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID, PORTAL_LINK } from '../../utils/constants';
 import { sendEmail } from '../../services/notification.delivery';
+import { getOrganization } from '../../services/organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -90,10 +91,70 @@ async function processRecord(
   const phoneNumber = (newItem.phoneNumber || '') as string;
   const organizationID = (newItem.organizationID || '') as string;
   const firstName = (newItem.firstName || '') as string;
-  const organizationName = (newItem.organizationName || 'Sample Organization') as string;
-  const organizationAddress = (newItem.organizationAddress || '') as string;
-  const organizationInfo = (newItem.organizationInfo || '') as string;
-  
+  let organizationName = (newItem.organizationName || '') as string;
+  let organizationAddress = (newItem.organizationAddress || '') as string;
+  // ORG_INFO is rendered into templates as a string (e.g., name + address block)
+  let organizationInfo: string = typeof newItem.organizationInfo === 'string'
+    ? newItem.organizationInfo
+    : '';
+
+  // If organization name/address are not present on the user item, fetch them from Organization service
+  if (organizationID && (!organizationName || !organizationAddress)) {
+    try {
+      const org = await getOrganization(organizationID);
+      if (org && typeof org === 'object') {
+        const orgInfo: any = (org as any).organizationInfo || {};
+
+        if (!organizationName) {
+          organizationName =
+            orgInfo.organizationName ||
+            orgInfo.name ||
+            (org as any).name ||
+            organizationName;
+        }
+
+        if (!organizationAddress && orgInfo.address && typeof orgInfo.address === 'object') {
+          const addr = orgInfo.address as any;
+          organizationAddress =
+            addr.address ||
+            [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
+              .filter(Boolean)
+              .join(', ');
+        }
+
+        if (!organizationInfo) {
+          const parts: string[] = [];
+          if (organizationName) {
+            parts.push(organizationName);
+          }
+          if (orgInfo.address && typeof orgInfo.address === 'object') {
+            const addr = orgInfo.address as any;
+            const addrStr = [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
+              .filter(Boolean)
+              .join(', ');
+            if (addrStr) {
+              parts.push(addrStr);
+            }
+          }
+          organizationInfo = parts.join('<br>') || organizationName || '';
+        }
+      }
+    } catch (err) {
+      logger.warn({
+        event: 'inviteNotificationStream_org_lookup_failed',
+        organizationID,
+        err: serializeError(err as Error),
+      });
+    }
+  }
+
+  // Final safety: ensure all ORG_* values are non-empty strings for template replacement
+  organizationName = organizationName || 'No Organization';
+  organizationAddress = organizationAddress || '';
+  organizationInfo = typeof organizationInfo === 'string' ? organizationInfo : String(organizationInfo);
+  console.log("ORGANIZATION NAME : ",organizationName)
+  console.log("ORGANIZATION ADDRESS : ",organizationAddress)
+  console.log("ORGANIZATION INFO : ",organizationInfo)
   const recordLogger = createChildLogger(baseLogger, { correlationId, userId, organizationID, sequenceNumber });
 
   recordLogger.info({

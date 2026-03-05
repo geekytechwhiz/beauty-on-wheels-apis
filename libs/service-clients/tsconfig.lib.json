@@ -1,20 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "rootDir": "src",
     "outDir": "dist",
-    "types": ["node"],
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
-    "emitDeclarationOnly": false
+    "emitDeclarationOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vite/client"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
   "references": [
     {
       "path": "../../libs/logger/tsconfig.lib.json"
-    } 
-    
+    }
   ]
 }

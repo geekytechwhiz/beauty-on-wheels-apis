@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
-import { getErrorDefinition } from '@api-hub/error-messages';
+import { getErrorDefinition } from 'libs/http-client/src';
 import { getErrorMessage, getLanguageFromHeaders, normalizeSeverity } from './messageResolver';
 
 jest.mock('./headerUtils', () => ({

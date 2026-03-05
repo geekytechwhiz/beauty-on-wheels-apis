@@ -30,9 +30,7 @@
     {
       "path": "./apps/device-service"
     },
-    {
-      "path": "./libs/error-messages"
-    },
+   
     {
       "path": "./libs/scope-mapping"
     },

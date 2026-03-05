@@ -1,5 +1,4 @@
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { docClient } from '../utils/db.config';
+
 import { createChildLogger, createLogger, logger, serializeError } from '@api-hub/logger';
 const baselogger = createLogger({ service: 'user-service', redactPII: true });
 

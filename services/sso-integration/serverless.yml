@@ -48,7 +48,7 @@ provider:
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
 
     # Schedule Service
-    SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://schedule-service.example.com'}
+    SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'}
     SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}
 
     # Appointment Sync
@@ -234,16 +234,12 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
-        VisibilityTimeoutSeconds: 300  # 5 minutes (should be >= Lambda timeout)
-        MessageRetentionPeriod: 1209600  # 14 days
-        ReceiveMessageWaitTimeSeconds: 0  # Short polling (immediate)
+        VisibilityTimeoutSeconds: 300
+        MessageRetentionPeriod: 1209600
+        ReceiveMessageWaitTimeSeconds: 0
         RedrivePolicy:
-          Fn::Sub:
-            - '{"deadLetterTargetArn":"${DLQArn}","maxReceiveCount":3}'
-            - DLQArn:
-                Fn::GetAtt:
-                  - PatientCreationDLQ
-                  - Arn
+          deadLetterTargetArn: !GetAtt PatientCreationDLQ.Arn
+          maxReceiveCount: 3
         Tags:
           - Key: Service
             Value: ${self:service}

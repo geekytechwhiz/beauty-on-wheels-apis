@@ -207,17 +207,28 @@ functions:
     description: Background worker for processing patient creation events from SQS
     timeout: 60
     memorySize: 512
-    reservedConcurrentExecutions: 10
     events:
       - sqs:
           arn: !GetAtt PatientCreationQueue.Arn
           batchSize: 10
-          maximumBatchingWindowInSeconds: 5
           functionResponseType: ReportBatchItemFailures
 
 
 resources:
   Resources:
+    PatientCreationDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        MessageRetentionPeriod: 1209600  # 14 days
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
     # SQS Queue for Patient Creation Events
     PatientCreationQueue:
       Type: AWS::SQS::Queue
@@ -227,22 +238,12 @@ resources:
         MessageRetentionPeriod: 1209600  # 14 days
         ReceiveMessageWaitTimeSeconds: 0  # Short polling (immediate)
         RedrivePolicy:
-          deadLetterTargetArn: !GetAtt PatientCreationDLQ.Arn
-          maxReceiveCount: 3  # Retry 3 times before moving to DLQ
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
-
-    # Dead Letter Queue for Failed Patient Creation Events
-    PatientCreationDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
-        MessageRetentionPeriod: 1209600  # 14 days
+          Fn::Sub:
+            - '{"deadLetterTargetArn":"${DLQArn}","maxReceiveCount":3}'
+            - DLQArn:
+                Fn::GetAtt:
+                  - PatientCreationDLQ
+                  - Arn
         Tags:
           - Key: Service
             Value: ${self:service}

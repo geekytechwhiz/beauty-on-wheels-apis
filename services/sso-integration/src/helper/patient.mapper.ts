@@ -1,8 +1,9 @@
 import { createLogger, createChildLogger } from '@api-hub/logger';
-import { Patient, SSOError } from '../../types';
-import { PatientCreationPayload } from '../../types/user-creation.types';
-import { getSSOConfig } from '../../config/sso-config';
-import { processPhoneNumber } from '../phone-processor';
+import { Patient } from '../types/domain/patient.types';
+import { SSOError } from '../types/errors/sso-error';
+import { PatientCreationPayload } from '../types/user-creation.types';
+import { getSSOConfig } from '../config/sso-config';
+import { processPhoneNumber } from '../utils/phone-processor';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 

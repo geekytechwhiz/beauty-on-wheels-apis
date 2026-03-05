@@ -20,4 +20,3 @@ export * from './repository/dynamo.repository';
 export * from './repository/key-builder';
 export * from './templates/renderTemplate';
 export * from './templates/template.registry';
-export * from './templates/template.types';

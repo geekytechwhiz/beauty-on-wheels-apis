@@ -230,6 +230,7 @@ export class UserServiceClient {
       doctorName: doctorPayload.userInfo.name,
     });
     console.log("DOCTOR PAYLOAD : ",doctorPayload)
+    console.log("CONFIG TOKEN : ",config.token)
     try {
       
       const response = await this.client.post<{ data: User }>(

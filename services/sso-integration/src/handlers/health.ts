@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/logger';
+import { ApiResponse } from '@api-hub/utils';
 
 const logger = createLogger({ service: 'sso-integration', redactPII: false });
 
@@ -36,13 +37,15 @@ export async function handler(
     stage: process.env.NODE_ENV,
   };
 
-  return {
-    statusCode: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Correlation-Id': correlationId,
-      'Cache-Control': 'no-cache',
+  return ApiResponse.ok(
+    response,
+    { title: 'OK', description: 'SSO integration service is healthy' },
+    {
+      requestId: correlationId,
+      headers: {
+        'X-Correlation-Id': correlationId,
+        'Cache-Control': 'no-cache',
+      },
     },
-    body: JSON.stringify(response),
-  };
+  );
 }

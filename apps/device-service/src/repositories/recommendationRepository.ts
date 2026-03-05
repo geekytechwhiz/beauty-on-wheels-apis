@@ -33,6 +33,7 @@ export class RecommendationRepository {
     deviceId: string;
     category: string;
     name: string;
+    displayName?: string;
   }): Promise<DeviceRecommendation> {
     const logger = createChildLogger(baseLogger, { patientUserId: data.patientUserId, deviceId: data.deviceId });
     const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
@@ -56,6 +57,7 @@ console.log("NORMALIZED DEVICE ID ", normalizedDeviceId);
       deviceId: data.deviceId,
       category: data.category,
       name: data.name,
+      displayName: data.displayName,
       patientUserId: data.patientUserId,
       createdDate: now,
       modifiedDate: now,

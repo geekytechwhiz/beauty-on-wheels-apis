@@ -222,14 +222,24 @@ export class ScheduleServiceClient {
         },
         timeout: this.timeoutMs,
       });
-      const data = response.data?.data ?? response.data ?? [];
-      const rawList = Array.isArray(data) ? data : (data?.schedules && Array.isArray(data.schedules) ? data.schedules : []);
+      const data = response.data?.data?.items ?? response.data?.data ?? [];
+      const items = Array.isArray(data) ? data : [data];
+      let rawList = items.flatMap((item: any) => {
+        const schedules = item?.schedules ?? item?.schedule;
+        if (Array.isArray(schedules)) return schedules;
+        if (schedules != null) return [schedules];
+        return [];
+      });
+
       logger.info({
         event: 'scheduleServiceClient_fetchSchedules_response',
         status: response.status,
         rawCount: rawList.length,
         responseIsArray: Array.isArray(response.data?.data ?? response.data),
       });
+      if(!Array.isArray(rawList)){
+        rawList = [...rawList];
+      }
       const mapped = this.mapFetchSchedulesResponse(rawList, organizationId, logger);
       logger.info({
         event: 'scheduleServiceClient_fetchSchedules_success',

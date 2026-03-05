@@ -236,10 +236,10 @@ custom:
 
   # Only the stream creation timestamp differs per stage — everything else is dynamic
   userTableStreamTimestamp:
-    dev: '2025-12-24T06:52:16.060'
+    dev: '2026-03-03T06:46:28.426'
     stg: '2026-01-23T11:08:57.849'
     prd: ''
-
+  
   # Full DynamoDB Stream ARN built dynamically from region, accountId, stage, and timestamp
   userTableStreamArn: 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/user-table-${self:provider.stage}/stream/${self:custom.userTableStreamTimestamp.${self:provider.stage}}'
 
@@ -750,6 +750,18 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+
+  validateUsers:
+    handler: src/handlers/validateUsers.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: users/validateusers
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
   getOrganizationUserCount:
     handler: src/handlers/getOrganizationUserCount.main
     

@@ -44,6 +44,7 @@ export async function createUser(
   logger.info({ event: 'createUser_received', eventData: event });
 
   let body: any;
+  console.log("EVENT BODY : ",event.body)
   try {
     body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
   } catch (err) {
@@ -108,6 +109,7 @@ export async function createUser(
     );
   }
 
+  console.log("BODY DATA AFTER TRUTECH CHECK USER EXISTS : ",body)
   try {
     const { userInfo, userRole, userType } = validation.data;
     const organizationID = body.organizationID;
@@ -212,12 +214,15 @@ export async function createUser(
       medicalHistory: (userInfo as any).medicalHistory || {},
       insuranceDetails: (userInfo as any).insuranceDetails || {},
       workSchedule: (userInfo as any).workSchedule || {},
+      inviteDetails: (userInfo as any).inviteDetails || {},
       position: (userInfo as any).position || '',
       userTimeZone: (userInfo as any).userTimeZone || '',
       devices: (userInfo as any).devices || [],
       assignRoomNo: (userInfo as any).assignRoomNo || undefined,
       username: (userInfo as any).username || undefined,
     };
+
+
 
     const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
     userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
@@ -236,7 +241,7 @@ export async function createUser(
           body.organizationID,
         );
         logger.info({
-          event: 'createUser_repo_query_result',
+          event: 'createUser_repo_query__result',
           rolePermissionsCount: rolePermissions?.length || 0,
           hasItems: rolePermissions && rolePermissions.length > 0,
         });

@@ -8,15 +8,19 @@ const envSchema = z.object({
   COGNITO_USER_POOL_ID: z.string().min(1, 'COGNITO_USER_POOL_ID is required'),
   COGNITO_CLIENT_ID: z.string().min(1, 'COGNITO_CLIENT_ID is required'),
 
-  HMS_BASE_URL: z.string().url('HMS_BASE_URL must be a valid URL'),
-  HMS_API_KEY: z.string().min(1, 'HMS_API_KEY is required'),
-  HMS_TIMEOUT_MS: z.coerce.number().min(1000).max(30000).default(5000),
+  TRU_TECH_BASE_URL: z.string().url('TRU_TECH_BASE_URL must be a valid URL'),
+  TRU_TECH_API_KEY: z.string().min(1, 'TRU_TECH_API_KEY is required'),
+  TRU_TECH_TIMEOUT_MS: z.coerce.number().min(1000).max(30000).default(5000),
 
   USER_SERVICE_BASE_URL: z.string().url('USER_SERVICE_BASE_URL must be a valid URL'),
   USER_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'USER_SERVICE_INTERNAL_API_KEY is required'),
 
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'),
   ROLE_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'ROLE_SERVICE_INTERNAL_API_KEY is required'),
+
+  // Secret used to sign and verify internal service-level JWTs issued by the
+  // SSO integration service (not Cognito tokens).
+  SERVICE_TOKEN_SECRET: z.string().min(1, 'SERVICE_TOKEN_SECRET is required'),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1000).default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1).default(100),

@@ -1,383 +1,136 @@
 import {
-  CognitoIdentityProviderClient,
-  AdminInitiateAuthCommand,
-  AdminCreateUserCommand,
-  AdminSetUserPasswordCommand,
-  AdminGetUserCommand,
-  AdminUpdateUserAttributesCommand,
-  AuthFlowType,
-  MessageActionType,
-  UserNotFoundException,
-  NotAuthorizedException,
-  InvalidPasswordException,
-  UserNotConfirmedException,
-} from '@aws-sdk/client-cognito-identity-provider';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
-import { getEnvConfig } from '../config/env';
-import { CognitoTokens, SSOError, User } from '../types';
+  createChildLogger,
+  createLogger,
+  serializeError,
+} from '@api-hub/logger';
 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+import {
+  AdminGetUserCommand,
+  CognitoIdentityProviderClient,
+  ListUsersCommand,
+  UserNotFoundException,
+} from '@aws-sdk/client-cognito-identity-provider';
+
+import { TruTechVerifiedPayload } from '../types';
+
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true,
+});
 
 export class CognitoService {
   private readonly client: CognitoIdentityProviderClient;
-  private readonly userPoolId: string;
-  private readonly clientId: string;
-  private readonly logger = createChildLogger(baseLogger, { component: 'CognitoService' });
+  private readonly userPoolId = process.env.COGNITO_USER_POOL_ID;
+
+  private readonly logger = createChildLogger(baseLogger, {
+    component: 'CognitoService',
+  });
 
   constructor() {
-    const config = getEnvConfig();
-    this.userPoolId = config.COGNITO_USER_POOL_ID;
-    this.clientId = config.COGNITO_CLIENT_ID;
-
     this.client = new CognitoIdentityProviderClient({
-      region: this.userPoolId.split('_')[0],
-    });
-  }
-
-  async authenticateUser(
-    user: User,
-    correlationId: string
-  ): Promise<CognitoTokens> {
-    const logger = createChildLogger(this.logger, { correlationId, userId: user.id });
-    const startTime = Date.now();
-
-    logger.info({
-      event: 'cognito_auth_start',
-      tenantId: user.tenantId,
-      provider: user.provider,
+      region: process.env.DEFAULT_AWS_REGION,
     });
 
-    try {
-      const cognitoUsername = await this.ensureCognitoUser(user, correlationId);
-      const tempPassword = this.generateSecurePassword();
-
-      await this.setUserPassword(cognitoUsername, tempPassword, correlationId);
-
-      const authResult = await this.adminInitiateAuth(
-        cognitoUsername,
-        tempPassword,
-        correlationId
-      );
-
-      const duration = Date.now() - startTime;
-
-      logger.info({
-        event: 'cognito_auth_success',
-        durationMs: duration,
-        cognitoUsername,
+    if (!this.userPoolId) {
+      this.logger.error({
+        event: 'cognito_service_init_missing_pool_id',
       });
 
-      return authResult;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-
-      if (error instanceof SSOError) {
-        throw error;
-      }
-
-      logger.error({
-        event: 'cognito_auth_error',
-        durationMs: duration,
-        err: serializeError(error as Error),
-      });
-
-      throw SSOError.cognitoAuthError(
-        'Cognito authentication failed',
-        error as Error
-      );
+      throw new Error('COGNITO_USER_POOL_ID not configured');
     }
   }
 
-  private async ensureCognitoUser(
-    user: User,
-    correlationId: string
-  ): Promise<string> {
-    const logger = createChildLogger(this.logger, { correlationId });
-    const cognitoUsername = user.cognitoUsername || `sso_${user.provider.toLowerCase()}_${user.externalId}`;
-
+  /**
+   * Find user by email
+   * First attempts AdminGetUser (fast)
+   * Falls back to ListUsers if username != email
+   */
+  async findUserByEmail(
+    email: string,
+  ): Promise<TruTechVerifiedPayload | null> {
     try {
-      await this.client.send(
-        new AdminGetUserCommand({
-          UserPoolId: this.userPoolId,
-          Username: cognitoUsername,
-        })
-      );
-
-      logger.debug({
-        event: 'cognito_user_exists',
-        cognitoUsername,
+      const cmd = new ListUsersCommand({
+        UserPoolId: this.userPoolId!,
+        Filter: `email = "${email}"`,
+        Limit: 1,
       });
 
-      await this.updateUserAttributes(cognitoUsername, user, correlationId);
+      const res = await this.client.send(cmd);
 
-      return cognitoUsername;
-    } catch (error) {
-      if (error instanceof UserNotFoundException) {
-        logger.info({
-          event: 'cognito_user_not_found_creating',
-          cognitoUsername,
-        });
-        return this.createCognitoUser(cognitoUsername, user, correlationId);
+      const user = res.Users?.[0];
+
+      if (!user) {
+        return null;
       }
-      throw error;
+
+      return this.mapUser(user);
+    } catch (err) {
+      this.logger.error({
+        event: 'cognito_user_lookup_failed',
+        email,
+        err: serializeError(err),
+      });
+
+      throw err;
     }
   }
 
-  private async createCognitoUser(
-    cognitoUsername: string,
-    user: User,
-    correlationId: string
-  ): Promise<string> {
-    const logger = createChildLogger(this.logger, { correlationId });
-    const startTime = Date.now();
-
-    logger.info({
-      event: 'cognito_create_user_start',
-      cognitoUsername,
-      provider: user.provider,
-      tenantId: user.tenantId,
-    });
-
+  /**
+   * Fetch specific user attributes using AdminGetUser
+   */
+  async getUserAttributes(
+    username: string,
+  ): Promise<{ userID?: string; organizationID?: string }> {
     try {
-      const userAttributes = [
-        { Name: 'custom:external_id', Value: user.externalId },
-        { Name: 'custom:provider', Value: user.provider },
-        { Name: 'custom:tenant_id', Value: user.tenantId },
-        { Name: 'custom:user_id', Value: user.id },
-      ];
-
-      if (user.email) {
-        userAttributes.push(
-          { Name: 'email', Value: user.email },
-          { Name: 'email_verified', Value: 'true' }
-        );
-      }
-
-      if (user.phone) {
-        userAttributes.push(
-          { Name: 'phone_number', Value: user.phone },
-          { Name: 'phone_number_verified', Value: 'true' }
-        );
-      }
-
-      if (user.firstName || user.lastName) {
-        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-        userAttributes.push({ Name: 'name', Value: fullName });
-      }
-
-      await this.client.send(
-        new AdminCreateUserCommand({
-          UserPoolId: this.userPoolId,
-          Username: cognitoUsername,
-          UserAttributes: userAttributes,
-          MessageAction: MessageActionType.SUPPRESS,
-        })
-      );
-
-      const duration = Date.now() - startTime;
-
-      logger.info({
-        event: 'cognito_create_user_success',
-        durationMs: duration,
-        cognitoUsername,
+      const cmd = new AdminGetUserCommand({
+        UserPoolId: this.userPoolId!,
+        Username: username,
       });
 
-      return cognitoUsername;
-    } catch (error) {
-      const duration = Date.now() - startTime;
+      const res = await this.client.send(cmd);
 
-      logger.error({
-        event: 'cognito_create_user_error',
-        durationMs: duration,
-        cognitoUsername,
-        err: serializeError(error as Error),
-      });
+      const attrs = res.UserAttributes ?? [];
 
-      throw error;
-    }
-  }
-
-  private async updateUserAttributes(
-    cognitoUsername: string,
-    user: User,
-    correlationId: string
-  ): Promise<void> {
-    const logger = createChildLogger(this.logger, { correlationId });
-
-    try {
-      const userAttributes = [
-        { Name: 'custom:tenant_id', Value: user.tenantId },
-        { Name: 'custom:user_id', Value: user.id },
-      ];
-
-      await this.client.send(
-        new AdminUpdateUserAttributesCommand({
-          UserPoolId: this.userPoolId,
-          Username: cognitoUsername,
-          UserAttributes: userAttributes,
-        })
-      );
-
-      logger.debug({
-        event: 'cognito_update_attributes_success',
-        cognitoUsername,
-      });
-    } catch (error) {
-      logger.warn({
-        event: 'cognito_update_attributes_error',
-        cognitoUsername,
-        err: serializeError(error as Error),
-      });
-    }
-  }
-
-  private async setUserPassword(
-    cognitoUsername: string,
-    password: string,
-    correlationId: string
-  ): Promise<void> {
-    const logger = createChildLogger(this.logger, { correlationId });
-
-    try {
-      await this.client.send(
-        new AdminSetUserPasswordCommand({
-          UserPoolId: this.userPoolId,
-          Username: cognitoUsername,
-          Password: password,
-          Permanent: true,
-        })
-      );
-
-      logger.debug({
-        event: 'cognito_set_password_success',
-        cognitoUsername,
-      });
-    } catch (error) {
-      if (error instanceof InvalidPasswordException) {
-        logger.error({
-          event: 'cognito_set_password_invalid',
-          cognitoUsername,
-          err: serializeError(error),
-        });
-        throw SSOError.cognitoAuthError('Failed to set user password', error);
-      }
-      throw error;
-    }
-  }
-
-  private async adminInitiateAuth(
-    cognitoUsername: string,
-    password: string,
-    correlationId: string
-  ): Promise<CognitoTokens> {
-    const logger = createChildLogger(this.logger, { correlationId });
-    const startTime = Date.now();
-
-    try {
-      const response = await this.client.send(
-        new AdminInitiateAuthCommand({
-          UserPoolId: this.userPoolId,
-          ClientId: this.clientId,
-          AuthFlow: AuthFlowType.ADMIN_USER_PASSWORD_AUTH,
-          AuthParameters: {
-            USERNAME: cognitoUsername,
-            PASSWORD: password,
-          },
-        })
-      );
-
-      const duration = Date.now() - startTime;
-
-      if (!response.AuthenticationResult) {
-        logger.error({
-          event: 'cognito_auth_no_result',
-          durationMs: duration,
-          cognitoUsername,
-          challengeName: response.ChallengeName,
-        });
-        throw SSOError.cognitoAuthError('Authentication did not return tokens');
-      }
-
-      const { AuthenticationResult } = response;
-
-      logger.info({
-        event: 'cognito_admin_auth_success',
-        durationMs: duration,
-        cognitoUsername,
-        hasAccessToken: !!AuthenticationResult.AccessToken,
-        hasIdToken: !!AuthenticationResult.IdToken,
-        hasRefreshToken: !!AuthenticationResult.RefreshToken,
-      });
+      const getAttr = (name: string) =>
+        attrs.find((a) => a.Name === name)?.Value;
 
       return {
-        accessToken: AuthenticationResult.AccessToken!,
-        idToken: AuthenticationResult.IdToken!,
-        refreshToken: AuthenticationResult.RefreshToken!,
-        expiresIn: AuthenticationResult.ExpiresIn || 3600,
-        tokenType: AuthenticationResult.TokenType || 'Bearer',
+        userID: getAttr('custom:userID') ?? undefined,
+        organizationID: getAttr('custom:organizationID') ?? undefined,
       };
-    } catch (error) {
-      const duration = Date.now() - startTime;
-
-      if (error instanceof NotAuthorizedException) {
-        logger.error({
-          event: 'cognito_auth_not_authorized',
-          durationMs: duration,
-          cognitoUsername,
+    } catch (err) {
+      if (err instanceof UserNotFoundException) {
+        this.logger.debug({
+          event: 'cognito_user_not_found',
+          username,
         });
-        throw SSOError.cognitoAuthError('Authentication not authorized', error);
+
+        return {};
       }
 
-      if (error instanceof UserNotConfirmedException) {
-        logger.error({
-          event: 'cognito_auth_user_not_confirmed',
-          durationMs: duration,
-          cognitoUsername,
-        });
-        throw SSOError.cognitoAuthError('User not confirmed', error);
-      }
-
-      if (error instanceof SSOError) {
-        throw error;
-      }
-
-      logger.error({
-        event: 'cognito_admin_auth_error',
-        durationMs: duration,
-        cognitoUsername,
-        err: serializeError(error as Error),
+      this.logger.warn({
+        event: 'cognito_get_user_attrs_error',
+        username,
+        err: serializeError(err),
       });
 
-      throw error;
+      return {};
     }
   }
+ 
+  private mapUser(user: any): TruTechVerifiedPayload {
+    const attributes = Object.fromEntries(
+      (user.Attributes || []).map((a: any) => [a.Name, a.Value]),
+    );
 
-  private generateSecurePassword(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    const length = 32;
-    let password = '';
-
-    password += 'A';
-    password += 'a';
-    password += '0';
-    password += '!';
-
-    for (let i = 4; i < length; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-
-    return password
-      .split('')
-      .sort(() => Math.random() - 0.5)
-      .join('');
+    return {
+      email: attributes.email,
+      doctorUid: attributes['custom:doctorUid'],
+      organizationId: attributes['custom:organizationId'],
+      doctorId: attributes['custom:doctorId'],
+      tenantSubdomain: attributes['custom:tenantSubdomain'],
+      doctorEmail: attributes['custom:doctorEmail'],
+      tenantId: attributes['custom:tenantId'],
+    } as TruTechVerifiedPayload;
   }
-}
-
-let cognitoServiceInstance: CognitoService | null = null;
-
-export function getCognitoService(): CognitoService {
-  if (!cognitoServiceInstance) {
-    cognitoServiceInstance = new CognitoService();
-  }
-  return cognitoServiceInstance;
-}
+} 

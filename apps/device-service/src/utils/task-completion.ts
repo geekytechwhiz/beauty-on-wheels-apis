@@ -17,6 +17,12 @@ export async function completeUserTask(userId: string, organizationId: string, c
     return;
   }
 
+  // Skip when running locally (serverless-offline) - Lambda may not exist
+  if (process.env.IS_OFFLINE === 'true') {
+    logger.debug({ event: 'complete_task_skipped_offline' });
+    return;
+  }
+
   try {
     await lambdaClient.send(
       new InvokeCommand({

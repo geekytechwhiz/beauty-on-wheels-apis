@@ -2,17 +2,18 @@ import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
+import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE } from '../../utils/constants';
+import { sendEmail } from '../../services/notification.delivery';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
-const SEND_EMAIL_API_URL = process.env.SEND_EMAIL_API_URL || '';
 const SMS_API_URL = process.env.SMS_API_URL || '';
 
 interface InviteDetails {
-  email: boolean;
-  emailUpdatedAt: string;
-  sms: boolean;
-  smsUpdatedAt: string;
+  email?: boolean;
+  emailUpdatedAt?: string;
+  sms?: boolean;
+  smsUpdatedAt?: string;
 }
 
 /**
@@ -50,13 +51,31 @@ async function processRecord(
   const oldItem = record.dynamodb.OldImage
     ? unmarshall(record.dynamodb.OldImage as Record<string, any>)
     : {};
-
+    console.log("NEW ITEM",newItem)
+    console.log("OLD ITEM",oldItem)
   const newInviteDetails = newItem.inviteDetails as InviteDetails | undefined;
   const oldInviteDetails = oldItem.inviteDetails as InviteDetails | undefined;
+  console.log("NEW INVITE DETAILS",newInviteDetails)
+  console.log("OLD INVITE DETAILS",oldInviteDetails)
+  // Skip if inviteDetails is not present in the new image or is an empty object
+  if (!newInviteDetails || (typeof newInviteDetails === 'object' && Object.keys(newInviteDetails).length === 0)) {
+    logger.info({ 
+      event: 'inviteNotificationStream_no_inviteDetails', 
+      message: 'inviteDetails not found or empty in NewImage, skipping',
+      hasInviteDetails: !!newInviteDetails,
+      inviteDetailsKeys: newInviteDetails ? Object.keys(newInviteDetails) : []
+    });
+    return;
+  }
 
-  // Skip if inviteDetails is not present in the new image
-  if (!newInviteDetails) {
-    logger.info({ event: 'inviteNotificationStream_no_inviteDetails', message: 'inviteDetails not found in NewImage, skipping' });
+  // Only process if email or sms is explicitly set to true
+  if (newInviteDetails.email !== true && newInviteDetails.sms !== true) {
+    logger.info({ 
+      event: 'inviteNotificationStream_no_action_needed', 
+      message: 'inviteDetails present but email and sms are not true, skipping',
+      email: newInviteDetails.email,
+      sms: newInviteDetails.sms
+    });
     return;
   }
 
@@ -69,7 +88,6 @@ async function processRecord(
   const userId = (newItem.userID || newItem.userId || '') as string;
   const emailAddress = (newItem.emailAddress || '') as string;
   const phoneNumber = (newItem.phoneNumber || '') as string;
-  const fullName = (newItem.fullName || '') as string;
   const organizationID = (newItem.organizationID || '') as string;
 
   const recordLogger = createChildLogger(baseLogger, { correlationId, userId, organizationID, sequenceNumber });
@@ -82,33 +100,26 @@ async function processRecord(
 
   // ── Email notification ─────────────────────────────────────────────────────
   if (newInviteDetails.email === true) {
-    if (!SEND_EMAIL_API_URL) {
-      recordLogger.warn({ event: 'inviteNotificationStream_email_no_url', message: 'SEND_EMAIL_API_URL not configured' });
-    } else {
-      try {
-        recordLogger.info({ event: 'inviteNotificationStream_email_sending', emailAddress });
+    try {
+      recordLogger.info({ event: 'inviteNotificationStream_email_sending', emailAddress });
 
-        await axios.post(
-          SEND_EMAIL_API_URL,
-          {
-            userId,
-            emailAddress,
-            fullName,
-            organizationID,
-            type: 'INVITE',
-          },
-          { timeout: 10_000 },
-        );
+      await sendEmail({
+        email: emailAddress,
+        template: 'GENERIC_NOTIFICATION',
+        templateData: {
+          TITLE: INVITE_EMAIL_SUBJECT,
+          BODY: INVITE_EMAIL_MESSAGE,
+        },
+      });
 
-        recordLogger.info({ event: 'inviteNotificationStream_email_sent', emailAddress });
-      } catch (err) {
-        // Log and continue — do not let an email failure block SMS
-        recordLogger.error({
-          event: 'inviteNotificationStream_email_error',
-          emailAddress,
-          err: serializeError(err),
-        });
-      }
+      recordLogger.info({ event: 'inviteNotificationStream_email_sent', emailAddress });
+    } catch (err) {
+      // Log and continue — do not let an email failure block SMS
+      recordLogger.error({
+        event: 'inviteNotificationStream_email_error',
+        emailAddress,
+        err: serializeError(err),
+      });
     }
   }
 
@@ -123,11 +134,8 @@ async function processRecord(
         await axios.post(
           SMS_API_URL,
           {
-            userId,
             phoneNumber,
-            fullName,
-            organizationID,
-            type: 'INVITE',
+            message: `${WELCOME_MESSAGE.replace('{{ORG_NAME}}', organizationID)}`
           },
           { timeout: 10_000 },
         );

@@ -91,11 +91,10 @@ async function updateRecentInvite(
   }
 
   // Get userId and organizationId from body or authorizer
-  let userId = validation.data.userId || requestUserId;
-  let organizationId = validation.data.organizationId || requestOrgId;
+  
   let patientId = validation.data.patientId;
 
-  if (!userId || !organizationId || !patientId) {
+  if (!patientId) {
     const duration = Date.now() - startTime;
     logHttpRequest(
       logger,
@@ -112,11 +111,7 @@ async function updateRecentInvite(
         code: 'MISSING_REQUIRED_FIELDS',
         details: [
           {
-            message: userId
-              ? 'organizationId is required'
-              : organizationId
-                ? 'userId is required'
-                : 'userId and organizationId are required',
+            message: 'patientId is required' 
           },
         ],
       },
@@ -150,17 +145,15 @@ async function updateRecentInvite(
 
   try {
     logger.info({
-      event: 'updateRecentInvite_start',
-      userId,
-      organizationId,
+      event: 'updateRecentInvite_start', 
       patientId,
       email: validation.data.email,
       sms: validation.data.sms,
     });
 
     const result = await userService.updateRecentInvite(
-      userId,
-      organizationId,
+      requestUserId || '',
+      requestOrgId || '',
       patientId,
       {
         email: validation.data.email,
@@ -222,7 +215,10 @@ async function updateRecentInvite(
         correlationId,
       );
       return await ApiResponse.tooManyRequests(
-        'USER.INVITE_UPDATE_TOO_SOON',
+        {
+          title: err.message,
+          description: 'An error occurred',
+        },
         { requestId: correlationId, event },
         {
           code: 'INVITE_UPDATE_TOO_SOON',
@@ -232,7 +228,7 @@ async function updateRecentInvite(
               field: err.field,
               lastUpdatedAt: err.lastUpdatedAt,
               hoursSinceUpdate: err.hoursSinceUpdate,
-            },
+            } as any,
           ],
         },
       );

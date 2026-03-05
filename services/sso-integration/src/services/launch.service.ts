@@ -1,264 +1,190 @@
-import { createLogger, createChildLogger, serializeError, createPerformanceTimer } from '@api-hub/logger';
-import { getHMSAdapter } from './hms.adapter';
-import { getUserServiceClient } from './user.client';
-import { getRoleServiceClient } from './role.client';
-import { getCognitoService } from './cognito.service';
-import {
-  CognitoTokens,
-  SSOError,
-  SSOLaunchResponse,
-  User,
-  HMSVerifiedPayload,
+import { LaunchProcessResult } from '../types/launch.types';
+
+import { 
+  Patient,  
+  User, 
+  RequestContext,
+  TruTechAppointment,
+  TruTechAppointmentsResponse,
 } from '../types';
+ 
+import { BaseService } from '../core/base.service';
+import { getCreateDoctorMapper } from '../mappers/create-doctor.mapper';
+import { TruTechVerifiedPayload, TruTechVerifyContext } from '../types/appointment.types';
+import { SSOError } from '../types/errors/sso-error';
+import { SSOErrorCode } from '../types/enums';
 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+export class LaunchService extends BaseService {
+  private readonly doctorMapper = getCreateDoctorMapper();
 
-const HMS_PROVIDER = 'HMS';
-const HMS_DOCTOR_ROLE = 'ROLE_HMS_DOCTOR';
-const SSO_SOURCE = 'SSO_HMS';
-
-export interface LaunchResult {
-  tokens: CognitoTokens;
-  user: {
-    id: string;
-    externalId: string;
-    provider: string;
-    tenantId: string;
-    doctorId: number;
-  };
-}
-
-export class LaunchService {
-  private readonly logger = createChildLogger(baseLogger, { component: 'LaunchService' });
-  private readonly hmsAdapter = getHMSAdapter();
-  private readonly userClient = getUserServiceClient();
-  private readonly roleClient = getRoleServiceClient();
-  private readonly cognitoService = getCognitoService();
+  constructor() {
+    super('LaunchService');
+  }
 
   async processLaunch(
     launchToken: string,
-    correlationId: string
-  ): Promise<LaunchResult> {
-    const logger = createChildLogger(this.logger, { correlationId });
-    const timer = createPerformanceTimer(logger, 'launch_flow');
-
-    logger.info({
-      event: 'launch_flow_start',
-      tokenLength: launchToken.length,
-    });
+    correlationId: string,
+  ): Promise<LaunchProcessResult> {
+    const ctx: RequestContext = { correlationId };
 
     try {
-      const hmsPayload = await this.verifyToken(launchToken, correlationId);
+      const verifyResponse = await this.verifyLaunchToken(launchToken, ctx);
 
-      const user = await this.resolveUser(hmsPayload, correlationId);
+      const doctor = await this.ensureDoctorExists(verifyResponse.context, ctx);
 
-      this.validateUserStatus(user, correlationId);
+      const serviceToken = await this.generateServiceToken(
+        doctor,
+        verifyResponse.context,
+      );
 
-      await this.ensureRoleAssignment(user.id, correlationId);
+      const appointments :any = await this.fetchAppointments(
+        verifyResponse.context.drid,
+        ctx,
+      );
 
-      const tokens = await this.authenticateUser(user, correlationId);
-
-      timer.end();
-
-      logger.info({
-        event: 'launch_flow_success',
-        userId: user.id,
-        tenantId: user.tenantId,
-      });
+      const eventsPublished = await this.publishPatientCreationEvents(
+        doctor,
+        appointments,
+        verifyResponse.context,
+        ctx,
+      );
 
       return {
-        tokens,
-        user: {
-          id: user.id,
-          externalId: user.externalId,
-          provider: user.provider,
-          tenantId: user.tenantId,
-          doctorId: hmsPayload.doctorId,
-        },
+        doctor,
+        appointments: appointments?.map((appointment:any) => this.truTechAdapter.mapAppointments(appointment as unknown as TruTechAppointmentsResponse)) || [],
+        patientEventsPublished: eventsPublished,
+        serviceToken,
       };
     } catch (error) {
-      timer.end();
-
-      if (error instanceof SSOError) {
-        logger.warn({
-          event: 'launch_flow_error',
-          errorCode: error.code,
-          statusCode: error.statusCode,
-          message: error.message,
-        });
-        throw error;
-      }
-
-      logger.error({
-        event: 'launch_flow_unexpected_error',
-        err: serializeError(error as Error),
+      this.logger.error({
+        event: 'launch_process_failed',
+        error:
+          error instanceof Error
+            ? {
+                name: error.name || 'UnknownError',
+                message: error.message,
+                stack: error.stack,
+              }
+            : { name: 'UnknownError', message: String(error) },
       });
 
-      throw SSOError.internalError(
-        'An unexpected error occurred during SSO launch',
-        error as Error
+      throw new SSOError(
+        SSOErrorCode.INTERNAL_ERROR,
+        'Failed to process launch token',
+        500,
+        error as Error,
       );
     }
   }
 
-  private async verifyToken(
-    launchToken: string,
-    correlationId: string
-  ): Promise<HMSVerifiedPayload> {
-    const logger = createChildLogger(this.logger, { correlationId });
+  private async verifyLaunchToken(launchToken: string, ctx: RequestContext) {
+    const response = await this.truTechClient.verifyLaunchToken(
+      launchToken,
+      ctx.correlationId,
+    );
 
-    logger.info({ event: 'step_verify_token_start' });
+    if (!response) {
+      throw new SSOError(
+        SSOErrorCode.INVALID_LAUNCH_TOKEN,
+        'Invalid launch token',
+      );
+    }
 
-    const payload = await this.hmsAdapter.verifyLaunchToken(launchToken, correlationId);
-
-    logger.info({
-      event: 'step_verify_token_complete',
-      tenantId: payload.tenantId,
-    });
-
-    return payload;
+    return response;
   }
 
-  private async resolveUser(
-    hmsPayload: HMSVerifiedPayload,
-    correlationId: string
+  private async ensureDoctorExists(
+    doctorContext: TruTechVerifyContext,
+    ctx: RequestContext,
   ): Promise<User> {
-    const logger = createChildLogger(this.logger, { correlationId });
+    const userAttributes: TruTechVerifiedPayload | null =
+      await this.cognitoService.findUserByEmail(doctorContext.email);
 
-    logger.info({
-      event: 'step_resolve_user_start',
-      tenantId: hmsPayload.tenantId,
-    });
+    if (userAttributes?.doctorUid) {
+      return {
+        id: userAttributes.doctorUid,
+        externalId: doctorContext.drid,
+        provider: 'TruTech',
+        tenantId: doctorContext.tenant_id,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
 
-    let user = await this.userClient.findByExternalId(
-      {
-        provider: HMS_PROVIDER,
-        externalId: hmsPayload.doctorUid,
-        tenantId: hmsPayload.tenantId,
-      },
-      correlationId
+    const payload = this.doctorMapper.mapTruTechDoctorToOurSystem(
+      doctorContext,
+      ctx.correlationId,
     );
 
-    if (!user) {
-      logger.info({
-        event: 'user_not_found_creating',
-        tenantId: hmsPayload.tenantId,
-      });
+    const newDoctor = await this.userServiceClient.createDoctor(payload, {
+      token: '',
+      correlationId: ctx.correlationId,
+    });
 
-      user = await this.userClient.createUser(
-        {
-          externalId: hmsPayload.doctorUid,
-          provider: HMS_PROVIDER,
-          tenantId: hmsPayload.tenantId,
-          role: 'DOCTOR',
-          source: SSO_SOURCE,
-          email: hmsPayload.doctorEmail,
-          phone: hmsPayload.doctorPhone,
-          firstName: hmsPayload.doctorName?.split(' ')[0],
-          lastName: hmsPayload.doctorName?.split(' ').slice(1).join(' '),
-        },
-        correlationId
-      );
+    this.logger.info({
+      event: 'doctor_created',
+      userId: newDoctor.id,
+    });
 
-      logger.info({
-        event: 'user_created',
-        userId: user.id,
-      });
-    } else {
-      logger.info({
-        event: 'user_found',
-        userId: user.id,
-        userStatus: user.status,
-      });
-    }
-
-    return user;
+    return newDoctor;
   }
 
-  private validateUserStatus(user: User, correlationId: string): void {
-    const logger = createChildLogger(this.logger, { correlationId });
-
-    if (user.status === 'INACTIVE') {
-      logger.warn({
-        event: 'user_inactive',
-        userId: user.id,
-        status: user.status,
-      });
-      throw SSOError.userInactive('User account is inactive');
-    }
-
-    if (user.status === 'PENDING') {
-      logger.info({
-        event: 'user_pending_allowed',
-        userId: user.id,
-        status: user.status,
-      });
-    }
-
-    logger.debug({
-      event: 'user_status_valid',
-      userId: user.id,
-      status: user.status,
+  private async generateServiceToken(
+    doctor: User,
+    doctorContext: TruTechVerifyContext,
+  ) {
+    return this.serviceTokenService.generateToken(doctorContext.tenant_id, {
+      userId: doctor.id.toString(),
+      role: 'DOCTOR',
+      appointmentId: doctorContext.drid,
     });
   }
 
-  private async ensureRoleAssignment(
-    userId: string,
-    correlationId: string
-  ): Promise<void> {
-    const logger = createChildLogger(this.logger, { correlationId });
-
-    logger.info({
-      event: 'step_ensure_role_start',
-      userId,
-      roleCode: HMS_DOCTOR_ROLE,
-    });
-
-    await this.roleClient.ensureRoleAssignment(
-      {
-        userId,
-        roleCode: HMS_DOCTOR_ROLE,
-      },
-      correlationId
+  private async fetchAppointments(
+    doctorId: number,
+    ctx: RequestContext,
+  ): Promise< TruTechAppointment[] | undefined> {
+    const response = await this.truTechClient.getTodaysAppointments(
+      doctorId,
+      ctx.correlationId,
     );
 
-    logger.info({
-      event: 'step_ensure_role_complete',
-      userId,
-      roleCode: HMS_DOCTOR_ROLE,
-    });
+    return response.appointments;
   }
 
-  private async authenticateUser(
-    user: User,
-    correlationId: string
-  ): Promise<CognitoTokens> {
-    const logger = createChildLogger(this.logger, { correlationId });
+  private async publishPatientCreationEvents(
+    doctor: User,
+    appointments: TruTechAppointment[] | undefined,
+    doctorInfo: TruTechVerifyContext,
+    ctx: RequestContext,
+  ): Promise<number> {
+    const uniquePatients = new Map<number, Patient>();
 
-    logger.info({
-      event: 'step_cognito_auth_start',
-      userId: user.id,
-    });
+    for (const appointment of appointments || []) {
+      if (appointment.patient?.id) {
+        uniquePatients.set(appointment.patient.id, appointment.patient as Patient);
+      }
+    }
 
-    const tokens = await this.cognitoService.authenticateUser(user, correlationId);
+    if (!uniquePatients.size) return 0;
 
-    logger.info({
-      event: 'step_cognito_auth_complete',
-      userId: user.id,
-      hasTokens: !!tokens.accessToken,
-    });
+    const events = Array.from(uniquePatients.values()).map((patient) =>
+      this.patientEventPublisher.createPatientCreationEvent(
+        patient,
+        doctorInfo.drid,
+        this.config.defaultOrganizationID,
+        'TruTech',
+        ctx.correlationId,
+      ),
+    );
 
-    return tokens;
-  }
+    await this.patientEventPublisher.publishPatientCreationEventsBatch(
+      events,
+      ctx.correlationId,
+    );
 
-  formatResponse(result: LaunchResult): SSOLaunchResponse {
-    return {
-      success: true,
-      data: {
-        tokens: result.tokens,
-        user: result.user,
-      },
-    };
+    return events.length;
   }
 }
 
@@ -268,5 +194,6 @@ export function getLaunchService(): LaunchService {
   if (!launchServiceInstance) {
     launchServiceInstance = new LaunchService();
   }
+
   return launchServiceInstance;
 }

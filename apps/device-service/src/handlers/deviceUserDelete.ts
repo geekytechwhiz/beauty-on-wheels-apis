@@ -1,8 +1,3 @@
-/**
- * Delete a single user-device mapping by userId and configDeviceId.
- * Used by vitals_sync delete_device Lambda migration.
- * Body: { userId, deviceId } where deviceId = configDeviceId
- */
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -29,25 +24,63 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
-  const authorizer = (event.requestContext as any)?.authorizer;
   const bodyObj = body as Record<string, unknown>;
-  const userId = authorizer?.userID || authorizer?.userId || (event as any).userID || bodyObj?.userID || bodyObj?.userId;
-  const deviceId = bodyObj?.deviceId;
 
-  if (!userId || !deviceId || typeof deviceId !== 'string') {
+  // Extract userId from authorizer (Bearer token) - supports Cognito claims and custom authorizer context
+  const authorizer = (event.requestContext as unknown as Record<string, unknown>)?.authorizer as Record<string, unknown> | undefined;
+  const claims = (authorizer?.claims as Record<string, unknown>) || authorizer || {};
+  const userId =
+    (claims['custom:userID'] as string) ||
+    (claims['custom:userId'] as string) ||
+    (claims.userID as string) ||
+    (claims.userId as string) ||
+    (claims.sub as string) ||
+    (authorizer?.userID as string) ||
+    (authorizer?.userId as string) ||
+    (bodyObj?.userID as string) ||
+    (bodyObj?.userId as string);
+
+  // Support both { deviceId: "..." } and { devices: ["..."] }
+  const deviceIdSingle = typeof bodyObj?.deviceId === 'string' ? bodyObj.deviceId : undefined;
+  const devicesArray = Array.isArray(bodyObj?.devices)
+    ? (bodyObj.devices as unknown[]).filter((d): d is string => typeof d === 'string')
+    : [];
+  const configDeviceIds = deviceIdSingle ? [deviceIdSingle] : devicesArray;
+
+  logger.info({
+    event: 'deviceUserDelete_params',
+    userId: userId || undefined,
+    configDeviceIds,
+    hasDevicesArray: devicesArray.length > 0,
+  });
+
+  if (!userId || configDeviceIds.length === 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 400, duration, correlationId);
     return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, {
       code: 'BAD_REQUEST',
-      details: [{ message: 'userId and deviceId (configDeviceId) are required in request body' }],
+      details: [{
+        message: !userId
+          ? 'userId is required (from Bearer token or body)'
+          : 'devices array or deviceId is required in request body',
+      }],
     });
   }
 
   try {
-    await deviceService.deleteDevice(userId, deviceId, correlationId);
+    const results =
+      configDeviceIds.length === 1
+        ? await deviceService.deleteDevice(userId, configDeviceIds[0], correlationId).then(() => [
+            { success: true, configDeviceId: configDeviceIds[0], message: 'Device deleted successfully' },
+          ])
+        : await deviceService.deleteMultipleDevices(userId, configDeviceIds, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 200, duration, correlationId);
-    return ApiResponse.ok({ message: 'Device deleted successfully' }, 'DEVICE.DEVICE_DELETED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.ok(
+      configDeviceIds.length === 1 ? { message: 'Device deleted successfully' } : { results },
+      'DEVICE.DEVICE_DELETED_SUCCESS',
+      { requestId: correlationId, event },
+    );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof DeviceNotFoundError) {

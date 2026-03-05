@@ -99,7 +99,7 @@ export class LaunchService extends BaseService {
   ): Promise<User> {
     const userAttributes: TruTechVerifiedPayload | null =
       await this.cognitoService.findUserByEmail(doctorContext.email);
-
+    console.log("USER ATTRIBUTES : ",userAttributes);
     if (userAttributes?.doctorUid) {
       return {
         id: userAttributes.doctorUid,

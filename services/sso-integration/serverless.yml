@@ -41,6 +41,9 @@ provider:
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
     ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, 'dummy-role-service-key'}
 
+    # Secret used to sign and verify internal service-level JWTs
+    SERVICE_TOKEN_SECRET: ${env:SERVICE_TOKEN_SECRET, 'dummy-service-token-secret-for-local-dev'}
+
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
 

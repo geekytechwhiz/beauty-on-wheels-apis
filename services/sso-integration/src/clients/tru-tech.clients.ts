@@ -12,6 +12,7 @@ import {
     TruTechVerifyResponse
 } from '../types/appointment.types';
 import { SSOError } from '../types/errors/sso-error';
+import { DUMMY_APPOINTMENTS_RESPONSE } from '../data/dummy-appointments.data';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -128,6 +129,12 @@ export class TruTechClient {
 
     try {
 
+      logger.info({
+        event: 'trutech_get_todays_appointments_start',
+        doctorId,
+        correlationId,
+      });
+
       const response = await this.client.post<TruTechAppointmentsResponse>(
         '/api/teleconsultation/todays-appointments',
         { doctor_id: doctorId },
@@ -138,9 +145,36 @@ export class TruTechClient {
         }
       );
 
+      logger.debug({
+        event: 'trutech_get_todays_appointments_raw_response',
+        doctorId,
+        status: response.status,
+        hasAppointmentsArray: !!response.data?.appointments,
+        appointmentCount: response.data?.appointments?.length ?? 0,
+        rawStatusField: response.data?.status,
+        hasMessage: !!response.data?.message,
+      });
+
+      // For testing: return dummy data if appointments array is empty (143-152)
+      if (!response.data.appointments || response.data.appointments.length === 0) {
+        logger.info({
+          event: 'using_dummy_appointments_data',
+          doctorId,
+          reason: 'empty_appointments_array'
+        });
+
+        return DUMMY_APPOINTMENTS_RESPONSE;
+      }
+
       return response.data;
 
     } catch (error) {
+
+      logger.error({
+        event: 'trutech_get_todays_appointments_exception',
+        doctorId,
+        err: serializeError(error as Error),
+      });
 
       this.handleAxiosError(error, 'get_todays_appointments', logger);
 

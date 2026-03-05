@@ -53,15 +53,55 @@ export class TruTechAdapter {
   // ---------------------------------------------------------
 
   mapAppointments(response: TruTechAppointmentsResponse): Appointment[] {
+    this.logger.debug({
+      event: 'trutech_map_appointments_start',
+      status: response.status,
+      hasAppointmentsArray: !!response.appointments,
+      appointmentCount: response.appointments?.length ?? 0,
+    });
+
     if (response.status !== 'success') {
+      this.logger.error({
+        event: 'trutech_map_appointments_error_status',
+        status: response.status,
+        message: response.message,
+      });
+
       throw SSOError.truTechServiceError(
         response.message || 'Failed to fetch appointments',
       );
     }
 
-    return (response.appointments || []).map((appt) =>
-      this.normalizeAppointment(appt),
-    );
+    const mapped = (response.appointments || []).map((appt, index) => {
+      this.logger.debug({
+        event: 'trutech_normalize_appointment_start',
+        index,
+        appointmentId: appt.appointment_id,
+        hasPatient: !!appt.patient,
+        hasDoctor: !!appt.doctor,
+        hasConsultationType: !!appt.consultation_type,
+        hasVisit: !!appt.visit,
+      });
+
+      const normalized = this.normalizeAppointment(appt);
+
+      this.logger.debug({
+        event: 'trutech_normalize_appointment_success',
+        index,
+        appointmentId: normalized.appointmentId,
+        patientId: normalized.patient.id,
+        doctorId: normalized.doctor.id,
+      });
+
+      return normalized;
+    });
+
+    this.logger.info({
+      event: 'trutech_map_appointments_success',
+      appointmentCount: mapped.length,
+    });
+
+    return mapped;
   }
 
   // ---------------------------------------------------------

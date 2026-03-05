@@ -67,4 +67,13 @@ export interface Organization {
   description?: string;
   industry?: string;
   size?: 'SMALL' | 'MEDIUM' | 'LARGE';
+  integration?: Integration;
+}
+export interface Integration {
+  providerId: string;
+  providerName?: string;
+  integrationType: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE';
+  externalHospitalId?: string;
+  subdomain?: string;
+  metadata?: Record<string, unknown>;
 }

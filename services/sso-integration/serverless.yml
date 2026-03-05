@@ -57,6 +57,7 @@ provider:
     APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '10000'}
     APPOINTMENT_SYNC_CONCURRENCY_LIMIT: ${env:APPOINTMENT_SYNC_CONCURRENCY_LIMIT, '5'}
 
+    PATIENT_CREATION_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/542476693486/dev-sso-integration-patient-creation-queue
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
   iamRoleStatements:
     - Effect: Allow
@@ -66,6 +67,7 @@ provider:
         - cognito-idp:AdminSetUserPassword
         - cognito-idp:AdminUpdateUserAttributes
         - cognito-idp:AdminGetUser
+        - cognito-idp:ListUsers
       Resource:
         - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     - Effect: Allow

@@ -1,8 +1,9 @@
-import { createLogger, createChildLogger } from '@api-hub/logger';
-import { TruTechVerifiedPayload, Doctor, SSOError } from '../../types';
-import { DoctorCreationPayload } from '../../types/user-creation.types';
-import { getSSOConfig } from '../../config/sso-config';
-import { processPhoneNumber } from '../phone-processor';
+  import { createLogger, createChildLogger } from '@api-hub/logger';  
+import { DoctorCreationPayload } from '../types/user-creation.types';
+import { getSSOConfig } from '../config/sso-config';
+import { processPhoneNumber } from '../utils/phone-processor'; 
+import { TruTechVerifyContext } from '../types/appointment.types';
+import { SSOError } from '../types/errors/sso-error';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -10,36 +11,35 @@ const baseLogger = createLogger({ service: 'sso-integration', redactPII: true })
  * Maps TruTech doctor data to our system's doctor creation payload.
  * This is a generic mapper that can be extended for other providers in the future.
  */
-export class DoctorMapperHelper {
+export class CreateDoctorMapper {
   private readonly logger = createChildLogger(baseLogger, { component: 'DoctorMapperHelper' });
 
   /**
    * Maps TruTech verified payload and appointment doctor data to our system format.
    * 
    * @param verifiedPayload - Verified payload from TruTech token verification
-   * @param appointmentDoctor - Optional doctor data from appointment (may have additional fields)
    * @param correlationId - Correlation ID for logging
    * @returns Doctor creation payload for user service
    */
   mapTruTechDoctorToOurSystem(
-    verifiedPayload: TruTechVerifiedPayload,
-    appointmentDoctor?: Doctor,
+    verifiedPayload: TruTechVerifyContext,
     correlationId?: string,
+    subDomain?: string,
   ): DoctorCreationPayload {
     const logger = createChildLogger(this.logger, { correlationId });
     const config = getSSOConfig();
-
+    const externalId = String(verifiedPayload.drid);
     logger.info({
       event: 'doctor_mapping_start',
-      doctorId: verifiedPayload.doctorId,
-      hasAppointmentDoctor: !!appointmentDoctor,
+      doctorId: verifiedPayload.drid,
+      hasAppointmentDoctor: '',
     });
 
     // Use appointment doctor data if available, otherwise use verified payload
-    const doctorName = appointmentDoctor?.name || verifiedPayload.doctorName || '';
-    const doctorEmail = appointmentDoctor?.email || verifiedPayload.doctorEmail;
-    const doctorPhone = appointmentDoctor?.phone || verifiedPayload.doctorPhone;
-    const department = appointmentDoctor?.department || verifiedPayload.department || '';
+    const doctorName = verifiedPayload.name || '';
+    const doctorEmail = verifiedPayload.email;
+    const doctorPhone = verifiedPayload.doctor_phone;
+    const department = verifiedPayload.department || '';
 
     // Validate required fields
     if (!doctorName || doctorName.trim() === '') {
@@ -98,6 +98,9 @@ export class DoctorMapperHelper {
       userRole: [config.doctorRoleId],
       userType: 'STAFF',
       organizationID: config.defaultOrganizationID,
+      externalId: externalId,
+      provider: 'TruTech', 
+      subDomain: subDomain || verifiedPayload.tenant_id 
     };
 
     logger.info({
@@ -110,11 +113,11 @@ export class DoctorMapperHelper {
   }
 }
 
-let doctorMapperHelperInstance: DoctorMapperHelper | null = null;
+let createDoctorMapperInstance: CreateDoctorMapper | null = null;
 
-export function getDoctorMapperHelper(): DoctorMapperHelper {
-  if (!doctorMapperHelperInstance) {
-    doctorMapperHelperInstance = new DoctorMapperHelper();
+export function getCreateDoctorMapper(): CreateDoctorMapper {
+  if (!createDoctorMapperInstance) {
+    createDoctorMapperInstance = new CreateDoctorMapper();
   }
-  return doctorMapperHelperInstance;
+  return createDoctorMapperInstance;
 }

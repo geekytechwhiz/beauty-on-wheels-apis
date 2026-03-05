@@ -1,19 +1,20 @@
 import { createLogger, createChildLogger, serializeError, createPerformanceTimer } from '@api-hub/logger';
-import { getTruTechAdapter } from '../adapters/TruTech.adapter';
+import { getTruTechAdapter } from '../adapters/trutech.adapter.ts';
 import {
   Appointment,
   PatientEMRSummary,
   AppointmentsResponse,
   PatientEMRResponse,
-  SSOError,
-} from '../types';
+} from '../types/appointment.types';
+import { SSOError } from '../types/errors/sso-error'; 
+import { getTruTechClient } from '../clients/tru-tech.clients.js';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
 export class AppointmentsService {
   private readonly logger = createChildLogger(baseLogger, { component: 'AppointmentsService' });
+  private readonly truTechClient = getTruTechClient();
   private readonly truTechAdapter = getTruTechAdapter();
-
   // ---------------------------------------------------------------------------
   // Get Today's Appointments for a Doctor
   // ---------------------------------------------------------------------------
@@ -35,7 +36,7 @@ export class AppointmentsService {
         throw SSOError.invalidRequest('Invalid doctor ID');
       }
 
-      const appointments = await this.truTechAdapter.getTodaysAppointments(
+      const truTechAppointmentsResponse = await this.truTechClient.getTodaysAppointments(
         doctorId,
         correlationId
       );
@@ -45,10 +46,10 @@ export class AppointmentsService {
       logger.info({
         event: 'get_appointments_success',
         doctorId,
-        appointmentCount: appointments.length,
+        appointmentCount: truTechAppointmentsResponse.appointments?.length || 0,
       });
 
-      return appointments;
+      return this.truTechAdapter.mapAppointments(truTechAppointmentsResponse);
     } catch (error) {
       timer.end();
 
@@ -98,7 +99,7 @@ export class AppointmentsService {
         throw SSOError.invalidRequest('Invalid patient ID');
       }
 
-      const emrSummary = await this.truTechAdapter.getPatientEMRSummary(
+      const truTechPatientEMRResponse = await this.truTechClient.getPatientEMRSummary(
         patientId,
         correlationId
       );
@@ -108,10 +109,13 @@ export class AppointmentsService {
       logger.info({
         event: 'get_emr_success',
         patientId,
-        visitCount: emrSummary.visits.length,
+        visitCount: truTechPatientEMRResponse.emr?.length || 0,
       });
 
-      return emrSummary;
+      return this.truTechAdapter.mapPatientEMRSummary(
+        truTechPatientEMRResponse,
+        patientId,
+      );
     } catch (error) {
       timer.end();
 

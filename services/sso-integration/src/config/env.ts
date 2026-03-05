@@ -18,6 +18,10 @@ const envSchema = z.object({
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'),
   ROLE_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'ROLE_SERVICE_INTERNAL_API_KEY is required'),
 
+  // Secret used to sign and verify internal service-level JWTs issued by the
+  // SSO integration service (not Cognito tokens).
+  SERVICE_TOKEN_SECRET: z.string().min(1, 'SERVICE_TOKEN_SECRET is required'),
+
   RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1000).default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1).default(100),
 });

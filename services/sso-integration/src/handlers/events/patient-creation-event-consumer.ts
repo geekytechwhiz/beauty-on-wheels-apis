@@ -1,10 +1,10 @@
 import { SQSEvent, SQSRecord, Context } from 'aws-lambda';
 import { createLogger, createChildLogger, extractAwsRequestId, serializeError } from '@api-hub/logger';
-import { getUserServiceClient } from '../services/user.client';
-import { getPatientMapperHelper } from '../utils/helper/patient.mapper.helper';
-import { PatientCreationEvent } from '../services/patient-event-publisher.service';
-import { getSSOConfig } from '../config/sso-config';
-
+import { getSSOConfig } from '../../config/sso-config';
+import { getPatientMapperHelper } from '../../helper/patient.mapper';
+import { getUserServiceClient } from '../../clients/user.client'; 
+import { PatientCreationEvent } from '../../types/events';
+ 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
 /**
@@ -82,7 +82,7 @@ async function processPatientCreationEvent(
     throw new Error('Failed to parse patient creation event');
   }
 
-  const { patient, doctorId, organizationID, tenantId, provider, externalId } = event.data;
+  const { patient, doctorId, organizationID, provider, externalId } = event.data;
 
   logger.info({
     event: 'patient_creation_event_process_start',
@@ -97,7 +97,7 @@ async function processPatientCreationEvent(
     {
       provider,
       externalId,
-      tenantId,
+      tenantId:"default", // TODO: get tenantId from event
     },
     correlationId,
   );
@@ -111,27 +111,15 @@ async function processPatientCreationEvent(
     });
     return;
   }
-
-  // Map patient data to our system format
-  // We need to reconstruct the Patient object from event data
-  const patientData: import('../types').Patient = {
-    id: patient.id,
-    mrn: patient.mrn || '',
-    name: patient.name,
-    gender: patient.gender,
-    age: '', // Not needed for creation
-    dateOfBirth: patient.dob || '',
-    phone: patient.phone,
-    email: patient.email,
-  };
+ 
 
   // Get doctor name from event data (if provided) or use a default
   // The user service will handle doctor assignment properly even without the name
-  const doctorName = event.data.doctorName || 'Dr. Name';
+  const doctorName = 'Dr. Name'; // TODO: get doctor name from event
 
   const patientPayload = patientMapper.mapTruTechPatientToOurSystem(
-    patientData,
-    doctorId,
+    patient,
+    doctorId as string,
     doctorName,
     correlationId,
   );
@@ -149,7 +137,7 @@ async function processPatientCreationEvent(
     patientPayload,
     externalId,
     provider,
-    tenantId,
+    "default", // TODO: get tenantId from event
     correlationId,
   );
 

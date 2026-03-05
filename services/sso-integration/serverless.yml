@@ -91,7 +91,7 @@ functions:
           cors: true
 
   ssoLaunch:
-    handler: src/handlers/sso/launch.handler
+    handler: src/handlers/http/sso-launch.handler
     description: SSO launch endpoint for TruTech integration
     timeout: 30
     events:
@@ -111,7 +111,7 @@ functions:
   # ---------------------------------------------------------------------------
 
   appointmentsToday:
-    handler: src/handlers/appointments/todays.handler
+    handler: src/handlers/http/appointments.handler
     description: Get today's appointments for the authenticated doctor
     timeout: 15
     events:
@@ -133,7 +133,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   patientEMR:
-    handler: src/handlers/appointments/patient-emr.handler
+    handler: src/handlers/http/patient-emr.handler
     description: Get patient EMR summary for last 3 visits
     timeout: 15
     events:

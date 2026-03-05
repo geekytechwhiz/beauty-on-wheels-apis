@@ -9,8 +9,9 @@ export const PATH_LOGOUT_REQUIRED = '/user/{userId}/organization/{organizationId
 export const PATH_FNF_CHECK = '/user/friend-family/check';
 export const PATH_ASSIGNED_PACKAGES = '/user/{userId}/organization/{organizationId}/assigned-packages';
 export const PATH_V2_USER_LIST = '/v2/user/list';
-export const WELCOME_MESSAGE = 'Welcome to {{ORG_NAME}}. Your account has been created. Thank you for MyVitalRx.';
-export const WEB_DNS_URL = process.env.WEB_URL;
+// export const WELCOME_MESSAGE = 'Welcome to {{ORG_NAME}}. Your account has been created. Thank you for MyVitalRx.';
+export const WEB_DNS_URL = process.env.WEB_URL; 
+export const WELCOME_MESSAGE = 'Welcome to {{ORG_NAME}}! To get started and access our services, please sign in using this link: {{PORTAL_LINK}}. Powered by MyVitalRx';
 // Email templates and messages
 
 export const INVITE_EMAIL_SUBJECT = 'Welcome to {{ORG_NAME}}, {{USER_FIRST_NAME}}!';

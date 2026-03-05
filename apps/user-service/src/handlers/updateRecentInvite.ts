@@ -169,7 +169,7 @@ async function updateRecentInvite(
     }
     console.log("ORGANIZATION DATA : ",organizationData)
     const result = await userService.updateRecentInvite(
-      requestUserId || '',
+      patientId,              // act on the patient, not the token user
       requestOrgId || '',
       patientId,
       {

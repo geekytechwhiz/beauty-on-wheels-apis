@@ -21,7 +21,6 @@ export async function getOrganization(
   authHeader?: string,
 ): Promise<OrganizationApiPayload | null> {
   const apiBaseUrl = process.env.ORGANIZATION_API_URL;
-  const timeoutMs = Number(process.env.ORGANIZATION_API_TIMEOUT_MS) || 10_000;
   const logger = createChildLogger(baseLogger, { organizationId });
   logger.info({ event: 'Fetching organization details via API', organizationId });
 
@@ -37,7 +36,6 @@ export async function getOrganization(
         'Content-Type': 'application/json',
         ...(authHeader ? { Authorization: authHeader } : {}),
       },
-      timeout: timeoutMs,
     });
     const payload = response.data?.data ?? response.data ?? null;
     logger.info({

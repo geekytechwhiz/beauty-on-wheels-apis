@@ -2270,6 +2270,7 @@ export class UserRepository {
       // Allow update if emailUpdatedAt doesn't exist (first time setting)
       inviteDetails.email = options.email;
       inviteDetails.emailUpdatedAt = currentTimestamp;
+      inviteDetails.sms = false;
     }
 
     // Validate sms update - check if 24 hours have passed since last update
@@ -2294,6 +2295,7 @@ export class UserRepository {
       // Allow update if smsUpdatedAt doesn't exist (first time setting)
       inviteDetails.sms = options.sms;
       inviteDetails.smsUpdatedAt = currentTimestamp;
+      inviteDetails.email = false;
     }
 
     // Handle setting to false (no time restriction)

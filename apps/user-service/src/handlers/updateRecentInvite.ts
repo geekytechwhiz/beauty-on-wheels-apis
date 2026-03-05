@@ -17,6 +17,7 @@ import { UserService } from '../services/user.service';
 import { UserNotFoundError, InviteUpdateTooSoonError } from '../utils/errors';
 import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../utils/helpers';
 import { updateRecentInviteSchema } from '../validation/user.validation';
+import { getOrganization } from '../services/organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -151,6 +152,22 @@ async function updateRecentInvite(
       sms: validation.data.sms,
     });
 
+    const authHeader =
+      event.headers?.Authorization ||
+      event.headers?.authorization ||
+      event.headers?.AUTHORIZATION;
+
+    let organizationData: any | null = null;
+    console.log("REQUEST ORG ID : ",requestOrgId)
+    if (requestOrgId) {
+      organizationData = await getOrganization(requestOrgId, authHeader);
+      logger.info({
+        event: 'updateRecentInvite_organization_loaded',
+        organizationId: requestOrgId,
+        hasOrganization: !!organizationData,
+      });
+    }
+    console.log("ORGANIZATION DATA : ",organizationData)
     const result = await userService.updateRecentInvite(
       requestUserId || '',
       requestOrgId || '',
@@ -162,6 +179,18 @@ async function updateRecentInvite(
       correlationId,
     );
 
+    const responsePayload: any = {
+      ...result,
+      organization: organizationData
+        ? {
+            organizationID: organizationData.organizationID ?? requestOrgId,
+            organizationName: (organizationData.organizationInfo as any).organizationName,
+            address: (organizationData.organizationInfo.address.country as any).organizationAddress,
+            contactInfo: (organizationData as any).contactInfo,
+          }
+        : undefined,
+    };
+
     const duration = Date.now() - startTime;
     logHttpRequest(
       logger,
@@ -171,9 +200,9 @@ async function updateRecentInvite(
       duration,
       correlationId,
     );
-
+    console.log("RESPONSE PAYLAOD : ",responsePayload)
     return ApiResponse.ok(
-      result,
+      responsePayload,
       {
         title: 'Success',
         description: 'Invite details updated successfully.',

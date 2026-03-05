@@ -114,7 +114,7 @@ async function processRecord(
         .replace(/{{ORG_NAME}}/g, organizationName)
         .replace(/{{USER_FIRST_NAME}}/g, firstName)
         .replace(/{{WEB_DNS_URL}}/g, process.env.WEB_URL || '')
-        .replace(/{{HOSPITAL_ID}}/g, organizationId)
+        .replace(/{{HOSPITAL_ID}}/g, organizationID)
         .replace(/{{ORG_ADDRESS}}/g, organizationAddress)
         .replace(/{{TYPE}}/g, 'INVITE')       
         .replace(/{{DEVICE}}/g, '')        

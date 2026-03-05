@@ -12,6 +12,7 @@ import {
     TruTechVerifyResponse
 } from '../types/appointment.types';
 import { SSOError } from '../types/errors/sso-error';
+import { DUMMY_APPOINTMENTS_RESPONSE } from '../data/dummy-appointments.data';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -137,6 +138,17 @@ export class TruTechClient {
           }
         }
       );
+
+      // For testing: return dummy data if appointments array is empty (143-152)
+      if (!response.data.appointments || response.data.appointments.length === 0) {
+        logger.info({
+          event: 'using_dummy_appointments_data',
+          doctorId,
+          reason: 'empty_appointments_array'
+        });
+
+        return DUMMY_APPOINTMENTS_RESPONSE;
+      }
 
       return response.data;
 

@@ -68,7 +68,6 @@ provider:
         - cognito-idp:AdminGetUser
       Resource:
         - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
-    # SQS IAM permissions for patient event publishing/consumer (uncomment when enabling patient event consumer)
     - Effect: Allow
       Action:
         - sqs:SendMessage

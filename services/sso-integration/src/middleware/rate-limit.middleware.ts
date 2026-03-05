@@ -5,7 +5,7 @@ import { SSOError } from '../types/errors/sso-error';
 import { RateLimitState } from '../types/appointment.types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
-const logger = createChildLogger(baseLogger, { component: 'RateLimitMiddleware' });
+const logger = createChildLogger(baseLogger, { component: 'sso-integration' });
 
 const rateLimitStore = new Map<string, RateLimitState>();
 

@@ -28,9 +28,32 @@ export class LaunchService extends BaseService {
     const ctx: RequestContext = { correlationId };
 
     try {
+      this.logger.info({
+        event: 'launch_process_start',
+        correlationId,
+        launchTokenLength: launchToken?.length ?? 0,
+      });
+
       const verifyResponse = await this.verifyLaunchToken(launchToken, ctx);
 
+      this.logger.debug({
+        event: 'launch_token_verified',
+        correlationId,
+        doctorContext: {
+          email: verifyResponse.context.email,
+          drid: verifyResponse.context.drid,
+          tenantId: verifyResponse.context.tenant_id,
+        },
+      });
+
       const doctor = await this.ensureDoctorExists(verifyResponse.context, ctx);
+
+      this.logger.info({
+        event: 'launch_doctor_resolved',
+        correlationId,
+        doctorId: doctor.id,
+        externalId: doctor.externalId,
+      });
 
       const serviceToken = await this.generateServiceToken(
         doctor,
@@ -42,12 +65,26 @@ export class LaunchService extends BaseService {
         ctx,
       );
 
+      this.logger.info({
+        event: 'launch_appointments_fetched',
+        correlationId,
+        doctorId: verifyResponse.context.drid,
+        appointmentCount: appointments?.length ?? 0,
+      });
+
       const eventsPublished = await this.publishPatientCreationEvents(
         doctor,
         appointments,
         verifyResponse.context,
         ctx,
       );
+
+      this.logger.info({
+        event: 'launch_patient_events_published',
+        correlationId,
+        doctorId: doctor.id,
+        patientEventsCount: eventsPublished,
+      });
 
       return {
         doctor,
@@ -97,10 +134,31 @@ export class LaunchService extends BaseService {
     doctorContext: TruTechVerifyContext,
     ctx: RequestContext,
   ): Promise<User> {
+    this.logger.debug({
+      event: 'ensure_doctor_lookup_cognito_start',
+      correlationId: ctx.correlationId,
+      email: doctorContext.email,
+    });
+
     const userAttributes: TruTechVerifiedPayload | null =
       await this.cognitoService.findUserByEmail(doctorContext.email);
 
+    this.logger.debug({
+      event: 'ensure_doctor_lookup_cognito_result',
+      correlationId: ctx.correlationId,
+      email: doctorContext.email,
+      hasUserAttributes: !!userAttributes,
+      hasDoctorUid: !!userAttributes?.doctorUid,
+    });
+
     if (userAttributes?.doctorUid) {
+      this.logger.info({
+        event: 'ensure_doctor_exists_in_cognito',
+        correlationId: ctx.correlationId,
+        email: doctorContext.email,
+        doctorUid: userAttributes.doctorUid,
+      });
+
       return {
         id: userAttributes.doctorUid,
         externalId: doctorContext.drid,
@@ -116,6 +174,12 @@ export class LaunchService extends BaseService {
       doctorContext,
       ctx.correlationId,
     );
+
+    this.logger.info({
+      event: 'ensure_doctor_create_start',
+      correlationId: ctx.correlationId,
+      email: doctorContext.email,
+    });
 
     const newDoctor = await this.userServiceClient.createDoctor(payload, {
       token: '',

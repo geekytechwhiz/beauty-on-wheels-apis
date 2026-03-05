@@ -264,6 +264,7 @@ custom:
       USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
       PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
       SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
+      APPOINTMENT_SCHEDULES_API_URL: 'https://bp1u0buyi6.execute-api.us-east-1.amazonaws.com'
       deploymentBucket: nvstg-mvx-user-service-bucket
     prd:
       WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
@@ -314,12 +315,12 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
   getUser:
     handler: src/handlers/getUser.main
     timeout: 30

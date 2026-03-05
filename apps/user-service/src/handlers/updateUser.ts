@@ -268,6 +268,13 @@ async function updateUser(
               'cholesterolUnit',
               'bloodGlucoseUnit',
               'oximeterUnit',
+              'heartBeatUnit',
+              'waterUnit',
+              'oxygenUnit',
+              'caloriesUnit',
+              'speedUnit',
+              'powerUnit',
+              'physicalEffortUnit',
             ];
             const builtSettings: Record<string, unknown> = {};
             for (const key of unitKeys) {

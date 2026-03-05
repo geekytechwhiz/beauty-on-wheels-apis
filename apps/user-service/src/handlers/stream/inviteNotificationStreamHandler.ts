@@ -2,7 +2,7 @@ import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
-import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE } from '../../utils/constants';
+import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID, PORTAL_LINK } from '../../utils/constants';
 import { sendEmail } from '../../services/notification.delivery';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -89,7 +89,11 @@ async function processRecord(
   const emailAddress = (newItem.emailAddress || '') as string;
   const phoneNumber = (newItem.phoneNumber || '') as string;
   const organizationID = (newItem.organizationID || '') as string;
-
+  const firstName = (newItem.firstName || '') as string;
+  const organizationName = (newItem.organizationName || '') as string;
+  const organizationAddress = (newItem.organizationAddress || '') as string;
+  const organizationInfo = (newItem.organizationInfo || '') as string;
+  
   const recordLogger = createChildLogger(baseLogger, { correlationId, userId, organizationID, sequenceNumber });
 
   recordLogger.info({
@@ -102,14 +106,27 @@ async function processRecord(
   if (newInviteDetails.email === true) {
     try {
       recordLogger.info({ event: 'inviteNotificationStream_email_sending', emailAddress });
+      const subject = INVITE_EMAIL_SUBJECT
+        .replace(/{{ORG_NAME}}/g, organizationName)
+        .replace(/{{USER_FIRST_NAME}}/g, firstName);
+
+      const body = INVITE_EMAIL_MESSAGE
+        .replace(/{{ORG_NAME}}/g, organizationName)
+        .replace(/{{USER_FIRST_NAME}}/g, firstName)
+        .replace(/{{WEB_DNS_URL}}/g, process.env.WEB_URL || '')
+        .replace(/{{HOSPITAL_ID}}/g, organizationID)
+        .replace(/{{ORG_ADDRESS}}/g, organizationAddress)
+        .replace(/{{TYPE}}/g, 'INVITE')       
+        .replace(/{{DEVICE}}/g, '')        
+        .replace(/{{ORG_INFO}}/g, organizationInfo);
 
       await sendEmail({
         email: emailAddress,
         template: 'GENERIC_NOTIFICATION',
         templateData: {
-          TITLE: INVITE_EMAIL_SUBJECT,
-          BODY: INVITE_EMAIL_MESSAGE,
-        },
+          TITLE: subject,
+          BODY: body
+        }
       });
 
       recordLogger.info({ event: 'inviteNotificationStream_email_sent', emailAddress });
@@ -130,12 +147,16 @@ async function processRecord(
     } else {
       try {
         recordLogger.info({ event: 'inviteNotificationStream_sms_sending', phoneNumber });
+        const wel_message = WELCOME_MESSAGE
+        .replace(/{{ORG_NAME}}/g, organizationName)
+        .replace(/{{PORTAL_LINK}}/g, PORTAL_LINK);
 
         await axios.post(
           SMS_API_URL,
           {
-            phoneNumber,
-            message: `${WELCOME_MESSAGE.replace('{{ORG_NAME}}', organizationID)}`
+            "dltContentId": WELCOME_DLT_CONTENT_ID,
+            "phoneNumber": phoneNumber,
+             message: wel_message
           },
           { timeout: 10_000 },
         );

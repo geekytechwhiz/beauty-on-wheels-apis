@@ -2,6 +2,7 @@ import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUpdateRecentInvite } from '../validation/request.validators';
 
+
 const userService = new UserService();
 
 const handler = async (req: LambdaRequest<any> & { validatedUpdateRecentInvite?: { patientId: string; email?: boolean; sms?: boolean } }) => {

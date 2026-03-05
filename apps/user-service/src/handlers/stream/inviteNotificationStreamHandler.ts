@@ -90,7 +90,7 @@ async function processRecord(
   const phoneNumber = (newItem.phoneNumber || '') as string;
   const organizationID = (newItem.organizationID || '') as string;
   const firstName = (newItem.firstName || '') as string;
-  const organizationName = (newItem.organizationName || '') as string;
+  const organizationName = (newItem.organizationName || 'Sample Organization') as string;
   const organizationAddress = (newItem.organizationAddress || '') as string;
   const organizationInfo = (newItem.organizationInfo || '') as string;
   

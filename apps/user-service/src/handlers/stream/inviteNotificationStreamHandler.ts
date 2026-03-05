@@ -2,7 +2,7 @@ import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
-import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID } from '../../utils/constants';
+import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID, PORTAL_LINK } from '../../utils/constants';
 import { sendEmail } from '../../services/notification.delivery';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -147,13 +147,16 @@ async function processRecord(
     } else {
       try {
         recordLogger.info({ event: 'inviteNotificationStream_sms_sending', phoneNumber });
+        const wel_message = WELCOME_MESSAGE
+        .replace(/{{ORG_NAME}}/g, organizationName)
+        .replace(/{{PORTAL_LINK}}/g, PORTAL_LINK);
 
         await axios.post(
           SMS_API_URL,
           {
             "dltContentId": WELCOME_DLT_CONTENT_ID,
             "phoneNumber": phoneNumber,
-            message: `${WELCOME_MESSAGE.replace('{{ORG_NAME}}', organizationID)}`
+             message: wel_message
           },
           { timeout: 10_000 },
         );

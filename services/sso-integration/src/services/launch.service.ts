@@ -71,20 +71,31 @@ export class LaunchService extends BaseService {
         doctorId: verifyResponse.context.drid,
         appointmentCount: appointments?.length ?? 0,
       });
+      
 
-      const eventsPublished = await this.publishPatientCreationEvents(
-        doctor,
-        appointments,
-        verifyResponse.context,
-        ctx,
-      );
+      let eventsPublished = 0;
 
-      this.logger.info({
-        event: 'launch_patient_events_published',
-        correlationId,
-        doctorId: doctor.id,
-        patientEventsCount: eventsPublished,
-      });
+      if ((appointments?.length ?? 0) > 0) {
+        eventsPublished = await this.publishPatientCreationEvents(
+          doctor,
+          appointments,
+          verifyResponse.context,
+          ctx,
+        );
+
+        this.logger.info({
+          event: 'launch_patient_events_published',
+          correlationId,
+          doctorId: doctor.id,
+          patientEventsCount: eventsPublished,
+        });
+      } else {
+        this.logger.info({
+          event: 'launch_no_appointments_skipping_patient_events',
+          correlationId,
+          doctorId: doctor.id,
+        });
+      }
 
       return {
         doctor,

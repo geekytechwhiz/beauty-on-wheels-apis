@@ -59,7 +59,14 @@ export class AppointmentsService {
       });
 
       try {
-        const mapped = this.truTechAdapter.mapAppointments(truTechAppointmentsResponse);
+        if(!truTechAppointmentsResponse.appointments?.length) {
+          this.logger.info({
+            event: 'trutech_map_appointments_no_appointments',
+            appointmentCount: truTechAppointmentsResponse.appointments?.length ?? 0,
+          });
+          return [];
+        }
+        const mapped = this.truTechAdapter.mapAppointments(truTechAppointmentsResponse.appointments || []);
 
         logger.info({
           event: 'appointments_service_mapping_success',

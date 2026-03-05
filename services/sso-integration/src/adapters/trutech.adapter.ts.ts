@@ -52,29 +52,15 @@ export class TruTechAdapter {
   // Map Appointment List
   // ---------------------------------------------------------
 
-  mapAppointments(response: TruTechAppointmentsResponse): Appointment[] {
+  mapAppointments(appointments: TruTechAppointment[]): Appointment[] {
     this.logger.debug({
-      event: 'trutech_map_appointments_start',
-      status: response.status,
-      hasAppointmentsArray: !!response.appointments,
-      appointmentCount: response.appointments?.length ?? 0,
+      event: 'trutech_map_appointments_start',  
+      appointmentCount: appointments?.length ?? 0,
     });
+ 
+    
 
-    // Only treat it as an error when status is explicitly non-success.
-    // If status is missing/undefined but we have appointments, proceed.
-    if (response.status && response.status !== 'success') {
-      this.logger.error({
-        event: 'trutech_map_appointments_error_status',
-        status: response.status,
-        message: response.message,
-      });
-
-      throw SSOError.truTechServiceError(
-        response.message || 'Failed to fetch appointments',
-      );
-    }
-
-    const mapped = (response.appointments || []).map((appt, index) => {
+    const mapped = ( appointments || []).map((appt, index) => {
       this.logger.debug({
         event: 'trutech_normalize_appointment_start',
         index,

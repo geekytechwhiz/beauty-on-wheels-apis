@@ -99,7 +99,7 @@ export class LaunchService extends BaseService {
 
       return {
         doctor,
-        appointments: appointments?.map((appointment:any) => this.truTechAdapter.mapAppointments(appointment as unknown as TruTechAppointmentsResponse)) || [],
+        appointments: appointments?.map((appointment:any) => this.truTechAdapter.mapAppointments(appointment as unknown as TruTechAppointment[])) || [],
         patientEventsPublished: eventsPublished,
         serviceToken,
       };

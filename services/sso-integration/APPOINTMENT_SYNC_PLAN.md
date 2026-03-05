@@ -6,34 +6,139 @@ This document outlines the comprehensive plan for implementing the appointment s
 
 ## Current State Analysis
 
-### Existing Components
+### Existing Components (Comprehensive Review)
 
 1. **AppointmentsService** (`src/services/appointments.service.ts`)
    - ✅ `getTodaysAppointments()` - Fetches today's appointments from external system
+   - ✅ `getPatientEMRSummary()` - Fetches patient EMR summary
    - ✅ `formatAppointmentsResponse()` - Formats response
+   - ✅ `formatEMRResponse()` - Formats EMR response
    - ✅ Empty appointment handling (returns success if empty array)
+   - ✅ Error handling with SSOError
+   - ✅ Performance logging with timers
 
 2. **UserServiceClient** (`src/clients/user.client.ts`)
-   - ✅ `findByExternalId()` - Validates patient/doctor existence
-   - ✅ `createPatient()` - Creates patient users
-   - ✅ `createDoctor()` - Creates doctor users
+   - ✅ `findByExternalId()` - Validates patient/doctor existence by external ID
+   - ✅ `createUser()` - Basic user creation
+   - ✅ `createPatient()` - Creates patient users with full payload
+   - ✅ `createDoctor()` - Creates doctor users with full payload
+   - ✅ Error handling (404 returns null, other errors throw SSOError)
+   - ✅ Axios interceptors for logging
 
-3. **Patient Event Consumer** (`src/handlers/events/patient-creation-event-consumer.ts`)
-   - ✅ Processes patient creation events asynchronously
+3. **TruTechClient** (`src/clients/tru-tech.clients.ts`)
+   - ✅ `verifyLaunchToken()` - Verifies launch token from TruTech
+   - ✅ `getTodaysAppointments()` - Fetches appointments from TruTech API
+   - ✅ `getPatientEMRSummary()` - Fetches patient EMR from TruTech
+   - ✅ Error handling with proper SSOError mapping
+   - ✅ Request/response interceptors
+
+4. **TruTechAdapter** (`src/adapters/trutech.adapter.ts.ts`)
+   - ✅ `mapVerifyResponse()` - Maps verification response
+   - ✅ `mapAppointments()` - Maps external appointments to internal format
+   - ✅ `mapPatientEMRSummary()` - Maps EMR data
+   - ✅ `normalizeAppointment()` - Normalizes appointment data
+   - ✅ `normalizeEMRVisit()` - Normalizes EMR visit data
+
+5. **LaunchService** (`src/services/launch.service.ts`)
+   - ✅ `processLaunch()` - Main launch orchestration
+   - ✅ `ensureDoctorExists()` - Validates/creates doctor (uses Cognito + UserService)
+   - ✅ `fetchAppointments()` - Fetches appointments
+   - ✅ `publishPatientCreationEvents()` - Publishes patient events
+   - ✅ `generateServiceToken()` - Generates service tokens
+   - ⚠️ **Note:** Doctor validation uses Cognito first, then UserService. For appointment sync, should use `findByExternalId()` directly.
+
+6. **Patient Event Consumer** (`src/handlers/events/patient-creation-event-consumer.ts`)
+   - ✅ Processes patient creation events from SQS
    - ✅ Handles patient creation in background
+   - ✅ Checks if patient already exists before creating
+   - ✅ Error handling and retry mechanism (via SQS batch failures)
+   - ⚠️ **Note:** Currently commented out in serverless.yml but code is fully implemented
 
-4. **Types** (`src/types/appointment.types.ts`)
-   - ✅ `Appointment` interface with all required fields
-   - ✅ `TruTechAppointment` interface matching external API response
+7. **Patient Event Publisher** (`src/services/patient-event-publisher.service.ts`)
+   - ✅ `publishPatientCreationEvent()` - Publishes single event
+   - ✅ `publishPatientCreationEventsBatch()` - Publishes batch events
+   - ✅ `createPatientCreationEvent()` - Creates event structure
+   - ✅ Non-blocking error handling
 
-### Missing Components
+8. **Mappers and Helpers**
+   - ✅ **Doctor Mapper** (`src/mappers/create-doctor.mapper.ts` & `src/helper/doctor.mapper.ts`)
+     - ✅ `mapTruTechDoctorToOurSystem()` - Maps doctor data
+   - ✅ **Patient Mapper** (`src/helper/patient.mapper.ts`)
+     - ✅ `mapTruTechPatientToOurSystem()` - Maps patient data
+   - ✅ **Launch Response Mapper** (`src/mappers/launch-response.mapper.ts`)
+     - ✅ `mapLaunchResponse()` - Maps launch response
 
-1. **Schedule Service Client** - For calling internal schedule APIs
-2. **Appointment Sync Service** - Orchestrates the entire sync flow
-3. **Appointment Mapper** - Maps external appointment to internal schedule format
-4. **Pending Appointment Storage** - For tracking appointments with missing patients
-5. **Retry Mechanism** - For handling failed operations
-6. **Idempotency Check** - For duplicate appointment prevention
+9. **Configuration**
+   - ✅ **Env Config** (`src/config/env.ts`)
+     - ✅ Zod schema validation
+     - ✅ Environment variable loading
+     - ✅ Caching
+   - ✅ **SSO Config** (`src/config/sso-config.ts`)
+     - ✅ Default organization ID
+     - ✅ Role IDs (doctor, patient)
+     - ✅ Doctor defaults (specialty, working hours, etc.)
+     - ✅ Patient defaults (phone code, emergency contact, etc.)
+
+10. **Utilities**
+    - ✅ **Phone Processor** (`src/utils/phone-processor.ts`)
+      - ✅ `processPhoneNumber()` - Extracts phone code from phone number
+      - ✅ `isValidPhoneNumber()` - Validates phone format
+
+11. **Types and Interfaces** (`src/types/`)
+    - ✅ `Appointment` interface with all required fields
+    - ✅ `TruTechAppointment` interface matching external API response
+    - ✅ `TruTechPatient`, `TruTechDoctor`, `TruTechConsultationType`, `TruTechVisit`
+    - ✅ `PatientCreationEvent` interface
+    - ✅ `DoctorCreationPayload`, `PatientCreationPayload`
+    - ✅ `AppointmentStatus`, `VisitType`, `VisitStatus` enums
+    - ✅ `SSOErrorCode` enum
+    - ✅ All domain types in `src/types/domain/`
+
+12. **Error Handling**
+    - ✅ **SSOError** (`src/types/errors/sso-error.ts`)
+      - ✅ Comprehensive error class with static factory methods
+      - ✅ Error codes, status codes, and cause tracking
+
+13. **Infrastructure**
+    - ✅ **BaseService** (`src/core/base.service.ts`) - Base service class
+    - ✅ **BaseController** (`src/core/base.controller.ts`) - Base controller class
+    - ✅ **HTTP Handlers** - `appointments.ts`, `patient-emr.ts`, `sso-launch.ts`
+    - ✅ **Controllers** - `appointments.controller.ts`, `sso.controller.ts`
+    - ✅ **Validators** - `sso.validator.ts`
+    - ✅ **Middleware** - `rate-limit.middleware.ts`, `service-token.middleware.ts`
+
+14. **Serverless Configuration** (`serverless.yml`)
+    - ✅ `GET /appointments/today` - Get today's appointments
+    - ✅ `GET /appointments/{patientId}/emr` - Get patient EMR
+    - ✅ `GET /sso/launch` - SSO launch endpoint
+    - ✅ Health check endpoint
+    - ⚠️ Patient event consumer commented out (SQS queue disabled)
+
+### Missing Components (For Appointment Sync)
+
+1. **Schedule Service Client** (`src/clients/schedule-service.client.ts`) - ❌ NOT IMPLEMENTED
+   - For calling internal schedule APIs (fetch, create, update)
+
+2. **Appointment Sync Service** (`src/services/appointment-sync.service.ts`) - ❌ NOT IMPLEMENTED
+   - Orchestrates the entire sync flow
+
+3. **Appointment to Schedule Mapper** (`src/mappers/appointment.mapper.ts`) - ❌ NOT IMPLEMENTED
+   - Maps external appointment to internal schedule format
+
+4. **Pending Appointment Storage** - ❌ NOT IMPLEMENTED
+   - For tracking appointments with missing patients
+
+5. **Retry Mechanism** - ❌ NOT IMPLEMENTED
+   - For handling failed operations with exponential backoff
+
+6. **Idempotency Check** - ❌ NOT IMPLEMENTED
+   - For duplicate appointment prevention using externalAppointmentId
+
+7. **Appointment Sync API Endpoint** - ❌ NOT IMPLEMENTED
+   - `POST /appointments/sync` handler and controller
+
+8. **Appointment Sync Types** (`src/types/appointment-sync.types.ts`) - ❌ NOT IMPLEMENTED
+   - Types for sync request, response, pending appointments, etc.
 
 ## Flow Overview
 

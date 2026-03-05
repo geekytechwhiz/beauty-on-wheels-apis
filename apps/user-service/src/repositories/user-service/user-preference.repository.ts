@@ -25,6 +25,7 @@ export class UserPreferenceRepository {
     const logger = createChildLogger(baseLogger, { userId, organizationId });
 
     try {
+      console.log('getUserPreferences', userId, organizationId);
       const result = await ddbDocClient.send(
         new QueryCommand({
           TableName: USER_TABLE,

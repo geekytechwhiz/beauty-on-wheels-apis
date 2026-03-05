@@ -140,8 +140,7 @@ export class LaunchService extends BaseService {
       email: doctorContext.email,
     });
 
-    const userAttributes: TruTechVerifiedPayload | null =
-      await this.cognitoService.findUserByEmail(doctorContext.email);
+    const userAttributes: TruTechVerifiedPayload | null = await this.cognitoService.findUserByEmail(doctorContext.email);
 
     this.logger.debug({
       event: 'ensure_doctor_lookup_cognito_result',

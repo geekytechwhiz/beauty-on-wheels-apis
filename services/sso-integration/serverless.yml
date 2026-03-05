@@ -68,7 +68,16 @@ provider:
         - cognito-idp:AdminGetUser
       Resource:
         - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${env:COGNITO_USER_POOL_ID, "us-east-1_AK1HTxdlX"}'
-    # (SQS IAM permissions for patient event publishing/consumer temporarily disabled)
+    # SQS IAM permissions for patient event publishing/consumer (uncomment when enabling patient event consumer)
+    # - Effect: Allow
+    #   Action:
+    #     - sqs:SendMessage
+    #     - sqs:ReceiveMessage
+    #     - sqs:DeleteMessage
+    #     - sqs:GetQueueAttributes
+    #   Resource:
+    #     - !GetAtt PatientCreationQueue.Arn
+    #     - !GetAtt PatientCreationDLQ.Arn
 
 plugins:
   - serverless-esbuild
@@ -198,7 +207,7 @@ functions:
   # ---------------------------------------------------------------------------
 
   # patientCreationEventConsumer:
-  #   handler: src/handlers/patient-creation-event-consumer.handler
+  #   handler: src/handlers/events/patient-creation-event-consumer.handler
   #   description: Background worker for processing patient creation events from SQS
   #   timeout: 60
   #   memorySize: 512

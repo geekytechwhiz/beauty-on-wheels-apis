@@ -1125,6 +1125,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       // Verify user exists
       console.log("PATIENT ID : ",patientId)
       const existing = await this.repository.getUser(patientId, organizationId);
+      console.log("EXISTING : ",existing)
       if (!existing) {
         throw new UserNotFoundError(patientId);
       }

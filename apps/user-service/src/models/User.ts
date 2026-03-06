@@ -118,19 +118,20 @@ export interface User {
   assignedPackagesName?: string[]; 
   externalIdentity?: ExternalIdentity;
 }
-export interface ExternalIdentity {
-  providerId: string;
-  externalUserId: string;
-  externalHospitalId?: string;
-  subdomain?: string;
-  sourceSystem?: string;
-};
 
-/**
- * User Response Interface
- * Represents the user data structure returned in API responses
- * Includes DynamoDB keys and role information
- */
+const SourceSystem = {
+  HMS: 'HMS',
+  FHIR: 'FHIR',
+  CUSTOM: 'CUSTOM',
+  MARKETPLACE: 'MARKETPLACE',
+} as const;
+export interface ExternalIdentity {
+  integrationType: string; // TruTech
+  externalUserId: string; // user id from external system
+  externalHospitalId?: string; // org id or tenant id
+  subdomain: string; // subdomain of the external system
+  sourceSystem: typeof SourceSystem; 
+};
 export interface UserResponse {
   phoneNumber: string;
   createdDate: number;

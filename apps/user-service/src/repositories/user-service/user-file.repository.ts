@@ -1,5 +1,6 @@
-import { PutCommand, QueryCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand, DeleteCommand, type PutCommandOutput, type QueryCommandOutput, type DeleteCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../../utils/db.config';
+import { sendDoc } from '../../utils/dynamodb-send';
 import {
   createLogger,
   createChildLogger,
@@ -37,10 +38,10 @@ export class UserFileRepository {
     };
 
     try {
-      await docClient.send(
+      await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({
           TableName: USER_TABLE,
-          Item: item as PutItemCommandInput,
+          Item: item,
         }),
       );
 
@@ -65,7 +66,7 @@ export class UserFileRepository {
     const logger = createChildLogger(baseLogger, { userId });
 
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<QueryCommandOutput>(docClient,
         new QueryCommand({
           TableName: USER_TABLE,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -102,7 +103,7 @@ export class UserFileRepository {
     const logger = createChildLogger(baseLogger, { userId, fileId });
 
     try {
-      await docClient.send(
+      await sendDoc<DeleteCommandOutput>(docClient,
         new DeleteCommand({
           TableName: USER_TABLE,
           Key: {

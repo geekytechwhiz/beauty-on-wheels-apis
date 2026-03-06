@@ -4,8 +4,13 @@ import {
   QueryCommand,
   UpdateCommand,
   type QueryCommandInput,
-} from '@aws-sdk/lib-dynamodb'; 
+  type QueryCommandOutput,
+  type GetCommandOutput,
+  type PutCommandOutput,
+  type UpdateCommandOutput,
+} from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
+import { sendDoc } from '../../utils/dynamodb-send';
 import {
   createLogger,
   createChildLogger,
@@ -77,7 +82,7 @@ export class DoctorPatientRepository {
           params.ExclusiveStartKey = lastKey as Record<string, unknown>;
         }
 
-        const response = await ddbDocClient.send(new QueryCommand(params));
+        const response = await sendDoc<QueryCommandOutput>(ddbDocClient, new QueryCommand(params));
         const items = response.Items ?? [];
         lastKey = response.LastEvaluatedKey;
 
@@ -114,7 +119,7 @@ export class DoctorPatientRepository {
         params.ExclusiveStartKey = lastKey as Record<string, unknown>;
       }
 
-      const response = await ddbDocClient.send(new QueryCommand(params));
+      const response = await sendDoc<QueryCommandOutput>(ddbDocClient, new QueryCommand(params));
       const items = response.Items ?? [];
       lastKey = response.LastEvaluatedKey;
 
@@ -163,7 +168,7 @@ export class DoctorPatientRepository {
     const patientSk = KeyBuilder.patientDoctorSk(doctorId);
     const now = Date.now();
 
-    const existing = await ddbDocClient.send(
+    const existing = await sendDoc<GetCommandOutput>(ddbDocClient,
       new GetCommand({
         TableName: USER_TABLE,
         Key: { pk: doctorPk, sk: doctorSk },
@@ -171,7 +176,7 @@ export class DoctorPatientRepository {
     );
 
     if (existing.Item) {
-      await ddbDocClient.send(
+      await sendDoc<UpdateCommandOutput>(ddbDocClient,
         new UpdateCommand({
           TableName: USER_TABLE,
           Key: { pk: doctorPk, sk: doctorSk },
@@ -185,7 +190,7 @@ export class DoctorPatientRepository {
       );
       logger.info({ event: 'saveDoctorPatientLink_updated' });
     } else {
-      await ddbDocClient.send(
+      await sendDoc<PutCommandOutput>(ddbDocClient,
         new PutCommand({
           TableName: USER_TABLE,
           Item: {
@@ -201,7 +206,7 @@ export class DoctorPatientRepository {
       logger.info({ event: 'saveDoctorPatientLink_created' });
     }
 
-    const reverseExisting = await ddbDocClient.send(
+    const reverseExisting = await sendDoc<GetCommandOutput>(ddbDocClient,
       new GetCommand({
         TableName: USER_TABLE,
         Key: { pk: patientPk, sk: patientSk },
@@ -209,7 +214,7 @@ export class DoctorPatientRepository {
     );
 
     if (reverseExisting.Item) {
-      await ddbDocClient.send(
+      await sendDoc<UpdateCommandOutput>(ddbDocClient,
         new UpdateCommand({
           TableName: USER_TABLE,
           Key: { pk: patientPk, sk: patientSk },
@@ -223,7 +228,7 @@ export class DoctorPatientRepository {
       );
       logger.info({ event: 'saveDoctorPatientLink_reverse_updated' });
     } else {
-      await ddbDocClient.send(
+      await sendDoc<PutCommandOutput>(ddbDocClient,
         new PutCommand({
           TableName: USER_TABLE,
           Item: {
@@ -267,7 +272,7 @@ export class DoctorPatientRepository {
         params.ExclusiveStartKey = lastKey as Record<string, unknown>;
       }
 
-      const response = await ddbDocClient.send(new QueryCommand(params));
+      const response = await sendDoc<QueryCommandOutput>(ddbDocClient, new QueryCommand(params));
       const items = response.Items ?? [];
       lastKey = response.LastEvaluatedKey;
 
@@ -334,7 +339,7 @@ export class DoctorPatientRepository {
     };
 
     try {
-      await ddbDocClient.send(
+      await sendDoc<UpdateCommandOutput>(ddbDocClient,
         new UpdateCommand({
           TableName: USER_TABLE,
           Key: {
@@ -353,7 +358,7 @@ export class DoctorPatientRepository {
     }
 
     try {
-      await ddbDocClient.send(
+      await sendDoc<UpdateCommandOutput>(ddbDocClient,
         new UpdateCommand({
           TableName: USER_TABLE,
           Key: {

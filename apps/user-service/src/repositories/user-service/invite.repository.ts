@@ -1,5 +1,6 @@
-import { GetCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand, type GetCommandOutput, type UpdateCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
+import { sendDoc } from '../../utils/dynamodb-send';
 import {
   createLogger,
   createChildLogger,
@@ -48,7 +49,7 @@ export class InviteRepository {
     } = {};
 
     try {
-      const getResponse = await ddbDocClient.send(
+      const getResponse = await sendDoc<GetCommandOutput>(ddbDocClient,
         new GetCommand({
           TableName: USER_TABLE,
           Key: {
@@ -156,7 +157,7 @@ export class InviteRepository {
     updateParts.push('#inviteDetails = :inviteDetails');
 
     try {
-      await ddbDocClient.send(
+      await sendDoc<UpdateCommandOutput>(ddbDocClient,
         new UpdateCommand({
           TableName: USER_TABLE,
           Key: {

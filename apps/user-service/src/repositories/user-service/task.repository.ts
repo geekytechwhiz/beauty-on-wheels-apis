@@ -1,5 +1,6 @@
-import { QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { docClient } from "../utils/db.config";
+import { QueryCommand, type QueryCommandOutput } from "@aws-sdk/lib-dynamodb";
+import { docClient } from "../../utils/db.config";
+import { sendDoc } from "../../utils/dynamodb-send";
 import { createLogger, createChildLogger, serializeError } from "@api-hub/logger";
 
 const baseLogger = createLogger({ service: "user-service", redactPII: true });
@@ -35,7 +36,7 @@ export class TaskRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
 
       const hasPendingTasks = (result.Count ?? 0) > 0;
 

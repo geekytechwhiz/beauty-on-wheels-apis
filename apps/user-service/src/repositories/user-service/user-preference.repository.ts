@@ -1,5 +1,6 @@
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, type QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
+import { sendDoc } from '../../utils/dynamodb-send';
 import {
   createLogger,
   createChildLogger,
@@ -26,7 +27,7 @@ export class UserPreferenceRepository {
 
     try {
       console.log('getUserPreferences', userId, organizationId);
-      const result = await ddbDocClient.send(
+      const result = await sendDoc<QueryCommandOutput>(ddbDocClient,
         new QueryCommand({
           TableName: USER_TABLE,
           KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
@@ -76,7 +77,7 @@ export class UserPreferenceRepository {
     const logger = createChildLogger(baseLogger, { userId });
 
     try {
-      const result = await ddbDocClient.send(
+      const result = await sendDoc<QueryCommandOutput>(ddbDocClient,
         new QueryCommand({
           TableName: USER_TABLE,
           KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',

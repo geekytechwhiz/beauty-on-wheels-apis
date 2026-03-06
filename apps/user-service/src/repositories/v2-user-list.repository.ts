@@ -1,8 +1,10 @@
 import {
   QueryCommand,
   type QueryCommandInput,
+  type QueryCommandOutput,
 } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
+import { sendDoc } from '../utils/dynamodb-send';
 import {
   createLogger,
   serializeError,
@@ -188,7 +190,7 @@ export class V2UserListRepository {
       let allItems: Record<string, unknown>[] = [];
       let lastKey: Record<string, unknown> | undefined;
 
-      const result = await docClient.send(new QueryCommand(queryParams));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(queryParams));
       allItems = (result.Items ?? []) as Record<string, unknown>[];
       lastKey = result.LastEvaluatedKey;
 
@@ -233,7 +235,7 @@ export class V2UserListRepository {
         };
 
         try {
-          const fallbackResult = await docClient.send(new QueryCommand(uppercaseParams));
+          const fallbackResult = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(uppercaseParams));
           let allItems = (fallbackResult.Items ?? []) as Record<string, unknown>[];
 
           if (filters?.search) {
@@ -348,7 +350,7 @@ export class V2UserListRepository {
           });
 
           try {
-            const response = await docClient.send(new QueryCommand(params));
+            const response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
             const items = response.Items ?? [];
             lastKey = response.LastEvaluatedKey;
 
@@ -453,7 +455,7 @@ export class V2UserListRepository {
             usingLinkOrgId: !!link.patientOrgId,
           });
 
-          const userResult = await docClient.send(
+          const userResult = await sendDoc<QueryCommandOutput>(docClient,
             new QueryCommand({
               TableName: USER_TABLE_NAME,
               KeyConditionExpression: 'pk = :pk AND sk = :sk',
@@ -609,7 +611,7 @@ export class V2UserListRepository {
         };
 
         try {
-          const response = await docClient.send(new QueryCommand(params));
+          const response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
           const items = response.Items ?? [];
           lastKey = response.LastEvaluatedKey;
 
@@ -637,7 +639,7 @@ export class V2UserListRepository {
     const careTeamUsers: Record<string, unknown>[] = [];
     for (const staffId of careTeamIds) {
       try {
-        const userResult = await docClient.send(
+        const userResult = await sendDoc<QueryCommandOutput>(docClient,
           new QueryCommand({
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND sk = :sk',

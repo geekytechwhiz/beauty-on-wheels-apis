@@ -1,5 +1,6 @@
-import { QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { docClient } from "../utils/db.config";
+import { QueryCommand, type QueryCommandOutput } from "@aws-sdk/lib-dynamodb";
+import { docClient } from "../../utils/db.config";
+import { sendDoc } from "../../utils/dynamodb-send";
 import { createLogger, createChildLogger, serializeError } from "@api-hub/logger";
 
 const baseLogger = createLogger({ service: "user-service", redactPII: true });
@@ -37,7 +38,7 @@ export class RoleRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
 
       logger.info({
         event: "role_permissions_fetched",
@@ -70,8 +71,8 @@ export class RoleRepository {
             },
           };
 
-          const fallbackResult = await docClient.send(
-            new QueryCommand(fallbackParams)
+          const fallbackResult = await sendDoc<QueryCommandOutput>(docClient,
+            new QueryCommand(fallbackParams),
           );
 
           return fallbackResult.Items ?? [];
@@ -131,7 +132,7 @@ export class RoleRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
 
       return result.Items ?? [];
 

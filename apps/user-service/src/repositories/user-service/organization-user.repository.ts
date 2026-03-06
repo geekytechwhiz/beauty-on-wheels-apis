@@ -1,7 +1,6 @@
-import {
-    QueryCommand, 
-    } from '@aws-sdk/lib-dynamodb';
-  import { ddbDocClient } from '@api-hub/utils';
+import { QueryCommand, type QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
+import { ddbDocClient } from '@api-hub/utils';
+import { sendDoc } from '../../utils/dynamodb-send';
 import {
   createLogger,
   createChildLogger,
@@ -26,7 +25,7 @@ export class OrganizationUserRepository {
     });
 
     try {
-      const result = await ddbDocClient.send(
+      const result = await sendDoc<QueryCommandOutput>(ddbDocClient,
         new QueryCommand({
           TableName: USER_TABLE,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -95,7 +94,7 @@ export class OrganizationUserRepository {
         LastEvaluatedKey?: Record<string, unknown>;
       };
       try {
-        response = await ddbDocClient.send(new QueryCommand(params));
+        response = await sendDoc<QueryCommandOutput>(ddbDocClient, new QueryCommand(params));
       } catch (innerErr: unknown) {
         const name = (innerErr as { name?: string }).name;
         const message = String(

@@ -1,7 +1,8 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand, type QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { validateListOrganizationUsersPost } from '../validation/request.validators';
+import { sendDoc } from '../utils/dynamodb-send';
 
 const client = new DynamoDBClient({ region: process.env.DEFAULT_AWS_REGION || 'us-east-1' });
 const docClient = DynamoDBDocumentClient.from(client);
@@ -28,7 +29,7 @@ const handler = async (req: LambdaRequest<any> & { validatedListOrganizationUser
     queryParams.Limit = limit;
   }
 
-  const result = await docClient.send(new QueryCommand(queryParams));
+  const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(queryParams));
   const items = result.Items || [];
   return { items };
 };

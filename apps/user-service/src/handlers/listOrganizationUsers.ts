@@ -30,7 +30,7 @@ function parseNumber(value?: string | null): number | undefined {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const { organizationId } = req.params;
+  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId;
   const qp = req.params;
   const rawLimit = qp.limit ?? qp.pageSize;
   const rawOffset = qp.offset ?? qp.page ?? qp.pageIndex;

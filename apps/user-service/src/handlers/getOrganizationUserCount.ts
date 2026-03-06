@@ -9,7 +9,7 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const organizationId = req.params.organizationId ?? req.context.user?.organizationId!;
+  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId!;
   const { correlationId } = req.context;
   return userService.getOrganizationUserCounts(
     organizationId,

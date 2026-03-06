@@ -18,8 +18,8 @@ interface Body {
 
 const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   const body = req.body ?? {};
-  const userId = body.userId ?? body.userID ?? req.context.user?.userId ?? '';
-  const orgId = body.organizationID ?? req.context.user?.organizationId ?? '';
+  const userId = body.userId ?? body.userID ?? req.context.userContext?.userId ?? '';
+  const orgId = body.organizationID ?? req.context.userContext?.organizationId ?? '';
   const validated = body as any;
   await friendFamilyService.updateMember(userId, orgId, validated);
   return null;

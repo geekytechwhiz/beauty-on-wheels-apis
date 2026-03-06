@@ -10,8 +10,8 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params> & { validatedAssignedPackages?: { assignedPackages: any[]; assignedPackagesName: string[] } }) => {
-  const userId = req.params.userId ?? req.context.user?.userId!;
-  const organizationId = req.params.organizationId ?? req.context.user?.organizationId!;
+  const userId = req.params.userId ?? req.context.userContext?.userId!;
+  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId!;
   const { correlationId } = req.context;
   const { assignedPackages, assignedPackagesName } = (req as any).validatedAssignedPackages;
   await userService.updateUser(userId, organizationId, { assignedPackages, assignedPackagesName }, correlationId);

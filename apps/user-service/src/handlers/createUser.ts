@@ -41,7 +41,7 @@ const handler = async (
     if (!org) {
       throwOrgError('Organization does not exist', 'ORGANIZATION_NOT_FOUND');
     }
-    const status = org.status ? String(org.status).toLowerCase() : '';
+    const status = org?.status ? String(org?.status).toLowerCase() : '';
     if (['on_hold', 'disabled', 'not_exist'].includes(status)) {
       throwOrgError('Organization is not available', 'ORGANIZATION_NOT_AVAILABLE');
     }

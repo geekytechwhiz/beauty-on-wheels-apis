@@ -14,8 +14,8 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const userId = req.params.userId ?? req.context.user?.userId!;
-  const organizationId = req.params.organizationId ?? req.context.user?.organizationId!;
+  const userId = req.params.userId ?? req.context.userContext?.userId!;
+  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId!;
   const userType = req.params.userType;
   const defaultProfile = req.params.defaultProfile;
 

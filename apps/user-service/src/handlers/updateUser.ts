@@ -841,8 +841,8 @@ const handler = async (req: LambdaRequest<any>) => {
     ...req.event,
     pathParameters: {
       ...req.event.pathParameters,
-      userId: req.params?.userId ?? req.body?.userId ?? req.body?.userID ?? req.context?.user?.userId,
-      organizationId: req.params?.organizationId ?? req.body?.organizationId ?? req.body?.organizationID ?? req.context?.user?.organizationId,
+      userId: req.params?.userId ?? req.body?.userId ?? req.body?.userID ?? req.context?.userContext?.userId,
+      organizationId: req.params?.organizationId ?? req.body?.organizationId ?? req.body?.organizationID ?? req.context?.userContext?.organizationId,
     },
     body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {}),
   };

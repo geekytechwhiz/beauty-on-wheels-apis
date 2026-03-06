@@ -15,7 +15,7 @@ interface Body {
 
 const handler = async (req: LambdaRequest<Params, Body>) => {
   const body = req.body ?? {};
-  const userId = body.userId ?? body.userID ?? req.params.userId ?? req.context.user?.userId ?? '';
+  const userId = body.userId ?? body.userID ?? req.params.userId ?? req.context.userContext?.userId ?? '';
   return friendFamilyService.fetchMembers(userId);
 };
 

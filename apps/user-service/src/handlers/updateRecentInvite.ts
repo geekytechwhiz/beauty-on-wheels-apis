@@ -7,8 +7,8 @@ const userService = new UserService();
 
 const handler = async (req: LambdaRequest<any> & { validatedUpdateRecentInvite?: { patientId: string; email?: boolean; sms?: boolean } }) => {
   const { patientId, email, sms } = req.validatedUpdateRecentInvite!;
-  const userId = req.context.user?.userId ?? '';
-  const organizationId = req.context.user?.organizationId ?? '';
+  const userId = req.context.userContext?.userId ?? '';
+  const organizationId = req.context.userContext?.organizationId ?? '';
   const { correlationId } = req.context;
   return userService.updateRecentInvite(userId, organizationId, patientId, { email, sms }, correlationId);
 };

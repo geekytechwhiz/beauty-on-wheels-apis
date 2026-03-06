@@ -311,7 +311,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: v1/user
+          path: user
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -376,7 +376,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: v1/updateUser
+          path: updateUser
           method: put
           cors:
             origin: ${self:custom.cors.origin}
@@ -495,7 +495,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: v1/updateRecentInvite
+          path: updateRecentInvite
           method: put
           cors:
             origin: ${self:custom.cors.origin}
@@ -530,7 +530,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: v1/organization/{organizationId}/users
+          path: organization/{organizationId}/users
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -547,7 +547,7 @@ functions:
     memorySize: 512
     events:
       - http:
-          path: v1/organization/users
+          path: organization/users
           method: post
           cors:
             origin: ${self:custom.cors.origin}
@@ -760,7 +760,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: v1/users/validateusers
+          path: users/validateusers
           method: post
           cors:
             origin: ${self:custom.cors.origin}

@@ -18,7 +18,7 @@ phases:
     commands:
       - cd apps/user-service
       - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
-      - npx serverless package --stage "$STAGE" --package .serverless
+      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
       # 2) select create vs update s3 keys
       - |

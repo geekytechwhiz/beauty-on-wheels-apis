@@ -5,22 +5,28 @@ import {
   OrgFeaturesResponse,
 } from "../types/dto";
 
-export class AuthorizationServiceClient extends BaseClient {
+export class RoleServiceClient extends BaseClient {
   constructor() {
-    const baseUrl = (process.env.AUTHORIZATION_SERVICE_URL || "").replace(
+    const baseUrl = (process.env.ROLE_SERVICE_URL || "").replace(
       /\/$/,
       ""
     );
-    super(baseUrl, "authorization-service");
+    super(baseUrl, "role-service");
   }
 
-  async getUserPermissions(
+  async getRoleDetails(
+    userRole: string | string[],
     organizationId: string,
-    userId: string,
     authHeader?: string
   ): Promise<PermissionDTO[] | null> {
+    
+    const roleIds = Array.isArray(userRole)
+    ? userRole.map((roleId: string) => String(roleId))
+    : userRole
+      ? [String(userRole)]
+      : [];
     return this.get<PermissionDTO[]>(
-      `/organizations/${organizationId}/users/${userId}/permissions`,
+      `/organizations/${organizationId}/roles/${roleIds}/details`,
       authHeader
     );
   }

@@ -25,7 +25,7 @@ export const getSchedulePreferencesSchema = z.object({
 export const putSchedulePreferencesSchema = z.object({
   userId: z.string().min(1),
   organizationId: z.string().min(1),
-  workingHours: z.record(z.object({
+  workingHours: z.record(z.string(), z.object({
     available: z.boolean(),
     availableHours: z.array(z.object({ from: z.string(), to: z.string() })).optional(),
   })).optional(),
@@ -36,7 +36,7 @@ export const putSchedulePreferencesSchema = z.object({
     availableHours: z.array(z.object({ from: z.string(), to: z.string() })).optional(),
   })).optional(),
   leaves: z.array(z.object({ from: z.string(), to: z.string() })).optional(),
-  customAvailability: z.record(z.object({
+  customAvailability: z.record(z.string(), z.object({
     available: z.boolean(),
     availableHours: z.array(z.object({ from: z.string(), to: z.string() })).optional(),
   })).optional(),

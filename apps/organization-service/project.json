@@ -4,7 +4,7 @@
   "sourceRoot": "apps/organization-service/src",
   "targets": {
     "build": {
-      "executor": "@nrwl/node:build",
+      "executor": "@nx/js:tsc",
       "options": {
         "outputPath": "dist/apps/organization-service",
         "main": "apps/organization-service/src/index.ts",

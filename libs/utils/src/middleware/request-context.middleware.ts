@@ -25,12 +25,31 @@ export const buildRequestContext = (event: any) => {
     }
   }
 
+  /**
+   * Normalise path/query parameters so handlers can rely on:
+   * - req.pathParameters
+   * - req.params (merged path + query)
+   *
+   * For non-API Gateway invocations (e.g. direct Lambda invoke) where
+   * identifiers are sent at the top level of the event, we also map
+   * `event.userId` / `event.organizationId` into pathParameters.
+   */
+  const normalizedPathParameters =
+    event.pathParameters ??
+    (((event.userId || event.organizationId) && {
+      ...(event.userId && { userId: String(event.userId) }),
+      ...(event.organizationId && { organizationId: String(event.organizationId) }),
+    }) as Record<string, string> | undefined);
+
+  const normalizedQueryParameters = event.queryStringParameters ?? undefined;
+
   return {
     event,
     params: {
-      ...event.pathParameters,
-      ...event.queryStringParameters,
+      ...(normalizedPathParameters ?? {}),
+      ...(normalizedQueryParameters ?? {}),
     },
+    pathParameters: normalizedPathParameters,
     body,
     context: {
       authHeader,

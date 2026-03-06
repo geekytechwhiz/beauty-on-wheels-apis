@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
+    
     "types": ["node", "vite/client"],
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "composite": true,
@@ -15,11 +16,7 @@
   "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
   "references": [
     {
-      "path": "../../libs/logger/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/utils/tsconfig.lib.json"
+      "path": "../logger/tsconfig.lib.json"
     }
   ]
-} 
- 
+}

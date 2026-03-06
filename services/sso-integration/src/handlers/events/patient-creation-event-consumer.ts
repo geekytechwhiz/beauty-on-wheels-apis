@@ -5,6 +5,7 @@ import { getPatientMapperHelper } from '../../helper/patient.mapper';
 import { getUserServiceClient } from '../../clients/user.client'; 
 import { PatientCreationEvent } from '../../types/events';
 import { getAppointmentSyncService } from '../../services/appointment-sync.service';
+import { getServiceTokenService } from '../../services/service-token.service';
  
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -69,6 +70,7 @@ async function processPatientCreationEvent(
   const userServiceClient = getUserServiceClient();
   const patientMapper = getPatientMapperHelper();
   const config = getSSOConfig();
+  const serviceTokenService = getServiceTokenService();
 
   // Parse event from SQS record
   let event: PatientCreationEvent;
@@ -84,6 +86,7 @@ async function processPatientCreationEvent(
   }
 
   const { patient, doctorId, organizationID, provider, externalId } = event.data;
+  const tenantId = "default"; // TODO: get tenantId from event
 
   logger.info({
     event: 'patient_creation_event_process_start',
@@ -93,14 +96,25 @@ async function processPatientCreationEvent(
     organizationID,
   });
 
+  // Generate service token for user service authentication
+  const serviceToken = serviceTokenService.generateToken(
+    tenantId,
+    {
+      userId: doctorId as string,
+      role: 'DOCTOR',
+    },
+    correlationId,
+  );
+
   // Check if patient already exists
   const existingPatient = await userServiceClient.findByExternalId(
     {
       provider,
       externalId,
-      tenantId:"default", // TODO: get tenantId from event
+      tenantId,
     },
     correlationId,
+    serviceToken.token,
   );
 
   if (existingPatient) {
@@ -118,8 +132,22 @@ async function processPatientCreationEvent(
   // The user service will handle doctor assignment properly even without the name
   const doctorName = 'Dr. Name'; // TODO: get doctor name from event
 
+  // Map event patient data to Patient type expected by mapper
+  const patientData = {
+    id: patient.id,
+    name: patient.name,
+    email: patient.email,
+    phone: patient.phone,
+    gender: patient.gender,
+    dateOfBirth: patient.dob || '',
+    dob: patient.dob || null,
+    mrn: patient.mrn || '',
+    age: null,
+    organizationId: organizationID,
+  };
+
   const patientPayload = patientMapper.mapTruTechPatientToOurSystem(
-    patient,
+    patientData,
     doctorId as string,
     doctorName,
     correlationId,
@@ -138,8 +166,9 @@ async function processPatientCreationEvent(
     patientPayload,
     externalId,
     provider,
-    "default", // TODO: get tenantId from event
+    tenantId,
     correlationId,
+    serviceToken.token,
   );
 
   logger.info({

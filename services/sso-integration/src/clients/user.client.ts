@@ -46,7 +46,8 @@ export class UserServiceClient {
 
   async findByExternalId(
     params: UserLookupParams,
-    correlationId: string
+    correlationId: string,
+    token?: string
   ): Promise<User | null> {
     const logger = createChildLogger(this.logger, { correlationId });
     const startTime = Date.now();
@@ -54,21 +55,25 @@ export class UserServiceClient {
     logger.info({
       event: 'user_lookup_start',
       provider: params.provider,
-      tenantId: "mm1usge33d4f9b61",
+      tenantId: params.tenantId,
     });
-    console.log("FIND BY ID :",this.client)
+
+    const headers: Record<string, string> = {
+      'X-Correlation-Id': correlationId,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     try {
       const response = await this.client.post<{ data: User }>(`/users/validateusers`, {
-        params: {
-          provider: params.provider,
-          externalId: params.externalId,
-          tenant_id: params.tenantId,
-        },
-        headers: {
-          'X-Correlation-Id': correlationId,
-        },
+        provider: params.provider,
+        externalId: params.externalId,
+        tenant_id: params.tenantId,
+      }, {
+        headers,
       });
-      console.log("RESPONSE USER: ", response.data);
       const duration = Date.now() - startTime;
 
       logger.info({
@@ -308,6 +313,7 @@ export class UserServiceClient {
     provider: string,
     tenantId: string,
     correlationId: string,
+    token?: string,
   ): Promise<User> {
     const logger = createChildLogger(this.logger, { correlationId });
     const startTime = Date.now();
@@ -320,6 +326,14 @@ export class UserServiceClient {
       patientName: patientPayload.userInfo.name,
     });
 
+    const headers: Record<string, string> = {
+      'X-Correlation-Id': correlationId,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     try {
       const response = await this.client.post<{ data: User }>(
         '/user',
@@ -330,9 +344,7 @@ export class UserServiceClient {
           ...patientPayload,
         },
         {
-          headers: {
-            'X-Correlation-Id': correlationId,
-          },
+          headers,
         }
       );
 

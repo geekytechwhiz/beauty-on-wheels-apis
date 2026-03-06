@@ -231,6 +231,7 @@ export class UserService {
         tokenUpdatedAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds (matching old implementation)
         userCat: userCat,
         ...(definedRoleCode !== undefined ? { definedRoleCode: String(definedRoleCode) } : {}),
+        
       } as User;
       
       logger.info({ event: 'service_createUser_user_object', hasDefinedRoleCode: (user as any).definedRoleCode !== undefined, definedRoleCode: (user as any).definedRoleCode });

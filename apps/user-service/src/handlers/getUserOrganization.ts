@@ -1,4 +1,4 @@
-import { withLambdaHandler, LambdaRequest, validateUserOrganizationRequest } from '@api-hub/utils';
+import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service'; 
 
 const userService = new UserService();
@@ -13,15 +13,18 @@ interface Params {
 const handler = async (
   req: LambdaRequest<Params, any, Record<string, any>>
 ) => {
-
-  const {   defaultProfile, userType,   } = req.params;
+  const {   userType } = req.params;
   const { userContext } = req.context;
-  const userId = req.pathParameters?.userId;
-  const organizationId = req.pathParameters?.organizationId; 
+
+  const pathUserId = (req.pathParameters?.userId || '').trim();
+  const pathOrganizationId = (req.pathParameters?.organizationId || '').trim();
+ 
+
   return userService.getUserWithOrganizationDetails(
-    userId as string,
-    organizationId as string,
-    defaultProfile,
+    pathUserId as string,
+    pathOrganizationId as string,
+    userContext?.userId as string | undefined,
+    userContext?.userId,  // loged user id
     userType,
     userContext?.authHeader as string
   );

@@ -17,6 +17,7 @@ import {
 } from './user.validation';
 import { listOrganizationUsersPostSchema } from './listOrganizationUsersPost.validation';
 import { fetchFriendFamilySchema, addMemberFriendFamilySchema, updateFriendFamilySchema, deleteFriendFamilySchema, friendFamilySearchSchema } from './friendFamily.validation';
+import { v2UserListSchema } from './v2-user-list.validation';
 
 function throwVal(message: string, statusCode = 400, code = 'VALIDATION_ERROR', details?: Array<{ field?: string; message: string }>) {
   const err: any = new Error(message);
@@ -26,10 +27,10 @@ function throwVal(message: string, statusCode = 400, code = 'VALIDATION_ERROR', 
   throw err;
 }
 
-/** userId and organizationId required (from params or context.user) */
+/** userId and organizationId required (from params or context.userContext) */
 export function validateUserOrganizationRequest(req: any) {
-  const userId = req?.params?.userId ?? req?.context?.user?.userId;
-  const organizationId = req?.params?.organizationId ?? req?.context?.user?.organizationId;
+  const userId = req?.params?.userId ?? req?.context?.userContext?.userId;
+  const organizationId = req?.params?.organizationId ?? req?.context?.userContext?.organizationId;
   if (!userId || !organizationId) {
     throwVal('userId and organizationId are required', 400, 'BAD_REQUEST');
   }
@@ -256,9 +257,9 @@ export function validateUpdateRecentInvite(req: any) {
   req.validatedUpdateRecentInvite = data;
 }
 
-/** organizationId required in params */
+/** organizationId required in params or userContext */
 export function validateOrganizationIdParam(req: any) {
-  const organizationId = req?.params?.organizationId;
+  const organizationId = req?.params?.organizationId ?? req?.context?.userContext?.organizationId;
   if (!organizationId || (typeof organizationId === 'string' && organizationId.trim() === '')) {
     throwVal('organizationId is required', 400, 'BAD_REQUEST');
   }
@@ -278,10 +279,25 @@ export function validateListOrganizationUsersPost(req: any) {
   req.validatedListOrganizationUsersPost = result.data;
 }
 
-/** userId and organizationId required (from params, body, or context.user) for updateUser */
+/** V2 user list body validation */
+export function validateV2UserList(req: any) {
+  const body = req?.body ?? {};
+  const result = v2UserListSchema.safeParse(body);
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      400,
+      'VALIDATION_ERROR',
+      result.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
+    );
+  }
+  req.validatedV2UserList = result.data;
+}
+
+/** userId and organizationId required (from params, body, or context.userContext) for updateUser */
 export function validateUpdateUser(req: any) {
-  const userId = req?.params?.userId ?? req?.body?.userId ?? req?.body?.userID ?? req?.context?.user?.userId;
-  const organizationId = req?.params?.organizationId ?? req?.body?.organizationId ?? req?.body?.organizationID ?? req?.context?.user?.organizationId;
+  const userId = req?.params?.userId ?? req?.body?.userId ?? req?.body?.userID ?? req?.context?.userContext?.userId;
+  const organizationId = req?.params?.organizationId ?? req?.body?.organizationId ?? req?.body?.organizationID ?? req?.context?.userContext?.organizationId;
   if (!userId || !organizationId) {
     const err: any = new Error('Missing user context in access token');
     err.statusCode = 401;
@@ -305,8 +321,8 @@ export function validateAssignDoctor(req: any) {
 
 export function validateCreateUser(req: any) {
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
-  const userID = body.userID ?? req?.context?.user?.userId;
+  const organizationID = body.organizationID ?? req?.context?.userContext?.organizationId;
+  const userID = body.userID ?? req?.context?.userContext?.userId;
   const payload = { ...body, organizationID, userID };
   const result = createUserSchema.safeParse(payload);
   if (!result.success) {
@@ -323,8 +339,8 @@ export function validateCreateUser(req: any) {
 export function validateListDoctorPatients(req: any) {
   const body = req?.body ?? {};
   const params = req?.params ?? {};
-  const organizationID = body.organizationID ?? params.organizationID ?? req?.context?.user?.organizationId;
-  const userID = body.userID ?? params.userID ?? req?.context?.user?.userId;
+  const organizationID = body.organizationID ?? params.organizationID ?? req?.context?.userContext?.organizationId;
+  const userID = body.userID ?? params.userID ?? req?.context?.userContext?.userId;
   const payload = {
     filter: body.filter ?? params.filter ?? 'staff',
     organizationID,

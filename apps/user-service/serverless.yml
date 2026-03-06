@@ -284,6 +284,7 @@ custom:
       - Authorization
       - X-Api-Key
       - X-Correlation-Id
+      - X-Requested-With
       - Sec-Ch-Ua
       - Sec-Ch-Ua-Mobile
       - Sec-Ch-Ua-Platform
@@ -499,6 +500,7 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
+            allowCredentials: false
           authorizer:
             name: common_authorizer
             type: token

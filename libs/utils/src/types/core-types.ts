@@ -60,7 +60,7 @@ export interface RequestContext {
   awsRequestId: string;
   logger: any;
   authHeader?: string;
-  user?: UserContext;
+  userContext?: UserContext;
 }
 export interface UserContext {
   userId?: string;

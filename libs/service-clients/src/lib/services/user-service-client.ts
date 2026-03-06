@@ -1,18 +1,18 @@
 import { BaseClient } from "../client/base-service-client";
 import {
-  UserDTO,
   BatchUsersResponse,
   OrganizationUsersResponse,
+  UserDTO
 } from "../types/dto";
 
-export class UserServiceClient extends BaseClient {
-  constructor() {
-    const baseUrl = (process.env.USER_SERVICE_URL || "").replace(/\/$/, "");
-    super(baseUrl, "user-service");
+export class UserServiceClient extends BaseClient { 
+  constructor(baseUrl?: string) {
+    baseUrl = (baseUrl || process.env.USER_SERVICE_URL || "").replace(/\/$/, "");
+    super(baseUrl, "user-service"); 
   }
 
-  async getUser(userId: string, authHeader?: string): Promise<UserDTO | null> {
-    return this.get<UserDTO>(`/users/${userId}`, authHeader);
+  async getUser(userId: string, authToken: string): Promise<UserDTO | null> {
+    return this.get<UserDTO>(`/users/${userId}`,authToken);
   }
 
   async getUserByEmail(
@@ -36,9 +36,9 @@ export class UserServiceClient extends BaseClient {
 
   async validateUserExists(
     userId: string,
-    authHeader?: string
+    authToken: string
   ): Promise<boolean> {
-    const user = await this.getUser(userId, authHeader);
+    const user = await this.getUser(userId, authToken);
     return user !== null;
   }
 
@@ -54,5 +54,6 @@ export class UserServiceClient extends BaseClient {
 
     return response?.users ?? [];
   }
-}
 
+
+}

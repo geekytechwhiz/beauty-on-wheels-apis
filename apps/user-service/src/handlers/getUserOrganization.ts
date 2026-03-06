@@ -14,16 +14,16 @@ const handler = async (
   req: LambdaRequest<Params>
 ) => {
 
-  const { userId, organizationId, defaultProfile, userType } = req.params;
-  const { user, authHeader } = req.context;
-
+  const {   defaultProfile, userType } = req.params;
+  const { userContext } = req.context;
+  const userId = userContext?.userId;
+  const organizationId = userContext?.organizationId;
   return userService.getUserWithOrganizationDetails(
-    userId,
-    organizationId,
-    user?.userId,
+    userId as string,
+    organizationId as string,
     defaultProfile,
     userType,
-    authHeader
+    userContext?.authHeader as string
   );
 };
 

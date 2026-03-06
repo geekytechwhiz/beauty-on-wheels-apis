@@ -34,7 +34,7 @@ export const buildRequestContext = (event: any) => {
     body,
     context: {
       authHeader,
-      user,
+      userContext: user,
     },
   };
 };

@@ -11,3 +11,10 @@ export interface Patient {
     email?: string | null
     organizationId: string
   }
+export interface CreateExternalUserPayload extends Patient {
+  externalId: string;
+  provider: string;
+  tenantId: string;
+  role: string;
+  source: string;
+}

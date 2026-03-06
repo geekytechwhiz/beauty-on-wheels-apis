@@ -34,6 +34,17 @@ export interface PermissionDTO {
   }>;
 }
 
+export interface CreateExternalUserPayload {
+  externalId: string;
+  provider: string;
+  tenantId: string;
+  role: string;
+  source: string;
+  email?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+}
 export interface OrganizationUsersResponse {
   users: UserDTO[];
 }

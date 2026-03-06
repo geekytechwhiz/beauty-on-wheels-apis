@@ -18,7 +18,7 @@ export const deviceRegistrationSchema = z.object({
         deviceCategory: z.string().min(1),
         companyName: z.string().min(1),
         modelName: z.string().min(1),
-        deviceCategoryNum: z.string().optional(),
+        deviceCategoryNum: z.number().optional(),
       }),
     )
     .min(1),

@@ -27,7 +27,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     logger.error({ event: 'deviceRegister_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest({ title: 'COMMON.INVALID_JSON', description: 'Request body is not valid JSON', severity: 'ERROR' }, { requestId: correlationId }, { code: 'BAD_REQUEST' });
   }
 
   // Extract user context from authorizer (Cognito)
@@ -61,14 +61,14 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: [{ field: 'userId/organizationId', message: 'userId and organizationId are required' }] });
+    return ApiResponse.badRequest({ title: 'COMMON.VALIDATION_ERROR', description: 'userId and organizationId are required', severity: 'ERROR' }, { requestId: correlationId }, { code: 'VALIDATION_ERROR', details: [{ field: 'userId/organizationId', message: 'userId and organizationId are required' }] });
   }
 
   const devices = (body as any)?.devices;
   if (!devices || !Array.isArray(devices) || devices.length === 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.VALIDATION_ERROR', { requestId: correlationId, event }, { code: 'VALIDATION_ERROR', details: [{ field: 'devices', message: 'devices array is required' }] });
+    return ApiResponse.badRequest({ title: 'COMMON.VALIDATION_ERROR', description: 'devices array is required', severity: 'ERROR' }, { requestId: correlationId }, { code: 'VALIDATION_ERROR', details: [{ field: 'devices', message: 'devices array is required' }] });
   }
 
   const messageArr: Array<{
@@ -226,16 +226,15 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     const statusCode = hasErrors ? (messageArr.some((msg) => msg.statusCode >= 500) ? 500 : 400) : 201;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', statusCode, duration, correlationId);
     
-    return ApiResponse.success(
+    return ApiResponse.created(
       { items: messageArr },
-      'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS',
-      { requestId: correlationId, event },
-      { statusCode },
+      { title: 'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS', description: 'Device registration processed successfully', severity: 'SUCCESS' },
+      { requestId: correlationId },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceRegister_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 500, duration, correlationId);
-    return ApiResponse.internalServerError('COMMON.INTERNAL_SERVER_ERROR', { requestId: correlationId, event }, { code: 'INTERNAL_SERVER_ERROR' });
+    return ApiResponse.internalServerError({ title: 'COMMON.INTERNAL_SERVER_ERROR', description: 'An unexpected error occurred', severity: 'ERROR' }, { requestId: correlationId }, { code: 'INTERNAL_SERVER_ERROR' });
   }
 };

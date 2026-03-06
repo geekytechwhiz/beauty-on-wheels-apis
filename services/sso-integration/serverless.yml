@@ -36,7 +36,7 @@ provider:
 
     # USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
-    USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, 'dummy-user-service-key'}
+    # USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, 'dummy-user-service-key'}
 
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
     ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, 'dummy-role-service-key'}

@@ -113,18 +113,25 @@ export interface User {
   weightInKG?: string;
   weightInLbs?: string;
   zip?: string;
-  itemType?: string;
-  /** Assigned package list for this user in this org (full replace via PUT assigned-packages). */
-  assignedPackages?: Array<{ id: string; name: string; start?: string; end?: string }>;
-  /** Lowercase package names for quick lookup (mirrors assignedPackages). */
-  assignedPackagesName?: string[];
+  itemType?: string; 
+  assignedPackages?: Array<{ id: string; name: string; start?: string; end?: string }>; 
+  assignedPackagesName?: string[]; 
+  externalIdentity?: ExternalIdentity;
 }
 
-/**
- * User Response Interface
- * Represents the user data structure returned in API responses
- * Includes DynamoDB keys and role information
- */
+const SourceSystem = {
+  HMS: 'HMS',
+  FHIR: 'FHIR',
+  CUSTOM: 'CUSTOM',
+  MARKETPLACE: 'MARKETPLACE',
+} as const;
+export interface ExternalIdentity {
+  integrationType: string; // TruTech
+  externalUserId: string; // user id from external system
+  externalHospitalId?: string; // org id or tenant id
+  subdomain: string; // subdomain of the external system
+  sourceSystem: typeof SourceSystem; 
+};
 export interface UserResponse {
   phoneNumber: string;
   createdDate: number;

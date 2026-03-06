@@ -41,6 +41,15 @@ export class AppointmentsService {
         correlationId
       );
 
+      logger.debug({
+        event: 'appointments_service_trutech_response',
+        doctorId,
+        status: truTechAppointmentsResponse.status,
+        hasAppointmentsArray: !!truTechAppointmentsResponse.appointments,
+        appointmentCount: truTechAppointmentsResponse.appointments?.length ?? 0,
+        hasMessage: !!truTechAppointmentsResponse.message,
+      });
+
       timer.end();
 
       logger.info({
@@ -49,7 +58,35 @@ export class AppointmentsService {
         appointmentCount: truTechAppointmentsResponse.appointments?.length || 0,
       });
 
-      return this.truTechAdapter.mapAppointments(truTechAppointmentsResponse);
+      try {
+        if (!truTechAppointmentsResponse.appointments?.length) {
+          this.logger.info({
+            event: 'trutech_map_appointments_no_appointments',
+            appointmentCount:
+              truTechAppointmentsResponse.appointments?.length ?? 0,
+          });
+          return [];
+        }
+
+        const mapped = this.truTechAdapter.mapAppointments(
+          truTechAppointmentsResponse.appointments || [],
+        );
+
+        logger.info({
+          event: 'appointments_service_mapping_success',
+          doctorId,
+          mappedCount: mapped.length,
+        });
+
+        return mapped;
+      } catch (mapError) {
+        logger.error({
+          event: 'appointments_service_mapping_error',
+          doctorId,
+          err: serializeError(mapError as Error),
+        });
+        throw mapError;
+      }
     } catch (error) {
       timer.end();
 

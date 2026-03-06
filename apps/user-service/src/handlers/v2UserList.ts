@@ -1,189 +1,67 @@
-import {
-  APIGatewayProxyEvent,
-  APIGatewayProxyResult,
-  Context,
-  APIGatewayProxyHandler,
-} from 'aws-lambda';
-import {
-  createLogger,
-  createChildLogger,
-  extractCorrelationId,
-  extractAwsRequestId,
-  serializeError,
-  logHttpRequest,
-} from '@api-hub/logger';
-import { ApiResponse } from '@api-hub/utils';
-import { v2UserListSchema } from '../validation/v2-user-list.validation';
+import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { V2UserListService } from '../services/v2-user-list.service';
-import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../utils/helpers';
-import { PATH_V2_USER_LIST } from '../utils/constants';
+import { validateV2UserList } from '../validation/request.validators';
+import type { V2UserListInput } from '../validation/v2-user-list.validation';
 
-const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const v2UserListService = new V2UserListService();
 
-export async function v2UserList(
-  event: APIGatewayProxyEvent,
-  context?: Context,
-): Promise<APIGatewayProxyResult> {
-  const startTime = Date.now();
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+const handler = async (
+  req: LambdaRequest<any> & { validatedV2UserList?: V2UserListInput }
+) => {
+  const { validatedV2UserList } = req;
+  const { organizationId, context: userListContext, filters, pagination, sort } = validatedV2UserList!;
+  const { userContext, authHeader, correlationId, logger } = req.context;
 
-  const authUserId = getAuthorizerUserId(event);
-  const authOrgId = getAuthorizerOrganizationId(event);
+  const authUserId = userContext?.userId ?? undefined;
 
-  const logger = createChildLogger(baseLogger, {
-    correlationId,
-    ...(awsRequestId && { awsRequestId }),
-    ...(authUserId && { authUserId }),
-    ...(authOrgId && { authOrgId }),
+  logger?.info({
+    event: 'v2_user_list_params',
+    organizationId,
+    context: userListContext,
+    hasFilters: !!filters,
+    hasPagination: !!pagination,
+    hasSort: !!sort,
   });
 
-  logger.info({ event: 'v2_user_list_handler_start' });
+  const normalizedFilters = {
+    ...filters,
+    userTypes: [
+      ...new Set(
+        (filters?.userTypes ?? []).map((t) =>
+          ['patient', 'patients', 'PATIENT'].includes(String(t?.toLowerCase?.() ?? t))
+            ? 'USER'
+            : t
+        )
+      ),
+    ],
+  };
 
-  try {
-    const body = event.body ? JSON.parse(event.body) : {};
+  const result = await v2UserListService.listUsers({
+    organizationId,
+    context: userListContext,
+    filters: normalizedFilters,
+    pagination: {
+      limit: pagination?.limit,
+      cursor: pagination?.cursor ?? null,
+    },
+    sort: {
+      field: sort?.field ?? 'createdDate',
+      order: sort?.order ?? 'DESC',
+    },
+    requestId: correlationId,
+    authUserId,
+    authHeader: authHeader ?? undefined,
+  });
 
-    const validation = v2UserListSchema.safeParse(body);
+  logger?.info({
+    event: 'v2_user_list_success',
+    count: result.data?.items?.length ?? 0,
+    hasNextCursor: !!result.meta?.nextCursor,
+  });
 
-    if (!validation.success) {
-      logger.warn({
-        event: 'v2_user_list_validation_failed',
-        errors: validation.error.issues,
-      });
-
-      const duration = Date.now() - startTime;
-      logHttpRequest(
-        logger,
-        event.httpMethod || 'POST',
-        PATH_V2_USER_LIST,
-        400,
-        duration,
-        correlationId,
-      );
-
-      return ApiResponse.badRequest(
-        'Validation Error',
-        { requestId: correlationId },
-        {
-          code: 'VALIDATION_ERROR',
-          details: validation.error.issues.map((issue) => ({
-            message: issue.message,
-            field: issue.path.join('.'),
-          })),
-        },
-      );
-    }
-
-    const { organizationId, context: userListContext, filters, pagination, sort } = validation.data;
-
-    logger.info({
-      event: 'v2_user_list_params',
-      organizationId,
-      context: userListContext,
-      hasFilters: !!filters,
-      hasPagination: !!pagination,
-      hasSort: !!sort,
-    });
-
-    const authHeader = event.headers?.Authorization || event.headers?.authorization;
-    // Normalize patient-related userTypes to USER (backend stores patients as userType USER)
-    const normalizedFilters = {
-      ...filters,
-      userTypes: [
-        ...new Set(
-          (filters?.userTypes ?? []).map((t) =>
-            ['patient', 'patients', 'PATIENT'].includes(String(t?.toLowerCase?.() ?? t))
-              ? 'USER'
-              : t
-          )
-        ),
-      ],
-    };
-    // Don't set a default limit - if no limit provided, fetch all records internally
-    const result = await v2UserListService.listUsers({
-      organizationId,
-      context: userListContext,
-      filters:normalizedFilters,
-      pagination: {
-        limit: pagination?.limit, // undefined if not provided, which triggers fetch all
-        cursor: pagination?.cursor ?? null,
-      },
-      sort: {
-        field: sort?.field ?? 'createdDate',
-        order: sort?.order ?? 'DESC',
-      },
-      requestId: correlationId,
-      authUserId,
-      authHeader,
-    });
-
-    const duration = Date.now() - startTime;
-    logHttpRequest(
-      logger,
-      event.httpMethod || 'POST',
-      PATH_V2_USER_LIST,
-      200,
-      duration,
-      correlationId,
-    );
-
-    logger.info({
-      event: 'v2_user_list_success',
-      count: result.data?.items?.length ?? 0,
-      hasNextCursor: !!result.meta?.nextCursor,
-      duration,
-    });
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Correlation-Id,X-Requested-With',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
-      },
-      body: JSON.stringify(result),
-    };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-
-    logger.error({
-      event: 'v2_user_list_error',
-      err: serializeError(err),
-    });
-
-    logHttpRequest(
-      logger,
-      event.httpMethod || 'POST',
-      PATH_V2_USER_LIST,
-      500,
-      duration,
-      correlationId,
-    );
-
-    const errorMessage = (err as Error)?.message || 'Unknown error';
-
-    if (errorMessage.includes('required')) {
-      return ApiResponse.badRequest(
-        {
-          title: 'Bad Request',
-          description: errorMessage,  
-        },
-        { requestId: correlationId },
-      );
-    }
-
-    return ApiResponse.internalServerError(
-      {
-        title: 'Internal Server Error',
-        description: 'Failed to fetch users',
-      },
-      { requestId: correlationId },
-    );
-  }
-}
-
-export const main: APIGatewayProxyHandler = async (event, context: Context) => {
-  return v2UserList(event, context);
+  return result;
 };
+
+export const main = withLambdaHandler(handler, {
+  validator: validateV2UserList,
+});

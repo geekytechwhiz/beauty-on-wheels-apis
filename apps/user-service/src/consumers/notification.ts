@@ -6,19 +6,12 @@ import type {
   PaymentStatusNotificationRequestedData,
 } from '../events/event.types';
 import { UserRepository } from '../repositories/user.repository';
+import { NotificationPayload } from '../types/api-types';
 
 const logger = createLogger({ service: 'notification-consumer', redactPII: true });
 const userRepository = new UserRepository();
 
-type NotificationPayload = {
-  userId?: string;
-  email?: string;
-  phone?: string;
-  deviceToken?: string;
-  channels: string[];
-  template?: string;
-  templateData?: Record<string, unknown>;
-};
+
 
 function normalizeChannels(channels: string[]): string[] {
   return (channels || []).map((c) => String(c).toLowerCase());

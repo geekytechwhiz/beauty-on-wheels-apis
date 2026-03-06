@@ -28,30 +28,83 @@ export class LaunchService extends BaseService {
     const ctx: RequestContext = { correlationId };
 
     try {
+      this.logger.info({
+        event: 'launch_process_start',
+        correlationId,
+        launchTokenLength: launchToken?.length ?? 0,
+      });
+
       const verifyResponse = await this.verifyLaunchToken(launchToken, ctx);
 
+      this.logger.debug({
+        event: 'launch_token_verified',
+        correlationId,
+        doctorContext: {
+          email: verifyResponse.context.email,
+          drid: verifyResponse.context.drid,
+          tenantId: verifyResponse.context.tenant_id,
+        },
+      });
+
       const doctor = await this.ensureDoctorExists(verifyResponse.context, ctx);
+
+      this.logger.info({
+        event: 'launch_doctor_resolved',
+        correlationId,
+        doctorId: doctor.id,
+        externalId: doctor.externalId,
+      });
 
       const serviceToken = await this.generateServiceToken(
         doctor,
         verifyResponse.context,
       );
 
-      const appointments :any = await this.fetchAppointments(
+      const appointmentsResponse = await this.fetchAppointments(
         verifyResponse.context.drid,
         ctx,
       );
 
-      const eventsPublished = await this.publishPatientCreationEvents(
-        doctor,
-        appointments,
-        verifyResponse.context,
-        ctx,
+      const rawAppointments = appointmentsResponse.appointments ?? [];
+
+      this.logger.info({
+        event: 'launch_appointments_fetched',
+        correlationId,
+        doctorId: verifyResponse.context.drid,
+        appointmentCount: rawAppointments.length,
+      });
+
+      let eventsPublished = 0;
+
+      if (rawAppointments.length > 0) {
+        eventsPublished = await this.publishPatientCreationEvents(
+          doctor,
+          rawAppointments,
+          verifyResponse.context,
+          ctx,
+        );
+
+        this.logger.info({
+          event: 'launch_patient_events_published',
+          correlationId,
+          doctorId: doctor.id,
+          patientEventsCount: eventsPublished,
+        });
+      } else {
+        this.logger.info({
+          event: 'launch_no_appointments_skipping_patient_events',
+          correlationId,
+          doctorId: doctor.id,
+        });
+      }
+
+      const mappedAppointments = this.truTechAdapter.mapAppointments(
+        rawAppointments,
       );
 
       return {
         doctor,
-        appointments: appointments?.map((appointment:any) => this.truTechAdapter.mapAppointments(appointment as unknown as TruTechAppointmentsResponse)) || [],
+        appointments: mappedAppointments,
         patientEventsPublished: eventsPublished,
         serviceToken,
       };
@@ -97,10 +150,30 @@ export class LaunchService extends BaseService {
     doctorContext: TruTechVerifyContext,
     ctx: RequestContext,
   ): Promise<User> {
-    const userAttributes: TruTechVerifiedPayload | null =
-      await this.cognitoService.findUserByEmail(doctorContext.email);
+    this.logger.debug({
+      event: 'ensure_doctor_lookup_cognito_start',
+      correlationId: ctx.correlationId,
+      email: doctorContext.email,
+    });
+
+    const userAttributes: TruTechVerifiedPayload | null = await this.cognitoService.findUserByEmail(doctorContext.email);
+
+    this.logger.debug({
+      event: 'ensure_doctor_lookup_cognito_result',
+      correlationId: ctx.correlationId,
+      email: doctorContext.email,
+      hasUserAttributes: !!userAttributes,
+      hasDoctorUid: !!userAttributes?.doctorUid,
+    });
 
     if (userAttributes?.doctorUid) {
+      this.logger.info({
+        event: 'ensure_doctor_exists_in_cognito',
+        correlationId: ctx.correlationId,
+        email: doctorContext.email,
+        doctorUid: userAttributes.doctorUid,
+      });
+
       return {
         id: userAttributes.doctorUid,
         externalId: doctorContext.drid,
@@ -116,6 +189,12 @@ export class LaunchService extends BaseService {
       doctorContext,
       ctx.correlationId,
     );
+
+    this.logger.info({
+      event: 'ensure_doctor_create_start',
+      correlationId: ctx.correlationId,
+      email: doctorContext.email,
+    });
 
     const newDoctor = await this.userServiceClient.createDoctor(payload, {
       token: '',
@@ -144,13 +223,13 @@ export class LaunchService extends BaseService {
   private async fetchAppointments(
     doctorId: number,
     ctx: RequestContext,
-  ): Promise< TruTechAppointment[] | undefined> {
+  ): Promise<TruTechAppointmentsResponse> {
     const response = await this.truTechClient.getTodaysAppointments(
       doctorId,
       ctx.correlationId,
     );
 
-    return response.appointments;
+    return response;
   }
 
   private async publishPatientCreationEvents(
@@ -172,7 +251,7 @@ export class LaunchService extends BaseService {
     const events = Array.from(uniquePatients.values()).map((patient) =>
       this.patientEventPublisher.createPatientCreationEvent(
         patient,
-        doctorInfo.drid,
+        doctor?.id?.toString() ?? '', // Use internal doctor ID, not external TruTech ID
         this.config.defaultOrganizationID,
         'TruTech',
         ctx.correlationId,

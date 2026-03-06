@@ -17,7 +17,7 @@ module.exports = [
         '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
-        '@api-hub/error-messages': resolve(workspaceRoot, 'libs/error-messages/src/index.ts'),
+        '@api-hub/service-clients': resolve(workspaceRoot, 'libs/service-clients/src/index.ts'),
       };
 
       // Resolve workspace package imports

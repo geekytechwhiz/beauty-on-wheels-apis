@@ -48,14 +48,9 @@ export abstract class BaseController {
 
       return ApiResponse.ok(
         result,
-        { title: 'Success', description: 'Request successful' },
+        { title: 'Success', description: 'Request successful', severity: 'INFO' },
         {
           requestId: correlationId,
-          event,
-          headers: {
-            'X-Correlation-Id': correlationId,
-            'Cache-Control': 'no-store'
-          }
         }
       )
 
@@ -93,26 +88,38 @@ export abstract class BaseController {
     error: SSOError,
     event: APIGatewayProxyEvent,
     correlationId: string
-  ): Promise<APIGatewayProxyResult> {
+  ): APIGatewayProxyResult {
+    const message = {
+      title: 'Error',
+      description: error.message,
+      severity: 'ERROR' as const,
+    };
 
-    return ApiResponse.error(
-      error.statusCode,
-      {
-        title: 'Error',
-        description: error.message,
-        severity: 'ERROR'
+    const options = {
+      requestId: correlationId,
+      headers: {
+        'X-Correlation-Id': correlationId,
+        'Cache-Control': 'no-store',
       },
-      {
-        requestId: correlationId,
-        event,
-        headers: {
-          'X-Correlation-Id': correlationId,
-          'Cache-Control': 'no-store'
-        }
-      },
-      {
-        code: error.code
-      }
-    )
+    };
+
+    const errorBody = {
+      code: error.code,
+    };
+
+    switch (error.statusCode) {
+      case 400:
+        return ApiResponse.badRequest(message, options, errorBody);
+      case 401:
+        return ApiResponse.unauthorized(message, options, errorBody);
+      case 403:
+        return ApiResponse.forbidden(message, options, errorBody);
+      case 404:
+        return ApiResponse.notFound(message, options, errorBody);
+      case 409:
+        return ApiResponse.conflict(message, options, errorBody);
+      default:
+        return ApiResponse.internalServerError(message, options, errorBody);
+    }
   }
 }

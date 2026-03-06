@@ -387,6 +387,8 @@ export interface TruTechVerifyRequest {
   export interface ServiceClientConfig {
     baseUrl: string;
     apiKey: string;
+    token?: string;
+    correlationId: string;
     timeoutMs?: number;
   }
   

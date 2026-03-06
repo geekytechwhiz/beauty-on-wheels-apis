@@ -231,6 +231,7 @@ export class UserService {
         tokenUpdatedAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds (matching old implementation)
         userCat: userCat,
         ...(definedRoleCode !== undefined ? { definedRoleCode: String(definedRoleCode) } : {}),
+        
       } as User;
       
       logger.info({ event: 'service_createUser_user_object', hasDefinedRoleCode: (user as any).definedRoleCode !== undefined, definedRoleCode: (user as any).definedRoleCode });
@@ -1123,7 +1124,9 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
     try {
       // Verify user exists
+      console.log("PATIENT ID : ",patientId)
       const existing = await this.repository.getUser(patientId, organizationId);
+      console.log("EXISTING : ",existing)
       if (!existing) {
         throw new UserNotFoundError(patientId);
       }

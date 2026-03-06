@@ -18,3 +18,13 @@ export interface UpdateUserMetadataRequest {
   metadata: Record<string, unknown>;
 }
 
+
+export type NotificationPayload = {
+  userId?: string;
+  email?: string;
+  phone?: string;
+  deviceToken?: string;
+  channels: string[];
+  template?: string;
+  templateData?: Record<string, unknown>;
+};

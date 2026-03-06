@@ -1,271 +1,96 @@
-import {
-  APIGatewayProxyEvent,
-  APIGatewayProxyResult,
-  Context,
-  APIGatewayProxyHandler,
-} from 'aws-lambda';
-import {
-  createLogger,
-  createChildLogger,
-  extractCorrelationId,
-  extractAwsRequestId,
-  serializeError,
-  logHttpRequest,
-} from '@api-hub/logger';
-import { ApiResponse } from '@api-hub/utils';
+import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
+import { validateOrganizationIdParam } from '../validation/request.validators';
 
-const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
 
-export async function listOrganizationUsers(
-  event: APIGatewayProxyEvent,
-  context?: Context,
-): Promise<APIGatewayProxyResult> {
-  const startTime = Date.now();
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const organizationId = event.pathParameters?.organizationId;
+interface Params {
+  organizationId: string;
+  limit?: string;
+  offset?: string;
+  page?: string;
+  pageSize?: string;
+  pageIndex?: string;
+  status?: string;
+  userType?: string;
+  specialty?: string;
+  search?: string;
+  q?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  order?: string;
+}
 
-  if (!organizationId) {
-    const logger = createChildLogger(baseLogger, {
-      correlationId,
-      ...(awsRequestId && { awsRequestId }),
-    });
-    const duration = Date.now() - startTime;
-    logHttpRequest(
-      logger,
-      event.httpMethod || 'GET',
-      event.path || `/organization/${organizationId}/users`,
-      400,
-      duration,
-      correlationId,
-    );
-    return ApiResponse.badRequest(
-      'COMMON.BAD_REQUEST',
-      { requestId: correlationId, event },
-      {
-        code: 'BAD_REQUEST',
-        details: [{ message: 'organizationId is required' }],
-      },
-    );
-  }
+const MAX_LIMIT = 100;
 
-  const logger = createChildLogger(baseLogger, {
-    correlationId,
-    organizationId,
-    ...(awsRequestId && { awsRequestId }),
-  });
-  logger.info({ event: 'listOrganizationUsers_received', eventData: event });
+function parseNumber(value?: string | null): number | undefined {
+  if (!value) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
 
-  const qp = event.queryStringParameters || {};
-
+const handler = async (req: LambdaRequest<Params>) => {
+  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId;
+  const qp = req.params;
   const rawLimit = qp.limit ?? qp.pageSize;
   const rawOffset = qp.offset ?? qp.page ?? qp.pageIndex;
-  const rawStatus = qp.status;
-  const rawUserType = qp.userType;
-  const rawSpecialty = qp.specialty;
-  const rawSearch = qp.search ?? qp.q;
-  const rawSortBy = qp.sortBy;
-  const rawSortOrder = qp.sortOrder ?? qp.order;
-
   let limit: number | undefined;
   let offset = 0;
-  let sortBy:
-    | 'createdDate'
-    | 'fullName'
-    | 'firstName'
-    | 'lastName'
-    | 'emailAddress'
-    | undefined;
+  let sortBy: 'createdDate' | 'fullName' | 'firstName' | 'lastName' | 'emailAddress' | undefined;
   let sortOrder: 'asc' | 'desc' | undefined;
-
-  const MAX_LIMIT = 100;
-
-  const parseNumber = (value?: string | null): number | undefined => {
-    if (!value) return undefined;
-    const n = Number(value);
-    return Number.isFinite(n) ? n : undefined;
-  };
 
   if (rawLimit !== undefined) {
     const parsed = parseNumber(rawLimit);
     if (!parsed || parsed <= 0) {
-      const duration = Date.now() - startTime;
-      logHttpRequest(
-        logger,
-        event.httpMethod || 'GET',
-        event.path || `/organization/${organizationId}/users`,
-        400,
-        duration,
-        correlationId,
-      );
-      return ApiResponse.badRequest(
-        'COMMON.BAD_REQUEST',
-        { requestId: correlationId, event },
-        {
-          code: 'BAD_REQUEST',
-          details: [{ message: 'limit must be a positive number' }],
-        },
-      );
+      const err: any = new Error('limit must be a positive number');
+      err.statusCode = 400;
+      err.code = 'BAD_REQUEST';
+      throw err;
     }
     limit = Math.min(parsed, MAX_LIMIT);
   }
-
   if (rawOffset !== undefined) {
     const parsed = parseNumber(rawOffset);
     if (parsed === undefined || parsed < 0) {
-      const duration = Date.now() - startTime;
-      logHttpRequest(
-        logger,
-        event.httpMethod || 'GET',
-        event.path || `/organization/${organizationId}/users`,
-        400,
-        duration,
-        correlationId,
-      );
-      return ApiResponse.badRequest(
-        'COMMON.BAD_REQUEST',
-        { requestId: correlationId, event },
-        {
-          code: 'BAD_REQUEST',
-          details: [
-            {
-              message:
-                'offset / page must be a non-negative number',
-            },
-          ],
-        },
-      );
+      const err: any = new Error('offset / page must be a non-negative number');
+      err.statusCode = 400;
+      err.code = 'BAD_REQUEST';
+      throw err;
     }
     offset = parsed;
   }
-
-  if (rawSortBy) {
-    const allowedSortBy = [
-      'createdDate',
-      'fullName',
-      'firstName',
-      'lastName',
-      'emailAddress',
-    ] as const;
-    if (!allowedSortBy.includes(rawSortBy as any)) {
-      const duration = Date.now() - startTime;
-      logHttpRequest(
-        logger,
-        event.httpMethod || 'GET',
-        event.path || `/organization/${organizationId}/users`,
-        400,
-        duration,
-        correlationId,
-      );
-      return ApiResponse.badRequest(
-        'COMMON.BAD_REQUEST',
-        { requestId: correlationId, event },
-        {
-          code: 'BAD_REQUEST',
-          details: [
-            {
-              message: `sortBy must be one of ${allowedSortBy.join(
-                ', ',
-              )}`,
-            },
-          ],
-        },
-      );
-    }
-    sortBy = rawSortBy as any;
+  const allowedSortBy = ['createdDate', 'fullName', 'firstName', 'lastName', 'emailAddress'] as const;
+  if (qp.sortBy && !allowedSortBy.includes(qp.sortBy as any)) {
+    const err: any = new Error(`sortBy must be one of ${allowedSortBy.join(', ')}`);
+    err.statusCode = 400;
+    err.code = 'BAD_REQUEST';
+    throw err;
   }
-
+  if (qp.sortBy) sortBy = qp.sortBy as any;
+  const rawSortOrder = qp.sortOrder ?? qp.order;
   if (rawSortOrder) {
     const normalized = rawSortOrder.toLowerCase();
     if (normalized !== 'asc' && normalized !== 'desc') {
-      const duration = Date.now() - startTime;
-      logHttpRequest(
-        logger,
-        event.httpMethod || 'GET',
-        event.path || `/organization/${organizationId}/users`,
-        400,
-        duration,
-        correlationId,
-      );
-      return ApiResponse.badRequest(
-        'COMMON.BAD_REQUEST',
-        { requestId: correlationId, event },
-        {
-          code: 'BAD_REQUEST',
-          details: [
-            { message: 'sortOrder must be "asc" or "desc"' },
-          ],
-        },
-      );
+      const err: any = new Error('sortOrder must be "asc" or "desc"');
+      err.statusCode = 400;
+      err.code = 'BAD_REQUEST';
+      throw err;
     }
-    sortOrder = normalized as any;
+    sortOrder = normalized as 'asc' | 'desc';
   }
 
-  try {
-    const result = await userService.listOrganizationUsers(
-      organizationId,
-      {
-        limit,
-        offset,
-        status: rawStatus || undefined,
-        userType: rawUserType || undefined,
-        specialty: rawSpecialty || undefined,
-        search: rawSearch || undefined,
-        sortBy,
-        sortOrder,
-      },
-    );
-    const duration = Date.now() - startTime;
-    logger.info({
-      event: 'listOrganizationUsers_success',
-      count: result.length,
-    });
-    logHttpRequest(
-      logger,
-      event.httpMethod || 'GET',
-      event.path || `/organization/${organizationId}/users`,
-      200,
-      duration,
-      correlationId,
-    );
-    return ApiResponse.ok(
-      result,
-      'ORGANIZATION.LIST_USERS_SUCCESS',
-      { requestId: correlationId, event },
-    );
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logger.error({
-      event: 'listOrganizationUsers_error',
-      err: serializeError(err as Error),
-    });
-    logHttpRequest(
-      logger,
-      event.httpMethod || 'GET',
-      event.path || `/organization/${organizationId}/users`,
-      500,
-      duration,
-      correlationId,
-    );
-    return ApiResponse.internalServerError(
-      'ORGANIZATION.LIST_USERS_FAILED',
-      { requestId: correlationId, event },
-      {
-        code: 'LIST_ORG_USERS_FAILED',
-        details: [
-          { message: (err as Error)?.message || 'Unknown error' },
-        ],
-      },
-    );
-  }
-}
-
-export const main: APIGatewayProxyHandler = async (
-  event,
-  context: Context,
-) => {
-  return listOrganizationUsers(event, context);
+  return userService.listOrganizationUsers(organizationId, {
+    limit,
+    offset,
+    status: qp.status || undefined,
+    userType: qp.userType || undefined,
+    specialty: qp.specialty || undefined,
+    search: qp.search ?? qp.q ?? undefined,
+    sortBy,
+    sortOrder,
+  });
 };
 
+export const main = withLambdaHandler(handler, {
+  validator: validateOrganizationIdParam,
+});

@@ -12,8 +12,19 @@ const envSchema = z.object({
   TRU_TECH_API_KEY: z.string().min(1, 'TRU_TECH_API_KEY is required'),
   TRU_TECH_TIMEOUT_MS: z.coerce.number().min(1000).max(30000).default(5000),
 
+  // Schedule service configuration
+  SCHEDULE_SERVICE_API_URL: z
+    .string()
+    .url('SCHEDULE_SERVICE_API_URL must be a valid URL')
+    .default('https://schedule-service.example.com'),
+  SCHEDULE_SERVICE_API_TIMEOUT_MS: z
+    .coerce.number()
+    .min(1000)
+    .max(30000)
+    .default(10000),
+
   USER_SERVICE_BASE_URL: z.string().url('USER_SERVICE_BASE_URL must be a valid URL'),
-  USER_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'USER_SERVICE_INTERNAL_API_KEY is required'),
+  // USER_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'USER_SERVICE_INTERNAL_API_KEY is required'),
 
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'),
   ROLE_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'ROLE_SERVICE_INTERNAL_API_KEY is required'),
@@ -24,6 +35,12 @@ const envSchema = z.object({
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1000).default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1).default(100),
+
+  // Appointment sync configuration
+  APPOINTMENT_SYNC_MAX_RETRIES: z.coerce.number().min(1).default(3),
+  APPOINTMENT_SYNC_RETRY_DELAY_MS: z.coerce.number().min(100).default(1000),
+  APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: z.coerce.number().min(1000).default(10000),
+  APPOINTMENT_SYNC_CONCURRENCY_LIMIT: z.coerce.number().min(1).default(5),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

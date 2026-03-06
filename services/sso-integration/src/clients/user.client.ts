@@ -1,74 +1,49 @@
 import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
-import axios, { AxiosError, AxiosInstance } from 'axios';
-import { CreateUserPayload, ServiceClientConfig, UserLookupParams } from '../types/appointment.types';
+import axios, { AxiosError } from 'axios';
+import { CreateUserPayload,  UserLookupParams } from '../types/appointment.types';
 import { SSOError } from '../types/errors/sso-error';
 import { DoctorCreationPayload, PatientCreationPayload } from '../types/user-creation.types';
 import {
   User,
-} from '../types/user/user.types';
-
+} from '../types/user/user.types'; 
+import { UserServiceClient } from '@api-hub/service-clients';
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
-export class UserServiceClient {
-  private readonly client: AxiosInstance;
-  private readonly logger = createChildLogger(baseLogger, { component: 'UserServiceClient' }); 
-  constructor(config?: ServiceClientConfig) { 
-    const baseUrl = config?.baseUrl || process.env.USER_SERVICE_BASE_URL;
-    
-    // Use Bearer token auth instead of internal API key header
-    // const token = config?.apiKey || envConfig.USER_SERVICE_INTERNAL_API_KEY;
-    // const token = "eyJraWQiOiJrb3JVYlwveXljUmNtY05EaEVNXC9MdFFPZE1MOElOSnJBdUh6MTU3TU5LMlE9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI5YzlkOGQzNS1hOTI4LTQzNzEtOTI3ZS02OWM1ZDg5ZDQ1NGIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLWVhc3QtMS5hbWF6b25hd3MuY29tXC91cy1lYXN0LTFfQUsxSFR4ZGxYIiwicGhvbmVfbnVtYmVyX3ZlcmlmaWVkIjp0cnVlLCJjb2duaXRvOnVzZXJuYW1lIjoiOWM5ZDhkMzUtYTkyOC00MzcxLTkyN2UtNjljNWQ4OWQ0NTRiIiwiY3VzdG9tOm9yZ2FuaXphdGlvbklEIjoibW0xdXNnZTMzZDRmOWI2MSIsImN1c3RvbTp1c2VySUQiOiIwMUtKQTNFOVE3SE1RWEFQWVpUQzg1OTcyQiIsImN1c3RvbTp1c2VyVHlwZSI6IlNUQUZGIiwiYXVkIjoiNnY2OHIyc3R0OWI0cmdyM3U4MzQ4YnNsc2kiLCJldmVudF9pZCI6ImQ0N2IxMzRiLWVkODUtNDNjMi05NzZhLTllZjljZWQyODc0NyIsInRva2VuX3VzZSI6ImlkIiwiY3VzdG9tOnNyYyI6InRydWV0ZWNoYWRtaW5AeW9wbWFpbC5jb20iLCJhdXRoX3RpbWUiOjE3NzIwMzQxMzMsInBob25lX251bWJlciI6Iis5MTk4OTA5MDk4MDkiLCJleHAiOjE3NzIwMzUwMzMsImN1c3RvbTpwZXJtaXNzaW9ucyI6IltdIiwiY3VzdG9tOnJvbGUiOiJbXCI3MTZmN2Q0Yi0yOGM0LTRiYWEtYWZjMS0yODQyMWE2ZDI2MDhcIl0iLCJpYXQiOjE3NzIwMzQxMzMsImVtYWlsIjoidHJ1ZXRlY2hhZG1pbkB5b3BtYWlsLmNvbSJ9.h6NmMyV37-JzyRqwvwhGr86zLiVaZeDtNur1ZSiy0RgdkCS-OUj6va5wygVY_iCPor7BZxKGyjHQfAOW7laOVs18WQASBfR_jioMmwtQiCGrCANsXGXlozEjGks4UXc-Ks1RyH1BStkOJtbCHRpFxJhThZzB3kbcx5WNNYll2b-6MjlxMCkmK7A2vzQDbSmpgoXUMfAXD48wydmWej1mX047AkCI75ZG4YBXYE1up-pL32Nz0tr5cRdlhfTHCHoAe8Po1myezfl1rAq02RiZnlYd0xuSukVO_S8Cm8R5OZl3Qr0OTsYBZJp0VJ7F2PItu58J-QQ5UvGRAkmyXkNLQQ"
-    const timeout = config?.timeoutMs || 10000;
-
-    this.client = axios.create({
-      baseURL: baseUrl,
-      timeout,
-      headers: {
-        'Content-Type': 'application/json',
-        // Matches Postman setup: Authorization: Bearer <token>
-        // Authorization: `Bearer ${token}`,
-      },
-    });
-
-    this.client.interceptors.response.use(
-      (response) => response,
-      (error: AxiosError) => {
-        this.logger.error({
-          event: 'user_service_request_error',
-          status: error.response?.status,
-          url: error.config?.url,
-          message: error.message,
-        });
-        return Promise.reject(error);
-      }
-    );
+export class SSOUserServiceClient extends UserServiceClient {
+    constructor(authHeader?: string) { 
+    super(authHeader as string); 
   }
 
   async findByExternalId(
     params: UserLookupParams,
-    correlationId: string
+    correlationId: string,
+    token: string
   ): Promise<User | null> {
-    const logger = createChildLogger(this.logger, { correlationId });
+    const logger = createChildLogger(baseLogger, { correlationId });
     const startTime = Date.now();
 
     logger.info({
       event: 'user_lookup_start',
       provider: params.provider,
-      tenantId: "mm1usge33d4f9b61",
+      tenantId: params.tenantId,
     });
-    console.log("FIND BY ID :",this.client)
+
+    const headers: Record<string, string> = {
+      'X-Correlation-Id': correlationId,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     try {
       const response = await this.client.post<{ data: User }>(`/users/validateusers`, {
-        params: {
-          provider: params.provider,
-          externalId: params.externalId,
-          tenant_id: params.tenantId,
-        },
-        headers: {
-          'X-Correlation-Id': correlationId,
-        },
+        provider: params.provider,
+        externalId: params.externalId,
+        tenant_id: params.tenantId,
+      }, {
+        headers,
       });
-      console.log("RESPONSE USER: ", response.data);
       const duration = Date.now() - startTime;
 
       logger.info({
@@ -123,9 +98,10 @@ export class UserServiceClient {
 
   async createUser(
     payload: CreateUserPayload,
-    correlationId: string
+    correlationId: string,
+    token?: string
   ): Promise<User> {
-    const logger = createChildLogger(this.logger, { correlationId });
+    const logger = createChildLogger(baseLogger, { correlationId });
     const startTime = Date.now();
 
     logger.info({
@@ -135,6 +111,14 @@ export class UserServiceClient {
       role: payload.role,
       source: payload.source,
     });
+
+    const headers: Record<string, string> = {
+      'X-Correlation-Id': correlationId,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     try {
       const response = await this.client.post<{ data: User }>(
@@ -151,9 +135,7 @@ export class UserServiceClient {
           last_name: payload.lastName,
         },
         {
-          headers: {
-            'X-Correlation-Id': correlationId,
-          },
+          headers,
         }
       );
 
@@ -202,17 +184,7 @@ export class UserServiceClient {
     }
   }
 
-  /**
-   * Creates a doctor user with full doctor structure.
-   * This method supports the complete doctor creation payload as per user service API.
-   * 
-   * @param doctorPayload - Full doctor creation payload
-   * @param externalId - External ID from provider (e.g., TruTech doctor_uid)
-   * @param provider - Provider name (e.g., "TruTech")
-   * @param tenantId - Tenant ID
-   * @param correlationId - Correlation ID for logging
-   * @returns Created user
-   */
+   
   async createDoctor(
     doctorPayload: DoctorCreationPayload,  
     config: {
@@ -220,7 +192,7 @@ export class UserServiceClient {
       correlationId: string;
     }
   ): Promise<User> {
-    const logger = createChildLogger(this.logger, { correlationId: config.correlationId });
+    const logger = createChildLogger(baseLogger, { correlationId: config.correlationId });
     const startTime = Date.now();
 
     logger.info({
@@ -230,6 +202,7 @@ export class UserServiceClient {
       doctorName: doctorPayload.userInfo.name,
     });
     console.log("DOCTOR PAYLOAD : ",doctorPayload)
+    console.log("CONFIG TOKEN : ",config.token)
     try {
       
       const response = await this.client.post<{ data: User }>(
@@ -290,25 +263,16 @@ export class UserServiceClient {
     }
   }
 
-  /**
-   * Creates a patient user with full patient structure.
-   * This method supports the complete patient creation payload as per user service API.
-   * 
-   * @param patientPayload - Full patient creation payload
-   * @param externalId - External ID from provider (e.g., TruTech patient id)
-   * @param provider - Provider name (e.g., "TruTech")
-   * @param tenantId - Tenant ID
-   * @param correlationId - Correlation ID for logging
-   * @returns Created user
-   */
+   
   async createPatient(
     patientPayload: PatientCreationPayload,
     externalId: string,
     provider: string,
     tenantId: string,
     correlationId: string,
+    token?: string,
   ): Promise<User> {
-    const logger = createChildLogger(this.logger, { correlationId });
+    const logger = createChildLogger(baseLogger, { correlationId });
     const startTime = Date.now();
 
     logger.info({
@@ -318,6 +282,14 @@ export class UserServiceClient {
       externalId,
       patientName: patientPayload.userInfo.name,
     });
+
+    const headers: Record<string, string> = {
+      'X-Correlation-Id': correlationId,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     try {
       const response = await this.client.post<{ data: User }>(
@@ -329,9 +301,7 @@ export class UserServiceClient {
           ...patientPayload,
         },
         {
-          headers: {
-            'X-Correlation-Id': correlationId,
-          },
+          headers,
         }
       );
 
@@ -381,11 +351,11 @@ export class UserServiceClient {
   }
 }
 
-let userServiceClientInstance: UserServiceClient | null = null;
+let ssoUserServiceClientInstance: SSOUserServiceClient | null = null;
 
 export function getUserServiceClient(): UserServiceClient {
-  if (!userServiceClientInstance) {
-    userServiceClientInstance = new UserServiceClient();
+  if (!ssoUserServiceClientInstance) {
+    ssoUserServiceClientInstance = new SSOUserServiceClient();
   }
-  return userServiceClientInstance;
+  return ssoUserServiceClientInstance;
 }

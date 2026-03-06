@@ -30,9 +30,7 @@
     {
       "path": "./apps/device-service"
     },
-    {
-      "path": "./libs/error-messages"
-    },
+   
     {
       "path": "./libs/scope-mapping"
     },
@@ -68,6 +66,12 @@
     },
     {
       "path": "./libs/fhir"
+    },
+    {
+      "path": "./backend"
+    },
+    {
+      "path": "./data-access"
     }
   ]
 }

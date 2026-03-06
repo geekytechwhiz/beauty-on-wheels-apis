@@ -1,5 +1,6 @@
-import { PutCommand, QueryCommand, DeleteCommand, UpdateCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand, DeleteCommand, UpdateCommand, type QueryCommandInput, type QueryCommandOutput, type PutCommandOutput, type DeleteCommandOutput, type UpdateCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
+import { sendDoc } from '../utils/dynamodb-send';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -69,8 +70,8 @@ export class FriendFamilyRepository {
       modifiedAt: date,
     };
     try {
-      await docClient.send(new PutCommand({ TableName: this.tableName, Item: obj1 }));
-      await docClient.send(new PutCommand({ TableName: this.tableName, Item: obj2 }));
+      await sendDoc<PutCommandOutput>(docClient, new PutCommand({ TableName: this.tableName, Item: obj1 }));
+      await sendDoc<PutCommandOutput>(docClient, new PutCommand({ TableName: this.tableName, Item: obj2 }));
       logger.info({ event: 'friend_family_save_mapping_success' });
     } catch (err) {
       logger.error({ event: 'friend_family_save_mapping_error', err: serializeError(err) });
@@ -82,13 +83,13 @@ export class FriendFamilyRepository {
     const pk = `${INVITE_FF}#${userId}`;
     const sk = asInviter ? `${INVITER}#${memberId}` : `${INVITEE}#${memberId}`;
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<QueryCommandOutput>(docClient,
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: '#pk = :pk AND #sk = :sk',
           ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
           ExpressionAttributeValues: { ':pk': pk, ':sk': sk },
-        })
+        }),
       );
       const item = result.Items?.[0];
       return (item as FriendFamilyMapping) ?? null;
@@ -114,7 +115,7 @@ export class FriendFamilyRepository {
       ExpressionAttributeValues: { ':pk': `${INVITE_FF}#${userId}`, ':sk': `${skPrefix}#` },
     };
     try {
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       const item = result.Items?.[0];
       return (item as FriendFamilyMapping) ?? null;
     } catch (err) {
@@ -127,17 +128,17 @@ export class FriendFamilyRepository {
   async deleteMapping(userId: string, memberId: string): Promise<void> {
     const logger = createChildLogger(baseLogger, { userId, memberId });
     try {
-      await docClient.send(
+      await sendDoc<DeleteCommandOutput>(docClient,
         new DeleteCommand({
           TableName: this.tableName,
           Key: { pk: `${INVITE_FF}#${userId}`, sk: `${INVITEE}#${memberId}` },
-        })
+        }),
       );
-      await docClient.send(
+      await sendDoc<DeleteCommandOutput>(docClient,
         new DeleteCommand({
           TableName: this.tableName,
           Key: { pk: `${INVITE_FF}#${memberId}`, sk: `${INVITER}#${userId}` },
-        })
+        }),
       );
       logger.info({ event: 'friend_family_delete_mapping_success' });
     } catch (err) {
@@ -154,7 +155,7 @@ export class FriendFamilyRepository {
       ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
       ExpressionAttributeValues: { ':pk': `${INVITE_FF}#${userId}`, ':sk': `${INVITEE}#` },
     };
-    const result = await docClient.send(new QueryCommand(params));
+    const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
     return (result.Items ?? []) as FriendFamilyMapping[];
   }
 
@@ -166,7 +167,7 @@ export class FriendFamilyRepository {
       ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
       ExpressionAttributeValues: { ':pk': `${INVITE_FF}#${userId}`, ':sk': `${INVITER}#` },
     };
-    const result = await docClient.send(new QueryCommand(params));
+    const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
     return (result.Items ?? []) as FriendFamilyMapping[];
   }
 
@@ -206,23 +207,23 @@ export class FriendFamilyRepository {
     }
     if (sets.length <= 1) return;
     try {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: this.tableName,
           Key: { pk: `${INVITE_FF}#${userId}`, sk: `${INVITEE}#${memberId}` },
           UpdateExpression: 'SET ' + sets.join(', '),
           ExpressionAttributeNames: names,
           ExpressionAttributeValues: values,
-        })
+        }),
       );
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: this.tableName,
           Key: { pk: `${INVITE_FF}#${memberId}`, sk: `${INVITER}#${userId}` },
           UpdateExpression: 'SET ' + sets.join(', '),
           ExpressionAttributeNames: names,
           ExpressionAttributeValues: values,
-        })
+        }),
       );
     } catch (err) {
       const logger = createChildLogger(baseLogger, { userId, memberId });

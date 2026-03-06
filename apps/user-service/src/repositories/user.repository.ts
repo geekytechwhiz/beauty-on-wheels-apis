@@ -4,8 +4,13 @@ import {
   UpdateCommand,
   QueryCommand,
   type QueryCommandInput,
+  type QueryCommandOutput,
+  type GetCommandOutput,
+  type PutCommandOutput,
+  type UpdateCommandOutput,
 } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
+import { sendDoc } from '../utils/dynamodb-send';
 import {
   createLogger,
   serializeError,
@@ -150,7 +155,7 @@ export class UserRepository {
   async createUser(user: User): Promise<void> {
     const item = modifyIndexesUsers(user);
     try {
-      await docClient.send(
+      await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: item,
@@ -179,7 +184,7 @@ export class UserRepository {
     const logger = createChildLogger(baseLogger, { userId });
     logger.info({ event: 'user_check_exists_start', message: 'Checking if user exists' });
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<GetCommandOutput>(docClient,
         new GetCommand({
           TableName: USER_TABLE_NAME,
           Key: {
@@ -202,7 +207,7 @@ export class UserRepository {
     try {
       let result;
       if (organizationId) {
-        result = await docClient.send(
+        result = await sendDoc<GetCommandOutput>(docClient,
           new GetCommand({
             TableName: USER_TABLE_NAME,
             Key: {
@@ -212,7 +217,7 @@ export class UserRepository {
           }),
         );
       } else {
-        const queryResult = await docClient.send(
+        const queryResult = await sendDoc<QueryCommandOutput>(docClient,
           new QueryCommand({
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -258,7 +263,7 @@ export class UserRepository {
       message: 'Getting all user data',
     });
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<QueryCommandOutput>(docClient,
         new QueryCommand({
           TableName: USER_TABLE_NAME,
           KeyConditionExpression: 'pk = :pk',
@@ -329,7 +334,7 @@ export class UserRepository {
     }
 
     try {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
@@ -363,7 +368,7 @@ export class UserRepository {
     }
 
     try {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
@@ -397,7 +402,7 @@ export class UserRepository {
   async deleteUser(userId: string, organizationId: string): Promise<void> {
     const now = new Date().toISOString();
     try {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
@@ -413,7 +418,7 @@ export class UserRepository {
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
         }),
       );
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
@@ -450,7 +455,7 @@ export class UserRepository {
     const item = modifyIndexesUserOrg(user);
 
     try {
-      await docClient.send(
+      await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: item,
@@ -482,7 +487,7 @@ export class UserRepository {
     });
 
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<QueryCommandOutput>(docClient,
         new QueryCommand({
           TableName: USER_TABLE_NAME,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -559,7 +564,7 @@ export class UserRepository {
         LastEvaluatedKey?: Record<string, unknown>;
       };
       try {
-        response = await docClient.send(new QueryCommand(params));
+        response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       } catch (innerErr: unknown) {
         const name = (innerErr as { name?: string }).name;
         const message = String(
@@ -683,7 +688,7 @@ export class UserRepository {
     };
 
     try {
-      await docClient.send(
+      await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: item,
@@ -707,7 +712,7 @@ export class UserRepository {
 
   async getUserMetadata(userId: string): Promise<UserMetadata | null> {
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<QueryCommandOutput>(docClient,
         new QueryCommand({
           TableName: USER_TABLE_NAME,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
@@ -752,7 +757,7 @@ export class UserRepository {
     };
 
     try {
-      await docClient.send(
+      await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: item,
@@ -809,7 +814,7 @@ export class UserRepository {
 
       console.log('getRolePermissions query params:', params);
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
         console.log(
           'getRolePermissions result (PK/SK):',
@@ -842,7 +847,7 @@ export class UserRepository {
               ':sk': `ROLE#${roleId}`,
             },
           };
-          const fallbackResult = await docClient.send(
+          const fallbackResult = await sendDoc<QueryCommandOutput>(docClient,
             new QueryCommand(fallbackParams),
           );
           if (fallbackResult.Items && fallbackResult.Items.length > 0) {
@@ -899,7 +904,7 @@ export class UserRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       if (
         result.Items &&
         result.Items.length > 0 &&
@@ -944,7 +949,7 @@ export class UserRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
         const item = result.Items[0];
         // Filter out metadata fields
@@ -989,7 +994,7 @@ export class UserRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
         logger.info({ event: 'getUserBasicDetails_success', userId });
         return result.Items[0];
@@ -1006,7 +1011,7 @@ export class UserRepository {
 
   async listUserFiles(userId: string): Promise<UserFile[]> {
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<QueryCommandOutput>(docClient,
         new QueryCommand({
           TableName: USER_TABLE_NAME,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -1090,8 +1095,8 @@ export class UserRepository {
           exprValues[':skPrefix'] = 'USER#';
         }
 
-        const result = await docClient.send(
-          new QueryCommand({
+      const result = await sendDoc<QueryCommandOutput>(docClient,
+        new QueryCommand({
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
             ExpressionAttributeValues: exprValues,
@@ -1207,7 +1212,7 @@ export class UserRepository {
             filterPartsFb.push('#ut = :userTypeVal');
           }
 
-          const fallbackResult = await docClient.send(
+          const fallbackResult = await sendDoc<QueryCommandOutput>(docClient,
             new QueryCommand({
               TableName: USER_TABLE_NAME,
               KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
@@ -1349,7 +1354,7 @@ export class UserRepository {
         if (nextPaginationKey) {
           params.ExclusiveStartKey = nextPaginationKey;
         }
-        const result = await docClient.send(new QueryCommand(params));
+        const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
         nextPaginationKey = result.LastEvaluatedKey;
         if (result.Items && result.Items.length > 0) {
           console.log(
@@ -1387,7 +1392,7 @@ export class UserRepository {
 
         do {
           if (nextKey2) params2.ExclusiveStartKey = nextKey2;
-          const r2 = await docClient.send(new QueryCommand(params2));
+          const r2 = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params2));
           nextKey2 = r2.LastEvaluatedKey;
           if (r2.Items && r2.Items.length > 0) {
             console.log(
@@ -1564,7 +1569,7 @@ export class UserRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
         logger.info({
           event: 'getRoleDetails_success',
@@ -1600,7 +1605,7 @@ export class UserRepository {
         },
       };
 
-      const fallbackResult = await docClient.send(
+      const fallbackResult = await sendDoc<QueryCommandOutput>(docClient,
         new QueryCommand(fallbackParams),
       );
       if (fallbackResult.Items && fallbackResult.Items.length > 0) {
@@ -1653,7 +1658,7 @@ export class UserRepository {
               ':active': true,
             },
           };
-          const retryResult = await docClient.send(
+          const retryResult = await sendDoc<QueryCommandOutput>(docClient,
             new QueryCommand(retryParams),
           );
           if (retryResult.Items && retryResult.Items.length > 0) {
@@ -1711,7 +1716,7 @@ export class UserRepository {
         },
       };
       const command = new QueryCommand(params);
-      const result = await docClient.send(command);
+      const result = await sendDoc<QueryCommandOutput>(docClient, command);
       const hasPendingTasks = (result.Count || 0) > 0;
       logger.info({
         event: 'checkCompletedTasks_success',
@@ -1771,7 +1776,7 @@ export class UserRepository {
         ReturnValues: 'UPDATED_NEW' as const,
       };
 
-      await docClient.send(new UpdateCommand(params));
+      await sendDoc<UpdateCommandOutput>(docClient, new UpdateCommand(params));
       logger.info({
         event: 'updateUserVerification_success',
         userID,
@@ -1832,7 +1837,7 @@ export class UserRepository {
         if (lastKey)
           params.ExclusiveStartKey = lastKey as Record<string, unknown>;
 
-        const response = await docClient.send(new QueryCommand(params));
+        const response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
         const items = response.Items ?? [];
         lastKey = response.LastEvaluatedKey;
 
@@ -1867,7 +1872,7 @@ export class UserRepository {
       if (lastKey)
         params.ExclusiveStartKey = lastKey as Record<string, unknown>;
 
-      const response = await docClient.send(new QueryCommand(params));
+      const response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       const items = response.Items ?? [];
       lastKey = response.LastEvaluatedKey;
 
@@ -1904,8 +1909,8 @@ export class UserRepository {
     phone?: string,
   ): Promise<UserResponse | null> {
     if (!email && !phone) return null;
-    const result = await docClient.send(
-      new QueryCommand({
+      const result = await sendDoc<QueryCommandOutput>(docClient,
+        new QueryCommand({
         TableName: USER_TABLE_NAME,
         KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
         ExpressionAttributeValues: {
@@ -1972,7 +1977,7 @@ export class UserRepository {
     const now = Date.now();
 
     // Upsert doctor -> patient link
-    const existing = await docClient.send(
+    const existing = await sendDoc<GetCommandOutput>(docClient,
       new GetCommand({
         TableName: USER_TABLE_NAME,
         Key: { pk: doctorPk, sk: doctorSk },
@@ -1980,7 +1985,7 @@ export class UserRepository {
     );
 
     if (existing.Item) {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: { pk: doctorPk, sk: doctorSk },
@@ -1994,7 +1999,7 @@ export class UserRepository {
       );
       logger.info({ event: 'saveDoctorPatientLink_updated' });
     } else {
-      await docClient.send(
+      await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: {
@@ -2011,7 +2016,7 @@ export class UserRepository {
     }
 
     // Upsert patient -> doctor reverse link
-    const reverseExisting = await docClient.send(
+    const reverseExisting = await sendDoc<GetCommandOutput>(docClient,
       new GetCommand({
         TableName: USER_TABLE_NAME,
         Key: { pk: patientPk, sk: patientSk },
@@ -2019,7 +2024,7 @@ export class UserRepository {
     );
 
     if (reverseExisting.Item) {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: { pk: patientPk, sk: patientSk },
@@ -2033,7 +2038,7 @@ export class UserRepository {
       );
       logger.info({ event: 'saveDoctorPatientLink_reverse_updated' });
     } else {
-      await docClient.send(
+      await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({
           TableName: USER_TABLE_NAME,
           Item: {
@@ -2083,7 +2088,7 @@ export class UserRepository {
         params.ExclusiveStartKey = lastKey as Record<string, unknown>;
       }
 
-      const response = await docClient.send(new QueryCommand(params));
+      const response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       const items = response.Items ?? [];
       lastKey = response.LastEvaluatedKey;
 
@@ -2154,7 +2159,7 @@ export class UserRepository {
     };
 
     try {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: { pk: userOrgPk(organizationId), sk: userPk(patientId) },
@@ -2170,7 +2175,7 @@ export class UserRepository {
     }
 
     try {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {
@@ -2221,7 +2226,7 @@ export class UserRepository {
 
     
     try {
-      const getResponse = await docClient.send(
+      const getResponse = await sendDoc<GetCommandOutput>(docClient,
         new GetCommand({
           TableName: USER_TABLE_NAME,
           Key: {
@@ -2270,6 +2275,7 @@ export class UserRepository {
       // Allow update if emailUpdatedAt doesn't exist (first time setting)
       inviteDetails.email = options.email;
       inviteDetails.emailUpdatedAt = currentTimestamp;
+      inviteDetails.sms = false;
     }
 
     // Validate sms update - check if 24 hours have passed since last update
@@ -2294,6 +2300,7 @@ export class UserRepository {
       // Allow update if smsUpdatedAt doesn't exist (first time setting)
       inviteDetails.sms = options.sms;
       inviteDetails.smsUpdatedAt = currentTimestamp;
+      inviteDetails.email = false;
     }
 
     // Handle setting to false (no time restriction)
@@ -2333,7 +2340,7 @@ export class UserRepository {
 
     updateParts.push('#inviteDetails = :inviteDetails');
     try {
-      await docClient.send(
+      await sendDoc<UpdateCommandOutput>(docClient,
         new UpdateCommand({
           TableName: USER_TABLE_NAME,
           Key: {

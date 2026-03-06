@@ -169,24 +169,17 @@ export class PatientEventPublisher {
           batchIndex,
           batchSize: batch.length,
         });
+        return { success: true, batchIndex, batchSize: batch.length };
       } catch (error) {
-        // Non-blocking: log error but don't throw
+        // Log error but don't throw - event publishing failure should not block launch flow
         logger.error({
           event: 'patient_event_batch_publish_error',
           batchIndex,
           batchSize: batch.length,
           err: serializeError(error as Error),
         });
-        // Don't throw - event publishing failure should not block launch flow
+        return { success: false, batchIndex, batchSize: batch.length, error };
       }
-    });
-
-    // Fire and forget - don't wait for all batches
-    Promise.all(publishPromises).catch((error) => {
-      logger.error({
-        event: 'patient_event_batch_publish_unexpected_error',
-        err: serializeError(error as Error),
-      });
     });
 
     logger.info({
@@ -194,6 +187,37 @@ export class PatientEventPublisher {
       totalBatches: batches.length,
       totalEvents: events.length,
     });
+
+    // Wait for all batches to complete
+    try {
+      const results = await Promise.all(publishPromises);
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+
+      if (failureCount > 0) {
+        logger.warn({
+          event: 'patient_event_batch_publish_completed_with_errors',
+          totalBatches: batches.length,
+          successCount,
+          failureCount,
+          message: 'Some batches failed to publish, but continuing',
+        });
+      } else {
+        logger.info({
+          event: 'patient_event_batch_publish_completed',
+          totalBatches: batches.length,
+          totalEvents: events.length,
+          message: 'All batches published successfully',
+        });
+      }
+    } catch (error) {
+      logger.error({
+        event: 'patient_event_batch_publish_unexpected_error',
+        err: serializeError(error as Error),
+        message: 'Unexpected error during batch publish',
+      });
+      // Don't throw - event publishing failure should not block launch flow
+    }
   }
 
   /**

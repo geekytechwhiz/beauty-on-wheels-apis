@@ -1,5 +1,6 @@
-import { GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { docClient } from '../utils/db.config';
+import { GetCommand, QueryCommand, type QueryCommandOutput, type GetCommandOutput } from '@aws-sdk/lib-dynamodb';
+import { ddbDocClient } from '@api-hub/utils';
+import { sendDoc } from '../utils/dynamodb-send';
 import { createLogger, createChildLogger } from '@api-hub/logger';
 const logger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -36,7 +37,7 @@ export class OrganizationRepository {
         },
       };
 
-      const result = await docClient.send(new QueryCommand(params));
+      const result = await sendDoc<QueryCommandOutput>(ddbDocClient, new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
         childLogger.info({ event: 'getOrgBasicDetails_success', organizationId });
         return result.Items[0];
@@ -66,7 +67,7 @@ export class OrganizationRepository {
     }
 
     try {
-      const result = await docClient.send(
+      const result = await sendDoc<GetCommandOutput>(ddbDocClient,
         new GetCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           Key: {

@@ -54,6 +54,7 @@ export interface ErrorHandlerOptions {
   body?: Body;
   query?: Query;
   context: RequestContext;
+  pathParameters?: Record<string, string>;
 }
 export interface RequestContext {
   correlationId: string;

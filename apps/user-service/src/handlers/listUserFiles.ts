@@ -9,8 +9,8 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const { userId } = req.params;
-  return userService.listUserFiles(userId);
+  const userId = req.pathParameters?.userId;
+  return userService.listUserFiles(userId as string);
 };
 
 export const main = withLambdaHandler(handler, {

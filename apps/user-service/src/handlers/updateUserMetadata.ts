@@ -9,9 +9,9 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params> & { validatedUpdateMetadata?: { metadata: Record<string, unknown> } }) => {
-  const { userId } = req.params;
+  const userId = req.pathParameters?.userId;
   const { metadata } = req.validatedUpdateMetadata!;
-  return userService.updateUserMetadata(userId, metadata);
+  return userService.updateUserMetadata(userId as string, metadata);
 };
 
 export const main = withLambdaHandler(handler, {

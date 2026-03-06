@@ -11,13 +11,13 @@ interface Params {
 }
 
 const handler = async (
-  req: LambdaRequest<Params>
+  req: LambdaRequest<Params, any, Record<string, any>>
 ) => {
 
-  const {   defaultProfile, userType } = req.params;
+  const {   defaultProfile, userType,   } = req.params;
   const { userContext } = req.context;
-  const userId = userContext?.userId;
-  const organizationId = userContext?.organizationId;
+  const userId = req.pathParameters?.userId;
+  const organizationId = req.pathParameters?.organizationId; 
   return userService.getUserWithOrganizationDetails(
     userId as string,
     organizationId as string,

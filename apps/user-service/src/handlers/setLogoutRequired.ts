@@ -10,10 +10,10 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const userId = req.params.userId ?? req.context.userContext?.userId!;
-  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId!;
+  const userId = req.pathParameters?.userId;
+  const organizationId = req.pathParameters?.organizationId; 
   const { correlationId } = req.context;
-  await userService.updateUser(userId, organizationId, { logoutRequired: true }, correlationId);
+  await userService.updateUser(userId as string, organizationId as string, { logoutRequired: true }, correlationId);
   return { logoutRequired: true };
 };
 

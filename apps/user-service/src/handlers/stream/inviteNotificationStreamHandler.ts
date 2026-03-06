@@ -89,6 +89,7 @@ async function processRecord(
   const userId = (newItem.userID || newItem.userId || '') as string;
   const emailAddress = (newItem.emailAddress || '') as string;
   const phoneNumber = (newItem.phoneNumber || '') as string;
+  const phoneCode = (newItem.phoneCode || '') as string;
   const organizationID = (newItem.organizationID || '') as string;
   const firstName = (newItem.firstName || '') as string;
   let organizationName = (newItem.organizationName || '') as string;
@@ -216,7 +217,7 @@ async function processRecord(
           SMS_API_URL,
           {
             "dltContentId": WELCOME_DLT_CONTENT_ID,
-            "phoneNumber": phoneNumber,
+            "phoneNumber": `${phoneCode}${phoneNumber}`,
              message: wel_message
           },
           { timeout: 10_000 },

@@ -19,8 +19,11 @@ interface ListBody {
   limit?: number | string;
   nextPaginationKey?: string;
 }
-
-const handler = async (req: LambdaRequest<Params, ListBody>) => {
+export function toArray<T>(value?: T | T[] | null): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+const handler = async (req: LambdaRequest<ListBody>) => {
   const body = req.body ?? {};
   const event = req.event as unknown as Record<string, unknown>;
   let organizationId = body.organizationId ?? body.organizationID ?? (event?.organizationID as string | undefined);
@@ -32,14 +35,14 @@ const handler = async (req: LambdaRequest<Params, ListBody>) => {
 
   const result = await organizationService.listOrganizations({
     organizationId,
-    status: toArray(body.status),
-    organizationType: toArray(body.organizationType),
+    status: toArray(body.status) as string[],
+    organizationType: toArray(body.organizationType) as string[],
     adminName: body.adminName,
     organizationName: body.organizationName,
     country: body.country,
     state: body.state,
     city: body.city,
-    assignedPackagesName: toArray(body.assignedPackagesName),
+    assignedPackagesName: toArray(body.assignedPackagesName) as string[],
     limit: Number.isFinite(limit) ? limit : undefined,
     nextPaginationKey: typeof nextPaginationKey === 'string' ? nextPaginationKey : undefined,
   });

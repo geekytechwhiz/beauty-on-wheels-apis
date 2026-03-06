@@ -27,6 +27,4 @@ const handler = async (
   );
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUserOrganizationRequest,
-});
+export const main = withLambdaHandler(handler);

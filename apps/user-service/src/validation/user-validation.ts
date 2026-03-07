@@ -1,4 +1,4 @@
-import { NotFoundError, OrganizationNotFoundError } from '../errors/domain-errors';
+import { NotFoundError, OrganizationNotFoundError } from '../errors/user-errors.js';
 import {
   FnFResponse,
   FnFUser,
@@ -35,6 +35,7 @@ export class UserValidationService {
         'ORGANIZATION_NOT_FOUND',
       );
     }
+    return org;
   }
 
   static normalizeRoleIds(userRole: any): string[] {

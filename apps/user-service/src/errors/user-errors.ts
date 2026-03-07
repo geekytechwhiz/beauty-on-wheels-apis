@@ -1,22 +1,5 @@
-/**
- * Domain error hierarchy for user-service.
- * Use these in services/repositories; BaseHandler maps them to HTTP responses.
- */
+import { DomainError } from "@api-hub/utils";
 
-/** Base for all domain errors; optional statusCode for HTTP mapping */
-export class DomainError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly statusCode: number = 500,
-  ) {
-    super(message);
-    this.name = this.constructor.name;
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
-
-/** Generic not-found (subclass for specific resources to preserve instanceof checks) */
 export class NotFoundError extends DomainError {
   constructor(resource: string, id: string) {
     super(`${resource} not found: ${id}`, `${resource.toUpperCase()}_NOT_FOUND`, 404);
@@ -34,7 +17,7 @@ export class ConflictError extends DomainError {
 export class ValidationError extends DomainError {
   constructor(
     message: string,
-    public readonly details?: Array<{ field?: string; message: string }>,
+    public override readonly details?: Array<{ field?: string; message: string }>,
   ) {
     super(message, 'VALIDATION_ERROR', 422);
   }
@@ -56,6 +39,12 @@ export class UserNotFoundError extends DomainError {
   }
 }
 
+export class RoleNotFoundError extends DomainError {
+  constructor(roleId: string) {
+    super(`Role not found: ${roleId}`, 'ROLE_NOT_FOUND', 404);
+    this.name = 'RoleNotFoundError';
+  }
+}
 export class UserAlreadyExistsError extends DomainError {
   constructor(userId: string) {
     super(`User already exists: ${userId}`, 'USER_ALREADY_EXISTS', 409);
@@ -67,6 +56,13 @@ export class OrganizationNotFoundError extends DomainError {
   constructor(organizationId: string) {
     super(`Organization not found: ${organizationId}`, 'ORGANIZATION_NOT_FOUND', 400);
     this.name = 'OrganizationNotFoundError';
+  }
+}
+
+export class OrganizationNotAvailableError extends DomainError {
+  constructor(organizationId: string) {
+    super(`Organization is not available: ${organizationId}`, 'ORGANIZATION_NOT_AVAILABLE', 400);
+    this.name = 'OrganizationNotAvailableError';
   }
 }
 

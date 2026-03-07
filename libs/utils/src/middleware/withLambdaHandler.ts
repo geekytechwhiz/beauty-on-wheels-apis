@@ -1,26 +1,8 @@
-import { APIGatewayProxyEvent, Context } from 'aws-lambda';
-import { buildRequestContext } from './request-context.middleware';
-
-import {
-  createLogger,
-  extractCorrelationId,
-  extractAwsRequestId,
-  createChildLogger,
-  logHttpRequest,
-} from '@api-hub/logger';
-
-import { successResponse } from './response.middleware';
-import { handleError } from './error.middleware';
-import { Message } from '../types/core-types';
-
-const baseLogger = createLogger({
-  service: 'api-service',
-  redactPII: true,
-});
-
-interface LambdaHandlerOptions {
-  validator?: (request: any) => void | Promise<void>;
-}
+import { createChildLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest } from "@api-hub/logger";
+import { handleError } from "./error.middleware";
+import { buildRequestContext } from "./request-context.middleware";
+import { APIGatewayProxyEvent } from "aws-lambda/trigger/api-gateway-proxy";
+import { Context } from "aws-lambda/handler";
 
 export const withLambdaHandler =
   <TRequest = any, TResult = any>(
@@ -42,14 +24,9 @@ export const withLambdaHandler =
     const method = event.httpMethod ?? 'GET';
     const path = event.path ?? 'unknown';
 
-    let request: any;
-
     try {
 
-      /**
-       * Build request context
-       */
-      request = buildRequestContext(event);
+      const request = buildRequestContext(event);
 
       request.context = {
         ...(request.context ?? {}),
@@ -58,17 +35,11 @@ export const withLambdaHandler =
         awsRequestId,
       };
 
-      /**
-       * Validation middleware
-       */
       if (options.validator) {
         await options.validator(request);
       }
 
-      /**
-       * Business logic handler
-       */
-      const result = await handler(request);
+      const response = await handler(request);
 
       const duration = Date.now() - startTime;
 
@@ -76,25 +47,12 @@ export const withLambdaHandler =
         logger,
         method,
         path,
-        200,
+        response.statusCode ?? 200,
         duration,
         correlationId
       );
 
-      const successMessage: Message = {
-        title: 'SUCCESS',
-        description: 'Request processed successfully',
-        severity: 'SUCCESS',
-      };
-
-      /**
-       * Response middleware
-       */
-      return successResponse(
-        result,
-        successMessage,
-        { correlationId }
-      );
+      return response;
 
     } catch (error: any) {
 
@@ -109,12 +67,10 @@ export const withLambdaHandler =
         correlationId
       );
 
-      /**
-       * Error middleware
-       */
       return handleError(error, {
         correlationId,
         logger,
+        event
       });
     }
   };

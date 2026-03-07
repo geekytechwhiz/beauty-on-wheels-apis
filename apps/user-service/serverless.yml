@@ -323,7 +323,7 @@ functions:
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
   createUserV1:
-    handler: src/handlers/create-user.handler
+    handler: src/v1/handlers/create-user.handler
     
     memorySize: 256
     events:

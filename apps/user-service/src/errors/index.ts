@@ -3,8 +3,7 @@
  * Use: import { UserNotFoundError, ValidationError } from '../errors';
  */
 
-export {
-  DomainError,
+export { 
   NotFoundError,
   ConflictError,
   ValidationError,
@@ -14,4 +13,4 @@ export {
   OrganizationNotFoundError,
   InvalidEventError,
   InviteUpdateTooSoonError,
-} from './domain-errors';
+} from './user-errors';

@@ -1,6 +1,6 @@
-import { NotificationTemplate, TemplateKey } from '../types/template.types';
+import { NotificationTemplate, TemplateType } from '../types/template.types';
 
-export const templates: Record<TemplateKey, NotificationTemplate> = {
+export const templates: Record<TemplateType, NotificationTemplate> = {
   WELCOME_USER: {
     subject: 'Welcome to {{ORG_NAME}}, {{USER_FIRST_NAME}}!',
     body: `Dear {{USER_FIRST_NAME}},<br><br>

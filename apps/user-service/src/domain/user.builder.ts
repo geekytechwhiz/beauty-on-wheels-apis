@@ -1,10 +1,12 @@
+import { ulid } from "ulid";
 
 export function buildUserData(
   userInfo: any,
   userType: string,
   userRole: any
 ) {
-
+  const newUserId =
+  (userInfo?.code as string)?.trim() || ulid();
   const contactAddress = userInfo.contact?.address;
 
   const userTypeUpper = String(userType || "").toUpperCase();
@@ -54,7 +56,7 @@ export function buildUserData(
 
     assignRoomNo: userInfo.assignRoomNo || undefined,
     username: userInfo.username || undefined,
-
+    userID: newUserId,
   };
 
   const isEmail = Boolean(userInfo.contact?.email?.includes("@"));

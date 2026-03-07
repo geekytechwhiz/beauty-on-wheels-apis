@@ -1,121 +1,42 @@
-import { APIGatewayProxyResult } from 'aws-lambda';
-import { serializeError } from '@api-hub/logger';
+import { DomainError } from "../errors/domain-error";
+import { ApiResponse } from "../helper/api-response";
 
-import { AppError } from '../errors/app.error';
-import { ErrorHandlerOptions, Message } from '../types/core-types';
-import { ApiResponse } from '../helper/http-response.helpers';
+export async function handleError(
+  error: any,
+  context: any
+) {
+  const { logger, event, correlationId } = context;
 
-/**
- * Maps application errors → standardized HTTP response
- */
-export function handleError(
-  error: AppError,
-  options: ErrorHandlerOptions = {}
-): APIGatewayProxyResult {
+  logger.error({
+    message: error.message,
+    code: error.code,
+    stack: error.stack,
+  });
 
-  const { correlationId, logger } = options;
+  if (error instanceof DomainError) {
+    switch (error.statusCode) {
+      case 400:
+        return ApiResponse.badRequest(event, error.code, { requestId: correlationId });
 
-  const statusCode = error?.statusCode ?? 500;
-  const errorCode = error?.code ?? mapStatusToCode(statusCode);
-  const description = error?.message ?? 'Unexpected server error';
+      case 401:
+        return ApiResponse.unauthorized(event, error.code, { requestId: correlationId });
 
-  const requestId = correlationId ?? 'unknown';
+      case 403:
+        return ApiResponse.forbidden(event, error.code, { requestId: correlationId });
 
-  /**
-   * Structured logging
-   */
-  if (logger) {
-    logger.error({
-      event: 'lambda_error',
-      requestId,
-      statusCode,
-      errorCode,
-      error: serializeError(error),
-    });
+      case 404:
+        return ApiResponse.notFound(event, error.code, { requestId: correlationId });
+
+      case 409:
+        return ApiResponse.conflict(event, error.code, { requestId: correlationId });
+
+      case 422:
+        return ApiResponse.unprocessable(event, error.code, { requestId: correlationId });
+
+      default:
+        return ApiResponse.internalError(event, error.code, { requestId: correlationId });
+    }
   }
 
-  const message: Message = {
-    title: errorCode,
-    description,
-    severity: 'ERROR',
-  };
-
-  const errorPayload = {
-    code: errorCode,
-    details: error?.details ?? [{ message: description }],
-  };
-
-  const optionsPayload = { requestId };
-
-  switch (statusCode) {
-
-    case 400:
-      return ApiResponse.badRequest(
-        message,
-        optionsPayload,
-        errorPayload
-      );
-
-    case 401:
-      return ApiResponse.unauthorized(
-        message,
-        optionsPayload,
-        errorPayload
-      );
-
-    case 403:
-      return ApiResponse.forbidden(
-        message,
-        optionsPayload,
-        errorPayload
-      );
-
-    case 404:
-      return ApiResponse.notFound(
-        message,
-        optionsPayload,
-        errorPayload
-      );
-
-    case 409:
-      return ApiResponse.conflict(
-        message,
-        optionsPayload,
-        errorPayload
-      );
-
-    default:
-      return ApiResponse.internalServerError(
-        message,
-        optionsPayload,
-        errorPayload
-      );
-  }
-}
-
-/**
- * Default mapping when error does not provide a code
- */
-function mapStatusToCode(statusCode: number): string {
-
-  switch (statusCode) {
-
-    case 400:
-      return 'INVALID_REQUEST';
-
-    case 401:
-      return 'UNAUTHORIZED';
-
-    case 403:
-      return 'FORBIDDEN';
-
-    case 404:
-      return 'RESOURCE_NOT_FOUND';
-
-    case 409:
-      return 'CONFLICT';
-
-    default:
-      return 'INTERNAL_SERVER_ERROR';
-  }
+  return ApiResponse.internalError(event, "INTERNAL_ERROR", { requestId: correlationId });
 }

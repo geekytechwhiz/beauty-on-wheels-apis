@@ -1,10 +1,10 @@
 import { templates } from './template.registry';
-import { TemplateKey, TemplateData } from '../types/template.types';
+import { TemplateType, TemplateData } from '../types/template.types';
 import { renderString } from './template.renderer';
 
 export function renderTemplate(
-  templateKey: TemplateKey,
-  data: TemplateData = {}
+  templateKey: TemplateType,
+  data: TemplateData = {},
 ) {
   const tpl = templates[templateKey];
 

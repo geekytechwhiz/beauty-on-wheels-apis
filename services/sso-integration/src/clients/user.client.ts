@@ -97,7 +97,7 @@ export class SSOUserServiceClient extends UserServiceClient {
   }
 
   async createUser(
-    payload: CreateUserPayload,
+    payload: DoctorCreationPayload,
     correlationId: string,
     token?: string
   ): Promise<User> {
@@ -188,7 +188,7 @@ export class SSOUserServiceClient extends UserServiceClient {
   async createDoctor(
     doctorPayload: DoctorCreationPayload,  
     config: {
-      token: string;
+      token?: string;
       correlationId: string;
     }
   ): Promise<User> {
@@ -353,7 +353,7 @@ export class SSOUserServiceClient extends UserServiceClient {
 
 let ssoUserServiceClientInstance: SSOUserServiceClient | null = null;
 
-export function getUserServiceClient(): UserServiceClient {
+export function getSSOUserServiceClient(): SSOUserServiceClient {
   if (!ssoUserServiceClientInstance) {
     ssoUserServiceClientInstance = new SSOUserServiceClient();
   }

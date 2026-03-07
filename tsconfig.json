@@ -30,7 +30,6 @@
     {
       "path": "./apps/device-service"
     },
-   
     {
       "path": "./libs/scope-mapping"
     },
@@ -68,10 +67,10 @@
       "path": "./libs/fhir"
     },
     {
-      "path": "./backend"
+      "path": "./services/sso-integration"
     },
     {
-      "path": "./data-access"
+      "path": "./libs/service-clients"
     }
   ]
 }

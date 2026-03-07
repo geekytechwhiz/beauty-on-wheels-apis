@@ -10,10 +10,10 @@ import {
  
 import { BaseService } from '../core/base.service';
 import { getCreateDoctorMapper } from '../mappers/create-doctor.mapper';
-import { TruTechVerifiedPayload, TruTechVerifyContext } from '../types/appointment.types';
+import {   TruTechVerifiedPayload, TruTechVerifyContext } from '../types/appointment.types';
 import { SSOError } from '../types/errors/sso-error';
 import { SSOErrorCode } from '../types/enums';
-
+import { DoctorCreationPayload } from '../types/user-creation.types';
 export class LaunchService extends BaseService {
   private readonly doctorMapper = getCreateDoctorMapper();
 
@@ -185,7 +185,7 @@ export class LaunchService extends BaseService {
       };
     }
 
-    const payload = this.doctorMapper.mapTruTechDoctorToOurSystem(
+    const payloadL:DoctorCreationPayload = this.doctorMapper.mapTruTechDoctorToOurSystem(
       doctorContext,
       ctx.correlationId,
     );
@@ -196,11 +196,12 @@ export class LaunchService extends BaseService {
       email: doctorContext.email,
     });
 
-    const newDoctor = await this.userServiceClient.createDoctor(payload, {
-      token: '',
-      correlationId: ctx.correlationId,
-    });
+    // const newDoctor = await this.userServiceClient.createUser(payload, {
+    //   token: '',
+    //   correlationId: ctx.correlationId,
+    // });
 
+    const newDoctor = await this.ssoUserServiceClient.createUser(payloadL as DoctorCreationPayload, ctx.correlationId, '');
     this.logger.info({
       event: 'doctor_created',
       userId: newDoctor.id,

@@ -14,10 +14,10 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const userId = req.params.userId ?? req.context.userContext?.userId!;
+  // const userId = req.params.userId ?? req.context.userContext?.userId!;
   const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId!;
   const userType = req.params.userType;
-  const defaultProfile = req.params.defaultProfile;
+  const userId = req.pathParameters?.userId as string;
 
   const user = await userService.getUser(userId, organizationId);
   if (!user || typeof user !== 'object') {
@@ -28,7 +28,7 @@ const handler = async (req: LambdaRequest<Params>) => {
   const orgData = await organizationRepository.getOrganizationFromDB(organizationId).catch(() => null);
 
   const transformedUser = (await userService
-    .transformUserForResponse(user, organizationId, userType, orgData ?? undefined, defaultProfile)
+    .transformUserForResponse(user, organizationId, userType, orgData ?? undefined, organizationId)
     .catch(() => ({
       userID: (user as any).userID ?? userId,
       organizationID: (user as any).organizationID ?? organizationId,

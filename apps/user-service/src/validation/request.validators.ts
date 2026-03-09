@@ -97,7 +97,7 @@ export function validateValidateUsers(req: any) {
 }
 
 export function validateGetOrganizationUserCount(req: any) {
-  const organizationId = req?.params?.organizationId ?? req?.context?.user?.organizationId;
+  const organizationId = req?.params?.organizationId ?? req?.context?.userContext?.organizationId;
   if (!organizationId?.trim()) {
     const err: any = new Error('Organization ID not found in token');
     err.statusCode = 401;

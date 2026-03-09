@@ -172,19 +172,26 @@ export class ScheduleServiceClient {
     });
 
     if (appointmentSchedulesBaseUrl) {
-      return this.fetchSchedulesAppointments(organizationId, authHeader, appointmentSchedulesBaseUrl);
+      return this.fetchSchedulesAppointments(
+        organizationId,
+        authHeader,
+        appointmentSchedulesBaseUrl,
+        undefined,
+        'upcoming',
+      );
     }
     return this.getLatestActiveAppointmentsFromLegacy(organizationId, authHeader);
   }
 
   /**
-   * Dev appointment list API: POST /fetch/schedules with fromDate, toDate, organizationID.
-   * Used when APPOINTMENT_SCHEDULES_API_URL is set (e.g. dev environment).
+   * Get past appointments for an organization.
+   * When APPOINTMENT_SCHEDULES_API_URL is set, uses /fetch/schedules with
+   * payload { organizationID, action: "previous" }
    */
-  private async fetchSchedulesAppointments(
+  async getPastAppointments(
     organizationId: string,
-    authHeader: string | undefined,
-    baseUrl: string,
+    doctorId?: string,
+    authHeader?: string,
   ): Promise<Array<{
     userId: string;
     userPackageId: string | null;
@@ -194,20 +201,94 @@ export class ScheduleServiceClient {
     patientOrgId: string;
   }>> {
     const logger = createChildLogger(baseLogger, { organizationId });
+    const appointmentSchedulesBaseUrl =
+      process.env.APPOINTMENT_SCHEDULES_API_URL ?? '';
+
+    logger.info({
+      event: 'scheduleServiceClient_getPastAppointments_start',
+      organizationId,
+      hasAuth: !!authHeader,
+      useFetchSchedulesApi: !!appointmentSchedulesBaseUrl,
+      appointmentSchedulesBaseUrl: appointmentSchedulesBaseUrl || undefined,
+    });
+
+    if (appointmentSchedulesBaseUrl) {
+      const appointments = await this.fetchSchedulesAppointments(
+        organizationId,
+        authHeader,
+        appointmentSchedulesBaseUrl,
+        undefined,
+        'previous',
+      );
+      if(doctorId){
+        appointments.filter((appointment) => appointment?.assignedStaffId === doctorId );
+      }
+      return appointments;
+    }
+
+    logger.warn({
+      event: 'scheduleServiceClient_getPastAppointments_legacy_unsupported',
+      message:
+        'APPOINTMENT_SCHEDULES_API_URL not configured; returning empty past appointments list',
+    });
+
+    return [];
+  }
+
+  /**
+   * Dev appointment list API: POST /fetch/schedules.
+   * - For active appointments, uses { fromDate, toDate, organizationID }.
+   * - For past appointments, uses { organizationID, action: "previous" }.
+   * Used when APPOINTMENT_SCHEDULES_API_URL is set (e.g. dev environment).
+   */
+  private async fetchSchedulesAppointments(
+    organizationId: string,
+    authHeader: string | undefined,
+    baseUrl: string,
+    dateRange?: { fromDate?: number; toDate?: number },
+    action?: string,
+  ): Promise<Array<{
+    userId: string;
+    assignedStaffId: string;
+    userPackageId: string | null;
+    userAddonId: string | null;
+    scheduleId: string;
+    meta: Record<string, unknown>;
+    patientOrgId: string;
+  }>> {
+    const logger = createChildLogger(baseLogger, { organizationId });
     const url = `${baseUrl.replace(/\/$/, '')}/fetch/schedules`;
     const now = Date.now();
-    const toDate = now + 7 * 24 * 60 * 60 * 1000; // next 7 days for "active" window
-    const body = {
-      fromDate: now,
-      toDate,
-      organizationID: organizationId,
-    };
+
+    let fromDate: number | undefined;
+    let toDate: number | undefined;
+    let body: Record<string, unknown>;
+
+    if (action) {
+      body = {
+        organizationID: organizationId,
+        action,
+      };
+    } else {
+      fromDate =
+        dateRange?.fromDate !== undefined ? dateRange.fromDate : now;
+      toDate =
+        dateRange?.toDate !== undefined
+          ? dateRange.toDate
+          : now + 7 * 24 * 60 * 60 * 1000; // next 7 days for "active" window
+      body = {
+        fromDate,
+        toDate,
+        organizationID: organizationId,
+      };
+    }
 
     logger.info({
       event: 'scheduleServiceClient_fetchSchedules_request',
       url,
-      fromDate: now,
-      toDate,
+      ...(fromDate !== undefined && toDate !== undefined
+        ? { fromDate, toDate }
+        : { action }),
       organizationId,
       hasAuth: !!authHeader,
       timeoutMs: this.timeoutMs,

@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -49,20 +49,19 @@ export class PackageServiceClient {
     requests: UserServiceRequest[],
     authHeader?: string,
   ): Promise<UserServiceResponse[]> {
-    const logger = createChildLogger(baseLogger);
-    // Assuming the package service has an endpoint like /get-services-by-list
-    // Adjust the endpoint path based on actual API structure
-    const url = `${this.baseUrl}/get-services-by-list`;
-    const body = { items: requests };
+    const logger = createChildLogger(baseLogger, { requestCount: requests.length });
+    const url = `${this.baseUrl}/services/get-services-by-list`;
 
     try {
-      const response = await axios.post(url, body, {
+      const response = await axios.post(url, requests, {
         headers: {
           'Content-Type': 'application/json',
           ...(authHeader ? { Authorization: authHeader } : {}),
         },
         timeout: this.timeoutMs,
       });
+      console.log('response.data', JSON.stringify(response.data));
+
       const data = response.data?.data?.items ?? response.data?.items ?? [];
       return Array.isArray(data) ? data : [];
     } catch (err) {

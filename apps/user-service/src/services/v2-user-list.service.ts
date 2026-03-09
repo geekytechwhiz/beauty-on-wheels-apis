@@ -343,47 +343,191 @@ export class V2UserListService {
     params: V2UserListServiceParams,
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
-    const { organizationId, filters, pagination, sort, requestId } = params;
-    const logger = createChildLogger(baseLogger, { correlationId: requestId });
+    const { organizationId, filters, sort, requestId, authHeader } = params;
+    const logger = createChildLogger(baseLogger, {
+      correlationId: requestId,
+      organizationId,
+    });
 
     logger.info({ event: 'v2_past_consultations_start' });
 
-    const modifiedFilters: V2UserListFilters = {
-      ...filters,
-      userTypes: ['USER'],
-    };
+    if (!scheduleServiceClient) {
+      logger.warn({
+        event: 'v2_past_consultations_no_schedule_client',
+        message: 'SCHEDULE_SERVICE_API_URL not configured',
+      });
+      return this.buildResponse([], context, undefined, requestId);
+    }
 
-    // Pass undefined if no limit provided to fetch all records
-    const requestedLimit = pagination?.limit;
+    // Fetch past appointments for this organization (last 30 days window)
+    let appointmentInfo: Array<{
+      userId: string;
+      userPackageId: string | null;
+      userAddonId: string | null;
+      scheduleId: string;
+      meta: Record<string, unknown>;
+      patientOrgId: string;
+    }> = [];
 
-    const result = await this.fetchWithInternalPagination(
-      async (paginationParams) => {
-        return this.repository.queryOrganizationUsers({
-          organizationId,
-          context: UserListContext.PAST_CONSULTATIONS,
-          filters: modifiedFilters,
-          pagination: paginationParams,
-          sort,
-          correlationId: requestId,
-        });
-      },
-      requestedLimit,
-      pagination?.cursor,
+    try {
+      appointmentInfo = await scheduleServiceClient.getPastAppointments(
+        organizationId,
+        authHeader,
+      );
+      logger.info({
+        event: 'v2_past_consultations_appointments_fetched',
+        count: appointmentInfo.length,
+      });
+    } catch (err) {
+      logger.error({
+        event: 'v2_past_consultations_appointments_error',
+        err: serializeError(err as Error),
+      });
+      throw err;
+    }
+
+    if (!appointmentInfo || appointmentInfo.length === 0) {
+      logger.info({
+        event: 'v2_past_consultations_no_appointments',
+      });
+      return this.buildResponse([], context, undefined, requestId);
+    }
+
+    // Resolve patient user data for each appointment's patient
+    const patientList = await Promise.all(
+      appointmentInfo.map(async (appt) => {
+        try {
+          const user = await this.userService.getUser(
+            appt.userId,
+            appt.patientOrgId || organizationId,
+          );
+          if (!user) return null;
+          const u = user as unknown as Record<string, unknown>;
+          return {
+            ...u,
+            previouslyConsulted: true,
+          } as Record<string, unknown>;
+        } catch (err) {
+          logger.warn({
+            event: 'v2_past_consultations_user_fetch_warning',
+            userId: appt.userId,
+            patientOrgId: appt.patientOrgId,
+            err: serializeError(err as Error),
+          });
+          return null;
+        }
+      }),
     );
 
-    logger.info({ 
-      event: 'v2_past_consultations_filtered_fnf', 
-      requestedLimit,
-      returnedCount: result.items.length,
+    // Filter out failed lookups and deduplicate by user + org
+    const seenKeys = new Set<string>();
+    const resolvedPatients: Record<string, unknown>[] = [];
+    for (const p of patientList) {
+      if (!p) continue;
+      const patient = p as any;
+      const userId =
+        String(patient.userID ?? patient.userId ?? patient.patientId ?? '') || '';
+      const orgId =
+        String(
+          patient.organizationID ??
+            patient.organizationId ??
+            patient.patientOrgId ??
+            organizationId,
+        ) || '';
+      if (!userId) continue;
+      const key = `${userId}#${orgId}`;
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      resolvedPatients.push(patient);
+    }
+
+    logger.info({
+      event: 'v2_past_consultations_users_resolved',
+      totalAppointments: appointmentInfo.length,
+      totalResolved: resolvedPatients.length,
     });
 
-    return this.buildResponse(result.items, context, result.lastEvaluatedKey, requestId);
+    // Apply basic filters (isActive, isRpmUser, search) and sort in-memory
+    let filteredPatients = resolvedPatients;
+
+    if (typeof filters?.isActive === 'boolean') {
+      filteredPatients = filteredPatients.filter(
+        (u) => (u as any).isActive === filters.isActive,
+      );
+    }
+
+    if (typeof filters?.isRpmUser === 'boolean') {
+      filteredPatients = filteredPatients.filter(
+        (u) => (u as any).isRpmUser === filters.isRpmUser,
+      );
+    }
+
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase();
+      filteredPatients = filteredPatients.filter((item) => {
+        const fullName = String((item as any).fullName ?? '').toLowerCase();
+        const emailAddress = String(
+          (item as any).emailAddress ?? '',
+        ).toLowerCase();
+        const phoneNumber = String(
+          (item as any).phoneNumber ?? '',
+        ).toLowerCase();
+        const firstName = String((item as any).firstName ?? '').toLowerCase();
+        const lastName = String((item as any).lastName ?? '').toLowerCase();
+
+        return (
+          fullName.includes(searchLower) ||
+          emailAddress.includes(searchLower) ||
+          phoneNumber.includes(searchLower) ||
+          firstName.includes(searchLower) ||
+          lastName.includes(searchLower)
+        );
+      });
+    }
+
+    if (sort?.field) {
+      const field = sort.field;
+      const order = sort.order || 'DESC';
+      const direction = order === 'ASC' ? 1 : -1;
+      filteredPatients = [...filteredPatients].sort((a, b) => {
+        const aVal = (a as any)[field];
+        const bVal = (b as any)[field];
+
+        if (aVal == null && bVal == null) return 0;
+        if (aVal == null) return 1 * direction;
+        if (bVal == null) return -1 * direction;
+
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return (aVal - bVal) * direction;
+        }
+
+        const aStr = String(aVal).toLowerCase();
+        const bStr = String(bVal).toLowerCase();
+        if (aStr < bStr) return -1 * direction;
+        if (aStr > bStr) return 1 * direction;
+        return 0;
+      });
+    }
+
+    // Filter out F&F users
+    const nonFnfPatients = this.filterFriendFamilyUsers(filteredPatients);
+
+    logger.info({
+      event: 'v2_past_consultations_filtered_fnf',
+      requestedLimit: undefined,
+      returnedCount: nonFnfPatients.length,
+    });
+
+    // PAST_CONSULTATIONS response is not paginated today – all results are returned
+    return this.buildResponse(nonFnfPatients, context, undefined, requestId);
   }
 
   private async handleActiveConsultations(
     params: V2UserListServiceParams,
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
+
+    console.log('params', JSON.stringify(params));
     const { organizationId, requestId, authHeader } = params;
     const logger = createChildLogger(baseLogger, { correlationId: requestId, organizationId });
 
@@ -444,12 +588,7 @@ export class V2UserListService {
         });
         console.log('serviceRequests', JSON.stringify(serviceRequests));
 
-        userServices = await packageServiceClient.getServicesByList(
-          serviceRequests,
-          authHeader,
-        );
-
-        console.log('userServices', JSON.stringify(userServices));
+        userServices = await packageServiceClient.getServicesByList(serviceRequests, authHeader);
 
         // Map schedule metadata to services
         const scheduleMetaMap = new Map<string, Record<string, unknown>>();
@@ -468,6 +607,7 @@ export class V2UserListService {
             });
           }
         });
+        console.log('userServices updated', JSON.stringify(userServices));
       } catch (serviceErr) {
         logger.warn({
           event: 'v2_active_consultations_services_fetch_warning',
@@ -495,6 +635,8 @@ export class V2UserListService {
         activeServiceMap.set(appt.userId, matchingService);
       }
     });
+
+    console.log('activeServiceMap', JSON.stringify(activeServiceMap));
 
     // Fetch user data for each appointment's patient
     const patientList = await Promise.all(
@@ -678,7 +820,7 @@ export class V2UserListService {
         );
         return {
           ...envelope,
-          data: { users: previouslyConsultedItems.map(mapToPastConsultationUser) },
+          data: { items: previouslyConsultedItems.map(mapToPastConsultationUser) },
         } as unknown as V2UserListResponse<UserItem>;
       }
 

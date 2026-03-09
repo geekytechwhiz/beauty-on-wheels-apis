@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
+
 import { getEnvConfig } from '../config/env';
 import {
   FetchSchedulesRequest,
@@ -7,7 +8,9 @@ import {
   ScheduleCreateRequest,
   ScheduleStatusUpdateRequest,
 } from '../types/appointment-sync.types';
+
 import { SSOError } from '../types/errors/sso-error';
+import { RequestContext } from '../context/request-context';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -15,12 +18,15 @@ const baseLogger = createLogger({
 });
 
 export class ScheduleServiceClient {
+
   private readonly client: AxiosInstance;
+
   private readonly logger = createChildLogger(baseLogger, {
     component: 'ScheduleServiceClient',
   });
 
   constructor() {
+
     const config = getEnvConfig();
 
     this.client = axios.create({
@@ -34,44 +40,61 @@ export class ScheduleServiceClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
+
         this.logger.error({
           event: 'schedule_service_request_error',
           status: error.response?.status,
           url: error.config?.url,
           message: error.message,
         });
+
         return Promise.reject(error);
       },
     );
   }
 
+  private buildHeaders(context: RequestContext): Record<string, string> {
+
+    return {
+      'X-Correlation-Id': context.correlationId,
+      Authorization: `Bearer ${context.serviceToken}`,
+    };
+  }
+
   async fetchSchedules(
     payload: FetchSchedulesRequest,
-    correlationId: string,
+    context: RequestContext,
   ): Promise<Schedule[]> {
-    const logger = createChildLogger(this.logger, { correlationId });
+
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
 
     try {
+
       const response = await this.client.post<{ data: Schedule[] }>(
         '/fetch/schedules',
         payload,
         {
-          headers: {
-            'X-Correlation-Id': correlationId,
-          },
+          headers: this.buildHeaders(context),
         },
       );
 
       return response.data.data ?? [];
+
     } catch (error) {
+
       if (axios.isAxiosError(error)) {
+
         const axiosError = error as AxiosError;
 
         if (axiosError.response?.status === 404) {
+
           logger.info({
             event: 'schedule_fetch_not_found',
             payload,
           });
+
           return [];
         }
 
@@ -101,24 +124,29 @@ export class ScheduleServiceClient {
 
   async createSchedule(
     payload: ScheduleCreateRequest,
-    correlationId: string,
+    context: RequestContext,
   ): Promise<Schedule> {
-    const logger = createChildLogger(this.logger, { correlationId });
+
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
 
     try {
+
       const response = await this.client.post<{ data: Schedule }>(
         '/create/schedule',
         payload,
         {
-          headers: {
-            'X-Correlation-Id': correlationId,
-          },
+          headers: this.buildHeaders(context),
         },
       );
 
       return response.data.data;
+
     } catch (error) {
+
       if (axios.isAxiosError(error)) {
+
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -151,24 +179,29 @@ export class ScheduleServiceClient {
 
   async updateScheduleStatus(
     payload: ScheduleStatusUpdateRequest,
-    correlationId: string,
+    context: RequestContext,
   ): Promise<Schedule> {
-    const logger = createChildLogger(this.logger, { correlationId });
+
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
 
     try {
+
       const response = await this.client.post<{ data: Schedule }>(
         '/update/schedule-status',
         payload,
         {
-          headers: {
-            'X-Correlation-Id': correlationId,
-          },
+          headers: this.buildHeaders(context),
         },
       );
 
       return response.data.data;
+
     } catch (error) {
+
       if (axios.isAxiosError(error)) {
+
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -199,9 +232,10 @@ export class ScheduleServiceClient {
 let scheduleServiceClientInstance: ScheduleServiceClient | null = null;
 
 export function getScheduleServiceClient(): ScheduleServiceClient {
+
   if (!scheduleServiceClientInstance) {
     scheduleServiceClientInstance = new ScheduleServiceClient();
   }
+
   return scheduleServiceClientInstance;
 }
-

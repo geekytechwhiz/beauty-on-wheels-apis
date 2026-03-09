@@ -59,6 +59,11 @@ provider:
 
     PATIENT_CREATION_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/542476693486/dev-sso-integration-patient-creation-queue
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'}
+
+    HMS_SYNC_SCHEDULE_EXPRESSION: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+    REGISTERED_HMS_DOCTOR_IDS: 4
+    
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -221,6 +226,30 @@ functions:
           batchSize: 10
           functionResponseType: ReportBatchItemFailures
 
+  syncHmsAppointments:
+    handler: src/handlers/events/sync-hms-appointments.handler
+    description: Periodic HMS appointment synchronization from TruTech into schedule service
+    timeout: 900
+    memorySize: 512
+    events:
+      - http:
+          path: /appointments/sync/hms
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+
+
 
 resources:
   Resources:
@@ -258,3 +287,41 @@ resources:
             Value: ${self:provider.stage}
           - Key: ManagedBy
             Value: serverless
+    SyncHmsAppointmentsScheduleRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: scheduler.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: InvokeSyncHmsAppointmentsLambda
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource:
+                    - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
+    SyncHmsAppointmentsSchedule:
+      Type: AWS::Scheduler::Schedule
+      Properties:
+        ScheduleExpression: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+        FlexibleTimeWindow:
+          Mode: FLEXIBLE
+          MaximumWindowInMinutes: 5
+        State: ENABLED
+        Target:
+          Arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
+          RoleArn: !GetAtt SyncHmsAppointmentsScheduleRole.Arn
+          Input: |
+            {
+              "source": "hms-appointments-scheduler"
+            }
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 3600
+            MaximumRetryAttempts: 3

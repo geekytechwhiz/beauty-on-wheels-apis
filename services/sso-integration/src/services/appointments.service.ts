@@ -8,6 +8,7 @@ import {
 } from '../types/appointment.types';
 import { SSOError } from '../types/errors/sso-error'; 
 import { getTruTechClient } from '../clients/tru-tech.clients.js';
+import { getHmsAppointmentsProvider } from './hms-appointments-provider.service';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -15,6 +16,7 @@ export class AppointmentsService {
   private readonly logger = createChildLogger(baseLogger, { component: 'AppointmentsService' });
   private readonly truTechClient = getTruTechClient();
   private readonly truTechAdapter = getTruTechAdapter();
+  private readonly hmsAppointmentsProvider = getHmsAppointmentsProvider();
   // ---------------------------------------------------------------------------
   // Get Today's Appointments for a Doctor
   // ---------------------------------------------------------------------------
@@ -23,94 +25,10 @@ export class AppointmentsService {
     doctorId: number,
     correlationId: string
   ): Promise<Appointment[]> {
-    const logger = createChildLogger(this.logger, { correlationId, doctorId });
-    const timer = createPerformanceTimer(logger, 'get_todays_appointments');
-
-    logger.info({
-      event: 'get_appointments_start',
+    return this.hmsAppointmentsProvider.getTodaysAppointmentsForDoctor(
       doctorId,
-    });
-
-    try {
-      if (!doctorId || doctorId <= 0) {
-        throw SSOError.invalidRequest('Invalid doctor ID');
-      }
-
-      const truTechAppointmentsResponse = await this.truTechClient.getTodaysAppointments(
-        doctorId,
-        correlationId
-      );
-
-      logger.debug({
-        event: 'appointments_service_trutech_response',
-        doctorId,
-        status: truTechAppointmentsResponse.status,
-        hasAppointmentsArray: !!truTechAppointmentsResponse.appointments,
-        appointmentCount: truTechAppointmentsResponse.appointments?.length ?? 0,
-        hasMessage: !!truTechAppointmentsResponse.message,
-      });
-
-      timer.end();
-
-      logger.info({
-        event: 'get_appointments_success',
-        doctorId,
-        appointmentCount: truTechAppointmentsResponse.appointments?.length || 0,
-      });
-
-      try {
-        if (!truTechAppointmentsResponse.appointments?.length) {
-          this.logger.info({
-            event: 'trutech_map_appointments_no_appointments',
-            appointmentCount:
-              truTechAppointmentsResponse.appointments?.length ?? 0,
-          });
-          return [];
-        }
-
-        const mapped = this.truTechAdapter.mapAppointments(
-          truTechAppointmentsResponse.appointments || [],
-        );
-
-        logger.info({
-          event: 'appointments_service_mapping_success',
-          doctorId,
-          mappedCount: mapped.length,
-        });
-
-        return mapped;
-      } catch (mapError) {
-        logger.error({
-          event: 'appointments_service_mapping_error',
-          doctorId,
-          err: serializeError(mapError as Error),
-        });
-        throw mapError;
-      }
-    } catch (error) {
-      timer.end();
-
-      if (error instanceof SSOError) {
-        logger.warn({
-          event: 'get_appointments_error',
-          doctorId,
-          errorCode: error.code,
-          message: error.message,
-        });
-        throw error;
-      }
-
-      logger.error({
-        event: 'get_appointments_unexpected_error',
-        doctorId,
-        err: serializeError(error as Error),
-      });
-
-      throw SSOError.internalError(
-        'Failed to fetch appointments',
-        error as Error
-      );
-    }
+      correlationId,
+    );
   }
 
   // ---------------------------------------------------------------------------

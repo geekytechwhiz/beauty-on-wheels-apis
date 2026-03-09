@@ -1,7 +1,9 @@
 import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
-import { BaseService } from '../core/base.service';
-import { getAppointmentsService } from './appointments.service';
 import { getScheduleServiceClient } from '../clients/schedule-service.client';
+import { getEnvConfig } from '../config/env';
+import { RequestContext } from '../context/request-context';
+import { BaseService } from '../core/base.service';
+import { getAppointmentMapper } from '../mappers/appointment.mapper';
 import { Appointment, User } from '../types';
 import {
   AppointmentSyncResult,
@@ -10,9 +12,8 @@ import {
   Schedule,
   ScheduleCreateRequest,
 } from '../types/appointment-sync.types';
-import { getAppointmentMapper } from '../mappers/appointment.mapper';
-import { getEnvConfig } from '../config/env';
 import { SSOError } from '../types/errors/sso-error';
+import { getAppointmentsService } from './appointments.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -20,10 +21,12 @@ const baseLogger = createLogger({
 });
 
 export class AppointmentSyncService extends BaseService {
+
   private readonly appointmentsService = getAppointmentsService();
   private readonly scheduleClient = getScheduleServiceClient();
-  private readonly appointmentMapper = getAppointmentMapper();
+  private readonly appointmentMapper = getAppointmentMapper(); 
   private readonly pendingAppointments: PendingAppointment[] = [];
+
   private readonly maxRetries: number;
   private readonly initialDelayMs: number;
   private readonly maxDelayMs: number;
@@ -33,6 +36,7 @@ export class AppointmentSyncService extends BaseService {
     super('AppointmentSyncService');
 
     const env = getEnvConfig();
+
     this.maxRetries = env.APPOINTMENT_SYNC_MAX_RETRIES;
     this.initialDelayMs = env.APPOINTMENT_SYNC_RETRY_DELAY_MS;
     this.maxDelayMs = env.APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS;
@@ -41,11 +45,12 @@ export class AppointmentSyncService extends BaseService {
 
   async syncAppointments(
     doctorId: number,
-    correlationId: string,
+    context: RequestContext
   ): Promise<AppointmentSyncResult> {
+
     const logger = createChildLogger(baseLogger, {
       component: 'AppointmentSyncService',
-      correlationId,
+      correlationId: context.correlationId,
     });
 
     logger.info({
@@ -53,21 +58,96 @@ export class AppointmentSyncService extends BaseService {
       doctorId,
     });
 
-    const doctor = await this.validateDoctor(doctorId, correlationId);
+    const appointments =
+      await this.appointmentsService.getTodaysAppointments(
+        doctorId,
+        context.correlationId
+      );
 
-    const appointments = await this.appointmentsService.getTodaysAppointments(
+    const results =
+      await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal(
+        doctorId,
+        appointments,
+        context,
+        logger,
+        'today'
+      );
+
+    logger.info({
+      event: 'appointment_sync_complete',
       doctorId,
-      correlationId,
-    );
+      ...results,
+    });
+
+    return {
+      ...results,
+      message: 'Appointment sync completed',
+      totalAppointments: results.totalAppointments,
+      status: results.failed > 0 ? 'PARTIAL' : 'SUCCESS',
+    };
+  }
+
+  formatSyncResponse(result: AppointmentSyncResult) {
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  async syncAppointmentsForDoctorWithProvidedAppointments(
+    doctorId: number,
+    appointments: Appointment[],
+    context: RequestContext
+  ): Promise<AppointmentSyncResult> {
+
+    const logger = createChildLogger(baseLogger, {
+      component: 'AppointmentSyncService',
+      correlationId: context.correlationId,
+    });
+
+    const results =
+      await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal(
+        doctorId,
+        appointments,
+        context,
+        logger,
+        'provided'
+      );
+
+    return {
+      ...results,
+      message: 'Appointment sync completed',
+      totalAppointments: results.totalAppointments,
+      status: results.failed > 0 ? 'PARTIAL' : 'SUCCESS',
+    };
+  }
+
+  private async syncAppointmentsForDoctorWithProvidedAppointmentsInternal(
+    doctorId: number,
+    appointments: Appointment[],
+    context: RequestContext,
+    logger: ReturnType<typeof createChildLogger>,
+    source: 'today' | 'provided',
+  ): Promise<AppointmentSyncResult> {
+
+    logger.info({
+      event: 'appointment_sync_start',
+      doctorId,
+      source,
+      appointmentCount: appointments.length,
+    });
+
+    const doctor = await this.validateDoctor(doctorId, context);
 
     if (!appointments.length) {
       logger.info({
         event: 'appointment_sync_no_appointments',
         doctorId,
+        source,
       });
 
       return {
-        message: 'No appointments found for today',
+        message: 'No appointments found',
         totalAppointments: 0,
         status: 'SUCCESS',
         synced: 0,
@@ -80,52 +160,47 @@ export class AppointmentSyncService extends BaseService {
     const results = await this.processAppointments(
       appointments,
       doctor,
-      correlationId,
+      context
     );
 
     logger.info({
       event: 'appointment_sync_complete',
       doctorId,
+      source,
       ...results,
     });
 
     return {
       ...results,
-      message: 'Appointment sync completed',
       totalAppointments: appointments.length,
       status: results.failed > 0 ? 'PARTIAL' : 'SUCCESS',
     };
   }
 
-  formatSyncResponse(result: AppointmentSyncResult) {
-    return {
-      success: true,
-      data: result,
-    };
-  }
-
   private async validateDoctor(
     doctorId: number,
-    correlationId: string,
+    context: RequestContext
   ): Promise<User> {
-    const logger = createChildLogger(this.logger, { correlationId, doctorId });
 
-    const user = await this.userServiceClient.findByExternalId(
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+      doctorId,
+    });
+
+    const user = await this.ssoUserServiceClient.findByExternalId(
       {
         provider: 'TruTech',
         externalId: String(doctorId),
-        tenantId: this.config.defaultOrganizationID,
+        tenantId: context.tenantId,
       },
-      correlationId,
+      context
     );
 
     if (!user) {
-      logger.warn({
-        event: 'doctor_validation_failed',
-        doctorId,
-      });
+      logger.warn({ event: 'doctor_validation_failed', doctorId });
+
       throw SSOError.invalidRequest(
-        `Doctor not found for external doctorId: ${doctorId}`,
+        `Doctor not found for external doctorId: ${doctorId}`
       );
     }
 
@@ -140,20 +215,21 @@ export class AppointmentSyncService extends BaseService {
 
   private async validatePatient(
     appointment: Appointment,
-    correlationId: string,
+    context: RequestContext
   ): Promise<User | null> {
+
     const logger = createChildLogger(this.logger, {
-      correlationId,
+      correlationId: context.correlationId,
       patientExternalId: appointment.patient.id,
     });
 
-    const user = await this.userServiceClient.findByExternalId(
+    const user = await this.ssoUserServiceClient.findByExternalId(
       {
         provider: 'TruTech',
         externalId: String(appointment.patient.id),
-        tenantId: this.config.defaultOrganizationID,
+        tenantId: context.tenantId,
       },
-      correlationId,
+      context
     );
 
     if (!user) {
@@ -177,42 +253,39 @@ export class AppointmentSyncService extends BaseService {
     appointment: Appointment,
     doctorUser: User,
     patientUser: User,
-    correlationId: string,
+    context: RequestContext
   ): Promise<boolean> {
+
     const logger = createChildLogger(this.logger, {
-      correlationId,
+      correlationId: context.correlationId,
       appointmentId: appointment.appointmentId,
     });
 
-    const fromDate = new Date(appointment.startTime).getTime();
-    const toDate = new Date(appointment.endTime).getTime();
-
     const payload: FetchSchedulesRequest = {
-      fromDate,
-      toDate,
+      fromDate: new Date(appointment.startTime).getTime(),
+      toDate: new Date(appointment.endTime).getTime(),
       organizationID:
         patientUser.organizationId || appointment.patient.organizationId,
     };
 
     const schedules = await this.scheduleClient.fetchSchedules(
       payload,
-      correlationId,
+      context
     );
 
     const externalAppointmentId = String(appointment.appointmentId);
 
     const duplicate = schedules.some((schedule: Schedule) => {
+
       const hasMatchingMeta =
         schedule.meta?.externalAppointmentId === externalAppointmentId;
 
       const hasMatchingParticipants =
         schedule.participantInfo?.some(
-          (p) =>
-            p.userId === String(doctorUser.id) && p.userType === 'STAFF',
+          (p) => p.userId === String(doctorUser.id) && p.userType === 'STAFF'
         ) &&
         schedule.participantInfo?.some(
-          (p) =>
-            p.userId === String(patientUser.id) && p.userType === 'USER',
+          (p) => p.userId === String(patientUser.id) && p.userType === 'USER'
         );
 
       return hasMatchingMeta && hasMatchingParticipants;
@@ -229,18 +302,20 @@ export class AppointmentSyncService extends BaseService {
 
   private async createScheduleWithRetry(
     request: ScheduleCreateRequest,
-    correlationId: string,
+    context: RequestContext
   ): Promise<Schedule> {
+
     return this.retryWithBackoff(() =>
-      this.scheduleClient.createSchedule(request, correlationId),
+      this.scheduleClient.createSchedule(request, context)
     );
   }
 
   private async updateScheduleStatusWithRetry(
     scheduleId: string,
     organizationID: string,
-    correlationId: string,
+    context: RequestContext
   ): Promise<Schedule> {
+
     return this.retryWithBackoff(() =>
       this.scheduleClient.updateScheduleStatus(
         {
@@ -248,16 +323,17 @@ export class AppointmentSyncService extends BaseService {
           status: 'ACCEPTED',
           organizationID,
         },
-        correlationId,
-      ),
+        context
+      )
     );
   }
 
   private async processAppointments(
     appointments: Appointment[],
     doctor: User,
-    correlationId: string,
+    context: RequestContext
   ): Promise<AppointmentSyncResult> {
+
     let synced = 0;
     let skipped = 0;
     let failed = 0;
@@ -274,16 +350,23 @@ export class AppointmentSyncService extends BaseService {
     const workers: Promise<void>[] = [];
 
     const worker = async () => {
+
       while (queue.length) {
+
         const appointment = queue.shift();
         if (!appointment) break;
 
         const externalAppointmentId = String(appointment.appointmentId);
 
         try {
-          const patient = await this.validatePatient(appointment, correlationId);
+
+          const patient = await this.validatePatient(
+            appointment,
+            context
+          );
 
           if (!patient) {
+
             this.pendingAppointments.push({
               appointment,
               reason: 'patient_not_found',
@@ -291,45 +374,51 @@ export class AppointmentSyncService extends BaseService {
               retryCount: 0,
               patientExternalId: String(appointment.patient.id),
             });
-            pending += 1;
+
+            pending++;
             details.pending.push(externalAppointmentId);
             continue;
           }
 
-          const isDuplicate = await this.checkDuplicateSchedule(
-            appointment,
-            doctor,
-            patient,
-            correlationId,
-          );
+          const isDuplicate =
+            await this.checkDuplicateSchedule(
+              appointment,
+              doctor,
+              patient,
+              context
+            );
 
           if (isDuplicate) {
-            skipped += 1;
+            skipped++;
             details.skipped.push(externalAppointmentId);
             continue;
           }
 
-          const scheduleRequest = this.appointmentMapper.mapAppointmentToSchedule(
-            appointment,
-            doctor,
-            patient,
-          );
+          const scheduleRequest =
+            this.appointmentMapper.mapAppointmentToSchedule(
+              appointment,
+              doctor,
+              patient
+            );
 
-          const schedule = await this.createScheduleWithRetry(
-            scheduleRequest,
-            correlationId,
-          );
+          const schedule =
+            await this.createScheduleWithRetry(
+              scheduleRequest,
+              context
+            );
 
           await this.updateScheduleStatusWithRetry(
             schedule.scheduleId,
             schedule.organizationID,
-            correlationId,
+            context
           );
 
-          synced += 1;
+          synced++;
           details.synced.push(externalAppointmentId);
+
         } catch (error) {
-          failed += 1;
+
+          failed++;
           details.failed.push(externalAppointmentId);
 
           this.logger.error({
@@ -341,7 +430,7 @@ export class AppointmentSyncService extends BaseService {
       }
     };
 
-    for (let i = 0; i < this.concurrencyLimit; i += 1) {
+    for (let i = 0; i < this.concurrencyLimit; i++) {
       workers.push(worker());
     }
 
@@ -359,22 +448,30 @@ export class AppointmentSyncService extends BaseService {
     };
   }
 
-  private async retryWithBackoff<T>(operation: () => Promise<T>): Promise<T> {
+  private async retryWithBackoff<T>(
+    operation: () => Promise<T>
+  ): Promise<T> {
+
     let lastError: Error | undefined;
 
-    for (let attempt = 1; attempt <= this.maxRetries; attempt += 1) {
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+
       try {
         return await operation();
       } catch (error) {
+
         lastError = error as Error;
 
         if (attempt < this.maxRetries) {
+
           const delay = Math.min(
             this.initialDelayMs * Math.pow(2, attempt - 1),
-            this.maxDelayMs,
+            this.maxDelayMs
           );
 
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise((resolve) =>
+            setTimeout(resolve, delay)
+          );
         }
       }
     }
@@ -382,41 +479,37 @@ export class AppointmentSyncService extends BaseService {
     throw lastError!;
   }
 
-  /**
-   * Get pending appointments for a specific patient by external ID
-   */
   getPendingAppointmentsByPatient(
-    patientExternalId: string,
+    patientExternalId: string
   ): PendingAppointment[] {
+
     return this.pendingAppointments.filter(
-      (p) => p.patientExternalId === patientExternalId,
+      (p) => p.patientExternalId === patientExternalId
     );
   }
 
-  /**
-   * Remove a pending appointment from the list
-   */
   removePendingAppointment(pending: PendingAppointment): void {
+
     const index = this.pendingAppointments.indexOf(pending);
+
     if (index > -1) {
       this.pendingAppointments.splice(index, 1);
     }
   }
 
-  /**
-   * Reprocess pending appointments for a patient after they are created
-   * This is called by the patient creation event consumer
-   */
-  async reprocessPendingAppointments(
+  async reprocessPendingAppointments( 
     patientExternalId: string,
-    correlationId: string,
+    context: RequestContext
   ): Promise<void> {
+
     const logger = createChildLogger(this.logger, {
-      correlationId,
+      correlationId: context.correlationId,
       patientExternalId,
     });
 
-    const pending = this.getPendingAppointmentsByPatient(patientExternalId);
+    const pending = this.getPendingAppointmentsByPatient(
+      patientExternalId
+    );
 
     if (!pending.length) {
       logger.info({
@@ -426,20 +519,13 @@ export class AppointmentSyncService extends BaseService {
       return;
     }
 
-    logger.info({
-      event: 'reprocessing_pending_appointments_start',
-      count: pending.length,
-      patientExternalId,
-    });
-
-    // Re-validate patient exists
-    const patient = await this.userServiceClient.findByExternalId(
+    const patient = await this.ssoUserServiceClient.findByExternalId(
       {
         provider: 'TruTech',
         externalId: patientExternalId,
-        tenantId: this.config.defaultOrganizationID,
+        tenantId: context.tenantId,
       },
-      correlationId,
+      context
     );
 
     if (!patient) {
@@ -450,108 +536,74 @@ export class AppointmentSyncService extends BaseService {
       return;
     }
 
-    logger.info({
-      event: 'patient_found_for_reprocessing',
-      patientExternalId,
-      userId: patient.id,
-      pendingCount: pending.length,
-    });
-
-    // Process each pending appointment
     for (const pendingAppt of pending) {
-      const appointmentId = String(pendingAppt.appointment.appointmentId);
-      const appointmentLogger = createChildLogger(logger, {
-        appointmentId,
-      });
 
       try {
-        // Get doctor for this appointment
+
         const doctor = await this.validateDoctor(
           pendingAppt.appointment.doctor.id,
-          correlationId,
+          context
         );
 
-        // Check duplicate
-        const isDuplicate = await this.checkDuplicateSchedule(
-          pendingAppt.appointment,
-          doctor,
-          patient,
-          correlationId,
-        );
+        const isDuplicate =
+          await this.checkDuplicateSchedule(
+            pendingAppt.appointment,
+            doctor,
+            patient,
+            context
+          );
 
         if (isDuplicate) {
-          appointmentLogger.info({
-            event: 'pending_appointment_duplicate',
-            appointmentId,
-          });
           this.removePendingAppointment(pendingAppt);
           continue;
         }
 
-        // Create schedule
-        const scheduleRequest = this.appointmentMapper.mapAppointmentToSchedule(
-          pendingAppt.appointment,
-          doctor,
-          patient,
-        );
+        const scheduleRequest =
+          this.appointmentMapper.mapAppointmentToSchedule(
+            pendingAppt.appointment,
+            doctor,
+            patient
+          );
 
-        const schedule = await this.createScheduleWithRetry(
-          scheduleRequest,
-          correlationId,
-        );
+        const schedule =
+          await this.createScheduleWithRetry(
+            scheduleRequest,
+            context
+          );
 
         await this.updateScheduleStatusWithRetry(
           schedule.scheduleId,
           schedule.organizationID,
-          correlationId,
+          context
         );
 
-        appointmentLogger.info({
-          event: 'pending_appointment_reprocessed',
-          appointmentId,
-          scheduleId: schedule.scheduleId,
-        });
-
         this.removePendingAppointment(pendingAppt);
+
       } catch (error) {
-        appointmentLogger.error({
-          event: 'pending_appointment_reprocess_error',
-          appointmentId,
-          retryCount: pendingAppt.retryCount,
-          err: serializeError(error as Error),
-        });
 
-        // Increment retry count
-        pendingAppt.retryCount += 1;
+        pendingAppt.retryCount++;
 
-        // If retry count exceeds max, remove from pending (to prevent infinite retries)
         if (pendingAppt.retryCount >= this.maxRetries) {
-          appointmentLogger.warn({
-            event: 'pending_appointment_max_retries_exceeded',
-            appointmentId,
-            retryCount: pendingAppt.retryCount,
-          });
           this.removePendingAppointment(pendingAppt);
         }
+
+        logger.error({
+          event: 'pending_appointment_reprocess_error',
+          appointmentId: pendingAppt.appointment.appointmentId,
+          err: serializeError(error as Error),
+        });
       }
     }
-
-    logger.info({
-      event: 'reprocessing_pending_appointments_complete',
-      patientExternalId,
-      remainingPending: this.getPendingAppointmentsByPatient(patientExternalId)
-        .length,
-    });
   }
 }
 
 let appointmentSyncServiceInstance: AppointmentSyncService | null = null;
 
 export function getAppointmentSyncService(): AppointmentSyncService {
+
   if (!appointmentSyncServiceInstance) {
     appointmentSyncServiceInstance = new AppointmentSyncService();
   }
 
   return appointmentSyncServiceInstance;
 }
-

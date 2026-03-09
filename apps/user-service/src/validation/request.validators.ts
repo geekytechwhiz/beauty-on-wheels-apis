@@ -108,7 +108,7 @@ export function validateGetOrganizationUserCount(req: any) {
 
 export function validateActivateDeactivateUser(req: any) {
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
+  const organizationID = req?.context?.userContext?.organizationId ?? body.organizationID;
   const patientUserId = body.patientUserId ?? req?.context?.user?.userId;
   const payload = { ...body, organizationID, patientUserId };
   const result = activateDeactivateUserSchema.safeParse(payload);

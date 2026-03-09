@@ -6,9 +6,11 @@ const userService = new UserService();
 
 const handler = async (req: LambdaRequest<any> & { validatedActivateDeactivate?: { action: string; organizationID: string; patientUserId: string } }) => {
   const { action, organizationID, patientUserId } = req.validatedActivateDeactivate!;
-  const { correlationId } = req.context;
+  const { correlationId, userContext } = req.context;
+  // Prefer organizationId from the authorization token; fall back to request body value
+  const resolvedOrganizationId = userContext?.organizationId ?? organizationID;
   const actionNorm = action.toUpperCase() as 'ACTIVATE' | 'DEACTIVATE';
-  await userService.activateDeactivateUser(organizationID, patientUserId, actionNorm, correlationId);
+  await userService.activateDeactivateUser(resolvedOrganizationId, patientUserId, actionNorm, correlationId);
   return { message: actionNorm === 'ACTIVATE' ? 'User activated' : 'User deactivated' };
 };
 

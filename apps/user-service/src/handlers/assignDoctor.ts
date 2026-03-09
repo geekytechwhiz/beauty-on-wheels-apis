@@ -11,7 +11,7 @@ interface Body {
   isReferred?: boolean;
 }
 
-const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
+const assignDoctorHandler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   const body = req.body!;
   const { organizationId, sender, receiver, isReferred } = body;
   const { correlationId } = req.context;
@@ -19,6 +19,6 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return { message: 'Patient assigned to doctor successfully!' };
 };
 
-export const main = withLambdaHandler(handler, {
+export const handler = withLambdaHandler(assignDoctorHandler, {
   validator: validateAssignDoctor,
 });

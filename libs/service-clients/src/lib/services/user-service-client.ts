@@ -53,7 +53,15 @@ export class UserServiceClient extends BaseClient {
     );
 
     return response?.users ?? [];
-  }
-
+  } 
 
 }
+
+let userServiceClientInstance: UserServiceClient | null = null;
+
+export function getUserServiceClient(): UserServiceClient {
+  if (!userServiceClientInstance) {
+    userServiceClientInstance = new UserServiceClient();
+  }
+  return userServiceClientInstance;
+}   

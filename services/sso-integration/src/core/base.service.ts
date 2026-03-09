@@ -1,11 +1,12 @@
 import { createChildLogger, createLogger } from '@api-hub/logger';
-import { getTruTechAdapter } from '../adapters/trutech.adapter.ts';
-import { getUserServiceClient } from '../clients/user.client';
+import { getTruTechAdapter } from '../adapters/trutech.adapter.ts'; 
 import { CognitoService } from '../services/cognito.service';
 import { getPatientEventPublisher } from '../services/patient-event-publisher.service';
 import { getSSOConfig } from '../config/sso-config';
 import { getServiceTokenService } from '../services/service-token.service';
 import { getTruTechClient } from '../clients/tru-tech.clients.js';
+import { getSSOUserServiceClient } from '../clients/user.client';
+import {  getUserServiceClient } from '@api-hub/service-clients';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -22,15 +23,15 @@ export class BaseService {
   protected readonly patientEventPublisher;
   protected readonly config;
   protected readonly serviceTokenService;
-
-  constructor(component: string) {
-
+  protected readonly ssoUserServiceClient;
+  constructor(component: string) { 
     this.logger = createChildLogger(baseLogger, {
       component
     });
 
     this.truTechAdapter = getTruTechAdapter();
     this.userServiceClient = getUserServiceClient();
+    this.ssoUserServiceClient = getSSOUserServiceClient();  
     this.truTechClient = getTruTechClient();
     this.cognitoService = new CognitoService();
     this.patientEventPublisher = getPatientEventPublisher();

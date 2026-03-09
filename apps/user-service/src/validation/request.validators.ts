@@ -97,7 +97,7 @@ export function validateValidateUsers(req: any) {
 }
 
 export function validateGetOrganizationUserCount(req: any) {
-  const organizationId = req?.params?.organizationId ?? req?.context?.user?.organizationId;
+  const organizationId = req?.params?.organizationId ?? req?.context?.userContext?.organizationId;
   if (!organizationId?.trim()) {
     const err: any = new Error('Organization ID not found in token');
     err.statusCode = 401;
@@ -108,7 +108,7 @@ export function validateGetOrganizationUserCount(req: any) {
 
 export function validateActivateDeactivateUser(req: any) {
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
+  const organizationID = req?.context?.userContext?.organizationId ?? body.organizationID;
   const patientUserId = body.patientUserId ?? req?.context?.user?.userId;
   const payload = { ...body, organizationID, patientUserId };
   const result = activateDeactivateUserSchema.safeParse(payload);

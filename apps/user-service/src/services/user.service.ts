@@ -1496,7 +1496,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
    * This implements the logic from the legacy applyValidation function
    */
   async getUserWithOrganizationDetails(
-    userId: string,
+    patientId: string,
     organizationId: string,
     requestingUserId?: string,
     defaultProfile?: string,
@@ -1504,19 +1504,17 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     authHeader?: string,
   ): Promise<any> {
     const timer = createPerformanceTimer(baseLogger, 'getUserWithOrganizationDetails');
-    const logger = createChildLogger(baseLogger, { userId, organizationId, requestingUserId });
+    const logger = createChildLogger(baseLogger, { patientId, organizationId, requestingUserId });
     logger.info({ event: 'service_getUserWithOrganizationDetails_start' });
 
     try {
       // Handle default profile (family member access)
-      let actualUserId = userId;
+      let actualUserId = patientId;
       let fnfDetails: User | null = null;
 
       if (defaultProfile && defaultProfile !== '') {
         actualUserId = defaultProfile;
-        fnfDetails = await this.repository.getUser(userId, organizationId);
-      } else if (!actualUserId) {
-        actualUserId = requestingUserId || userId;
+        fnfDetails = await this.repository.getUser(patientId, organizationId);
       }
 
       // First, try to get the user using the organizationId (new schema: pk=ORG#orgId, sk=USER#userId)
@@ -1531,7 +1529,10 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       // Get organization details (matches original: getOrgBasicDetails from USER_TABLE)
       let orgBasicDetails: any = null;
-      const userOrgId = userBasicDetails.organizationID || organizationId;
+      // Prefer organizationId from the request when provided; fall back to user's stored organizationID
+      const userOrgId = (organizationId && organizationId.trim() !== '')
+        ? organizationId
+        : userBasicDetails.organizationID;
       if (userOrgId && userOrgId !== 'ROOT') {
         // First try getOrgBasicDetails from USER_TABLE (matches original flow)
         orgBasicDetails = await this.organizationRepository.getOrgBasicDetails(userOrgId);
@@ -1959,7 +1960,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         userType: userCategory,
         userCat: Array.isArray(userBasicDetails.userCat) ? userBasicDetails.userCat : (userBasicDetails.userCat ? [userBasicDetails.userCat] : []),
         fnfDetails: fnfDetails ? {
-          userID: userId,
+          userID: actualUserId,
           firstName: fnfDetails.firstName || '',
           middleName: fnfDetails.middleName || '',
           lastName: fnfDetails.lastName || '',

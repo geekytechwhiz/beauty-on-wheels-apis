@@ -4,7 +4,7 @@
   "sourceRoot": "apps/device-service/src",
   "targets": {
     "build": {
-      "executor": "@nrwl/node:build",
+      "executor": "@nx/js:tsc",
       "options": {
         "outputPath": "dist/apps/device-service",
         "main": "apps/device-service/src/index.ts",
@@ -12,7 +12,7 @@
       }
     },
     "test": {
-      "executor": "@nrwl/jest:jest",
+      "executor": "@nx/jest:jest",
       "options": {
         "jestConfig": "apps/device-service/jest.config.ts",
         "passWithNoTests": true

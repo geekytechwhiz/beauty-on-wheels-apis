@@ -2,7 +2,7 @@
 import { DoctorCreationPayload } from '../types/user-creation.types';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor'; 
-import { TruTechVerifyContext } from '../types/appointment.types';
+import { CreateUserPayload, TruTechVerifyContext } from '../types/appointment.types';
 import { SSOError } from '../types/errors/sso-error';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -77,7 +77,7 @@ export class CreateDoctorMapper {
       sunday: defaultWorkingHours,
     };
 
-    const payload: DoctorCreationPayload = {
+    const payload: DoctorCreationPayload | CreateUserPayload = {
       userInfo: {
         name: doctorName.trim(),
         namePrefix: config.doctor.namePrefix,
@@ -100,16 +100,22 @@ export class CreateDoctorMapper {
       organizationID: config.defaultOrganizationID,
       externalId: externalId,
       provider: 'TruTech', 
-      subDomain: subDomain || verifiedPayload.tenant_id 
-    };
+      subDomain: subDomain || verifiedPayload.tenant_id  ,
+      role: config.doctorRoleId,
+      source: 'TruTech',
+      email: doctorEmail.trim(),
+      phone: phoneProcessed.phoneNumber,
+      firstName: doctorName.trim(),
+      lastName: doctorName.trim(),
+    } as DoctorCreationPayload;
 
     logger.info({
       event: 'doctor_mapping_success',
-      doctorName: payload.userInfo.name,
-      hasPhone: !!payload.userInfo.contact.phone,
+      doctorName: (payload as DoctorCreationPayload).userInfo.name,
+      hasPhone: !!(payload as DoctorCreationPayload).userInfo.contact.phone,
     });
 
-    return payload;
+    return payload as DoctorCreationPayload;
   }
 }
 

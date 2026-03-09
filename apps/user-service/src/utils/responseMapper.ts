@@ -86,7 +86,8 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
       definedRoleCode: String(item.definedRoleCode ?? ''),
       createdDate: Number(item.createdDate ?? item.createdAt ?? 0),
       modifiedDate: Number(item.modifiedDate ?? 0),
-      status: item.status !== undefined ? Boolean(item.status) : true,
+      // status mirrors isActive: if not stored in DB, derive from isActive
+      status: item.status !== undefined ? Boolean(item.status) : (item.isActive !== undefined ? Boolean(item.isActive) : true),
       createdAt: Number(item.createdAt ?? item.createdDate ?? Date.now()),
       specialty: item.specialty ? String(item.specialty) : undefined,
       department: item.department ? String(item.department) : undefined,

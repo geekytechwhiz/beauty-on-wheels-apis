@@ -1,5 +1,5 @@
 
-export interface User {
+export interface User{
   pk: string;
   sk: string;
   acceptedAppForms?: Array<{
@@ -51,6 +51,8 @@ export interface User {
   };
   invitedBy?: string;
   invitedID?: string;
+  invitedDate?: string;
+  tokenUpdatedAt?: number;
   isActive?: boolean;
   isLoggedIn?: boolean;
   isRegisteredCompletely?: boolean;

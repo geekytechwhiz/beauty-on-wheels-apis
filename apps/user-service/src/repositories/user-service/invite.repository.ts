@@ -14,8 +14,7 @@ const baseLogger = createLogger({
   redactPII: true,
 });
 
-const USER_TABLE = process.env.USER_TABLE || '';
-const TASKS_TABLE = process.env.TASKS_TABLE;
+const USER_TABLE = process.env.USER_TABLE || ''; 
 
 export interface InviteUpdateOptions {
   email?: boolean;

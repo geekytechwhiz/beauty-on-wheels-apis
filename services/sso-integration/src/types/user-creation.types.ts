@@ -35,6 +35,13 @@ export interface DoctorCreationPayload {
   externalId: string;
   provider: string;
   subDomain: string;
+  tenantId: string;
+  role: string;
+  source: string;
+  email: string;
+  phone: string;
+  firstName: string;
+  lastName: string;
 }
 
 /**

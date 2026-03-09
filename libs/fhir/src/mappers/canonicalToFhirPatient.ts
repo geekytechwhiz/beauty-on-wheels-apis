@@ -2,7 +2,7 @@
  * Maps canonical Patient to FHIR R4 Patient.
  * Deterministic and profile-aware (r4).
  */
-import type { Patient } from '@api-hub/canonical';
+
 
 export type FhirVersion = 'r4' | 'r5';
 
@@ -37,8 +37,8 @@ export interface FhirPatient {
  * Maps canonical Patient to FHIR Patient. Deterministic for given profile/version.
  */
 export function canonicalToFhirPatient(
-  canonical: Patient,
-  _profileName: string = 'Patient',
+  canonical: any,
+  _profileName = 'Patient',
   _fhirVersion: FhirVersion = 'r4'
 ): FhirPatient {
   const patient: FhirPatient = {

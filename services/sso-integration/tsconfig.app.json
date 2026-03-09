@@ -13,7 +13,13 @@
   "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
   "references": [
     {
-      "path": "../../libs/utils/tsconfig.json"
+      "path": "../../libs/utils"
+    },
+    {
+      "path": "../../libs/service-clients/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/logger/tsconfig.lib.json"
     }
   ]
 }

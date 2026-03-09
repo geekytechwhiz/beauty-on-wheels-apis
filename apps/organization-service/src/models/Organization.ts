@@ -68,12 +68,13 @@ export interface Organization {
   industry?: string;
   size?: 'SMALL' | 'MEDIUM' | 'LARGE';
   integration?: Integration;
+  sourceSystem: string; // TruTech
 }
 export interface Integration {
-  providerId: string;
-  providerName?: string;
-  integrationType: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE';
-  externalHospitalId?: string;
-  subdomain?: string;
-  metadata?: Record<string, unknown>;
+  providerId: string; // TueTech
+  providerName?: string; // provider name from the provider service
+  integrationType: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE'; // integration type from the provider service
+  externalHospitalId?: string; // external hospital id from the provider service
+  subdomain?: string; // subdomain from the provider service
+  metadata?: Record<string, unknown>; // metadata from the provider service
 }

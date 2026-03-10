@@ -90,14 +90,7 @@ async function processPatientCreationEvent(
   });
 
   // Generate service token for user service authentication
-  const serviceToken = serviceTokenService.generateToken(
-    tenantId,
-    {
-      userId: doctorId as string,
-      role: 'DOCTOR',
-    },
-    correlationId,
-  );
+   
   const context = buildSchedulerContext(
     tenantId,
     correlationId

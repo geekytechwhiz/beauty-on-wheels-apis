@@ -10,6 +10,7 @@ import { getAppointmentSyncService } from '../services/appointment-sync.service'
 import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
 import { SSOError } from '../types/errors/sso-error';
 import { loadEnvConfig } from '../config/env';
+import { buildSchedulerContext } from '../context/context-factory';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -63,9 +64,14 @@ export class AppointmentSyncController {
     try {
       const doctorId = this.extractDoctorIdFromQuery(event, correlationId);
 
+      const context = buildSchedulerContext(
+        doctorId?.toString(), // tenantId
+        correlationId
+      );
+
       const result = await this.appointmentSyncService.syncAppointments(
         doctorId,
-        correlationId,
+        context,
       );
 
       const duration = Date.now() - startTime;
@@ -88,16 +94,10 @@ export class AppointmentSyncController {
         {
           title: 'Success',
           description: 'Appointment sync completed successfully',
+          severity: 'SUCCESS',
         },
-        {
-          requestId: correlationId,
-          event,
-          headers: {
-            'X-Correlation-Id': correlationId,
-            'Cache-Control': 'private, max-age=60',
-            ...rateLimitHeaders,
-          },
-        },
+        { requestId: correlationId, headers: { 'X-Correlation-Id': correlationId, 'Cache-Control': 'private, max-age=60', ...rateLimitHeaders } },
+        { code: 'SUCCESS' },
       );
     } catch (error) {
       const duration = Date.now() - startTime;

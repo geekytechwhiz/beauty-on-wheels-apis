@@ -23,7 +23,7 @@ const baseLogger = createLogger({
 export class CognitoService {
   private readonly client: CognitoIdentityProviderClient;
   private readonly userPoolId = process.env.COGNITO_USER_POOL_ID;
-  private readonly clientId = process.env.COGNITO_APP_CLIENT_ID;
+  private readonly clientId = process.env.COGNITO_CLIENT_ID;
 
   private readonly logger = createChildLogger(baseLogger, {
     component: 'CognitoService',
@@ -51,7 +51,7 @@ export class CognitoService {
       this.logger.error({
         event: 'cognito_service_init_missing_client_id',
       });
-      throw new Error('COGNITO_APP_CLIENT_ID not configured');
+      throw new Error('COGNITO_CLIENT_ID not configured');
     }
   }
 

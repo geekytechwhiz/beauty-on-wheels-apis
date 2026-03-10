@@ -13,6 +13,7 @@ import { LaunchProcessResult } from "../types/launch.types";
 
     token: result.serviceToken.token,
     expiresIn: result.serviceToken.expiresIn,
+    refreshToken: result.serviceToken.refreshToken,
     userId: result.serviceToken.userId,
     role: result.serviceToken.role
   };

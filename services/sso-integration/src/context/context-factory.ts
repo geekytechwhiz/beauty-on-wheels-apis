@@ -1,5 +1,4 @@
 import { RequestContext } from './request-context';
-import { getServiceTokenService } from '../services/service-token.service';
 import {
   deriveTenantIdFromIntegration,
   IntegrationMetadata,
@@ -18,19 +17,12 @@ export async function buildSchedulerContext(
       ? tenantOrIntegration
       : deriveTenantIdFromIntegration(tenantOrIntegration);
 
-  const token = await getServiceTokenService().generateToken(
-    tenantId,
-    {
-      userId: 'SYSTEM',
-      role: 'SERVICE',
-    },
-    correlationId
-  );
-
   return {
     correlationId,
     tenantId,
-    serviceToken: token.token,
+    // Scheduler and other internal flows use the special
+    // service-to-service token recognized by the authorizer.
+    serviceToken: 'service-token',
     source: 'scheduler',
     ...(integration && {
       integration,

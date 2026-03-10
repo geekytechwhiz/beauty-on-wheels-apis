@@ -244,11 +244,11 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          # authorizer:
-          #   name: authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
 
 

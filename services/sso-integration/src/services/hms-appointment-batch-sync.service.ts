@@ -69,7 +69,7 @@ export class HmsAppointmentBatchSyncService {
 
       const appointments =
         await this.hmsAppointmentsProvider.getAppointmentsForDoctorsInRange(
-          [],
+          doctorIds,
           startDate,
           endDate,
           context.correlationId,

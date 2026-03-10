@@ -8,6 +8,12 @@ import { SSOError } from '../types/errors/sso-error';
 
 import { RequestContext } from '../context/request-context';
 import { UserServiceClient } from '@api-hub/service-clients';
+import {
+  ExternalIdentity,
+  IntegrationMetadata,
+  UserSourceSystem,
+} from '../types/integration.types';
+import { CognitoService } from '../services/cognito.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -25,6 +31,22 @@ export class SSOUserServiceClient extends UserServiceClient {
       'X-Correlation-Id': context.correlationId,
       Authorization: `Bearer ${context.serviceToken}`,
     };
+  }
+
+  private buildExternalIdentity(
+    integration: IntegrationMetadata | undefined,
+    externalUserId: string,
+  ): ExternalIdentity | undefined {
+    if (!integration) return undefined;
+
+    return {
+      providerId: integration.providerId,
+      externalUserId,
+    };
+  }
+
+  private getSourceSystem(context: RequestContext): UserSourceSystem | undefined {
+    return context.sourceSystem;
   }
 
   async  findByExternalId(
@@ -115,6 +137,73 @@ export class SSOUserServiceClient extends UserServiceClient {
     }
   }
 
+  async findByExternalIdentity(
+    providerId: string,
+    externalUserId: string,
+    tenantId: string,
+    context: RequestContext,
+  ): Promise<User | null> {
+    return this.findByExternalId(
+      {
+        provider: providerId,
+        externalId: externalUserId,
+        tenantId,
+      },
+      context,
+    );
+  }
+
+  async findOrCreateUserFromExternalIdentity(
+    params: {
+      integration?: IntegrationMetadata;
+      externalUserId: string;
+      tenantId: string;
+      email?: string;
+      createUser: () => Promise<User>;
+    },
+    context: RequestContext,
+  ): Promise<User> {
+    const { integration, externalUserId, tenantId, email, createUser } = params;
+
+    const providerId =
+      integration?.providerId ??
+      context.integration?.providerId ??
+      'TruTech';
+
+    const existingByExternal = await this.findByExternalIdentity(
+      providerId,
+      externalUserId,
+      tenantId,
+      context,
+    );
+
+    if (existingByExternal) {
+      return existingByExternal;
+    }
+
+    if (email) {
+      const cognito = new CognitoService();
+      const cognitoUser = await cognito.findUserByEmail(email);
+
+      if (cognitoUser) {
+        // If user already exists in Cognito, skip creation
+        const logger = createChildLogger(baseLogger, {
+          correlationId: context.correlationId,
+        });
+
+        logger.info({
+          event: 'user_creation_skipped_cognito_exists',
+          email,
+        });
+
+        // Caller can decide how to handle "exists in Cognito but not in user service"
+        return existingByExternal as User | null as unknown as User;
+      }
+    }
+
+    return createUser();
+  }
+
   async createUser(
     payload: DoctorCreationPayload,
     context: RequestContext
@@ -148,6 +237,15 @@ export class SSOUserServiceClient extends UserServiceClient {
           phone: payload.phone,
           first_name: payload.firstName,
           last_name: payload.lastName,
+          ...(this.buildExternalIdentity(context.integration, payload.externalId) && {
+            externalIdentity: this.buildExternalIdentity(
+              context.integration,
+              payload.externalId,
+            ),
+          }),
+          ...(this.getSourceSystem(context) && {
+            sourceSystem: this.getSourceSystem(context),
+          }),
         },
         {
           headers: this.buildHeaders(context),
@@ -226,6 +324,15 @@ export class SSOUserServiceClient extends UserServiceClient {
         '/user',
         {
           ...doctorPayload,
+          ...(this.buildExternalIdentity(context.integration, doctorPayload.externalId) && {
+            externalIdentity: this.buildExternalIdentity(
+              context.integration,
+              doctorPayload.externalId,
+            ),
+          }),
+          ...(this.getSourceSystem(context) && {
+            sourceSystem: this.getSourceSystem(context),
+          }),
         },
         {
           headers: this.buildHeaders(context),
@@ -311,6 +418,15 @@ export class SSOUserServiceClient extends UserServiceClient {
           provider,
           tenant_id: tenantId,
           ...patientPayload,
+          ...(this.buildExternalIdentity(context.integration, externalId) && {
+            externalIdentity: this.buildExternalIdentity(
+              context.integration,
+              externalId,
+            ),
+          }),
+          ...(this.getSourceSystem(context) && {
+            sourceSystem: this.getSourceSystem(context),
+          }),
         },
         {
           headers: this.buildHeaders(context),

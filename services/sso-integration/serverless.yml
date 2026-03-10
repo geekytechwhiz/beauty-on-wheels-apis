@@ -63,6 +63,7 @@ provider:
 
     HMS_SYNC_SCHEDULE_EXPRESSION: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
     REGISTERED_HMS_DOCTOR_IDS: 4
+    INTEGRATION_PROVIDER_AFRICA_HMS: africa-hms
     
   iamRoleStatements:
     - Effect: Allow

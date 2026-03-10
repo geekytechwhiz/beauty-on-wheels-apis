@@ -12,6 +12,10 @@ export interface AppointmentSyncResult {
   skipped: number;
   failed: number;
   pending: number;
+  total?: number;
+  duplicates?: number;
+  conflicts?: number;
+  validationFailed?: number;
   details?: {
     synced: string[]; // scheduleIds
     skipped: string[]; // externalAppointmentIds
@@ -38,6 +42,12 @@ export interface ScheduleMeta {
   externalAppointmentId: string;
   consultationType?: string;
   visitId?: number;
+  integration?: {
+    providerId: string;
+    subdomain: string;
+    externalHospitalId?: string;
+  };
+  sourceSystem?: string;
 }
 
 export interface ScheduleCreateRequest {

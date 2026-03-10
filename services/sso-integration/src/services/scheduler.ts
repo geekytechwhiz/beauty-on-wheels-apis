@@ -10,7 +10,7 @@ export const handler = async () => {
 
   const tenantId = process.env.DEFAULT_ORG_ID as string;
 
-  const context = buildSchedulerContext(
+  const context = await buildSchedulerContext(
     tenantId,
     correlationId
   );

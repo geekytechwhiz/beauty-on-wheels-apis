@@ -4,4 +4,5 @@ export * from './external/trutech.types';
 export * from './common/context.types';
 export * from './user/user.types';
 export * from './appointment-sync.types';
+export * from './integration.types';
  

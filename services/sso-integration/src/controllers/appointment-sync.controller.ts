@@ -11,6 +11,7 @@ import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.mi
 import { SSOError } from '../types/errors/sso-error';
 import { loadEnvConfig } from '../config/env';
 import { buildSchedulerContext } from '../context/context-factory';
+import { IntegrationMetadata } from '../types/integration.types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -64,8 +65,10 @@ export class AppointmentSyncController {
     try {
       const doctorId = this.extractDoctorIdFromQuery(event, correlationId);
 
+      const integration = this.extractIntegration(event);
+
       const context = await buildSchedulerContext(
-        doctorId?.toString(), // tenantId
+        integration ?? doctorId.toString(),
         correlationId
       );
 
@@ -81,11 +84,14 @@ export class AppointmentSyncController {
         durationMs: duration,
         doctorId,
         summary: {
-          total: result.totalAppointments,
+          total: result.total ?? result.totalAppointments,
           synced: result.synced,
           skipped: result.skipped,
           failed: result.failed,
           pending: result.pending,
+          duplicates: result.duplicates ?? 0,
+          conflicts: result.conflicts ?? 0,
+          validationFailed: result.validationFailed ?? 0,
         },
       });
 
@@ -153,6 +159,45 @@ export class AppointmentSyncController {
     }
 
     return doctorId;
+  }
+
+  private extractIntegration(
+    event: APIGatewayProxyEvent,
+  ): IntegrationMetadata | undefined {
+    if (event.body) {
+      try {
+        const parsed = JSON.parse(event.body) as {
+          integration?: IntegrationMetadata;
+        };
+        if (parsed.integration?.providerId && parsed.integration?.subdomain) {
+          return {
+            providerId: parsed.integration.providerId,
+            subdomain: parsed.integration.subdomain,
+            externalHospitalId: parsed.integration.externalHospitalId,
+          };
+        }
+      } catch {
+        // Ignore body parse errors and fall through to query parsing
+      }
+    }
+
+    const qs = event.queryStringParameters;
+    if (qs?.integration) {
+      try {
+        const parsed = JSON.parse(qs.integration) as IntegrationMetadata;
+        if (parsed.providerId && parsed.subdomain) {
+          return {
+            providerId: parsed.providerId,
+            subdomain: parsed.subdomain,
+            externalHospitalId: parsed.externalHospitalId,
+          };
+        }
+      } catch {
+        // Ignore query parse errors
+      }
+    }
+
+    return undefined;
   }
 
   private errorResponse(

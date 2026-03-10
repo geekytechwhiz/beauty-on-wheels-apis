@@ -1,4 +1,5 @@
 import { Appointment, User } from '../types';
+import { UserSourceSystem } from '../types/integration.types';
 import { ScheduleCreateRequest } from '../types/appointment-sync.types';
 
 export class AppointmentMapper {
@@ -43,6 +44,7 @@ export class AppointmentMapper {
         externalAppointmentId,
         consultationType: appointment.consultationType?.name,
         visitId: appointment.visit?.id,
+        sourceSystem: UserSourceSystem.AFRICA_HMS,
       },
     };
   }

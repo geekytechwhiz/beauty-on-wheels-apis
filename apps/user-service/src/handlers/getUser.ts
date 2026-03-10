@@ -14,10 +14,23 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  // const userId = req.params.userId ?? req.context.userContext?.userId!;
-  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId!;
+  // Supports API Gateway (pathParameters), direct Lambda invocations (params),
+  // and nested-data Lambda invocations: { data: { userID, organizationID } }
+  const directData = (req.event as any)?.data;
+  const userId = (
+    req.pathParameters?.userId ??
+    req.params.userId ??
+    directData?.userID ??
+    directData?.userId ??
+    req.context.userContext?.userId
+  ) as string;
+  const organizationId = (
+    req.params.organizationId ??
+    directData?.organizationID ??
+    directData?.organizationId ??
+    req.context.userContext?.organizationId
+  ) as string;
   const userType = req.params.userType;
-  const userId = req.pathParameters?.userId as string;
 
   const user = await userService.getUser(userId, organizationId);
   if (!user || typeof user !== 'object') {

@@ -110,6 +110,15 @@ export const handler = async (
     assignDoctor: body?.userInfo?.assignDoctor,
     roleName,
     definedRoleCode,
+    // Optional SSO / external metadata forwarded to Cognito as custom attributes
+    providerId: body.providerId ?? body.provider,
+    externalUserId: body.externalUserId ?? body.externalId,
+    subdomain: body.subdomain ?? body.subDomain,
+    organizationExternalId:
+      body.organizationExternalId ??
+      body.organizationExternalID ??
+      body.organizationId ??
+      body.tenantId,
   });
 
   if (roleIds.length > 0) {

@@ -174,10 +174,10 @@ export class AppointmentSyncService extends BaseService {
       };
     }
     const doctor = {
-      id: doctorAttributes?.doctorUid,
+      id: doctorAttributes?.doctorUid || context.correlationId || 'default',
       externalId: doctorId,
       provider: 'TruTech',
-      tenantId: context.tenantId,
+      tenantId: context.correlationId || 'default',
       status: 'ACTIVE',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -249,14 +249,7 @@ export class AppointmentSyncService extends BaseService {
       patientExternalId: appointment.patient.id,
     });
 
-    const user = await this.ssoUserServiceClient.findByExternalId(
-      {
-        provider: 'TruTech',
-        externalId: String(appointment.patient.id),
-        tenantId: context.tenantId,
-      },
-      context
-    );
+    const user = await this.cognitoService.findUserByEmail(appointment.patient.email || '');
 
     if (!user) {
       logger.info({
@@ -268,11 +261,19 @@ export class AppointmentSyncService extends BaseService {
 
     logger.info({
       event: 'patient_validation_success',
-      patientExternalId: appointment.patient.id,
-      userId: user.id,
+      patientExternalId: appointment.patient.id,  
+      userId: user?.doctorUid,
     });
 
-    return user;
+    return {
+      id: user?.doctorUid,
+      externalId: String(appointment.patient.id),
+      provider: 'TruTech',
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tenantId: context.tenantId,
+    };
   }
 
   private async checkDuplicateSchedule(

@@ -64,7 +64,7 @@ export class AppointmentSyncController {
     try {
       const doctorId = this.extractDoctorIdFromQuery(event, correlationId);
 
-      const context = buildSchedulerContext(
+      const context = await buildSchedulerContext(
         doctorId?.toString(), // tenantId
         correlationId
       );
@@ -97,7 +97,7 @@ export class AppointmentSyncController {
           severity: 'SUCCESS',
         },
         { requestId: correlationId, headers: { 'X-Correlation-Id': correlationId, 'Cache-Control': 'private, max-age=60', ...rateLimitHeaders } },
-        { code: 'SUCCESS' },
+        
       );
     } catch (error) {
       const duration = Date.now() - startTime;

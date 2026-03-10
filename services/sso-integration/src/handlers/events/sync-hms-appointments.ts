@@ -42,7 +42,7 @@ export async function handler(event: ScheduledEvent): Promise<void> {
     const end = new Date(today);
     end.setDate(end.getDate() + lookaheadDays);
     const endDate = end.toISOString().slice(0, 10);
-    const context = buildSchedulerContext(
+    const context = await buildSchedulerContext(
       '4', // tenantId
       correlationId
     );

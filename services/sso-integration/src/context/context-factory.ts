@@ -1,12 +1,12 @@
 import { RequestContext } from './request-context';
 import { getServiceTokenService } from '../services/service-token.service';
 
-export function buildSchedulerContext(
+export async function buildSchedulerContext(
   tenantId: string,
   correlationId: string
-): RequestContext {
+): Promise<RequestContext> {
 
-  const token = getServiceTokenService().generateToken(
+  const token = await getServiceTokenService().generateToken(
     tenantId,
     {
       userId: 'SYSTEM',

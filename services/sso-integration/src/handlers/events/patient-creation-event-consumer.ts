@@ -5,7 +5,6 @@ import { getPatientMapperHelper } from '../../helper/patient.mapper';
 import { getSSOUserServiceClient } from '../../clients/user-service.client'; 
 import { PatientCreationEvent } from '../../types/events';
 import { getAppointmentSyncService } from '../../services/appointment-sync.service';
-import { getServiceTokenService } from '../../services/service-token.service';
 import { buildSchedulerContext } from '../../context/context-factory';
  
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -63,7 +62,6 @@ async function processPatientCreationEvent(
   const userServiceClient = getSSOUserServiceClient();
   const patientMapper = getPatientMapperHelper();
   const config = getSSOConfig();
-  const serviceTokenService = getServiceTokenService();
 
   // Parse event from SQS record
   let event: PatientCreationEvent;
@@ -91,7 +89,7 @@ async function processPatientCreationEvent(
 
   // Generate service token for user service authentication
    
-  const context = buildSchedulerContext(
+  const context = await buildSchedulerContext(
     tenantId,
     correlationId
   );

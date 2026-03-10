@@ -88,6 +88,16 @@ export class ScheduleServiceClient {
 
         const axiosError = error as AxiosError;
 
+        if (axiosError.response?.status === 400) {
+          logger.warn({
+            event: 'schedule_fetch_bad_request_treated_as_empty',
+            payload,
+            err: serializeError(axiosError),
+          });
+
+          return [];
+        }
+
         if (axiosError.response?.status === 404) {
 
           logger.info({

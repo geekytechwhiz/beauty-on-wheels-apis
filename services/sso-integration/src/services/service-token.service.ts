@@ -7,7 +7,6 @@ import {
   serializeError
 } from '@api-hub/logger'
 
-import { getEnvConfig } from '../config/env'
 import {
   ServiceTokenContext,
   ServiceTokenResult

@@ -1,10 +1,11 @@
-import { ScheduledEvent } from 'aws-lambda';
 import {
-  createLogger,
   createChildLogger,
+  createLogger,
   serializeError,
 } from '@api-hub/logger';
+import { ScheduledEvent } from 'aws-lambda';
 
+import { buildSchedulerContext } from '../../context/context-factory';
 import { getHmsAppointmentBatchSyncService } from '../../services/hms-appointment-batch-sync.service';
 
 const baseLogger = createLogger({
@@ -13,9 +14,16 @@ const baseLogger = createLogger({
 });
 
 export async function handler(event: ScheduledEvent): Promise<void> {
+  
   const correlationId =
     (event as unknown as { 'X-Correlation-Id'?: string })['X-Correlation-Id'] ||
     `hms-sync-${Date.now()}`;
+
+     
+    const context = buildSchedulerContext(
+      '4', // doctorId
+      correlationId
+    );
 
   const logger = createChildLogger(baseLogger, {
     component: 'SyncHmsAppointmentsHandler',
@@ -30,6 +38,7 @@ export async function handler(event: ScheduledEvent): Promise<void> {
   });
 
   try {
+    
     const today = new Date();
     const startDate = today.toISOString().slice(0, 10);
 
@@ -47,7 +56,7 @@ export async function handler(event: ScheduledEvent): Promise<void> {
     const summary = await batchSyncService.syncAllRegisteredDoctors(
       startDate,
       endDate,
-      correlationId,
+      context,
     );
 
     logger.info({

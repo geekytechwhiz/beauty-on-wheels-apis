@@ -9,6 +9,7 @@ import {
   AdminInitiateAuthCommand,
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
+  InitiateAuthCommand,
   ListUsersCommand,
   UserNotFoundException,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -203,10 +204,10 @@ export class CognitoService {
   
       const temporaryUsername = 'rootadmin@yopmail.com';
       const temporaryPassword = 'common@2026';
-      const cmd = new AdminInitiateAuthCommand({
-        UserPoolId: this.userPoolId!,
+      
+      const cmd = new InitiateAuthCommand({
         ClientId: this.clientId!,
-        AuthFlow: 'ADMIN_NO_SRP_AUTH',
+        AuthFlow: 'USER_PASSWORD_AUTH',
         AuthParameters: {
           USERNAME: temporaryUsername,
           PASSWORD: temporaryPassword,
@@ -214,8 +215,9 @@ export class CognitoService {
       });
 
       const res = await this.client.send(cmd);
-
+      console.log(res);
       const auth = res.AuthenticationResult;
+      console.log(auth);
 
       this.logger.info({
         event: 'cognito_generate_token_success',

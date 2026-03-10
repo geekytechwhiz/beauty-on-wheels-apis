@@ -13,7 +13,7 @@ import {
   ScheduleCreateRequest,
 } from '../types/appointment-sync.types';
 import { SSOError } from '../types/errors/sso-error';
-import { getAppointmentsService } from './appointments.service';
+import { getAppointmentsService } from './appointments.service'; 
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -26,7 +26,7 @@ export class AppointmentSyncService extends BaseService {
   private readonly scheduleClient = getScheduleServiceClient();
   private readonly appointmentMapper = getAppointmentMapper(); 
   private readonly pendingAppointments: PendingAppointment[] = [];
-
+ 
   private readonly maxRetries: number;
   private readonly initialDelayMs: number;
   private readonly maxDelayMs: number;
@@ -40,7 +40,7 @@ export class AppointmentSyncService extends BaseService {
     this.maxRetries = env.APPOINTMENT_SYNC_MAX_RETRIES;
     this.initialDelayMs = env.APPOINTMENT_SYNC_RETRY_DELAY_MS;
     this.maxDelayMs = env.APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS;
-    this.concurrencyLimit = env.APPOINTMENT_SYNC_CONCURRENCY_LIMIT;
+    this.concurrencyLimit = env.APPOINTMENT_SYNC_CONCURRENCY_LIMIT; 
   }
 
   async syncAppointments(
@@ -137,7 +137,24 @@ export class AppointmentSyncService extends BaseService {
       appointmentCount: appointments.length,
     });
 
-    const doctor = await this.validateDoctor(doctorId, context);
+    const doctorEmail = appointments[0].doctor.email || '';
+    const doctorAttributes = await this.cognitoService.findUserByEmail(doctorEmail);
+    console.log("doctorAttributes",doctorAttributes);
+    if (!doctorAttributes) {
+      logger.warn({
+        event: 'doctor_not_found',
+        doctorId,
+      });
+      return {
+        message: 'Doctor not found',
+        totalAppointments: 0,
+        status: 'SUCCESS',
+        synced: 0,
+        skipped: 0,
+        failed: 0,
+        pending: 0,
+      };
+    } 
 
     if (!appointments.length) {
       logger.info({
@@ -156,10 +173,19 @@ export class AppointmentSyncService extends BaseService {
         pending: 0,
       };
     }
+    const doctor = {
+      id: doctorAttributes?.doctorUid,
+      externalId: doctorId,
+      provider: 'TruTech',
+      tenantId: context.tenantId,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
     const results = await this.processAppointments(
       appointments,
-      doctor,
+      doctor as User,
       context
     );
 
@@ -487,9 +513,7 @@ export class AppointmentSyncService extends BaseService {
       (p) => p.patientExternalId === patientExternalId
     );
   }
-
   removePendingAppointment(pending: PendingAppointment): void {
-
     const index = this.pendingAppointments.indexOf(pending);
 
     if (index > -1) {

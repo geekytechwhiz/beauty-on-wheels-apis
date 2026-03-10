@@ -5,8 +5,7 @@ import {
 } from '@api-hub/logger';
 
 import {
-  AdminGetUserCommand,
-  AdminInitiateAuthCommand,
+  AdminGetUserCommand, 
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
@@ -63,36 +62,40 @@ export class CognitoService {
     email: string,
   ): Promise<TruTechVerifiedPayload | null> {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+  
       this.logger.debug({
         event: 'cognito_find_user_by_email_start',
-        email,
+        email: normalizedEmail,
       });
-
+  
       const cmd = new ListUsersCommand({
         UserPoolId: this.userPoolId!,
-        Filter: `email = "${email}"`,
+        Filter: `email = "${normalizedEmail}"`,
         Limit: 1,
       });
-
+  
       const res = await this.client.send(cmd);
-
-      const user = res.Users?.[0];
-
-      if (!user) {
+  
+      if (!res.Users || res.Users.length === 0) {
         this.logger.info({
           event: 'cognito_find_user_by_email_not_found',
-          email,
+          email: normalizedEmail,
         });
+  
         return null;
       }
-
+  
+      const user = res.Users[0];
+  
       const mapped = this.mapUser(user);
-
+  
       this.logger.info({
         event: 'cognito_find_user_by_email_success',
-        email,
+        email: normalizedEmail,
+        cognitoUsername: user.Username,
       });
-
+  
       return mapped;
     } catch (err) {
       this.logger.error({
@@ -100,7 +103,7 @@ export class CognitoService {
         email,
         err: serializeError(err),
       });
-
+  
       throw err;
     }
   }

@@ -60,6 +60,7 @@ export interface TruTechVerifyRequest {
     clinicId?: string;
     sessionId?: string;
     expiresAt?: string;
+    cognitoUsername?: string;
   }
   
   // -----------------------------------------------------------------------------

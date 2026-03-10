@@ -197,34 +197,35 @@ export class CognitoService {
   }
 
   /**
-   * Generate JWT token from Cognito
+   * Generate JWT token from Cognito for a specific user.
+   * For SSO launch, we authenticate using a shared password.
    */
-  async generateToken(username: string, password: string) {
+  async generateToken(username: string, _role?: string) {
     try {
+      const authUsername = username.trim();
+      const authPassword =
+        process.env.COGNITO_SSO_COMMON_PASSWORD || 'common@2026';
+
       this.logger.info({
-        event: 'cognito_generate_token_start', 
+        event: 'cognito_generate_token_start',
+        username: authUsername,
       });
   
-      const temporaryUsername = 'rootadmin@yopmail.com';
-      const temporaryPassword = 'common@2026';
-      
       const cmd = new InitiateAuthCommand({
         ClientId: this.clientId!,
         AuthFlow: 'USER_PASSWORD_AUTH',
         AuthParameters: {
-          USERNAME: temporaryUsername,
-          PASSWORD: temporaryPassword,
+          USERNAME: authUsername,
+          PASSWORD: authPassword,
         },
       });
 
       const res = await this.client.send(cmd);
-      console.log(res);
       const auth = res.AuthenticationResult;
-      console.log(auth);
 
       this.logger.info({
         event: 'cognito_generate_token_success',
-        username,
+        username: authUsername,
       });
 
       return {
@@ -313,6 +314,7 @@ export class CognitoService {
       tenantSubdomain: attributes['custom:tenantSubdomain'],
       doctorEmail: attributes['custom:doctorEmail'] || attributes.email,
       tenantId: attributes['custom:tenantId'],
+      cognitoUsername: user.Username,
     } as TruTechVerifiedPayload;
   }
 }

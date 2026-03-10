@@ -7,7 +7,7 @@ import {
 
 export class UserServiceClient extends BaseClient { 
   constructor(baseUrl?: string) {
-    baseUrl = (baseUrl || process.env.USER_SERVICE_URL || "").replace(/\/$/, "");
+    baseUrl = (baseUrl || process.env.USER_SERVICE_BASE_URL || "").replace(/\/$/, "");
     super(baseUrl, "user-service"); 
   }
 

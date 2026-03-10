@@ -159,11 +159,11 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          authorizer:
-            name: authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # authorizer:
+            # name: authorizer
+            # type: token
+            # identitySource: method.request.header.Authorization
+            # arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   patientEMR:
     handler: src/handlers/http/patient-emr.handler
@@ -185,11 +185,11 @@ functions:
             parameters:
               paths:
                 patientId: true
-          authorizer:
-            name: authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # authorizer:
+          #   name: authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   appointmentSync:
     handler: src/handlers/http/appointment-sync.handler
@@ -207,11 +207,11 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          authorizer:
-            name: authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # authorizer:
+          #   name: authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+            # arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
  
   patientCreationEventConsumer:
     handler: src/handlers/events/patient-creation-event-consumer.handler

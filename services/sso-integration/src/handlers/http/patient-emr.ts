@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
-import { getAppointmentsController } from '../../controllers/appointments.controller';
+import { getAppointmentSyncController } from '../../controllers/appointment-sync.controller';
 
 const logger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -23,8 +23,8 @@ export async function handler(
   });
 
   try {
-    const controller = getAppointmentsController();
-    const result = await controller.handleGetPatientEMR(event);
+    const controller = getAppointmentSyncController();
+    const result = await controller.handleSyncAppointments(event);
 
     logger.info({
       event: 'lambda_invocation_complete',
@@ -43,7 +43,7 @@ export async function handler(
     });
 
     return ApiResponse.internalServerError(
-      'COMMON.INTERNAL_ERROR',
+      { title: 'Internal Server Error', description: 'An unexpected error occurred', severity: 'ERROR' },
       { requestId: correlationId, event },
       { code: 'INTERNAL_ERROR' },
     );

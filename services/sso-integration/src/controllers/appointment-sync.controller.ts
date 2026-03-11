@@ -1,4 +1,3 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import {
   createChildLogger,
   createLogger,
@@ -6,15 +5,14 @@ import {
   serializeError,
 } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
-import { getAppointmentSyncService } from '../services/appointment-sync.service';
-import { getServiceTokenService } from '../services/service-token.service';
-import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
-import { SSOError } from '../types/errors/sso-error';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { loadEnvConfig } from '../config/env';
 import { buildSchedulerContext } from '../context/context-factory';
+import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
+import { getAppointmentSyncService } from '../services/appointment-sync.service';
+import { SSOError } from '../types/errors/sso-error';
 import { IntegrationMetadata } from '../types/integration.types';
-
-const BEARER_PREFIX = /^Bearer\s+/i;
+ 
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 

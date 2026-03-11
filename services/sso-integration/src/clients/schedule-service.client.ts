@@ -90,7 +90,7 @@ export class ScheduleServiceClient {
 
     return {
       'X-Correlation-Id': context.correlationId,
-      Authorization: `Bearer ${context.serviceToken}`,
+      Authorization: `Bearer service_token`,
     };
   }
 

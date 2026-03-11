@@ -11,7 +11,6 @@ import {
   FetchSchedulesRequest,
   PendingAppointment,
   Schedule,
-  ScheduleCreateRequest,
 } from '../types/appointment-sync.types';
 import { getAppointmentsService } from './appointments.service'; 
 import { validateHmsAppointment } from '../validators/appointment.validator';
@@ -532,32 +531,147 @@ export class AppointmentSyncService extends BaseService {
     });
   }
 
-  private async createScheduleWithRetry(
-    request: ScheduleCreateRequest,
+  private async createServiceScheduleWithRetry(
+    appointment: Appointment,
+    doctorUser: User,
+    patientUser: User,
     context: RequestContext
   ): Promise<Schedule> {
 
-    return this.retryWithBackoff(() =>
-      this.scheduleClient.createSchedule(request, context)
-    );
+    return this.retryWithBackoff(async () => {
+      const logger = createChildLogger(this.logger, {
+        correlationId: context.correlationId,
+        appointmentId: appointment.appointmentId,
+      });
+
+      // Step 1: Get available services
+      const getAvailableServicesRequest =
+        this.appointmentMapper.mapAppointmentToGetAvailableServices(
+          appointment,
+          patientUser
+        );
+
+      logger.info({
+        event: 'get_available_services_start',
+        request: getAvailableServicesRequest,
+      });
+
+      const availableServices =
+        await this.scheduleClient.getAvailableServices(
+          getAvailableServicesRequest,
+          context
+        );
+
+      if (!availableServices || availableServices.length === 0) {
+        throw new Error('No available services found');
+      }
+
+      // Use the first available service
+      const orgAddonId = availableServices[0].orgAddonId;
+
+      logger.info({
+        event: 'get_available_services_success',
+        orgAddonId,
+        availableServicesCount: availableServices.length,
+      });
+
+      // Step 2: Recommend services
+      const recommendServicesRequest =
+        this.appointmentMapper.mapAppointmentToRecommendServices(
+          appointment,
+          doctorUser,
+          patientUser,
+          orgAddonId
+        );
+
+      logger.info({
+        event: 'recommend_services_start',
+        request: recommendServicesRequest,
+      });
+
+      const recommendedServices =
+        await this.scheduleClient.recommendServices(
+          recommendServicesRequest,
+          context
+        );
+
+      if (!recommendedServices || recommendedServices.length === 0) {
+        throw new Error('No recommended services found');
+      }
+
+      // Use the first recommended service
+      const userAddonId = recommendedServices[0].userAddonId;
+
+      logger.info({
+        event: 'recommend_services_success',
+        userAddonId,
+        recommendedServicesCount: recommendedServices.length,
+      });
+
+      // Step 3: Create service schedule
+      const createServiceScheduleRequest =
+        this.appointmentMapper.mapAppointmentToCreateServiceSchedule(
+          appointment,
+          doctorUser,
+          patientUser,
+          userAddonId
+        );
+
+      logger.info({
+        event: 'create_service_schedule_start',
+        request: createServiceScheduleRequest,
+      });
+
+      const schedule = await this.scheduleClient.createServiceSchedule(
+        createServiceScheduleRequest,
+        context
+      );
+
+      logger.info({
+        event: 'create_service_schedule_success',
+        scheduleId: schedule.scheduleId,
+      });
+
+      // Step 4: Update service status to confirmed
+      logger.info({
+        event: 'update_service_status_start',
+        addonId: userAddonId,
+        userId: String(patientUser.id),
+      });
+
+      await this.updateServiceStatusWithRetry(
+        userAddonId,
+        String(patientUser.id),
+        context
+      );
+
+      logger.info({
+        event: 'update_service_status_success',
+        addonId: userAddonId,
+        userId: String(patientUser.id),
+      });
+
+      return schedule;
+    });
   }
 
-  private async updateScheduleStatusWithRetry(
-    scheduleId: string,
-    organizationID: string,
+  private async updateServiceStatusWithRetry(
+    addonId: string,
+    userId: string,
     context: RequestContext
-  ): Promise<Schedule> {
+  ): Promise<void> {
 
-    return this.retryWithBackoff(() =>
-      this.scheduleClient.updateScheduleStatus(
+    return this.retryWithBackoff(async () => {
+      await this.scheduleClient.updateServiceStatus(
         {
-          scheduleId,
-          status: 'ACCEPTED',
-          organizationID,
+          addonId,
+          type: 'addon',
+          userId,
+          scheduleStatus: 'confirmed',
         },
         context
-      )
-    );
+      );
+    });
   }
 
   private async processAppointments(
@@ -665,24 +779,13 @@ export class AppointmentSyncService extends BaseService {
             continue;
           }
 
-          const scheduleRequest =
-            this.appointmentMapper.mapAppointmentToSchedule(
+          const schedule =
+            await this.createServiceScheduleWithRetry(
               appointment,
               doctor,
-              patient
-            );
-
-          const schedule =
-            await this.createScheduleWithRetry(
-              scheduleRequest,
+              patient,
               context
             );
-
-          await this.updateScheduleStatusWithRetry(
-            schedule.scheduleId,
-            schedule.organizationID,
-            context
-          );
 
           synced++;
           details.synced.push(externalAppointmentId);
@@ -842,22 +945,11 @@ export class AppointmentSyncService extends BaseService {
           continue;
         }
 
-        const scheduleRequest =
-          this.appointmentMapper.mapAppointmentToSchedule(
-            pendingAppt.appointment,
-            doctor,
-            patient
-          );
-
-        const schedule =
-          await this.createScheduleWithRetry(
-            scheduleRequest,
-            context
-          );
-
-        await this.updateScheduleStatusWithRetry(
-          schedule.scheduleId,
-          schedule.organizationID,
+        // Use the new service-based 3-step flow to create schedule
+        await this.createServiceScheduleWithRetry(
+          pendingAppt.appointment,
+          doctor,
+          patient,
           context
         );
 

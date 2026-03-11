@@ -22,7 +22,7 @@ export async function buildSchedulerContext(
     tenantId,
     // Scheduler and other internal flows use the special
     // service-to-service token recognized by the authorizer.
-    serviceToken: 'service-token',
+    serviceToken: 'bearer service-token',
     source: 'scheduler',
     ...(integration && {
       integration,

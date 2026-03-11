@@ -24,6 +24,14 @@ export async function handler(
     awsRequestId,
     httpMethod: event.httpMethod,
     path: event.path,
+    token: event.headers?.Authorization,
+    tokenType: event.headers?.['Authorization']?.split(' ')[0],
+    tokenValue: event.headers?.['Authorization']?.split(' ')[1],
+    tokenExpiresAt: event.headers?.['Authorization']?.split(' ')[2],
+    tokenIssuedAt: event.headers?.['Authorization']?.split(' ')[3],
+    tokenIssuer: event.headers?.['Authorization']?.split(' ')[4],
+    tokenAudience: event.headers?.['Authorization']?.split(' ')[5],
+    tokenSubject: event.headers?.['Authorization']?.split(' ')[6],
   });
 
   try {

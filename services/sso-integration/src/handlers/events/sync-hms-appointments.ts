@@ -18,6 +18,9 @@ const baseLogger = createLogger({
 
 const BEARER_PREFIX = /^Bearer\s+/i;
 
+/** Literal token accepted for internal/scheduler callers (e.g. API Gateway calling this endpoint). */
+const SERVICE_TOKEN_LITERAL = 'service-token';
+
 function isHttpEvent(event: unknown): event is APIGatewayProxyEvent {
   return (
     typeof event === 'object' &&
@@ -27,7 +30,7 @@ function isHttpEvent(event: unknown): event is APIGatewayProxyEvent {
   );
 }
 
-/** When invoked via HTTP, require and verify service token (same as POST /appointments/sync). */
+/** When invoked via HTTP, require Authorization. Accepts Bearer "service-token" (literal) or a JWT signed with SERVICE_TOKEN_SECRET. */
 function verifyServiceTokenForHttp(
   event: APIGatewayProxyEvent,
   logger: ReturnType<typeof createChildLogger>,
@@ -53,6 +56,11 @@ function verifyServiceTokenForHttp(
       { requestId: event.requestContext?.requestId ?? 'unknown', headers: {} },
       { code: 'UNAUTHORIZED' },
     );
+  }
+
+  // Accept literal "service-token" for internal/scheduler callers (e.g. API Gateway → this endpoint)
+  if (token === SERVICE_TOKEN_LITERAL) {
+    return null;
   }
 
   try {

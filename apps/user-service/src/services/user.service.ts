@@ -175,8 +175,7 @@ export class UserService {
                 userType: String(data.userType || ''),
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
-                role: JSON.stringify(userRoleArray),
-                roleName: roleName,
+                role: JSON.stringify(userRoleArray), 
                 permissions: JSON.stringify(permissionIds),
               },
             }

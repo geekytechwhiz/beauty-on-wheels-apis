@@ -7,11 +7,14 @@ import {
 } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { getAppointmentSyncService } from '../services/appointment-sync.service';
+import { getServiceTokenService } from '../services/service-token.service';
 import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware';
 import { SSOError } from '../types/errors/sso-error';
 import { loadEnvConfig } from '../config/env';
 import { buildSchedulerContext } from '../context/context-factory';
 import { IntegrationMetadata } from '../types/integration.types';
+
+const BEARER_PREFIX = /^Bearer\s+/i;
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -41,6 +44,12 @@ export class AppointmentSyncController {
         correlationId,
         {},
       );
+    }
+
+    // Service-to-service: require and verify service token (not user Cognito JWT)
+    const authError = this.verifyServiceToken(event, logger);
+    if (authError) {
+      return authError;
     }
 
     const rateLimitResult = checkRateLimit(event);
@@ -133,6 +142,54 @@ export class AppointmentSyncController {
     }
   }
 
+  /**
+   * Verifies the request is authorized with a service token (JWT signed with SERVICE_TOKEN_SECRET).
+   * Used for service-to-service calls; do not use user Cognito JWT for this endpoint.
+   * Returns an error response to return, or null if authorized.
+   */
+  private verifyServiceToken(
+    event: APIGatewayProxyEvent,
+    logger: ReturnType<typeof createChildLogger>,
+  ): APIGatewayProxyResult | null {
+    const authHeader =
+      (event.headers?.Authorization as string | undefined) ||
+      (event.headers?.authorization as string | undefined);
+
+    if (!authHeader || !BEARER_PREFIX.test(authHeader)) {
+      logger.warn({ event: 'appointment_sync_service_token_missing' });
+      return this.errorResponse(
+        SSOError.unauthorized('Missing or invalid Authorization header; use Bearer <service-token>'),
+        event,
+        extractCorrelationId(event),
+        {},
+      );
+    }
+
+    const token = authHeader.replace(BEARER_PREFIX, '').trim();
+    if (!token) {
+      logger.warn({ event: 'appointment_sync_service_token_empty' });
+      return this.errorResponse(
+        SSOError.unauthorized('Missing service token'),
+        event,
+        extractCorrelationId(event),
+        {},
+      );
+    }
+
+    try {
+      getServiceTokenService().verifyToken(token);
+      return null;
+    } catch {
+      logger.warn({ event: 'appointment_sync_service_token_invalid' });
+      return this.errorResponse(
+        SSOError.unauthorized('Invalid or expired service token'),
+        event,
+        extractCorrelationId(event),
+        {},
+      );
+    }
+  }
+
   private extractDoctorIdFromQuery(
     event: APIGatewayProxyEvent,
     correlationId: string,
@@ -205,13 +262,12 @@ export class AppointmentSyncController {
     event: APIGatewayProxyEvent,
     correlationId: string,
     additionalHeaders: Record<string, string>,
-  ): Promise<APIGatewayProxyResult> {
+  ): APIGatewayProxyResult {
     return ApiResponse.error(
       error.statusCode,
       { title: 'Error', description: error.message, severity: 'ERROR' },
       {
         requestId: correlationId,
-        event,
         headers: {
           'X-Correlation-Id': correlationId,
           'Cache-Control': 'no-store',

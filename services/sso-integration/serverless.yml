@@ -191,9 +191,10 @@ functions:
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
+  # Service-to-service: do NOT attach Cognito authorizer. Auth is done in Lambda via service token (SERVICE_TOKEN_SECRET).
   appointmentSync:
     handler: src/handlers/http/appointment-sync.handler
-    description: Sync today&apos;s appointments into schedule service
+    description: Sync today's appointments into schedule service (service-to-service; use Bearer service token)
     timeout: 30
     events:
       - http:
@@ -207,11 +208,7 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          # authorizer:
-          #   name: authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-            # arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # No authorizer: caller must send Authorization: Bearer <service-jwt> (signed with SERVICE_TOKEN_SECRET)
  
   patientCreationEventConsumer:
     handler: src/handlers/events/patient-creation-event-consumer.handler

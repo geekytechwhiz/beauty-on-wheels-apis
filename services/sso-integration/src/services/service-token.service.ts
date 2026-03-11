@@ -115,8 +115,8 @@ export class ServiceTokenService {
     // })
 
     return {
-      accessToken: token.accessToken || '',
-      updateToken: token.updateToken || '',
+      accessToken: token.updateToken || '',
+      updateToken: token.accessToken || '',
       refreshToken: token.refreshToken || '',
       expiresIn: token.expiresIn || 0,
       userId: context.userId,

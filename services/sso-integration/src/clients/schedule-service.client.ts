@@ -197,7 +197,7 @@ export class ScheduleServiceClient {
     });
 
     try {
-
+      console.log("getAvailableServices payload", JSON.stringify(payload));
       const response = await this.packageServiceClient.post<GetAvailableServicesResponse>(
         '/services/get-available-services',
         payload,
@@ -255,7 +255,7 @@ export class ScheduleServiceClient {
     });
 
     try {
-
+      console.log("recommendServices payload", JSON.stringify(payload));
       const response = await this.packageServiceClient.post<RecommendServicesResponse>(
         '/services/recommend-services',
         payload,

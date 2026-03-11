@@ -16,6 +16,7 @@ import { validateHmsAppointment } from '../validators/appointment.validator';
 import { SSOError } from '../types/errors/sso-error';
 import { AppointmentsResponse, PatientEMRResponse } from '../types/appointment.types';
 import { fromDateString, toDateString } from '@api-hub/utils';
+import { CONSTANTS } from '../utils/constants';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -735,7 +736,7 @@ export class AppointmentSyncService extends BaseService {
       }
 
       // Use the first available service
-      const orgAddonId = availableServices[0].orgAddonId;
+      const orgAddonId = availableServices[0].orgAddonId
 
       logger.info({
         event: 'get_available_services',
@@ -756,7 +757,7 @@ export class AppointmentSyncService extends BaseService {
         event: 'recommend_services_start',
         request: recommendServicesRequest,
       });
-
+    
       const recommendResult =
         await this.scheduleClient.recommendServices(
           recommendServicesRequest,
@@ -917,9 +918,9 @@ export class AppointmentSyncService extends BaseService {
           const scheduleFetchPayload: FetchSchedulesRequest = {
             fromDate: new Date(appointment.startTime).getTime(),
             toDate: new Date(appointment.endTime).getTime(),
-            organizationID: orgId,
+            organizationID: orgId||CONSTANTS.ORGANIZATION_ID,
             doctorId: String(doctor.id),
-            userId: String(patient.id),
+            userId: patient?.id?String(patient.id): undefined,
           };
 
           const existingSchedules = await this.scheduleClient.fetchSchedules(

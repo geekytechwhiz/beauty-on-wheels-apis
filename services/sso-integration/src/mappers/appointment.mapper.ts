@@ -6,6 +6,7 @@ import {
   RecommendServicesRequest,
   CreateServiceScheduleRequest,
 } from '../types/appointment-sync.types';
+import { CONSTANTS } from '../utils/constants';
 
 export class AppointmentMapper {
   mapAppointmentToSchedule(
@@ -107,8 +108,8 @@ export class AppointmentMapper {
       patientUser.organizationId || appointment.patient.organizationId;
 
     return {
-      organizationId: organizationID,
-      assignOrgId: organizationID,
+      organizationId: organizationID || CONSTANTS.ORGANIZATION_ID,
+      assignOrgId: organizationID || CONSTANTS.ORGANIZATION_ID,
       serviceType: 'addon',
       listingType: 'recommended',
       featureKey: 'doctor_consultancy',
@@ -126,7 +127,7 @@ export class AppointmentMapper {
     orgAddonId: string,
   ): RecommendServicesRequest {
     const organizationID =
-      patientUser.organizationId || appointment.patient.organizationId;
+      patientUser.organizationId || appointment.patient.organizationId || CONSTANTS.ORGANIZATION_ID;
     const scheduleTimeStamp = this.getTimestampString(appointment.startTime);
 
     return {
@@ -137,6 +138,7 @@ export class AppointmentMapper {
       assignedDoctorId: String(doctorUser.id),
       scheduleBy: scheduleTimeStamp,
     };
+    
   }
 
   /**
@@ -163,7 +165,7 @@ export class AppointmentMapper {
     // Extract doctor information
     const doctorName = appointment.doctor.name || '';
     const doctorEmail = appointment.doctor.email || '';
-    const doctorSpecialty = appointment.doctor.department || '';
+    const doctorSpecialty = appointment.doctor.department || 'general';
 
     // Extract patient information
     const patientName = appointment.patient.name || '';

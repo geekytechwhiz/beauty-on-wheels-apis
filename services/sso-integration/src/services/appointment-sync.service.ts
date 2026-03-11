@@ -732,7 +732,7 @@ export class AppointmentSyncService extends BaseService {
       const orgAddonId = availableServices[0].orgAddonId;
 
       logger.info({
-        event: 'get_available_services_success',
+        event: 'get_available_services',
         orgAddonId,
         availableServicesCount: availableServices.length,
       });

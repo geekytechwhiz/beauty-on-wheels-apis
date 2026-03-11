@@ -90,7 +90,8 @@ export class ScheduleServiceClient {
 
     return {
       'X-Correlation-Id': context.correlationId,
-      Authorization: `Bearer service_token`,
+      // Authorization: `Bearer service-token`,
+      Authorization: `Bearer service-token`,
     };
   }
 
@@ -122,7 +123,7 @@ export class ScheduleServiceClient {
           // Check if item has scheduled array
           if (item.scheduled && Array.isArray(item.scheduled)) {
             for (const scheduledItem of item.scheduled) {
-              schedules.push(this.mapScheduledItemToSchedule(scheduledItem));
+              schedules.push(this.mapScheduledItemToSchedule(scheduledItem as unknown as any));
             }
           }
           // Check if item has schedule object

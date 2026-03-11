@@ -356,49 +356,49 @@ export class AppointmentSyncService extends BaseService {
       integrationSubdomain: context.integration?.subdomain,
     });
 
-    const validAppointments: Appointment[] = [];
-    const invalidAppointments: { appointmentId: string | number | undefined; reason: string }[] = [];
+    // const validAppointments: Appointment[] = [];
+    // const invalidAppointments: { appointmentId: string | number | undefined; reason: string }[] = [];
 
-    for (const appointment of appointments) {
-      const result = validateHmsAppointment(appointment);
-      if (!result.valid) {
-        invalidAppointments.push({
-          appointmentId: appointment.appointmentId,
-          reason: result.reason ?? 'invalid_appointment',
-        });
-        this.logger.warn({
-          event: 'appointment_validation_failed',
-          appointmentId: appointment.appointmentId,
-          reason: result.reason,
-          correlationId: context.correlationId,
-          tenantId: context.tenantId,
-          integrationProviderId: context.integration?.providerId,
-          integrationSubdomain: context.integration?.subdomain,
-        });
-        continue;
-      }
-      validAppointments.push(appointment);
-    }
+    // for (const appointment of appointments) {
+    //   const result = validateHmsAppointment(appointment);
+    //   if (!result.valid) {
+    //     invalidAppointments.push({
+    //       appointmentId: appointment.appointmentId,
+    //       reason: result.reason ?? 'invalid_appointment',
+    //     });
+    //     this.logger.warn({
+    //       event: 'appointment_validation_failed',
+    //       appointmentId: appointment.appointmentId,
+    //       reason: result.reason,
+    //       correlationId: context.correlationId,
+    //       tenantId: context.tenantId,
+    //       integrationProviderId: context.integration?.providerId,
+    //       integrationSubdomain: context.integration?.subdomain,
+    //     });
+    //     continue;
+    //   }
+    //   validAppointments.push(appointment);
+    // }
 
-    if (!validAppointments.length) {
-      logger.info({
-        event: 'appointment_sync_no_valid_appointments', 
-        source,
-        invalidCount: invalidAppointments.length,
-      });
+    // if (!validAppointments.length) {
+    //   logger.info({
+    //     event: 'appointment_sync_no_valid_appointments', 
+    //     source,
+    //     invalidCount: invalidAppointments.length,
+    //   });
 
-      return {
-        message: 'No valid appointments found',
-        totalAppointments: 0,
-        status: 'SUCCESS',
-        synced: 0,
-        skipped: 0,
-        failed: 0,
-        pending: 0,
-      };
-    }
+    //   return {
+    //     message: 'No valid appointments found',
+    //     totalAppointments: 0,
+    //     status: 'SUCCESS',
+    //     synced: 0,
+    //     skipped: 0,
+    //     failed: 0,
+    //     pending: 0,
+    //   };
+    // }
 
-    const doctorEmail = validAppointments[0].doctor.email || ''; 
+    const doctorEmail = appointments[0].doctor.email || ''; 
     const doctorAttributes = await this.validateDoctor(
       doctorEmail as unknown as number,
       context
@@ -406,22 +406,22 @@ export class AppointmentSyncService extends BaseService {
     console.log("doctorAttributes",doctorAttributes);
      
 
-    if (!validAppointments.length) {
-      logger.info({
-        event: 'appointment_sync_no_appointments', 
-        source,
-      });
+    // if (!validAppointments.length) {
+    //   logger.info({
+    //     event: 'appointment_sync_no_appointments', 
+    //     source,
+    //   });
 
-      return {
-        message: 'No appointments found',
-        totalAppointments: 0,
-        status: 'SUCCESS',
-        synced: 0,
-        skipped: 0,
-        failed: 0,
-        pending: 0,
-      };
-    }
+    //   return {
+    //     message: 'No appointments found',
+    //     totalAppointments: 0,
+    //     status: 'SUCCESS',
+    //     synced: 0,
+    //     skipped: 0,
+    //     failed: 0,
+    //     pending: 0,
+    //   };
+    // }
     const doctor = {
       id: doctorAttributes?.doctorId || context.correlationId || 'default',
       provider: 'TruTech',
@@ -432,7 +432,7 @@ export class AppointmentSyncService extends BaseService {
     };
 
     const results = await this.processAppointments(
-      validAppointments,
+      appointments,
       doctor as User,
       context
     );
@@ -445,7 +445,7 @@ export class AppointmentSyncService extends BaseService {
 
     return {
       ...results,
-      totalAppointments: validAppointments.length,
+      totalAppointments: appointments.length,
       status: results.failed > 0 ? 'PARTIAL' : 'SUCCESS',
     };
   }

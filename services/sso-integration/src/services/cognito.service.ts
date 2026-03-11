@@ -338,7 +338,8 @@ export class CognitoService {
       userId: claims["custom:userID"],
       organizationId: claims["custom:organizationID"],
       userType: claims["custom:userType"],
-  
+      email: claims.email,
+      phone: claims.phone_number,
       roles: claims["custom:role"]
         ? JSON.parse(claims["custom:role"])
         : [],
@@ -346,10 +347,11 @@ export class CognitoService {
       permissions: claims["custom:permissions"]
         ? JSON.parse(claims["custom:permissions"])
         : [],
-  
-      email: claims.email,
-      phone: claims.phone_number,
-  
+   
+        externalUserId: claims["custom:externalUserId"],
+        providerId: claims["custom:providerId"],
+        subdomain: claims["custom:subdomain"],
+        
       authType: "USER",
     };
   }

@@ -57,7 +57,10 @@ export interface User {
   
     "custom:permissions"?: string;
     "custom:role"?: string;
-  
+    "custom:externalUserId"?: string;
+    "custom:providerId"?: string;
+    "custom:subdomain"?: string;
+    "custom:organizationExternalId"?: string;
     email?: string;
     phone_number?: string;
   
@@ -71,21 +74,31 @@ export interface User {
   } 
 
   export interface CognitoUserContext {
-    principalId: string;
-    organizationId?: string;
-    userId?: string;
-    userType?: UserType;
-  
-    roles?: string[];
     permissions?: string[];
   
     email?: string;
     phone?: string;
   
-    service?: string;
+   
+    principalId: string
   
-    authType: AuthType;
+    organizationId?: string
+    userId?: string
+    userType?: string
+  
+    roles?: string[]
+    refinedRoles?: string[]
+  
+    service?: string
+    externalTenant?: string
+    externalUserId?: string
+    providerId?: string
+
+    subdomain?: string
+    
+    organizationExternalId?: string
+  
+    authType: "USER" | "SERVICE" | "EXTERNAL"
+
   }
-  export interface TruTechAppointmentsRequest {
-    doctor_id: number;
-  }
+ 

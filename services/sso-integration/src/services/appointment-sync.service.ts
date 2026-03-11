@@ -743,7 +743,7 @@ export class AppointmentSyncService extends BaseService {
           appointment,
           doctorUser,
           patientUser,
-          orgAddonId
+          orgAddonId || ''
         );
 
       logger.info({

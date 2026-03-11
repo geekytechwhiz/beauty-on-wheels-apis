@@ -208,9 +208,10 @@ functions:
           batchSize: 10
           functionResponseType: ReportBatchItemFailures
 
+  # Service-to-service (and EventBridge): no Cognito authorizer. When invoked via HTTP, Lambda validates service token.
   syncHmsAppointments:
     handler: src/handlers/events/sync-hms-appointments.handler
-    description: Periodic HMS appointment synchronization from TruTech into schedule service
+    description: Periodic HMS appointment sync from TruTech (scheduler or HTTP; use Bearer service token for HTTP)
     timeout: 900
     memorySize: 512
     events:
@@ -225,11 +226,7 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          authorizer:
-            name: authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # No authorizer: for HTTP callers use Authorization: Bearer <service-jwt> (validated in Lambda)
 
 
 

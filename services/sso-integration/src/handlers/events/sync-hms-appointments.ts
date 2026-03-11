@@ -1,11 +1,14 @@
+import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ScheduledEvent } from 'aws-lambda';
 import {
   createLogger,
   createChildLogger,
   serializeError,
 } from '@api-hub/logger';
+import { ApiResponse } from '@api-hub/utils';
 
 import { getHmsAppointmentBatchSyncService } from '../../services/hms-appointment-batch-sync.service';
+import { getServiceTokenService } from '../../services/service-token.service';
 import { buildSchedulerContext } from '../../context/context-factory';
 
 const baseLogger = createLogger({
@@ -13,10 +16,65 @@ const baseLogger = createLogger({
   redactPII: true,
 });
 
-export async function handler(event: ScheduledEvent): Promise<void> {
-  const correlationId =
-    (event as unknown as { 'X-Correlation-Id'?: string })['X-Correlation-Id'] ||
-    `hms-sync-${Date.now()}`;
+const BEARER_PREFIX = /^Bearer\s+/i;
+
+function isHttpEvent(event: unknown): event is APIGatewayProxyEvent {
+  return (
+    typeof event === 'object' &&
+    event !== null &&
+    'requestContext' in event &&
+    'httpMethod' in event
+  );
+}
+
+/** When invoked via HTTP, require and verify service token (same as POST /appointments/sync). */
+function verifyServiceTokenForHttp(
+  event: APIGatewayProxyEvent,
+  logger: ReturnType<typeof createChildLogger>,
+): APIGatewayProxyResult | null {
+  const authHeader =
+    (event.headers?.Authorization as string | undefined) ||
+    (event.headers?.authorization as string | undefined);
+
+  if (!authHeader || !BEARER_PREFIX.test(authHeader)) {
+    logger.warn({ event: 'sync_hms_service_token_missing' });
+    return ApiResponse.unauthorized(
+      { title: 'Unauthorized', description: 'Missing or invalid Authorization header; use Bearer <service-token>', severity: 'ERROR' },
+      { requestId: event.requestContext?.requestId ?? 'unknown', headers: { 'X-Correlation-Id': event.requestContext?.requestId ?? 'unknown' } },
+      { code: 'UNAUTHORIZED' },
+    );
+  }
+
+  const token = authHeader.replace(BEARER_PREFIX, '').trim();
+  if (!token) {
+    logger.warn({ event: 'sync_hms_service_token_empty' });
+    return ApiResponse.unauthorized(
+      { title: 'Unauthorized', description: 'Missing service token', severity: 'ERROR' },
+      { requestId: event.requestContext?.requestId ?? 'unknown', headers: {} },
+      { code: 'UNAUTHORIZED' },
+    );
+  }
+
+  try {
+    getServiceTokenService().verifyToken(token);
+    return null;
+  } catch {
+    logger.warn({ event: 'sync_hms_service_token_invalid' });
+    return ApiResponse.unauthorized(
+      { title: 'Unauthorized', description: 'Invalid or expired service token', severity: 'ERROR' },
+      { requestId: event.requestContext?.requestId ?? 'unknown', headers: {} },
+      { code: 'UNAUTHORIZED' },
+    );
+  }
+}
+
+export async function handler(
+  event: ScheduledEvent | APIGatewayProxyEvent,
+): Promise<void | APIGatewayProxyResult> {
+  const isHttp = isHttpEvent(event);
+  const correlationId = isHttp
+    ? (event.requestContext?.requestId ?? event.headers?.['X-Correlation-Id'] ?? `hms-sync-${Date.now()}`)
+    : (event as unknown as { 'X-Correlation-Id'?: string })['X-Correlation-Id'] ?? `hms-sync-${Date.now()}`;
 
   const logger = createChildLogger(baseLogger, {
     component: 'SyncHmsAppointmentsHandler',
@@ -27,8 +85,14 @@ export async function handler(event: ScheduledEvent): Promise<void> {
     event: 'lambda_invocation_start',
     handler: 'events/sync-hms-appointments',
     correlationId,
-    detailType: (event as unknown as { 'detail-type'?: string })['detail-type'],
+    source: isHttp ? 'http' : 'scheduler',
+    detailType: isHttp ? undefined : (event as unknown as { 'detail-type'?: string })['detail-type'],
   });
+
+  if (isHttp) {
+    const authError = verifyServiceTokenForHttp(event, logger);
+    if (authError) return authError;
+  }
 
   try {
     const today = new Date();
@@ -60,6 +124,14 @@ export async function handler(event: ScheduledEvent): Promise<void> {
       correlationId,
       summary,
     });
+
+    if (isHttp) {
+      return ApiResponse.ok(
+        { summary },
+        { title: 'Success', description: 'HMS appointment sync completed', severity: 'SUCCESS' },
+        { requestId: correlationId, headers: { 'X-Correlation-Id': correlationId } },
+      );
+    }
   } catch (error) {
     logger.error({
       event: 'lambda_invocation_error',
@@ -67,6 +139,14 @@ export async function handler(event: ScheduledEvent): Promise<void> {
       correlationId,
       err: serializeError(error as Error),
     });
+
+    if (isHttp) {
+      return ApiResponse.internalServerError(
+        { title: 'Error', description: 'HMS appointment sync failed', severity: 'ERROR' },
+        { requestId: correlationId, headers: { 'X-Correlation-Id': correlationId } },
+        { code: 'INTERNAL_ERROR' },
+      );
+    }
 
     // Let the error bubble so EventBridge Scheduler can apply its retry policy
     throw error;

@@ -255,9 +255,9 @@ export class CognitoService {
       });
 
       return {
-        accessToken: auth?.AccessToken,
-        idToken: auth?.IdToken,
-        refreshToken: auth?.RefreshToken,
+        accessToken: auth?.AccessToken,    // Cognito AccessToken
+        updateToken: auth?.IdToken,        // Cognito IdToken
+        refreshToken: auth?.RefreshToken,  // Cognito RefreshToken
         expiresIn: auth?.ExpiresIn,
       };
     } catch (err) {

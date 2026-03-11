@@ -15,6 +15,7 @@ import {
 import { validateHmsAppointment } from '../validators/appointment.validator';
 import { SSOError } from '../types/errors/sso-error';
 import { AppointmentsResponse, PatientEMRResponse } from '../types/appointment.types';
+import { fromDateString, toDateString } from '@api-hub/utils';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -60,10 +61,15 @@ export class AppointmentSyncService extends BaseService {
       integrationSubdomain: context.integration?.subdomain,
     });
 
+
+    const fromDate = fromDateString(0);
+    const toDate = toDateString(5);
+    console.log("fromDate",fromDate);
+    console.log("toDate",toDate); 
     const appointments =
       await this.getAppointmentsForDoctorsInRange( 
-        new Date().toISOString(),
-        new Date().toISOString(),
+        fromDate,
+        toDate,
         context.correlationId
       );
 

@@ -22,3 +22,4 @@ export * from './templates/renderTemplate';
 export * from './templates/template.registry';
 export * from './helper/domain.helper';
 export * from './enums/core';
+export * from './helper/date.helper';

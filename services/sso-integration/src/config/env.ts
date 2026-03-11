@@ -36,7 +36,9 @@ const envSchema = z.object({
 
   USER_SERVICE_BASE_URL: z.string().url('USER_SERVICE_BASE_URL must be a valid URL'),
 
+
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'), 
+
 
   // Secret used to sign and verify internal service-level JWTs issued by the
   // SSO integration service (not Cognito tokens).

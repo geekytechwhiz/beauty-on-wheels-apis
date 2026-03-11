@@ -25,9 +25,9 @@ export interface ServiceTokenContext {
   }
   
   export interface ServiceTokenResult {
-    token: string;
+    accessToken: string;
     expiresIn: number;
-    refreshToken: string;
+    updateToken: string;
     userId: string;
     role: ServiceUserRole;
   }

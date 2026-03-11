@@ -27,7 +27,7 @@ const envSchema = z.object({
   // USER_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'USER_SERVICE_INTERNAL_API_KEY is required'),
 
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'),
-  ROLE_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'ROLE_SERVICE_INTERNAL_API_KEY is required'),
+  // ROLE_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'ROLE_SERVICE_INTERNAL_API_KEY is required'),
 
   // Secret used to sign and verify internal service-level JWTs issued by the
   // SSO integration service (not Cognito tokens).

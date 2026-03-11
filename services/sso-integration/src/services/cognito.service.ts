@@ -5,10 +5,10 @@ import {
 } from '@api-hub/logger';
 
 import {
-  AdminGetUserCommand, 
+  AdminGetUserCommand,
+  AdminInitiateAuthCommand,
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
-  InitiateAuthCommand,
   ListUsersCommand,
   UserNotFoundException,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -211,9 +211,10 @@ export class CognitoService {
         username: authUsername,
       });
   
-      const cmd = new InitiateAuthCommand({
+      const cmd = new AdminInitiateAuthCommand({
+        UserPoolId: this.userPoolId!,
         ClientId: this.clientId!,
-        AuthFlow: 'USER_PASSWORD_AUTH',
+        AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
         AuthParameters: {
           USERNAME: authUsername,
           PASSWORD: authPassword,

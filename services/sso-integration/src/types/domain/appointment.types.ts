@@ -19,8 +19,7 @@ import {  VisitType } from "../enums"
   }
   export interface Patient {
     id: number;
-    mrn: string;
-    dateOfBirth: string;
+    mrn: string; 
     name: string;
     gender: string;
     age: string | null; 

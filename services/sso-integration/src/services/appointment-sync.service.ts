@@ -14,9 +14,10 @@ import {
 } from '../types/appointment-sync.types'; 
 import { validateHmsAppointment } from '../validators/appointment.validator';
 import { SSOError } from '../types/errors/sso-error';
-import { AppointmentsResponse, PatientEMRResponse } from '../types/appointment.types';
+import { AppointmentsResponse,   PatientEMRResponse } from '../types/appointment.types';
 import { fromDateString, toDateString } from '@api-hub/utils';
 import { CONSTANTS } from '../utils/constants';
+import { CognitoUserContext } from '../types/user/user.types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -412,7 +413,7 @@ export class AppointmentSyncService extends BaseService {
 
     const results = await this.processAppointments(
       validAppointments,
-      doctor as User,
+      doctor as unknown as CognitoUserContext,
       context
     );
 
@@ -600,7 +601,7 @@ export class AppointmentSyncService extends BaseService {
 
   private async checkDuplicateSchedule(
     appointment: Appointment,
-    doctorUser: User,
+    doctorUser: CognitoUserContext,
     patientUser: User,
     context: RequestContext
   ): Promise<boolean> {
@@ -633,7 +634,7 @@ export class AppointmentSyncService extends BaseService {
 
   private async checkAppointmentIdempotency(
     appointment: Appointment,
-    doctorUser: User,
+    doctorUser: CognitoUserContext,
     patientUser: User,
     context: RequestContext,
   ): Promise<boolean> {
@@ -647,7 +648,7 @@ export class AppointmentSyncService extends BaseService {
       toDate: new Date(appointment.endTime).getTime(),
       organizationID:
         patientUser.organizationId || appointment.patient.organizationId,
-      doctorId: String(doctorUser.id),
+      doctorId: String(doctorUser.userId),
       userId: String(patientUser.id),
     };
 
@@ -661,7 +662,7 @@ export class AppointmentSyncService extends BaseService {
 
       const hasMatchingParticipants =
         schedule.participantInfo?.some(
-          (p) => p.userId === String(doctorUser.id) && p.userType === 'STAFF',
+          (p) => p.userId === String(doctorUser.userId) && p.userType === 'STAFF',
         ) &&
         schedule.participantInfo?.some(
           (p) => p.userId === String(patientUser.id) && p.userType === 'USER',
@@ -702,7 +703,7 @@ export class AppointmentSyncService extends BaseService {
 
   private async createServiceScheduleWithRetry(
     appointment: Appointment,
-    doctorUser: User,
+    doctorUser: CognitoUserContext,
     patientUser: User,
     context: RequestContext
   ): Promise<Schedule> {
@@ -844,7 +845,7 @@ export class AppointmentSyncService extends BaseService {
 
   private async processAppointments(
     appointments: Appointment[],
-    doctor: User,
+    doctor: CognitoUserContext,
     context: RequestContext
   ): Promise<AppointmentSyncResult> {
 
@@ -900,7 +901,7 @@ export class AppointmentSyncService extends BaseService {
           const isDuplicate =
             await this.checkDuplicateSchedule(
               appointment,
-              doctor,
+              doctor as unknown as CognitoUserContext,
               patient,
               context
             );
@@ -919,7 +920,7 @@ export class AppointmentSyncService extends BaseService {
             fromDate: new Date(appointment.startTime).getTime(),
             toDate: new Date(appointment.endTime).getTime(),
             organizationID: orgId||CONSTANTS.ORGANIZATION_ID,
-            doctorId: String(doctor.id),
+            doctorId: String(doctor.userId),
             userId: patient?.id?String(patient.id): undefined,
           };
 
@@ -1097,15 +1098,19 @@ export class AppointmentSyncService extends BaseService {
 
       try {
 
-        const doctor = await this.validateDoctor(
-          pendingAppt.appointment.doctor.id,
-          context
-        );
+        const doctor = await  this.cognitoService.findUserByEmail(pendingAppt.appointment.doctor.email as string);
+        if (!doctor) {
+          logger.warn({
+            event: 'doctor_not_found',
+            doctorEmail: pendingAppt.appointment.doctor.email,
+          });
+          return;
+        }
 
         const isDuplicate =
           await this.checkDuplicateSchedule(
             pendingAppt.appointment,
-            doctor,
+            doctor as unknown as CognitoUserContext,
             patient,
             context
           );
@@ -1118,7 +1123,7 @@ export class AppointmentSyncService extends BaseService {
         // Use the new service-based 3-step flow to create schedule
         await this.createServiceScheduleWithRetry(
           pendingAppt.appointment,
-          doctor,
+          doctor   as CognitoUserContext,
           patient,
           context
         );

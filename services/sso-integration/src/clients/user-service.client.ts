@@ -84,14 +84,14 @@ export class SSOUserServiceClient extends UserServiceClient {
       );
 
       const duration = Date.now() - startTime;
-
+      
       logger.info({
         event: 'user_lookup_success',
         durationMs: duration,
         userId: response.data.data.id,
         userStatus: response.data.data.status,
       });
-
+      console.log("user_lookup_success response", JSON.stringify(response.data.data));
       return response.data.data;
 
     } catch (error) {

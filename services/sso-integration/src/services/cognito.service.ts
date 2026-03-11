@@ -13,7 +13,7 @@ import {
   UserNotFoundException,
 } from '@aws-sdk/client-cognito-identity-provider';
 
-import { TruTechVerifiedPayload } from '../types/appointment.types';
+import {    CognitoUserContext, CognitoUserClaims } from '../types/user/user.types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -81,7 +81,7 @@ export class CognitoService {
    */
   async findUserByEmail(
     email: string,
-  ): Promise<TruTechVerifiedPayload | null> {
+  ): Promise<CognitoUserContext | null> {
     try {
       const rawEmail = email.trim().toLowerCase();
       const normalizedEmail = this.remapEmailDomain(rawEmail);
@@ -111,7 +111,13 @@ export class CognitoService {
   
       const user = res.Users[0];
   
-      const mapped = this.mapUser(user);
+      // 🔹 Convert Cognito attributes → claims format
+      const claims = Object.fromEntries(
+        (user.Attributes || []).map((a) => [a.Name, a.Value]),
+      ) as CognitoUserClaims;
+  
+      // 🔹 Map to AuthContext
+      const mapped = this.mapCognitoClaimsToAuthContext(claims);
   
       this.logger.info({
         event: 'cognito_find_user_by_email_success',
@@ -325,22 +331,27 @@ export class CognitoService {
   /**
    * Map Cognito user to payload
      */
-  private mapUser(user: any): TruTechVerifiedPayload {
-    const attributes = Object.fromEntries(
-      (user.Attributes || []).map((a: any) => [a.Name, a.Value]),
-    );
-
+  private mapCognitoClaimsToAuthContext(claims: CognitoUserClaims): CognitoUserContext {
     return {
-      email: attributes.email,
-      doctorUid: attributes['custom:doctorUid'] || attributes['custom:userID'],
-      organizationId:
-        attributes['custom:organizationId'] ||
-        attributes['custom:organizationID'],
-      doctorId: attributes['custom:doctorId'],
-      tenantSubdomain: attributes['custom:tenantSubdomain'],
-      doctorEmail: attributes['custom:doctorEmail'] || attributes.email,
-      tenantId: attributes['custom:tenantId'],
-      cognitoUsername: user.Username,
-    } as TruTechVerifiedPayload;
+      principalId: claims["custom:userID"],
+  
+      userId: claims["custom:userID"],
+      organizationId: claims["custom:organizationID"],
+      userType: claims["custom:userType"],
+  
+      roles: claims["custom:role"]
+        ? JSON.parse(claims["custom:role"])
+        : [],
+  
+      permissions: claims["custom:permissions"]
+        ? JSON.parse(claims["custom:permissions"])
+        : [],
+  
+      email: claims.email,
+      phone: claims.phone_number,
+  
+      authType: "USER",
+    };
   }
 }
+ 

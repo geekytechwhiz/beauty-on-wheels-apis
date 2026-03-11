@@ -62,15 +62,7 @@ export interface TruTechVerifyRequest {
     expiresAt?: string;
     cognitoUsername?: string;
   }
-  
-  // -----------------------------------------------------------------------------
-  // Today's Appointments API Types
-  // -----------------------------------------------------------------------------
-  
-  export interface TruTechAppointmentsRequest {
-    doctor_id: number;
-  }
-  
+   
   export interface TruTechAppointmentsResponse {
     status: 'success' | 'error';
     appointments?: TruTechAppointment[];
@@ -298,26 +290,7 @@ export interface TruTechVerifyRequest {
     externalId: string;
     tenantId: string;
   }
-  
-  export interface User {
-    id: string|number;
-    externalId: string|number;
-    provider: string; 
-    tenantId: string;
-    email?: string;
-    phone?: string;
-    firstName?: string;
-    lastName?: string;
-    status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
-    cognitoUsername?: string;
-    doctorId?: number;
-    partnerSource?: string;
-    organizationId?: string;
-  
-    launchSource?: string;
-    createdAt: string;
-    updatedAt: string;
-  }
+   
   
   export interface CreateUserPayload {
     externalId: string;

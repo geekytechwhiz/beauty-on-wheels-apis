@@ -7,7 +7,7 @@ import {
   CreateServiceScheduleRequest,
 } from '../types/appointment-sync.types';
 import { CONSTANTS } from '../utils/constants';
-
+import { CognitoUserContext } from '../types/user/user.types';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
     appointment: Appointment,
@@ -122,12 +122,18 @@ export class AppointmentMapper {
    */
   mapAppointmentToRecommendServices(
     appointment: Appointment,
-    doctorUser: User,
+    doctorUser: CognitoUserContext,
     patientUser: User,
     orgAddonId: string,
   ): RecommendServicesRequest {
     const organizationID =
-      patientUser.organizationId || appointment.patient.organizationId || CONSTANTS.ORGANIZATION_ID;
+    patientUser.organizationId || appointment.patient.organizationId || CONSTANTS.ORGANIZATION_ID;
+    console.log("PATIENT USER: ", patientUser);
+    console.log("APPOINTMENT: ", appointment);
+    console.log("DOCTOR USER: ", doctorUser);
+    console.log("ORG ADDON ID: ", orgAddonId);
+    console.log("ORGANIZATION ID: ", organizationID);
+  
     const scheduleTimeStamp = this.getTimestampString(appointment.startTime);
 
     return {
@@ -135,7 +141,7 @@ export class AppointmentMapper {
       type: 'addon',
       userId: String(patientUser.id),
       orgAddonId: orgAddonId,
-      assignedDoctorId: String(doctorUser.id),
+      assignedDoctorId: String(doctorUser.userId),
       scheduleBy: scheduleTimeStamp,
     };
     
@@ -146,7 +152,7 @@ export class AppointmentMapper {
    */
   mapAppointmentToCreateServiceSchedule(
     appointment: Appointment,
-    doctorUser: User,
+    doctorUser: CognitoUserContext,
     patientUser: User,
     userAddonId: string,
   ): CreateServiceScheduleRequest {
@@ -177,7 +183,7 @@ export class AppointmentMapper {
       userId: String(patientUser.id),
       userName: patientName,
       userEmail: patientEmail,
-      staffId: String(doctorUser.id),
+      staffId: String(doctorUser.userId),
       staffName: doctorName,
       staffEmail: doctorEmail,
       staffSpecialty: doctorSpecialty,

@@ -80,9 +80,16 @@ export class CognitoService {
    * Find user by email
    */
   async findUserByEmail(
-    email: string,
+    email: string | null | undefined,
   ): Promise<CognitoUserContext | null> {
     try {
+      if (!email || typeof email !== 'string') {
+        this.logger.warn({
+          event: 'cognito_find_user_by_email_invalid_input',
+          email,
+        });
+        return null;
+      }
       const rawEmail = email.trim().toLowerCase();
       const normalizedEmail = this.remapEmailDomain(rawEmail);
   
@@ -114,7 +121,7 @@ export class CognitoService {
       // 🔹 Convert Cognito attributes → claims format
       const claims = Object.fromEntries(
         (user.Attributes || []).map((a) => [a.Name, a.Value]),
-      ) as CognitoUserClaims;
+      ) as unknown as CognitoUserClaims;
   
       // 🔹 Map to AuthContext
       const mapped = this.mapCognitoClaimsToAuthContext(claims);

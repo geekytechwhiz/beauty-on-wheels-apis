@@ -66,48 +66,12 @@ export class AppointmentSyncService extends BaseService {
     const toDate = toDateString(5);
     console.log("fromDate",fromDate);
     console.log("toDate",toDate); 
-    // const appointments =
-    //   await this.getAppointmentsForDoctorsInRange( 
-    //     fromDate,
-    //     toDate,
-    //     context.correlationId
-    //   );
-
-    const appointments = [ {
-      "appointment_id": 69,
-      "organizationId": "mm1usge33d4f9b61",
-      "start_time": "2026-03-09T10:15:00.000000Z",
-      "end_time": "2026-03-09T10:30:00.000000Z",
-      "status": "1",
-      "notes": null,
-      "patient": {
-          "id": 2184,
-          "mrn": "MR0002184",
-          "name": "Romi M",
-          "gender": "Male",
-          "age": "35 years",
-          "dob": null,
-          "phone": "9876543210",
-          "email": null
-      },
-      "doctor": {
-          "id": 4,
-          "name": "ABDUL RASHID AHMED",
-          "department": "GENERAL DOCTORS",
-          "phone": "123456789",
-          "email": "abdul@hms.com"
-      },
-      "consultation_type": {
-          "id": 208,
-          "name": "Test Consultation"
-      },
-      "visit": {
-          "id": 1080,
-          "visit_type": 1,
-          "created_at": "2026-03-09T10:15:00.000000Z",
-          "status": "Active"
-      }
-  } ] as unknown as Appointment[];
+    const appointments =
+      await this.getAppointmentsForDoctorsInRange( 
+        fromDate,
+        toDate,
+        context.correlationId
+      );
 
     const results =
       await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal( 
@@ -331,7 +295,21 @@ export class AppointmentSyncService extends BaseService {
       );
     }
   }
- 
+
+  // ---------------------------------------------------------------------------
+  // Format Response Helpers
+  // ---------------------------------------------------------------------------
+
+  formatAppointmentsResponse(appointments: Appointment[]): AppointmentsResponse {
+    return {
+      success: true,
+      data: {
+        appointments,
+        count: appointments.length,
+        date: new Date().toISOString().split('T')[0],
+      },
+    };
+  }
 
   formatEMRResponse(emrSummary: PatientEMRSummary): PatientEMRResponse {
     return {
@@ -536,8 +514,14 @@ export class AppointmentSyncService extends BaseService {
     const externalUserId = String(appointment.patient.id);
     const email = appointment.patient.email || '';
 
-    const existingUser = await this.cognitoService.findUserByEmail(email);
-
+    const existingUser = await this.ssoUserServiceClient.findByExternalId(
+      {
+        provider: 'TruTech',
+        externalId: externalUserId,
+        tenantId: context.tenantId,
+      },
+      context
+    );
 
     if (!existingUser) {
       logger.info({
@@ -556,7 +540,6 @@ export class AppointmentSyncService extends BaseService {
           tenantId: context.tenantId,
           email,
           createUser: async () =>
-
             this.ssoUserServiceClient.createPatient(
               {
                 userInfo: {
@@ -603,26 +586,15 @@ export class AppointmentSyncService extends BaseService {
 
     logger.info({
       event: 'patient_validation_success',
-      patientExternalId: externalUserId, 
+      patientExternalId: externalUserId,
+      userId: existingUser.id,
       correlationId: context.correlationId,
       tenantId: context.tenantId,
       integrationProviderId: context.integration?.providerId,
       integrationSubdomain: context.integration?.subdomain,
     });
 
-    return {
-      id: existingUser.doctorUid,
-      externalId: externalUserId,
-        provider: 'TruTech',
-      tenantId: context.tenantId,
-      email: email,
-      phone: '',
-      firstName: '',
-      lastName: '',
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),  
-    } as User;
+    return existingUser;
   }
 
   private async checkDuplicateSchedule(
@@ -912,11 +884,11 @@ export class AppointmentSyncService extends BaseService {
           if (!patient) {
 
             this.pendingAppointments.push({
-              appointment: appointment as unknown as any,
+              appointment,
               reason: 'patient_not_found',
               timestamp: new Date().toISOString(),
               retryCount: 0,
-              patientExternalId: String(appointment.patient.id as unknown as number),
+              patientExternalId: String(appointment.patient.id),
             });
 
             pending++;

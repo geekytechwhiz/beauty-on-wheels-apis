@@ -22,9 +22,19 @@ const envSchema = z.object({
     .min(1000)
     .max(30000)
     .default(10000),
+  
+  // Package/Service API configuration (for service-based schedule creation)
+  PACKAGE_SERVICE_API_URL: z
+    .string()
+    .url('PACKAGE_SERVICE_API_URL must be a valid URL')
+    .min(1, 'PACKAGE_SERVICE_API_URL is required'),
+  PACKAGE_SERVICE_API_TIMEOUT_MS: z
+    .coerce.number()
+    .min(1000)
+    .max(30000)
+    .default(10000),
 
   USER_SERVICE_BASE_URL: z.string().url('USER_SERVICE_BASE_URL must be a valid URL'),
-  // USER_SERVICE_INTERNAL_API_KEY: z.string().min(1, 'USER_SERVICE_INTERNAL_API_KEY is required'),
 
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'), 
 

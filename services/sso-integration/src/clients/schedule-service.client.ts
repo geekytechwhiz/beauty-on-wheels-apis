@@ -5,8 +5,16 @@ import { getEnvConfig } from '../config/env';
 import {
   FetchSchedulesRequest,
   Schedule,
-  ScheduleCreateRequest,
-  ScheduleStatusUpdateRequest,
+  GetAvailableServicesRequest,
+  GetAvailableServicesResponse,
+  AvailableService,
+  RecommendServicesRequest,
+  RecommendServicesResponse,
+  RecommendedService,
+  CreateServiceScheduleRequest,
+  CreateServiceScheduleResponse,
+  UpdateServiceStatusRequest,
+  UpdateServiceStatusResponse,
 } from '../types/appointment-sync.types';
 
 import { SSOError } from '../types/errors/sso-error';
@@ -20,6 +28,7 @@ const baseLogger = createLogger({
 export class ScheduleServiceClient {
 
   private readonly client: AxiosInstance;
+  private readonly packageServiceClient: AxiosInstance;
 
   private readonly logger = createChildLogger(baseLogger, {
     component: 'ScheduleServiceClient',
@@ -37,12 +46,35 @@ export class ScheduleServiceClient {
       },
     });
 
+    this.packageServiceClient = axios.create({
+      baseURL: config.PACKAGE_SERVICE_API_URL,
+      timeout: config.PACKAGE_SERVICE_API_TIMEOUT_MS,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
 
         this.logger.error({
           event: 'schedule_service_request_error',
+          status: error.response?.status,
+          url: error.config?.url,
+          message: error.message,
+        });
+
+        return Promise.reject(error);
+      },
+    );
+
+    this.packageServiceClient.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+
+        this.logger.error({
+          event: 'package_service_request_error',
           status: error.response?.status,
           url: error.config?.url,
           message: error.message,
@@ -132,10 +164,13 @@ export class ScheduleServiceClient {
     }
   }
 
-  async createSchedule(
-    payload: ScheduleCreateRequest,
+  
+
+  // Service-based schedule creation methods
+  async getAvailableServices(
+    payload: GetAvailableServicesRequest,
     context: RequestContext,
-  ): Promise<Schedule> {
+  ): Promise<AvailableService[]> {
 
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
@@ -143,15 +178,15 @@ export class ScheduleServiceClient {
 
     try {
 
-      const response = await this.client.post<{ data: Schedule }>(
-        '/create/schedule',
+      const response = await this.packageServiceClient.post<GetAvailableServicesResponse>(
+        '/services/get-available-services',
         payload,
         {
           headers: this.buildHeaders(context),
         },
       );
 
-      return response.data.data;
+      return response.data.data ?? [];
 
     } catch (error) {
 
@@ -160,35 +195,82 @@ export class ScheduleServiceClient {
         const axiosError = error as AxiosError;
 
         logger.error({
-          event: 'schedule_create_error',
+          event: 'get_available_services_error',
           status: axiosError.response?.status,
           err: serializeError(axiosError),
         });
 
-        if (axiosError.response?.status === 409) {
-          throw SSOError.downstreamError('Schedule already exists', axiosError);
-        }
-
         throw SSOError.downstreamError(
-          `Schedule creation failed: ${axiosError.message}`,
+          `Get available services failed: ${axiosError.message}`,
           axiosError,
         );
       }
 
       logger.error({
-        event: 'schedule_create_unexpected_error',
+        event: 'get_available_services_unexpected_error',
         err: serializeError(error as Error),
       });
 
       throw SSOError.downstreamError(
-        'Unexpected error during schedule creation',
+        'Unexpected error during get available services',
         error as Error,
       );
     }
   }
 
-  async updateScheduleStatus(
-    payload: ScheduleStatusUpdateRequest,
+  async recommendServices(
+    payload: RecommendServicesRequest,
+    context: RequestContext,
+  ): Promise<RecommendedService[]> {
+
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+
+    try {
+
+      const response = await this.packageServiceClient.post<RecommendServicesResponse>(
+        '/services/recommend-services',
+        payload,
+        {
+          headers: this.buildHeaders(context),
+        },
+      );
+
+      return response.data.data ?? [];
+
+    } catch (error) {
+
+      if (axios.isAxiosError(error)) {
+
+        const axiosError = error as AxiosError;
+
+        logger.error({
+          event: 'recommend_services_error',
+          status: axiosError.response?.status,
+          err: serializeError(axiosError),
+        });
+
+        throw SSOError.downstreamError(
+          `Recommend services failed: ${axiosError.message}`,
+          axiosError,
+        );
+      }
+
+      logger.error({
+        event: 'recommend_services_unexpected_error',
+        err: serializeError(error as Error),
+      });
+
+      throw SSOError.downstreamError(
+        'Unexpected error during recommend services',
+        error as Error,
+      );
+    }
+  }
+
+  async createServiceSchedule(
+    payload: CreateServiceScheduleRequest,
     context: RequestContext,
   ): Promise<Schedule> {
 
@@ -198,13 +280,17 @@ export class ScheduleServiceClient {
 
     try {
 
-      const response = await this.client.post<{ data: Schedule }>(
-        '/update/schedule-status',
+      const response = await this.packageServiceClient.post<CreateServiceScheduleResponse>(
+        '/services/create-schedule',
         payload,
         {
           headers: this.buildHeaders(context),
         },
       );
+
+      if (!response.data.data) {
+        throw new Error('No schedule data returned from create service schedule');
+      }
 
       return response.data.data;
 
@@ -215,24 +301,79 @@ export class ScheduleServiceClient {
         const axiosError = error as AxiosError;
 
         logger.error({
-          event: 'schedule_update_status_error',
+          event: 'create_service_schedule_error',
           status: axiosError.response?.status,
           err: serializeError(axiosError),
         });
 
+        if (axiosError.response?.status === 409) {
+          throw SSOError.downstreamError('Service schedule already exists', axiosError);
+        }
+
         throw SSOError.downstreamError(
-          `Schedule status update failed: ${axiosError.message}`,
+          `Service schedule creation failed: ${axiosError.message}`,
           axiosError,
         );
       }
 
       logger.error({
-        event: 'schedule_update_status_unexpected_error',
+        event: 'create_service_schedule_unexpected_error',
         err: serializeError(error as Error),
       });
 
       throw SSOError.downstreamError(
-        'Unexpected error during schedule status update',
+        'Unexpected error during service schedule creation',
+        error as Error,
+      );
+    }
+  }
+
+  async updateServiceStatus(
+    payload: UpdateServiceStatusRequest,
+    context: RequestContext,
+  ): Promise<UpdateServiceStatusResponse> {
+
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+
+    try {
+
+      const response = await this.packageServiceClient.post<UpdateServiceStatusResponse>(
+        '/services/update-status',
+        payload,
+        {
+          headers: this.buildHeaders(context),
+        },
+      );
+
+      return response.data;
+
+    } catch (error) {
+
+      if (axios.isAxiosError(error)) {
+
+        const axiosError = error as AxiosError;
+
+        logger.error({
+          event: 'update_service_status_error',
+          status: axiosError.response?.status,
+          err: serializeError(axiosError),
+        });
+
+        throw SSOError.downstreamError(
+          `Update service status failed: ${axiosError.message}`,
+          axiosError,
+        );
+      }
+
+      logger.error({
+        event: 'update_service_status_unexpected_error',
+        err: serializeError(error as Error),
+      });
+
+      throw SSOError.downstreamError(
+        'Unexpected error during service status update',
         error as Error,
       );
     }

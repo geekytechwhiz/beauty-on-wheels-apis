@@ -202,6 +202,8 @@ export class CognitoService {
    */
   async generateToken(username: string, _role?: string) {
     try {
+      console.log("USERNAME: ", username);
+      console.log("ROLE: ", _role);
       const authUsername = username.trim();
       const authPassword =
         process.env.COGNITO_SSO_COMMON_PASSWORD || 'common@2026';

@@ -7,7 +7,8 @@ import {
 
 export async function buildSchedulerContext(
   tenantOrIntegration: string | IntegrationMetadata,
-  correlationId: string
+  correlationId: string,
+  serviceToken?: string | null
 ): Promise<RequestContext> {
   const integration =
     typeof tenantOrIntegration === 'string' ? undefined : tenantOrIntegration;
@@ -22,7 +23,7 @@ export async function buildSchedulerContext(
     tenantId,
     // Scheduler and other internal flows use the special
     // service-to-service token recognized by the authorizer.
-    serviceToken: 'bearer service-token',
+    serviceToken: serviceToken ?? '',
     source: 'scheduler',
     ...(integration && {
       integration,

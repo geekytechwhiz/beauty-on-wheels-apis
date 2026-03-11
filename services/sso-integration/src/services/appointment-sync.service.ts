@@ -1,19 +1,20 @@
-import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger, createPerformanceTimer, serializeError } from '@api-hub/logger';
 import { getScheduleServiceClient } from '../clients/schedule-service.client';
 import { getEnvConfig } from '../config/env';
 import { RequestContext } from '../context/request-context';
 import { BaseService } from '../core/base.service';
 import { getAppointmentMapper } from '../mappers/appointment.mapper';
-import { Appointment, User } from '../types';
+import { Appointment, PatientEMRSummary, User } from '../types';
 import { DoctorCreationPayload } from '../types/user-creation.types';
 import {
   AppointmentSyncResult,
   FetchSchedulesRequest,
   PendingAppointment,
   Schedule,
-} from '../types/appointment-sync.types';
-import { getAppointmentsService } from './appointments.service'; 
+} from '../types/appointment-sync.types'; 
 import { validateHmsAppointment } from '../validators/appointment.validator';
+import { SSOError } from '../types/errors/sso-error';
+import { AppointmentsResponse, PatientEMRResponse } from '../types/appointment.types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -21,8 +22,7 @@ const baseLogger = createLogger({
 });
 
 export class AppointmentSyncService extends BaseService {
-
-  private readonly appointmentsService = getAppointmentsService();
+ 
   private readonly scheduleClient = getScheduleServiceClient();
   private readonly appointmentMapper = getAppointmentMapper(); 
   private readonly pendingAppointments: PendingAppointment[] = [];
@@ -44,7 +44,6 @@ export class AppointmentSyncService extends BaseService {
   }
 
   async syncAppointments(
-    doctorId: number,
     context: RequestContext
   ): Promise<AppointmentSyncResult> {
 
@@ -54,8 +53,7 @@ export class AppointmentSyncService extends BaseService {
     });
 
     logger.info({
-      event: 'appointment_sync_start',
-      doctorId,
+      event: 'appointment_sync_start', 
       correlationId: context.correlationId,
       tenantId: context.tenantId,
       integrationProviderId: context.integration?.providerId,
@@ -63,14 +61,14 @@ export class AppointmentSyncService extends BaseService {
     });
 
     const appointments =
-      await this.appointmentsService.getTodaysAppointments(
-        doctorId,
+      await this.getAppointmentsForDoctorsInRange( 
+        new Date().toISOString(),
+        new Date().toISOString(),
         context.correlationId
       );
 
     const results =
-      await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal(
-        doctorId,
+      await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal( 
         appointments,
         context,
         logger,
@@ -78,8 +76,7 @@ export class AppointmentSyncService extends BaseService {
       );
 
     logger.info({
-      event: 'appointment_sync_complete',
-      doctorId,
+      event: 'appointment_sync_complete', 
       correlationId: context.correlationId,
       tenantId: context.tenantId,
       integrationProviderId: context.integration?.providerId,
@@ -114,8 +111,7 @@ export class AppointmentSyncService extends BaseService {
     });
 
     const results =
-      await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal(
-        doctorId,
+      await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal( 
         appointments,
         context,
         logger,
@@ -130,8 +126,192 @@ export class AppointmentSyncService extends BaseService {
     };
   }
 
-  private async syncAppointmentsForDoctorWithProvidedAppointmentsInternal(
+  async getAppointmentsForDoctorsInRange( 
+    startDate: string,
+    endDate: string,
+    correlationId: string,
+  ): Promise<Appointment[]> {
+    const logger = createChildLogger(this.logger, {
+      correlationId, 
+      startDate,
+      endDate,
+    });
+
+    const timer = createPerformanceTimer(
+      logger,
+      'hms_get_appointments_for_doctors_in_range',
+    );
+
+    logger.info({
+      event: 'hms_get_appointments_for_doctors_in_range_start', 
+      startDate,
+      endDate,
+    });
+
+    try {
+      
+
+      const response = await this.truTechClient.getAppointmentsForDoctorsInRange(
+         
+        startDate,
+        endDate,
+        correlationId,
+      );
+
+      logger.debug({
+        event: 'hms_trutech_range_response',
+        status: response.status,
+        hasAppointmentsArray: !!response.appointments,
+        appointmentCount: response.appointments?.length ?? 0,
+        hasMessage: !!response.message,
+      });
+
+      timer.end();
+
+      if (!response.appointments?.length) {
+        logger.info({
+          event: 'hms_get_appointments_for_doctors_in_range_no_appointments',
+          appointments: response.appointments?.length,
+          startDate,
+          endDate,
+        });
+        return [];
+      }
+
+      const mapped = this.truTechAdapter.mapAppointments(
+        response.appointments || [],
+      );
+
+      logger.info({
+        event: 'hms_get_appointments_for_doctors_in_range_success',
+         
+        appointmentCount: mapped.length,
+        startDate,
+        endDate,
+      });
+
+      return mapped;
+    } catch (error) {
+      timer.end();
+
+      if (error instanceof SSOError) {
+        logger.warn({
+          event: 'hms_get_appointments_for_doctors_in_range_error', 
+          startDate,
+          endDate,
+          errorCode: error.code,
+          message: error.message,
+        });
+        throw error;
+      }
+
+      logger.error({
+        event: 'hms_get_appointments_for_doctors_in_range_unexpected_error', 
+        startDate,
+        endDate,
+        err: serializeError(error as Error),
+      });
+
+      throw SSOError.internalError(
+        'Failed to fetch appointments from HMS for doctors',
+        error as Error,
+      );
+    }
+  }
+  async getTodaysAppointments(
     doctorId: number,
+    correlationId: string
+  ): Promise<Appointment[]> {
+    const response = await this.truTechClient.getTodaysAppointments(
+      doctorId,
+      correlationId,
+    );
+    return this.truTechAdapter.mapAppointments(response.appointments || []);
+  }
+  async getPatientEMRSummary(
+    patientId: number,
+    doctorId: number,
+    correlationId: string
+  ): Promise<PatientEMRSummary> {
+    const logger = createChildLogger(this.logger, { correlationId, patientId, doctorId });
+    const timer = createPerformanceTimer(logger, 'get_patient_emr');
+
+    logger.info({
+      event: 'get_emr_start',
+      patientId,
+      doctorId,
+    });
+
+    try {
+      if (!patientId || patientId <= 0) {
+        throw SSOError.invalidRequest('Invalid patient ID');
+      }
+
+      const truTechPatientEMRResponse = await this.truTechClient.getPatientEMRSummary(
+        patientId,
+        correlationId
+      );
+
+      timer.end();
+
+      logger.info({
+        event: 'get_emr_success',
+        patientId,
+        visitCount: truTechPatientEMRResponse.emr?.length || 0,
+      });
+
+      return this.truTechAdapter.mapPatientEMRSummary(
+        truTechPatientEMRResponse,
+        patientId,
+      );
+    } catch (error) {
+      timer.end();
+
+      if (error instanceof SSOError) {
+        logger.warn({
+          event: 'get_emr_error',
+          patientId,
+          errorCode: error.code,
+          message: error.message,
+        });
+        throw error;
+      }
+
+      logger.error({
+        event: 'get_emr_unexpected_error',
+        patientId,
+        err: serializeError(error as Error),
+      });
+
+      throw SSOError.internalError(
+        'Failed to fetch patient EMR',
+        error as Error
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Format Response Helpers
+  // ---------------------------------------------------------------------------
+
+  formatAppointmentsResponse(appointments: Appointment[]): AppointmentsResponse {
+    return {
+      success: true,
+      data: {
+        appointments,
+        count: appointments.length,
+        date: new Date().toISOString().split('T')[0],
+      },
+    };
+  }
+
+  formatEMRResponse(emrSummary: PatientEMRSummary): PatientEMRResponse {
+    return {
+      success: true,
+      data: emrSummary,
+    };
+  }
+  private async syncAppointmentsForDoctorWithProvidedAppointmentsInternal( 
     appointments: Appointment[],
     context: RequestContext,
     logger: ReturnType<typeof createChildLogger>,
@@ -139,8 +319,7 @@ export class AppointmentSyncService extends BaseService {
   ): Promise<AppointmentSyncResult> {
 
     logger.info({
-      event: 'appointment_sync_start',
-      doctorId,
+      event: 'appointment_sync_start', 
       source,
       appointmentCount: appointments.length,
       correlationId: context.correlationId,
@@ -175,8 +354,7 @@ export class AppointmentSyncService extends BaseService {
 
     if (!validAppointments.length) {
       logger.info({
-        event: 'appointment_sync_no_valid_appointments',
-        doctorId,
+        event: 'appointment_sync_no_valid_appointments', 
         source,
         invalidCount: invalidAppointments.length,
       });
@@ -192,33 +370,17 @@ export class AppointmentSyncService extends BaseService {
       };
     }
 
-    const doctorEmail = validAppointments[0].doctor.email || '';
-    const doctorAttributes = await this.cognitoService.findUserByEmail(doctorEmail);
+    const doctorEmail = validAppointments[0].doctor.email || ''; 
+    const doctorAttributes = await this.validateDoctor(
+      doctorEmail as unknown as number,
+      context
+    );
     console.log("doctorAttributes",doctorAttributes);
-    if (!doctorAttributes) {
-      logger.warn({
-        event: 'doctor_not_found',
-        doctorId,
-        correlationId: context.correlationId,
-        tenantId: context.tenantId,
-        integrationProviderId: context.integration?.providerId,
-        integrationSubdomain: context.integration?.subdomain,
-      });
-      return {
-        message: 'Doctor not found',
-        totalAppointments: 0,
-        status: 'SUCCESS',
-        synced: 0,
-        skipped: 0,
-        failed: 0,
-        pending: 0,
-      };
-    } 
+     
 
     if (!validAppointments.length) {
       logger.info({
-        event: 'appointment_sync_no_appointments',
-        doctorId,
+        event: 'appointment_sync_no_appointments', 
         source,
       });
 
@@ -233,8 +395,7 @@ export class AppointmentSyncService extends BaseService {
       };
     }
     const doctor = {
-      id: doctorAttributes?.doctorUid || context.correlationId || 'default',
-      externalId: doctorId,
+      id: doctorAttributes?.doctorId || context.correlationId || 'default',
       provider: 'TruTech',
       tenantId: context.correlationId || 'default',
       status: 'ACTIVE',
@@ -249,8 +410,7 @@ export class AppointmentSyncService extends BaseService {
     );
 
     logger.info({
-      event: 'appointment_sync_complete',
-      doctorId,
+      event: 'appointment_sync_complete', 
       source,
       ...results,
     });
@@ -393,8 +553,8 @@ export class AppointmentSyncService extends BaseService {
                 userRole: [],
                 userType: 'USER',
                 invite: 'phone',
-                organizationID:
-                  appointment.patient.organizationId || '',
+                organizationID: "mm1usge33d4f9b61"
+                   
               },
               externalUserId,
               'TruTech',
@@ -480,6 +640,8 @@ export class AppointmentSyncService extends BaseService {
       toDate: new Date(appointment.endTime).getTime(),
       organizationID:
         patientUser.organizationId || appointment.patient.organizationId,
+      doctorId: String(doctorUser.id),
+      userId: String(patientUser.id),
     };
 
     const schedules = await this.scheduleClient.fetchSchedules(payload, context);
@@ -751,6 +913,8 @@ export class AppointmentSyncService extends BaseService {
             fromDate: new Date(appointment.startTime).getTime(),
             toDate: new Date(appointment.endTime).getTime(),
             organizationID: orgId,
+            doctorId: String(doctor.id),
+            userId: String(patient.id),
           };
 
           const existingSchedules = await this.scheduleClient.fetchSchedules(

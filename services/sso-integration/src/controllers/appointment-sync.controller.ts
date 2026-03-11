@@ -29,7 +29,17 @@ export class AppointmentSyncController {
   ): Promise<APIGatewayProxyResult> {
     const correlationId = extractCorrelationId(event);
     const logger = createChildLogger(this.logger, { correlationId });
+    const serviceToken = event.headers?.Authorization;
+    if (!serviceToken) {
+      return this.errorResponse(
+        SSOError.unauthorized('Service token is required'),
+        event,
+        correlationId,
+        {},
+      );
+    }
     const startTime = Date.now();
+    
 
     try {
       loadEnvConfig();
@@ -44,13 +54,7 @@ export class AppointmentSyncController {
         correlationId,
         {},
       );
-    }
-
-    // Service-to-service: require and verify service token (not user Cognito JWT)
-    const authError = this.verifyServiceToken(event, logger);
-    if (authError) {
-      return authError;
-    }
+    } 
 
     const rateLimitResult = checkRateLimit(event);
     const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
@@ -78,11 +82,11 @@ export class AppointmentSyncController {
 
       const context = await buildSchedulerContext(
         integration ?? doctorId.toString(),
-        correlationId
+        correlationId,
+        serviceToken
       );
 
-      const result = await this.appointmentSyncService.syncAppointments(
-        doctorId,
+      const result = await this.appointmentSyncService.syncAppointments( 
         context,
       );
 
@@ -140,55 +144,7 @@ export class AppointmentSyncController {
         rateLimitHeaders,
       );
     }
-  }
-
-  /**
-   * Verifies the request is authorized with a service token (JWT signed with SERVICE_TOKEN_SECRET).
-   * Used for service-to-service calls; do not use user Cognito JWT for this endpoint.
-   * Returns an error response to return, or null if authorized.
-   */
-  private verifyServiceToken(
-    event: APIGatewayProxyEvent,
-    logger: ReturnType<typeof createChildLogger>,
-  ): APIGatewayProxyResult | null {
-    const authHeader =
-      (event.headers?.Authorization as string | undefined) ||
-      (event.headers?.authorization as string | undefined);
-
-    if (!authHeader || !BEARER_PREFIX.test(authHeader)) {
-      logger.warn({ event: 'appointment_sync_service_token_missing' });
-      return this.errorResponse(
-        SSOError.unauthorized('Missing or invalid Authorization header; use Bearer <service-token>'),
-        event,
-        extractCorrelationId(event),
-        {},
-      );
-    }
-
-    const token = authHeader.replace(BEARER_PREFIX, '').trim();
-    if (!token) {
-      logger.warn({ event: 'appointment_sync_service_token_empty' });
-      return this.errorResponse(
-        SSOError.unauthorized('Missing service token'),
-        event,
-        extractCorrelationId(event),
-        {},
-      );
-    }
-
-    try {
-      getServiceTokenService().verifyToken(token);
-      return null;
-    } catch {
-      logger.warn({ event: 'appointment_sync_service_token_invalid' });
-      return this.errorResponse(
-        SSOError.unauthorized('Invalid or expired service token'),
-        event,
-        extractCorrelationId(event),
-        {},
-      );
-    }
-  }
+  } 
 
   private extractDoctorIdFromQuery(
     event: APIGatewayProxyEvent,

@@ -3,7 +3,7 @@ export interface User {
     externalId: string | number
     provider: string
     tenantId: string
-  
+    
     email?: string
     phone?: string
     firstName?: string
@@ -12,7 +12,7 @@ export interface User {
     status: 'ACTIVE' | 'INACTIVE' | 'PENDING'
   
     cognitoUsername?: string
-    doctorId?: number
+    doctorId?: number | string
     partnerSource?: string
     organizationId?: string
   

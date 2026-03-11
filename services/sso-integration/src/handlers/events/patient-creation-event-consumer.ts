@@ -2,21 +2,13 @@ import { SQSEvent, SQSRecord, Context } from 'aws-lambda';
 import { createLogger, createChildLogger, extractAwsRequestId, serializeError } from '@api-hub/logger';
 import { getSSOConfig } from '../../config/sso-config';
 import { getPatientMapperHelper } from '../../helper/patient.mapper';
-import { getUserServiceClient } from '../../clients/user.client'; 
+import { getSSOUserServiceClient } from '../../clients/user-service.client'; 
 import { PatientCreationEvent } from '../../types/events';
 import { getAppointmentSyncService } from '../../services/appointment-sync.service';
-import { getServiceTokenService } from '../../services/service-token.service';
+import { buildSchedulerContext } from '../../context/context-factory';
  
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
-
-/**
- * Lambda handler for processing patient creation events from SQS.
- * This runs asynchronously in the background and does not block the launch flow.
- */
-export async function handler(
-  event: SQSEvent,
-  context?: Context,
-): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
+export async function handler(event: SQSEvent, context?: Context): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { awsRequestId });
 
@@ -67,10 +59,9 @@ async function processPatientCreationEvent(
   correlationId: string,
   logger: ReturnType<typeof createChildLogger>,
 ): Promise<void> {
-  const userServiceClient = getUserServiceClient();
+  const userServiceClient = getSSOUserServiceClient();
   const patientMapper = getPatientMapperHelper();
   const config = getSSOConfig();
-  const serviceTokenService = getServiceTokenService();
 
   // Parse event from SQS record
   let event: PatientCreationEvent;
@@ -97,13 +88,10 @@ async function processPatientCreationEvent(
   });
 
   // Generate service token for user service authentication
-  const serviceToken = serviceTokenService.generateToken(
+   
+  const context = await buildSchedulerContext(
     tenantId,
-    {
-      userId: doctorId as string,
-      role: 'DOCTOR',
-    },
-    correlationId,
+    correlationId
   );
 
   // Check if patient already exists
@@ -112,9 +100,8 @@ async function processPatientCreationEvent(
       provider,
       externalId,
       tenantId,
-    },
-    correlationId,
-    serviceToken.token,
+    },context
+     
   );
 
   if (existingPatient) {
@@ -149,8 +136,8 @@ async function processPatientCreationEvent(
   const patientPayload = patientMapper.mapTruTechPatientToOurSystem(
     patientData,
     doctorId as string,
-    doctorName,
-    correlationId,
+      doctorName,
+      correlationId,
   );
 
   // Override organizationID from event if provided
@@ -166,9 +153,8 @@ async function processPatientCreationEvent(
     patientPayload,
     externalId,
     provider,
-    tenantId,
-    correlationId,
-    serviceToken.token,
+    tenantId, 
+    context,
   );
 
   logger.info({
@@ -180,8 +166,8 @@ async function processPatientCreationEvent(
   try {
     const appointmentSyncService = getAppointmentSyncService();
     await appointmentSyncService.reprocessPendingAppointments(
-      externalId,
-      correlationId,
+      externalId, 
+      context
     );
 
     logger.info({

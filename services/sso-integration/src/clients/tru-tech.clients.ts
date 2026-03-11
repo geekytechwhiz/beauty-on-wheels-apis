@@ -181,6 +181,61 @@ export class TruTechClient {
     }
   }
 
+  async getAppointmentsForDoctorsInRange(
+    doctorIds: number[],
+    startDate: string,
+    endDate: string,
+    correlationId: string,
+  ): Promise<TruTechAppointmentsResponse> {
+    const logger = createChildLogger(this.logger, {
+      correlationId,
+      doctorIds,
+      startDate,
+      endDate,
+    });
+
+    try {
+      logger.info({
+        event: 'trutech_get_appointments_for_doctors_start',
+        doctorCount: doctorIds.length,
+        startDate,
+        endDate,
+      });
+
+      const response = await this.client.post<TruTechAppointmentsResponse>(
+        '/api/teleconsultation/appointments-for-doctors',
+        {
+          doctor_ids: doctorIds,
+          start_date: startDate,
+          end_date: endDate,
+        },
+        {
+          headers: {
+            'X-Correlation-Id': correlationId,
+          },
+        },
+      );
+
+      logger.debug({
+        event: 'trutech_get_appointments_for_doctors_raw_response',
+        status: response.status,
+        hasAppointmentsArray: !!response.data?.appointments,
+        appointmentCount: response.data?.appointments?.length ?? 0,
+        rawStatusField: response.data?.status,
+        hasMessage: !!response.data?.message,
+      });
+
+      return response.data;
+    } catch (error) {
+      logger.error({
+        event: 'trutech_get_appointments_for_doctors_exception',
+        err: serializeError(error as Error),
+      });
+
+      this.handleAxiosError(error, 'get_appointments_for_doctors', logger);
+    }
+  }
+
   
   async getPatientEMRSummary(
     patientId: number,

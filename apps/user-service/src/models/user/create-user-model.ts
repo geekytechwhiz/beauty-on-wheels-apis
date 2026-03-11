@@ -241,4 +241,16 @@ export interface CreateUserHandlerModel {
   roleName?: string;
   /** Resolved from getRolePermissions in handler when available. */
   definedRoleCode?: string;
+
+  /**
+   * Optional SSO/externally-provided metadata that can be forwarded to Cognito
+   * as custom attributes when present (e.g. HMS integration via sso-integration).
+   */
+  providerId?: string;
+  externalUserId?: string;
+  subdomain?: string;
+  /**
+   * External organization identifier (e.g. HMS tenant/org id such as "org-nairobi").
+   */
+  organizationExternalId?: string;
 }

@@ -13,6 +13,11 @@ export interface Appointment {
     doctor: Doctor
     consultationType: ConsultationType
     visit: Visit
+    integration?: {
+      providerId: string;
+      subdomain: string;
+      externalHospitalId?: string;
+    }
   }
  
 export interface TruTechVerifyRequest {
@@ -55,6 +60,7 @@ export interface TruTechVerifyRequest {
     clinicId?: string;
     sessionId?: string;
     expiresAt?: string;
+    cognitoUsername?: string;
   }
   
   // -----------------------------------------------------------------------------

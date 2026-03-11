@@ -1,6 +1,8 @@
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
 import { getTruTechAdapter } from '../adapters/trutech.adapter.ts';
-import { Appointment, PatientEMRSummary, SSOError } from '../types';
+import { Appointment, PatientEMRSummary } from '../types';
+import { SSOError } from '../types/errors/sso-error';
+import { getTruTechClient } from './tru-tech.clients.js';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -13,6 +15,7 @@ const baseLogger = createLogger({ service: 'sso-integration', redactPII: true })
  */
 export class InternalServiceClient {
   private readonly logger = createChildLogger(baseLogger, { component: 'InternalServiceClient' });
+  private readonly truTechClient = getTruTechClient();
   private readonly truTechAdapter = getTruTechAdapter();
   async getTodaysAppointments(
     doctorId: number,
@@ -26,15 +29,15 @@ export class InternalServiceClient {
     });
 
     try {
-      const appointments = await this.truTechAdapter.getTodaysAppointments(doctorId, correlationId);
-
+      const appointments = await this.truTechClient.getTodaysAppointments(doctorId, correlationId);
+      const mappedAppointments = this.truTechAdapter.mapAppointments(appointments.appointments ?? []);
       logger.info({
         event: 'internal_get_todays_appointments_success',
         doctorId,
-        appointmentCount: appointments.length,
+        appointmentCount: appointments.appointments?.length ?? 0,
       });
 
-      return appointments;
+      return mappedAppointments;
     } catch (error) {
       if (error instanceof SSOError) {
         throw error;
@@ -65,15 +68,18 @@ export class InternalServiceClient {
     });
 
     try {
-      const summary = await this.truTechAdapter.getPatientEMRSummary(patientId, correlationId);
-
+      const summary = await this.truTechClient.getPatientEMRSummary(patientId, correlationId);
+      const mappedSummary = this.truTechAdapter.mapPatientEMRSummary(summary, patientId);
       logger.info({
         event: 'internal_get_patient_emr_success',
         patientId,
-        visitCount: summary.visits.length,
+        visitCount: summary.emr?.length ?? 0,
       });
 
-      return summary;
+      return {
+        patientId: summary.patient_id ?? patientId,
+        visits: mappedSummary.visits,
+      };
     } catch (error) {
       if (error instanceof SSOError) {
         throw error;

@@ -11,6 +11,11 @@ import {  VisitType } from "../enums"
     doctor: Doctor
     consultationType: ConsultationType
     visit: Visit
+    integration?: {
+      providerId: string;
+      subdomain: string;
+      externalHospitalId?: string;
+    }
   }
   export interface Patient {
     id: number;

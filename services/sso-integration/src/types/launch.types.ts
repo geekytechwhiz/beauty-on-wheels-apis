@@ -1,6 +1,6 @@
 import { Appointment, User } from './index'  
 
-export type ServiceUserRole = 'PATIENT' | 'DOCTOR';
+export type ServiceUserRole = 'PATIENT' | 'DOCTOR' | 'SERVICE';
 
 export interface LaunchProcessParams {
   launchToken: string
@@ -27,6 +27,7 @@ export interface ServiceTokenContext {
   export interface ServiceTokenResult {
     token: string;
     expiresIn: number;
+    refreshToken: string;
     userId: string;
     role: ServiceUserRole;
   }

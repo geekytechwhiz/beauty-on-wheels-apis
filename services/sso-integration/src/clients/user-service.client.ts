@@ -1,49 +1,86 @@
 import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
 import axios, { AxiosError } from 'axios';
-import { CreateUserPayload,  UserLookupParams } from '../types/appointment.types';
-import { SSOError } from '../types/errors/sso-error';
+
+import { UserLookupParams } from '../types/appointment.types';
 import { DoctorCreationPayload, PatientCreationPayload } from '../types/user-creation.types';
-import {
-  User,
-} from '../types/user/user.types'; 
+import { User } from '../types/user/user.types';
+import { SSOError } from '../types/errors/sso-error';
+
+import { RequestContext } from '../context/request-context';
 import { UserServiceClient } from '@api-hub/service-clients';
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+import {
+  ExternalIdentity,
+  IntegrationMetadata,
+  UserSourceSystem,
+} from '../types/integration.types';
+import { CognitoService } from '../services/cognito.service';
+
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true,
+});
 
 export class SSOUserServiceClient extends UserServiceClient {
-    constructor(authHeader?: string) { 
-    super(authHeader as string); 
+
+  constructor(authHeader?: string) {
+    super(authHeader as string);
   }
 
-  async findByExternalId(
+  private buildHeaders(context: RequestContext): Record<string, string> {
+    return {
+      'X-Correlation-Id': context.correlationId,
+      Authorization: `Bearer ${context.serviceToken}`,
+    };
+  }
+
+  private buildExternalIdentity(
+    integration: IntegrationMetadata | undefined,
+    externalUserId: string,
+  ): ExternalIdentity | undefined {
+    if (!integration) return undefined;
+
+    return {
+      providerId: integration.providerId,
+      externalUserId,
+    };
+  }
+
+  private getSourceSystem(context: RequestContext): UserSourceSystem | undefined {
+    return context.sourceSystem;
+  }
+
+  async  findByExternalId(
     params: UserLookupParams,
-    correlationId: string,
-    token: string
+    context: RequestContext
   ): Promise<User | null> {
-    const logger = createChildLogger(baseLogger, { correlationId });
+
+    const logger = createChildLogger(baseLogger, {
+      correlationId: context.correlationId,
+    });
+
     const startTime = Date.now();
 
     logger.info({
       event: 'user_lookup_start',
       provider: params.provider,
       tenantId: params.tenantId,
+      externalId: params.externalId,
     });
 
-    const headers: Record<string, string> = {
-      'X-Correlation-Id': correlationId,
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
-      const response = await this.client.post<{ data: User }>(`/users/validateusers`, {
-        provider: params.provider,
-        externalId: params.externalId,
-        tenant_id: params.tenantId,
-      }, {
-        headers,
-      });
+
+      const response = await this.client.post<{ data: User }>(
+        '/users/validateusers',
+        {
+          provider: params.provider,
+          externalId: params.externalId,
+          tenant_id: params.tenantId,
+        },
+        {
+          headers: this.buildHeaders(context),
+        }
+      );
+
       const duration = Date.now() - startTime;
 
       logger.info({
@@ -54,19 +91,23 @@ export class SSOUserServiceClient extends UserServiceClient {
       });
 
       return response.data.data;
+
     } catch (error) {
+
       const duration = Date.now() - startTime;
 
       if (axios.isAxiosError(error)) {
+
         const axiosError = error as AxiosError;
 
         if (axiosError.response?.status === 404) {
+
           logger.info({
             event: 'user_lookup_not_found',
             durationMs: duration,
-            provider: params.provider,
-            tenantId: params.tenantId,
+            externalId: params.externalId,
           });
+
           return null;
         }
 
@@ -78,7 +119,7 @@ export class SSOUserServiceClient extends UserServiceClient {
         });
 
         throw SSOError.userServiceError(
-          `User service lookup failed: ${axiosError.message}`,
+          `User lookup failed: ${axiosError.message}`,
           axiosError
         );
       }
@@ -96,12 +137,82 @@ export class SSOUserServiceClient extends UserServiceClient {
     }
   }
 
+  async findByExternalIdentity(
+    providerId: string,
+    externalUserId: string,
+    tenantId: string,
+    context: RequestContext,
+  ): Promise<User | null> {
+    return this.findByExternalId(
+      {
+        provider: providerId,
+        externalId: externalUserId,
+        tenantId,
+      },
+      context,
+    );
+  }
+
+  async findOrCreateUserFromExternalIdentity(
+    params: {
+      integration?: IntegrationMetadata;
+      externalUserId: string;
+      tenantId: string;
+      email?: string;
+      createUser: () => Promise<User>;
+    },
+    context: RequestContext,
+  ): Promise<User> {
+    const { integration, externalUserId, tenantId, email, createUser } = params;
+
+    const providerId =
+      integration?.providerId ??
+      context.integration?.providerId ??
+      'TruTech';
+
+    const existingByExternal = await this.findByExternalIdentity(
+      providerId,
+      externalUserId,
+      tenantId,
+      context,
+    );
+
+    if (existingByExternal) {
+      return existingByExternal;
+    }
+
+    if (email) {
+      const cognito = new CognitoService();
+      const cognitoUser = await cognito.findUserByEmail(email);
+
+      if (cognitoUser) {
+        // If user already exists in Cognito, skip creation
+        const logger = createChildLogger(baseLogger, {
+          correlationId: context.correlationId,
+        });
+
+        logger.info({
+          event: 'user_creation_skipped_cognito_exists',
+          email,
+        });
+
+        // Caller can decide how to handle "exists in Cognito but not in user service"
+        return existingByExternal as User | null as unknown as User;
+      }
+    }
+
+    return createUser();
+  }
+
   async createUser(
     payload: DoctorCreationPayload,
-    correlationId: string,
-    token?: string
+    context: RequestContext
   ): Promise<User> {
-    const logger = createChildLogger(baseLogger, { correlationId });
+
+    const logger = createChildLogger(baseLogger, {
+      correlationId: context.correlationId,
+    });
+
     const startTime = Date.now();
 
     logger.info({
@@ -112,15 +223,8 @@ export class SSOUserServiceClient extends UserServiceClient {
       source: payload.source,
     });
 
-    const headers: Record<string, string> = {
-      'X-Correlation-Id': correlationId,
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
+
       const response = await this.client.post<{ data: User }>(
         '/user',
         {
@@ -133,9 +237,18 @@ export class SSOUserServiceClient extends UserServiceClient {
           phone: payload.phone,
           first_name: payload.firstName,
           last_name: payload.lastName,
+          ...(this.buildExternalIdentity(context.integration, payload.externalId) && {
+            externalIdentity: this.buildExternalIdentity(
+              context.integration,
+              payload.externalId,
+            ),
+          }),
+          ...(this.getSourceSystem(context) && {
+            sourceSystem: this.getSourceSystem(context),
+          }),
         },
         {
-          headers,
+          headers: this.buildHeaders(context),
         }
       );
 
@@ -148,10 +261,13 @@ export class SSOUserServiceClient extends UserServiceClient {
       });
 
       return response.data.data;
+
     } catch (error) {
+
       const duration = Date.now() - startTime;
 
       if (axios.isAxiosError(error)) {
+
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -184,37 +300,42 @@ export class SSOUserServiceClient extends UserServiceClient {
     }
   }
 
-   
   async createDoctor(
-    doctorPayload: DoctorCreationPayload,  
-    config: {
-      token?: string;
-      correlationId: string;
-    }
+    doctorPayload: DoctorCreationPayload,
+    context: RequestContext
   ): Promise<User> {
-    const logger = createChildLogger(baseLogger, { correlationId: config.correlationId });
+
+    const logger = createChildLogger(baseLogger, {
+      correlationId: context.correlationId,
+    });
+
     const startTime = Date.now();
 
     logger.info({
       event: 'doctor_create_start',
-      provider: doctorPayload.provider,  
+      provider: doctorPayload.provider,
       subDomain: doctorPayload.subDomain,
       doctorName: doctorPayload.userInfo.name,
     });
-    console.log("DOCTOR PAYLOAD : ",doctorPayload)
-    console.log("CONFIG TOKEN : ",config.token)
+
     try {
-      
+
       const response = await this.client.post<{ data: User }>(
         '/user',
-        { 
+        {
           ...doctorPayload,
+          ...(this.buildExternalIdentity(context.integration, doctorPayload.externalId) && {
+            externalIdentity: this.buildExternalIdentity(
+              context.integration,
+              doctorPayload.externalId,
+            ),
+          }),
+          ...(this.getSourceSystem(context) && {
+            sourceSystem: this.getSourceSystem(context),
+          }),
         },
         {
-          headers: {
-            'X-Correlation-Id': config.correlationId,
-            'Authorization': `Bearer ${config.token}`,
-          },
+          headers: this.buildHeaders(context),
         }
       );
 
@@ -227,10 +348,13 @@ export class SSOUserServiceClient extends UserServiceClient {
       });
 
       return response.data.data;
+
     } catch (error) {
+
       const duration = Date.now() - startTime;
 
       if (axios.isAxiosError(error)) {
+
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -263,16 +387,18 @@ export class SSOUserServiceClient extends UserServiceClient {
     }
   }
 
-   
   async createPatient(
     patientPayload: PatientCreationPayload,
     externalId: string,
     provider: string,
     tenantId: string,
-    correlationId: string,
-    token?: string,
+    context: RequestContext
   ): Promise<User> {
-    const logger = createChildLogger(baseLogger, { correlationId });
+
+    const logger = createChildLogger(baseLogger, {
+      correlationId: context.correlationId,
+    });
+
     const startTime = Date.now();
 
     logger.info({
@@ -283,15 +409,8 @@ export class SSOUserServiceClient extends UserServiceClient {
       patientName: patientPayload.userInfo.name,
     });
 
-    const headers: Record<string, string> = {
-      'X-Correlation-Id': correlationId,
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
+
       const response = await this.client.post<{ data: User }>(
         '/user',
         {
@@ -299,9 +418,18 @@ export class SSOUserServiceClient extends UserServiceClient {
           provider,
           tenant_id: tenantId,
           ...patientPayload,
+          ...(this.buildExternalIdentity(context.integration, externalId) && {
+            externalIdentity: this.buildExternalIdentity(
+              context.integration,
+              externalId,
+            ),
+          }),
+          ...(this.getSourceSystem(context) && {
+            sourceSystem: this.getSourceSystem(context),
+          }),
         },
         {
-          headers,
+          headers: this.buildHeaders(context),
         }
       );
 
@@ -314,10 +442,13 @@ export class SSOUserServiceClient extends UserServiceClient {
       });
 
       return response.data.data;
+
     } catch (error) {
+
       const duration = Date.now() - startTime;
 
       if (axios.isAxiosError(error)) {
+
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -351,11 +482,13 @@ export class SSOUserServiceClient extends UserServiceClient {
   }
 }
 
-let ssoUserServiceClientInstance: SSOUserServiceClient | null = null;
+let instance: SSOUserServiceClient | null = null;
 
 export function getSSOUserServiceClient(): SSOUserServiceClient {
-  if (!ssoUserServiceClientInstance) {
-    ssoUserServiceClientInstance = new SSOUserServiceClient();
+
+  if (!instance) {
+    instance = new SSOUserServiceClient();
   }
-  return ssoUserServiceClientInstance;
+
+  return instance;
 }

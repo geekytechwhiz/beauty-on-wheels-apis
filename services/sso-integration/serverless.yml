@@ -21,36 +21,24 @@ provider:
     SERVICE_NAME: ${self:service}
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
-    # Dummy but non-empty so Zod passes
-    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, 'dummy-cognito-client-id'}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, '6v68r2stt9b4rgr3u8348bslsi'}
 
-    # Legacy HMS vars (can be removed later if unused)
-    HMS_BASE_URL: ${env:HMS_BASE_URL, 'https://qahms.zmtrutech.com'}
-    HMS_API_KEY: ${env:HMS_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
-    HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
-
-    # TruTech adapter config (dummy defaults so env.ts validation passes)
+    # TruTech adapter config
     TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
     TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
     TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '5000'}
 
-    # USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
-    # USER_SERVICE_INTERNAL_API_KEY: ${env:USER_SERVICE_INTERNAL_API_KEY, 'dummy-user-service-key'}
-
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
-    ROLE_SERVICE_INTERNAL_API_KEY: ${env:ROLE_SERVICE_INTERNAL_API_KEY, 'dummy-role-service-key'}
-
-    # Secret used to sign and verify internal service-level JWTs
     SERVICE_TOKEN_SECRET: ${env:SERVICE_TOKEN_SECRET, 'dummy-service-token-secret-for-local-dev'}
-
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
-
     # Schedule Service
     SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'}
     SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}
-
+    # Package/Service API (for service-based schedule creation)
+    PACKAGE_SERVICE_API_URL: ${env:PACKAGE_SERVICE_API_URL, 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'}
+    PACKAGE_SERVICE_API_TIMEOUT_MS: ${env:PACKAGE_SERVICE_API_TIMEOUT_MS, '10000'}
     # Appointment Sync
     APPOINTMENT_SYNC_MAX_RETRIES: ${env:APPOINTMENT_SYNC_MAX_RETRIES, '3'}
     APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '1000'}
@@ -59,6 +47,11 @@ provider:
 
     PATIENT_CREATION_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/542476693486/dev-sso-integration-patient-creation-queue
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'}
+    HMS_SYNC_SCHEDULE_EXPRESSION: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+    REGISTERED_HMS_DOCTOR_IDS: 4
+    INTEGRATION_PROVIDER_AFRICA_HMS: africa-hms
+    
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -153,11 +146,11 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          authorizer:
-            name: authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # authorizer:
+            # name: authorizer
+            # type: token
+            # identitySource: method.request.header.Authorization
+            # arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   patientEMR:
     handler: src/handlers/http/patient-emr.handler
@@ -179,15 +172,16 @@ functions:
             parameters:
               paths:
                 patientId: true
-          authorizer:
-            name: authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # authorizer:
+          #   name: authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
+  # Service-to-service: do NOT attach Cognito authorizer. Auth is done in Lambda via service token (SERVICE_TOKEN_SECRET).
   appointmentSync:
     handler: src/handlers/http/appointment-sync.handler
-    description: Sync today&apos;s appointments into schedule service
+    description: Sync today's appointments into schedule service (service-to-service; use Bearer service token)
     timeout: 30
     events:
       - http:
@@ -201,11 +195,7 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          authorizer:
-            name: authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+          # No authorizer: caller must send Authorization: Bearer <service-jwt> (signed with SERVICE_TOKEN_SECRET)
  
   patientCreationEventConsumer:
     handler: src/handlers/events/patient-creation-event-consumer.handler
@@ -220,6 +210,27 @@ functions:
               - Arn
           batchSize: 10
           functionResponseType: ReportBatchItemFailures
+
+  # Service-to-service (and EventBridge): no Cognito authorizer. When invoked via HTTP, Lambda validates service token.
+  syncHmsAppointments:
+    handler: src/handlers/events/sync-hms-appointments.handler
+    description: Periodic HMS appointment sync from TruTech (scheduler or HTTP; use Bearer service token for HTTP)
+    timeout: 900
+    memorySize: 512
+    events:
+      - http:
+          path: /appointments/sync/hms
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          # No authorizer: for HTTP callers use Authorization: Bearer <service-jwt> (validated in Lambda)
+
 
 
 resources:
@@ -258,3 +269,41 @@ resources:
             Value: ${self:provider.stage}
           - Key: ManagedBy
             Value: serverless
+    SyncHmsAppointmentsScheduleRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: scheduler.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: InvokeSyncHmsAppointmentsLambda
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource:
+                    - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
+    SyncHmsAppointmentsSchedule:
+      Type: AWS::Scheduler::Schedule
+      Properties:
+        ScheduleExpression: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+        FlexibleTimeWindow:
+          Mode: FLEXIBLE
+          MaximumWindowInMinutes: 5
+        State: ENABLED
+        Target:
+          Arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
+          RoleArn: !GetAtt SyncHmsAppointmentsScheduleRole.Arn
+          Input: |
+            {
+              "source": "hms-appointments-scheduler"
+            }
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 3600
+            MaximumRetryAttempts: 3

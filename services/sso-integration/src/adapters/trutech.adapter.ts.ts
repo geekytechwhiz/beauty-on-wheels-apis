@@ -168,7 +168,7 @@ export class TruTechAdapter {
   // Normalize EMR Visit
   // ---------------------------------------------------------
 
-  private normalizeEMRVisit(visit: TruTechEMRVisit): EMRVisit {
+  public normalizeEMRVisit(visit: TruTechEMRVisit): EMRVisit {
     return {
       visitId: visit.visit_id,
       visitType: visit.visit_type,

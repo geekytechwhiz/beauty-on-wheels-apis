@@ -1,8 +1,8 @@
 import { LaunchProcessResult } from '../types/launch.types';
 
-import { 
-  Patient,  
-  User, 
+import {
+  Patient,
+  User,
   RequestContext,
   TruTechAppointment,
   TruTechAppointmentsResponse,
@@ -156,7 +156,8 @@ export class LaunchService extends BaseService {
       email: doctorContext.email,
     });
 
-    const userAttributes: TruTechVerifiedPayload | null = await this.cognitoService.findUserByEmail(doctorContext.email);
+    const userAttributes: TruTechVerifiedPayload | null =
+      await this.cognitoService.findUserByEmail(doctorContext.email);
 
     this.logger.debug({
       event: 'ensure_doctor_lookup_cognito_result',
@@ -166,7 +167,18 @@ export class LaunchService extends BaseService {
       hasDoctorUid: !!userAttributes?.doctorUid,
     });
 
-    if (userAttributes?.doctorUid) {
+    if (!userAttributes) {
+      this.logger.warn({
+        event: 'ensure_doctor_not_found_in_cognito',
+        correlationId: ctx.correlationId,
+        email: doctorContext.email,
+      });
+
+      // Doctor has not yet been provisioned in Cognito for SSO
+      throw SSOError.invalidRequest('User not yet registered');
+    }
+
+    if (userAttributes.doctorUid) {
       this.logger.info({
         event: 'ensure_doctor_exists_in_cognito',
         correlationId: ctx.correlationId,
@@ -180,12 +192,14 @@ export class LaunchService extends BaseService {
         provider: 'TruTech',
         tenantId: doctorContext.tenant_id,
         status: 'ACTIVE',
+        cognitoUsername: userAttributes.cognitoUsername,
+        doctorId: userAttributes.doctorId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
     }
 
-    const payloadL:DoctorCreationPayload = this.doctorMapper.mapTruTechDoctorToOurSystem(
+    const payloadL: DoctorCreationPayload = this.doctorMapper.mapTruTechDoctorToOurSystem(
       doctorContext,
       ctx.correlationId,
     );
@@ -201,24 +215,37 @@ export class LaunchService extends BaseService {
     //   correlationId: ctx.correlationId,
     // });
 
-    const newDoctor = await this.ssoUserServiceClient.createUser(payloadL as DoctorCreationPayload, ctx.correlationId, '');
+    const newDoctor = await this.ssoUserServiceClient.createUser(
+      payloadL as DoctorCreationPayload,
+      ctx as any,
+    );
     this.logger.info({
       event: 'doctor_created',
       userId: newDoctor.id,
     });
 
-    return newDoctor;
+    return {
+      ...newDoctor,
+      cognitoUsername: userAttributes.cognitoUsername,
+      doctorId: userAttributes.doctorId,
+    } as User;
   }
 
   private async generateServiceToken(
     doctor: User,
     doctorContext: TruTechVerifyContext,
   ) {
-    return this.serviceTokenService.generateToken(doctorContext.tenant_id, {
-      userId: doctor.id.toString(),
-      role: 'DOCTOR',
-      appointmentId: doctorContext.drid,
-    });
+    const cognitoUsername =
+      doctor.cognitoUsername ?? doctor.id.toString();
+
+    return this.serviceTokenService.generateToken(
+      doctorContext.tenant_id,
+      {
+        userId: cognitoUsername,
+        role: 'DOCTOR',
+        appointmentId: doctorContext.drid,
+      },
+    );
   }
 
   private async fetchAppointments(

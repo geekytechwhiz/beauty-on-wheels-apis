@@ -7,12 +7,12 @@ import {
   serializeError
 } from '@api-hub/logger'
 
-import { getEnvConfig } from '../config/env'
 import {
   ServiceTokenContext,
   ServiceTokenResult
 } from '../types/launch.types'
 import { ServiceTokenPayload } from '../types/servicesToken.type'
+import { CognitoService } from './cognito.service'
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -22,6 +22,7 @@ const baseLogger = createLogger({
 
 export class ServiceTokenService {
 
+  private readonly cognitoService: CognitoService;
   private readonly logger = createChildLogger(baseLogger, {
     component: 'ServiceTokenService'
   })
@@ -35,7 +36,7 @@ export class ServiceTokenService {
     this.secret = process.env.SERVICE_TOKEN_SECRET || ''
     this.issuer = process.env.SERVICE_TOKEN_ISSUER || "firminiq-integration"
     this.audience = process.env.SERVICE_TOKEN_AUDIENCE || "myvitalrx-api"
-
+    this.cognitoService = new CognitoService();
     if (!this.secret) {
 
       this.logger.warn({
@@ -46,11 +47,11 @@ export class ServiceTokenService {
 
   }
 
-  generateToken(
+  async generateToken(
     tenantId: string,
     context: ServiceTokenContext,
     correlationId?: string
-  ): ServiceTokenResult {
+  ): Promise<ServiceTokenResult> {
 
     const logger = createChildLogger(this.logger, {
       correlationId,
@@ -58,57 +59,59 @@ export class ServiceTokenService {
       userId: context.userId
     })
 
-    if (!this.secret) {
+    const token = await this.cognitoService.generateToken(context.userId, context.role);
+    // if (!this.secret) {
 
-      const error = new Error("SERVICE_TOKEN_SECRET missing")
+    //   const error = new Error("SERVICE_TOKEN_SECRET missing")
 
-      logger.error({
-        event: "service_token_generate_failed",
-        err: serializeError(error)
-      })
+    //   logger.error({
+    //     event: "service_token_generate_failed",
+    //     err: serializeError(error)
+    //   })
 
-      throw error
+    //   throw error
 
-    }
+    // }
 
-    const now = Math.floor(Date.now() / 1000)
+    // const now = Math.floor(Date.now() / 1000)
 
-    const payload: ServiceTokenPayload = {
+    // const payload: ServiceTokenPayload = {
 
-      iss: this.issuer,
+    //   iss: this.issuer,
 
-      aud: this.audience,
+    //   aud: this.audience,
 
-      sub: "integration-hms",
+    //   sub: "integration-hms",
 
-      tokenType: "SERVICE",
+    //   tokenType: "SERVICE",
 
-      tenantId,
+    //   tenantId,
 
-      context,
+    //   context,
 
-      jti: randomUUID(),
+    //   jti: randomUUID(),
 
-      iat: now,
+    //   iat: now,
 
-      exp: now + 3600
+    //   exp: now + 3600
 
-    }
+    // }
 
-    const token = jwt.sign(
-      payload,
-      this.secret,
-      { algorithm: "HS256" }
-    )
+    // const token = jwt.sign(
+    //   payload,
+    //   this.secret,
+    //   { algorithm: "HS256" }
+    // )
 
-    logger.info({
-      event: "service_token_generated",
-      role: context.role
-    })
+    // logger.info({
+    //   event: "service_token_generated",
+    //   role: context.role
+    // })
 
     return {
-      token,
-      expiresIn: 3600,
+      token: token.accessToken || '',
+      expiresIn: token.expiresIn || 0,
+      refreshToken: token.refreshToken || '',
       userId: context.userId,
       role: context.role
     }

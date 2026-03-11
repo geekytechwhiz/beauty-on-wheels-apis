@@ -936,3 +936,169 @@ External System        Integration Service        Schedule Service        User S
 - Patient validation needs to be added
 - Schedule APIs need to be integrated
 - Pending appointment reprocessing needs to be implemented
+
+---
+
+## HMS Batch Sync (New API + HTTP Endpoint)
+
+This section documents the new HMS multi-doctor, date-range API and the corresponding batch sync entrypoints in this service.
+
+### HMS API: Appointments for Doctors (Date Range)
+
+**Endpoint (HMS side):**
+
+```http
+POST /api/teleconsultation/appointments-for-doctors
+Content-Type: application/json
+
+{
+  "doctor_ids": [4, 7, 12],
+  "start_date": "2026-03-09",
+  "end_date": "2026-03-10"
+}
+```
+
+**Client & Adapter:**
+
+- `src/clients/tru-tech.clients.ts`
+  - `getAppointmentsForDoctorsInRange(doctorIds, startDate, endDate, correlationId)`
+- `src/adapters/trutech.adapter.ts.ts`
+  - `mapAppointments()` → maps HMS response into internal `Appointment[]`.
+
+**Provider Service:**
+
+- `src/services/hms-appointments-provider.service.ts`
+  - `getAppointmentsForDoctorsInRange(doctorIds, startDate, endDate, correlationId)`
+    - Wraps the TruTech client + adapter.
+
+### Batch Sync Orchestration
+
+**Registered Doctors:**
+
+- `src/services/registered-doctor.service.ts`
+  - `getRegisteredDoctorIds(correlationId)`: returns HMS doctor IDs to include in batch sync.
+  - Currently configuration-driven via env:
+    - `REGISTERED_HMS_DOCTOR_IDS=4,7,12`
+
+**Batch Service:**
+
+- `src/services/hms-appointment-batch-sync.service.ts`
+  - `syncAllRegisteredDoctors(startDate, endDate, correlationId)`:
+    - Reads HMS doctor IDs from `RegisteredDoctorService`.
+    - Chunks them (e.g. 50 per request).
+    - Calls `HmsAppointmentsProvider.getAppointmentsForDoctorsInRange(...)`.
+    - Groups appointments by `appointment.doctor.id`.
+    - For each doctor, calls:
+      - `AppointmentSyncService.syncAppointmentsForDoctorWithProvidedAppointments(doctorId, appointments, correlationId)`.
+    - Returns a summary:
+      - `startDate`, `endDate`, `doctorCount`, `appointmentsFetched`, `doctorsProcessed`.
+
+**Scheduler / Lambda Handler:**
+
+- `src/handlers/events/sync-hms-appointments.ts`
+  - Entry point for both EventBridge Scheduler and HTTP batch endpoint.
+  - Computes date range:
+    - `startDate` = today (`YYYY-MM-DD`).
+    - `endDate` = `today + SYNC_LOOKAHEAD_DAYS` (env; default `1`).
+  - Calls `HmsAppointmentBatchSyncService.syncAllRegisteredDoctors(...)`.
+
+### HTTP Batch Sync Endpoint
+
+**Serverless Configuration:**
+
+```yaml
+functions:
+  syncHmsAppointments:
+    handler: src/handlers/events/sync-hms-appointments.handler
+    description: Periodic HMS appointment synchronization from TruTech into schedule service
+    timeout: 900
+    memorySize: 512
+    events:
+      - http:
+          path: /appointments/sync/hms
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+          authorizer:
+            name: authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+```
+
+**Usage (local via serverless-offline):**
+
+```http
+POST http://localhost:3000/appointments/sync/hms
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+{}
+```
+
+**Behavior:**
+
+- No request body fields are required; the handler:
+  - Derives date range from `SYNC_LOOKAHEAD_DAYS`.
+  - Reads HMS doctor IDs from `REGISTERED_HMS_DOCTOR_IDS`.
+- For each doctor, it runs the same idempotent sync logic as `POST /appointments/sync?doctorId=<id>`.
+
+### EventBridge Scheduler
+
+**Configuration (in `serverless.yml`):**
+
+```yaml
+provider:
+  environment:
+    SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'}
+
+resources:
+  Resources:
+    SyncHmsAppointmentsScheduleRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: scheduler.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: InvokeSyncHmsAppointmentsLambda
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource:
+                    - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
+
+    SyncHmsAppointmentsSchedule:
+      Type: AWS::Scheduler::Schedule
+      Properties:
+        ScheduleExpression: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+        FlexibleTimeWindow:
+          Mode: FLEXIBLE
+          MaximumWindowInMinutes: 5
+        State: ENABLED
+        Target:
+          Arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
+          RoleArn: !GetAtt SyncHmsAppointmentsScheduleRole.Arn
+          Input: |
+            {
+              "source": "hms-appointments-scheduler"
+            }
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 3600
+            MaximumRetryAttempts: 3
+```
+
+The scheduler and HTTP batch endpoint share the same handler and appointment sync pipeline, ensuring consistent behavior, idempotency, and retries.

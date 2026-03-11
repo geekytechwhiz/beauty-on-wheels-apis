@@ -155,31 +155,31 @@ functions:
             # identitySource: method.request.header.Authorization
             # arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
-  patientEMR:
-    handler: src/handlers/http/patient-emr.handler
-    description: Get patient EMR summary for last 3 visits
-    timeout: 15
-    events:
-      - http:
-          path: /appointments/{patientId}/emr
-          method: get
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-          request:
-            parameters:
-              paths:
-                patientId: true
-          # authorizer:
-          #   name: authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+  # patientEMR:
+  #   handler: src/handlers/http/patient-emr.handler
+  #   description: Get patient EMR summary for last 3 visits
+  #   timeout: 15
+  #   events:
+  #     - http:
+  #         path: /appointments/{patientId}/emr
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #         request:
+  #           parameters:
+  #             paths:
+  #               patientId: true
+  #         # authorizer:
+  #         #   name: authorizer
+  #         #   type: token
+  #         #   identitySource: method.request.header.Authorization
+  #         #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   # Service-to-service: do NOT attach Cognito authorizer. Auth is done in Lambda via service token (SERVICE_TOKEN_SECRET).
   appointmentSync:

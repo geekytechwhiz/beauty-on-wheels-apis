@@ -11,9 +11,9 @@ import { LaunchProcessResult } from "../types/launch.types";
 
     appointments: result.appointments,
 
-    token: result.serviceToken.token,
+    accessToken: result.serviceToken.accessToken,
     expiresIn: result.serviceToken.expiresIn,
-    refreshToken: result.serviceToken.refreshToken,
+    updateToken: result.serviceToken.updateToken,
     userId: result.serviceToken.userId,
     role: result.serviceToken.role
   };

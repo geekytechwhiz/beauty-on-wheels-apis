@@ -181,15 +181,13 @@ export class TruTechClient {
     }
   }
 
-  async getAppointmentsForDoctorsInRange(
-    doctorIds: number[],
+  async getAppointmentsForDoctorsInRange( 
     startDate: string,
     endDate: string,
     correlationId: string,
   ): Promise<TruTechAppointmentsResponse> {
     const logger = createChildLogger(this.logger, {
-      correlationId,
-      doctorIds,
+      correlationId, 
       startDate,
       endDate,
     });
@@ -197,7 +195,7 @@ export class TruTechClient {
     try {
       logger.info({
         event: 'trutech_get_appointments_for_doctors_start',
-        doctorCount: doctorIds.length,
+        
         startDate,
         endDate,
       });
@@ -205,7 +203,7 @@ export class TruTechClient {
       const response = await this.client.post<TruTechAppointmentsResponse>(
         '/api/teleconsultation/appointments-for-doctors',
         {
-          doctor_ids: doctorIds,
+          doctor_ids: [],
           start_date: startDate,
           end_date: endDate,
         },

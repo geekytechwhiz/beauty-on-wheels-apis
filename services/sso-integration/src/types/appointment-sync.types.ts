@@ -75,6 +75,8 @@ export interface FetchSchedulesRequest {
   fromDate: number; // timestamp
   toDate: number; // timestamp
   organizationID: string;
+  doctorId: string;
+  userId: string;
 }
 
 export interface Schedule {

@@ -7,7 +7,7 @@ import {
 } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 
-import { getHmsAppointmentBatchSyncService } from '../../services/hms-appointment-batch-sync.service';
+import { getAppointmentSyncService } from '../../services/appointment-sync.service';
 import { getServiceTokenService } from '../../services/service-token.service';
 import { buildSchedulerContext } from '../../context/context-factory';
 
@@ -118,11 +118,9 @@ export async function handler(
       '4', // tenantId
       correlationId
     );
-    const batchSyncService = getHmsAppointmentBatchSyncService();
+    const appointmentSyncService = getAppointmentSyncService();
 
-    const summary = await batchSyncService.syncAllRegisteredDoctors(
-      startDate,
-      endDate,
+    const summary = await appointmentSyncService.syncAppointments(
       context,
     );
 

@@ -23,11 +23,6 @@ provider:
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, '6v68r2stt9b4rgr3u8348bslsi'}
 
-    # Legacy HMS vars (can be removed later if unused)
-    HMS_BASE_URL: ${env:HMS_BASE_URL, 'https://qahms.zmtrutech.com'}
-    HMS_API_KEY: ${env:HMS_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
-    HMS_TIMEOUT_MS: ${env:HMS_TIMEOUT_MS, '5000'}
-
     # TruTech adapter config (dummy defaults so env.ts validation passes)
     TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
     TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}

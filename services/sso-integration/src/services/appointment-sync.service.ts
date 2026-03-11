@@ -74,10 +74,11 @@ export class AppointmentSyncService extends BaseService {
         toDate,
         context.correlationId
       );
-
+  const tmpAppointments = appointments[0];
+  console.log("TMP APPOINTMENTS: ", tmpAppointments);
     const results =
       await this.syncAppointmentsForDoctorWithProvidedAppointmentsInternal( 
-        appointments,
+        [tmpAppointments],
         context,
         logger,
         'today'
@@ -878,12 +879,12 @@ export class AppointmentSyncService extends BaseService {
 
         try {
 
-          const patient = await this.validatePatient(
-            appointment,
-            context
-          );
-
-          if (!patient) {
+          // const patient = await this.validatePatient(
+          //   appointment,
+          //   context
+          // );
+          const cognitoUserAttributes = await this.cognitoService.findUserByEmail(appointment.patient.email as string);
+          if (!cognitoUserAttributes) {
 
             this.pendingAppointments.push({
               appointment,
@@ -902,7 +903,7 @@ export class AppointmentSyncService extends BaseService {
             await this.checkDuplicateSchedule(
               appointment,
               doctor as unknown as CognitoUserContext,
-              patient,
+              cognitoUserAttributes as unknown as User,
               context
             );
 
@@ -914,14 +915,15 @@ export class AppointmentSyncService extends BaseService {
           }
 
           const orgId =
-            patient.organizationId || appointment.patient.organizationId;
+            cognitoUserAttributes?.organizationId || appointment.patient.organizationId;
+
 
           const scheduleFetchPayload: FetchSchedulesRequest = {
             fromDate: new Date(appointment.startTime).getTime(),
             toDate: new Date(appointment.endTime).getTime(),
             organizationID: orgId||CONSTANTS.ORGANIZATION_ID,
             doctorId: String(doctor.userId),
-            userId: patient?.id?String(patient.id): undefined,
+            userId: cognitoUserAttributes?.userId?String(cognitoUserAttributes.userId): undefined, // TODO: Throw error
           };
 
           const existingSchedules = await this.scheduleClient.fetchSchedules(
@@ -954,7 +956,7 @@ export class AppointmentSyncService extends BaseService {
             await this.createServiceScheduleWithRetry(
               appointment,
               doctor,
-              patient,
+              cognitoUserAttributes as unknown as User,
               context
             );
 

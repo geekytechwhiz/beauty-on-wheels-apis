@@ -52,6 +52,7 @@ export interface User {
     "cognito:username": string;
   
     "custom:organizationID": string;
+    "custom:id": string;
     "custom:userID": string;
     "custom:userType": UserType;
   

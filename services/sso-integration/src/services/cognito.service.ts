@@ -335,7 +335,8 @@ export class CognitoService {
     return {
       principalId: claims["custom:userID"],
   
-      userId: claims["custom:userID"],
+      userId: claims["custom:id"],
+
       organizationId: claims["custom:organizationID"],
       userType: claims["custom:userType"],
       email: claims.email,

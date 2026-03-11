@@ -4,17 +4,18 @@ import { createChildLogger, createLogger, serializeError } from '@api-hub/logger
 import { getEnvConfig } from '../config/env';
 import {
   FetchSchedulesRequest,
+  FetchSchedulesResponse,
   Schedule,
   GetAvailableServicesRequest,
   GetAvailableServicesResponse,
   AvailableService,
   RecommendServicesRequest,
   RecommendServicesResponse,
-  RecommendedService,
   CreateServiceScheduleRequest,
   CreateServiceScheduleResponse,
   UpdateServiceStatusRequest,
   UpdateServiceStatusResponse,
+  ScheduleDetails,
 } from '../types/appointment-sync.types';
 
 import { SSOError } from '../types/errors/sso-error';
@@ -104,7 +105,7 @@ export class ScheduleServiceClient {
 
     try {
 
-      const response = await this.client.post<{ data: Schedule[] }>(
+      const response = await this.client.post<FetchSchedulesResponse>(
         '/fetch/schedules',
         payload,
         {
@@ -112,7 +113,26 @@ export class ScheduleServiceClient {
         },
       );
 
-      return response.data.data ?? [];
+      // Extract schedules from the response structure
+      // The API returns data.items, where each item has scheduled[] or schedule object
+      const schedules: Schedule[] = [];
+      
+      if (response.data.data?.items) {
+        for (const item of response.data.data.items) {
+          // Check if item has scheduled array
+          if (item.scheduled && Array.isArray(item.scheduled)) {
+            for (const scheduledItem of item.scheduled) {
+              schedules.push(this.mapScheduledItemToSchedule(scheduledItem));
+            }
+          }
+          // Check if item has schedule object
+          else if (item.schedule) {
+            schedules.push(this.mapScheduleDetailsToSchedule(item.schedule));
+          }
+        }
+      }
+
+      return schedules;
 
     } catch (error) {
 
@@ -186,7 +206,14 @@ export class ScheduleServiceClient {
         },
       );
 
-      return response.data.data ?? [];
+      // Extract items from data.items array
+      const items = response.data.data?.items ?? [];
+      
+      // Map addonId to orgAddonId for compatibility
+      return items.map(item => ({
+        ...item,
+        orgAddonId: item.addonId || item.orgAddonId,
+      }));
 
     } catch (error) {
 
@@ -221,7 +248,7 @@ export class ScheduleServiceClient {
   async recommendServices(
     payload: RecommendServicesRequest,
     context: RequestContext,
-  ): Promise<RecommendedService[]> {
+  ): Promise<{ userAddonId: string }> {
 
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
@@ -237,7 +264,12 @@ export class ScheduleServiceClient {
         },
       );
 
-      return response.data.data ?? [];
+      // The API returns data.userAddonId directly (not an array)
+      if (!response.data.data?.userAddonId) {
+        throw new Error('No userAddonId returned from recommend services');
+      }
+
+      return { userAddonId: response.data.data.userAddonId };
 
     } catch (error) {
 
@@ -288,11 +320,12 @@ export class ScheduleServiceClient {
         },
       );
 
-      if (!response.data.data) {
-        throw new Error('No schedule data returned from create service schedule');
+      if (!response.data.data?.scheduleDetails) {
+        throw new Error('No schedule details returned from create service schedule');
       }
 
-      return response.data.data;
+      // Convert ScheduleDetails to Schedule format
+      return this.mapScheduleDetailsToSchedule(response.data.data.scheduleDetails);
 
     } catch (error) {
 
@@ -377,6 +410,80 @@ export class ScheduleServiceClient {
         error as Error,
       );
     }
+  }
+
+  /**
+   * Maps a scheduled item from the API response to Schedule format
+   */
+  private mapScheduledItemToSchedule(scheduledItem: {
+    scheduleId: string;
+    startTime: string;
+    endTime: string;
+    scheduleDate: string;
+    scheduleTimeStamp?: string;
+    participantInfo?: Array<{
+      userId: string;
+      userType: string;
+      organizationID?: string;
+      [key: string]: unknown;
+    }>;
+    owner?: {
+      userId: string;
+      userType: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  }): Schedule {
+    return {
+      scheduleId: scheduledItem.scheduleId,
+      startTime: scheduledItem.startTime,
+      endTime: scheduledItem.endTime,
+      scheduleDate: scheduledItem.scheduleDate,
+      appointmentType: (scheduledItem as { consultationType?: string }).consultationType || 'ONLINE',
+      owner: scheduledItem.owner ? {
+        userId: scheduledItem.owner.userId,
+        userType: scheduledItem.owner.userType,
+      } : {
+        userId: '',
+        userType: 'STAFF',
+      },
+      participantInfo: (scheduledItem.participantInfo || []).map(p => ({
+        userId: p.userId,
+        userType: p.userType as 'STAFF' | 'USER',
+        organizationID: p.organizationID || '',
+      })),
+      organizationID: (scheduledItem.participantInfo?.[0]?.organizationID as string) || '',
+      meta: {
+        externalAppointmentId: scheduledItem.scheduleId,
+      },
+    };
+  }
+
+  /**
+   * Maps ScheduleDetails from the API response to Schedule format
+   */
+  private mapScheduleDetailsToSchedule(scheduleDetails: ScheduleDetails): Schedule {
+    return {
+      scheduleId: scheduleDetails.id || scheduleDetails.scheduleId || '',
+      startTime: scheduleDetails.startTime,
+      endTime: scheduleDetails.endTime,
+      scheduleDate: scheduleDetails.scheduleDate,
+      appointmentType: scheduleDetails.appointmentType || 'ONLINE',
+      owner: {
+        userId: scheduleDetails.owner.userId,
+        userType: scheduleDetails.owner.userType,
+      },
+      participantInfo: scheduleDetails.participantInfo.map(p => ({
+        userId: p.userId,
+        userType: p.userType as 'STAFF' | 'USER',
+        organizationID: p.organizationID,
+      })),
+      organizationID: scheduleDetails.organizationID,
+      meta: {
+        externalAppointmentId: scheduleDetails.id || scheduleDetails.scheduleId || '',
+        ...scheduleDetails.meta,
+      },
+    };
   }
 }
 

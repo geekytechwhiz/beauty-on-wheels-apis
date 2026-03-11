@@ -14,6 +14,7 @@ import {
   UserSourceSystem,
 } from '../types/integration.types';
 import { CognitoService } from '../services/cognito.service';
+import { getEnvConfig } from '../config/env';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -27,9 +28,10 @@ export class SSOUserServiceClient extends UserServiceClient {
   }
 
   private buildHeaders(context: RequestContext): Record<string, string> {
+    const config = getEnvConfig();
     return {
       'X-Correlation-Id': context.correlationId,
-      Authorization: `Bearer ${context.serviceToken}`,
+      Authorization: `Bearer ${config.INTERNAL_SERVICE_TOKEN}`,
     };
   }
 

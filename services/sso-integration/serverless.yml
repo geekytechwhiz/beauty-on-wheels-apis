@@ -36,6 +36,11 @@ provider:
     SERVICE_TOKEN_SECRET: ${env:SERVICE_TOKEN_SECRET, 'dummy-service-token-secret-for-local-dev'}
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
+    # Internal service-to-service auth token, sourced from SSM Parameter Store
+    # ARN: arn:aws:ssm:us-east-1:542476693486:parameter/INTERNAL_SERVICE_TOKEN
+    # INTERNAL_SERVICE_TOKEN: ${ssm:INTERNAL_SERVICE_TOKEN~true}
+    INTERNAL_SERVICE_TOKEN: b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1
+    
     # Schedule Service
     SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'}
     SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}

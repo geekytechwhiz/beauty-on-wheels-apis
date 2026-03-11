@@ -36,7 +36,6 @@ export class ScheduleServiceClient {
   });
 
   constructor() {
-
     const config = getEnvConfig();
 
     this.client = axios.create({
@@ -87,10 +86,11 @@ export class ScheduleServiceClient {
   }
 
   private buildHeaders(context: RequestContext): Record<string, string> {
+    const config = getEnvConfig();
 
     return {
       'X-Correlation-Id': context.correlationId,
-      Authorization: `Bearer ${context.serviceToken}`,
+      Authorization: `Bearer ${config.INTERNAL_SERVICE_TOKEN}`,
     };
   }
 

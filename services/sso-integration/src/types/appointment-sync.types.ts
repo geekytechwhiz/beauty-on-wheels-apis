@@ -252,6 +252,7 @@ export interface UpdateServiceStatusRequest {
   type: 'addon';
   userId: string;
   scheduleStatus: 'confirmed' | 'cancelled' | 'completed';
+  paymentStatus?: 'completed' | 'pending' | 'failed';
 }
 
 export interface UpdateServiceStatusResponse {

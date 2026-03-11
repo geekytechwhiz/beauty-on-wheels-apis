@@ -56,17 +56,40 @@ export class CognitoService {
   }
 
   /**
+   * Remap the email domain when COGNITO_EMAIL_DOMAIN_OVERRIDE is set.
+   * Useful in dev/test environments where real emails (e.g. doctor@hospital.com)
+   * are registered in Cognito with a test domain (e.g. doctor@yopmail.com).
+   *
+   * Set env var:  COGNITO_EMAIL_DOMAIN_OVERRIDE=yopmail.com
+   * Then:         doctor@hospital.com  →  doctor@yopmail.com
+   */
+  private remapEmailDomain(email: string): string {
+    const overrideDomain = process.env.COGNITO_EMAIL_DOMAIN_OVERRIDE?.trim();
+    if (!overrideDomain) {
+      return email;
+    }
+    const atIndex = email.lastIndexOf('@');
+    if (atIndex === -1) {
+      return email;
+    }
+    const localPart = email.substring(0, atIndex);
+    return `${localPart}@${overrideDomain}`;
+  }
+
+  /**
    * Find user by email
    */
   async findUserByEmail(
     email: string,
   ): Promise<TruTechVerifiedPayload | null> {
     try {
-      const normalizedEmail = email.trim().toLowerCase();
+      const rawEmail = email.trim().toLowerCase();
+      const normalizedEmail = this.remapEmailDomain(rawEmail);
   
       this.logger.debug({
         event: 'cognito_find_user_by_email_start',
-        email: normalizedEmail,
+        originalEmail: rawEmail,
+        lookupEmail: normalizedEmail,
       });
   
       const cmd = new ListUsersCommand({

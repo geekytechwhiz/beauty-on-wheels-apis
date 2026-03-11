@@ -22,6 +22,9 @@ provider:
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, '6v68r2stt9b4rgr3u8348bslsi'}
+    # Set to remap TruTech email domains to Cognito test-email domains
+    # e.g. COGNITO_EMAIL_DOMAIN_OVERRIDE=yopmail.com  → doctor@hospital.com becomes doctor@yopmail.com
+    COGNITO_EMAIL_DOMAIN_OVERRIDE: ${env:COGNITO_EMAIL_DOMAIN_OVERRIDE, 'yopmail.com'}
 
     # TruTech adapter config
     TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}

@@ -103,14 +103,25 @@ export interface GetAvailableServicesRequest {
 }
 
 export interface AvailableService {
-  orgAddonId: string;
-  serviceName: string;
-  serviceType: string;
+  addonId: string; // This is the orgAddonId
+  orgAddonId?: string; // Alias for addonId
+  title?: string;
+  description?: string;
+  featureKey?: string;
+  featureCategory?: string;
+  charges?: {
+    price: number;
+    currency: string;
+    offerPrice: number;
+  };
   [key: string]: unknown; // Allow for additional fields
 }
 
 export interface GetAvailableServicesResponse {
-  data?: AvailableService[];
+  data: {
+    items: AvailableService[];
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -123,14 +134,11 @@ export interface RecommendServicesRequest {
   scheduleBy: string; // timestamp as string
 }
 
-export interface RecommendedService {
-  userAddonId: string;
-  orgAddonId: string;
-  [key: string]: unknown; // Allow for additional fields
-}
-
 export interface RecommendServicesResponse {
-  data?: RecommendedService[];
+  data: {
+    userAddonId: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -158,8 +166,82 @@ export interface CreateServiceScheduleRequest {
   paymentSchedule: 'INSTANT' | 'LATER';
 }
 
+export interface ScheduleDetails {
+  id: string;
+  scheduleId?: string; // Alias for id
+  participantInfo: Array<{
+    userId: string;
+    userType: 'USER' | 'STAFF';
+    name?: string;
+    email?: string;
+    organizationID: string;
+    phoneNumber?: string;
+    phoneCode?: string;
+    profileImage?: string;
+    specialty?: string;
+  }>;
+  owner: {
+    userId: string;
+    userType: 'STAFF';
+    name?: string;
+    email?: string;
+    profileImage?: string;
+    specialty?: string;
+    isCaller?: boolean;
+  };
+  appointmentType: string;
+  title?: string;
+  description?: string;
+  organizationID: string;
+  scheduleTimeStamp: string;
+  scheduleDate: string;
+  startTime: string;
+  endTime: string;
+  duration: string;
+  location?: {
+    organizationName?: string;
+    organizationID?: string;
+    organizationAddress?: {
+      country?: string;
+      address?: string;
+      state?: string;
+      city?: string;
+      countryCode?: string;
+      postalCode?: string;
+    };
+  };
+  pincode?: string;
+  latitude?: number;
+  longitude?: number;
+  phoneNumber?: string;
+  phoneCode?: string;
+  meta?: {
+    userId?: string;
+    userAddonId?: string;
+    paymentSchedule?: string;
+    [key: string]: unknown;
+  };
+  status?: string;
+  bookingId?: string;
+  qrCode?: string;
+  ticketLink?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
 export interface CreateServiceScheduleResponse {
-  data?: Schedule;
+  data: {
+    scheduleDetails: ScheduleDetails;
+    service?: {
+      userAddonId: string;
+      orgAddonId: string;
+      status?: string;
+      scheduledStatus?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -171,6 +253,40 @@ export interface UpdateServiceStatusRequest {
 }
 
 export interface UpdateServiceStatusResponse {
-  data?: unknown;
+  data: {
+    userAddonId: string;
+    orgAddonId?: string;
+    scheduledStatus?: string;
+    status?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+// Updated FetchSchedulesResponse to match actual API structure
+export interface FetchSchedulesResponse {
+  data: {
+    items: Array<{
+      userAddonId: string;
+      orgAddonId: string;
+      scheduled?: Array<{
+        scheduleId: string;
+        startTime: string;
+        endTime: string;
+        scheduleDate: string;
+        scheduleTimeStamp: string;
+        participantInfo: ScheduleParticipantInfo[];
+        owner: {
+          userId: string;
+          userType: string;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      }>;
+      schedule?: ScheduleDetails;
+      [key: string]: unknown;
+    }>;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }

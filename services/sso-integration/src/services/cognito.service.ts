@@ -5,10 +5,10 @@ import {
 } from '@api-hub/logger';
 
 import {
-  AdminGetUserCommand, 
+  AdminGetUserCommand,
+  AdminInitiateAuthCommand,
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
-  InitiateAuthCommand,
   ListUsersCommand,
   UserNotFoundException,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -56,17 +56,40 @@ export class CognitoService {
   }
 
   /**
+   * Remap the email domain when COGNITO_EMAIL_DOMAIN_OVERRIDE is set.
+   * Useful in dev/test environments where real emails (e.g. doctor@hospital.com)
+   * are registered in Cognito with a test domain (e.g. doctor@yopmail.com).
+   *
+   * Set env var:  COGNITO_EMAIL_DOMAIN_OVERRIDE=yopmail.com
+   * Then:         doctor@hospital.com  →  doctor@yopmail.com
+   */
+  private remapEmailDomain(email: string): string {
+    const overrideDomain = process.env.COGNITO_EMAIL_DOMAIN_OVERRIDE?.trim();
+    if (!overrideDomain) {
+      return email;
+    }
+    const atIndex = email.lastIndexOf('@');
+    if (atIndex === -1) {
+      return email;
+    }
+    const localPart = email.substring(0, atIndex);
+    return `${localPart}@${overrideDomain}`;
+  }
+
+  /**
    * Find user by email
    */
   async findUserByEmail(
     email: string,
   ): Promise<TruTechVerifiedPayload | null> {
     try {
-      const normalizedEmail = email.trim().toLowerCase();
+      const rawEmail = email.trim().toLowerCase();
+      const normalizedEmail = this.remapEmailDomain(rawEmail);
   
       this.logger.debug({
         event: 'cognito_find_user_by_email_start',
-        email: normalizedEmail,
+        originalEmail: rawEmail,
+        lookupEmail: normalizedEmail,
       });
   
       const cmd = new ListUsersCommand({
@@ -202,6 +225,8 @@ export class CognitoService {
    */
   async generateToken(username: string, _role?: string) {
     try {
+      console.log("USERNAME: ", username);
+      console.log("ROLE: ", _role);
       const authUsername = username.trim();
       const authPassword =
         process.env.COGNITO_SSO_COMMON_PASSWORD || 'common@2026';
@@ -211,9 +236,10 @@ export class CognitoService {
         username: authUsername,
       });
   
-      const cmd = new InitiateAuthCommand({
+      const cmd = new AdminInitiateAuthCommand({
+        UserPoolId: this.userPoolId!,
         ClientId: this.clientId!,
-        AuthFlow: 'USER_PASSWORD_AUTH',
+        AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
         AuthParameters: {
           USERNAME: authUsername,
           PASSWORD: authPassword,

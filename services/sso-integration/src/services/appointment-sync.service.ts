@@ -751,23 +751,22 @@ export class AppointmentSyncService extends BaseService {
         request: recommendServicesRequest,
       });
 
-      const recommendedServices =
+      const recommendResult =
         await this.scheduleClient.recommendServices(
           recommendServicesRequest,
           context
         );
 
-      if (!recommendedServices || recommendedServices.length === 0) {
-        throw new Error('No recommended services found');
+      if (!recommendResult?.userAddonId) {
+        throw new Error('No userAddonId returned from recommend services');
       }
 
-      // Use the first recommended service
-      const userAddonId = recommendedServices[0].userAddonId;
+      // Get the userAddonId from the response
+      const userAddonId = recommendResult.userAddonId;
 
       logger.info({
         event: 'recommend_services_success',
         userAddonId,
-        recommendedServicesCount: recommendedServices.length,
       });
 
       // Step 3: Create service schedule

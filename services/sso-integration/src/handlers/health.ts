@@ -39,7 +39,7 @@ export async function handler(
 
   return ApiResponse.ok(
     response,
-    { title: 'OK', description: 'SSO integration service is healthy' },
+    { title: 'OK', description: 'SSO integration service is healthy', severity: 'INFO' },
     {
       requestId: correlationId,
       headers: {

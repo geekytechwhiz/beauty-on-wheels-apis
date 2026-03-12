@@ -2,7 +2,7 @@ import { UserRepository, ListOrganizationUsersOptions } from '../repositories/us
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { getOrganization as getOrganizationViaApi } from './organization.service';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
+import { User, UserMetadata, UserOrganization, UserFile, UserResponse, ExternalIdentity  } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
 import { publishEvent } from '../events/event.publisher';
@@ -165,7 +165,8 @@ export class UserService {
           const username = explicitUsername || normalizedEmail || normalizedPhone;
           
           const permissionIds: string[] = []; // Permissions would come from role service
-          
+          const externalIdentity = data.externalIdentity as ExternalIdentity || {};
+
           await cognitoService.createUser(
             username,
             {
@@ -175,9 +176,12 @@ export class UserService {
                 userType: String(data.userType || ''),
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
-                role: JSON.stringify(userRoleArray),
-                roleName: roleName,
+                role: JSON.stringify(userRoleArray), 
                 permissions: JSON.stringify(permissionIds),
+
+                provider: externalIdentity?.provider || undefined,
+                externalUserId: externalIdentity?.externalUserId || undefined,
+                subdomain: externalIdentity?.subdomain || undefined, 
               },
             }
           );

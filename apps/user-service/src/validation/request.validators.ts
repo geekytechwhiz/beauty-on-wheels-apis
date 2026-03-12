@@ -147,8 +147,15 @@ export function validateFetchFriendFamily(req: any) {
 
 export function validateAddMemberFriendFamily(req: any) {
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
-  const userId = body.userId ?? body.userID ?? req?.context?.user?.userId;
+  const organizationID =
+    body.organizationID ??
+    req?.context?.userContext?.organizationId ??
+    req?.context?.user?.organizationId;
+  const userId =
+    body.userId ??
+    body.userID ??
+    req?.context?.userContext?.userId ??
+    req?.context?.user?.userId;
   const payload = { ...body, organizationID, userId };
   const result = addMemberFriendFamilySchema.safeParse(payload);
   if (!result.success) {
@@ -169,8 +176,15 @@ export function validateAddMemberFriendFamily(req: any) {
 
 export function validateUpdateFriendFamily(req: any) {
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
-  const userId = body.userId ?? body.userID ?? req?.context?.user?.userId;
+  const organizationID =
+    body.organizationID ??
+    req?.context?.userContext?.organizationId ??
+    req?.context?.user?.organizationId;
+  const userId =
+    body.userId ??
+    body.userID ??
+    req?.context?.userContext?.userId ??
+    req?.context?.user?.userId;
   const payload = { ...body, organizationID };
   const result = updateFriendFamilySchema.safeParse(payload);
   if (!result.success) {
@@ -211,7 +225,10 @@ export function validateFriendFamilySearch(req: any) {
     throw err;
   }
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
+  const organizationID =
+    body.organizationID ??
+    req?.context?.userContext?.organizationId ??
+    req?.context?.user?.organizationId;
   const result = friendFamilySearchSchema.safeParse({ ...body, organizationID });
   if (!result.success) {
     throwVal(

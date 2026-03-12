@@ -5,15 +5,16 @@ import {
 } from '@api-hub/logger';
 
 import {
-  AdminGetUserCommand, 
+  AdminGetUserCommand,
+  AdminInitiateAuthCommand,
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
-  InitiateAuthCommand,
   ListUsersCommand,
   UserNotFoundException,
 } from '@aws-sdk/client-cognito-identity-provider';
 
-import { TruTechVerifiedPayload } from '../types/appointment.types';
+import {    CognitoUserContext, CognitoUserClaims } from '../types/user/user.types';
+import { processPhoneNumber } from '../utils/phone-processor';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -55,18 +56,29 @@ export class CognitoService {
     }
   }
 
+ 
   /**
    * Find user by email
    */
-  async findUserByEmail(
-    email: string,
-  ): Promise<TruTechVerifiedPayload | null> {
+  async findCognitoUserByEmail(
+    email: string | null | undefined,
+  ): Promise<CognitoUserContext | null> {
     try {
-      const normalizedEmail = email.trim().toLowerCase();
+      if (!email || typeof email !== 'string') {
+        this.logger.warn({
+          event: 'cognito_find_user_by_email_invalid_input',
+          email,
+        });
+        return null;
+      }
+      const rawEmail = email.trim().toLowerCase();
+      const normalizedEmail = rawEmail;
+      // const normalizedEmail = this.remapEmailDomain(rawEmail);
   
       this.logger.debug({
         event: 'cognito_find_user_by_email_start',
-        email: normalizedEmail,
+        originalEmail: rawEmail,
+        lookupEmail: normalizedEmail,
       });
   
       const cmd = new ListUsersCommand({
@@ -88,7 +100,13 @@ export class CognitoService {
   
       const user = res.Users[0];
   
-      const mapped = this.mapUser(user);
+      // 🔹 Convert Cognito attributes → claims format
+      const claims = Object.fromEntries(
+        (user.Attributes || []).map((a) => [a.Name, a.Value]),
+      ) as unknown as CognitoUserClaims;
+  
+      // 🔹 Map to AuthContext
+      const mapped = this.mapCognitoClaimsToAuthContext(claims);
   
       this.logger.info({
         event: 'cognito_find_user_by_email_success',
@@ -104,11 +122,77 @@ export class CognitoService {
         err: serializeError(err),
       });
   
-      throw err;
+      // throw err;
+      return null;
     }
   }
 
+  async findCognitoUserByPhone(
+    phone: string | null | undefined,
+  ): Promise<CognitoUserContext | null> {
+    try {
+      if (!phone || typeof phone !== 'string') {
+        this.logger.warn({
+          event: 'cognito_find_user_by_phone_invalid_input',
+          phone,
+        });
+        return null;
+      }
+      const rawPhone = phone.trim().toLowerCase();
+      const normalizedPhone = processPhoneNumber(rawPhone);
+  
+      this.logger.debug({
+        event: 'cognito_find_user_by_phone_start',    
+        originalPhone: rawPhone,
+        lookupPhone: normalizedPhone,
+      });
+  
+      const cmd = new ListUsersCommand({
+        UserPoolId: this.userPoolId!,
+        Filter: `phone_number = "${normalizedPhone}"`,
+        Limit: 1,
+      });
+  
+      const res = await this.client.send(cmd);
+  
+      if (!res.Users || res.Users.length === 0) {
+        this.logger.info({
+          event: 'cognito_find_user_by_phone_not_found',
+          phone: normalizedPhone,
+        });
+        return null;
+      }
+  
+      const user = res.Users[0];
+  
+      // 🔹 Convert Cognito attributes → claims format
+      const claims = Object.fromEntries(
+        (user.Attributes || []).map((a) => [a.Name, a.Value]),
+      ) as unknown as CognitoUserClaims;
+  
+      // 🔹 Map to AuthContext
+      const mapped = this.mapCognitoClaimsToAuthContext(claims);
+  
+      this.logger.info({
+        event: 'cognito_find_user_by_phone_success',
+        phone: normalizedPhone,
+        cognitoUsername: user.Username,
+      });
+  
+      return mapped;
+    } catch (err) {
+      this.logger.error({
+        event: 'cognito_user_lookup_failed',
+        phone,
+        err: serializeError(err),
+      });
+  
+      // throw err;
+      return null;
+    }
+  } 
   /**
+   * Find user by phone
    * Fetch specific user attributes
    */
   async getUserAttributes(
@@ -191,8 +275,8 @@ export class CognitoService {
         username,
         err: serializeError(err),
       });
-
-      throw err;
+      
+      // throw err;
     }
   }
 
@@ -202,18 +286,21 @@ export class CognitoService {
    */
   async generateToken(username: string, _role?: string) {
     try {
+      console.log("USERNAME: ", username);
+      console.log("ROLE: ", _role);
       const authUsername = username.trim();
       const authPassword =
-        process.env.COGNITO_SSO_COMMON_PASSWORD || 'common@2026';
+        process.env.COGNITO_SSO_COMMON_PASSWORD || 'Comm@n123';
 
       this.logger.info({
         event: 'cognito_generate_token_start',
         username: authUsername,
       });
   
-      const cmd = new InitiateAuthCommand({
+      const cmd = new AdminInitiateAuthCommand({
+        UserPoolId: this.userPoolId!,
         ClientId: this.clientId!,
-        AuthFlow: 'USER_PASSWORD_AUTH',
+        AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
         AuthParameters: {
           USERNAME: authUsername,
           PASSWORD: authPassword,
@@ -229,9 +316,9 @@ export class CognitoService {
       });
 
       return {
-        accessToken: auth?.AccessToken,
-        idToken: auth?.IdToken,
-        refreshToken: auth?.RefreshToken,
+        accessToken: auth?.AccessToken,    // Cognito AccessToken
+        updateToken: auth?.IdToken,        // Cognito IdToken
+        refreshToken: auth?.RefreshToken,  // Cognito RefreshToken
         expiresIn: auth?.ExpiresIn,
       };
     } catch (err) {
@@ -241,7 +328,8 @@ export class CognitoService {
         err: serializeError(err),
       });
 
-      throw err;
+      // throw err;
+      return null;
     }
   }
 
@@ -267,7 +355,7 @@ export class CognitoService {
         event: 'cognito_token_cache_miss_generating_new',
       });
 
-      const result = await this.generateToken(username, password);
+      const result:any= await this.generateToken(username, password);
 
       if (!result.accessToken) {
         throw new Error('Failed to generate Cognito token');
@@ -299,22 +387,30 @@ export class CognitoService {
   /**
    * Map Cognito user to payload
      */
-  private mapUser(user: any): TruTechVerifiedPayload {
-    const attributes = Object.fromEntries(
-      (user.Attributes || []).map((a: any) => [a.Name, a.Value]),
-    );
-
+  private mapCognitoClaimsToAuthContext(claims: CognitoUserClaims): CognitoUserContext {
     return {
-      email: attributes.email,
-      doctorUid: attributes['custom:doctorUid'] || attributes['custom:userID'],
-      organizationId:
-        attributes['custom:organizationId'] ||
-        attributes['custom:organizationID'],
-      doctorId: attributes['custom:doctorId'],
-      tenantSubdomain: attributes['custom:tenantSubdomain'],
-      doctorEmail: attributes['custom:doctorEmail'] || attributes.email,
-      tenantId: attributes['custom:tenantId'],
-      cognitoUsername: user.Username,
-    } as TruTechVerifiedPayload;
+      principalId: claims["custom:userID"],
+  
+      userId: claims["custom:id"],
+
+      organizationId: claims["custom:organizationID"],
+      userType: claims["custom:userType"],
+      email: claims.email,
+      phone: claims.phone_number,
+      roles: claims["custom:role"]
+        ? JSON.parse(claims["custom:role"])
+        : [],
+  
+      permissions: claims["custom:permissions"]
+        ? JSON.parse(claims["custom:permissions"])
+        : [],
+   
+        externalUserId: claims["custom:externalUserId"],
+        providerId: claims["custom:providerId"],
+        subdomain: claims["custom:subdomain"],
+        
+      authType: "USER",
+    };
   }
 }
+ 

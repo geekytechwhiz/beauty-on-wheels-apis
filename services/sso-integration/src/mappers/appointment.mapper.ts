@@ -1,24 +1,25 @@
 import { Appointment, User } from '../types';
-import { UserSourceSystem } from '../types/integration.types';
-import { 
-  ScheduleCreateRequest,
+import {
+  CreateServiceScheduleRequest,
   GetAvailableServicesRequest,
   RecommendServicesRequest,
-  CreateServiceScheduleRequest,
+  ScheduleCreateRequest,
 } from '../types/appointment-sync.types';
-
+import { SSORequestContext } from '../types/common/context.types';
+import { CognitoUserContext } from '../types/user/user.types';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
     appointment: Appointment,
     doctorUser: User,
     patientUser: User,
+    context: SSORequestContext,
   ): ScheduleCreateRequest {
     const startTime = appointment.startTime;
     const endTime = appointment.endTime;
     const scheduleDate = startTime.split('T')[0];
-
+  
     const organizationID =
-      patientUser.organizationId || appointment.patient.organizationId;
+      patientUser.tenantId || context.integration.subdomain;
 
     const externalAppointmentId = String(appointment.appointmentId);
 
@@ -49,7 +50,7 @@ export class AppointmentMapper {
         externalAppointmentId,
         consultationType: appointment.consultationType?.name,
         visitId: appointment.visit?.id,
-        sourceSystem: UserSourceSystem.AFRICA_HMS,
+        sourceSystem: context.sourceSystem,
       },
     };
   }
@@ -102,13 +103,13 @@ export class AppointmentMapper {
   mapAppointmentToGetAvailableServices(
     appointment: Appointment,
     patientUser: User,
+    context: SSORequestContext,
   ): GetAvailableServicesRequest {
-    const organizationID =
-      patientUser.organizationId || appointment.patient.organizationId;
+    
 
     return {
-      organizationId: organizationID,
-      assignOrgId: organizationID,
+      organizationId: context.integration.subdomain,
+      assignOrgId: context.integration.subdomain,
       serviceType: 'addon',
       listingType: 'recommended',
       featureKey: 'doctor_consultancy',
@@ -121,12 +122,20 @@ export class AppointmentMapper {
    */
   mapAppointmentToRecommendServices(
     appointment: Appointment,
-    doctorUser: User,
+    doctorUser: CognitoUserContext,
     patientUser: User,
     orgAddonId: string,
+    context: SSORequestContext,
   ): RecommendServicesRequest {
-    const organizationID =
-      patientUser.organizationId || appointment.patient.organizationId;
+
+    const organizationID = context.integration.subdomain;
+     
+    console.log("PATIENT USER: ", patientUser);
+    console.log("APPOINTMENT: ", appointment);
+    console.log("DOCTOR USER: ", doctorUser);
+    console.log("ORG ADDON ID: ", orgAddonId);
+    console.log("ORGANIZATION ID: ", organizationID);
+  
     const scheduleTimeStamp = this.getTimestampString(appointment.startTime);
 
     return {
@@ -134,9 +143,10 @@ export class AppointmentMapper {
       type: 'addon',
       userId: String(patientUser.id),
       orgAddonId: orgAddonId,
-      assignedDoctorId: String(doctorUser.id),
+      assignedDoctorId: String(doctorUser.userId),
       scheduleBy: scheduleTimeStamp,
     };
+    
   }
 
   /**
@@ -144,13 +154,11 @@ export class AppointmentMapper {
    */
   mapAppointmentToCreateServiceSchedule(
     appointment: Appointment,
-    doctorUser: User,
+    doctorUser: CognitoUserContext,
     patientUser: User,
     userAddonId: string,
   ): CreateServiceScheduleRequest {
-    const organizationID =
-      patientUser.organizationId || appointment.patient.organizationId;
-
+      
     const startTime = this.formatTime12Hour(appointment.startTime);
     const endTime = this.formatTime12Hour(appointment.endTime);
     const scheduleDate = this.formatDateDDMMYYYY(appointment.startTime);
@@ -163,7 +171,7 @@ export class AppointmentMapper {
     // Extract doctor information
     const doctorName = appointment.doctor.name || '';
     const doctorEmail = appointment.doctor.email || '';
-    const doctorSpecialty = appointment.doctor.department || '';
+    const doctorSpecialty = appointment.doctor.department || 'general';
 
     // Extract patient information
     const patientName = appointment.patient.name || '';
@@ -175,7 +183,7 @@ export class AppointmentMapper {
       userId: String(patientUser.id),
       userName: patientName,
       userEmail: patientEmail,
-      staffId: String(doctorUser.id),
+      staffId: String(doctorUser.userId),
       staffName: doctorName,
       staffEmail: doctorEmail,
       staffSpecialty: doctorSpecialty,

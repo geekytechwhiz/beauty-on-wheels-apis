@@ -4,21 +4,22 @@ import { createChildLogger, createLogger, serializeError } from '@api-hub/logger
 import { getEnvConfig } from '../config/env';
 import {
   FetchSchedulesRequest,
+  FetchSchedulesResponse,
   Schedule,
   GetAvailableServicesRequest,
   GetAvailableServicesResponse,
   AvailableService,
   RecommendServicesRequest,
   RecommendServicesResponse,
-  RecommendedService,
   CreateServiceScheduleRequest,
   CreateServiceScheduleResponse,
   UpdateServiceStatusRequest,
   UpdateServiceStatusResponse,
-} from '../types/appointment-sync.types';
+  ScheduleDetails,
+} from '../types';
 
-import { SSOError } from '../types/errors/sso-error';
-import { RequestContext } from '../context/request-context';
+  import { SSOError } from '../types/errors/sso-error';
+  import { SSORequestContext } from '../types/common/context.types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -35,7 +36,6 @@ export class ScheduleServiceClient {
   });
 
   constructor() {
-
     const config = getEnvConfig();
 
     this.client = axios.create({
@@ -85,17 +85,18 @@ export class ScheduleServiceClient {
     );
   }
 
-  private buildHeaders(context: RequestContext): Record<string, string> {
+  private buildHeaders(context: SSORequestContext): Record<string, string> {
+    const config = getEnvConfig();
 
     return {
       'X-Correlation-Id': context.correlationId,
-      Authorization: `Bearer ${context.serviceToken}`,
+      Authorization: `Bearer ${config.INTERNAL_SERVICE_TOKEN}`,
     };
   }
 
   async fetchSchedules(
     payload: FetchSchedulesRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<Schedule[]> {
 
     const logger = createChildLogger(this.logger, {
@@ -104,7 +105,7 @@ export class ScheduleServiceClient {
 
     try {
 
-      const response = await this.client.post<{ data: Schedule[] }>(
+      const response = await this.client.post<FetchSchedulesResponse>(
         '/fetch/schedules',
         payload,
         {
@@ -112,7 +113,26 @@ export class ScheduleServiceClient {
         },
       );
 
-      return response.data.data ?? [];
+      // Extract schedules from the response structure
+      // The API returns data.items, where each item has scheduled[] or schedule object
+      const schedules: Schedule[] = [];
+      
+      if (response.data.data?.items) {
+        for (const item of response.data.data.items) {
+          // Check if item has scheduled array
+          if (item.scheduled && Array.isArray(item.scheduled)) {
+            for (const scheduledItem of item.scheduled) {
+              schedules.push(this.mapScheduledItemToSchedule(scheduledItem as unknown as any));
+            }
+          }
+          // Check if item has schedule object
+          else if (item.schedule) {
+            schedules.push(this.mapScheduleDetailsToSchedule(item.schedule));
+          }
+        }
+      }
+
+      return schedules;
 
     } catch (error) {
 
@@ -169,7 +189,7 @@ export class ScheduleServiceClient {
   // Service-based schedule creation methods
   async getAvailableServices(
     payload: GetAvailableServicesRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<AvailableService[]> {
 
     const logger = createChildLogger(this.logger, {
@@ -177,7 +197,7 @@ export class ScheduleServiceClient {
     });
 
     try {
-
+      console.log("getAvailableServices payload", JSON.stringify(payload));
       const response = await this.packageServiceClient.post<GetAvailableServicesResponse>(
         '/services/get-available-services',
         payload,
@@ -186,7 +206,14 @@ export class ScheduleServiceClient {
         },
       );
 
-      return response.data.data ?? [];
+      // Extract items from data.items array
+      const items = response.data.data?.items ?? [];
+      
+      // Map addonId to orgAddonId for compatibility
+      return items.map(item => ({
+        ...item,
+        orgAddonId: item.addonId || item.orgAddonId,
+      }));
 
     } catch (error) {
 
@@ -220,15 +247,15 @@ export class ScheduleServiceClient {
 
   async recommendServices(
     payload: RecommendServicesRequest,
-    context: RequestContext,
-  ): Promise<RecommendedService[]> {
+    context: SSORequestContext,
+  ): Promise<{ userAddonId: string }> {
 
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
 
     try {
-
+      console.log("recommendServices payload", JSON.stringify(payload));
       const response = await this.packageServiceClient.post<RecommendServicesResponse>(
         '/services/recommend-services',
         payload,
@@ -237,7 +264,12 @@ export class ScheduleServiceClient {
         },
       );
 
-      return response.data.data ?? [];
+      // The API returns data.userAddonId directly (not an array)
+      if (!response.data.data?.userAddonId) {
+        throw new Error('No userAddonId returned from recommend services');
+      }
+
+      return { userAddonId: response.data.data.userAddonId };
 
     } catch (error) {
 
@@ -271,7 +303,7 @@ export class ScheduleServiceClient {
 
   async createServiceSchedule(
     payload: CreateServiceScheduleRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<Schedule> {
 
     const logger = createChildLogger(this.logger, {
@@ -288,11 +320,12 @@ export class ScheduleServiceClient {
         },
       );
 
-      if (!response.data.data) {
-        throw new Error('No schedule data returned from create service schedule');
+      if (!response.data.data?.scheduleDetails) {
+        throw new Error('No schedule details returned from create service schedule');
       }
 
-      return response.data.data;
+      // Convert ScheduleDetails to Schedule format
+      return this.mapScheduleDetailsToSchedule(response.data.data.scheduleDetails);
 
     } catch (error) {
 
@@ -330,7 +363,7 @@ export class ScheduleServiceClient {
 
   async updateServiceStatus(
     payload: UpdateServiceStatusRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<UpdateServiceStatusResponse> {
 
     const logger = createChildLogger(this.logger, {
@@ -377,6 +410,80 @@ export class ScheduleServiceClient {
         error as Error,
       );
     }
+  }
+
+  /**
+   * Maps a scheduled item from the API response to Schedule format
+   */
+  private mapScheduledItemToSchedule(scheduledItem: {
+    scheduleId: string;
+    startTime: string;
+    endTime: string;
+    scheduleDate: string;
+    scheduleTimeStamp?: string;
+    participantInfo?: Array<{
+      userId: string;
+      userType: string;
+      organizationID?: string;
+      [key: string]: unknown;
+    }>;
+    owner?: {
+      userId: string;
+      userType: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  }): Schedule {
+    return {
+      scheduleId: scheduledItem.scheduleId,
+      startTime: scheduledItem.startTime,
+      endTime: scheduledItem.endTime,
+      scheduleDate: scheduledItem.scheduleDate,
+      appointmentType: (scheduledItem as { consultationType?: string }).consultationType || 'ONLINE',
+      owner: scheduledItem.owner ? {
+        userId: scheduledItem.owner.userId,
+        userType: scheduledItem.owner.userType,
+      } : {
+        userId: '',
+        userType: 'STAFF',
+      },
+      participantInfo: (scheduledItem.participantInfo || []).map(p => ({
+        userId: p.userId,
+        userType: p.userType as 'STAFF' | 'USER',
+        organizationID: p.organizationID || '',
+      })),
+      organizationID: (scheduledItem.participantInfo?.[0]?.organizationID as string) || '',
+      meta: {
+        externalAppointmentId: scheduledItem.scheduleId,
+      },
+    };
+  }
+
+  /**
+   * Maps ScheduleDetails from the API response to Schedule format
+   */
+  private mapScheduleDetailsToSchedule(scheduleDetails: ScheduleDetails): Schedule {
+    return {
+      scheduleId: scheduleDetails.id || scheduleDetails.scheduleId || '',
+      startTime: scheduleDetails.startTime,
+      endTime: scheduleDetails.endTime,
+      scheduleDate: scheduleDetails.scheduleDate,
+      appointmentType: scheduleDetails.appointmentType || 'ONLINE',
+      owner: {
+        userId: scheduleDetails.owner.userId,
+        userType: scheduleDetails.owner.userType,
+      },
+      participantInfo: scheduleDetails.participantInfo.map(p => ({
+        userId: p.userId,
+        userType: p.userType as 'STAFF' | 'USER',
+        organizationID: p.organizationID,
+      })),
+      organizationID: scheduleDetails.organizationID,
+      meta: {
+        externalAppointmentId: scheduleDetails.id || scheduleDetails.scheduleId || '',
+        ...scheduleDetails.meta,
+      },
+    };
   }
 }
 

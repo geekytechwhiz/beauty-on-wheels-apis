@@ -5,6 +5,7 @@ import { SSOError } from '../types/errors/sso-error';
 import { DoctorCreationPayload } from '../types/user-creation.types';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor';
+import { getOrganizationIdBySubdomain } from '../utils/helper';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -98,7 +99,7 @@ export class DoctorMapperHelper {
       },
       userRole: [config.doctorRoleId],
       userType: 'STAFF',
-      organizationID: config.defaultOrganizationID,
+      organizationID: getOrganizationIdBySubdomain(subDomain || verifiedPayload.tenant_id),
       externalId: externalId,
       provider: 'TruTech', 
       subDomain: subDomain || verifiedPayload.tenant_id 

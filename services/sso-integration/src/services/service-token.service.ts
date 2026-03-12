@@ -59,6 +59,12 @@ export class ServiceTokenService {
       userId: context.userId
     })
 
+    // The doctor may have a personal Cognito password that differs from the SSO
+    // common password. Force-set the SSO password (Permanent=true) before every
+    // SSO authentication so InitiateAuth always succeeds with a known credential.
+    const ssoPassword = process.env.COGNITO_SSO_COMMON_PASSWORD || 'common@2026';
+    await this.cognitoService.setPassword(context.userId, ssoPassword);
+
     const token = await this.cognitoService.generateToken(context.userId, context.role);
     // if (!this.secret) {
 
@@ -109,9 +115,10 @@ export class ServiceTokenService {
     // })
 
     return {
-      token: token.accessToken || '',
-      expiresIn: token.expiresIn || 0,
+      accessToken: token.updateToken || '',
+      updateToken: token.accessToken || '',
       refreshToken: token.refreshToken || '',
+      expiresIn: token.expiresIn || 0,
       userId: context.userId,
       role: context.role
     }

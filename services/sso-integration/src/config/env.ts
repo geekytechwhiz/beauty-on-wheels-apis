@@ -36,11 +36,20 @@ const envSchema = z.object({
 
   USER_SERVICE_BASE_URL: z.string().url('USER_SERVICE_BASE_URL must be a valid URL'),
 
+
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'), 
+
 
   // Secret used to sign and verify internal service-level JWTs issued by the
   // SSO integration service (not Cognito tokens).
   SERVICE_TOKEN_SECRET: z.string().min(1, 'SERVICE_TOKEN_SECRET is required'),
+
+  // Static service token used for internal service-to-service communication
+  // (e.g. SSO → Schedule Service, User Service). This should be provisioned
+  // via the environment and treated as a secret.
+  INTERNAL_SERVICE_TOKEN: z
+    .string()
+    .min(1, 'INTERNAL_SERVICE_TOKEN is required for internal communication'),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1000).default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1).default(100),

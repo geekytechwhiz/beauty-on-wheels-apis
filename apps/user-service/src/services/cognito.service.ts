@@ -170,9 +170,8 @@ export class CognitoService {
          */
         organizationId?: string;
         role?: string;
-        roleName?: string;
         permissions?: string;
-        providerId?: string;
+        provider?: string;
         externalUserId?: string;
         subdomain?: string;
       };
@@ -215,9 +214,8 @@ export class CognitoService {
         if (custom.organizationID) attrs.push({ Name: 'custom:organizationID', Value: String(custom.organizationID) });
         if (custom.organizationId) attrs.push({ Name: 'custom:organizationId', Value: String(custom.organizationId) });
         if (custom.role) attrs.push({ Name: 'custom:role', Value: String(custom.role) });
-        if (custom.roleName) attrs.push({ Name: 'custom:roleName', Value: String(custom.roleName) });
         if (custom.permissions) attrs.push({ Name: 'custom:permissions', Value: String(custom.permissions) });
-        if (custom.providerId) attrs.push({ Name: 'custom:providerId', Value: String(custom.providerId) });
+        if (custom.provider) attrs.push({ Name: 'custom:providerId', Value: String(custom.provider) });
         if (custom.externalUserId) attrs.push({ Name: 'custom:externalUserId', Value: String(custom.externalUserId) });
         if (custom.subdomain) attrs.push({ Name: 'custom:subdomain', Value: String(custom.subdomain) });
         attrs.push({ Name: 'custom:src', Value: isEmail ? String(identifier).toLowerCase() : String(identifier) });
@@ -227,7 +225,7 @@ export class CognitoService {
       
       // Generate password
       const generatePassword = (): string => {
-        return `Comm@n12${Math.random().toString(36).substring(5)}`;
+        return `Comm@n123`;
       };
       
       const temporaryPassword = generatePassword();

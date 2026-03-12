@@ -88,6 +88,14 @@ function modifyIndexesUsers(user: User): UserDBItem {
   };
 }
 
+function tenatMapping(user: User, provider: string, subdomain: string, externalUserId: string): UserDBItem {
+
+  return {
+    ...user,
+    pk: `PROVIDER#${provider?.trim()?.toUpperCase() || ''}#${subdomain?.trim()?.toLowerCase() || ''}`,
+    sk: `EXTUSER#${externalUserId?.trim()?.toLowerCase() || ''}`, 
+  };
+}
 function modifyIndexesUserOrg(user: User): UserDBItem {
   return {
     ...user,
@@ -153,7 +161,12 @@ export interface ListOrganizationUsersOptions {
 
 export class UserRepository {
   async createUser(user: User): Promise<void> {
-    const item = modifyIndexesUsers(user);
+    let item: UserDBItem;
+    if(user.externalIdentity?.provider) {
+      item = tenatMapping(user, user.externalIdentity.provider || '', user.externalIdentity.subdomain || '', user.externalIdentity.externalUserId || '');
+    } else {
+      item = modifyIndexesUsers(user);
+    }
     try {
       await sendDoc<PutCommandOutput>(docClient,
         new PutCommand({

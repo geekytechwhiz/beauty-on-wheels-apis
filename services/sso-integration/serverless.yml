@@ -22,17 +22,26 @@ provider:
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, '6v68r2stt9b4rgr3u8348bslsi'}
+    # Set to remap TruTech email domains to Cognito test-email domains
+    # e.g. COGNITO_EMAIL_DOMAIN_OVERRIDE=yopmail.com  → doctor@hospital.com becomes doctor@yopmail.com
+    COGNITO_EMAIL_DOMAIN_OVERRIDE: ${env:COGNITO_EMAIL_DOMAIN_OVERRIDE, 'hms.com'}
 
     # TruTech adapter config
     TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
     TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
-    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '5000'}
+    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '15000'}
 
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
     SERVICE_TOKEN_SECRET: ${env:SERVICE_TOKEN_SECRET, 'dummy-service-token-secret-for-local-dev'}
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
+    # Internal service-to-service auth token, sourced from SSM Parameter Store
+    # ARN: arn:aws:ssm:us-east-1:542476693486:parameter/INTERNAL_SERVICE_TOKEN
+    # INTERNAL_SERVICE_TOKEN: ${ssm:INTERNAL_SERVICE_TOKEN~true}
+    COGNITO_SSO_COMMON_PASSWORD: Comm@n123
+    INTERNAL_SERVICE_TOKEN: b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1
+    
     # Schedule Service
     SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'}
     SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}
@@ -152,31 +161,31 @@ functions:
             # identitySource: method.request.header.Authorization
             # arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
-  patientEMR:
-    handler: src/handlers/http/patient-emr.handler
-    description: Get patient EMR summary for last 3 visits
-    timeout: 15
-    events:
-      - http:
-          path: /appointments/{patientId}/emr
-          method: get
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-          request:
-            parameters:
-              paths:
-                patientId: true
-          # authorizer:
-          #   name: authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
+  # patientEMR:
+  #   handler: src/handlers/http/patient-emr.handler
+  #   description: Get patient EMR summary for last 3 visits
+  #   timeout: 15
+  #   events:
+  #     - http:
+  #         path: /appointments/{patientId}/emr
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #         request:
+  #           parameters:
+  #             paths:
+  #               patientId: true
+  #         # authorizer:
+  #         #   name: authorizer
+  #         #   type: token
+  #         #   identitySource: method.request.header.Authorization
+  #         #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
   # Service-to-service: do NOT attach Cognito authorizer. Auth is done in Lambda via service token (SERVICE_TOKEN_SECRET).
   appointmentSync:

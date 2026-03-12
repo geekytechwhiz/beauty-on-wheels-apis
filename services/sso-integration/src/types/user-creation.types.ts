@@ -2,6 +2,8 @@
 // User Creation Payload Types
 // =============================================================================
 
+import { SourceSystem } from "./common/context.types";
+
 /**
  * Doctor creation payload for user service API
  */
@@ -30,18 +32,19 @@ export interface DoctorCreationPayload {
     bio: string;
   };
   userRole: string[];
+  invite: 'phone' | 'email';
   userType: 'STAFF';
   organizationID: string;
-  externalId: string;
-  provider: string;
-  subDomain: string;
-  tenantId: string;
+ 
   role: string;
   source: string;
   email: string;
   phone: string;
   firstName: string;
   lastName: string;
+  externalIdentity: ExternalIdentity;
+  createdDate: number;
+  modifiedDate: number;
 }
 
 /**
@@ -72,6 +75,18 @@ export interface PatientCreationPayload {
   };
   userRole: string[];
   userType: 'USER';
-  invite: 'phone';
+  invite: 'phone' | 'email';
   organizationID: string;
+    externalIdentity: ExternalIdentity;
+  createdDate: number;
+  modifiedDate: number;
 }
+export interface ExternalIdentity { 
+  externalUserId: string; // user id from external system
+  externalHospitalId?: string; // org id or tenant id
+  subdomain: string;  
+  sourceSystem: SourceSystem;  
+  provider: string;
+};
+
+ 

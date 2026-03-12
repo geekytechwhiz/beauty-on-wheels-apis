@@ -1,9 +1,9 @@
 import { createChildLogger, serializeError } from '@api-hub/logger';
-import { SSORequestContext } from '../../context/request-context';
+import { SSORequestContext } from '../../types/common/context.types';
 import { User } from '../../types';
 import {
   PendingAppointment,
-} from '../../types/appointment-sync.types';
+} from '../../types';
 import { CognitoUserContext } from '../../types/user/user.types';
 import { AppointmentIdempotencyService } from './appointment-idempotency.service';
 import { ScheduleCreationService } from './schedule-creation.service';

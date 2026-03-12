@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, ScheduledEvent, SQSEvent } from 'aws-lambda'
 import { SSORequestContext, SourceSystem } from '../types/common/context.types'
-import { PROVIDER, SUBDOMAIN } from '../utils/constants'
+import { PROVIDER, SERVICE_TOKEN_HEADER, SUBDOMAIN } from '../utils/constants'
 import { PatientCreationEvent } from '../types/events'
 
 export function buildSSORequestContext(
@@ -17,11 +17,11 @@ export function buildSSORequestContext(
     (event as APIGatewayProxyEvent).headers.authorization ||
     (event as APIGatewayProxyEvent).headers.Authorization ||
     null
-
+  console.log("buildSSORequestContext serviceToken", serviceToken);
   return {
     correlationId,
     tenantId,
-    serviceToken,
+    serviceToken: serviceToken ? `${SERVICE_TOKEN_HEADER}` : null,
     source: 'sso-integration',
 
     integration: {

@@ -2,7 +2,7 @@ import { Appointment, SSORequestContext } from '../types';
 import {
   PatientCreationPayload,
 } from '../types/user-creation.types';
-import { PHONE_CODE, PROVIDER } from '../utils/constants';
+import { PHONE_CODE } from '../utils/constants';
 import { getOrganizationIdBySubdomain, makePrefixFromGender } from '../utils/helper';
 
 export function makePatientCreationPayload(

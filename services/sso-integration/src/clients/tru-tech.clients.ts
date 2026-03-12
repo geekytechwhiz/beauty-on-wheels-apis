@@ -6,13 +6,10 @@ import {
 } from '@api-hub/logger';
 
 import { getEnvConfig } from '../config/env';
-import { 
-    TruTechAppointmentsResponse,
-    TruTechPatientEMRResponse,
-    TruTechVerifyResponse
-} from '../types/appointment.types';
-import { SSOError } from '../types/errors/sso-error';
-import { DUMMY_APPOINTMENTS_RESPONSE } from '../data/dummy-appointments.data';
+ 
+import { SSOError } from '../types/errors/sso-error';import { TruTechAppointmentsResponse, TruTechPatientEMRResponse, TruTechVerifyResponse } from '../types';
+ 
+ ;
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -163,10 +160,14 @@ export class TruTechClient {
           reason: 'empty_appointments_array'
         });
 
-        return DUMMY_APPOINTMENTS_RESPONSE;
+        return {
+          status: 'success',
+          appointments: [],
+          message: 'No appointments found'
+        } as TruTechAppointmentsResponse;
       }
 
-      return DUMMY_APPOINTMENTS_RESPONSE
+      return response.data;
 
     } catch (error) {
 

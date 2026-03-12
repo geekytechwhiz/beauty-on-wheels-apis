@@ -1,131 +1,123 @@
-  import { createLogger, createChildLogger } from '@api-hub/logger';  
-import { DoctorCreationPayload } from '../types/user-creation.types';
-import { getSSOConfig } from '../config/sso-config';
-import { processPhoneNumber } from '../utils/phone-processor'; 
-import { CreateUserPayload, TruTechVerifyContext } from '../types/appointment.types';
-import { SSOError } from '../types/errors/sso-error';
+import { createChildLogger, createLogger } from '@api-hub/logger'
+import { getSSOConfig } from '../config/sso-config'
+import { Appointment, SourceSystem, SSORequestContext } from '../types'
+import { SSOError } from '../types/errors/sso-error'
+import { DoctorCreationPayload } from '../types/user-creation.types'
+import { processPhoneNumber } from '../utils/phone-processor'
 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true
+})
+export function makeDoctorCreationPayload(
+  appointment: Appointment,
+  context: SSORequestContext
+): DoctorCreationPayload {
 
-/**
- * Maps TruTech doctor data to our system's doctor creation payload.
- * This is a generic mapper that can be extended for other providers in the future.
- */
-export class UserCreateMapper {
-  private readonly logger = createChildLogger(baseLogger, { component: 'DoctorMapperHelper' });
+  const logger =
+    createChildLogger(baseLogger, { correlationId: context.correlationId })
 
-  /**
-   * Maps TruTech verified payload and appointment doctor data to our system format.
-   * 
-   * @param verifiedPayload - Verified payload from TruTech token verification
-   * @param correlationId - Correlation ID for logging
-   * @returns Doctor creation payload for user service
-   */
-  mapTruTechDoctorToOurSystem(
-    verifiedPayload: TruTechVerifyContext,
-    correlationId?: string,
-    subDomain?: string,
-  ): DoctorCreationPayload {
-    const logger = createChildLogger(this.logger, { correlationId });
-    const config = getSSOConfig();
-    const externalId = String(verifiedPayload.drid);
-    logger.info({
-      event: 'doctor_mapping_start',
-      doctorId: verifiedPayload.drid,
-      hasAppointmentDoctor: '',
-    });
+  const config = getSSOConfig()
 
-    // Use appointment doctor data if available, otherwise use verified payload
-    const doctorName = verifiedPayload.name || '';
-    const doctorEmail = verifiedPayload.email;
-    const doctorPhone = verifiedPayload.doctor_phone;
-    const department = verifiedPayload.department || '';
+  logger.info({
+    event: 'doctor_mapping_start',
+    doctorId: appointment.doctor.id
+  })
 
-    // Validate required fields
-    if (!doctorName || doctorName.trim() === '') {
-      logger.error({
-        event: 'doctor_mapping_error',
-        reason: 'missing_doctor_name',
-      });
-      throw SSOError.invalidRequest('Doctor name is required');
-    }
+  const doctorName = appointment.doctor.name
+  const doctorEmail = appointment.doctor.email
+  const doctorPhone = appointment.doctor.phone
+  const department = appointment.doctor.department
 
-    if (!doctorEmail || doctorEmail.trim() === '') {
-      logger.error({
-        event: 'doctor_mapping_error',
-        reason: 'missing_doctor_email',
-      });
-      throw SSOError.invalidRequest('Doctor email is required for STAFF');
-    }
+  if (!doctorName) {
+    throw SSOError.invalidRequest('Doctor name is required')
+  }
 
-    // Process phone number
-    const phoneProcessed = processPhoneNumber(doctorPhone, config.patient.phoneCode);
+  if (!doctorEmail) {
+    throw SSOError.invalidRequest('Doctor email is required for STAFF')
+  }
 
-    // Build working hours from config (default: all days 07:00-21:00)
-    const defaultWorkingHours = {
-      available: config.doctor.workingHours.available,
-      availableHours: config.doctor.workingHours.availableHours,
-    };
+  const phoneProcessed =
+    processPhoneNumber(doctorPhone, config.patient.phoneCode)
 
-    const workingHours = {
-      monday: defaultWorkingHours,
-      tuesday: defaultWorkingHours,
-      wednesday: defaultWorkingHours,
-      thursday: defaultWorkingHours,
-      friday: defaultWorkingHours,
-      saturday: defaultWorkingHours,
-      sunday: defaultWorkingHours,
-    };
+  const defaultWorkingHours = {
+    available: config.doctor.workingHours.available,
+    availableHours: config.doctor.workingHours.availableHours
+  }
 
-    const payload: DoctorCreationPayload | CreateUserPayload = {
-      userInfo: {
-        name: doctorName.trim(),
-        namePrefix: config.doctor.namePrefix,
-        contact: {
-          email: doctorEmail.trim(),
-          ...(phoneProcessed.phoneNumber && {
-            phone: phoneProcessed.phoneNumber,
-            phoneCode: phoneProcessed.phoneCode,
-          }),
-        },
-        ...(department && { department }),
-        specialty: config.doctor.specialty,
-        licenseNumber: config.doctor.licenseNumber,
-        workingHours,
-        slotDurationInMinutes: config.doctor.slotDurationInMinutes,
-        bio: config.doctor.bio,
+  const workingHours = {
+    monday: defaultWorkingHours,
+    tuesday: defaultWorkingHours,
+    wednesday: defaultWorkingHours,
+    thursday: defaultWorkingHours,
+    friday: defaultWorkingHours,
+    saturday: defaultWorkingHours,
+    sunday: defaultWorkingHours
+  }
+
+  const payload: DoctorCreationPayload = {
+
+    userInfo: {
+
+      name: doctorName.trim(),
+
+      namePrefix: config.doctor.namePrefix,
+
+      contact: {
+        email: doctorEmail.trim(),
+        ...(phoneProcessed.phoneNumber && {
+          phone: phoneProcessed.phoneNumber,
+          phoneCode: phoneProcessed.phoneCode
+        })
       },
-      userRole: [config.doctorRoleId],
-      userType: 'STAFF',
-      organizationID: config.defaultOrganizationID,
-      externalId: externalId,
-      provider: 'TruTech', 
-      subDomain: subDomain || verifiedPayload.tenant_id  ,
-      role: config.doctorRoleId,
-      source: 'TruTech',
-      email: doctorEmail.trim(),
-      phone: phoneProcessed.phoneNumber,
-      firstName: doctorName.trim(),
-      lastName: doctorName.trim(),
-    } as DoctorCreationPayload;
 
-    logger.info({
-      event: 'doctor_mapping_success',
-      doctorName: (payload as DoctorCreationPayload).userInfo.name,
-      hasPhone: !!(payload as DoctorCreationPayload).userInfo.contact.phone,
-    });
+      ...(department && { department }),
 
-    return payload as DoctorCreationPayload;
-  }
+      specialty: config.doctor.specialty,
 
+      licenseNumber: config.doctor.licenseNumber,
+
+      workingHours,
+
+      slotDurationInMinutes: config.doctor.slotDurationInMinutes,
+
+      bio: config.doctor.bio
+    },
+
+    userRole: [config.doctorRoleId],
+
+    userType: 'STAFF',
+
+    organizationID: config.defaultOrganizationID,
+
+    externalIdentity: {
+      externalUserId: appointment.doctor.id.toString(),
+      externalHospitalId: context.integration?.externalHospitalId,
+      subdomain: context.integration?.subdomain,
+      sourceSystem: SourceSystem.HMS,
+      provider: context.integration?.providerId ?? 'TruTech'
+    },
   
-}
+    role: config.doctorRoleId,
 
-let userCreateMapperInstance: UserCreateMapper | null = null;
+    source: 'HMS',
 
-export function getCreateDoctorMapper(): UserCreateMapper {
-  if (!userCreateMapperInstance) {
-    userCreateMapperInstance = new UserCreateMapper();
+    email: doctorEmail.trim(),
+
+    phone: phoneProcessed.phoneNumber,
+
+    firstName: doctorName.trim(),
+
+    lastName: doctorName.trim(),
+    createdDate: new Date().getTime(),
+    modifiedDate: new Date().getTime()
   }
-  return userCreateMapperInstance;
+
+  logger.info({
+    event: 'doctor_mapping_success',
+    doctorName: payload.userInfo.name,
+    hasPhone: !!payload.userInfo.contact.phone
+  })
+
+  return payload
 }

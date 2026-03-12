@@ -24,12 +24,12 @@ provider:
     COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, '6v68r2stt9b4rgr3u8348bslsi'}
     # Set to remap TruTech email domains to Cognito test-email domains
     # e.g. COGNITO_EMAIL_DOMAIN_OVERRIDE=yopmail.com  → doctor@hospital.com becomes doctor@yopmail.com
-    COGNITO_EMAIL_DOMAIN_OVERRIDE: ${env:COGNITO_EMAIL_DOMAIN_OVERRIDE, 'yopmail.com'}
+    COGNITO_EMAIL_DOMAIN_OVERRIDE: ${env:COGNITO_EMAIL_DOMAIN_OVERRIDE, 'hms.com'}
 
     # TruTech adapter config
     TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
     TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
-    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '5000'}
+    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '15000'}
 
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}

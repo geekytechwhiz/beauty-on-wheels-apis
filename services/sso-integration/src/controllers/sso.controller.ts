@@ -11,7 +11,7 @@ export class SSOController extends BaseController {
 
   async handleLaunch(event: APIGatewayProxyEvent) {
 
-    return super.execute(event, async (event, correlationId, logger) => {
+    return super.execute(event, async (event, context, logger) => {
 
       logger.info({
         event: 'sso_launch_request',
@@ -19,14 +19,15 @@ export class SSOController extends BaseController {
         method: event.httpMethod
       })
 
-      const { token } =
-        extractLaunchParams(event, correlationId)
+      const { token } = extractLaunchParams(
+        event,
+        context.correlationId
+      )
 
-      const result =
-        await this.launchService.processLaunch(
-          token,
-          correlationId
-        )
+      const result = await this.launchService.processLaunch(
+        token,
+        context
+      )
 
       logger.info({
         event: 'sso_launch_success',

@@ -3,11 +3,16 @@ import {
   createChildLogger,
   createLogger,
   extractCorrelationId,
-  serializeError
+  serializeError,
+  Logger
 } from '@api-hub/logger'
 
 import { ApiResponse } from '@api-hub/utils'
-import { SSOError } from '../types/errors/sso-error';
+
+    import { SSOError } from '../types/errors/sso-error'  
+import { PROVIDER, SUBDOMAIN, SOURCE_SYSTEM } from '../utils/constants'  
+import { SourceSystem, SSORequestContext } from '../types/common/context.types'
+import { buildSSORequestContext } from '../utils/context-builder.util'
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -22,35 +27,40 @@ export abstract class BaseController {
     event: APIGatewayProxyEvent,
     handler: (
       event: APIGatewayProxyEvent,
-      correlationId: string,
-      logger: any
+      context: SSORequestContext,
+      logger: Logger
     ) => Promise<any>
   ): Promise<APIGatewayProxyResult> {
 
     const correlationId = extractCorrelationId(event)
 
-    const logger = createChildLogger(this.logger, {
+    const requestLogger = createChildLogger(this.logger, {
       correlationId
     })
+    const context = buildSSORequestContext(event, correlationId) 
 
     const startTime = Date.now()
 
     try {
 
-      const result = await handler(event, correlationId, logger)
+      const result = await handler(event, context, requestLogger)
 
       const duration = Date.now() - startTime
 
-      logger.info({
+      requestLogger.info({
         event: 'request_success',
         durationMs: duration
       })
 
       return ApiResponse.ok(
         result,
-        { title: 'Success', description: 'Request successful', severity: 'INFO' },
         {
-          requestId: correlationId,
+          title: 'Success',
+          description: 'Request successful',
+          severity: 'INFO'
+        },
+        {
+          requestId: correlationId
         }
       )
 
@@ -60,17 +70,16 @@ export abstract class BaseController {
 
       if (error instanceof SSOError) {
 
-        logger.warn({
+        requestLogger.warn({
           event: 'request_failed',
           durationMs: duration,
           code: error.code
         })
 
-        return this.errorResponse(error, event, correlationId)
-
+        return this.errorResponse(error, correlationId)
       }
 
-      logger.error({
+      requestLogger.error({
         event: 'request_unexpected_error',
         durationMs: duration,
         err: serializeError(error as Error)
@@ -78,22 +87,27 @@ export abstract class BaseController {
 
       return this.errorResponse(
         SSOError.internalError('Unexpected error'),
-        event,
         correlationId
       )
     }
   }
 
+  /**
+   * Build SSO request context from API Gateway event
+   */ 
+  /**
+   * Standardized error response
+   */
   protected errorResponse(
     error: SSOError,
-    event: APIGatewayProxyEvent,
     correlationId: string
   ): APIGatewayProxyResult {
+
     const message = {
       title: 'Error',
       description: error.message,
       severity: 'ERROR' as const,
-    };
+    }
 
     const options = {
       requestId: correlationId,
@@ -101,25 +115,31 @@ export abstract class BaseController {
         'X-Correlation-Id': correlationId,
         'Cache-Control': 'no-store',
       },
-    };
+    }
 
     const errorBody = {
       code: error.code,
-    };
+    }
 
     switch (error.statusCode) {
+
       case 400:
-        return ApiResponse.badRequest(message, options, errorBody);
+        return ApiResponse.badRequest(message, options, errorBody)
+
       case 401:
-        return ApiResponse.unauthorized(message, options, errorBody);
+        return ApiResponse.unauthorized(message, options, errorBody)
+
       case 403:
-        return ApiResponse.forbidden(message, options, errorBody);
+        return ApiResponse.forbidden(message, options, errorBody)
+
       case 404:
-        return ApiResponse.notFound(message, options, errorBody);
+        return ApiResponse.notFound(message, options, errorBody)
+
       case 409:
-        return ApiResponse.conflict(message, options, errorBody);
+        return ApiResponse.conflict(message, options, errorBody)
+
       default:
-        return ApiResponse.internalServerError(message, options, errorBody);
+        return ApiResponse.internalServerError(message, options, errorBody)
     }
   }
 }

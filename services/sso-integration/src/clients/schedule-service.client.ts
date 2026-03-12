@@ -16,10 +16,10 @@ import {
   UpdateServiceStatusRequest,
   UpdateServiceStatusResponse,
   ScheduleDetails,
-} from '../types/appointment-sync.types';
+} from '../types';
 
-import { SSOError } from '../types/errors/sso-error';
-import { RequestContext } from '../context/request-context';
+  import { SSOError } from '../types/errors/sso-error';
+  import { SSORequestContext } from '../types/common/context.types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -85,7 +85,7 @@ export class ScheduleServiceClient {
     );
   }
 
-  private buildHeaders(context: RequestContext): Record<string, string> {
+  private buildHeaders(context: SSORequestContext): Record<string, string> {
     const config = getEnvConfig();
 
     return {
@@ -96,7 +96,7 @@ export class ScheduleServiceClient {
 
   async fetchSchedules(
     payload: FetchSchedulesRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<Schedule[]> {
 
     const logger = createChildLogger(this.logger, {
@@ -122,7 +122,7 @@ export class ScheduleServiceClient {
           // Check if item has scheduled array
           if (item.scheduled && Array.isArray(item.scheduled)) {
             for (const scheduledItem of item.scheduled) {
-              schedules.push(this.mapScheduledItemToSchedule(scheduledItem));
+              schedules.push(this.mapScheduledItemToSchedule(scheduledItem as unknown as any));
             }
           }
           // Check if item has schedule object
@@ -189,7 +189,7 @@ export class ScheduleServiceClient {
   // Service-based schedule creation methods
   async getAvailableServices(
     payload: GetAvailableServicesRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<AvailableService[]> {
 
     const logger = createChildLogger(this.logger, {
@@ -247,7 +247,7 @@ export class ScheduleServiceClient {
 
   async recommendServices(
     payload: RecommendServicesRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<{ userAddonId: string }> {
 
     const logger = createChildLogger(this.logger, {
@@ -303,7 +303,7 @@ export class ScheduleServiceClient {
 
   async createServiceSchedule(
     payload: CreateServiceScheduleRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<Schedule> {
 
     const logger = createChildLogger(this.logger, {
@@ -363,7 +363,7 @@ export class ScheduleServiceClient {
 
   async updateServiceStatus(
     payload: UpdateServiceStatusRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<UpdateServiceStatusResponse> {
 
     const logger = createChildLogger(this.logger, {

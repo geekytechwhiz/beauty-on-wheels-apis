@@ -4,6 +4,7 @@ import { createChildLogger } from '@api-hub/logger';
 import { SSORequestContext } from '../../types/common/context.types';
 import { makePatientCreationPayload } from '../../mappers/patient.mapper';
 import { getSSOUserServiceClient, SSOUserServiceClient } from '../../clients/user-service.client';
+import { makeDoctorCreationPayload } from '../../mappers/user-create.mapper';
 
 
 export class UserProvisioningService {
@@ -25,36 +26,37 @@ export class UserProvisioningService {
 
     const externalId = String(appointment.doctor.id);
 
-    const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
-      {
-        provider: 'TruTech',
-        externalId,
-        tenantId: context.tenantId,
-      },
-      context,
-    );
+    // const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
+    //   {
+    //     provider: 'TruTech',
+    //     externalId,
+    //     tenantId: context.tenantId,
+    //   },
+    //   context,
+    // );
 
-    if (existingUser) {
-      logger.info({
-        event: 'doctor_found',
-        userId: existingUser.id,
-      });
+    // if (existingUser) {
+    //   logger.info({
+    //     event: 'doctor_found',
+    //     userId: existingUser.id,
+    //   });
 
-      return existingUser;
-    }
+    //   return existingUser;
+    // }
 
     logger.info({
       event: 'doctor_not_found_creating',
       doctorId: appointment.doctor.id,
     });
-    const patientRequestPayload = makePatientCreationPayload(appointment, context);
-    const createdUser = await this.ssoUserServiceClient.createPatient(
-      patientRequestPayload,
+    const doctorRequestPayload = makeDoctorCreationPayload(appointment, context);
+
+    const createdUser = await this.ssoUserServiceClient.createDoctorWithRetry(
+      doctorRequestPayload,
       context,
     );
 
     logger.info({
-      event: 'doctor_created',
+      event: 'createDoctorWithRetry',
       userId: createdUser.id,
     });
 

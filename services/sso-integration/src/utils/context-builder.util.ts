@@ -7,23 +7,24 @@ export function buildSSORequestContext(
   event: APIGatewayProxyEvent | ScheduledEvent | SQSEvent | PatientCreationEvent,
   correlationId: string
 ): SSORequestContext {
-
+  // Default to TruTech tenant when no headers are present (e.g. SQS, Scheduler)
   let tenantId = SUBDOMAIN.TRUE_TECH
   let serviceToken: string | null = null
 
-  /**
-   * Only API Gateway events contain headers
-   */
-  if ('headers' in event && event.headers) {
+  const headers: Record<string, string | undefined> =
+    (event as any)?.headers && typeof (event as any).headers === 'object'
+      ? (event as any).headers
+      : {}
 
+  if (headers) {
     tenantId =
-      event.headers['x-tenant-id'] ||
-      event.headers['X-Tenant-Id'] ||
+      headers['x-tenant-id'] ||
+      headers['X-Tenant-Id'] ||
       SUBDOMAIN.TRUE_TECH
 
     serviceToken =
-      event.headers.authorization ||
-      event.headers.Authorization ||
+      (headers.authorization as string | undefined) ||
+      (headers.Authorization as string | undefined) ||
       null
   }
 
@@ -31,20 +32,13 @@ export function buildSSORequestContext(
 
   return {
     correlationId,
-
     tenantId,
-
-    serviceToken: serviceToken
-      ? `${SERVICE_TOKEN_HEADER}`
-      : null,
-
+    serviceToken: serviceToken ? `${SERVICE_TOKEN_HEADER}` : null,
     source: 'sso-integration',
-
     integration: {
       providerId: PROVIDER.TRUE_TECH,
       subdomain: SUBDOMAIN.TRUE_TECH
     },
-
     sourceSystem: SourceSystem.HMS
   }
 }

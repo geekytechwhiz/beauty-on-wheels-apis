@@ -298,20 +298,21 @@ resources:
                     - lambda:InvokeFunction
                   Resource:
                     - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
-    SyncHmsAppointmentsSchedule:
+    SyncHmsAppointmentsScheduleMorning:
       Type: AWS::Scheduler::Schedule
       Properties:
-        ScheduleExpression: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+        ScheduleExpression: cron(0 9 * * ? *)
+        ScheduleExpressionTimezone: Africa/Lusaka
         FlexibleTimeWindow:
-          Mode: FLEXIBLE
-          MaximumWindowInMinutes: 5
+          Mode: OFF
         State: ENABLED
         Target:
           Arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
           RoleArn: !GetAtt SyncHmsAppointmentsScheduleRole.Arn
           Input: |
             {
-              "source": "hms-appointments-scheduler"
+              "source": "hms-appointments-scheduler",
+              "schedule": "morning"
             }
           RetryPolicy:
             MaximumEventAgeInSeconds: 3600

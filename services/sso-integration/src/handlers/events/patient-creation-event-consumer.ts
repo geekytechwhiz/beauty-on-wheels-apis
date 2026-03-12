@@ -5,6 +5,7 @@ import { getSSOConfig } from '../../config/sso-config';
 import { getPatientMapperHelper } from '../../helper/patient.mapper';
 import { AppointmentSyncService } from '../../services/appointment-sync.service';
 import { PatientCreationEvent } from '../../types/events';
+import { AssignDoctorPayload } from '../../types/user-creation.types';
 import { buildSSORequestContext } from '../../utils/context-builder.util';
  
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -156,6 +157,39 @@ async function processPatientCreationEvent(
     event: 'patient_creation_event_success',
     patientId: patient.id,
     userId: createdPatient.id,
+  });
+
+  // Immediately assign the created patient to the doctor for this event
+  const organizationIdForAssignment =
+    organizationID || patientPayload.organizationID || config.defaultOrganizationID;
+
+  const assignDoctorPayload: AssignDoctorPayload = {
+    organizationId: organizationIdForAssignment,
+    sender: {
+      userId: String(doctorId),
+      // Optional contextual fields; user service does not require them
+      // but they can be useful for auditing if provided
+    },
+    receiver: {
+      userId: String(createdPatient.id),
+      name: patient.name,
+      email: patient.email ?? undefined,
+      userType: 'MOBILE',
+    },
+  };
+
+  const assignResult = await userServiceClient.assignDoctor(
+    assignDoctorPayload,
+    context,
+  );
+
+  logger.info({
+    event: 'patient_assign_doctor_success',
+    patientId: patient.id,
+    userId: createdPatient.id,
+    doctorId,
+    organizationId: organizationIdForAssignment,
+    message: assignResult?.message,
   });
 
   try {

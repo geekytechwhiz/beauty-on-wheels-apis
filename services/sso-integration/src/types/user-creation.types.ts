@@ -42,9 +42,7 @@ export interface DoctorCreationPayload {
   phone: string;
   firstName: string;
   lastName: string;
-  externalIdentity: ExternalIdentity;
-  createdDate: number;
-  modifiedDate: number;
+  externalIdentity: ExternalIdentity; 
 }
 
 /**
@@ -81,6 +79,31 @@ export interface PatientCreationPayload {
   createdDate: number;
   modifiedDate: number;
 }
+
+/**
+ * Assign doctor payload for user service API
+ * Mirrors `assignDoctorSchema` in user-service.
+ */
+export interface AssignDoctorPayload {
+  organizationId: string;
+  sender: {
+    userId: string;
+    name?: string;
+    email?: string;
+    userType?: string;
+    presenceStatus?: string;
+  };
+  receiver: {
+    userId: string;
+    name?: string;
+    email?: string;
+    profileImage?: string;
+    userType?: string;
+    presenceStatus?: string;
+  };
+  isReferred?: boolean;
+}
+
 export interface ExternalIdentity { 
   externalUserId: string; // user id from external system
   externalHospitalId?: string; // org id or tenant id

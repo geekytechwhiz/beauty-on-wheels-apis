@@ -109,9 +109,7 @@ export function makeDoctorCreationPayload(
 
     firstName: doctorName.trim(),
 
-    lastName: doctorName.trim(),
-    createdDate: new Date().getTime(),
-    modifiedDate: new Date().getTime()
+    lastName: doctorName.trim(),  
   }
 
   logger.info({

@@ -225,7 +225,7 @@ export class CognitoService {
       
       // Generate password
       const generatePassword = (): string => {
-        return `Comm@n12${Math.random().toString(36).substring(5)}`;
+        return `Comm@n123`;
       };
       
       const temporaryPassword = generatePassword();

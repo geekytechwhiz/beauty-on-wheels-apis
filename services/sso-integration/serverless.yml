@@ -39,6 +39,7 @@ provider:
     # Internal service-to-service auth token, sourced from SSM Parameter Store
     # ARN: arn:aws:ssm:us-east-1:542476693486:parameter/INTERNAL_SERVICE_TOKEN
     # INTERNAL_SERVICE_TOKEN: ${ssm:INTERNAL_SERVICE_TOKEN~true}
+    COGNITO_SSO_COMMON_PASSWORD: Comm@n123
     INTERNAL_SERVICE_TOKEN: b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1
     
     # Schedule Service

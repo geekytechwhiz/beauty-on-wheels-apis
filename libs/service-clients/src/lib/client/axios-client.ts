@@ -8,7 +8,7 @@ const logger = createLogger({ service: "http-client", redactPII: true });
 export const createHttpClient = (baseURL: string): AxiosInstance => {
   const instance = axios.create({
     baseURL,
-    timeout: 5000,
+    timeout: 15000,
     headers: {
       "Content-Type": "application/json"
     }

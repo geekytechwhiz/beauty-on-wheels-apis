@@ -4,9 +4,9 @@ import { CognitoService } from '../services/cognito.service';
 import { getPatientEventPublisher } from '../services/patient-event-publisher.service';
 import { getSSOConfig } from '../config/sso-config';
 import { getServiceTokenService } from '../services/service-token.service';
-import { getTruTechClient } from '../clients/tru-tech.clients.js';
-import { getSSOUserServiceClient } from '../clients/user-service.client.js';
+import { getTruTechClient } from '../clients/tru-tech.clients.js'; 
 import {  getUserServiceClient } from '@api-hub/service-clients';
+import { getSSOUserServiceClient } from '../clients/user-service.client';
 
 const baseLogger = createLogger({
   service: 'sso-integration',

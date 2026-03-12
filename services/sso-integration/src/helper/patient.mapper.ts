@@ -4,6 +4,7 @@ import { SSOError } from '../types/errors/sso-error';
 import { PatientCreationPayload } from '../types/user-creation.types';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor';
+import { getOrganizationIdBySubdomain } from '../utils/helper';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -118,7 +119,7 @@ export class PatientMapperHelper {
       userRole: [config.patientRoleId],
       userType: 'USER',
       invite: 'phone',
-      organizationID: config.defaultOrganizationID,
+      organizationID: getOrganizationIdBySubdomain(subDomain),
     };
 
     logger.info({

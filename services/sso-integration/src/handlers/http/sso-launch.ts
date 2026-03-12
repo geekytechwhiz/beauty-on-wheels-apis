@@ -13,7 +13,7 @@ import {
 } from '@api-hub/logger';
 
 import { ApiResponse } from '@api-hub/utils'; 
-import { SSOController } from '../../controllers/sso.controller';
+import { SSOController } from '../../controllers/sso.controller'; 
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -42,7 +42,7 @@ export async function handler(
     path: event.path
   });
 
-  try {
+  try { 
 
     const response = await controller.handleLaunch(event);
 

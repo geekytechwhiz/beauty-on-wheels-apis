@@ -1,11 +1,11 @@
-import { SQSEvent, SQSRecord, Context } from 'aws-lambda';
-import { createLogger, createChildLogger, extractAwsRequestId, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger, extractAwsRequestId, serializeError } from '@api-hub/logger';
+import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
+import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { getSSOConfig } from '../../config/sso-config';
 import { getPatientMapperHelper } from '../../helper/patient.mapper';
-import { getSSOUserServiceClient } from '../../clients/user-service.client'; 
+import { AppointmentSyncService } from '../../services/appointment-sync.service';
 import { PatientCreationEvent } from '../../types/events';
-import { getAppointmentSyncService } from '../../services/appointment-sync.service';
-import { buildSchedulerContext } from '../../context/context-factory';
+import { buildSSORequestContext } from '../../utils/context-builder.util';
  
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 export async function handler(event: SQSEvent, context?: Context): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
@@ -89,13 +89,11 @@ async function processPatientCreationEvent(
 
   // Generate service token for user service authentication
    
-  const context = await buildSchedulerContext(
-    tenantId,
-    correlationId
-  );
+  const context = buildSSORequestContext(event, correlationId)
+
 
   // Check if patient already exists
-  const existingPatient = await userServiceClient.findByExternalId(
+  const existingPatient = await userServiceClient.findUserByExternalId(
     {
       provider,
       externalId,
@@ -151,9 +149,6 @@ async function processPatientCreationEvent(
   // Create patient
   const createdPatient = await userServiceClient.createPatient(
     patientPayload,
-    externalId,
-    provider,
-    tenantId, 
     context,
   );
 
@@ -164,11 +159,8 @@ async function processPatientCreationEvent(
   });
 
   try {
-    const appointmentSyncService = getAppointmentSyncService();
-    await appointmentSyncService.reprocessPendingAppointments(
-      externalId, 
-      context
-    );
+    const appointmentSyncService = new AppointmentSyncService();
+    await appointmentSyncService.syncAppointments(context);
 
     logger.info({
       event: 'pending_appointments_reprocess_triggered',

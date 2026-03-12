@@ -435,7 +435,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     doctor: string;
     patientId: string;
     accountType: string;
-    status: string;
+    status: boolean;
     createdDate: number;
     createdAt: number;
     mrn: string;

@@ -16,7 +16,10 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
       doctor: String(item.doctor ?? ''),
       patientId: String(item.patientId ?? item.patientID ?? item.userID ?? item.userId ?? ''),
       accountType: String(item.accountType ?? ''),
-      status: String(item.status ?? ''),
+      // isActive=true → status=true, isActive=false → status=false
+      status: item.status !== undefined
+        ? Boolean(item.status)
+        : (item.isActive !== undefined ? Boolean(item.isActive) : true),
       createdDate: Number(item.createdDate ?? item.createdAt ?? 0),
       createdAt: Number(item.createdAt ?? item.createdDate ?? Date.now()),
       mrn: String(item.mrn ?? ''),

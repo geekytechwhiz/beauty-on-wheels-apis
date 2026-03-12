@@ -32,6 +32,7 @@ export interface DoctorCreationPayload {
     bio: string;
   };
   userRole: string[];
+  invite: 'phone' | 'email';
   userType: 'STAFF';
   organizationID: string;
  

@@ -2,7 +2,7 @@ import { Appointment, SSORequestContext } from '../types';
 import {
   PatientCreationPayload,
 } from '../types/user-creation.types';
-import { PHONE_CODE } from '../utils/constants';
+import { PATIENT_ROLE_ID, PHONE_CODE } from '../utils/constants';
 import { getOrganizationIdBySubdomain, makePrefixFromGender } from '../utils/helper';
 
 export function makePatientCreationPayload(
@@ -30,14 +30,14 @@ export function makePatientCreationPayload(
       },
     },
 
-    userRole: ["bc13beb8-23a7-4446-a790-98253eccdae6"],
+    userRole:  [PATIENT_ROLE_ID] ,
 
     userType: 'USER',
 
     invite: patient.phone ? 'phone' : 'email',
 
     organizationID: getOrganizationIdBySubdomain(context.integration.subdomain),
-
+     
     externalIdentity: { 
       externalUserId: patient.id.toString(),
       externalHospitalId: context.integration.subdomain,

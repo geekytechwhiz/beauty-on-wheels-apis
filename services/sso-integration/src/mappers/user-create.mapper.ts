@@ -4,6 +4,7 @@ import { Appointment, SourceSystem, SSORequestContext } from '../types'
 import { SSOError } from '../types/errors/sso-error'
 import { DoctorCreationPayload } from '../types/user-creation.types'
 import { processPhoneNumber } from '../utils/phone-processor'
+import { DOCTOR_ROLE_ID } from '../utils/constants'
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -84,8 +85,8 @@ export function makeDoctorCreationPayload(
       bio: config.doctor.bio
     },
 
-    userRole: [config.doctorRoleId],
-
+    userRole: [DOCTOR_ROLE_ID],
+    invite: "email",
     userType: 'STAFF',
 
     organizationID: config.defaultOrganizationID,
@@ -98,7 +99,7 @@ export function makeDoctorCreationPayload(
       provider: context.integration?.providerId ?? 'TruTech'
     },
   
-    role: config.doctorRoleId,
+    role: DOCTOR_ROLE_ID,
 
     source: 'HMS',
 

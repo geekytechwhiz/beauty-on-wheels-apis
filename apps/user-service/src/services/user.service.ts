@@ -165,7 +165,7 @@ export class UserService {
           const username = explicitUsername || normalizedEmail || normalizedPhone;
           
           const permissionIds: string[] = []; // Permissions would come from role service
-          const externalIdentity: any = data.externalIdentity as ExternalIdentity || {}; 
+          const externalIdentity: any = data.externalIdentity  
 
           logger.info({
             event: 'service_createUser_external_identity_received',

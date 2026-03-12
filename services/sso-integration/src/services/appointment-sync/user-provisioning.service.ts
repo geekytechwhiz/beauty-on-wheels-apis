@@ -26,23 +26,7 @@ export class UserProvisioningService {
 
     const externalId = String(appointment.doctor.id);
 
-    // const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
-    //   {
-    //     provider: 'TruTech',
-    //     externalId,
-    //     tenantId: context.tenantId,
-    //   },
-    //   context,
-    // );
-
-    // if (existingUser) {
-    //   logger.info({
-    //     event: 'doctor_found',
-    //     userId: existingUser.id,
-    //   });
-
-    //   return existingUser;
-    // }
+    
 
     logger.info({
       event: 'doctor_not_found_creating',

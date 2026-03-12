@@ -131,8 +131,9 @@ export interface ExternalIdentity {
   integrationType: string; // TruTech
   externalUserId: string; // user id from external system
   externalHospitalId?: string; // org id or tenant id
-  subdomain: string; // subdomain of the external system
+  subdomain: string;  
   sourceSystem: typeof SourceSystem; 
+  provider: string;
 };
 export interface UserResponse {
   phoneNumber: string;

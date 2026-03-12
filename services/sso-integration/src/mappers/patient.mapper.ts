@@ -1,9 +1,8 @@
 import { Appointment, SSORequestContext } from '../types';
-import {
-  PatientCreationPayload,
-} from '../types/user-creation.types';
+ 
 import { PATIENT_ROLE_ID, PHONE_CODE } from '../utils/constants';
 import { getOrganizationIdBySubdomain, makePrefixFromGender } from '../utils/helper';
+import { PatientCreationPayload } from '../types/user-creation.type';
 
 export function makePatientCreationPayload(
   appointment: Appointment, 
@@ -45,7 +44,6 @@ export function makePatientCreationPayload(
       sourceSystem: context.sourceSystem,
       provider: context.integration.providerId,
     },
-    createdDate: now,
-    modifiedDate: now,
+  
   };
 }

@@ -7,7 +7,7 @@ import {
   DoctorCreationPayload,
   PatientCreationPayload,
   AssignDoctorPayload,
-} from "../types/user-creation.types";
+} from "../types/user-creation.type";
 import { User } from "../types/user/user.types";
 import { buildServiceHeaders } from "../utils/request.utils";
 import { getOrganizationIdBySubdomain } from "../utils/helper";
@@ -19,9 +19,7 @@ export class SSOUserServiceClient extends BaseClient {
   }
   async findUserByExternalId(
     params: {
-      provider: string;
       externalId: string;
-      tenantId: string;
     },
     context: SSORequestContext
   ): Promise<User | null> {

@@ -8,20 +8,36 @@ export function buildSSORequestContext(
   correlationId: string
 ): SSORequestContext {
 
-  const tenantId =
-    (event as APIGatewayProxyEvent).headers['x-tenant-id'] ||
-    (event as APIGatewayProxyEvent).headers['X-Tenant-Id'] ||
-    SUBDOMAIN.TRUE_TECH
+  let tenantId = SUBDOMAIN.TRUE_TECH
+  let serviceToken: string | null = null
 
-  const serviceToken =
-    (event as APIGatewayProxyEvent).headers.authorization ||
-    (event as APIGatewayProxyEvent).headers.Authorization ||
-    null
-  console.log("buildSSORequestContext serviceToken", serviceToken);
+  /**
+   * Only API Gateway events contain headers
+   */
+  if ('headers' in event && event.headers) {
+
+    tenantId =
+      event.headers['x-tenant-id'] ||
+      event.headers['X-Tenant-Id'] ||
+      SUBDOMAIN.TRUE_TECH
+
+    serviceToken =
+      event.headers.authorization ||
+      event.headers.Authorization ||
+      null
+  }
+
+  console.log('buildSSORequestContext serviceToken', serviceToken)
+
   return {
     correlationId,
+
     tenantId,
-    serviceToken: serviceToken ? `${SERVICE_TOKEN_HEADER}` : null,
+
+    serviceToken: serviceToken
+      ? `${SERVICE_TOKEN_HEADER}`
+      : null,
+
     source: 'sso-integration',
 
     integration: {

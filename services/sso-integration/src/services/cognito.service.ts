@@ -14,7 +14,7 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 
 import {    CognitoUserContext, CognitoUserClaims } from '../types/user/user.types';
-import { processPhoneNumber } from '../utils/phone-processor';
+import { cognitoPhone } from '@api-hub/utils';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -138,18 +138,18 @@ export class CognitoService {
         });
         return null;
       }
-      const rawPhone = phone.trim().toLowerCase();
-      const normalizedPhone = processPhoneNumber(rawPhone);
-  
+      const rawPhone = phone.trim();
+      const cognitoPhoneNumber = cognitoPhone(rawPhone, 'ZA');
+
       this.logger.debug({
-        event: 'cognito_find_user_by_phone_start',    
+        event: 'cognito_find_user_by_phone_start',
         originalPhone: rawPhone,
-        lookupPhone: normalizedPhone,
+        lookupPhone: cognitoPhoneNumber,
       });
   
       const cmd = new ListUsersCommand({
         UserPoolId: this.userPoolId!,
-        Filter: `phone_number = "${normalizedPhone}"`,
+        Filter: `phone_number = "${cognitoPhoneNumber}"`,
         Limit: 1,
       });
   
@@ -158,7 +158,7 @@ export class CognitoService {
       if (!res.Users || res.Users.length === 0) {
         this.logger.info({
           event: 'cognito_find_user_by_phone_not_found',
-          phone: normalizedPhone,
+          phone: cognitoPhoneNumber,
         });
         return null;
       }
@@ -175,7 +175,7 @@ export class CognitoService {
   
       this.logger.info({
         event: 'cognito_find_user_by_phone_success',
-        phone: normalizedPhone,
+        phone: cognitoPhoneNumber,
         cognitoUsername: user.Username,
       });
   

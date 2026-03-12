@@ -2,7 +2,7 @@ import { createLogger, createChildLogger } from '@api-hub/logger';
 import { TruTechVerifiedPayload, TruTechVerifyContext } from '../types/appointment.types';
 import { Doctor } from '../types/domain/doctor.types';
 import { SSOError } from '../types/errors/sso-error';
-import { DoctorCreationPayload } from '../types/user-creation.types';
+import { DoctorCreationPayload } from '../types/user-creation.type';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor';
 import { getOrganizationIdBySubdomain } from '../utils/helper';

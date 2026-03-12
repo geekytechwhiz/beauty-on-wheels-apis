@@ -2,7 +2,7 @@
 // User Creation Payload Types
 // =============================================================================
 
-import { SourceSystem } from "./common/context.types";
+import { SourceSystem } from './common/context.types';
 
 /**
  * Doctor creation payload for user service API
@@ -20,13 +20,34 @@ export interface DoctorCreationPayload {
     specialty: string;
     licenseNumber: string;
     workingHours: {
-      monday: { available: boolean; availableHours: Array<{ from: string; to: string }> };
-      tuesday: { available: boolean; availableHours: Array<{ from: string; to: string }> };
-      wednesday: { available: boolean; availableHours: Array<{ from: string; to: string }> };
-      thursday: { available: boolean; availableHours: Array<{ from: string; to: string }> };
-      friday: { available: boolean; availableHours: Array<{ from: string; to: string }> };
-      saturday: { available: boolean; availableHours: Array<{ from: string; to: string }> };
-      sunday: { available: boolean; availableHours: Array<{ from: string; to: string }> };
+      monday: {
+        available: boolean;
+        availableHours: Array<{ from: string; to: string }>;
+      };
+      tuesday: {
+        available: boolean;
+        availableHours: Array<{ from: string; to: string }>;
+      };
+      wednesday: {
+        available: boolean;
+        availableHours: Array<{ from: string; to: string }>;
+      };
+      thursday: {
+        available: boolean;
+        availableHours: Array<{ from: string; to: string }>;
+      };
+      friday: {
+        available: boolean;
+        availableHours: Array<{ from: string; to: string }>;
+      };
+      saturday: {
+        available: boolean;
+        availableHours: Array<{ from: string; to: string }>;
+      };
+      sunday: {
+        available: boolean;
+        availableHours: Array<{ from: string; to: string }>;
+      };
     };
     slotDurationInMinutes: number;
     bio: string;
@@ -35,14 +56,14 @@ export interface DoctorCreationPayload {
   invite: 'phone' | 'email';
   userType: 'STAFF';
   organizationID: string;
- 
+
   role: string;
   source: string;
   email: string;
   phone: string;
   firstName: string;
   lastName: string;
-  externalIdentity: ExternalIdentity; 
+  externalIdentity: ExternalIdentity;
 }
 
 /**
@@ -75,9 +96,8 @@ export interface PatientCreationPayload {
   userType: 'USER';
   invite: 'phone' | 'email';
   organizationID: string;
-    externalIdentity: ExternalIdentity;
-  createdDate: number;
-  modifiedDate: number;
+  externalIdentity: ExternalIdentity;
+ 
 }
 
 /**
@@ -104,12 +124,10 @@ export interface AssignDoctorPayload {
   isReferred?: boolean;
 }
 
-export interface ExternalIdentity { 
+export interface ExternalIdentity {
   externalUserId: string; // user id from external system
   externalHospitalId?: string; // org id or tenant id
-  subdomain: string;  
-  sourceSystem: SourceSystem;  
+  subdomain: string;
+  sourceSystem: SourceSystem;
   provider: string;
-};
-
- 
+}

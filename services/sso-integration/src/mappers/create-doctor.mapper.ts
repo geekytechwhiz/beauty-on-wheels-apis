@@ -1,5 +1,5 @@
   import { createLogger, createChildLogger } from '@api-hub/logger';  
-import { DoctorCreationPayload } from '../types/user-creation.types';
+import { DoctorCreationPayload } from '../types/user-creation.type';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor'; 
 import { CreateUserPayload, TruTechVerifyContext } from '../types/appointment.types';

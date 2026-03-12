@@ -8,6 +8,7 @@ import {
   type GetCommandOutput,
   type PutCommandOutput,
   type UpdateCommandOutput,
+  TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { sendDoc } from '../utils/dynamodb-send';
@@ -22,6 +23,7 @@ import {
   UserOrganization,
   UserFile,
   UserResponse,
+  SourceSystem,
 } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError, InviteUpdateTooSoonError } from '../utils/errors';
 import { getRoleDetails } from '../services/role.service';
@@ -87,15 +89,22 @@ function modifyIndexesUsers(user: User): UserDBItem {
     sk: `USER#${user.userID}`,
   };
 }
-
-function tenatMapping(user: User, provider: string, subdomain: string, externalUserId: string): UserDBItem {
+ 
+function tenantMapping(
+  user: User,
+  provider: string,
+  subdomain: string,
+  externalUserId: string
+): UserDBItem {
 
   return {
     ...user,
-    pk: `PROVIDER#${provider?.trim()?.toUpperCase() || ''}#${subdomain?.trim()?.toLowerCase() || ''}`,
-    sk: `EXTUSER#${externalUserId?.trim()?.toLowerCase() || ''}`, 
+    pk: `ORG#${user.organizationID}#PROVIDER#${provider.trim().toUpperCase()}#SUBDOMAIN#${subdomain.trim().toLowerCase()}`,
+    sk: `EXTUSER#${externalUserId.trim().toLowerCase()}`, 
+  
   };
 }
+
 function modifyIndexesUserOrg(user: User): UserDBItem {
   return {
     ...user,
@@ -161,34 +170,63 @@ export interface ListOrganizationUsersOptions {
 
 export class UserRepository {
   async createUser(user: User): Promise<void> {
-    let item: UserDBItem;
-    if(user.externalIdentity?.provider) {
-      item = tenatMapping(user, user.externalIdentity.provider || '', user.externalIdentity.subdomain || '', user.externalIdentity.externalUserId || '');
-    } else {
-      item = modifyIndexesUsers(user);
-    }
-    try {
-      await sendDoc<PutCommandOutput>(docClient,
-        new PutCommand({
+    const logger = createChildLogger(baseLogger, { userId: user.userID });
+  
+    const mainUserItem = modifyIndexesUsers(user);
+  
+    const transactItems: any[] = [
+      {
+        Put: {
           TableName: USER_TABLE_NAME,
-          Item: item,
-          ConditionExpression:
-            'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+          Item: mainUserItem,
+          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+        },
+      },
+    ];
+  
+    // If external identity exists create mapping record
+    if (user.externalIdentity?.provider) {
+      const mappingItem = tenantMapping(
+        user,
+        user.externalIdentity.provider,
+        user.externalIdentity.subdomain || '',
+        user.externalIdentity.externalUserId || '',
+      );
+  
+      transactItems.push({
+        Put: {
+          TableName: USER_TABLE_NAME,
+          Item: mappingItem,
+          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+        },
+      });
+    }
+  
+    try {
+      await sendDoc(
+        docClient,
+        new TransactWriteCommand({
+          TransactItems: transactItems,
         }),
       );
-      const logger = createChildLogger(baseLogger, { userId: user.userID });
-      logger.info({ event: 'user_created', message: 'User created' });
+  
+      logger.info({
+        event: 'user_created',
+        message: 'User created successfully',
+      });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
-      const logger = createChildLogger(baseLogger, { userId: user.userID });
-      if (code === 'ConditionalCheckFailedException') {
+  
+      if (code === 'TransactionCanceledException') {
         throw new UserAlreadyExistsError(user.userID);
       }
+  
       logger.error({
         event: 'user_create_error',
         err: serializeError(err),
         message: 'Failed to create user',
       });
+  
       throw err;
     }
   }

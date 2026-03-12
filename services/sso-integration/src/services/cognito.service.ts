@@ -290,7 +290,7 @@ export class CognitoService {
       console.log("ROLE: ", _role);
       const authUsername = username.trim();
       const authPassword =
-        process.env.COGNITO_SSO_COMMON_PASSWORD || 'common@2026';
+        process.env.COGNITO_SSO_COMMON_PASSWORD || 'Comm@n123';
 
       this.logger.info({
         event: 'cognito_generate_token_start',

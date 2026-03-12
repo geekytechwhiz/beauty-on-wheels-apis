@@ -121,7 +121,7 @@ export interface User{
   externalIdentity?: ExternalIdentity;
 }
 
-const SourceSystem = {
+export const SourceSystem = {
   HMS: 'HMS',
   FHIR: 'FHIR',
   CUSTOM: 'CUSTOM',

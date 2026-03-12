@@ -838,6 +838,7 @@ export class AppointmentSyncService extends BaseService {
           type: 'addon',
           userId,
           scheduleStatus: 'confirmed',
+          paymentStatus: 'completed',
         },
         context
       );

@@ -1,28 +1,34 @@
-
-import axios from "axios";
-import { SSORequestContext } from "../types/common/context.types";
-import { SSOError } from "../types/errors/sso-error";
+import axios from 'axios';
+import { serializeError } from '@api-hub/logger';
+import { SSORequestContext } from '../types/common/context.types';
+import { SSOError } from '../types/errors/sso-error';
 import {
   AssignDoctorPayload,
   DoctorCreationPayload,
   PatientCreationPayload,
-} from "../types/user-creation.type";
-import { User } from "../types/user/user.types";
+} from '../types/user-creation.type';
+import { User } from '../types/user/user.types';
 import {
   getCachedUserId,
   getOrganizationId,
   setCachedUserId,
-} from "../utils/helper";
-import { buildServiceHeaders } from "../utils/request.utils";
-import { BaseClient } from "@api-hub/service-clients";
+} from '../utils/helper';
+import { buildServiceHeaders } from '../utils/request.utils';
+import { BaseClient } from '@api-hub/service-clients';
+
+interface CreatedUserInfo {
+  userId: string;
+  email: string | null;
+  externalUserId: string | null;
+}
 
 export class SSOUserServiceClient extends BaseClient {
   constructor() {
-    super(process.env.USER_SERVICE_BASE_URL || "", "user-service");
+    super(process.env.USER_SERVICE_BASE_URL || '', 'user-service');
   }
   async findUserByExternalId(
     params: { externalId: string },
-    context: SSORequestContext
+    context: SSORequestContext,
   ): Promise<User | null> {
     const externalUserId = params.externalId;
     const subdomain = context.integration.subdomain;
@@ -30,7 +36,7 @@ export class SSOUserServiceClient extends BaseClient {
     const cachedUserId = getCachedUserId(subdomain, externalUserId);
     const cacheHit = !!cachedUserId;
 
-    console.info("findUserByExternalId_lookup", {
+    console.info('findUserByExternalId_lookup', {
       externalUserId,
       organizationId,
       subdomain,
@@ -39,7 +45,7 @@ export class SSOUserServiceClient extends BaseClient {
 
     try {
       if (!organizationId) {
-        console.warn("findUserByExternalId_organization_missing", {
+        console.warn('findUserByExternalId_organization_missing', {
           externalUserId,
           subdomain,
         });
@@ -50,7 +56,7 @@ export class SSOUserServiceClient extends BaseClient {
       if (cachedUserId) {
         const url = `/user/organization/${organizationId}/${cachedUserId}`;
 
-        console.info("findUserByExternalId_cache_hit", {
+        console.info('findUserByExternalId_cache_hit', {
           externalUserId,
           organizationId,
           userId: cachedUserId,
@@ -67,14 +73,14 @@ export class SSOUserServiceClient extends BaseClient {
             return user;
           }
 
-          console.warn("findUserByExternalId_cache_stale", {
+          console.warn('findUserByExternalId_cache_stale', {
             externalUserId,
             organizationId,
             userId: cachedUserId,
           });
         } catch (error) {
           if (axios.isAxiosError(error) && error.response?.status === 404) {
-            console.warn("findUserByExternalId_cache_hit_404", {
+            console.warn('findUserByExternalId_cache_hit_404', {
               externalUserId,
               organizationId,
               userId: cachedUserId,
@@ -84,39 +90,41 @@ export class SSOUserServiceClient extends BaseClient {
           }
         }
       } else {
-        console.info("findUserByExternalId_cache_miss", {
+        console.info('findUserByExternalId_cache_miss', {
           externalUserId,
           organizationId,
         });
       }
 
-      // 2️⃣ Fallback: query user-service by externalUserId
-      // NOTE: Adjust endpoint if your user-service uses a different route.
+      // 2️⃣ Fallback: query user-service by external identity mapping
       try {
-        const response = await this.client.get<{ data: User | null }>(
-          "/user/by-external-id",
-          {
-            params: {
-              organizationId,
-              externalUserId,
-            },
-            headers: buildServiceHeaders(context),
-          }
-        );
+        const provider = (context.integration.providerId || 'hms')
+          .toString()
+          .toLowerCase();
 
-        const user = response.data?.data ?? null;
+        const response = await this.client.get<User>('/users/external', {
+          params: {
+            tenant: subdomain,
+            provider:"hms",
+            externalUserId,
+          },
+          headers: buildServiceHeaders(context),
+        });
+
+        const user = response.data ?? null;
 
         if (!user?.id) {
-          console.info("findUserByExternalId_service_not_found", {
+          console.info('findUserByExternalId_service_not_found', {
             externalUserId,
-            organizationId,
+            tenant: subdomain,
+            provider,
           });
           return null;
         }
 
         setCachedUserId(subdomain, externalUserId, String(user.id));
 
-        console.info("findUserByExternalId_cache_update", {
+        console.info('findUserByExternalId_cache_update', {
           externalUserId,
           organizationId,
           userId: user.id,
@@ -125,9 +133,9 @@ export class SSOUserServiceClient extends BaseClient {
         return user;
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 404) {
-          console.info("findUserByExternalId_service_404", {
+          console.info('findUserByExternalId_service_404', {
             externalUserId,
-            organizationId,
+            tenant: subdomain,
           });
           return null;
         }
@@ -139,34 +147,70 @@ export class SSOUserServiceClient extends BaseClient {
         return null;
       }
 
-      console.log("findUserByExternalId error", JSON.stringify(error));
+      console.log('findUserByExternalId error', serializeError(error as Error));
 
       throw SSOError.userServiceError(
-        "User service doctor lookup failed",
-        error as Error
+        'User service doctor lookup failed',
+        error as Error,
       );
     }
   }
 
   async createDoctor(
     payload: DoctorCreationPayload,
-    context: SSORequestContext
-  ): Promise<User> {
-    console.log("createDoctor payload", JSON.stringify(payload));
+    context: SSORequestContext,
+  ): Promise<CreatedUserInfo> {
+    console.log('createDoctor payload', JSON.stringify(payload));
 
-    const response = await this.client.post<{ data: User }>(
-      "/user",
-      payload,
-      { headers: buildServiceHeaders(context) }
-    );
+    const response = await this.client.post<unknown>('/user', payload, {
+      headers: buildServiceHeaders(context),
+    });
 
-    return response.data.data;
+    console.log('createDoctor response', response);
+    const body:any = response?.data ?? response;
+    console.log('createDoctor body', body);
+    const invitedUser: string | undefined =
+      body?.data?.invitedUser ??
+      body?.data?.id ??
+      body?.data?.userId ??
+      body?.data?.userID;
+
+    const rawUserId = invitedUser;
+
+    if (!rawUserId) {
+      console.error('createDoctor_user_id_missing', {
+        subdomain: context.integration.subdomain,
+        externalUserId: payload.externalIdentity?.externalUserId,
+        responseBody: body,
+      });
+
+      throw SSOError.userServiceError(
+        'User service did not return invitedUser identifier for created doctor',
+        new Error('Missing invitedUser in createDoctor response'),
+      );
+    }
+
+    const emailFromPayload =
+      payload.email ?? payload.userInfo?.contact?.email ?? null;
+
+    const result: CreatedUserInfo = {
+      userId: String(rawUserId),
+      email: emailFromPayload,
+      externalUserId: payload.externalIdentity?.externalUserId ?? null,
+    };
+
+    console.info('createDoctor_success', {
+      externalUserId: result.externalUserId,
+      userId: result.userId,
+    });
+
+    return result;
   }
 
   async createDoctorWithRetry(
     payload: DoctorCreationPayload,
-    context: SSORequestContext
-  ): Promise<User> {
+    context: SSORequestContext,
+  ): Promise<CreatedUserInfo> {
     const subdomain = context.integration.subdomain;
     const organizationId = getOrganizationId(subdomain);
     const externalUserId = payload.externalIdentity?.externalUserId;
@@ -174,57 +218,79 @@ export class SSOUserServiceClient extends BaseClient {
     const logBase = { externalUserId, organizationId, subdomain };
 
     try {
-      const user = await this.createDoctor(payload, context);
+      const created = await this.createDoctor(payload, context);
 
-      if (organizationId && externalUserId && user?.id) {
-        setCachedUserId(subdomain, externalUserId, String(user.id));
-        console.info("createDoctor_cache_update", {
+      if (organizationId && externalUserId && created.userId) {
+        setCachedUserId(subdomain, externalUserId, created.userId);
+        console.info('createDoctor_cache_update', {
           ...logBase,
-          userId: user.id,
+          userId: created.userId,
         });
       }
 
-      return user;
-    } catch (err: any) {
-      if (err.code === "ECONNABORTED") {
-        console.warn("createDoctor_timeout_retry", {
+      return created;
+    } catch (err) {
+      if ((err as any).code === 'ECONNABORTED') {
+        console.warn('createDoctor_timeout_retry', {
           ...logBase,
           retryAttempt: 1,
         });
 
-        const user = await this.createDoctor(payload, context);
+        const created = await this.createDoctor(payload, context);
 
-        if (organizationId && externalUserId && user?.id) {
-          setCachedUserId(subdomain, externalUserId, String(user.id));
-          console.info("createDoctor_cache_update", {
+        if (organizationId && externalUserId && created.userId) {
+          setCachedUserId(subdomain, externalUserId, created.userId);
+          console.info('createDoctor_cache_update', {
             ...logBase,
-            userId: user.id,
+            userId: created.userId,
           });
         }
 
-        return user;
+        return created;
       }
 
-      if (axios.isAxiosError(err) && err.response?.status === 409 && externalUserId) {
-        console.info("createDoctor_conflict_fetching_existing", {
+      if (
+        axios.isAxiosError(err) &&
+        err.response?.status === 409 &&
+        externalUserId
+      ) {
+        console.info('createDoctor_conflict_fetching_existing', {
           ...logBase,
           retryAttempt: 0,
         });
 
         const existingUser = await this.findUserByExternalId(
           { externalId: externalUserId },
-          context
+          context,
         );
 
         if (existingUser) {
-          console.info("createDoctor_conflict_resolved_existing", {
+          console.info('createDoctor_conflict_resolved_existing', {
             ...logBase,
             doctorUserId: existingUser.id,
           });
-          return existingUser;
+          const normalized: CreatedUserInfo = {
+            userId: String(existingUser.id),
+            email:
+              existingUser.email ??
+              payload.email ??
+              payload.userInfo?.contact?.email ??
+              null,
+            externalUserId,
+          };
+
+          if (organizationId && externalUserId && normalized.userId) {
+            setCachedUserId(subdomain, externalUserId, normalized.userId);
+            console.info('createDoctor_cache_update', {
+              ...logBase,
+              userId: normalized.userId,
+            });
+          }
+
+          return normalized;
         }
 
-        console.warn("createDoctor_conflict_no_existing_user_found", {
+        console.warn('createDoctor_conflict_no_existing_user_found', {
           ...logBase,
         });
       }
@@ -235,7 +301,7 @@ export class SSOUserServiceClient extends BaseClient {
 
   async createPatient(
     payload: PatientCreationPayload,
-    context: SSORequestContext
+    context: SSORequestContext,
   ): Promise<User> {
     const subdomain = context.integration.subdomain;
     const organizationId = getOrganizationId(subdomain);
@@ -243,19 +309,17 @@ export class SSOUserServiceClient extends BaseClient {
 
     const logBase = { externalUserId, organizationId, subdomain };
 
-    console.log("createPatient payload", JSON.stringify(payload));
+    console.log('createPatient payload', JSON.stringify(payload));
 
-    const response = await this.client.post<{ data: User }>(
-      "/user",
-      payload,
-      { headers: buildServiceHeaders(context) }
-    );
+    const response = await this.client.post<{ data: User }>('/user', payload, {
+      headers: buildServiceHeaders(context),
+    });
 
     const user = response.data.data;
 
     if (organizationId && externalUserId && user?.id) {
       setCachedUserId(subdomain, externalUserId, String(user.id));
-      console.info("createPatient_cache_update", {
+      console.info('createPatient_cache_update', {
         ...logBase,
         userId: user.id,
       });
@@ -270,13 +334,13 @@ export class SSOUserServiceClient extends BaseClient {
    */
   async assignDoctor(
     payload: AssignDoctorPayload,
-    context: SSORequestContext
+    context: SSORequestContext,
   ): Promise<{ message: string }> {
     try {
       const response = await this.client.post<{ message: string }>(
-        "/user/assign-doctor",
+        '/user/assign-doctor',
         payload,
-        { headers: buildServiceHeaders(context) }
+        { headers: buildServiceHeaders(context) },
       );
 
       return response.data;
@@ -286,17 +350,17 @@ export class SSOUserServiceClient extends BaseClient {
         const messageFromServer =
           (error.response?.data as any)?.message ||
           (status === 400
-            ? "Assign doctor request is invalid"
+            ? 'Assign doctor request is invalid'
             : status === 404
-            ? "Doctor or patient not found"
-            : "Assign doctor request to user service failed");
+              ? 'Doctor or patient not found'
+              : 'Assign doctor request to user service failed');
 
         throw SSOError.userServiceError(messageFromServer, error);
       }
 
       throw SSOError.userServiceError(
-        "Assign doctor request to user service failed",
-        error as Error
+        'Assign doctor request to user service failed',
+        error as Error,
       );
     }
   }

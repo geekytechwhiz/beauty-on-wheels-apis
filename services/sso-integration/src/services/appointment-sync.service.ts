@@ -230,7 +230,7 @@ export class AppointmentSyncService extends BaseService {
         context,
         externalAppointmentId: String(validAppointments[0].appointmentId),
         doctorExternalId: String(validAppointments[0].doctor.id),
-        doctorUserId: String((doctor as unknown as CognitoUserContext).userId),
+        doctorUserId: String((doctor as User).id),
       }),
     });
 
@@ -351,8 +351,8 @@ export class AppointmentSyncService extends BaseService {
             if (!userServicePatient) {
               try {
                 const organizationID =
-                  context.integration?.organizationId ??
-                  this.config.defaultOrganizationID;
+                  context.integration?.subdomain ??
+                  CONSTANTS.ORGANIZATION_ID;
                 const provider =
                   context.integration?.providerId ?? 'TruTech';
 

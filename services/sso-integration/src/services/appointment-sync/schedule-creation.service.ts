@@ -32,6 +32,8 @@ export class ScheduleCreationService {
           this.appointmentMapper.mapAppointmentToGetAvailableServices(
             appointment,
             patientUser,
+            context,
+            doctorUser?.organizationId
           );
 
         logger.info({

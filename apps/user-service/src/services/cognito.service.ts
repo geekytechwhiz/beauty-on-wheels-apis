@@ -164,16 +164,9 @@ export class CognitoService {
         userType?: string;
         userID?: string;
         organizationID?: string;
-        /**
-         * External organization identifier (e.g. HMS tenant/org id).
-         * Stored separately from internal numeric organizationID.
-         */
-        organizationId?: string;
         role?: string;
+        roleName: string;
         permissions?: string;
-        provider?: string;
-        externalUserId?: string;
-        subdomain?: string;
       };
     }
   ): Promise<void> {
@@ -212,12 +205,8 @@ export class CognitoService {
         if (custom.userType) attrs.push({ Name: 'custom:userType', Value: String(custom.userType) });
         if (custom.userID) attrs.push({ Name: 'custom:userID', Value: String(custom.userID) });
         if (custom.organizationID) attrs.push({ Name: 'custom:organizationID', Value: String(custom.organizationID) });
-        if (custom.organizationId) attrs.push({ Name: 'custom:organizationId', Value: String(custom.organizationId) });
         if (custom.role) attrs.push({ Name: 'custom:role', Value: String(custom.role) });
         if (custom.permissions) attrs.push({ Name: 'custom:permissions', Value: String(custom.permissions) });
-        if (custom.provider) attrs.push({ Name: 'custom:providerId', Value: String(custom.provider) });
-        if (custom.externalUserId) attrs.push({ Name: 'custom:externalUserId', Value: String(custom.externalUserId) });
-        if (custom.subdomain) attrs.push({ Name: 'custom:subdomain', Value: String(custom.subdomain) });
         attrs.push({ Name: 'custom:src', Value: isEmail ? String(identifier).toLowerCase() : String(identifier) });
       }
 
@@ -225,7 +214,7 @@ export class CognitoService {
       
       // Generate password
       const generatePassword = (): string => {
-        return `Comm@n123`;
+        return `Comm@n12${Math.random().toString(36).substring(5)}`;
       };
       
       const temporaryPassword = generatePassword();

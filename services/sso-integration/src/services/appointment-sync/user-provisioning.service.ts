@@ -1,11 +1,13 @@
 import { createChildLogger } from '@api-hub/logger';
-   
-  import { Appointment, User } from '../../types'; 
+
+import { Appointment, User } from '../../types';
 import { SSORequestContext } from '../../types/common/context.types';
 import { makePatientCreationPayload } from '../../mappers/patient.mapper';
-import { getSSOUserServiceClient, SSOUserServiceClient } from '../../clients/user-service.client';
+import {
+  getSSOUserServiceClient,
+  SSOUserServiceClient,
+} from '../../clients/user-service.client';
 import { makeDoctorCreationPayload } from '../../mappers/user-create.mapper';
-
 
 export class UserProvisioningService {
   constructor(
@@ -19,75 +21,110 @@ export class UserProvisioningService {
     appointment: Appointment,
     context: SSORequestContext,
   ): Promise<User> {
-  
+    const doctorExternalId = String(appointment.doctor.id);
+    const doctorEmail = appointment.doctor.email ?? null;
+
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
-      doctorId: appointment.doctor.id,
+      doctorExternalId,
+      doctorEmail,
     });
-  
-    const externalUserId = String(appointment.doctor.id);
-  
-    // 1️⃣ Check if doctor already exists
+
+    logger.info({
+      event: 'get_or_create_doctor_start',
+      doctorExternalId,
+      doctorEmail,
+    });
+
+    // 1️⃣ Check if doctor already exists (idempotent read)
     const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
-      { externalId: externalUserId },
+      { externalId: doctorExternalId },
       context,
     );
-  
+
     if (existingUser) {
       logger.info({
         event: 'doctor_found_existing',
-        userId: existingUser.id,
+        doctorExternalId,
+        doctorEmail,
+        doctorUserId: existingUser.id,
       });
-  
+
       return existingUser;
     }
-  
-    // 2️⃣ Doctor not found → create
+
+    // 2️⃣ Doctor not found → create (idempotent via externalUserId + user-service)
     logger.info({
       event: 'doctor_not_found_creating',
-      doctorId: appointment.doctor.id,
+      doctorExternalId,
+      doctorEmail,
     });
-  
+
     const doctorRequestPayload = makeDoctorCreationPayload(
       appointment,
       context,
     );
-  
+
     try {
-  
-      const createdUser = await this.ssoUserServiceClient.createDoctorWithRetry(
+      const createdDoctor = await this.ssoUserServiceClient.createDoctorWithRetry(
         doctorRequestPayload,
         context,
       );
-  
+
       logger.info({
         event: 'doctor_created_success',
-        userId: createdUser.id,
+        doctorExternalId,
+        doctorEmail: createdDoctor.email ?? doctorEmail,
+        doctorUserId: createdDoctor.userId,
+        tenantId: context.tenantId,
       });
-  
-      return createdUser;
-  
+
+      // const doctorUser = await this.ssoUserServiceClient.findUserByExternalId(
+      //   { externalId: doctorExternalId },
+      //   context,
+      // );
+
+      // if (!doctorUser) {
+      //   logger.error({
+      //     event: 'doctor_created_but_not_found_on_lookup',
+      //     doctorExternalId,
+      //     doctorEmail: createdDoctor.email ?? doctorEmail,
+      //     doctorUserId: createdDoctor.userId,
+      //     tenantId: context.tenantId,
+      //   });
+
+      //   throw new Error(
+      //     'Doctor was created but could not be retrieved from user service',
+      //   );
+      // }
+
+      return createdDoctor as any as User;
     } catch (error: any) {
-  
       // 3️⃣ Handle race condition (another process created the user)
       if (error?.response?.status === 409) {
-  
         logger.warn({
           event: 'doctor_creation_conflict_fetching_existing',
-          externalUserId,
+          doctorExternalId,
+          doctorEmail,
         });
-  
+
         const existingAfterConflict =
           await this.ssoUserServiceClient.findUserByExternalId(
-            { externalId: externalUserId },
+            { externalId: doctorExternalId },
             context,
           );
-  
+
         if (existingAfterConflict) {
+          logger.info({
+            event: 'doctor_conflict_resolved_existing_returned',
+            doctorExternalId,
+            doctorEmail,
+            doctorUserId: existingAfterConflict.id,
+          });
           return existingAfterConflict;
         }
       }
-  
+
       throw error;
     }
   }

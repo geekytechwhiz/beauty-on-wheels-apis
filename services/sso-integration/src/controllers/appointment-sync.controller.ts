@@ -37,9 +37,22 @@ export class AppointmentSyncController extends BaseController {
         method: event.httpMethod,
         subdomain: context.integration.subdomain
       })
+      
+      let fromDate: string | undefined
+      let toDate: string | undefined
+
+      if (event.body) {
+        try {
+          const parsed = JSON.parse(event.body)
+          fromDate = typeof parsed.fromDate === 'string' ? parsed.fromDate : undefined
+          toDate = typeof parsed.toDate === 'string' ? parsed.toDate : undefined
+        } catch {
+          // ignore body parse errors; fallback to defaults in service
+        }
+      }
 
       const result =
-        await this.appointmentSyncService.syncAppointments(context)
+        await this.appointmentSyncService.syncAppointments(context, { fromDate, toDate })
 
       logger.info({
         event: 'appointment_sync_success',

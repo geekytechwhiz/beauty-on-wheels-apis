@@ -241,22 +241,22 @@ async function processPatientCreationEvent(
   }
 
   /**
-   * Trigger pending appointment sync
+   * Trigger pending appointment reprocess for this patient
    */
   try {
-
     const appointmentSyncService = new AppointmentSyncService();
 
-    await appointmentSyncService.syncAppointments(requestContext);
+    await appointmentSyncService.reprocessPendingAppointmentsForPatient(
+      externalId,
+      requestContext,
+    );
 
     logger.info({
       event: 'pending_appointments_reprocess_triggered',
       patientExternalId: externalId,
       userId: createdPatient.id,
     });
-
   } catch (error) {
-
     logger.error({
       event: 'pending_appointments_reprocess_failed',
       patientExternalId: externalId,

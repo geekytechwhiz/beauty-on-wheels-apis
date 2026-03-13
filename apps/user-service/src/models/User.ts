@@ -129,6 +129,7 @@ export interface ExternalIdentity {
   subdomain: string;  
   sourceSystem: SourceSystem 
   provider: string;
+  tenant?: string;
 };
 export interface UserResponse {
   phoneNumber: string;

@@ -32,6 +32,11 @@ export interface PatientCreationEvent {
         symptoms?: unknown[];
       } | null;
     };
+    externalIdentity: {
+      subdomain: string;
+      provider: string;
+      externalUserId: string;
+    };
 
     /**
      * Doctor identifier in our system (if already created) or external system.

@@ -63,7 +63,9 @@ export class CognitoService {
   async findCognitoUserByEmail(
     email: string | null | undefined,
   ): Promise<CognitoUserContext | null> {
+  
     try {
+  
       if (!email || typeof email !== 'string') {
         this.logger.warn({
           event: 'cognito_find_user_by_email_invalid_input',
@@ -71,9 +73,18 @@ export class CognitoService {
         });
         return null;
       }
+  
       const rawEmail = email.trim().toLowerCase();
+  
+      if (!rawEmail.includes('@')) {
+        this.logger.warn({
+          event: 'cognito_email_invalid_format',
+          email: rawEmail,
+        });
+        return null;
+      }
+  
       const normalizedEmail = rawEmail;
-      // const normalizedEmail = this.remapEmailDomain(rawEmail);
   
       this.logger.debug({
         event: 'cognito_find_user_by_email_start',
@@ -90,6 +101,7 @@ export class CognitoService {
       const res = await this.client.send(cmd);
   
       if (!res.Users || res.Users.length === 0) {
+  
         this.logger.info({
           event: 'cognito_find_user_by_email_not_found',
           email: normalizedEmail,
@@ -100,12 +112,10 @@ export class CognitoService {
   
       const user = res.Users[0];
   
-      // 🔹 Convert Cognito attributes → claims format
       const claims = Object.fromEntries(
         (user.Attributes || []).map((a) => [a.Name, a.Value]),
       ) as unknown as CognitoUserClaims;
   
-      // 🔹 Map to AuthContext
       const mapped = this.mapCognitoClaimsToAuthContext(claims);
   
       this.logger.info({
@@ -115,14 +125,28 @@ export class CognitoService {
       });
   
       return mapped;
-    } catch (err) {
+  
+    } catch (err: any) {
+
+      if (
+        err.name === 'ResourceNotFoundException' ||
+        err.message === 'ResourceNotFoundException'
+      ) {
+    
+        this.logger.info({
+          event: 'cognito_find_user_by_email_not_found',
+          email
+        });
+    
+        return null;
+      }
+    
       this.logger.error({
-        event: 'cognito_user_lookup_failed',
+        event: 'cognito_lookup_error',
         email,
         err: serializeError(err),
       });
-  
-      // throw err;
+    
       return null;
     }
   }
@@ -130,7 +154,9 @@ export class CognitoService {
   async findCognitoUserByPhone(
     phone: string | null | undefined,
   ): Promise<CognitoUserContext | null> {
+  
     try {
+  
       if (!phone || typeof phone !== 'string') {
         this.logger.warn({
           event: 'cognito_find_user_by_phone_invalid_input',
@@ -138,9 +164,19 @@ export class CognitoService {
         });
         return null;
       }
+  
       const rawPhone = phone.trim();
+  
       const cognitoPhoneNumber = cognitoPhone(rawPhone, 'ZA');
-
+  
+      if (!cognitoPhoneNumber) {
+        this.logger.warn({
+          event: 'cognito_phone_invalid',
+          phone: rawPhone
+        });
+        return null;
+      }
+  
       this.logger.debug({
         event: 'cognito_find_user_by_phone_start',
         originalPhone: rawPhone,
@@ -156,21 +192,21 @@ export class CognitoService {
       const res = await this.client.send(cmd);
   
       if (!res.Users || res.Users.length === 0) {
+  
         this.logger.info({
           event: 'cognito_find_user_by_phone_not_found',
           phone: cognitoPhoneNumber,
         });
+  
         return null;
       }
   
       const user = res.Users[0];
   
-      // 🔹 Convert Cognito attributes → claims format
       const claims = Object.fromEntries(
         (user.Attributes || []).map((a) => [a.Name, a.Value]),
       ) as unknown as CognitoUserClaims;
   
-      // 🔹 Map to AuthContext
       const mapped = this.mapCognitoClaimsToAuthContext(claims);
   
       this.logger.info({
@@ -180,17 +216,27 @@ export class CognitoService {
       });
   
       return mapped;
-    } catch (err) {
+  
+    } catch (err: any) {
+  
+      if (err.name === 'ResourceNotFoundException' || err.message === 'ResourceNotFoundException') {
+  
+        this.logger.info({
+          event: 'cognito_find_user_by_phone_not_found',
+          phone
+        }); 
+        return null;
+      }
+  
       this.logger.error({
-        event: 'cognito_user_lookup_failed',
+        event: 'cognito_lookup_error',
         phone,
         err: serializeError(err),
       });
   
-      // throw err;
       return null;
     }
-  } 
+  }
   /**
    * Find user by phone
    * Fetch specific user attributes

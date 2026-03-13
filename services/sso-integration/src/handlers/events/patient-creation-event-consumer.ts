@@ -10,12 +10,11 @@ import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { getSSOConfig } from '../../config/sso-config';
 import { AppointmentSyncService } from '../../services/appointment-sync.service';
- 
-import { AssignDoctorPayload } from '../../types/user-creation.type';
 
+import { AssignDoctorPayload } from '../../types/user-creation.type';
 import { mapPatientEventToCreateUserPayload } from '../../mappers/patient-event.mapper';
 
-import { buildSSORequestContext } from '../../utils/context-builder.util';
+import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util';
 import { PatientCreationEvent } from '../../types/events';
 
 const baseLogger = createLogger({
@@ -28,7 +27,7 @@ const baseLogger = createLogger({
  */
 export async function handler(
   event: SQSEvent,
-  context?: Context
+  context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
 
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -43,18 +42,16 @@ export async function handler(
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
   for (const record of event.Records) {
-
     const recordId = record.messageId;
 
     const correlationId =
-      (record.attributes?.MessageGroupId as string) ||
+      record.attributes?.MessageGroupId ||
       awsRequestId ||
       'unknown';
 
     try {
       await processPatientCreationEvent(record, correlationId, logger);
     } catch (error) {
-
       logger.error({
         event: 'patient_creation_consumer_error',
         recordId,
@@ -81,7 +78,7 @@ export async function handler(
 async function processPatientCreationEvent(
   record: SQSRecord,
   correlationId: string,
-  logger: ReturnType<typeof createChildLogger>
+  logger: ReturnType<typeof createChildLogger>,
 ): Promise<void> {
 
   const userServiceClient = getSSOUserServiceClient();
@@ -90,12 +87,11 @@ async function processPatientCreationEvent(
   let event: PatientCreationEvent;
 
   /**
-   * Parse event
+   * Parse SQS body
    */
   try {
     event = JSON.parse(record.body) as PatientCreationEvent;
   } catch (error) {
-
     logger.error({
       event: 'patient_creation_event_parse_error',
       recordId: record.messageId,
@@ -108,8 +104,7 @@ async function processPatientCreationEvent(
   const { patient, doctorId, organizationID, provider, externalId } = event.data;
 
   /**
-   * Validate event – non-retryable issues are logged and skipped
-   * so they do not poison the queue / DLQ.
+   * Validate event
    */
   if (!patient?.id || !externalId) {
     logger.error({
@@ -118,6 +113,7 @@ async function processPatientCreationEvent(
       patientId: patient?.id,
       externalId,
     });
+
     return;
   }
 
@@ -133,22 +129,22 @@ async function processPatientCreationEvent(
   /**
    * Build request context
    */
-  const context = buildSSORequestContext(event, correlationId);
+  const requestContext = buildSSORequestContextFromSQS(event, correlationId);
 
   /**
-   * Check if user already exists
+   * Check if patient already exists
    */
   const existingPatient = await userServiceClient.findUserByExternalId(
     { externalId },
-    context
+    requestContext,
   );
 
   if (existingPatient) {
-
     logger.info({
       event: 'patient_creation_event_skipped',
       reason: 'patient_already_exists',
       patientId: patient.id,
+      externalId,
       userId: existingPatient.id,
     });
 
@@ -166,12 +162,15 @@ async function processPatientCreationEvent(
     patientId: patient.id,
     userType: patientPayload.userType,
     userRole: patientPayload.userRole,
-    organizationID: patientPayload.organizationID || organizationID,
   });
 
+  /**
+   * Validate contact info
+   */
   const hasEmail =
     typeof patientPayload.userInfo.contact.email === 'string' &&
     patientPayload.userInfo.contact.email.trim() !== '';
+
   const hasPhone =
     typeof patientPayload.userInfo.contact.phone === 'string' &&
     patientPayload.userInfo.contact.phone.trim() !== '';
@@ -182,7 +181,7 @@ async function processPatientCreationEvent(
       reason: 'missing_email_and_phone',
       patientId: patient.id,
     });
-    // Do not throw – message is considered invalid and is safely skipped.
+
     return;
   }
 
@@ -197,7 +196,7 @@ async function processPatientCreationEvent(
    */
   const createdPatient = await userServiceClient.createPatient(
     patientPayload,
-    context
+    requestContext,
   );
 
   logger.info({
@@ -207,7 +206,7 @@ async function processPatientCreationEvent(
   });
 
   /**
-   * Assign doctor
+   * Assign doctor if provided
    */
   if (doctorId) {
 
@@ -228,7 +227,7 @@ async function processPatientCreationEvent(
 
     const assignResult = await userServiceClient.assignDoctor(
       assignDoctorPayload,
-      context
+      requestContext,
     );
 
     logger.info({
@@ -242,13 +241,13 @@ async function processPatientCreationEvent(
   }
 
   /**
-   * Reprocess pending appointments
+   * Trigger pending appointment sync
    */
   try {
 
     const appointmentSyncService = new AppointmentSyncService();
 
-    await appointmentSyncService.syncAppointments(context);
+    await appointmentSyncService.syncAppointments(requestContext);
 
     logger.info({
       event: 'pending_appointments_reprocess_triggered',

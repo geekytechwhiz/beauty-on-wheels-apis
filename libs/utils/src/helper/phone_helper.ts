@@ -134,10 +134,25 @@ import {
     };
   }
 
-  export function cognitoPhone(phone: string, countryCode: CountryCode): string {
-    if (phone.startsWith('+')) {
-      return phone;
+  export function cognitoPhone(
+    phone: string,
+    countryCode: CountryCode
+  ): string {
+  
+    if (!phone) return '';
+  
+    const trimmed = phone.trim();
+  
+    if (trimmed.startsWith('+')) {
+      return trimmed;
     }
-    return toE164(phone, countryCode);
+  
+    const parsed = parsePhoneNumberFromString(trimmed, countryCode);
+  
+    if (!parsed) {
+      return trimmed;
+    }
+  
+    return parsed.number; // E164
   }
  

@@ -9,11 +9,11 @@ export const PHONE_CODE ={
 }
 
 export const PROVIDER ={
-    TRUE_TECH: 'TRUE_TECH',
+    TRU_TECH: 'TRU_TECH',
 }
 
 export const SUBDOMAIN ={
-    TRUE_TECH: 'qahms',
+    TRU_TECH: 'qahms',
 }
 
 export const SOURCE_SYSTEM ={

@@ -30,6 +30,7 @@ export class SSOUserServiceClient extends BaseClient {
     params: { externalId: string },
     context: SSORequestContext,
   ): Promise<User | null> {
+    console.log('findUserByExternalId context', context);
     const externalUserId = params.externalId;
     const subdomain = context.integration.subdomain;
     const organizationId = getOrganizationId(subdomain);
@@ -101,11 +102,12 @@ export class SSOUserServiceClient extends BaseClient {
         const provider = (context.integration.providerId || 'hms')
           .toString()
           .toLowerCase();
-
+        console.log('findUserByExternalId provider', provider);
+        console.log('findUserByExternalId context.integration.providerId', context.integration.providerId);
         const response = await this.client.get<User>('/users/external', {
           params: {
             tenant: subdomain,
-            provider:"hms",
+            provider: context.integration.providerId ,
             externalUserId,
           },
           headers: buildServiceHeaders(context),
@@ -307,7 +309,7 @@ export class SSOUserServiceClient extends BaseClient {
     const externalUserId = payload.externalIdentity?.externalUserId;
 
     const logBase = { externalUserId,  subdomain };
-    const organizationId= 
+    const organizationId= getOrganizationId(subdomain);
     console.log('createPatient payload', JSON.stringify(payload));
 
     const response = await this.client.post<{ data: User }>('/user', payload, {

@@ -61,9 +61,9 @@ export function mapPatientEventToCreateUserPayload(
       externalUserId: String(externalId || patient.id),
       // Use organizationID as the external hospital/tenant identifier where applicable.
       externalHospitalId: organizationID,
-      subdomain: SUBDOMAIN.TRUE_TECH,
+      subdomain: SUBDOMAIN.TRU_TECH,
       sourceSystem: SourceSystem.HMS,
-      provider: provider || PROVIDER.TRUE_TECH,
+      provider: provider || PROVIDER.TRU_TECH,
     },
   };
 }

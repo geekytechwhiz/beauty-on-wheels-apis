@@ -66,7 +66,7 @@ export class UserProvisioningService {
     );
 
     try {
-      const createdUser = await this.ssoUserServiceClient.createDoctorWithRetry(
+      const createdDoctor = await this.ssoUserServiceClient.createDoctorWithRetry(
         doctorRequestPayload,
         context,
       );
@@ -74,11 +74,31 @@ export class UserProvisioningService {
       logger.info({
         event: 'doctor_created_success',
         doctorExternalId,
-        doctorEmail,
-        doctorUserId: createdUser.id,
+        doctorEmail: createdDoctor.email ?? doctorEmail,
+        doctorUserId: createdDoctor.userId,
+        tenantId: context.tenantId,
       });
 
-      return createdUser;
+      const doctorUser = await this.ssoUserServiceClient.findUserByExternalId(
+        { externalId: doctorExternalId },
+        context,
+      );
+
+      if (!doctorUser) {
+        logger.error({
+          event: 'doctor_created_but_not_found_on_lookup',
+          doctorExternalId,
+          doctorEmail: createdDoctor.email ?? doctorEmail,
+          doctorUserId: createdDoctor.userId,
+          tenantId: context.tenantId,
+        });
+
+        throw new Error(
+          'Doctor was created but could not be retrieved from user service',
+        );
+      }
+
+      return doctorUser;
     } catch (error: any) {
       // 3️⃣ Handle race condition (another process created the user)
       if (error?.response?.status === 409) {

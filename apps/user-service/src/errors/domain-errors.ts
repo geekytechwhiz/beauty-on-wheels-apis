@@ -95,3 +95,77 @@ export class InviteUpdateTooSoonError extends DomainError {
     this.hoursSinceUpdate = hoursSinceUpdate;
   }
 }
+
+// ─── Organisation ─────────────────────────────────────────────────────────────
+
+export class OrganizationNotExistError extends DomainError {
+  constructor() {
+    super('Organization does not exist', 'ORGANIZATION_NOT_EXIST', 404);
+    this.name = 'OrganizationNotExistError';
+  }
+}
+
+export class OrganizationOnHoldError extends DomainError {
+  constructor() {
+    super('Organization is on hold', 'ORGANIZATION_IS_ON_HOLD', 400);
+    this.name = 'OrganizationOnHoldError';
+  }
+}
+
+export class OrganizationMismatchError extends DomainError {
+  constructor() {
+    super('Organization mismatch', 'ORGANIZATION_MISMATCH', 400);
+    this.name = 'OrganizationMismatchError';
+  }
+}
+
+// ─── Friend & Family ──────────────────────────────────────────────────────────
+
+export class EmailOrPhoneRequiredError extends DomainError {
+  constructor() {
+    super('Email or phone is required', 'EMAIL_OR_PHONE_REQUIRED', 400);
+    this.name = 'EmailOrPhoneRequiredError';
+  }
+}
+
+export class FnfLimitReachedError extends DomainError {
+  constructor() {
+    super('Friend & family limit reached', 'USER_CANNOT_INVITE_MORE_FNF', 409);
+    this.name = 'FnfLimitReachedError';
+  }
+}
+
+export class UserAlreadyInvitedError extends DomainError {
+  constructor() {
+    super('User already invited', 'USER_ALREADY_INVITED', 409);
+    this.name = 'UserAlreadyInvitedError';
+  }
+}
+
+export class UserAlreadyInvitedBySomeoneError extends DomainError {
+  constructor() {
+    super('User already invited by someone', 'USER_ALREADY_INVITED_BY_SOMEONE', 409);
+    this.name = 'UserAlreadyInvitedBySomeoneError';
+  }
+}
+
+export class UserAlreadyAddedAsFnfError extends DomainError {
+  constructor() {
+    super('User already added as friend or family', 'USER_ALREADY_ADDED_AS_FNF', 409);
+    this.name = 'UserAlreadyAddedAsFnfError';
+  }
+}
+
+export class MemberNotFoundError extends DomainError {
+  constructor(id: string) {
+    super(`Member not found: ${id}`, 'MEMBER_NOT_FOUND', 404);
+    this.name = 'MemberNotFoundError';
+  }
+}
+
+export class FnfDoesNotExistError extends DomainError {
+  constructor() {
+    super('Friend & family link not found', 'FNF_DOES_NOT_EXIST', 404);
+    this.name = 'FnfDoesNotExistError';
+  }
+}

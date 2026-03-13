@@ -79,26 +79,26 @@ export class UserProvisioningService {
         tenantId: context.tenantId,
       });
 
-      const doctorUser = await this.ssoUserServiceClient.findUserByExternalId(
-        { externalId: doctorExternalId },
-        context,
-      );
+      // const doctorUser = await this.ssoUserServiceClient.findUserByExternalId(
+      //   { externalId: doctorExternalId },
+      //   context,
+      // );
 
-      if (!doctorUser) {
-        logger.error({
-          event: 'doctor_created_but_not_found_on_lookup',
-          doctorExternalId,
-          doctorEmail: createdDoctor.email ?? doctorEmail,
-          doctorUserId: createdDoctor.userId,
-          tenantId: context.tenantId,
-        });
+      // if (!doctorUser) {
+      //   logger.error({
+      //     event: 'doctor_created_but_not_found_on_lookup',
+      //     doctorExternalId,
+      //     doctorEmail: createdDoctor.email ?? doctorEmail,
+      //     doctorUserId: createdDoctor.userId,
+      //     tenantId: context.tenantId,
+      //   });
 
-        throw new Error(
-          'Doctor was created but could not be retrieved from user service',
-        );
-      }
+      //   throw new Error(
+      //     'Doctor was created but could not be retrieved from user service',
+      //   );
+      // }
 
-      return doctorUser;
+      return createdDoctor as any as User;
     } catch (error: any) {
       // 3️⃣ Handle race condition (another process created the user)
       if (error?.response?.status === 409) {

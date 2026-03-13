@@ -136,6 +136,8 @@ export interface PendingAppointment {
   timestamp: string;
   retryCount: number;
   patientExternalId: string;
+  doctorExternalId: string;
+  externalAppointmentId: string;
 }
 
 export interface ScheduleParticipantInfo {

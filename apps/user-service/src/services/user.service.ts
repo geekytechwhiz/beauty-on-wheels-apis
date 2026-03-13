@@ -1,21 +1,21 @@
-import { UserRepository, ListOrganizationUsersOptions } from '../repositories/user.repository';
-import { OrganizationRepository } from '../repositories/organization.repository';
-import { getOrganization as getOrganizationViaApi } from './organization.service';
-import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile, UserResponse, ExternalIdentity, SourceSystem  } from '../models';
-import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
-import { CognitoService } from './cognito.service';
-import { publishEvent } from '../events/event.publisher';
+import { createChildLogger, createLogger, createPerformanceTimer, serializeError } from '@api-hub/logger';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
-import { notifyUser } from './notification.service';
-import { RoleRepository } from '../repositories/role.repository';
+import { publishEvent } from '../events/event.publisher';
+import { User, UserFile, UserMetadata, UserOrganization, UserResponse } from '../models';
+import { OrganizationRepository } from '../repositories/organization.repository';
 import { PackageRepository } from '../repositories/package.repositrory';
+import { RoleRepository } from '../repositories/role.repository';
+import { ListOrganizationUsersOptions, UserRepository } from '../repositories/user.repository';
+import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
+import { CognitoService } from './cognito.service';
+import { FriendFamilyService } from './friendFamily.service';
+import { notifyUser } from './notification.service';
+import { getOrganization as getOrganizationViaApi } from './organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const roleRepository = new RoleRepository();
 const packageRepository = new PackageRepository();
-import { FriendFamilyService } from './friendFamily.service';
 
 const friendFamilyService = new FriendFamilyService();
 function generateSortableId() {
@@ -36,6 +36,18 @@ export class UserService {
   constructor() {
     this.repository = new UserRepository();
     this.organizationRepository = new OrganizationRepository();
+  }
+
+  async getUserByExternalIdentity(
+    tenant: string,
+    provider: string,
+    externalUserId: string,
+  ): Promise<User | null> {
+    return this.repository.getUserByExternalIdentity(
+      tenant,
+      provider,
+      externalUserId,
+    );
   }
 
   async createUser(
@@ -199,14 +211,10 @@ export class UserService {
                 userType: String(data.userType || ''),
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
-                role: JSON.stringify(userRoleArray), 
+                role: JSON.stringify(userRoleArray),
                 permissions: JSON.stringify(permissionIds),
-
-                provider: externalIdentity?.provider || undefined,
-                externalUserId: externalIdentity?.externalUserId || undefined,
-                subdomain: externalIdentity?.subdomain || undefined, 
               },
-            }
+            },
           );
           logger.info({
             event: 'service_createUser_cognito_payload',

@@ -80,28 +80,42 @@ type UserDBItem = User & {
   sk: string;
   PK?: string;
   SK?: string;
+  gsi1Pk?: string;
+  gsi1Sk?: string;
 };
+
+function buildExternalIdentityKeys(
+  user: User,
+): Pick<UserDBItem, 'gsi1Pk' | 'gsi1Sk'> | {} {
+  const ext = user.externalIdentity;
+  if (!ext?.provider || !ext.externalUserId) {
+    return {};
+  }
+
+  const tenant =
+    ext.tenant?.trim() ||
+    ext.subdomain?.trim() ||
+    user.organizationID?.trim();
+
+  if (!tenant) {
+    return {};
+  }
+
+  const provider = ext.provider.trim().toLowerCase();
+  const externalUserId = ext.externalUserId.trim().toLowerCase();
+
+  return {
+    gsi1Pk: `${tenant}#${provider}`,
+    gsi1Sk: externalUserId,
+  };
+}
 
 function modifyIndexesUsers(user: User): UserDBItem {
   return {
     ...user,
     pk: `ORG#${user.organizationID}`,
     sk: `USER#${user.userID}`,
-  };
-}
- 
-function tenantMapping(
-  user: User,
-  provider: string,
-  subdomain: string,
-  externalUserId: string
-): UserDBItem {
-
-  return {
-    ...user,
-    pk: `ORG#${user.organizationID}#PROVIDER#${provider.trim().toUpperCase()}#SUBDOMAIN#${subdomain.trim().toLowerCase()}`,
-    sk: `EXTUSER#${externalUserId.trim().toLowerCase()}`, 
-  
+    ...buildExternalIdentityKeys(user),
   };
 }
 
@@ -169,44 +183,88 @@ export interface ListOrganizationUsersOptions {
 }
 
 export class UserRepository {
+  async getUserByExternalIdentity(
+    tenant: string,
+    provider: string,
+    externalUserId: string,
+  ): Promise<User | null> {
+    const logger = createChildLogger(baseLogger, {
+      tenant,
+      provider,
+      externalUserId,
+    });
+
+    const normalizedTenant = tenant.trim().toLowerCase();
+    const normalizedProvider = provider.trim().toLowerCase();
+    const normalizedExternalUserId = externalUserId.trim().toLowerCase();
+
+    const gsi1Pk = `${normalizedTenant}#${normalizedProvider}`;
+    const gsi1Sk = normalizedExternalUserId;
+
+    logger.info({
+      event: 'user_get_by_external_identity_start',
+      gsi1Pk,
+      gsi1Sk,
+    });
+
+    const result = await sendDoc<QueryCommandOutput>(
+      docClient,
+      new QueryCommand({
+        TableName: USER_TABLE_NAME,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'gsi1Pk = :pk AND gsi1Sk = :sk',
+        ExpressionAttributeValues: {
+          ':pk': gsi1Pk,
+          ':sk': gsi1Sk,
+        },
+        Limit: 1,
+      }) as unknown as QueryCommandInput,
+    );
+
+    const item = result.Items?.[0] as UserDBItem | undefined;
+
+    if (!item) {
+      logger.info({
+        event: 'user_get_by_external_identity_not_found',
+        gsi1Pk,
+        gsi1Sk,
+      });
+      return null;
+    }
+
+    logger.info({
+      event: 'user_get_by_external_identity_success',
+      gsi1Pk,
+      gsi1Sk,
+      userID: item.userID,
+      organizationID: item.organizationID,
+    });
+
+    // strip internal index fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { pk, sk, PK, SK, gsi1Pk: _gpk, gsi1Sk: _gsk, ...rest } = item;
+    return rest as User;
+  }
+
   async createUser(user: User): Promise<void> {
     const logger = createChildLogger(baseLogger, { userId: user.userID });
   
     const mainUserItem = modifyIndexesUsers(user);
   
-    const transactItems: any[] = [
-      {
-        Put: {
-          TableName: USER_TABLE_NAME,
-          Item: mainUserItem,
-          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
-        },
-      },
-    ];
-  
-    // If external identity exists create mapping record
-    if (user.externalIdentity?.provider) {
-      const mappingItem = tenantMapping(
-        user,
-        user.externalIdentity.provider,
-        user.externalIdentity.subdomain || '',
-        user.externalIdentity.externalUserId || '',
-      );
-  
-      transactItems.push({
-        Put: {
-          TableName: USER_TABLE_NAME,
-          Item: mappingItem,
-          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
-        },
-      });
-    }
-  
     try {
       await sendDoc(
         docClient,
         new TransactWriteCommand({
-          TransactItems: transactItems,
+          TransactItems: [
+            {
+              Put: {
+                TableName: USER_TABLE_NAME,
+                Item: mainUserItem,
+                ConditionExpression:
+                  'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+              },
+            },
+          ],
         }),
       );
   

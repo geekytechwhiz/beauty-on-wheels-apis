@@ -350,6 +350,23 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+  getUserByExternalIdentity:
+    handler: src/handlers/getUserByExternalIdentity.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: users/external
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   getUserOrganization:
     handler: src/handlers/getUserOrganization.main
     timeout: 30

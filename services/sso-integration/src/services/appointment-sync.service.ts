@@ -99,7 +99,36 @@ export class AppointmentSyncService extends BaseService {
       this.scheduleCreationService,
       this.logger,
       this.maxRetries,
+      (this as any).ssoUserServiceClient,
     );
+  }
+
+  private buildLogContext(params: {
+    context: SSORequestContext;
+    externalAppointmentId?: string;
+    doctorExternalId?: string;
+    patientExternalId?: string;
+    doctorUserId?: string;
+    patientUserId?: string;
+  }) {
+    const {
+      context,
+      externalAppointmentId,
+      doctorExternalId,
+      patientExternalId,
+      doctorUserId,
+      patientUserId,
+    } = params;
+
+    return {
+      correlationId: context.correlationId,
+      tenantId: context.tenantId,
+      externalAppointmentId: externalAppointmentId ?? null,
+      doctorExternalId: doctorExternalId ?? null,
+      patientExternalId: patientExternalId ?? null,
+      doctorUserId: doctorUserId ?? null,
+      patientUserId: patientUserId ?? null,
+    };
   }
 
   async syncAppointments(
@@ -146,6 +175,16 @@ export class AppointmentSyncService extends BaseService {
     return results;
   }
 
+  async reprocessPendingAppointmentsForPatient(
+    patientExternalId: string,
+    context: SSORequestContext,
+  ): Promise<void> {
+    await this.pendingAppointmentService.reprocessPendingAppointments(
+      patientExternalId,
+      context,
+    );
+  }
+
   private async syncDoctorAppointments(
     appointments: Appointment[],
     context: SSORequestContext,
@@ -168,10 +207,29 @@ export class AppointmentSyncService extends BaseService {
       };
     }
 
+    this.logger.info({
+      event: 'doctor_provisioning_start',
+      ...this.buildLogContext({
+        context,
+        externalAppointmentId: String(validAppointments[0].appointmentId),
+        doctorExternalId: String(validAppointments[0].doctor.id),
+      }),
+    });
+
     const doctor = await this.userProvisioningService.getOrCreateDoctor(
       validAppointments[0],
       context,
     );
+
+    this.logger.info({
+      event: 'doctor_provisioning_complete',
+      ...this.buildLogContext({
+        context,
+        externalAppointmentId: String(validAppointments[0].appointmentId),
+        doctorExternalId: String(validAppointments[0].doctor.id),
+        doctorUserId: String((doctor as unknown as CognitoUserContext).userId),
+      }),
+    });
 
     return this.processAppointments(
       validAppointments,
@@ -208,8 +266,42 @@ export class AppointmentSyncService extends BaseService {
         if (!appointment) break;
 
         const externalAppointmentId = String(appointment.appointmentId);
+        const patientExternalId = String(appointment.patient.id);
+        const doctorExternalId = String(appointment.doctor.id);
+        let organizationId: string | undefined;
+        let doctorUserId: string | undefined;
+        let patientUserId: string | undefined;
 
         try {
+          // 1️⃣ Check patient existence via user-service (externalId)
+          this.logger.info({
+            event: 'patient_lookup_start',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+            }),
+          });
+
+          const userServicePatient = await (this as any).ssoUserServiceClient.findUserByExternalId(
+            { externalId: patientExternalId },
+            context,
+          );
+
+          if (userServicePatient) {
+            this.logger.info({
+              event: 'patient_found_in_user_service',
+              ...this.buildLogContext({
+                context,
+                externalAppointmentId,
+                patientExternalId,
+                doctorExternalId,
+                patientUserId: String(userServicePatient.id),
+              }),
+            });
+          }
+
           let cognitoUser: CognitoUserContext | null = null;
 
           /* ---------- FIXED USER LOOKUP ---------- */
@@ -240,13 +332,84 @@ export class AppointmentSyncService extends BaseService {
 
           /* ---------- END FIX ---------- */
 
+          this.logger.info({
+            event: 'patient_lookup_complete',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              patientUserId: cognitoUser ? String(cognitoUser.userId) : undefined,
+            }),
+          });
+
           if (!cognitoUser) {
+            // If user-service also didn't find the patient, trigger patient creation event
+            if (!userServicePatient) {
+              try {
+                const organizationID =
+                  context.integration?.organizationId ??
+                  this.config.defaultOrganizationID;
+                const provider =
+                  context.integration?.providerId ?? 'TruTech';
+
+                const patientEvent =
+                  this.patientEventPublisher.createPatientCreationEvent(
+                    appointment.patient,
+                    doctor.userId,
+                    organizationID,
+                    provider,
+                    context.correlationId,
+                  );
+
+                await this.patientEventPublisher.publishPatientCreationEvent(
+                  patientEvent,
+                  context.correlationId,
+                );
+
+                this.logger.info({
+                  event: 'patient_creation_event_triggered_from_sync',
+                  ...this.buildLogContext({
+                    context,
+                    externalAppointmentId,
+                    patientExternalId,
+                    doctorExternalId,
+                    doctorUserId: String(doctor.userId),
+                  }),
+                });
+              } catch (err) {
+                this.logger.error({
+                  event: 'patient_creation_event_publish_failed_from_sync',
+                  ...this.buildLogContext({
+                    context,
+                    externalAppointmentId,
+                    patientExternalId,
+                    doctorExternalId,
+                    doctorUserId: String(doctor.userId),
+                  }),
+                  err: serializeError(err as Error),
+                });
+              }
+            }
+
+            this.logger.info({
+              event: 'pending_appointment_create',
+              ...this.buildLogContext({
+                context,
+                externalAppointmentId,
+                patientExternalId,
+                doctorExternalId,
+              }),
+            });
+
             this.pendingAppointmentService.addPendingAppointment({
               appointment,
               reason: 'patient_not_found',
               timestamp: new Date().toISOString(),
               retryCount: 0,
-              patientExternalId: String(appointment.patient.id),
+              patientExternalId,
+              doctorExternalId,
+              externalAppointmentId,
             });
 
             pending++;
@@ -255,25 +418,71 @@ export class AppointmentSyncService extends BaseService {
             continue;
           }
 
+          organizationId =
+            cognitoUser.organizationId ?? CONSTANTS.ORGANIZATION_ID;
+          doctorUserId = String(doctor.userId);
+          patientUserId = String(cognitoUser.userId);
+
           const scheduleFetchPayload: FetchSchedulesRequest = {
             fromDate: new Date(appointment.startTime).getTime(),
             toDate: new Date(appointment.endTime).getTime(),
-            organizationID:
-              cognitoUser.organizationId ?? CONSTANTS.ORGANIZATION_ID,
-            doctorId: String(doctor.userId),
-            userId: String(cognitoUser.userId),
+            organizationID: organizationId,
+            doctorId: doctorUserId,
+            userId: patientUserId,
           };
+
+          this.logger.info({
+            event: 'schedule_fetch_start',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId,
+              patientUserId,
+            }),
+            organizationId,
+            payload: scheduleFetchPayload,
+          });
 
           const existingSchedules = await this.scheduleClient.fetchSchedules(
             scheduleFetchPayload,
             context,
           );
 
+          this.logger.info({
+            event: 'schedule_fetch_complete',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId,
+              patientUserId,
+            }),
+            organizationId,
+            scheduleCount: existingSchedules.length,
+          });
+
           const hasConflict =
             this.scheduleConflictService.detectScheduleConflict(
               existingSchedules,
               appointment,
             );
+
+          this.logger.info({
+            event: 'schedule_conflict_check',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId,
+              patientUserId,
+            }),
+            organizationId,
+            hasConflict,
+          });
 
           if (hasConflict) {
             skipped++;
@@ -282,12 +491,38 @@ export class AppointmentSyncService extends BaseService {
             continue;
           }
 
+          this.logger.info({
+            event: 'schedule_creation_start',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId,
+              patientUserId,
+            }),
+            organizationId,
+          });
+
           await this.scheduleCreationService.createServiceScheduleWithRetry(
             appointment,
             doctor,
             cognitoUser as unknown as User,
             context,
           );
+
+          this.logger.info({
+            event: 'schedule_creation_success',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId,
+              patientUserId,
+            }),
+            organizationId,
+          });
 
           synced++;
           details.synced.push(externalAppointmentId);
@@ -298,6 +533,15 @@ export class AppointmentSyncService extends BaseService {
           this.logger.error({
             event: 'appointment_process_error',
             appointmentId: appointment.appointmentId,
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId,
+              patientUserId,
+            }),
+            organizationId,
             err: serializeError(error as Error),
           });
         }

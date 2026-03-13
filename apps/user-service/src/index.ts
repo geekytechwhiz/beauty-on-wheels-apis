@@ -1,5 +1,6 @@
 export * from './handlers/createUser';
 export * from './handlers/getUser';
+export * from './handlers/getUserByExternalIdentity';
 export * from './handlers/updateUser';
 export * from './handlers/deleteUser';
 export * from './handlers/assignDoctor';

@@ -24,8 +24,13 @@ export class UserProvisioningService {
       doctorId: appointment.doctor.id,
     });
 
-    const externalId = String(appointment.doctor.id);
-
+    const externalUserId = String(appointment.doctor.id);
+    const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
+      { 
+        externalId: externalUserId, 
+      },
+      context,
+    );
     
 
     logger.info({
@@ -59,10 +64,8 @@ export class UserProvisioningService {
     const externalUserId = String(appointment.patient.id); 
 
     const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
-      {
-        provider: 'TruTech',
-        externalId: externalUserId,
-        tenantId: context.tenantId,
+      { 
+        externalId: externalUserId, 
       },
       context,
     );

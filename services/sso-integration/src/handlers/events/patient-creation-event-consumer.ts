@@ -203,6 +203,7 @@ async function processPatientCreationEvent(
     event: 'patient_creation_event_success',
     patientId: patient.id,
     userId: createdPatient.id,
+    ...createdPatient,
   });
 
   /**

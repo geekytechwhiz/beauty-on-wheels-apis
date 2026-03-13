@@ -21,6 +21,7 @@ import {
 import { CognitoUserContext } from '../types/user/user.types';
 
 import { CONSTANTS } from '../utils/constants';
+import { getOrganizationId } from '../utils/helper';
 
 import { HmsAppointmentService } from './appointment-sync/hms-appointment.service';
 import { AppointmentValidationService } from './appointment-sync/appointment-validation.service';
@@ -350,9 +351,18 @@ export class AppointmentSyncService extends BaseService {
             // If user-service also didn't find the patient, trigger patient creation event
             if (!userServicePatient) {
               try {
-                const organizationID =
-                  context.integration?.subdomain ??
-                  CONSTANTS.ORGANIZATION_ID;
+                let organizationID = CONSTANTS.ORGANIZATION_ID;
+
+                const subdomain = context.integration?.subdomain;
+                if (subdomain) {
+                  try {
+                    organizationID =
+                      getOrganizationId(subdomain) ?? CONSTANTS.ORGANIZATION_ID;
+                  } catch {
+                    organizationID = CONSTANTS.ORGANIZATION_ID;
+                  }
+                }
+
                 const provider =
                   context.integration?.providerId ?? 'TruTech';
 
@@ -379,6 +389,7 @@ export class AppointmentSyncService extends BaseService {
                     doctorExternalId,
                     doctorUserId: String(doctor.userId),
                   }),
+                  organizationId: organizationID,
                 });
               } catch (err) {
                 this.logger.error({

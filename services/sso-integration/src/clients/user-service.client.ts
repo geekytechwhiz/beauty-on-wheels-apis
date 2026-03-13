@@ -50,11 +50,10 @@ export class SSOUserServiceClient extends BaseClient {
           externalUserId,
           subdomain,
         });
-        return null;
       }
 
-      // 1️⃣ If cache hit, try org+userId fetch first
-      if (cachedUserId) {
+      // 1️⃣ If cache hit and we have an organization, try org+userId fetch first
+      if (organizationId && cachedUserId) {
         const url = `/user/organization/${organizationId}/${cachedUserId}`;
 
         console.info('findUserByExternalId_cache_hit', {

@@ -16,17 +16,14 @@ export function buildSSORequestContext(
       ? (event as any).headers
       : {}
 
-  if (headers) {
-    tenantId =
-      headers['x-tenant-id'] ||
-      headers['X-Tenant-Id'] ||
-      SUBDOMAIN.TRUE_TECH
+  // if (headers) {
+    tenantId = SUBDOMAIN.TRUE_TECH
 
     serviceToken =
       (headers.authorization as string | undefined) ||
       (headers.Authorization as string | undefined) ||
       null
-  }
+  // }
 
   console.log('buildSSORequestContext serviceToken', serviceToken)
 

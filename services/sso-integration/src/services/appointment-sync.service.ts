@@ -133,6 +133,7 @@ export class AppointmentSyncService extends BaseService {
 
   async syncAppointments(
     context: SSORequestContext,
+    dateRange?: { fromDate?: string; toDate?: string },
   ): Promise<AppointmentSyncResult> {
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
@@ -141,10 +142,12 @@ export class AppointmentSyncService extends BaseService {
     logger.info({
       event: 'appointment_sync_start',
       tenantId: context.tenantId,
+      fromDate: dateRange?.fromDate,
+      toDate: dateRange?.toDate,
     });
 
-    const fromDate = fromDateString(0);
-    const toDate = toDateString(5);
+    const fromDate = dateRange?.fromDate ?? fromDateString(0);
+    const toDate = dateRange?.toDate ?? toDateString(5);
 
     const appointments =
       await this.hmsAppointmentService.getAppointmentsForDoctorsInRange(
@@ -356,7 +359,7 @@ export class AppointmentSyncService extends BaseService {
                 const patientEvent =
                   this.patientEventPublisher.createPatientCreationEvent(
                     appointment.patient,
-                    doctor.userId,
+                    doctor.userId ?? '',
                     organizationID,
                     provider,
                     context.correlationId,

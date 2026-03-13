@@ -1,15 +1,16 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 
-const userService = new UserService();
-
+ 
 interface ExternalQuery {
   tenant?: string;
   provider?: string;
   externalUserId?: string;
 }
+const userService = new UserService();
 
 const handler = async (req: LambdaRequest<any, ExternalQuery>) => {
+
   const tenant =
     req.params.tenant ??
     (req.event as any)?.queryStringParameters?.tenant ??

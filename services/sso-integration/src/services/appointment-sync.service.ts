@@ -369,7 +369,7 @@ export class AppointmentSyncService extends BaseService {
                 const patientEvent =
                   this.patientEventPublisher.createPatientCreationEvent(
                     appointment.patient,
-                    doctor.userId ?? '',
+                    (doctor as any).id ?? '',
                     organizationID,
                     provider,
                     context,

@@ -7,6 +7,7 @@ export function mapPatientEventToCreateUserPayload(
   event: PatientCreationEvent
 ): PatientCreationPayload {
   const { patient, organizationID, provider, externalId } = event.data;
+  const now = Date.now();
 
   const name = (patient.name ?? "").toString().trim();
   const gender = patient.gender ?? "";
@@ -65,5 +66,7 @@ export function mapPatientEventToCreateUserPayload(
       sourceSystem: SourceSystem.HMS,
       provider: provider || PROVIDER.TRU_TECH,
     },
+    createdDate: now,
+    modifiedDate: now,
   };
 }

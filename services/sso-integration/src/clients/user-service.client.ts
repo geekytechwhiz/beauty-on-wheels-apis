@@ -318,7 +318,7 @@ export class SSOUserServiceClient extends BaseClient {
     });
 
     const user = response.data.data;
-
+    console.log('createPatient user', user);
     if (organizationId && externalUserId && user?.id) {
       setCachedUserId(subdomain, externalUserId, String(user.id));
       console.info('createPatient_cache_update', {

@@ -14,11 +14,11 @@ export function makeDoctorCreationPayload(
   appointment: Appointment,
   context: SSORequestContext
 ): DoctorCreationPayload {
-
   const logger =
     createChildLogger(baseLogger, { correlationId: context.correlationId })
 
   const config = getSSOConfig()
+  const now = Date.now()
 
   logger.info({
     event: 'doctor_mapping_start',
@@ -109,7 +109,11 @@ export function makeDoctorCreationPayload(
 
     firstName: doctorName.trim(),
 
-    lastName: doctorName.trim(),  
+    lastName: doctorName.trim(),
+
+    createdDate: now,
+
+    modifiedDate: now
   }
 
   logger.info({

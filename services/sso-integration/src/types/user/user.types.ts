@@ -1,4 +1,5 @@
 export interface User {
+    invitedUser: any
     id: string | number
     externalId: string | number
     provider: string

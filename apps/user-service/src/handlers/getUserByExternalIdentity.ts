@@ -1,7 +1,7 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+const { UserNotFoundError } = await import('../errors');
 import { UserService } from '../services/user.service';
 
- 
 interface ExternalQuery {
   tenant?: string;
   provider?: string;
@@ -10,7 +10,6 @@ interface ExternalQuery {
 const userService = new UserService();
 
 const handler = async (req: LambdaRequest<any, ExternalQuery>) => {
-
   const tenant =
     req.params.tenant ??
     (req.event as any)?.queryStringParameters?.tenant ??
@@ -42,12 +41,10 @@ const handler = async (req: LambdaRequest<any, ExternalQuery>) => {
   );
 
   if (!user) {
-    const { UserNotFoundError } = await import('../errors');
-    throw new UserNotFoundError(externalUserId);
+    return null;
   }
 
   return user;
 };
 
 export const main = withLambdaHandler(handler);
-

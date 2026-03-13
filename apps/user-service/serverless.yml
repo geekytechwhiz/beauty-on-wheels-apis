@@ -352,7 +352,6 @@ functions:
             resultTtlInSeconds: 0
   getUserByExternalIdentity:
     handler: src/handlers/getUserByExternalIdentity.main
-    timeout: 10
     memorySize: 256
     events:
       - http:

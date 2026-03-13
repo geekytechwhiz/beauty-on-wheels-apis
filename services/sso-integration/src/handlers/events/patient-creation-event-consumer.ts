@@ -16,7 +16,6 @@ import { mapPatientEventToCreateUserPayload } from '../../mappers/patient-event.
 
 import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util';
 import { PatientCreationEvent } from '../../types/events';
-import { CONSTANTS } from '../../utils/constants';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -102,9 +101,8 @@ async function processPatientCreationEvent(
     throw new Error('Invalid patient creation event');
   }
 
-  const { patient, doctorId,  provider, externalId } = event.data;
-   
-  const organizationID = CONSTANTS.ORGANIZATION_ID;
+  const { patient, doctorId,  provider, externalId, organizationID } = event.data;
+  
   /**
    * Validate event
    */

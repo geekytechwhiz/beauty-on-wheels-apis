@@ -9,9 +9,23 @@ export {
   ConflictError,
   ValidationError,
   DownstreamServiceError,
+  // User
   UserNotFoundError,
   UserAlreadyExistsError,
-  OrganizationNotFoundError,
-  InvalidEventError,
   InviteUpdateTooSoonError,
+  // Organisation
+  OrganizationNotFoundError,
+  OrganizationNotExistError,
+  OrganizationOnHoldError,
+  OrganizationMismatchError,
+  // Friend & Family
+  EmailOrPhoneRequiredError,
+  FnfLimitReachedError,
+  UserAlreadyInvitedError,
+  UserAlreadyInvitedBySomeoneError,
+  UserAlreadyAddedAsFnfError,
+  MemberNotFoundError,
+  FnfDoesNotExistError,
+  // Misc
+  InvalidEventError,
 } from './domain-errors';

@@ -362,7 +362,7 @@ export class AppointmentSyncService extends BaseService {
                     doctor.userId ?? '',
                     organizationID,
                     provider,
-                    context.correlationId,
+                    context,
                   );
 
                 await this.patientEventPublisher.publishPatientCreationEvent(

@@ -1,4 +1,4 @@
-import { TENANT_MAP } from "../config/tenant-map-config";
+import { EXTERNAL_USER_MAP, TENANT_MAP } from "../config/tenant-map-config";
 
  
 export const makePrefixFromGender = (gender: string): string => {
@@ -13,3 +13,21 @@ export const getOrganizationIdBySubdomain = (subdomain: string): string => {
     }
     return organizationId;
 }
+
+export function getOrganizationId(subdomain: string): string | undefined {
+    return TENANT_MAP[subdomain];
+  }
+  
+  export function getCachedUserId(
+    subdomain: string,
+    externalUserId: string
+  ): string | undefined {
+    console.log("getCachedUserId subdomain", subdomain);
+    console.log("getCachedUserId externalUserId", externalUserId);
+    const userids=EXTERNAL_USER_MAP[subdomain]; 
+    console.log("getCachedUserId userids", JSON.stringify(userids));
+    if (userids) {
+      return userids[externalUserId];
+    }
+    return undefined;
+  }

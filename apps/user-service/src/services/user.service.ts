@@ -2,7 +2,7 @@ import { UserRepository, ListOrganizationUsersOptions } from '../repositories/us
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { getOrganization as getOrganizationViaApi } from './organization.service';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile, UserResponse, ExternalIdentity  } from '../models';
+import { User, UserMetadata, UserOrganization, UserFile, UserResponse, ExternalIdentity, SourceSystem  } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
 import { publishEvent } from '../events/event.publisher';
@@ -165,8 +165,31 @@ export class UserService {
           const username = explicitUsername || normalizedEmail || normalizedPhone;
           
           const permissionIds: string[] = []; // Permissions would come from role service
-          const externalIdentity = data.externalIdentity as ExternalIdentity || {};
+          const externalIdentity: any = data.externalIdentity  
 
+          logger.info({
+            event: 'service_createUser_external_identity_received',
+            correlationId,
+            userId: data.userID,
+            organizationID,
+            integrationType: externalIdentity?.integrationType,
+            externalUserId: externalIdentity?.externalUserId,
+            externalHospitalId: externalIdentity?.externalHospitalId,
+            subdomain: externalIdentity?.subdomain,
+            provider: externalIdentity?.provider,
+            sourceSystem: externalIdentity?.sourceSystem,
+          });
+          if (externalIdentity?.sourceSystem === 'HMS') {
+            logger.info({
+              event: 'service_createUser_hms_user_detected',
+              correlationId,
+              userId: data.userID,
+              externalUserId: externalIdentity.externalUserId,
+              hospitalId: externalIdentity.externalHospitalId,
+              provider: externalIdentity.provider,
+              subdomain: externalIdentity.subdomain,
+            });
+          }
           await cognitoService.createUser(
             username,
             {
@@ -185,6 +208,22 @@ export class UserService {
               },
             }
           );
+          logger.info({
+            event: 'service_createUser_cognito_payload',
+            correlationId,
+            username,
+            email: normalizedEmail,
+            phone: normalizedPhone,
+            organizationID,
+            externalIdentity: {
+              integrationType: externalIdentity?.integrationType,
+              externalUserId: externalIdentity?.externalUserId,
+              externalHospitalId: externalIdentity?.externalHospitalId,
+              subdomain: externalIdentity?.subdomain,
+              provider: externalIdentity?.provider,
+              sourceSystem: externalIdentity?.sourceSystem,
+            }
+          });
           logger.info({ event: 'service_createUser_cognito_success', email: normalizedEmail, phone: normalizedPhone, username });
         } catch (err) {
           if (err instanceof UserAlreadyExistsError) {
@@ -194,8 +233,19 @@ export class UserService {
 
           logger.error({
             event: 'service_createUser_cognito_error',
+            correlationId,
             email: normalizedEmail,
             phone: normalizedPhone,
+            organizationID,
+            externalIdentity: {
+              integrationType: data?.externalIdentity?.integrationType,
+              externalUserId: data?.externalIdentity?.externalUserId,
+              externalHospitalId: data?.externalIdentity?.externalHospitalId,
+              subdomain: data?.externalIdentity?.subdomain,
+              provider: data?.externalIdentity?.provider,
+              sourceSystem: data?.externalIdentity?.sourceSystem,
+            },
+            provider: data?.externalIdentity?.provider,
             err: serializeError(err),
             message: 'Failed to create user in Cognito',
           });

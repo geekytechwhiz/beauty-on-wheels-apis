@@ -1,5 +1,5 @@
 import { SSORequestContext } from "../common/context.types"
-import { DoctorCreationPayload, PatientCreationPayload } from "../user-creation.types" 
+import { DoctorCreationPayload, PatientCreationPayload } from "../user-creation.type" 
 import { User } from "../user/user.types"
 
 export interface Patient {

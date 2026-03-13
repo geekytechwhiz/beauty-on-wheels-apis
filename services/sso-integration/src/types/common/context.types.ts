@@ -19,12 +19,7 @@ export interface IntegrationMetadata {
   providerId: string;
   subdomain: string;
   externalHospitalId?: string;
-}
-
-export interface ExternalIdentity {
-  providerId: string;
-  externalUserId: string;
-}
+} 
  
 
 export const deriveTenantIdFromIntegration = (

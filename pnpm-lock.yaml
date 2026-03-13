@@ -74,6 +74,9 @@ importers:
       jwk-to-pem:
         specifier: ^2.0.5
         version: 2.0.7
+      libphonenumber-js:
+        specifier: ^1.12.39
+        version: 1.12.39
       pdfkit:
         specifier: ^0.17.2
         version: 0.17.2
@@ -244,11 +247,7 @@ importers:
         specifier: ^13.9.0
         version: 13.9.0(serverless@4.31.0)
 
-  apps/user-service:
-    devDependencies:
-      yaml:
-        specifier: ^2.8.2
-        version: 2.8.2
+  apps/user-service: {}
 
   data-access: {}
 
@@ -271,8 +270,6 @@ importers:
   libs/capability: {}
 
   libs/consent: {}
-
-  
 
   libs/fhir: {}
 
@@ -5963,6 +5960,9 @@ packages:
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
+
+  libphonenumber-js@1.12.39:
+    resolution: {integrity: sha512-MW79m7HuOqBk8mwytiXYTMELJiBbV3Zl9Y39dCCn1yC8K+WGNSq1QGvzywbylp5vGShEztMScCWHX/XFOS0rXg==}
 
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
@@ -16357,6 +16357,8 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
       type-check: 0.4.0
+
+  libphonenumber-js@1.12.39: {}
 
   lie@3.3.0:
     dependencies:

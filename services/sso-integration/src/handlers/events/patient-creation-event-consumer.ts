@@ -1,15 +1,37 @@
-import { createChildLogger, createLogger, extractAwsRequestId, serializeError } from '@api-hub/logger';
+import {
+  createChildLogger,
+  createLogger,
+  extractAwsRequestId,
+  serializeError,
+} from '@api-hub/logger';
+
 import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
+
 import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { getSSOConfig } from '../../config/sso-config';
-import { getPatientMapperHelper } from '../../helper/patient.mapper';
 import { AppointmentSyncService } from '../../services/appointment-sync.service';
+
+import { AssignDoctorPayload } from '../../types/user-creation.type';
+import { mapPatientEventToCreateUserPayload } from '../../mappers/patient-event.mapper';
+
+import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util';
 import { PatientCreationEvent } from '../../types/events';
-import { buildSSORequestContext } from '../../utils/context-builder.util';
- 
-const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
-export async function handler(event: SQSEvent, context?: Context): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
+
+const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true,
+});
+
+/**
+ * SQS handler
+ */
+export async function handler(
+  event: SQSEvent,
+  context?: Context,
+): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
+
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+
   const logger = createChildLogger(baseLogger, { awsRequestId });
 
   logger.info({
@@ -21,7 +43,11 @@ export async function handler(event: SQSEvent, context?: Context): Promise<{ bat
 
   for (const record of event.Records) {
     const recordId = record.messageId;
-    const correlationId = record.attributes?.MessageGroupId as string || awsRequestId || 'unknown';
+
+    const correlationId =
+      record.attributes?.MessageGroupId ||
+      awsRequestId ||
+      'unknown';
 
     try {
       await processPatientCreationEvent(record, correlationId, logger);
@@ -33,7 +59,6 @@ export async function handler(event: SQSEvent, context?: Context): Promise<{ bat
         err: serializeError(error as Error),
       });
 
-      // Add to batch failures for retry
       batchItemFailures.push({ itemIdentifier: recordId });
     }
   }
@@ -48,23 +73,22 @@ export async function handler(event: SQSEvent, context?: Context): Promise<{ bat
 }
 
 /**
- * Processes a single patient creation event.
- * 
- * @param record - SQS record containing patient creation event
- * @param correlationId - Correlation ID for logging
- * @param logger - Logger instance
+ * Processes a single patient creation event
  */
 async function processPatientCreationEvent(
   record: SQSRecord,
   correlationId: string,
   logger: ReturnType<typeof createChildLogger>,
 ): Promise<void> {
+
   const userServiceClient = getSSOUserServiceClient();
-  const patientMapper = getPatientMapperHelper();
   const config = getSSOConfig();
 
-  // Parse event from SQS record
   let event: PatientCreationEvent;
+
+  /**
+   * Parse SQS body
+   */
   try {
     event = JSON.parse(record.body) as PatientCreationEvent;
   } catch (error) {
@@ -73,11 +97,25 @@ async function processPatientCreationEvent(
       recordId: record.messageId,
       err: serializeError(error as Error),
     });
-    throw new Error('Failed to parse patient creation event');
+
+    throw new Error('Invalid patient creation event');
   }
 
   const { patient, doctorId, organizationID, provider, externalId } = event.data;
-  const tenantId = "default"; // TODO: get tenantId from event
+
+  /**
+   * Validate event
+   */
+  if (!patient?.id || !externalId) {
+    logger.error({
+      event: 'patient_creation_event_invalid',
+      reason: 'missing_patient_or_external_id',
+      patientId: patient?.id,
+      externalId,
+    });
+
+    return;
+  }
 
   logger.info({
     event: 'patient_creation_event_process_start',
@@ -85,21 +123,20 @@ async function processPatientCreationEvent(
     patientName: patient.name,
     doctorId,
     organizationID,
+    provider,
   });
 
-  // Generate service token for user service authentication
-   
-  const context = buildSSORequestContext(event, correlationId)
+  /**
+   * Build request context
+   */
+  const requestContext = buildSSORequestContextFromSQS(event, correlationId);
 
-
-  // Check if patient already exists
+  /**
+   * Check if patient already exists
+   */
   const existingPatient = await userServiceClient.findUserByExternalId(
-    {
-      provider,
-      externalId,
-      tenantId,
-    },context
-     
+    { externalId },
+    requestContext,
   );
 
   if (existingPatient) {
@@ -107,49 +144,59 @@ async function processPatientCreationEvent(
       event: 'patient_creation_event_skipped',
       reason: 'patient_already_exists',
       patientId: patient.id,
+      externalId,
       userId: existingPatient.id,
     });
+
     return;
   }
- 
 
-  // Get doctor name from event data (if provided) or use a default
-  // The user service will handle doctor assignment properly even without the name
-  const doctorName = 'Dr. Name'; // TODO: get doctor name from event
+  /**
+   * Map event → createUser payload
+   */
+  const patientPayload = mapPatientEventToCreateUserPayload(event);
 
-  // Map event patient data to Patient type expected by mapper
-  const patientData = {
-    id: patient.id,
-    name: patient.name,
-    email: patient.email,
-    phone: patient.phone,
-    gender: patient.gender,
-    dateOfBirth: patient.dob || '',
-    dob: patient.dob || null,
-    mrn: patient.mrn || '',
-    age: null,
-    organizationId: organizationID,
-  };
+  logger.info({
+    event: 'patient_creation_event_mapped_payload',
+    correlationId,
+    patientId: patient.id,
+    userType: patientPayload.userType,
+    userRole: patientPayload.userRole,
+  });
 
-  const patientPayload = patientMapper.mapTruTechPatientToOurSystem(
-    patientData,
-    doctorId as string,
-      doctorName,
-      correlationId,
-  );
+  /**
+   * Validate contact info
+   */
+  const hasEmail =
+    typeof patientPayload.userInfo.contact.email === 'string' &&
+    patientPayload.userInfo.contact.email.trim() !== '';
 
-  // Override organizationID from event if provided
-  if (organizationID) {
-    patientPayload.organizationID = organizationID;
-  } else {
-    // Fallback to config default
-    patientPayload.organizationID = config.defaultOrganizationID;
+  const hasPhone =
+    typeof patientPayload.userInfo.contact.phone === 'string' &&
+    patientPayload.userInfo.contact.phone.trim() !== '';
+
+  if (!hasEmail && !hasPhone) {
+    logger.error({
+      event: 'patient_creation_event_invalid_contact',
+      reason: 'missing_email_and_phone',
+      patientId: patient.id,
+    });
+
+    return;
   }
 
-  // Create patient
+  /**
+   * Fallback organization
+   */
+  patientPayload.organizationID =
+    organizationID || config.defaultOrganizationID;
+
+  /**
+   * Create patient
+   */
   const createdPatient = await userServiceClient.createPatient(
     patientPayload,
-    context,
+    requestContext,
   );
 
   logger.info({
@@ -158,16 +205,58 @@ async function processPatientCreationEvent(
     userId: createdPatient.id,
   });
 
+  /**
+   * Assign doctor if provided
+   */
+  if (doctorId) {
+
+    const assignDoctorPayload: AssignDoctorPayload = {
+      organizationId: patientPayload.organizationID,
+
+      sender: {
+        userId: String(doctorId),
+      },
+
+      receiver: {
+        userId: String(createdPatient.id),
+        name: patient.name,
+        email: patient.email ?? undefined,
+        userType: 'MOBILE',
+      },
+    };
+
+    const assignResult = await userServiceClient.assignDoctor(
+      assignDoctorPayload,
+      requestContext,
+    );
+
+    logger.info({
+      event: 'patient_assign_doctor_success',
+      patientId: patient.id,
+      userId: createdPatient.id,
+      doctorId,
+      organizationId: patientPayload.organizationID,
+      message: assignResult?.message,
+    });
+  }
+
+  /**
+   * Trigger pending appointment sync
+   */
   try {
+
     const appointmentSyncService = new AppointmentSyncService();
-    await appointmentSyncService.syncAppointments(context);
+
+    await appointmentSyncService.syncAppointments(requestContext);
 
     logger.info({
       event: 'pending_appointments_reprocess_triggered',
       patientExternalId: externalId,
       userId: createdPatient.id,
     });
+
   } catch (error) {
+
     logger.error({
       event: 'pending_appointments_reprocess_failed',
       patientExternalId: externalId,

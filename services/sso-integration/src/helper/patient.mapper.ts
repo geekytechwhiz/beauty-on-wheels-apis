@@ -1,7 +1,7 @@
 import { createLogger, createChildLogger } from '@api-hub/logger';
 import { Patient } from '../types/domain/patient.types';
 import { SSOError } from '../types/errors/sso-error';
-import { PatientCreationPayload } from '../types/user-creation.types';
+import { PatientCreationPayload } from '../types/user-creation.type';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor';
 import { getOrganizationIdBySubdomain } from '../utils/helper';

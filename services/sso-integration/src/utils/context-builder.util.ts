@@ -7,26 +7,61 @@ export function buildSSORequestContext(
   event: APIGatewayProxyEvent | ScheduledEvent | SQSEvent | PatientCreationEvent,
   correlationId: string
 ): SSORequestContext {
+  // Default to TruTech tenant when no headers are present (e.g. SQS, Scheduler)
+  let tenantId = SUBDOMAIN.TRUE_TECH
+  let serviceToken: string | null = null
 
-  const tenantId =
-    (event as APIGatewayProxyEvent).headers['x-tenant-id'] ||
-    (event as APIGatewayProxyEvent).headers['X-Tenant-Id'] ||
-    SUBDOMAIN.TRUE_TECH
+  const headers: Record<string, string | undefined> =
+    (event as any)?.headers && typeof (event as any).headers === 'object'
+      ? (event as any).headers
+      : {}
 
-  const serviceToken =
-    (event as APIGatewayProxyEvent).headers.authorization ||
-    (event as APIGatewayProxyEvent).headers.Authorization ||
-    null
-  console.log("buildSSORequestContext serviceToken", serviceToken);
+  if (headers) {
+    tenantId =
+      headers['x-tenant-id'] ||
+      headers['X-Tenant-Id'] ||
+      SUBDOMAIN.TRUE_TECH
+
+    serviceToken =
+      (headers.authorization as string | undefined) ||
+      (headers.Authorization as string | undefined) ||
+      null
+  }
+
+  console.log('buildSSORequestContext serviceToken', serviceToken)
+
   return {
     correlationId,
     tenantId,
     serviceToken: serviceToken ? `${SERVICE_TOKEN_HEADER}` : null,
     source: 'sso-integration',
-
     integration: {
       providerId: PROVIDER.TRUE_TECH,
       subdomain: SUBDOMAIN.TRUE_TECH
+    },
+    sourceSystem: SourceSystem.HMS
+  }
+}
+ 
+
+export function buildSSORequestContextFromSQS(
+  event: PatientCreationEvent,
+  correlationId: string
+): SSORequestContext {
+
+  const tenantId = event?.data?.externalIdentity?.subdomain || SUBDOMAIN.TRUE_TECH
+
+  return {
+    correlationId,
+    tenantId,
+
+    serviceToken: SERVICE_TOKEN_HEADER, // internal service token
+
+    source: 'sso-integration',
+
+    integration: {
+      providerId: event?.data?.externalIdentity?.provider || PROVIDER.TRUE_TECH,
+      subdomain: tenantId
     },
 
     sourceSystem: SourceSystem.HMS

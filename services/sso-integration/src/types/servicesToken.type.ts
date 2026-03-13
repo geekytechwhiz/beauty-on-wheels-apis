@@ -1,4 +1,4 @@
-import { ServiceTokenContext, ServiceUserRole } from "./launch.types"
+import { ServiceTokenContext, UserRole } from "./launch.types"
 
 export interface ServiceTokenPayload {
 
@@ -23,5 +23,5 @@ export interface ServiceTokenResult {
   token: string;
   expiresIn: number;
   userId: string;
-  role: ServiceUserRole;
+  role: UserRole;
 }

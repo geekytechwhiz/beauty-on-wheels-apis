@@ -9,8 +9,7 @@ import {
   PatientCreationPayload,
 } from "../types/user-creation.type";
 import { User } from "../types/user/user.types";
-import { SERVICE_TOKEN_HEADER } from "../utils/constants";
-import { getCachedUserId, getOrganizationId, getOrganizationIdBySubdomain } from "../utils/helper";
+import { getCachedUserId, getOrganizationId } from "../utils/helper";
 import { buildServiceHeaders } from "../utils/request.utils";
 
 export class SSOUserServiceClient extends BaseClient {
@@ -18,41 +17,67 @@ export class SSOUserServiceClient extends BaseClient {
     super(process.env.USER_SERVICE_BASE_URL || "", "user-service");
   }
   async findUserByExternalId(
-    params: {
-      externalId: string;
-    },
+    params: { externalId: string },
     context: SSORequestContext
   ): Promise<User | null> {
-
-    try { 
+  
+    try {
+  
       console.log("findUserByExternalId context", JSON.stringify(context));
+  
       const organizationId = getOrganizationId(context.integration.subdomain);
-      const userId = getCachedUserId(context.integration.subdomain, params.externalId);  
+      const userId = getCachedUserId(
+        context.integration.subdomain,
+        params.externalId
+      );
+  
       console.log("findUserByExternalId orgId", organizationId);
       console.log("findUserByExternalId userId", userId);
-      console.log("findUserByExternalId params", JSON.stringify(params)); 
-      // const organizationId = getOrganizationIdBySubdomain(context.integration.subdomain);
-     
-      const serviceToken = `${SERVICE_TOKEN_HEADER ?? ''}`;
-      console.log("findUserByExternalId serviceToken", serviceToken);
-      console.log("URL /user/organization/${organizationId}/${userId}", `/user/organization/${organizationId}/${userId}`);
-      // console.log("findUserByExternalId organizationId", organizationId); 
-      console.log("findUserByExternalId userId", userId); 
+      console.log("findUserByExternalId params", JSON.stringify(params));
+  
+      /**
+       * Validate organization
+       */
+      if (!organizationId) {
+        console.warn("findUserByExternalId organizationId missing");
+        return null;
+      }
+  
+      /**
+       * Cache miss → user not created yet
+       */
+      if (!userId) {
+        console.info("findUserByExternalId cache_miss", params.externalId);
+        return null;
+      }
+  
+      /**
+       * Fetch user from user service
+       */
+      const url = `/user/organization/${organizationId}/${userId}`;
+  
+      console.log("findUserByExternalId URL", url);
+  
       const response = await this.client<User>(
-        `/user/organization/${organizationId}/${userId}`,
+        url,
         { headers: buildServiceHeaders(context) }
       );
-
+  
       return response?.data ?? null;
-
+  
     } catch (error) {
-
+  
+      /**
+       * User not found in user-service
+       */
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         return null;
       }
-      console.log("findUserByExternalId error", JSON.stringify(error)); 
+  
+      console.log("findUserByExternalId error", JSON.stringify(error));
+  
       throw SSOError.userServiceError(
-        'User service doctor lookup failed',
+        "User service doctor lookup failed",
         error as Error
       );
     }

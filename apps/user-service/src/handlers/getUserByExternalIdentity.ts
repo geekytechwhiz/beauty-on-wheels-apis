@@ -1,5 +1,4 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
-const { UserNotFoundError } = await import('../errors');
+import { withLambdaHandler, LambdaRequest } from '@api-hub/utils'; 
 import { UserService } from '../services/user.service';
 
 interface ExternalQuery {

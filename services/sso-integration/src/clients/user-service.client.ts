@@ -146,6 +146,7 @@ export class SSOUserServiceClient extends BaseClient {
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
+        console.log('findUserByExternalId error', serializeError(error as Error));
         return null;
       }
 

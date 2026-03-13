@@ -2,6 +2,18 @@ import { createLogger, createChildLogger } from '@api-hub/logger';
 import { UserRepository } from '../repositories/user.repository';
 import { FriendFamilyRepository, type FriendFamilyMapping } from '../repositories/friendFamily.repository';
 import { UserNotFoundError } from '../utils/errors';
+import {
+  OrganizationNotExistError,
+  OrganizationOnHoldError,
+  OrganizationMismatchError,
+  EmailOrPhoneRequiredError,
+  FnfLimitReachedError,
+  UserAlreadyInvitedError,
+  UserAlreadyInvitedBySomeoneError,
+  UserAlreadyAddedAsFnfError,
+  MemberNotFoundError,
+  FnfDoesNotExistError,
+} from '../errors';
 import { getOrganization } from './organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -49,28 +61,20 @@ export class FriendFamilyService {
   ): Promise<{ success: boolean; invitedUser?: string; data?: Record<string, unknown> }> {
     const logger = createChildLogger(baseLogger, { organizationID, userID });
     const org = await getOrganization(organizationID, authHeader);
-    if (!org) {
-      throw new Error('ORGANIZATION_NOT_EXIST');
-    }
+    if (!org) throw new OrganizationNotExistError();
     const status = String((org as any).status ?? '').toLowerCase();
-    if (ORG_NON_AVAILABLE.includes(status)) {
-      throw new Error('ORGANIZATION_IS_ON_HOLD');
-    }
+    if (ORG_NON_AVAILABLE.includes(status)) throw new OrganizationOnHoldError();
 
     const email = body.email?.trim() || '';
     const phone = (body.phone ?? '').toString().replace(/\s/g, '');
-    if (!email && !phone) {
-      throw new Error('EMAIL_OR_PHONE_REQUIRED');
-    }
+    if (!email && !phone) throw new EmailOrPhoneRequiredError();
     const user = await userRepository.findUserByEmailOrPhoneInOrg(organizationID, email || undefined, phone || undefined);
     
     console.log("USER: ", user);
     if (!user) {
       // User not found: check inviter F&F limit before handler runs invite flow
       const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
-      if (inviterHasInvitee) {
-        throw new Error('USER_CANNOT_INVITE_MORE_FNF');
-      }
+      if (inviterHasInvitee) throw new FnfLimitReachedError();
       logger.info({ event: 'friend_family_search_user_not_found_invite_path' });
       return { success: false };
     }
@@ -116,9 +120,9 @@ export class FriendFamilyService {
     const logger = createChildLogger(baseLogger, { organizationID, userId, memberId });
 
     const org = await getOrganization(organizationID, authHeader);
-    if (!org) throw new Error('ORGANIZATION_NOT_EXIST');
+    if (!org) throw new OrganizationNotExistError();
     const status = String((org as any).status ?? '').toLowerCase();
-    if (ORG_NON_AVAILABLE.includes(status)) throw new Error('ORGANIZATION_IS_ON_HOLD');
+    if (ORG_NON_AVAILABLE.includes(status)) throw new OrganizationOnHoldError();
 
     const userDetails = await userRepository.getUser(userId, organizationID);
     if (!userDetails) throw new UserNotFoundError(userId);
@@ -127,8 +131,18 @@ export class FriendFamilyService {
 
     const userOrgId = (userDetails as any).organizationID ?? (userDetails as any).organizationId;
     const memberOrgId = (memberDetails as any).organizationID ?? (memberDetails as any).organizationId;
-    if (userOrgId !== memberOrgId) {
-      throw new Error('ORGANIZATION_MISMATCH');
+    if (userOrgId !== memberOrgId) throw new OrganizationMismatchError();
+
+    // Check F&F invite limit and whether either party is already linked to someone else
+    await this.checkFriendFamilyLimit(userId);
+
+    // Check if this exact pair already exists in either direction
+    const existingLink =
+      (await friendFamilyRepository.getUserMapping(userId, memberId)) ??
+      (await friendFamilyRepository.getUserMapping(memberId, userId));
+    if (existingLink) {
+      logger.warn({ event: 'friend_family_add_member_already_exists', userId, memberId });
+      throw new UserAlreadyAddedAsFnfError();
     }
 
     const relationNorm = (relation || 'FAMILY').toUpperCase();
@@ -172,9 +186,7 @@ export class FriendFamilyService {
   ): Promise<void> {
     const { memberId, fullName, relation, relationship, emergencyContact, manageHealth } = body;
     const mapping = await friendFamilyRepository.getUserMapping(userId, memberId);
-    if (!mapping) {
-      throw new Error('MEMBER_NOT_FOUND');
-    }
+    if (!mapping) throw new MemberNotFoundError(memberId);
     const updates: Parameters<FriendFamilyRepository['updateMapping']>[2] = {};
     if (fullName !== undefined) updates.memberName = fullName;
     if (relation !== undefined) updates.relation = relation;
@@ -235,9 +247,7 @@ export class FriendFamilyService {
   async deleteMember(userID: string, memberID: string, organizationID?: string): Promise<void> {
     const mapping1 = await friendFamilyRepository.getUserMapping(userID, memberID);
     const mapping2 = await friendFamilyRepository.getUserMapping(memberID, userID);
-    if (!mapping1 && !mapping2) {
-      throw new Error('FNF_DOES_NOT_EXIST');
-    }
+    if (!mapping1 && !mapping2) throw new FnfDoesNotExistError();
     const [uid, mid] = mapping1 ? [userID, memberID] : [memberID, userID];
     await friendFamilyRepository.deleteMapping(uid, mid);
   }
@@ -251,17 +261,13 @@ export class FriendFamilyService {
   }
   async checkFriendFamilyLimit(userID: string): Promise<boolean> {
     const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
-    if (inviterHasInvitee) {
-      throw new Error('USER_CANNOT_INVITE_MORE_FNF');
-    } 
+    if (inviterHasInvitee) throw new FnfLimitReachedError();
     // Invitee already linked to someone?
     const inviteeInviterMapping = await friendFamilyRepository.checkFriendFamily(userID, true);
     if (inviteeInviterMapping) {
       const existingInviterId = inviteeInviterMapping.sk.split('#')[1];
-      if (existingInviterId === userID) {
-        throw new Error('USER_ALREADY_INVITED');
-      }
-      throw new Error('USER_ALREADY_INVITED_BY_SOMEONE');
+      if (existingInviterId === userID) throw new UserAlreadyInvitedError();
+      throw new UserAlreadyInvitedBySomeoneError();
     }
     return true;
   } 

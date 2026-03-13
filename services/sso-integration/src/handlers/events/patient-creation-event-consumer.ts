@@ -101,8 +101,8 @@ async function processPatientCreationEvent(
     throw new Error('Invalid patient creation event');
   }
 
-  const { patient, doctorId, organizationID, provider, externalId } = event.data;
-
+  const { patient, doctorId,  provider, externalId, organizationID } = event.data;
+  
   /**
    * Validate event
    */

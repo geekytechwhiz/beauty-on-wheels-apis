@@ -303,12 +303,11 @@ export class SSOUserServiceClient extends BaseClient {
     payload: PatientCreationPayload,
     context: SSORequestContext,
   ): Promise<User> {
-    const subdomain = context.integration.subdomain;
-    const organizationId = getOrganizationId(subdomain);
+    const subdomain = context.integration.subdomain; 
     const externalUserId = payload.externalIdentity?.externalUserId;
 
-    const logBase = { externalUserId, organizationId, subdomain };
-
+    const logBase = { externalUserId,  subdomain };
+    const organizationId= 
     console.log('createPatient payload', JSON.stringify(payload));
 
     const response = await this.client.post<{ data: User }>('/user', payload, {

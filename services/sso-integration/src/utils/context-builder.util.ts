@@ -42,3 +42,28 @@ export function buildSSORequestContext(
     sourceSystem: SourceSystem.HMS
   }
 }
+ 
+
+export function buildSSORequestContextFromSQS(
+  event: PatientCreationEvent,
+  correlationId: string
+): SSORequestContext {
+
+  const tenantId = event?.data?.externalIdentity?.subdomain || SUBDOMAIN.TRUE_TECH
+
+  return {
+    correlationId,
+    tenantId,
+
+    serviceToken: SERVICE_TOKEN_HEADER, // internal service token
+
+    source: 'sso-integration',
+
+    integration: {
+      providerId: event?.data?.externalIdentity?.provider || PROVIDER.TRUE_TECH,
+      subdomain: tenantId
+    },
+
+    sourceSystem: SourceSystem.HMS
+  }
+}

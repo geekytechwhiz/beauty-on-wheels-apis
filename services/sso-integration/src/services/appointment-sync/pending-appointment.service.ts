@@ -1,7 +1,7 @@
 import { createChildLogger, serializeError } from '@api-hub/logger';
 import { SSORequestContext } from '../../types/common/context.types';
 import { PendingAppointment, User } from '../../types';
-import { CognitoUserContext } from '../../types/user/user.types';
+import { CognitoUserContext, CreatedUserInfo } from '../../types/user/user.types';
 import { AppointmentIdempotencyService } from './appointment-idempotency.service';
 import { ScheduleCreationService } from './schedule-creation.service';
 
@@ -172,7 +172,7 @@ export class PendingAppointmentService {
 
         await this.scheduleCreationService.createServiceScheduleWithRetry(
           pendingAppt.appointment,
-          doctorCognito as CognitoUserContext,
+          doctorCognito as CreatedUserInfo,
           patient,
           context,
         );

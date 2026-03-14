@@ -275,6 +275,7 @@ export class SSOUserServiceClient extends BaseClient {
               payload.userInfo?.contact?.email ??
               null,
             externalUserId,
+            organizationId: organizationId  
           };
 
           if (organizationId && externalUserId && normalized.userId) {

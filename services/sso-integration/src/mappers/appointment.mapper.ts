@@ -4,9 +4,10 @@ import {
   GetAvailableServicesRequest,
   RecommendServicesRequest,
   ScheduleCreateRequest,
-} from '../types/appointment-sync.types';
+} from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
 import { CognitoUserContext } from '../types/user/user.types';
+import { CONSTANTS } from '../utils/constants';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
     appointment: Appointment,
@@ -104,12 +105,13 @@ export class AppointmentMapper {
     appointment: Appointment,
     patientUser: User,
     context: SSORequestContext,
+    doctorOrganizationId?: string,
   ): GetAvailableServicesRequest {
     
 
     return {
-      organizationId: context.integration.subdomain,
-      assignOrgId: context.integration.subdomain,
+      organizationId: doctorOrganizationId ?? CONSTANTS.ORGANIZATION_ID,
+      assignOrgId: doctorOrganizationId ?? context?.integration.subdomain,
       serviceType: 'addon',
       listingType: 'recommended',
       featureKey: 'doctor_consultancy',

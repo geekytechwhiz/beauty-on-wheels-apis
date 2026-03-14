@@ -101,7 +101,7 @@ async function processPatientCreationEvent(
     throw new Error('Invalid patient creation event');
   }
 
-  const { patient, doctorId, organizationID, provider, externalId } = event.data;
+  const { patient, doctorId, provider, externalId, organizationID } = event.data;
 
   /**
    * Validate event
@@ -198,11 +198,34 @@ async function processPatientCreationEvent(
     patientPayload,
     requestContext,
   );
+  console.log('createdPatient in patient-creation-event-consumer', createdPatient);
+  /**
+   * Extract patient userId safely
+   */
+  let patientUserId: string | undefined;
+
+  if (typeof createdPatient?.invitedUser === 'string') {
+    patientUserId = createdPatient.invitedUser;
+  } else if (createdPatient?.invitedUser?.userId) {
+    patientUserId = createdPatient.invitedUser.userId;
+  } else if (createdPatient?.id) {
+    patientUserId = String(createdPatient.id);
+  }
+
+  if (!patientUserId) {
+    logger.error({
+      event: 'patient_creation_missing_user_id',
+      patientId: patient.id,
+      response: createdPatient,
+    });
+
+    return;
+  }
 
   logger.info({
     event: 'patient_creation_event_success',
     patientId: patient.id,
-    userId: createdPatient.id,
+    userId: patientUserId,
   });
 
   /**
@@ -218,30 +241,41 @@ async function processPatientCreationEvent(
       },
 
       receiver: {
-        userId: String(createdPatient.id),
+        userId: String(patientUserId),
         name: patient.name,
         email: patient.email ?? undefined,
         userType: 'MOBILE',
       },
     };
 
-    const assignResult = await userServiceClient.assignDoctor(
-      assignDoctorPayload,
-      requestContext,
-    );
+    try {
+      const assignResult = await userServiceClient.assignDoctor(
+        assignDoctorPayload,
+        requestContext,
+      );
 
-    logger.info({
-      event: 'patient_assign_doctor_success',
-      patientId: patient.id,
-      userId: createdPatient.id,
-      doctorId,
-      organizationId: patientPayload.organizationID,
-      message: assignResult?.message,
-    });
+      logger.info({
+        event: 'patient_assign_doctor_success',
+        patientId: patient.id,
+        userId: patientUserId,
+        doctorId,
+        organizationId: patientPayload.organizationID,
+        message: assignResult?.message,
+      });
+    } catch (error) {
+      logger.error({
+        event: 'patient_assign_doctor_failed',
+        patientId: patient.id,
+        userId: patientUserId,
+        doctorId,
+        organizationId: patientPayload.organizationID,
+        err: serializeError(error as Error),
+      });
+    }
   }
 
   /**
-   * Trigger pending appointment reprocess for this patient
+   * Trigger pending appointment reprocess
    */
   try {
     const appointmentSyncService = new AppointmentSyncService();
@@ -254,7 +288,7 @@ async function processPatientCreationEvent(
     logger.info({
       event: 'pending_appointments_reprocess_triggered',
       patientExternalId: externalId,
-      userId: createdPatient.id,
+      userId: patientUserId,
     });
   } catch (error) {
     logger.error({

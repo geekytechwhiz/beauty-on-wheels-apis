@@ -8,7 +8,7 @@ export function buildSSORequestContext(
   correlationId: string
 ): SSORequestContext {
   // Default to TruTech tenant when no headers are present (e.g. SQS, Scheduler)
-  let tenantId = SUBDOMAIN.TRUE_TECH
+  let tenantId = SUBDOMAIN.TRU_TECH
   let serviceToken: string | null = null
 
   const headers: Record<string, string | undefined> =
@@ -17,7 +17,7 @@ export function buildSSORequestContext(
       : {}
 
   // if (headers) {
-    tenantId = SUBDOMAIN.TRUE_TECH
+    tenantId = SUBDOMAIN.TRU_TECH
 
     serviceToken =
       (headers.authorization as string | undefined) ||
@@ -33,8 +33,8 @@ export function buildSSORequestContext(
     serviceToken: serviceToken ? `${SERVICE_TOKEN_HEADER}` : null,
     source: 'sso-integration',
     integration: {
-      providerId: PROVIDER.TRUE_TECH,
-      subdomain: SUBDOMAIN.TRUE_TECH
+      providerId: PROVIDER.TRU_TECH,
+      subdomain: SUBDOMAIN.TRU_TECH
     },
     sourceSystem: SourceSystem.HMS
   }
@@ -46,7 +46,7 @@ export function buildSSORequestContextFromSQS(
   correlationId: string
 ): SSORequestContext {
 
-  const tenantId = event?.data?.externalIdentity?.subdomain || SUBDOMAIN.TRUE_TECH
+  const tenantId = event?.data?.externalIdentity?.subdomain || SUBDOMAIN.TRU_TECH
 
   return {
     correlationId,
@@ -57,7 +57,7 @@ export function buildSSORequestContextFromSQS(
     source: 'sso-integration',
 
     integration: {
-      providerId: event?.data?.externalIdentity?.provider || PROVIDER.TRUE_TECH,
+      providerId: event?.data?.externalIdentity?.provider || PROVIDER.TRU_TECH,
       subdomain: tenantId
     },
 

@@ -36,7 +36,8 @@ export function makePatientCreationPayload(
     invite: patient.phone ? 'phone' : 'email',
 
     organizationID: getOrganizationIdBySubdomain(context.integration.subdomain),
-     
+    createdDate: now,
+    modifiedDate: now,
     externalIdentity: { 
       externalUserId: patient.id.toString(),
       externalHospitalId: context.integration.subdomain,

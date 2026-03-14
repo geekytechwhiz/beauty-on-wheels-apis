@@ -4,7 +4,7 @@ import { Appointment, SourceSystem, SSORequestContext } from '../types'
 import { SSOError } from '../types/errors/sso-error'
 import { DoctorCreationPayload } from '../types/user-creation.type'
 import { processPhoneNumber } from '../utils/phone-processor'
-import { DOCTOR_ROLE_ID } from '../utils/constants'
+import { DOCTOR_ROLE_ID, PROVIDER } from '../utils/constants'
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -14,11 +14,11 @@ export function makeDoctorCreationPayload(
   appointment: Appointment,
   context: SSORequestContext
 ): DoctorCreationPayload {
-
   const logger =
     createChildLogger(baseLogger, { correlationId: context.correlationId })
 
   const config = getSSOConfig()
+  const now = Date.now()
 
   logger.info({
     event: 'doctor_mapping_start',
@@ -96,7 +96,7 @@ export function makeDoctorCreationPayload(
       externalHospitalId: context.integration?.externalHospitalId,
       subdomain: context.integration?.subdomain,
       sourceSystem: SourceSystem.HMS,
-      provider: context.integration?.providerId ?? 'TruTech'
+      provider: context.integration?.providerId ?? PROVIDER.TRU_TECH
     },
   
     role: DOCTOR_ROLE_ID,
@@ -109,7 +109,11 @@ export function makeDoctorCreationPayload(
 
     firstName: doctorName.trim(),
 
-    lastName: doctorName.trim(),  
+    lastName: doctorName.trim(),
+
+    createdDate: now,
+
+    modifiedDate: now
   }
 
   logger.info({

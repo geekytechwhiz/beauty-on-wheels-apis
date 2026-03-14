@@ -1,6 +1,6 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
-import { Patient } from '../types';
+import { Patient, SSORequestContext } from '../types';
 import { PatientCreationEvent } from '../types/events';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
@@ -236,23 +236,32 @@ export class PatientEventPublisher {
     patient: Patient,
     doctorId: number|string,
     organizationID: string, 
-    provider: string,
-    correlationId: string, 
+      provider: string,
+      context: SSORequestContext, 
   ): PatientCreationEvent {
     return {
       eventType: 'patient.creation.requested',
       eventId: `${provider}-${patient.id}-${Date.now()}`,
       timestamp: new Date().toISOString(),
-      correlationId,
+      correlationId: context.correlationId,
       data: {
         patient: {
           id: patient.id,
           name: patient.name,
+          namePrefix: null,
           email: patient.email,
           phone: patient.phone || null,
+          phoneCode: null,
           gender: patient.gender,
           dob: patient.dob,
-          mrn: patient.mrn, 
+          mrn: patient.mrn,
+          emergencyContact: null,
+          medicalHistory: null,
+        },
+        externalIdentity: {
+          subdomain: context.integration?.subdomain ,  // tenant/organization mapping decided by caller
+          provider: context.integration?.providerId  ,
+          externalUserId: String(patient.id),
         },
         doctorId,
         organizationID,

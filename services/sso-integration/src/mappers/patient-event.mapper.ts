@@ -7,6 +7,7 @@ export function mapPatientEventToCreateUserPayload(
   event: PatientCreationEvent
 ): PatientCreationPayload {
   const { patient, organizationID, provider, externalId } = event.data;
+  const now = Date.now();
 
   const name = (patient.name ?? "").toString().trim();
   const gender = patient.gender ?? "";
@@ -61,9 +62,11 @@ export function mapPatientEventToCreateUserPayload(
       externalUserId: String(externalId || patient.id),
       // Use organizationID as the external hospital/tenant identifier where applicable.
       externalHospitalId: organizationID,
-      subdomain: SUBDOMAIN.TRUE_TECH,
+      subdomain: SUBDOMAIN.TRU_TECH,
       sourceSystem: SourceSystem.HMS,
-      provider: provider || PROVIDER.TRUE_TECH,
+      provider: provider || PROVIDER.TRU_TECH,
     },
+    createdDate: now,
+    modifiedDate: now,
   };
 }

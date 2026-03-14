@@ -5,6 +5,7 @@ import {
 } from '@api-hub/logger';
 import { Appointment, PatientEMRSummary } from '../../types';
 import { SSOError } from '../../types/errors/sso-error';
+import { appendSuffixToContacts } from '../../utils/helper';
 
 type TruTechClient = {
   getAppointmentsForDoctorsInRange: (
@@ -89,9 +90,9 @@ export class HmsAppointmentService {
         });
         return [];
       }
-
+      const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, "c");
       const mapped = this.truTechAdapter.mapAppointments(
-        response.appointments || [],
+        appointmentsWithSuffix || [],
       );
 
       logger.info({

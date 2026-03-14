@@ -10,7 +10,7 @@ const envSchema = z.object({
 
   TRU_TECH_BASE_URL: z.string().url('TRU_TECH_BASE_URL must be a valid URL'),
   TRU_TECH_API_KEY: z.string().min(1, 'TRU_TECH_API_KEY is required'),
-  TRU_TECH_TIMEOUT_MS: z.coerce.number().min(1000).max(30000).default(5000),
+  TRU_TECH_TIMEOUT_MS: z.coerce.number().min(1000),
 
   // Schedule service configuration
   SCHEDULE_SERVICE_API_URL: z
@@ -18,10 +18,7 @@ const envSchema = z.object({
     .url('SCHEDULE_SERVICE_API_URL must be a valid URL')
     .default('https://schedule-service.example.com'),
   SCHEDULE_SERVICE_API_TIMEOUT_MS: z
-    .coerce.number()
-    .min(1000)
-    .max(30000)
-    .default(10000),
+    .coerce.number(),
   
   // Package/Service API configuration (for service-based schedule creation)
   PACKAGE_SERVICE_API_URL: z
@@ -29,20 +26,14 @@ const envSchema = z.object({
     .url('PACKAGE_SERVICE_API_URL must be a valid URL')
     .min(1, 'PACKAGE_SERVICE_API_URL is required'),
   PACKAGE_SERVICE_API_TIMEOUT_MS: z
-    .coerce.number()
-    .min(1000)
-    .max(30000)
-    .default(10000),
+    .coerce.number() ,
 
   USER_SERVICE_BASE_URL: z.string().url('USER_SERVICE_BASE_URL must be a valid URL'),
 
 
   ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'), 
 
-
-  // Secret used to sign and verify internal service-level JWTs issued by the
-  // SSO integration service (not Cognito tokens).
-  SERVICE_TOKEN_SECRET: z.string().min(1, 'SERVICE_TOKEN_SECRET is required'),
+ 
 
   // Static service token used for internal service-to-service communication
   // (e.g. SSO → Schedule Service, User Service). This should be provisioned

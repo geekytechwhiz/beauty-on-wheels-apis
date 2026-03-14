@@ -33,7 +33,7 @@ export class ServiceTokenService {
 
   constructor() {
 
-    this.secret = process.env.SERVICE_TOKEN_SECRET || ''
+    this.secret = process.env.SERVICE_TOKEN_SECRET || 'SERVICE_TOKEN_SECRET'
     this.issuer = process.env.SERVICE_TOKEN_ISSUER || "firminiq-integration"
     this.audience = process.env.SERVICE_TOKEN_AUDIENCE || "myvitalrx-api"
     this.cognitoService = new CognitoService();

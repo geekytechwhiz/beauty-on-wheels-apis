@@ -101,8 +101,8 @@ async function processPatientCreationEvent(
     throw new Error('Invalid patient creation event');
   }
 
-  const { patient, doctorId, provider, externalId, organizationID } = event.data;
-
+  const { patient, doctorId, provider, externalId, organizationID, } = event.data;
+  console.log('event.data in patient-creation-event-consumer', event.data);
   /**
    * Validate event
    */
@@ -201,16 +201,9 @@ async function processPatientCreationEvent(
   console.log('createdPatient in patient-creation-event-consumer', createdPatient);
   /**
    * Extract patient userId safely
-   */
-  let patientUserId: string | undefined;
+   */ 
+  const patientUserId=createdPatient?.invitedUser??createdPatient.invitedUser.userId??createdPatient.id; 
 
-  if (typeof createdPatient?.invitedUser === 'string') {
-    patientUserId = createdPatient.invitedUser;
-  } else if (createdPatient?.invitedUser?.userId) {
-    patientUserId = createdPatient.invitedUser.userId;
-  } else if (createdPatient?.id) {
-    patientUserId = String(createdPatient.id);
-  }
 
   if (!patientUserId) {
     logger.error({
@@ -227,7 +220,25 @@ async function processPatientCreationEvent(
     patientId: patient.id,
     userId: patientUserId,
   });
-
+//   {
+//     "organizationId": "mm3208au877eaa2d",
+//     "sender": {
+//         "userType": "STAFF",
+//         "userId": "01KJC8S5RZDG19EGT3XM5Y7XG3",
+//         "profileImage": "d2zvxvbt9m8l3w.cloudfront.net/profile-picture/01KJC8S5RZDG19EGT3XM5Y7XG3/1772177136053",
+//         "presenceStatus": "ONLINE",
+//         "name": "doc cardio",
+//         "email": "doc.paper.c@yopmail.com"
+//     },
+//     "receiver": {
+//         "userId": "01KKGXREYGDRZCCY6AP6YKZQGC",
+//         "name": "Sanjose",
+//         "email": "sanjo.paper@yopmail.com",
+//         "profileImage": "",
+//         "userType": "MOBILE",
+//         "presenceStatus": "OFFLINE"
+//     }
+// }
   /**
    * Assign doctor if provided
    */
@@ -238,6 +249,10 @@ async function processPatientCreationEvent(
 
       sender: {
         userId: String(doctorId),
+        name: 'doc cardio',
+        email: 'doc.paper.c@yopmail.com',
+        userType: 'STAFF',
+        presenceStatus: 'ONLINE',
       },
 
       receiver: {

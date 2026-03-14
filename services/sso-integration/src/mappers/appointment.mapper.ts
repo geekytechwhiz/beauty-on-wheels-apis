@@ -6,7 +6,7 @@ import {
   ScheduleCreateRequest,
 } from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
-import { CognitoUserContext } from '../types/user/user.types';
+import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
 import { CONSTANTS } from '../utils/constants';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
@@ -124,7 +124,7 @@ export class AppointmentMapper {
    */
   mapAppointmentToRecommendServices(
     appointment: Appointment,
-    doctorUser: CognitoUserContext,
+    doctorUser: CreatedUserInfo,
     patientUser: User,
     orgAddonId: string,
     context: SSORequestContext,
@@ -156,7 +156,7 @@ export class AppointmentMapper {
    */
   mapAppointmentToCreateServiceSchedule(
     appointment: Appointment,
-    doctorUser: CognitoUserContext,
+    doctorUser: CreatedUserInfo,
     patientUser: User,
     userAddonId: string,
   ): CreateServiceScheduleRequest {

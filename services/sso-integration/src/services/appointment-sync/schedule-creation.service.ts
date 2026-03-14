@@ -1,23 +1,26 @@
-import { createChildLogger, serializeError } from '@api-hub/logger'; 
+import { createChildLogger, serializeError } from '@api-hub/logger';
+import { getScheduleServiceClient, ScheduleServiceClient } from '../../clients/schedule-service.client';
+import { AppointmentMapper, getAppointmentMapper } from '../../mappers/appointment.mapper';
 import { Appointment, Schedule, SSORequestContext, User } from '../../types';
-import { CognitoUserContext } from '../../types/user/user.types';
-import { retryWithBackoff, RetryOptions } from '../../utils/retry.util';
-
-type ScheduleClient = any;
-
-type AppointmentMapper = any;
+import { CreatedUserInfo } from '../../types/user/user.types';
+import { RetryOptions, retryWithBackoff } from '../../utils/retry.util';
+ 
 
 export class ScheduleCreationService {
-  constructor(
-    private readonly scheduleClient: ScheduleClient,
+
+  constructor( 
+    private readonly scheduleClient: ScheduleServiceClient,
     private readonly appointmentMapper: AppointmentMapper,
     private readonly logger: any,
     private readonly retryOptions: RetryOptions,
-  ) {}
+  ) {
+    this.scheduleClient = getScheduleServiceClient();
+    this.appointmentMapper = getAppointmentMapper();
+  }
 
   async createServiceScheduleWithRetry(
     appointment: Appointment,
-    doctorUser: CognitoUserContext,
+    doctorUser: CreatedUserInfo,
     patientUser: User,
     context: SSORequestContext,
   ): Promise<Schedule> {
@@ -78,7 +81,8 @@ export class ScheduleCreationService {
             appointment,
             doctorUser,
             patientUser,
-            orgAddonId || '',
+            orgAddonId ,
+            context,
           );
 
         logger.info({

@@ -13,8 +13,13 @@ export const getOrganizationIdBySubdomain = (subdomain: string): string => {
   return organizationId;
 };
 
-export function getOrganizationId(subdomain: string): string | undefined {
-  return TENANT_MAP[subdomain];
+export function getOrganizationId(subdomain: string): string {
+  try {
+    return TENANT_MAP[subdomain];
+  } catch (error) {
+    console.error("getOrganizationId: error getting organization id", error);
+    throw new Error(`Organization ID not found for subdomain: ${subdomain}`);
+  } 
 }
 
 export function getCachedUserId(
@@ -114,10 +119,10 @@ export function appendSuffixToContacts<T extends any[]>(
           }
 
           // Append suffix to email before the domain
-          // if (updated.doctor.email && updated.doctor.email.includes("@")) {
-          //   const [name, domain] = updated.doctor.email.split("@");
-          //   updated.doctor.email = `${name}${suffix}@${domain}`;
-          // }
+          if (updated.doctor.email && updated.doctor.email.includes("@")) {
+            const [name, domain] = updated.doctor.email.split("@");
+            updated.doctor.email = `${name}${suffix}@${domain}`;
+          }
         }
 
         return updated;

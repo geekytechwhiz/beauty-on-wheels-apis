@@ -13,7 +13,7 @@ export const PROVIDER ={
 }
 
 export const SUBDOMAIN ={
-    TRU_TECH: 'qahms_test',
+    TRU_TECH: 'qahms_test_1',
 }
 
 export const SOURCE_SYSTEM ={

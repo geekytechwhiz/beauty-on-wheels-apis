@@ -7,8 +7,8 @@ import {
   getSSOUserServiceClient,
   SSOUserServiceClient,
 } from '../../clients/user-service.client';
-import { makeDoctorCreationPayload } from '../../mappers/user-create.mapper';
-
+import { makeDoctorCreationPayload } from '../../mappers/user-create.mapper'; 
+import { CreatedUserInfo } from '../../types/user/user.types';
 export class UserProvisioningService {
   constructor(
     private readonly ssoUserServiceClient: SSOUserServiceClient,
@@ -20,7 +20,7 @@ export class UserProvisioningService {
   async getOrCreateDoctor(
     appointment: Appointment,
     context: SSORequestContext,
-  ): Promise<User> {
+  ): Promise<CreatedUserInfo> {
     const doctorExternalId = String(appointment.doctor.id);
     const doctorEmail = appointment.doctor.email ?? null;
 
@@ -50,7 +50,7 @@ export class UserProvisioningService {
         doctorUserId: existingUser.id,
       });
 
-      return existingUser;
+      return existingUser as any as CreatedUserInfo;
     }
 
     // 2️⃣ Doctor not found → create (idempotent via externalUserId + user-service)
@@ -98,7 +98,7 @@ export class UserProvisioningService {
       //   );
       // }
 
-      return createdDoctor as any as User;
+      return createdDoctor as any as CreatedUserInfo;
     } catch (error: any) {
       // 3️⃣ Handle race condition (another process created the user)
       if (error?.response?.status === 409) {
@@ -121,7 +121,7 @@ export class UserProvisioningService {
             doctorEmail,
             doctorUserId: existingAfterConflict.id,
           });
-          return existingAfterConflict;
+          return existingAfterConflict as any as CreatedUserInfo;
         }
       }
 

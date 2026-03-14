@@ -15,12 +15,7 @@ import {
 } from '../utils/helper';
 import { buildServiceHeaders } from '../utils/request.utils';
 import { BaseClient } from '@api-hub/service-clients';
-
-interface CreatedUserInfo {
-  userId: string;
-  email: string | null;
-  externalUserId: string | null;
-}
+import { CreatedUserInfo } from '../types/user/user.types';
 
 export class SSOUserServiceClient extends BaseClient {
   constructor() {
@@ -198,7 +193,8 @@ export class SSOUserServiceClient extends BaseClient {
     const result: CreatedUserInfo = {
       userId: String(rawUserId),
       email: emailFromPayload,
-      externalUserId: payload.externalIdentity?.externalUserId ?? null,
+      externalUserId: payload.externalIdentity?.externalUserId  ,
+      organizationId: payload.organizationID 
     };
 
     console.info('createDoctor_success', {
@@ -225,8 +221,8 @@ export class SSOUserServiceClient extends BaseClient {
       if (organizationId && externalUserId && created.userId) {
         setCachedUserId(subdomain, externalUserId, created.userId);
         console.info('createDoctor_cache_update', {
-          ...logBase,
-          userId: created.userId,
+          ...logBase, 
+          ...created,
         });
       }
 

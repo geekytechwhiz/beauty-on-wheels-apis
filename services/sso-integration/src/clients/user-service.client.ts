@@ -323,7 +323,12 @@ export class SSOUserServiceClient extends BaseClient {
       });
     }
 
-    return user;
+    return {
+      userId: String(user?.id),
+      email: user.email,
+      externalUserId: externalUserId,
+      organizationId: organizationId
+    } as CreatedUserInfo;
   }
 
   /**

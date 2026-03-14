@@ -160,21 +160,33 @@ export async function handler(
 
       const patientExternalId = String(appointment.patient?.id ?? '');
       if (patientExternalId) {
-        try {
-          await scheduleClient.removePendingAppointment(
-            tenantId,
-            patientExternalId,
-            appointmentExternalId,
-            requestContext,
-          );
-        } catch (removeErr) {
-          logger.warn({
-            event: 'schedule_creation_worker_remove_pending_failed',
+        if (process.env.BYPASS_PENDING_APPOINTMENT === 'true') {
+          logger.info({
+            event: 'pending_appointment_remove_bypassed',
+            message: 'BYPASS_PENDING_APPOINTMENT enabled — skipping pending remove',
             recordId,
             tenantId,
             appointmentExternalId,
-            err: serializeError(removeErr as Error),
+            patientExternalId,
+            correlationId: requestContext.correlationId,
           });
+        } else {
+          try {
+            await scheduleClient.removePendingAppointment(
+              tenantId,
+              patientExternalId,
+              appointmentExternalId,
+              requestContext,
+            );
+          } catch (removeErr) {
+            logger.warn({
+              event: 'schedule_creation_worker_remove_pending_failed',
+              recordId,
+              tenantId,
+              appointmentExternalId,
+              err: serializeError(removeErr as Error),
+            });
+          }
         }
       }
 

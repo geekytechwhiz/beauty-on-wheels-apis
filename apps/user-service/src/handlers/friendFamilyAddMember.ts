@@ -23,6 +23,7 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   const userId = body.userId ?? body.userID ?? req.context.userContext?.userId ?? '';
   const authHeader = req.context.authHeader;
   const { organizationID: _o, ...addBody } = body as any;
+  console.log("Organization Details: ", organizationID, userId, authHeader, addBody);
   return friendFamilyService.addMember(organizationID, { ...addBody, userId }, authHeader);
 };
 

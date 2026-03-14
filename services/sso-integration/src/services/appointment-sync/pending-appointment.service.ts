@@ -4,7 +4,7 @@ import { PendingAppointment, User } from '../../types';
 import { CognitoUserContext, CreatedUserInfo } from '../../types/user/user.types';
 import { AppointmentIdempotencyService } from './appointment-idempotency.service';
 import { ScheduleCreationService } from './schedule-creation.service';
-import type { IPendingAppointmentStore } from './pending-appointment-store';
+import type { ScheduleServiceClient } from '../../clients/schedule-service.client';
 
 type CognitoService = {
   findCognitoUserByEmail: (email: string) => Promise<CognitoUserContext | null>;
@@ -19,7 +19,7 @@ type UserServiceClient = {
 
 export class PendingAppointmentService {
   constructor(
-    private readonly store: IPendingAppointmentStore,
+    private readonly scheduleClient: ScheduleServiceClient,
     private readonly cognitoService: CognitoService,
     private readonly appointmentIdempotencyService: AppointmentIdempotencyService,
     private readonly scheduleCreationService: ScheduleCreationService,
@@ -31,10 +31,11 @@ export class PendingAppointmentService {
   async addPendingAppointment(
     tenantId: string,
     pending: PendingAppointment,
+    context: SSORequestContext,
   ): Promise<void> {
     this.logger.info({
       event: 'pending_appointment_added',
-      correlationId: undefined,
+      correlationId: context.correlationId,
       tenantId,
       externalAppointmentId: pending.externalAppointmentId,
       doctorExternalId: pending.doctorExternalId,
@@ -42,22 +43,33 @@ export class PendingAppointmentService {
       doctorUserId: null,
       patientUserId: null,
     });
-    await this.store.add(tenantId, pending);
+    await this.scheduleClient.storePendingAppointment(tenantId, pending, context);
   }
 
   async getPendingAppointmentsByPatient(
     tenantId: string,
     patientExternalId: string,
+    context: SSORequestContext,
   ): Promise<PendingAppointment[]> {
-    return this.store.getByPatient(tenantId, patientExternalId);
+    return this.scheduleClient.getPendingAppointmentsByPatient(
+      tenantId,
+      patientExternalId,
+      context,
+    );
   }
 
   async removePendingAppointment(
     tenantId: string,
     patientExternalId: string,
     externalAppointmentId: string,
+    context: SSORequestContext,
   ): Promise<void> {
-    await this.store.remove(tenantId, patientExternalId, externalAppointmentId);
+    await this.scheduleClient.removePendingAppointment(
+      tenantId,
+      patientExternalId,
+      externalAppointmentId,
+      context,
+    );
   }
 
   async reprocessPendingAppointments(
@@ -72,6 +84,7 @@ export class PendingAppointmentService {
     const pending = await this.getPendingAppointmentsByPatient(
       context.tenantId,
       patientExternalId,
+      context,
     );
 
     if (!pending.length) {
@@ -165,6 +178,7 @@ export class PendingAppointmentService {
             context.tenantId,
             pendingAppt.patientExternalId,
             pendingAppt.externalAppointmentId,
+            context,
           );
           continue;
         }
@@ -202,6 +216,7 @@ export class PendingAppointmentService {
           context.tenantId,
           pendingAppt.patientExternalId,
           pendingAppt.externalAppointmentId,
+          context,
         );
       } catch (error) {
         const newRetryCount = pendingAppt.retryCount + 1;
@@ -211,13 +226,15 @@ export class PendingAppointmentService {
             context.tenantId,
             pendingAppt.patientExternalId,
             pendingAppt.externalAppointmentId,
+            context,
           );
         } else {
-          await this.store.updateRetryCount(
+          await this.scheduleClient.updatePendingAppointmentRetryCount(
             context.tenantId,
             pendingAppt.patientExternalId,
             pendingAppt.externalAppointmentId,
             newRetryCount,
+            context,
           );
         }
 

@@ -103,6 +103,7 @@ export async function handler(
       const existingIdempotency = await getScheduleIdempotency(
         tenantId,
         appointmentExternalId,
+        requestContext,
       );
       if (existingIdempotency) {
         logger.info({
@@ -120,10 +121,10 @@ export async function handler(
         principalId: doctor.userId,
         userId: doctor.userId,
         organizationId: doctor.organizationId,
-        userType: 'STAFF',
-        tenantSubdomain: tenantId,
+        userType: 'STAFF', 
         roles: [],
         permissions: [],
+        authType: 'USER',
       };
 
       const isDuplicate = await appointmentIdempotencyService.checkDuplicateSchedule(
@@ -154,7 +155,28 @@ export async function handler(
         tenantId,
         appointmentExternalId,
         schedule.scheduleId,
+        requestContext,
       );
+
+      const patientExternalId = String(appointment.patient?.id ?? '');
+      if (patientExternalId) {
+        try {
+          await scheduleClient.removePendingAppointment(
+            tenantId,
+            patientExternalId,
+            appointmentExternalId,
+            requestContext,
+          );
+        } catch (removeErr) {
+          logger.warn({
+            event: 'schedule_creation_worker_remove_pending_failed',
+            recordId,
+            tenantId,
+            appointmentExternalId,
+            err: serializeError(removeErr as Error),
+          });
+        }
+      }
 
       await emitMetric(MetricNames.SCHEDULE_CREATION_SUCCESS, 1, 'Count', {
         tenantId,

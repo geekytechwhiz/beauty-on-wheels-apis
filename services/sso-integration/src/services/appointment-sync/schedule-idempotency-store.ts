@@ -1,7 +1,5 @@
-import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { ddbDocClient } from '@api-hub/utils';
-
-const IDEMPOTENCY_KEY_PREFIX = 'SCHEDULE#';
+import { getScheduleServiceClient } from '../../clients/schedule-service.client';
+import { SSORequestContext } from '../../types/common/context.types';
 
 export interface IdempotencyRecord {
   status: 'success';
@@ -9,35 +7,28 @@ export interface IdempotencyRecord {
   createdAt: string;
 }
 
-function buildIdempotencyKey(tenantId: string, externalAppointmentId: string): string {
-  return `${IDEMPOTENCY_KEY_PREFIX}${tenantId}#${externalAppointmentId}`;
-}
-
 /**
- * DynamoDB-backed idempotency for schedule creation.
- * Key: tenantId#externalAppointmentId. Check before create; write after success.
+ * Idempotency for schedule creation is owned by the Scheduler service.
+ * These helpers call Scheduler APIs via ScheduleServiceClient.
  */
 export async function getScheduleIdempotency(
   tenantId: string,
   externalAppointmentId: string,
+  context: SSORequestContext,
 ): Promise<IdempotencyRecord | null> {
-  const tableName = process.env.APPOINTMENT_IDEMPOTENCY_TABLE_NAME;
-  if (!tableName) return null;
-
-  const key = buildIdempotencyKey(tenantId, externalAppointmentId);
-  const result = await ddbDocClient.send(
-    new GetCommand({
-      TableName: tableName,
-      Key: { pk: key },
-    }),
+  const client = getScheduleServiceClient();
+  const result = await client.checkAppointmentIdempotency(
+    tenantId,
+    externalAppointmentId,
+    context,
   );
-
-  const item = result.Item;
-  if (!item || item.status !== 'success') return null;
+  if (!result.alreadyProcessed || !result.scheduleId) {
+    return null;
+  }
   return {
     status: 'success',
-    scheduleId: String(item.scheduleId ?? ''),
-    createdAt: String(item.createdAt ?? ''),
+    scheduleId: result.scheduleId,
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -45,21 +36,13 @@ export async function setScheduleIdempotency(
   tenantId: string,
   externalAppointmentId: string,
   scheduleId: string,
+  context: SSORequestContext,
 ): Promise<void> {
-  const tableName = process.env.APPOINTMENT_IDEMPOTENCY_TABLE_NAME;
-  if (!tableName) return;
-
-  const key = buildIdempotencyKey(tenantId, externalAppointmentId);
-  const now = new Date().toISOString();
-  await ddbDocClient.send(
-    new PutCommand({
-      TableName: tableName,
-      Item: {
-        pk: key,
-        status: 'success',
-        scheduleId,
-        createdAt: now,
-      },
-    }),
+  const client = getScheduleServiceClient();
+  await client.markAppointmentProcessed(
+    tenantId,
+    externalAppointmentId,
+    scheduleId,
+    context,
   );
 }

@@ -30,7 +30,6 @@ import { AppointmentIdempotencyService } from './appointment-sync/appointment-id
 import { ScheduleConflictService } from './appointment-sync/schedule-conflict.service';
 import { ScheduleCreationService } from './appointment-sync/schedule-creation.service';
 import { PendingAppointmentService } from './appointment-sync/pending-appointment.service';
-import { getPendingAppointmentStore } from './appointment-sync/pending-appointment-store';
 import { publishScheduleCreation } from './appointment-sync/schedule-creation-queue.service';
 
 export class AppointmentSyncService extends BaseService {
@@ -94,7 +93,7 @@ export class AppointmentSyncService extends BaseService {
     );
 
     this.pendingAppointmentService = new PendingAppointmentService(
-      getPendingAppointmentStore(),
+      this.scheduleClient,
       (this as any).cognitoService,
       this.appointmentIdempotencyService,
       this.scheduleCreationService,
@@ -536,6 +535,7 @@ export class AppointmentSyncService extends BaseService {
           doctorExternalId,
           externalAppointmentId,
         },
+        context,
       );
 
       return 'pending';
@@ -798,10 +798,12 @@ export class AppointmentSyncService extends BaseService {
   async getPendingAppointmentsByPatient(
     tenantId: string,
     patientExternalId: string,
+    context: SSORequestContext,
   ): Promise<PendingAppointment[]> {
     return this.pendingAppointmentService.getPendingAppointmentsByPatient(
       tenantId,
       patientExternalId,
+      context,
     );
   }
 }

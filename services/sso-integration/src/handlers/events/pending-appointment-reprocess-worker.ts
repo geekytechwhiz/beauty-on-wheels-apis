@@ -7,8 +7,9 @@ import {
 import { Context, SQSEvent } from 'aws-lambda';
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 
-import { getPendingAppointmentStore } from '../../services/appointment-sync/pending-appointment-store';
+import { getScheduleServiceClient } from '../../clients/schedule-service.client';
 import { PendingReprocessMessage } from '../../types/events/pending-reprocess-message.types';
+import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -16,8 +17,8 @@ const baseLogger = createLogger({
 });
 
 /**
- * Consumes PendingAppointmentReprocessQueue: loads pending appointments for the patient,
- * then re-enqueues each to AppointmentSyncQueue for processing.
+ * Consumes PendingAppointmentReprocessQueue: loads pending appointments for the patient
+ * via Scheduler service API, then re-enqueues each to AppointmentSyncQueue for processing.
  */
 export async function handler(
   event: SQSEvent,
@@ -30,7 +31,7 @@ export async function handler(
   });
 
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
-  const store = getPendingAppointmentStore();
+  const scheduleClient = getScheduleServiceClient();
   const queueUrl = process.env.APPOINTMENT_SYNC_QUEUE_URL;
   if (!queueUrl) {
     logger.error({ event: 'pending_reprocess_missing_queue_url' });
@@ -54,7 +55,15 @@ export async function handler(
         );
       }
 
-      const pendingList = await store.getByPatient(tenantId, patientExternalId);
+      const requestContext = buildSSORequestContextFromAppointmentMessage(
+        tenantId,
+        correlationId,
+      );
+      const pendingList = await scheduleClient.getPendingAppointmentsByPatient(
+        tenantId,
+        patientExternalId,
+        requestContext,
+      );
 
       for (const pending of pendingList) {
         await sqsClient.send(

@@ -156,6 +156,12 @@ provider:
         - cloudwatch:PutMetricData
       Resource: '*'
 
+    - Effect: Allow
+      Action:
+        - secretsmanager:GetSecretValue
+      Resource:
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:DEV_DEMO_SECRETMANAGER*
+
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin

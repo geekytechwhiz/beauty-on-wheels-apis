@@ -27,10 +27,11 @@ export class SSOUserServiceClient extends BaseClient {
     console.info('findUserByExternalId_lookup', {
       externalUserId,
       subdomain,
+      provider: context.integration.providerId,
     });
 
     try {
-      const response = await this.client.get<User>('/users/external', {
+      const response = await this.client.get<{ data?: User } | User>('/users/external', {
         params: {
           tenant: subdomain,
           provider: context.integration.providerId,
@@ -39,9 +40,14 @@ export class SSOUserServiceClient extends BaseClient {
         headers: buildServiceHeaders(context),
       });
 
-      const user = response.data ?? null;
+      // User-service returns { success, data, message, error, meta }; user is in data
+      type ExternalResponse = { data?: { userID?: string; emailAddress?: string; organizationID?: string; externalIdentity?: { externalUserId?: string; subdomain?: string; provider?: string }; [k: string]: unknown } };
+      const body = response.data as ExternalResponse | null;
+      const userPayload = body?.data ?? null;
 
-      if (!user?.id) {
+      // User-service model uses userID; SSO expects id
+      const userId = (userPayload?.userID ?? userPayload?.id) as string | undefined;
+      if (!userId) {
         console.info('findUserByExternalId_service_not_found', {
           externalUserId,
           tenant: subdomain,
@@ -51,10 +57,27 @@ export class SSOUserServiceClient extends BaseClient {
 
       console.info('findUserByExternalId_success', {
         externalUserId,
-        userId: user.id,
+        userId,
       });
 
-      return user;
+      // Normalize to SSO User: user-service uses userID, emailAddress, organizationID, externalIdentity
+      const ext = userPayload?.externalIdentity as { externalUserId?: string; subdomain?: string; provider?: string } | undefined;
+      const created = userPayload?.createdDate ?? userPayload?.modifiedDate;
+      const externalUserIdVal = ext?.externalUserId ?? externalUserId;
+      return {
+        ...userPayload,
+        id: userId,
+        invitedUser: userId,
+        email: userPayload?.email ?? userPayload?.emailAddress,
+        organizationId: userPayload?.organizationId ?? userPayload?.organizationID,
+        externalId: externalUserIdVal,
+        tenantId: ext?.subdomain ?? subdomain,
+        provider: ext?.provider ?? context.integration.providerId,
+        status: userPayload?.isActive === true ? 'ACTIVE' : userPayload?.isActive === false ? 'INACTIVE' : 'ACTIVE',
+        createdAt: created != null ? String(created) : new Date().toISOString(),
+        updatedAt: userPayload?.modifiedDate != null ? String(userPayload.modifiedDate) : new Date().toISOString(),
+        externalUserId: externalUserIdVal,
+      } as unknown as User;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         console.log('findUserByExternalId error', serializeError(error as Error));

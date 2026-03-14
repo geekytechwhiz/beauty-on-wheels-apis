@@ -87,19 +87,20 @@ provider:
       Ref: PendingAppointmentReprocessQueue
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
 
-    SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'}
-    HMS_SYNC_SCHEDULE_EXPRESSION: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+    SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'} 
 
     REGISTERED_HMS_DOCTOR_IDS: 4
     INTEGRATION_PROVIDER_AFRICA_HMS: africa-hmsc
-    SERVICE_TOKEN_SECRET: ${ssm:/sso/${self:provider.stage}/service-token-secret, ''}
-
-    # Pending appointments (DynamoDB). Override with env to use an existing platform table (same key schema: pk, sk).
-    PENDING_APPOINTMENTS_TABLE_NAME: ${env:PENDING_APPOINTMENTS_TABLE_NAME, Ref: PendingAppointmentsTable}
-    # Schedule creation idempotency (DynamoDB). Key: pk = tenantId#externalAppointmentId.
-    APPOINTMENT_IDEMPOTENCY_TABLE_NAME: ${env:APPOINTMENT_IDEMPOTENCY_TABLE_NAME, Ref: AppointmentIdempotencyTable}
+    # SERVICE_TOKEN_SECRET: ${ssm:/sso/${self:provider.stage}/service-token-secret}
 
   iamRoleStatements:
+
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: "*"
     - Effect: Allow
       Action:
         - cognito-idp:AdminInitiateAuth
@@ -110,13 +111,14 @@ provider:
         - cognito-idp:ListUsers
       Resource:
         - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
-
+    
     - Effect: Allow
       Action:
         - sqs:SendMessage
         - sqs:ReceiveMessage
         - sqs:DeleteMessage
         - sqs:GetQueueAttributes
+        - sqs:ChangeMessageVisibility
       Resource:
         - Fn::GetAtt:
             - PatientCreationQueue
@@ -153,23 +155,6 @@ provider:
       Action:
         - cloudwatch:PutMetricData
       Resource: '*'
-
-    - Effect: Allow
-      Action:
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:Query
-        - dynamodb:DeleteItem
-        - dynamodb:BatchGetItem
-        - dynamodb:ConditionCheckItem
-      Resource:
-        - Fn::GetAtt:
-            - PendingAppointmentsTable
-            - Arn
-        - Fn::GetAtt:
-            - AppointmentIdempotencyTable
-            - Arn
 
 plugins:
   - serverless-esbuild
@@ -358,7 +343,7 @@ resources:
         QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
         VisibilityTimeout: 300
         MessageRetentionPeriod: 1209600
-        ReceiveMessageWaitTimeSeconds: 0
+        ReceiveMessageWaitTimeSeconds: 20
         RedrivePolicy:
           deadLetterTargetArn:
             Fn::GetAtt:
@@ -446,37 +431,6 @@ resources:
               - Arn
           maxReceiveCount: 3
 
-    PendingAppointmentsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.stage}-sso-integration-pending-appointments
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: pk
-            AttributeType: S
-          - AttributeName: sk
-            AttributeType: S
-        KeySchema:
-          - AttributeName: pk
-            KeyType: HASH
-          - AttributeName: sk
-            KeyType: RANGE
-        TimeToLiveSpecification:
-          AttributeName: ttl
-          Enabled: true
-
-    AppointmentIdempotencyTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.stage}-sso-integration-appointment-idempotency
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: pk
-            AttributeType: S
-        KeySchema:
-          - AttributeName: pk
-            KeyType: HASH
-
     SyncHmsAppointmentsScheduleRole:
       Type: AWS::IAM::Role
       Properties:
@@ -496,6 +450,7 @@ resources:
                 - Effect: Allow
                   Action:
                     - lambda:InvokeFunction
+                    - lambda:InvokeAsync
                   Resource:
                     - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
 

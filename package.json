@@ -8,11 +8,13 @@
     "fhir-gateway:offline": "cd services/fhir-gateway && serverless offline",
     "fhir-gateway:offline:dev": "cd services/fhir-gateway && FHIR_GATEWAY_LOCAL_DEV=true serverless offline",
     "fhir-gateway:offline:dev:watch": "cd services/fhir-gateway && pnpm run offline:dev:watch",
-    "authorizer-service:offline": "cd services/authorizer-service && serverless offline"
+    "authorizer-service:offline": "cd services/authorizer-service && serverless offline",
+    "build:all": "nx run many --target=build --all"
   },
   "private": true,
   "dependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.958.0",
+    "@aws-sdk/client-cloudwatch": "^3.1009.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.958.0",
     "@aws-sdk/client-dynamodb": "^3.958.0",
     "@aws-sdk/client-eventbridge": "^3.958.0",

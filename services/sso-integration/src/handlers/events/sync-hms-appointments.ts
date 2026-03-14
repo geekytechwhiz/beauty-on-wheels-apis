@@ -1,39 +1,33 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ScheduledEvent } from 'aws-lambda';
+import { SQSClient, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import {
   createLogger,
   createChildLogger,
   serializeError,
 } from '@api-hub/logger';
-import { ApiResponse } from '@api-hub/utils';
 
-import { AppointmentSyncService } from '../../services/appointment-sync.service'; 
+import { Appointment } from '../../types';
+import { AppointmentSyncService } from '../../services/appointment-sync.service';
 import { buildSSORequestContext } from '../../utils/context-builder.util';
+import { emitMetric, MetricNames } from '../../utils/metrics.util';
+
+const SQS_BATCH_SIZE = 10;
 
 const baseLogger = createLogger({
   service: 'sso-integration',
   redactPII: true,
-}); 
- 
+});
 
-function isHttpEvent(event: unknown): event is APIGatewayProxyEvent {
-  return (
-    typeof event === 'object' &&
-    event !== null &&
-    'requestContext' in event &&
-    'httpMethod' in event
-  );
-}
-
- 
-
+/**
+ * Scheduled handler: fetch from HMS, validate, enqueue to AppointmentSyncQueue only.
+ * Triggered by EventBridge Scheduler. No HTTP exposure. Never processes appointments inline.
+ */
 export async function handler(
-  event: ScheduledEvent | APIGatewayProxyEvent,
-): Promise<void | APIGatewayProxyResult> {
-  const isHttp = isHttpEvent(event);
-  const correlationId = isHttp
-    ? (event.requestContext?.requestId ?? event.headers?.['X-Correlation-Id'] ?? `hms-sync-${Date.now()}`)
-    : (event as unknown as { 'X-Correlation-Id'?: string })['X-Correlation-Id'] ?? `hms-sync-${Date.now()}`;
+  event: ScheduledEvent,
+): Promise<void> {
+  const correlationId =
+    (event as unknown as { 'X-Correlation-Id'?: string })['X-Correlation-Id'] ??
+    `hms-sync-${Date.now()}`;
 
   const logger = createChildLogger(baseLogger, {
     component: 'SyncHmsAppointmentsHandler',
@@ -44,63 +38,69 @@ export async function handler(
     event: 'lambda_invocation_start',
     handler: 'events/sync-hms-appointments',
     correlationId,
-    source: isHttp ? 'http' : 'scheduler',
-    detailType: isHttp ? undefined : (event as unknown as { 'detail-type'?: string })['detail-type'],
+    source: 'scheduler',
+    detailType: (event as unknown as { 'detail-type'?: string })['detail-type'],
   });
 
-  
-
   try {
-    const today = new Date();
-    const startDate = today.toISOString().slice(0, 10);
-
-    const lookaheadDaysEnv = process.env.SYNC_LOOKAHEAD_DAYS;
-    const lookaheadDays = Number.isFinite(Number(lookaheadDaysEnv))
-      ? Math.max(0, Number(lookaheadDaysEnv))
-      : 1;
-
-    const end = new Date(today);
-    end.setDate(end.getDate() + lookaheadDays);
-    const endDate = end.toISOString().slice(0, 10);
-    const context = buildSSORequestContext(event as APIGatewayProxyEvent, correlationId)
+    const context = buildSSORequestContext(
+      event as unknown as Parameters<typeof buildSSORequestContext>[0],
+      correlationId,
+    );
     const appointmentSyncService = new AppointmentSyncService();
 
-    const summary = await appointmentSyncService.syncAppointments(
-      context,
-    );
+    const validAppointments =
+      await appointmentSyncService.fetchAndValidateAppointments(context);
 
+    const queueUrl = process.env.APPOINTMENT_SYNC_QUEUE_URL;
+    if (!queueUrl) {
+      throw new Error('APPOINTMENT_SYNC_QUEUE_URL is not set');
+    }
+
+    const sqsClient = new SQSClient({});
+    let enqueued = 0;
+
+    for (let i = 0; i < validAppointments.length; i += SQS_BATCH_SIZE) {
+      const chunk = validAppointments.slice(i, i + SQS_BATCH_SIZE);
+      const entries = chunk.map((appointment: Appointment, idx: number) => ({
+        Id: String(i + idx),
+        MessageBody: JSON.stringify({
+          tenantId: context.tenantId,
+          appointment,
+          correlationId: context.correlationId,
+        }),
+      }));
+
+      await sqsClient.send(
+        new SendMessageBatchCommand({
+          QueueUrl: queueUrl,
+          Entries: entries,
+        }),
+      );
+      enqueued += entries.length;
+    }
+
+    await emitMetric(MetricNames.HMS_FETCH_SUCCESS, 1, 'Count', {
+      tenantId: context.tenantId,
+    });
     logger.info({
       event: 'lambda_invocation_complete',
       handler: 'events/sync-hms-appointments',
       correlationId,
-      summary,
+      tenantId: context.tenantId,
+      enqueued,
+      totalAppointments: validAppointments.length,
     });
-
-    if (isHttp) {
-      return ApiResponse.ok(
-        { summary },
-        { title: 'Success', description: 'HMS appointment sync completed', severity: 'SUCCESS' },
-        { requestId: correlationId, headers: { 'X-Correlation-Id': correlationId } },
-      );
-    }
   } catch (error) {
+    await emitMetric(MetricNames.HMS_FETCH_FAILURES, 1, 'Count', {
+      tenantId: 'unknown',
+    });
     logger.error({
       event: 'lambda_invocation_error',
       handler: 'events/sync-hms-appointments',
       correlationId,
       err: serializeError(error as Error),
     });
-
-    if (isHttp) {
-      return ApiResponse.internalServerError(
-        { title: 'Error', description: 'HMS appointment sync failed', severity: 'ERROR' },
-        { requestId: correlationId, headers: { 'X-Correlation-Id': correlationId } },
-        { code: 'INTERNAL_ERROR' },
-      );
-    }
-
-    // Let the error bubble so EventBridge Scheduler can apply its retry policy
     throw error;
   }
 }
-

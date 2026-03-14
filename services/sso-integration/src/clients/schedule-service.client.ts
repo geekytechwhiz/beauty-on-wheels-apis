@@ -16,6 +16,7 @@ import {
   UpdateServiceStatusRequest,
   UpdateServiceStatusResponse,
   ScheduleDetails,
+  PendingAppointment,
 } from '../types';
 
   import { SSOError } from '../types/errors/sso-error';
@@ -409,6 +410,212 @@ export class ScheduleServiceClient {
         'Unexpected error during service status update',
         error as Error,
       );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pending appointments (Scheduler service owns storage; these call Scheduler APIs)
+  // ---------------------------------------------------------------------------
+
+  async storePendingAppointment(
+    tenantId: string,
+    pending: PendingAppointment,
+    context: SSORequestContext,
+  ): Promise<void> {
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+    try {
+      await this.client.post(
+        '/internal/pending-appointments',
+        {
+          tenantId,
+          appointmentExternalId: pending.externalAppointmentId,
+          patientExternalId: pending.patientExternalId,
+          doctorExternalId: pending.doctorExternalId,
+          payload: pending,
+          status: 'PENDING',
+        },
+        { headers: this.buildHeaders(context) },
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        logger.error({
+          event: 'store_pending_appointment_error',
+          status: error.response?.status,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Store pending appointment failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError('Store pending appointment failed', error as Error);
+    }
+  }
+
+  async getPendingAppointmentsByPatient(
+    tenantId: string,
+    patientExternalId: string,
+    context: SSORequestContext,
+  ): Promise<PendingAppointment[]> {
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+    try {
+      const response = await this.client.get<{ items: PendingAppointment[] }>(
+        '/internal/pending-appointments',
+        {
+          params: { tenantId, patientExternalId },
+          headers: this.buildHeaders(context),
+        },
+      );
+      return response.data?.items ?? [];
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          return [];
+        }
+        logger.error({
+          event: 'get_pending_appointments_error',
+          status: error.response?.status,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Get pending appointments failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError('Get pending appointments failed', error as Error);
+    }
+  }
+
+  async removePendingAppointment(
+    tenantId: string,
+    patientExternalId: string,
+    externalAppointmentId: string,
+    context: SSORequestContext,
+  ): Promise<void> {
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+    try {
+      await this.client.delete('/internal/pending-appointments', {
+        params: { tenantId, patientExternalId, externalAppointmentId },
+        headers: this.buildHeaders(context),
+      });
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        logger.error({
+          event: 'remove_pending_appointment_error',
+          status: error.response?.status,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Remove pending appointment failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError('Remove pending appointment failed', error as Error);
+    }
+  }
+
+  async updatePendingAppointmentRetryCount(
+    tenantId: string,
+    patientExternalId: string,
+    externalAppointmentId: string,
+    retryCount: number,
+    context: SSORequestContext,
+  ): Promise<void> {
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+    try {
+      await this.client.patch('/internal/pending-appointments/retry-count', {
+        tenantId,
+        patientExternalId,
+        externalAppointmentId,
+        retryCount,
+      }, { headers: this.buildHeaders(context) });
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        logger.error({
+          event: 'update_pending_retry_count_error',
+          status: error.response?.status,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Update pending appointment retry count failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError('Update pending appointment retry count failed', error as Error);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Appointment idempotency (Scheduler service owns storage; these call Scheduler APIs)
+  // ---------------------------------------------------------------------------
+
+  async checkAppointmentIdempotency(
+    tenantId: string,
+    appointmentExternalId: string,
+    context: SSORequestContext,
+  ): Promise<{ alreadyProcessed: boolean; scheduleId?: string }> {
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+    try {
+      const response = await this.client.post<{ alreadyProcessed: boolean; scheduleId?: string }>(
+        '/internal/appointment-idempotency/check',
+        { tenantId, appointmentExternalId },
+        { headers: this.buildHeaders(context) },
+      );
+      return response.data ?? { alreadyProcessed: false };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        logger.error({
+          event: 'check_appointment_idempotency_error',
+          status: error.response?.status,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Check appointment idempotency failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError('Check appointment idempotency failed', error as Error);
+    }
+  }
+
+  async markAppointmentProcessed(
+    tenantId: string,
+    appointmentExternalId: string,
+    scheduleId: string,
+    context: SSORequestContext,
+  ): Promise<void> {
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+    try {
+      await this.client.post(
+        '/internal/appointment-idempotency/mark',
+        { tenantId, appointmentExternalId, scheduleId },
+        { headers: this.buildHeaders(context) },
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        logger.error({
+          event: 'mark_appointment_processed_error',
+          status: error.response?.status,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Mark appointment processed failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError('Mark appointment processed failed', error as Error);
     }
   }
 

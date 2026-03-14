@@ -9,7 +9,7 @@ import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
 import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { getSSOConfig } from '../../config/sso-config';
-import { AppointmentSyncService } from '../../services/appointment-sync.service';
+import { publishPendingReprocess } from '../../services/appointment-sync/pending-reprocess-queue.service';
 
 import { AssignDoctorPayload } from '../../types/user-creation.type';
 import { mapPatientEventToCreateUserPayload } from '../../mappers/patient-event.mapper';
@@ -290,24 +290,26 @@ async function processPatientCreationEvent(
   }
 
   /**
-   * Trigger pending appointment reprocess
+   * Publish to PendingAppointmentReprocessQueue so worker re-enqueues pending appointments to AQ.
+   * Do not reprocess inline; keeps consumer lightweight.
    */
   try {
-    const appointmentSyncService = new AppointmentSyncService();
-
-    await appointmentSyncService.reprocessPendingAppointmentsForPatient(
-      externalId,
-      requestContext,
-    );
+    await publishPendingReprocess({
+      tenantId: requestContext.tenantId,
+      patientExternalId: externalId,
+      correlationId,
+    });
 
     logger.info({
-      event: 'pending_appointments_reprocess_triggered',
+      event: 'pending_reprocess_enqueued',
+      tenantId: requestContext.tenantId,
       patientExternalId: externalId,
+      correlationId,
       userId: patientUserId,
     });
   } catch (error) {
     logger.error({
-      event: 'pending_appointments_reprocess_failed',
+      event: 'pending_reprocess_enqueue_failed',
       patientExternalId: externalId,
       err: serializeError(error as Error),
     });

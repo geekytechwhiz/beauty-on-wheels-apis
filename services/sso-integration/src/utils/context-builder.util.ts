@@ -7,7 +7,7 @@ export function buildSSORequestContext(
   event: APIGatewayProxyEvent | ScheduledEvent | SQSEvent | PatientCreationEvent,
   correlationId: string
 ): SSORequestContext {
-  // Default to TruTech tenant when no headers are present (e.g. SQS, Scheduler)
+  // Default to TruTech tenant when no tenant hints are present (e.g. SQS, Scheduler)
   let tenantId = SUBDOMAIN.TRU_TECH
   let serviceToken: string | null = null
 
@@ -16,16 +16,25 @@ export function buildSSORequestContext(
       ? (event as any).headers
       : {}
 
-  // if (headers) {
-    tenantId = SUBDOMAIN.TRU_TECH
+  // Prefer explicit tenantId from headers or path when provided.
+  const headerTenant =
+    (headers['x-tenant-id'] as string | undefined) ||
+    (headers['X-Tenant-Id'] as string | undefined)
 
-    serviceToken =
-      (headers.authorization as string | undefined) ||
-      (headers.Authorization as string | undefined) ||
-      null
-  // }
+  const pathTenant =
+    (event as any)?.pathParameters?.tenantId ||
+    (event as any)?.pathParameters?.tenant
 
-  console.log('buildSSORequestContext serviceToken', serviceToken)
+  const resolvedTenant = (headerTenant || pathTenant)?.trim()
+
+  if (resolvedTenant) {
+    tenantId = resolvedTenant
+  }
+
+  serviceToken =
+    (headers.authorization as string | undefined) ||
+    (headers.Authorization as string | undefined) ||
+    null
 
   return {
     correlationId,
@@ -34,7 +43,7 @@ export function buildSSORequestContext(
     source: 'sso-integration',
     integration: {
       providerId: PROVIDER.TRU_TECH,
-      subdomain: SUBDOMAIN.TRU_TECH
+      subdomain: tenantId
     },
     sourceSystem: SourceSystem.HMS
   }
@@ -63,4 +72,25 @@ export function buildSSORequestContextFromSQS(
 
     sourceSystem: SourceSystem.HMS
   }
+}
+
+/**
+ * Build SSORequestContext from appointment queue message (tenantId, correlationId).
+ * Used by appointmentProcessor when processing SQS messages from AppointmentSyncQueue.
+ */
+export function buildSSORequestContextFromAppointmentMessage(
+  tenantId: string,
+  correlationId: string
+): SSORequestContext {
+  return {
+    correlationId,
+    tenantId,
+    serviceToken: SERVICE_TOKEN_HEADER,
+    source: 'sso-integration',
+    integration: {
+      providerId: PROVIDER.TRU_TECH,
+      subdomain: tenantId,
+    },
+    sourceSystem: SourceSystem.HMS,
+  };
 }

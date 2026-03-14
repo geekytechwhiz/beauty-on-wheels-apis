@@ -4,6 +4,7 @@ import { PendingAppointment, User } from '../../types';
 import { CognitoUserContext, CreatedUserInfo } from '../../types/user/user.types';
 import { AppointmentIdempotencyService } from './appointment-idempotency.service';
 import { ScheduleCreationService } from './schedule-creation.service';
+import type { IPendingAppointmentStore } from './pending-appointment-store';
 
 type CognitoService = {
   findCognitoUserByEmail: (email: string) => Promise<CognitoUserContext | null>;
@@ -18,7 +19,7 @@ type UserServiceClient = {
 
 export class PendingAppointmentService {
   constructor(
-    private readonly pendingAppointments: PendingAppointment[],
+    private readonly store: IPendingAppointmentStore,
     private readonly cognitoService: CognitoService,
     private readonly appointmentIdempotencyService: AppointmentIdempotencyService,
     private readonly scheduleCreationService: ScheduleCreationService,
@@ -27,34 +28,36 @@ export class PendingAppointmentService {
     private readonly userServiceClient?: UserServiceClient,
   ) {}
 
-  addPendingAppointment(pending: PendingAppointment): void {
+  async addPendingAppointment(
+    tenantId: string,
+    pending: PendingAppointment,
+  ): Promise<void> {
     this.logger.info({
       event: 'pending_appointment_added',
       correlationId: undefined,
-      tenantId: undefined,
+      tenantId,
       externalAppointmentId: pending.externalAppointmentId,
       doctorExternalId: pending.doctorExternalId,
       patientExternalId: pending.patientExternalId,
       doctorUserId: null,
       patientUserId: null,
     });
-    this.pendingAppointments.push(pending);
+    await this.store.add(tenantId, pending);
   }
 
-  getPendingAppointmentsByPatient(
+  async getPendingAppointmentsByPatient(
+    tenantId: string,
     patientExternalId: string,
-  ): PendingAppointment[] {
-    return this.pendingAppointments.filter(
-      (p) => p.patientExternalId === patientExternalId,
-    );
+  ): Promise<PendingAppointment[]> {
+    return this.store.getByPatient(tenantId, patientExternalId);
   }
 
-  removePendingAppointment(pending: PendingAppointment): void {
-    const index = this.pendingAppointments.indexOf(pending);
-
-    if (index > -1) {
-      this.pendingAppointments.splice(index, 1);
-    }
+  async removePendingAppointment(
+    tenantId: string,
+    patientExternalId: string,
+    externalAppointmentId: string,
+  ): Promise<void> {
+    await this.store.remove(tenantId, patientExternalId, externalAppointmentId);
   }
 
   async reprocessPendingAppointments(
@@ -66,7 +69,10 @@ export class PendingAppointmentService {
       patientExternalId,
     });
 
-    const pending = this.getPendingAppointmentsByPatient(patientExternalId);
+    const pending = await this.getPendingAppointmentsByPatient(
+      context.tenantId,
+      patientExternalId,
+    );
 
     if (!pending.length) {
       logger.info({
@@ -134,7 +140,7 @@ export class PendingAppointmentService {
             doctorUserId: null,
             patientUserId: String(patient.id),
           });
-          return;
+          continue;
         }
 
         const isDuplicate = await this.appointmentIdempotencyService.checkDuplicateSchedule(
@@ -155,7 +161,11 @@ export class PendingAppointmentService {
             doctorUserId: String(doctorCognito.userId),
             patientUserId: String(patient.id),
           });
-          this.removePendingAppointment(pendingAppt);
+          await this.removePendingAppointment(
+            context.tenantId,
+            pendingAppt.patientExternalId,
+            pendingAppt.externalAppointmentId,
+          );
           continue;
         }
 
@@ -188,12 +198,27 @@ export class PendingAppointmentService {
           patientUserId: String(patient.id),
         });
 
-        this.removePendingAppointment(pendingAppt);
+        await this.removePendingAppointment(
+          context.tenantId,
+          pendingAppt.patientExternalId,
+          pendingAppt.externalAppointmentId,
+        );
       } catch (error) {
-        pendingAppt.retryCount++;
+        const newRetryCount = pendingAppt.retryCount + 1;
 
-        if (pendingAppt.retryCount >= this.maxRetries) {
-          this.removePendingAppointment(pendingAppt);
+        if (newRetryCount >= this.maxRetries) {
+          await this.removePendingAppointment(
+            context.tenantId,
+            pendingAppt.patientExternalId,
+            pendingAppt.externalAppointmentId,
+          );
+        } else {
+          await this.store.updateRetryCount(
+            context.tenantId,
+            pendingAppt.patientExternalId,
+            pendingAppt.externalAppointmentId,
+            newRetryCount,
+          );
         }
 
         logger.error({
@@ -206,10 +231,10 @@ export class PendingAppointmentService {
           doctorUserId: null,
           patientUserId: String(patient.id),
           appointmentId: pendingAppt.appointment.appointmentId,
+          retryCount: newRetryCount,
           err: serializeError(error as Error),
         });
       }
     }
   }
 }
-

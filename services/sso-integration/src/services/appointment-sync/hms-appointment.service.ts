@@ -6,6 +6,7 @@ import {
 import { Appointment, PatientEMRSummary } from '../../types';
 import { SSOError } from '../../types/errors/sso-error';
 import { appendSuffixToContacts } from '../../utils/helper';
+import { getTruTechClientForTenant } from '../../clients/tru-tech.clients';
 
 type TruTechClient = {
   getAppointmentsForDoctorsInRange: (
@@ -42,15 +43,20 @@ export class HmsAppointmentService {
     private readonly logger: any,
   ) {}
 
+  /**
+   * @param tenantId Optional. When provided, uses per-tenant HMS config (getTruTechClientForTenant).
+   */
   async getAppointmentsForDoctorsInRange(
     startDate: string,
     endDate: string,
     correlationId: string,
+    tenantId?: string,
   ): Promise<Appointment[]> {
     const logger = createChildLogger(this.logger, {
       correlationId,
       startDate,
       endDate,
+      tenantId,
     });
 
     const timer = createPerformanceTimer(
@@ -58,14 +64,17 @@ export class HmsAppointmentService {
       'hms_get_appointments_for_doctors_in_range',
     );
 
+    const client = tenantId ? getTruTechClientForTenant(tenantId) : this.truTechClient;
+
     logger.info({
       event: 'hms_get_appointments_for_doctors_in_range_start',
       startDate,
       endDate,
+      tenantId,
     });
 
     try {
-      const response = await this.truTechClient.getAppointmentsForDoctorsInRange(
+      const response = await client.getAppointmentsForDoctorsInRange(
         startDate,
         endDate,
         correlationId,

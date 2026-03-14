@@ -6,15 +6,20 @@ import {
 } from '@api-hub/logger';
 
 import { getEnvConfig } from '../config/env';
- 
-import { SSOError } from '../types/errors/sso-error';import { TruTechAppointmentsResponse, TruTechPatientEMRResponse, TruTechVerifyResponse } from '../types';
- 
- ;
+import { getTenantHmsConfig, TenantHmsConfig } from '../config/tenant-hms-config';
+import { SSOError } from '../types/errors/sso-error';
+import { TruTechAppointmentsResponse, TruTechPatientEMRResponse, TruTechVerifyResponse } from '../types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
   redactPII: true
 });
+
+export interface TruTechClientConfig {
+  baseURL: string;
+  apiKey: string;
+  timeoutMs?: number;
+}
 
 export class TruTechClient {
 
@@ -24,17 +29,20 @@ export class TruTechClient {
     component: 'TruTechClient'
   });
 
-  constructor() {
-
-    const config = getEnvConfig();
-
+  /**
+   * @param config Optional per-tenant config. If omitted, uses global env (TRU_TECH_BASE_URL, TRU_TECH_API_KEY).
+   */
+  constructor(config?: TruTechClientConfig) {
+    const baseUrl = config?.baseURL ?? getEnvConfig().TRU_TECH_BASE_URL;
+    const apiKey = config?.apiKey ?? getEnvConfig().TRU_TECH_API_KEY;
+    const timeoutMs = config?.timeoutMs ?? getEnvConfig().TRU_TECH_TIMEOUT_MS;
     this.client = axios.create({
-      baseURL: config.TRU_TECH_BASE_URL,
-      timeout: config.TRU_TECH_TIMEOUT_MS,
+      baseURL: baseUrl,
+      timeout: timeoutMs,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.TRU_TECH_API_KEY}`,
-        token: config.TRU_TECH_API_KEY
+        Authorization: `Bearer ${apiKey}`,
+        token: apiKey
       }
     });
 
@@ -337,12 +345,39 @@ export class TruTechClient {
 
 let truTechClientInstance: TruTechClient | null = null;
 
-export function getTruTechClient(): TruTechClient {
+const tenantClientCache: Map<string, TruTechClient> = new Map();
 
+/**
+ * Default TruTech client singleton using global env configuration.
+ * Existing callers remain unchanged and use this instance.
+ */
+export function getTruTechClient(): TruTechClient {
   if (!truTechClientInstance) {
     truTechClientInstance = new TruTechClient();
   }
-
   return truTechClientInstance;
+}
 
+/**
+ * Tenant-aware TruTech client. Uses TENANT_HMS_CONFIG when set (JSON map of tenantId → { baseUrl, apiKey }).
+ * Falls back to global TRU_TECH_BASE_URL and TRU_TECH_API_KEY when tenant is not in the map.
+ * Clients are cached per tenantId.
+ */
+export function getTruTechClientForTenant(tenantId: string): TruTechClient {
+  let client = tenantClientCache.get(tenantId);
+  if (!client) {
+    const tenantConfig: TenantHmsConfig = getTenantHmsConfig(tenantId);
+    client = new TruTechClient({
+      baseURL: tenantConfig.baseUrl,
+      apiKey: tenantConfig.apiKey,
+      timeoutMs: tenantConfig.timeoutMs,
+    });
+    tenantClientCache.set(tenantId, client);
+    baseLogger.debug({
+      event: 'trutech_client_resolve_tenant',
+      tenantId,
+      baseUrl: tenantConfig.baseUrl,
+    });
+  }
+  return client;
 }

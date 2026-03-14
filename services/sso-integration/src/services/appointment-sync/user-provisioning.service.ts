@@ -17,6 +17,23 @@ export class UserProvisioningService {
     this.ssoUserServiceClient = getSSOUserServiceClient();
   }
 
+  /**
+   * Lookup doctor by external id only. Used by appointmentProcessor to decide
+   * whether to enqueue to DoctorProvisionQueue (when null) or continue processing.
+   */
+  async getDoctorIfExists(
+    appointment: Appointment,
+    context: SSORequestContext,
+  ): Promise<CreatedUserInfo | null> {
+    const doctorExternalId = String(appointment.doctor.id);
+    const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
+      { externalId: doctorExternalId },
+      context,
+    );
+    if (!existingUser) return null;
+    return existingUser as unknown as CreatedUserInfo;
+  }
+
   async getOrCreateDoctor(
     appointment: Appointment,
     context: SSORequestContext,

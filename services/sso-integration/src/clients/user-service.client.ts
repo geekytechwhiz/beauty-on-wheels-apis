@@ -201,7 +201,7 @@ export class SSOUserServiceClient extends BaseClient {
     console.log('createPatient user', user);
 
     return {
-      userId: String(user?.id),
+      userId: String(user?.invitedUser),
       email: user.email,
       externalUserId: externalUserId,
       organizationId,

@@ -3,12 +3,13 @@ import {
   createPerformanceTimer,
   serializeError,
 } from '@api-hub/logger';
-import { Appointment, PatientEMRSummary } from '../../types';
+import { Appointment, AppointmentStatus, PatientEMRSummary } from '../../types';
 import { SSOError } from '../../types/errors/sso-error';
 import { appendSuffixToContacts } from '../../utils/helper';
 import { getTruTechClientForTenant } from '../../clients/tru-tech.clients'; 
 import { TruTechAdapter } from '../../adapters/trutech.adapter.ts';
 import { TruTechPatientEMRResponse } from '../../types/external/trutech.types';
+import { VisitStatus, VisitType } from '../../types/enums';
 
 type TruTechClient = {
   getAppointmentsForDoctorsInRange: (
@@ -96,15 +97,51 @@ export class HmsAppointmentService {
         });
         return [];
       }
-      let mappedAppointments: Appointment[] = [];
-      const isPendingAppointmentBypassEnabled = (): boolean =>
-        process.env.BYPASS_SUFFIX_APPOINTMENTS === 'true';
-      if (isPendingAppointmentBypassEnabled()) {
-        mappedAppointments = this.truTechAdapter.mapAppointments(response.appointments as any[]);
-      } else {
-        const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, 'c');
-        mappedAppointments = this.truTechAdapter.mapAppointments(appointmentsWithSuffix as any[]);
-      }
+      const mappedAppointments: Appointment[] =  [  
+        {
+            "appointmentId": 80,
+            "startTime": "2026-03-14T17:00:00.000000Z",
+            "endTime": "2026-03-14T17:15:00.000000Z",
+            "status": AppointmentStatus.SCHEDULED,
+            "notes": null,
+            "patient": {
+                "id": 123,
+                "mrn": "MR0002195",
+                "name": "Suhas M",
+                "gender": "Male",
+                "age": "26 years",
+                "dob": null,
+                "phone": "9073421399",
+                "email": null
+            },
+            "doctor": {
+                "id": 123,
+                "name": "ABDUL RASHID AHMED",
+                "department": "GENERAL DOCTORS",
+                "phone": "123456789",
+                "email": "abc@yopmail.com"
+            },
+            "consultationType": {
+                "id": 208,
+                "name": "Test Consultation"
+            },
+            "visit": {
+                "id": 1091,
+                "visitType": VisitType.TELECONSULTATION,
+                "createdAt": "2026-03-14T08:57:01.000000Z",
+                "status": VisitStatus.ACTIVE
+            }
+        }
+    ]
+      // mappedAppointments = this.truTechAdapter.mapAppointments(response.appointments as any[]);
+      // const isPendingAppointmentBypassEnabled = (): boolean =>
+      //   process.env.BYPASS_SUFFIX_APPOINTMENTS === 'true';
+      // if (isPendingAppointmentBypassEnabled()) {
+      //   mappedAppointments = this.truTechAdapter.mapAppointments(response.appointments as any[]);
+      // } else {
+      //   const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, 'c');
+      //   mappedAppointments = this.truTechAdapter.mapAppointments(appointmentsWithSuffix as any[]);
+      // }
 
       logger.info({
         event: 'hms_get_appointments_for_doctors_in_range_success',

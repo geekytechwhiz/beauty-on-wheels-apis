@@ -8,12 +8,7 @@ import {
   PatientCreationPayload,
 } from '../types/user-creation.type';
 import { User } from '../types/user/user.types';
-import {
-  getCachedUserId,
-  getOrganizationId,
-  loadTenantDetails,
-  setCachedUserId,
-} from '../utils/helper';
+import { getOrganizationId } from '../utils/helper';
 import { buildServiceHeaders } from '../utils/request.utils';
 import { BaseClient } from '@api-hub/service-clients';
 import { CreatedUserInfo } from '../types/user/user.types';
@@ -26,120 +21,40 @@ export class SSOUserServiceClient extends BaseClient {
     params: { externalId: string },
     context: SSORequestContext,
   ): Promise<User | null> {
-    console.log('findUserByExternalId context', context);
     const externalUserId = params.externalId;
     const subdomain = context.integration.subdomain;
-    const tenantDetails = loadTenantDetails(subdomain);
-    const { organizationId } = tenantDetails;
-    const cachedUserId = getCachedUserId(subdomain, externalUserId);
-    const cacheHit = !!cachedUserId;
 
     console.info('findUserByExternalId_lookup', {
       externalUserId,
-      organizationId,
       subdomain,
-      cacheHit,
     });
 
     try {
-      if (!organizationId) {
-        console.warn('findUserByExternalId_organization_missing', {
+      const response = await this.client.get<User>('/users/external', {
+        params: {
+          tenant: subdomain,
+          provider: context.integration.providerId,
           externalUserId,
-          subdomain,
+        },
+        headers: buildServiceHeaders(context),
+      });
+
+      const user = response.data ?? null;
+
+      if (!user?.id) {
+        console.info('findUserByExternalId_service_not_found', {
+          externalUserId,
+          tenant: subdomain,
         });
+        return null;
       }
 
-      // 1️⃣ If cache hit and we have an organization, try org+userId fetch first
-      if (organizationId && cachedUserId) {
-        const url = `/user/organization/${organizationId}/${cachedUserId}`;
+      console.info('findUserByExternalId_success', {
+        externalUserId,
+        userId: user.id,
+      });
 
-        console.info('findUserByExternalId_cache_hit', {
-          externalUserId,
-          organizationId,
-          userId: cachedUserId,
-        });
-
-        try {
-          const response = await this.client<User>(url, {
-            headers: buildServiceHeaders(context),
-          });
-
-          const user = response?.data ?? null;
-
-          if (user?.id) {
-            return user;
-          }
-
-          console.warn('findUserByExternalId_cache_stale', {
-            externalUserId,
-            organizationId,
-            userId: cachedUserId,
-          });
-        } catch (error) {
-          if (axios.isAxiosError(error) && error.response?.status === 404) {
-            console.warn('findUserByExternalId_cache_hit_404', {
-              externalUserId,
-              organizationId,
-              userId: cachedUserId,
-            });
-          } else {
-            throw error;
-          }
-        }
-      } else {
-        console.info('findUserByExternalId_cache_miss', {
-          externalUserId,
-          organizationId,
-        });
-      }
-
-      // 2️⃣ Fallback: query user-service by external identity mapping
-      try {
-        const provider = (context.integration.providerId || 'hms')
-          .toString()
-          .toLowerCase();
-        console.log('findUserByExternalId provider', provider);
-        console.log('findUserByExternalId context.integration.providerId', context.integration.providerId);
-        const response = await this.client.get<User>('/users/external', {
-          params: {
-            tenant: subdomain,
-            provider: context.integration.providerId ,
-            externalUserId,
-          },
-          headers: buildServiceHeaders(context),
-        });
-
-        const user = response.data ?? null;
-
-        if (!user?.id) {
-          console.info('findUserByExternalId_service_not_found', {
-            externalUserId,
-            tenant: subdomain,
-            provider,
-          });
-          return null;
-        }
-
-        setCachedUserId(subdomain, externalUserId, String(user.id));
-
-        console.info('findUserByExternalId_cache_update', {
-          externalUserId,
-          organizationId,
-          userId: user.id,
-        });
-
-        return user;
-      } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
-          console.info('findUserByExternalId_service_404', {
-            externalUserId,
-            tenant: subdomain,
-          });
-          return null;
-        }
-
-        throw error;
-      }
+      return user;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         console.log('findUserByExternalId error', serializeError(error as Error));
@@ -212,41 +127,18 @@ export class SSOUserServiceClient extends BaseClient {
     context: SSORequestContext,
   ): Promise<CreatedUserInfo> {
     const subdomain = context.integration.subdomain;
-    const organizationId = getOrganizationId(subdomain);
     const externalUserId = payload.externalIdentity?.externalUserId;
-
-    const logBase = { externalUserId, organizationId, subdomain };
+    const logBase = { externalUserId, subdomain };
 
     try {
-      const created = await this.createDoctor(payload, context);
-
-      if (organizationId && externalUserId && created.userId) {
-        setCachedUserId(subdomain, externalUserId, created.userId);
-        console.info('createDoctor_cache_update', {
-          ...logBase, 
-          ...created,
-        });
-      }
-
-      return created;
+      return await this.createDoctor(payload, context);
     } catch (err) {
       if ((err as any).code === 'ECONNABORTED') {
         console.warn('createDoctor_timeout_retry', {
           ...logBase,
           retryAttempt: 1,
         });
-
-        const created = await this.createDoctor(payload, context);
-
-        if (organizationId && externalUserId && created.userId) {
-          setCachedUserId(subdomain, externalUserId, created.userId);
-          console.info('createDoctor_cache_update', {
-            ...logBase,
-            userId: created.userId,
-          });
-        }
-
-        return created;
+        return this.createDoctor(payload, context);
       }
 
       if (
@@ -269,7 +161,8 @@ export class SSOUserServiceClient extends BaseClient {
             ...logBase,
             doctorUserId: existingUser.id,
           });
-          const normalized: CreatedUserInfo = {
+          const organizationId = getOrganizationId(subdomain);
+          return {
             userId: String(existingUser.id),
             email:
               existingUser.email ??
@@ -277,18 +170,8 @@ export class SSOUserServiceClient extends BaseClient {
               payload.userInfo?.contact?.email ??
               null,
             externalUserId,
-            organizationId: organizationId  
+            organizationId,
           };
-
-          if (organizationId && externalUserId && normalized.userId) {
-            setCachedUserId(subdomain, externalUserId, normalized.userId);
-            console.info('createDoctor_cache_update', {
-              ...logBase,
-              userId: normalized.userId,
-            });
-          }
-
-          return normalized;
         }
 
         console.warn('createDoctor_conflict_no_existing_user_found', {
@@ -304,11 +187,10 @@ export class SSOUserServiceClient extends BaseClient {
     payload: PatientCreationPayload,
     context: SSORequestContext,
   ): Promise<CreatedUserInfo> {
-    const subdomain = context.integration.subdomain; 
+    const subdomain = context.integration.subdomain;
     const externalUserId = payload.externalIdentity?.externalUserId;
+    const organizationId = getOrganizationId(subdomain);
 
-    const logBase = { externalUserId,  subdomain };
-    const organizationId= getOrganizationId(subdomain);
     console.log('createPatient payload', JSON.stringify(payload));
 
     const response = await this.client.post<{ data: User }>('/user', payload, {
@@ -317,19 +199,12 @@ export class SSOUserServiceClient extends BaseClient {
 
     const user = response.data.data;
     console.log('createPatient user', user);
-    if (organizationId && externalUserId && user?.id) {
-      setCachedUserId(subdomain, externalUserId, String(user.id));
-      console.info('createPatient_cache_update', {
-        ...logBase,
-        userId: user.id,
-      });
-    }
 
     return {
       userId: String(user?.id),
       email: user.email,
       externalUserId: externalUserId,
-      organizationId: organizationId
+      organizationId,
     } as CreatedUserInfo;
   }
 

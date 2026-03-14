@@ -17,9 +17,8 @@ export function mapPatientEventToCreateUserPayload(
   const gender = patient.gender ?? "";
   const dob = patient.dob ?? "";
   const email = (patient.email ?? "") || "";
-  const phone = (patient.phone ?? "") || "";
-  const phoneCode = patient.phoneCode ?? PHONE_CODE.SOUTH_AFRICA;
-
+  const phone = (patient.phone ?? "") || ""; 
+  const now = Date.now();
   const medicalHistory =
     (patient.medicalHistory as {
       allergies?: unknown[];
@@ -36,14 +35,14 @@ export function mapPatientEventToCreateUserPayload(
   return {
     invite: phone ? "phone" : "email",
     userInfo: {
-      name,
+      name : name ?? "",
       namePrefix: patient.namePrefix ?? "",
-      gender,
-      dateOfBirth: dob,
+      gender : gender ?? "",
+      dateOfBirth: dob ?? "",
       contact: {
-        email,
-        phone,
-        phoneCode,
+        email: email ?? "",
+        phone: phone ?? "",
+        phoneCode:   PHONE_CODE.SOUTH_AFRICA,
       },
       emergencyContact,
       medicalHistory: {
@@ -51,13 +50,7 @@ export function mapPatientEventToCreateUserPayload(
         chronicDiseases: medicalHistory.chronicDiseases ?? [],
         symptoms: medicalHistory.symptoms ?? [],
       },
-      friendNFamily: {
-        name: "",
-        relation: "",
-        phone: "",
-        phoneCode: PHONE_CODE.SOUTH_AFRICA,
-        email: "",
-      },
+      friendNFamily: { },
     },
     userRole: [tenant.patientRoleId],
     userType: "USER",
@@ -69,7 +62,7 @@ export function mapPatientEventToCreateUserPayload(
       sourceSystem: SourceSystem.HMS,
       provider: provider || tenant.provider,
     },
-    // createdDate: now,
-    // modifiedDate: now,
+    createdDate: now,
+    modifiedDate: now,
   };
 }

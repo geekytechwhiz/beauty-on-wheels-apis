@@ -131,7 +131,7 @@ export class TruTechAdapter {
 
       patient: {
         age: appt.patient ? appt.patient.age : null,
-        id: appt.patient.id,
+        id: appt.patient ? appt.patient.id : null,
         mrn: appt.patient ? appt.patient.mrn : '',
         name: appt.patient ? appt.patient.name : '',
         gender: appt.patient ? appt.patient.gender : '',
@@ -151,15 +151,15 @@ export class TruTechAdapter {
       } as Doctor,
 
       consultationType: {
-        id: appt.consultation_type.id,
-        name: appt.consultation_type.name,
+        id: appt.consultation_type?.id ?? null,
+        name: appt.consultation_type?.name ?? '',
       } as ConsultationType,
 
       visit: {
-        id: appt.visit.id,
-        visitType: appt.visit.visit_type as any,
-        createdAt: appt.visit.created_at,
-        status: appt.visit.status as any,
+        id: appt.visit?.id ?? null,
+        visitType: (appt.visit?.visit_type ?? null) as any,
+        createdAt: appt.visit?.created_at ?? null,
+        status: (appt.visit?.status ?? null) as any,
       } as Visit,
     };
   }

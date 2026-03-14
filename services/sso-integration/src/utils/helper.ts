@@ -115,7 +115,7 @@ export function appendSuffixToContacts<T extends any[]>(
           // Append suffix to phone number
           if (updated.doctor.phone) {
             // updated.doctor.phone = `${updated.doctor.phone}${suffix}`;
-            updated.doctor.id = `${updated.doctor.id}${suffix}`;
+            updated.doctor.id = `${updated?.doctor?.id}${suffix}`;
           }
 
           // Append suffix to email before the domain

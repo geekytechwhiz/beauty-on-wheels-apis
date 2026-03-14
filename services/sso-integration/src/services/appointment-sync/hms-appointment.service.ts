@@ -99,24 +99,21 @@ export class HmsAppointmentService {
       let mappedAppointments: Appointment[] = [];
       const isPendingAppointmentBypassEnabled = (): boolean =>
         process.env.BYPASS_SUFFIX_APPOINTMENTS === 'true';
-      if(isPendingAppointmentBypassEnabled()) {
+      if (isPendingAppointmentBypassEnabled()) {
         mappedAppointments = this.truTechAdapter.mapAppointments(response.appointments as any[]);
-      }
-      else{
-        const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, "c");  
+      } else {
+        const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, 'c');
         mappedAppointments = this.truTechAdapter.mapAppointments(appointmentsWithSuffix as any[]);
       }
- 
-      const mapped = this.truTechAdapter.mapAppointments(mappedAppointments as any[]);
 
       logger.info({
         event: 'hms_get_appointments_for_doctors_in_range_success',
-        appointmentCount: mapped.length,
+        appointmentCount: mappedAppointments.length,
         startDate,
         endDate,
       });
 
-      return mapped;
+      return mappedAppointments;
     } catch (error) {
       timer.end();
 

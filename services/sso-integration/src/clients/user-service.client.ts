@@ -301,7 +301,7 @@ export class SSOUserServiceClient extends BaseClient {
   async createPatient(
     payload: PatientCreationPayload,
     context: SSORequestContext,
-  ): Promise<User> {
+  ): Promise<CreatedUserInfo> {
     const subdomain = context.integration.subdomain; 
     const externalUserId = payload.externalIdentity?.externalUserId;
 

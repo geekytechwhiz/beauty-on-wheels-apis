@@ -6,7 +6,9 @@ import {
 import { Appointment, PatientEMRSummary } from '../../types';
 import { SSOError } from '../../types/errors/sso-error';
 import { appendSuffixToContacts } from '../../utils/helper';
-import { getTruTechClientForTenant } from '../../clients/tru-tech.clients';
+import { getTruTechClientForTenant } from '../../clients/tru-tech.clients'; 
+import { TruTechAdapter } from '../../adapters/trutech.adapter.ts';
+import { TruTechPatientEMRResponse } from '../../types/external/trutech.types';
 
 type TruTechClient = {
   getAppointmentsForDoctorsInRange: (
@@ -27,21 +29,16 @@ type TruTechClient = {
     correlationId: string,
   ) => Promise<{ emr?: unknown[] }>;
 };
-
-type TruTechAdapter = {
-  mapAppointments: (appointments: unknown[]) => Appointment[];
-  mapPatientEMRSummary: (
-    response: unknown,
-    patientId: number,
-  ) => PatientEMRSummary;
-};
+ 
 
 export class HmsAppointmentService {
   constructor(
     private readonly truTechClient: TruTechClient,
     private readonly truTechAdapter: TruTechAdapter,
     private readonly logger: any,
-  ) {}
+  ) {
+    this.truTechAdapter = new TruTechAdapter();
+  }
 
   /**
    * @param tenantId Optional. When provided, uses per-tenant HMS config (getTruTechClientForTenant).
@@ -103,16 +100,14 @@ export class HmsAppointmentService {
       const isPendingAppointmentBypassEnabled = (): boolean =>
         process.env.BYPASS_SUFFIX_APPOINTMENTS === 'true';
       if(isPendingAppointmentBypassEnabled()) {
-        mappedAppointments = this.truTechAdapter.mapAppointments(response.appointments || []);
+        mappedAppointments = this.truTechAdapter.mapAppointments(response.appointments as any[]);
       }
       else{
         const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, "c");  
-        mappedAppointments = this.truTechAdapter.mapAppointments(appointmentsWithSuffix || []);
+        mappedAppointments = this.truTechAdapter.mapAppointments(appointmentsWithSuffix as any[]);
       }
-     
-      const mapped = this.truTechAdapter.mapAppointments(
-        mappedAppointments || [],
-      );
+ 
+      const mapped = this.truTechAdapter.mapAppointments(mappedAppointments as any[]);
 
       logger.info({
         event: 'hms_get_appointments_for_doctors_in_range_success',
@@ -158,7 +153,7 @@ export class HmsAppointmentService {
       doctorId,
       correlationId,
     );
-    return this.truTechAdapter.mapAppointments(response.appointments || []);
+    return this.truTechAdapter.mapAppointments(response.appointments as any[]);
   }
 
   async getPatientEMRSummary(
@@ -199,7 +194,7 @@ export class HmsAppointmentService {
       });
 
       return this.truTechAdapter.mapPatientEMRSummary(
-        truTechPatientEMRResponse,
+        truTechPatientEMRResponse as TruTechPatientEMRResponse,
         patientId,
       );
     } catch (error) {

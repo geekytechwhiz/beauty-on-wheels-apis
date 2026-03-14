@@ -95,16 +95,16 @@ export function appendSuffixToContacts<T extends any[]>(
          */
         if (updated.patient) {
           // Append suffix to phone number
-          if (updated.patient.phone) {
-            // updated.patient.phone = `${updated.patient.phone}${suffix}`;
-            updated.patient.id = `${updated.patient.id}${suffix}`;
+          if (updated?.patient?.phone) {
+            // updated?.patient?.phone = `${updated?.patient?.phone}${suffix}`;
+            updated.patient.id = `${updated?.patient?.id}${suffix}`;
           }
 
           // Append suffix to email before the domain
-          // if (updated.patient.email && updated.patient.email.includes("@")) {
-          //   const [name, domain] = updated.patient.email.split("@");
-          //   // updated.patient.email = `${name}${suffix}@${domain}`;
-          //   // updated.patient.id = `${updated.patient.id}${suffix}`;
+          // if (updated?.patient?.email && updated?.patient?.email.includes("@")) {
+          //   const [name, domain] = updated?.patient?.email.split("@");
+          //   // updated?.patient?.email = `${name}${suffix}@${domain}`;
+          //   // updated?.patient?.id = `${updated?.patient?.id}${suffix}`;
           // } 
         }
 

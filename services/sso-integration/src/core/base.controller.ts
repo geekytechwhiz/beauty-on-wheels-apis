@@ -1,17 +1,16 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import {
   createChildLogger,
   createLogger,
   extractCorrelationId,
-  serializeError,
-  Logger
+  Logger,
+  serializeError
 } from '@api-hub/logger'
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 
 import { ApiResponse } from '@api-hub/utils'
 
-    import { SSOError } from '../types/errors/sso-error'  
-import { PROVIDER, SUBDOMAIN, SOURCE_SYSTEM } from '../utils/constants'  
-import { SourceSystem, SSORequestContext } from '../types/common/context.types'
+    import { SSORequestContext } from '../types/common/context.types'
+import { SSOError } from '../types/errors/sso-error'
 import { buildSSORequestContext } from '../utils/context-builder.util'
 
 const baseLogger = createLogger({

@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['dev', 'stg', 'prd', 'development', 'staging', 'production']).default('dev'),
+  NODE_ENV: z
+    .enum(['dev', 'stg', 'prd', 'development', 'staging', 'production'])
+    .default('dev'),
   SERVICE_NAME: z.string().default('sso-integration'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 
@@ -17,23 +19,22 @@ const envSchema = z.object({
     .string()
     .url('SCHEDULE_SERVICE_API_URL must be a valid URL')
     .default('https://schedule-service.example.com'),
-  SCHEDULE_SERVICE_API_TIMEOUT_MS: z
-    .coerce.number(),
-  
+  SCHEDULE_SERVICE_API_TIMEOUT_MS: z.coerce.number(),
+
   // Package/Service API configuration (for service-based schedule creation)
   PACKAGE_SERVICE_API_URL: z
     .string()
     .url('PACKAGE_SERVICE_API_URL must be a valid URL')
     .min(1, 'PACKAGE_SERVICE_API_URL is required'),
-  PACKAGE_SERVICE_API_TIMEOUT_MS: z
-    .coerce.number() ,
+  PACKAGE_SERVICE_API_TIMEOUT_MS: z.coerce.number(),
 
-  USER_SERVICE_BASE_URL: z.string().url('USER_SERVICE_BASE_URL must be a valid URL'),
+  USER_SERVICE_BASE_URL: z
+    .string()
+    .url('USER_SERVICE_BASE_URL must be a valid URL'),
 
-
-  ROLE_SERVICE_BASE_URL: z.string().url('ROLE_SERVICE_BASE_URL must be a valid URL'), 
-
- 
+  ROLE_SERVICE_BASE_URL: z
+    .string()
+    .url('ROLE_SERVICE_BASE_URL must be a valid URL'),
 
   // Static service token used for internal service-to-service communication
   // (e.g. SSO → Schedule Service, User Service). This should be provisioned
@@ -48,8 +49,21 @@ const envSchema = z.object({
   // Appointment sync configuration
   APPOINTMENT_SYNC_MAX_RETRIES: z.coerce.number().min(1).default(3),
   APPOINTMENT_SYNC_RETRY_DELAY_MS: z.coerce.number().min(100).default(1000),
-  APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: z.coerce.number().min(1000).default(10000),
+  APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: z.coerce
+    .number()
+    .min(1000)
+    .default(10000),
   APPOINTMENT_SYNC_CONCURRENCY_LIMIT: z.coerce.number().min(1).default(5),
+
+  DOCTOR_ROLE_ID: z.string().min(1, 'DOCTOR_ROLE_ID is required'),
+
+  PATIENT_ROLE_ID: z.string().min(1, 'PATIENT_ROLE_ID is required'),
+
+  SUBDOMAIN: z.string().min(1, 'SUBDOMAIN is required'),
+  PROVIDER: z.string().min(1, 'PROVIDER is required'),
+  SSO_DEFAULT_ORGANIZATION_ID: z
+    .string()
+    .min(1, 'SSO_DEFAULT_ORGANIZATION_ID is required'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

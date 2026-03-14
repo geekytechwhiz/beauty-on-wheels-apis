@@ -20,7 +20,6 @@ import {
 
 import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
 
-import { CONSTANTS } from '../utils/constants';
 import { getOrganizationId } from '../utils/helper';
 
 import { HmsAppointmentService } from './appointment-sync/hms-appointment.service';
@@ -464,14 +463,14 @@ export class AppointmentSyncService extends BaseService {
     if (!cognitoUser) {
       if (!userServicePatient) {
         try {
-          let organizationID = CONSTANTS.ORGANIZATION_ID;
+          let organizationID = getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
           const subdomain = context.integration?.subdomain;
           if (subdomain) {
             try {
               organizationID =
-                getOrganizationId(subdomain) ?? CONSTANTS.ORGANIZATION_ID;
+                getOrganizationId(subdomain) ?? getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
             } catch {
-              organizationID = CONSTANTS.ORGANIZATION_ID;
+              organizationID = getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
             }
           }
           const provider =
@@ -542,7 +541,7 @@ export class AppointmentSyncService extends BaseService {
     }
 
     const organizationId =
-      cognitoUser.organizationId ?? CONSTANTS.ORGANIZATION_ID;
+      cognitoUser.organizationId ?? getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
     const doctorUserId = String(doctor.userId);
     const patientUserId = String(cognitoUser.userId);
 

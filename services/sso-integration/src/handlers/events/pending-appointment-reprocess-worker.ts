@@ -31,6 +31,29 @@ export async function handler(
   });
 
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
+
+  if (process.env.BYPASS_PENDING_APPOINTMENT === 'true') {
+    for (const record of event.Records) {
+      try {
+        const body = JSON.parse(record.body) as PendingReprocessMessage;
+        const { tenantId, patientExternalId, correlationId } = body;
+        logger.info({
+          event: 'pending_appointment_reprocess_bypassed',
+          message: 'Pending appointment reprocessing bypassed',
+          tenantId: tenantId ?? 'unknown',
+          patientExternalId: patientExternalId ?? 'unknown',
+          correlationId: correlationId ?? undefined,
+        });
+      } catch {
+        logger.info({
+          event: 'pending_appointment_reprocess_bypassed',
+          message: 'Pending appointment reprocessing bypassed',
+        });
+      }
+    }
+    return { batchItemFailures };
+  }
+
   const scheduleClient = getScheduleServiceClient();
   const queueUrl = process.env.APPOINTMENT_SYNC_QUEUE_URL;
   if (!queueUrl) {

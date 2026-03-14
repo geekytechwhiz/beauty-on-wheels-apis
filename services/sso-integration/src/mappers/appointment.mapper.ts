@@ -7,7 +7,7 @@ import {
 } from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
 import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
-import { CONSTANTS } from '../utils/constants';
+import { getEnvConfig } from '../config/env';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
     appointment: Appointment,
@@ -110,8 +110,8 @@ export class AppointmentMapper {
     
 
     return {
-      organizationId: doctorOrganizationId ?? CONSTANTS.ORGANIZATION_ID,
-      assignOrgId: doctorOrganizationId ?? context?.integration.subdomain,
+      organizationId: doctorOrganizationId ?? getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID,
+      assignOrgId: doctorOrganizationId ?? getEnvConfig().SUBDOMAIN,
       serviceType: 'addon',
       listingType: 'recommended',
       featureKey: 'doctor_consultancy',

@@ -17,6 +17,9 @@ type UserServiceClient = {
   ) => Promise<User | null>;
 };
 
+const isPendingAppointmentBypassEnabled = (): boolean =>
+  process.env.BYPASS_PENDING_APPOINTMENT === 'true';
+
 export class PendingAppointmentService {
   constructor(
     private readonly scheduleClient: ScheduleServiceClient,
@@ -33,6 +36,17 @@ export class PendingAppointmentService {
     pending: PendingAppointment,
     context: SSORequestContext,
   ): Promise<void> {
+    if (isPendingAppointmentBypassEnabled()) {
+      this.logger.info({
+        event: 'pending_appointment_storage_bypassed',
+        message: 'Pending appointment storage bypassed (testing mode)',
+        correlationId: context.correlationId,
+        tenantId,
+        appointmentExternalId: pending.externalAppointmentId,
+        patientExternalId: pending.patientExternalId,
+      });
+      return;
+    }
     this.logger.info({
       event: 'pending_appointment_added',
       correlationId: context.correlationId,
@@ -51,6 +65,16 @@ export class PendingAppointmentService {
     patientExternalId: string,
     context: SSORequestContext,
   ): Promise<PendingAppointment[]> {
+    if (isPendingAppointmentBypassEnabled()) {
+      this.logger.info({
+        event: 'pending_appointment_retrieve_bypassed',
+        message: 'BYPASS_PENDING_APPOINTMENT enabled — skipping pending retrieve',
+        correlationId: context.correlationId,
+        tenantId,
+        patientExternalId,
+      });
+      return [];
+    }
     return this.scheduleClient.getPendingAppointmentsByPatient(
       tenantId,
       patientExternalId,
@@ -64,6 +88,17 @@ export class PendingAppointmentService {
     externalAppointmentId: string,
     context: SSORequestContext,
   ): Promise<void> {
+    if (isPendingAppointmentBypassEnabled()) {
+      this.logger.info({
+        event: 'pending_appointment_remove_bypassed',
+        message: 'BYPASS_PENDING_APPOINTMENT enabled — skipping pending remove',
+        correlationId: context.correlationId,
+        tenantId,
+        appointmentExternalId: externalAppointmentId,
+        patientExternalId,
+      });
+      return;
+    }
     await this.scheduleClient.removePendingAppointment(
       tenantId,
       patientExternalId,

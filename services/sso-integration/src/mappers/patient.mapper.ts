@@ -1,8 +1,9 @@
 import { Appointment, SSORequestContext } from '../types';
  
-import { PATIENT_ROLE_ID, PHONE_CODE } from '../utils/constants';
+import { getEnvConfig } from '../config/env';
 import { getOrganizationIdBySubdomain, makePrefixFromGender } from '../utils/helper';
 import { PatientCreationPayload } from '../types/user-creation.type';
+import { PHONE_CODE } from '../utils/constants';
 
 export function makePatientCreationPayload(
   appointment: Appointment, 
@@ -29,7 +30,7 @@ export function makePatientCreationPayload(
       },
     },
 
-    userRole:  [PATIENT_ROLE_ID] ,
+    userRole:  [getEnvConfig().PATIENT_ROLE_ID] ,
 
     userType: 'USER',
 

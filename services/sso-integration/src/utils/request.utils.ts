@@ -1,5 +1,5 @@
 import { SSORequestContext } from '../types/common/context.types';
-import { SERVICE_TOKEN_HEADER } from './constants';
+import { getEnvConfig } from '../config/env';
 
 export function buildServiceHeaders(
   context: SSORequestContext
@@ -8,6 +8,6 @@ export function buildServiceHeaders(
 
   return {
     'X-Correlation-Id': context.correlationId,
-    Authorization: `Bearer ${SERVICE_TOKEN_HEADER}`,
+    Authorization: `Bearer ${getEnvConfig().INTERNAL_SERVICE_TOKEN}`,
   };
 }

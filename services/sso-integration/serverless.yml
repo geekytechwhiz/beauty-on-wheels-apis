@@ -25,16 +25,7 @@ provider:
     SERVICE_NAME: ${self:service}
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
 
-    TENANT_MAP: |
-      {
-        "qahms": "mloohjr172854787",
-        "qahms_test_1": "mloohjr172854787"
-      }
-    EXTERNAL_USER_MAP: |
-      {
-        "qahms": {},
-        "qahms_test_1": {}
-      }
+  
 
     # Cognito
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
@@ -43,8 +34,10 @@ provider:
     COGNITO_SSO_COMMON_PASSWORD: Comm@n123
     DOCTOR_ROLE_ID: 4754a869-5a50-4e2e-a9d2-0e0c088d0626
     PATIENT_ROLE_ID: 5e67d7f5-d030-4e85-8c50-3d50e4990460
+    SUBDOMAIN: qahms_test_2
     INTERNAL_SERVICE_TOKEN: b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1
     SSO_DEFAULT_ORGANIZATION_ID: mm1usge33d4f9b61
+    PROVIDER: TRU_TECH_TEST
 
 
     # TruTech HMS (default; overridden per-tenant via TENANT_HMS_CONFIG when set)
@@ -70,6 +63,7 @@ provider:
     PACKAGE_SERVICE_API_TIMEOUT_MS: ${env:PACKAGE_SERVICE_API_TIMEOUT_MS, '60000'}
 
     # Appointment Sync
+    BYPASS_PENDING_APPOINTMENT: ${env:BYPASS_PENDING_APPOINTMENT, 'false'}
     APPOINTMENT_SYNC_MAX_RETRIES: ${env:APPOINTMENT_SYNC_MAX_RETRIES, '3'}
     APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '5000'}
     APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '60000'}

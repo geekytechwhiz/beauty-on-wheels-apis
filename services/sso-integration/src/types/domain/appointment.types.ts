@@ -274,6 +274,11 @@ export interface CreateServiceScheduleRequest {
   longitude?: number;
   action: 'createSchedule';
   paymentSchedule: 'INSTANT' | 'LATER';
+  /** For Scheduler Service idempotency: idempotencyKey = `${tenantId}#${appointmentExternalId}` */
+  tenantId: string;
+  appointmentExternalId: string;
+  doctorUserId: string;
+  patientUserId: string;
 }
 
 export interface ScheduleDetails {

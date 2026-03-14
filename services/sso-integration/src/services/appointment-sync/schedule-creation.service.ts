@@ -126,6 +126,7 @@ export class ScheduleCreationService {
             doctorUser,
             patientUser,
             userAddonId,
+            context,
           );
 
         logger.info({

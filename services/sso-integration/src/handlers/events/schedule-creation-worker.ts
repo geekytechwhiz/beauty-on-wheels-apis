@@ -10,16 +10,10 @@ import { Context, SQSEvent } from 'aws-lambda';
 import { getEnvConfig } from '../../config/env';
 import { getScheduleServiceClient } from '../../clients/schedule-service.client';
 import { getAppointmentMapper } from '../../mappers/appointment.mapper';
-import { AppointmentIdempotencyService } from '../../services/appointment-sync/appointment-idempotency.service';
 import { ScheduleCreationService } from '../../services/appointment-sync/schedule-creation.service';
-import {
-  getScheduleIdempotency,
-  setScheduleIdempotency,
-} from '../../services/appointment-sync/schedule-idempotency-store';
 import type { ScheduleCreationMessage } from '../../types/events/schedule-creation-message.types';
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 import { emitMetric, MetricNames } from '../../utils/metrics.util';
-import { CognitoUserContext } from '../../types/user/user.types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -28,8 +22,8 @@ const baseLogger = createLogger({
 
 /**
  * SQS handler for ScheduleCreationQueue.
- * Creates schedule via ScheduleCreationService with idempotency by appointmentExternalId.
- * Failed messages are reported as batch item failures for SQS retry.
+ * Creates schedule via ScheduleCreationService. Idempotency is enforced by the
+ * Scheduler Service using idempotencyKey = `${tenantId}#${appointmentExternalId}`.
  */
 export async function handler(
   event: SQSEvent,
@@ -49,10 +43,6 @@ export async function handler(
   const scheduleClient = getScheduleServiceClient();
   const appointmentMapper = getAppointmentMapper();
   const env = getEnvConfig();
-  const appointmentIdempotencyService = new AppointmentIdempotencyService(
-    scheduleClient,
-    logger,
-  );
   const scheduleCreationService = new ScheduleCreationService(
     scheduleClient,
     appointmentMapper,
@@ -100,61 +90,10 @@ export async function handler(
         correlationId,
       );
 
-      const existingIdempotency = await getScheduleIdempotency(
-        tenantId,
-        appointmentExternalId,
-        requestContext,
-      );
-      if (existingIdempotency) {
-        logger.info({
-          event: 'schedule_creation_worker_idempotency_skip',
-          recordId,
-          tenantId,
-          appointmentExternalId,
-          correlationId,
-          scheduleId: existingIdempotency.scheduleId,
-        });
-        continue;
-      }
-
-      const doctorAsCognito: CognitoUserContext = {
-        principalId: doctor.userId,
-        userId: doctor.userId,
-        organizationId: doctor.organizationId,
-        userType: 'STAFF', 
-        roles: [],
-        permissions: [],
-        authType: 'USER',
-      };
-
-      const isDuplicate = await appointmentIdempotencyService.checkDuplicateSchedule(
-        appointment,
-        doctorAsCognito,
-        patientUser,
-        requestContext,
-      );
-
-      if (isDuplicate) {
-        logger.info({
-          event: 'schedule_creation_worker_duplicate_skipped',
-          recordId,
-          appointmentExternalId,
-          correlationId,
-        });
-        continue;
-      }
-
       const schedule = await scheduleCreationService.createServiceScheduleWithRetry(
         appointment,
         doctor,
         patientUser,
-        requestContext,
-      );
-
-      await setScheduleIdempotency(
-        tenantId,
-        appointmentExternalId,
-        schedule.scheduleId,
         requestContext,
       );
 

@@ -6,7 +6,7 @@ import {
   ScheduleCreateRequest,
 } from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
-import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
+import { CreatedUserInfo } from '../types/user/user.types';
 import { loadTenantDetails } from '../utils/helper';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
@@ -152,15 +152,17 @@ export class AppointmentMapper {
   }
 
   /**
-   * Maps appointment to CreateServiceScheduleRequest
+   * Maps appointment to CreateServiceScheduleRequest.
+   * Includes tenantId, appointmentExternalId, doctorUserId, patientUserId for Scheduler Service idempotency
+   * (idempotencyKey = `${tenantId}#${appointmentExternalId}`).
    */
   mapAppointmentToCreateServiceSchedule(
     appointment: Appointment,
     doctorUser: CreatedUserInfo,
     patientUser: User,
     userAddonId: string,
+    context: SSORequestContext,
   ): CreateServiceScheduleRequest {
-      
     const startTime = this.formatTime12Hour(appointment.startTime);
     const endTime = this.formatTime12Hour(appointment.endTime);
     const scheduleDate = this.formatDateDDMMYYYY(appointment.startTime);
@@ -170,33 +172,39 @@ export class AppointmentMapper {
       appointment.endTime,
     );
 
-    // Extract doctor information
     const doctorName = appointment.doctor.name || '';
     const doctorEmail = appointment.doctor.email || '';
     const doctorSpecialty = appointment.doctor.department || 'general';
-
-    // Extract patient information
     const patientName = appointment.patient.name || '';
     const patientEmail = appointment.patient.email || '';
 
+    const tenantId = context.integration?.subdomain ?? context.tenantId ?? '';
+    const appointmentExternalId = String(appointment.appointmentId);
+    const doctorUserId = String(doctorUser.userId);
+    const patientUserId = String(patientUser.id);
+
     return {
       serviceType: 'addon',
-      userAddonId: userAddonId,
-      userId: String(patientUser.id),
+      userAddonId,
+      userId: patientUserId,
       userName: patientName,
       userEmail: patientEmail,
-      staffId: String(doctorUser.userId),
+      staffId: doctorUserId,
       staffName: doctorName,
       staffEmail: doctorEmail,
       staffSpecialty: doctorSpecialty,
-      startTime: startTime,
-      endTime: endTime,
-      duration: duration,
-      scheduleDate: scheduleDate,
-      scheduleTimeStamp: scheduleTimeStamp,
+      startTime,
+      endTime,
+      duration,
+      scheduleDate,
+      scheduleTimeStamp,
       scheduleType: 'ONLINE',
       action: 'createSchedule',
       paymentSchedule: 'INSTANT',
+      tenantId,
+      appointmentExternalId,
+      doctorUserId,
+      patientUserId,
     };
   }
 }

@@ -2,12 +2,14 @@ import { createChildLogger } from '@api-hub/logger';
 
 import { Appointment, User } from '../../types';
 import { SSORequestContext } from '../../types/common/context.types';
-import { makePatientCreationPayload } from '../../mappers/patient.mapper';
 import {
   getSSOUserServiceClient,
   SSOUserServiceClient,
 } from '../../clients/user-service.client';
-import { makeDoctorCreationPayload } from '../../mappers/user-create.mapper'; 
+import {
+  mapHmsDoctorToCreateDoctorModel,
+  mapHmsAppointmentPatientToCreatePatientModel,
+} from '../../mappers/user-creation.mapper'; 
 import { CreatedUserInfo } from '../../types/user/user.types';
 export class UserProvisioningService {
   constructor(
@@ -77,7 +79,7 @@ export class UserProvisioningService {
       doctorEmail,
     });
 
-    const doctorRequestPayload = makeDoctorCreationPayload(
+    const doctorRequestPayload = mapHmsDoctorToCreateDoctorModel(
       appointment,
       context,
     );
@@ -177,7 +179,10 @@ export class UserProvisioningService {
       event: 'patient_not_found_creating',
       patientExternalId: externalUserId,
     });
-    const patientRequestPayload = makePatientCreationPayload(appointment, context);
+    const patientRequestPayload = mapHmsAppointmentPatientToCreatePatientModel(
+      appointment,
+      context,
+    );
     const createdUser = await this.ssoUserServiceClient.createPatient(
       patientRequestPayload,
       context,
@@ -185,9 +190,9 @@ export class UserProvisioningService {
 
     logger.info({
       event: 'patient_created',
-      userId: createdUser.id,
+      userId: createdUser.userId,
     });
 
-    return createdUser;
+    return createdUser as unknown as User;
   }
 }

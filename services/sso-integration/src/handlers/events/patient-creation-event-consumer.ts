@@ -11,8 +11,10 @@ import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { getSSOConfig } from '../../config/sso-config';
 import { publishPendingReprocess } from '../../services/appointment-sync/pending-reprocess-queue.service';
 
-import { AssignDoctorPayload } from '../../types/user-creation.type';
-import { mapPatientEventToCreateUserPayload } from '../../mappers/patient-event.mapper';
+import {
+  mapHmsPatientToCreatePatientModel,
+  buildAssignDoctorPayload,
+} from '../../mappers/user-creation.mapper';
 
 import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util';
 import { PatientCreationEvent } from '../../types/events';
@@ -152,9 +154,9 @@ async function processPatientCreationEvent(
   }
 
   /**
-   * Map event → createUser payload
+   * Map event → createUser payload (CreatePatientModel)
    */
-  const patientPayload = mapPatientEventToCreateUserPayload(event);
+  const patientPayload = mapHmsPatientToCreatePatientModel(event);
 
   logger.info({
     event: 'patient_creation_event_mapped_payload',
@@ -198,11 +200,11 @@ async function processPatientCreationEvent(
     patientPayload,
     requestContext,
   );
-  console.log('createdPatient in patient-creation-event-consumer', createdPatient);
+
   /**
-   * Extract patient userId safely
-   */ 
-  const patientUserId=createdPatient?.invitedUser??createdPatient.invitedUser.userId??createdPatient.id; 
+   * Extract patient userId (CreatedUserInfo.userId)
+   */
+  const patientUserId = createdPatient?.userId; 
 
 
   if (!patientUserId) {
@@ -240,28 +242,20 @@ async function processPatientCreationEvent(
 //     }
 // }
   /**
-   * Assign doctor if provided
+   * Assign doctor if provided (AssignDoctorModel; sender ≠ receiver enforced)
    */
   if (doctorId) {
-
-    const assignDoctorPayload: AssignDoctorPayload = {
+    const assignDoctorPayload = buildAssignDoctorPayload({
       organizationId: patientPayload.organizationID,
-
-      sender: {
-        userId: String(doctorId),
-        name: 'doc cardio',
-        email: 'doc.paper.c@yopmail.com',
-        userType: 'STAFF',
-        presenceStatus: 'ONLINE',
-      },
-
-      receiver: {
-        userId: String(patientUserId),
+      doctorUserId: String(doctorId),
+      patientUserId: String(patientUserId),
+      doctor: { userType: 'STAFF' },
+      patient: {
         name: patient.name,
         email: patient.email ?? undefined,
-        userType: 'MOBILE',
+        userType: 'USER',
       },
-    };
+    });
 
     try {
       const assignResult = await userServiceClient.assignDoctor(

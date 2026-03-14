@@ -5,7 +5,7 @@ import { SSOError } from '../types/errors/sso-error';
 import { DoctorCreationPayload } from '../types/user-creation.type';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor';
-import { getOrganizationIdBySubdomain } from '../utils/helper';
+import { loadTenantDetails } from '../utils/helper';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -30,6 +30,7 @@ export class DoctorMapperHelper {
   ): DoctorCreationPayload {
     const logger = createChildLogger(this.logger, { correlationId });
     const config = getSSOConfig();
+    const tenant = loadTenantDetails(subDomain ?? verifiedPayload.tenant_id ?? '');
     const externalId = String(verifiedPayload.drid);
     logger.info({
       event: 'doctor_mapping_start',
@@ -97,12 +98,12 @@ export class DoctorMapperHelper {
         slotDurationInMinutes: config.doctor.slotDurationInMinutes,
         bio: config.doctor.bio,
       },
-      userRole: [config.doctorRoleId],
+      userRole: [tenant.doctorRoleId],
       userType: 'STAFF',
-      organizationID: getOrganizationIdBySubdomain(subDomain || verifiedPayload.tenant_id),
+      organizationID: tenant.organizationId,
       externalId: externalId,
-      provider: 'TruTech', 
-      subDomain: subDomain || verifiedPayload.tenant_id 
+      provider: tenant.provider,
+      subDomain: subDomain ?? verifiedPayload.tenant_id ?? tenant.subdomain,
     };
 
     logger.info({

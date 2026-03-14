@@ -1,17 +1,17 @@
-import { getEnvConfig } from "../config/env";
+import { loadTenantDetails } from "../utils/helper";
 import { SourceSystem } from "../types/common/context.types";
 import { PatientCreationEvent } from "../types/events";
 import { PatientCreationPayload } from "../types/user-creation.type";
-import {  PHONE_CODE,   } from "../utils/constants";
+import { PHONE_CODE } from "../utils/constants";
 
 export function mapPatientEventToCreateUserPayload(
   event: PatientCreationEvent
 ): PatientCreationPayload {
   const { patient, organizationID, provider, externalId } = event.data;
-      const now = Date.now();
-      const { PATIENT_ROLE_ID, SUBDOMAIN, PROVIDER } = getEnvConfig();
-  if (!PATIENT_ROLE_ID || !SUBDOMAIN || !PROVIDER) {
-    throw new Error('PATIENT_ROLE_ID, SUBDOMAIN, and PROVIDER are required');
+  const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
+  const tenant = loadTenantDetails(subdomain);
+  if (!tenant.patientRoleId || !tenant.provider) {
+    throw new Error('PATIENT_ROLE_ID and PROVIDER are required');
   }
   const name = (patient.name ?? "").toString().trim();
   const gender = patient.gender ?? "";
@@ -59,18 +59,17 @@ export function mapPatientEventToCreateUserPayload(
         email: "",
       },
     },
-    userRole: [PATIENT_ROLE_ID],
+    userRole: [tenant.patientRoleId],
     userType: "USER",
-    organizationID,
+    organizationID: organizationID ?? tenant.organizationId,
     externalIdentity: {
       externalUserId: String(externalId || patient.id),
-      // Use organizationID as the external hospital/tenant identifier where applicable.
-      externalHospitalId: organizationID,
-      subdomain: SUBDOMAIN,
+      externalHospitalId: organizationID ?? tenant.organizationId,
+      subdomain: tenant.subdomain,
       sourceSystem: SourceSystem.HMS,
-      provider: provider || PROVIDER,
+      provider: provider || tenant.provider,
     },
-    createdDate: now,
-    modifiedDate: now,
+    // createdDate: now,
+    // modifiedDate: now,
   };
 }

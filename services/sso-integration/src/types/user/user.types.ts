@@ -110,4 +110,10 @@ export interface User {
     organizationId: string  
   }
   
-  
+  export type TenantDetails = {
+    organizationId: string;
+    subdomain: string;
+    doctorRoleId: string;
+    patientRoleId: string;
+    provider: string;
+  }

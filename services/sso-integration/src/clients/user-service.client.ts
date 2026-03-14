@@ -11,6 +11,7 @@ import { User } from '../types/user/user.types';
 import {
   getCachedUserId,
   getOrganizationId,
+  loadTenantDetails,
   setCachedUserId,
 } from '../utils/helper';
 import { buildServiceHeaders } from '../utils/request.utils';
@@ -28,7 +29,8 @@ export class SSOUserServiceClient extends BaseClient {
     console.log('findUserByExternalId context', context);
     const externalUserId = params.externalId;
     const subdomain = context.integration.subdomain;
-    const organizationId = getOrganizationId(subdomain);
+    const tenantDetails = loadTenantDetails(subdomain);
+    const { organizationId } = tenantDetails;
     const cachedUserId = getCachedUserId(subdomain, externalUserId);
     const cacheHit = !!cachedUserId;
 
@@ -194,7 +196,7 @@ export class SSOUserServiceClient extends BaseClient {
       userId: String(rawUserId),
       email: emailFromPayload,
       externalUserId: payload.externalIdentity?.externalUserId  ,
-      organizationId: payload.organizationID 
+      organizationId: payload.organizationID,  
     };
 
     console.info('createDoctor_success', {

@@ -1,38 +1,44 @@
-import { EXTERNAL_USER_MAP, TENANT_MAP } from "../config/tenant-map-config";
+import { getEnvConfig } from "../config/env"; 
+import { EXTERNAL_USER_MAP } from "../config/tenant-map-config";
 
 export const makePrefixFromGender = (gender: string): string => {
   const prefixes: Record<string, string> = { male: "Mr", female: "Ms" };
   return prefixes[gender.toLowerCase()] || "Mr";
 };
 
-export const getOrganizationIdBySubdomain = (subdomain: string): string => {
-  const organizationId = TENANT_MAP[subdomain as keyof typeof TENANT_MAP];
-  if (!organizationId) {
-    throw new Error(`Organization ID not found for subdomain: ${subdomain}`);
-  }
-  return organizationId;
+export type TenantDetails = {
+  organizationId: string;
+  subdomain: string;
+  doctorRoleId: string;
+  patientRoleId: string;
+  provider: string;
+}
+export const loadTenantDetails = (subdomain: string): TenantDetails => {
+  const envConfig= getEnvConfig();
+  const tenantDetails={
+    organizationId: envConfig.SSO_DEFAULT_ORGANIZATION_ID,
+    subdomain: subdomain,
+    doctorRoleId: envConfig.DOCTOR_ROLE_ID,
+    patientRoleId: envConfig.PATIENT_ROLE_ID,
+    provider: envConfig.PROVIDER,
+    
+  } 
+  return tenantDetails;
 };
+ 
 
 export function getOrganizationId(subdomain: string): string {
-  try {
-    return TENANT_MAP[subdomain];
-  } catch (error) {
-    console.error("getOrganizationId: error getting organization id", error);
-    throw new Error(`Organization ID not found for subdomain: ${subdomain}`);
-  } 
+  const tenantDetails = loadTenantDetails(subdomain);
+  if (!tenantDetails) {
+    throw new Error(`Tenant details not found for subdomain: ${subdomain}`);
+  }
+  return tenantDetails.organizationId;
 }
-
 export function getCachedUserId(
   subdomain: string,
   externalUserId: string
-): string | undefined {
-  const userIds = EXTERNAL_USER_MAP[subdomain];
-
-  if (!userIds) {
-    return undefined;
-  }
-
-  return userIds[externalUserId];
+): string | undefined { 
+  return EXTERNAL_USER_MAP[subdomain][externalUserId];
 }
 
 export function setCachedUserId(
@@ -146,3 +152,4 @@ export function appendSuffixToContacts<T extends any[]>(
     return appointments;
   }
 }
+ 

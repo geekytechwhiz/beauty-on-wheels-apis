@@ -4,7 +4,7 @@ import { Appointment, SourceSystem, SSORequestContext } from '../types'
 import { SSOError } from '../types/errors/sso-error'
 import { DoctorCreationPayload } from '../types/user-creation.type'
 import { processPhoneNumber } from '../utils/phone-processor'
-import { getEnvConfig } from '../config/env'
+import { loadTenantDetails } from '../utils/helper'
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -17,10 +17,12 @@ export function makeDoctorCreationPayload(
   const logger =
     createChildLogger(baseLogger, { correlationId: context.correlationId })
 
-    const doctorRoleId = getEnvConfig().DOCTOR_ROLE_ID
-    if (!doctorRoleId) {
-      throw SSOError.invalidRequest('Doctor role ID is required')
-    }
+  const subdomain = context.integration?.subdomain ?? ''
+  const tenant = loadTenantDetails(subdomain)
+  const doctorRoleId = tenant.doctorRoleId
+  if (!doctorRoleId) {
+    throw SSOError.invalidRequest('Doctor role ID is required')
+  }
 
   const config = getSSOConfig()
   const now = Date.now()
@@ -101,7 +103,7 @@ export function makeDoctorCreationPayload(
       externalHospitalId: context.integration?.externalHospitalId,
       subdomain: context.integration?.subdomain,
       sourceSystem: SourceSystem.HMS,
-      provider: context.integration?.providerId ?? getEnvConfig().PROVIDER
+      provider: context.integration?.providerId ?? tenant.provider
     },
   
     role: doctorRoleId,

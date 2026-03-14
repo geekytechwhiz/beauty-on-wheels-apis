@@ -20,7 +20,7 @@ import {
 
 import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
 
-import { getOrganizationId } from '../utils/helper';
+import { getOrganizationId, loadTenantDetails } from '../utils/helper';
 
 import { HmsAppointmentService } from './appointment-sync/hms-appointment.service';
 import { AppointmentValidationService } from './appointment-sync/appointment-validation.service';
@@ -463,14 +463,14 @@ export class AppointmentSyncService extends BaseService {
     if (!cognitoUser) {
       if (!userServicePatient) {
         try {
-          let organizationID = getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
-          const subdomain = context.integration?.subdomain;
+          const subdomain = context.integration?.subdomain ?? '';
+          let organizationID = loadTenantDetails(subdomain).organizationId;
           if (subdomain) {
             try {
               organizationID =
-                getOrganizationId(subdomain) ?? getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
+                getOrganizationId(subdomain) ?? loadTenantDetails(subdomain).organizationId;
             } catch {
-              organizationID = getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
+              organizationID = loadTenantDetails(subdomain).organizationId;
             }
           }
           const provider =
@@ -540,8 +540,9 @@ export class AppointmentSyncService extends BaseService {
       return 'pending';
     }
 
+    const subdomain = context.integration?.subdomain ?? '';
     const organizationId =
-      cognitoUser.organizationId ?? getEnvConfig().SSO_DEFAULT_ORGANIZATION_ID;
+      cognitoUser.organizationId ?? loadTenantDetails(subdomain).organizationId;
     const doctorUserId = String(doctor.userId);
     const patientUserId = String(cognitoUser.userId);
 

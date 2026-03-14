@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, ScheduledEvent, SQSEvent } from 'aws-lambda';
 import { getEnvConfig } from '../config/env';
+import { loadTenantDetails } from '../utils/helper';
 import { SourceSystem, SSORequestContext } from '../types/common/context.types';
 import { PatientCreationEvent } from '../types/events';
 
@@ -11,15 +12,7 @@ export function buildSSORequestContext(
     | PatientCreationEvent,
   correlationId: string,
 ): SSORequestContext {
-  // Default to TruTech tenant when no tenant hints are present (e.g. SQS, Scheduler)
-  const {
-    SUBDOMAIN,
-    INTERNAL_SERVICE_TOKEN,
-    DOCTOR_ROLE_ID,
-    PATIENT_ROLE_ID,
-    SSO_DEFAULT_ORGANIZATION_ID,
-    PROVIDER,
-  } = getEnvConfig();
+  const { INTERNAL_SERVICE_TOKEN, SUBDOMAIN } = getEnvConfig();
   let tenantId = SUBDOMAIN;
   let serviceToken: string | null = null;
 
@@ -48,13 +41,14 @@ export function buildSSORequestContext(
     (headers.Authorization as string | undefined) ||
     null;
 
+  const tenant = loadTenantDetails(tenantId);
   return {
     correlationId,
     tenantId,
     serviceToken: serviceToken ? `${INTERNAL_SERVICE_TOKEN}` : null,
     source: 'sso-integration',
     integration: {
-      providerId: PROVIDER,
+      providerId: tenant.provider,
       subdomain: tenantId,
     },
     sourceSystem: SourceSystem.HMS,
@@ -65,20 +59,17 @@ export function buildSSORequestContextFromSQS(
   event: PatientCreationEvent,
   correlationId: string,
 ): SSORequestContext {
-  const { INTERNAL_SERVICE_TOKEN, PROVIDER, SUBDOMAIN } = getEnvConfig();
+  const { INTERNAL_SERVICE_TOKEN, SUBDOMAIN } = getEnvConfig();
+  const tenant = loadTenantDetails(SUBDOMAIN);
   return {
     correlationId,
     tenantId: SUBDOMAIN,
-
-    serviceToken: INTERNAL_SERVICE_TOKEN ? `${INTERNAL_SERVICE_TOKEN}` : null, // internal service token
-
+    serviceToken: INTERNAL_SERVICE_TOKEN ? `${INTERNAL_SERVICE_TOKEN}` : null,
     source: 'sso-integration',
-
     integration: {
-      providerId: PROVIDER,
+      providerId: tenant.provider,
       subdomain: SUBDOMAIN,
     },
-
     sourceSystem: SourceSystem.HMS,
   };
 }
@@ -91,7 +82,8 @@ export function buildSSORequestContextFromAppointmentMessage(
   tenantId: string,
   correlationId: string,
 ): SSORequestContext {
-  const { INTERNAL_SERVICE_TOKEN, PROVIDER } = getEnvConfig();
+  const { INTERNAL_SERVICE_TOKEN } = getEnvConfig();
+  const tenant = loadTenantDetails(tenantId);
 
   return {
     correlationId,
@@ -99,7 +91,7 @@ export function buildSSORequestContextFromAppointmentMessage(
     serviceToken: INTERNAL_SERVICE_TOKEN,
     source: 'sso-integration',
     integration: {
-      providerId: PROVIDER,
+      providerId: tenant.provider,
       subdomain: tenantId,
     },
     sourceSystem: SourceSystem.HMS,

@@ -4,7 +4,7 @@ import { SSOError } from '../types/errors/sso-error';
 import { PatientCreationPayload } from '../types/user-creation.type';
 import { getSSOConfig } from '../config/sso-config';
 import { processPhoneNumber } from '../utils/phone-processor';
-import { getOrganizationIdBySubdomain } from '../utils/helper';
+import { loadTenantDetails } from '../utils/helper';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 
@@ -29,9 +29,11 @@ export class PatientMapperHelper {
     doctorId: string,
     doctorName: string,
     correlationId?: string,
+    subDomain?: string,
   ): PatientCreationPayload {
     const logger = createChildLogger(this.logger, { correlationId });
     const config = getSSOConfig();
+    const tenant = loadTenantDetails(subDomain ?? '');
 
     logger.info({
       event: 'patient_mapping_start',
@@ -116,10 +118,10 @@ export class PatientMapperHelper {
         friendNFamily: config.patient.friendNFamily,
         medicalHistory: config.patient.medicalHistory,
       },
-      userRole: [config.patientRoleId],
+      userRole: [tenant.patientRoleId],
       userType: 'USER',
       invite: 'phone',
-      organizationID: getOrganizationIdBySubdomain(subDomain),
+      organizationID: tenant.organizationId,
     };
 
     logger.info({

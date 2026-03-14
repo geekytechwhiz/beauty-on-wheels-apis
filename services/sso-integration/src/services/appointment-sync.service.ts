@@ -18,7 +18,7 @@ import {
   User,
 } from '../types';
 
-import { CognitoUserContext } from '../types/user/user.types';
+import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
 
 import { CONSTANTS } from '../utils/constants';
 import { getOrganizationId } from '../utils/helper';
@@ -220,7 +220,7 @@ export class AppointmentSyncService extends BaseService {
       }),
     });
 
-    const doctor = await this.userProvisioningService.getOrCreateDoctor(
+    const doctor: CreatedUserInfo = await this.userProvisioningService.getOrCreateDoctor(
       validAppointments[0],
       context,
     );
@@ -231,20 +231,20 @@ export class AppointmentSyncService extends BaseService {
         context,
         externalAppointmentId: String(validAppointments[0].appointmentId),
         doctorExternalId: String(validAppointments[0].doctor.id),
-        doctorUserId: String((doctor as User).id),
+        doctorUserId: doctor.userId,
       }),
     });
 
     return this.processAppointments(
       validAppointments,
-      doctor as unknown as CognitoUserContext,
+      doctor  ,
       context,
     );
   }
 
   private async processAppointments(
     appointments: Appointment[],
-    doctor: CognitoUserContext,
+    doctor: CreatedUserInfo,
     context: SSORequestContext,
   ): Promise<AppointmentSyncResult> {
     let synced = 0;

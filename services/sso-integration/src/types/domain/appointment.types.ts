@@ -214,7 +214,7 @@ export interface GetAvailableServicesRequest {
 
 export interface AvailableService {
   addonId: string; // This is the orgAddonId
-  orgAddonId?: string; // Alias for addonId
+  orgAddonId: string; // Alias for addonId
   title?: string;
   description?: string;
   featureKey?: string;

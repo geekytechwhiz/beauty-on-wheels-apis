@@ -99,9 +99,19 @@ export class HmsAppointmentService {
         });
         return [];
       }
-      const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, "c");
+      let mappedAppointments: Appointment[] = [];
+      const isPendingAppointmentBypassEnabled = (): boolean =>
+        process.env.BYPASS_SUFFIX_APPOINTMENTS === 'true';
+      if(isPendingAppointmentBypassEnabled()) {
+        mappedAppointments = this.truTechAdapter.mapAppointments(response.appointments || []);
+      }
+      else{
+        const appointmentsWithSuffix = appendSuffixToContacts(response.appointments, "c");  
+        mappedAppointments = this.truTechAdapter.mapAppointments(appointmentsWithSuffix || []);
+      }
+     
       const mapped = this.truTechAdapter.mapAppointments(
-        appointmentsWithSuffix || [],
+        mappedAppointments || [],
       );
 
       logger.info({
@@ -218,4 +228,4 @@ export class HmsAppointmentService {
     }
   }
 }
-
+ 

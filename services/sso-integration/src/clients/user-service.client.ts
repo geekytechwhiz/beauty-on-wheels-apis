@@ -215,8 +215,13 @@ export class SSOUserServiceClient extends BaseClient {
     const organizationId = getOrganizationId(subdomain);
 
     console.log('createPatient payload', JSON.stringify(payload));
-
-    const response = await this.client.post<{ data: User }>('/user', payload, {
+    const patientCreationPayload = {
+      ...payload,
+      organizationId: organizationId,
+      subdomain: subdomain,
+    };
+    
+    const response = await this.client.post<{ data: User }>('/user', patientCreationPayload, {
       headers: buildServiceHeaders(context),
     });
 

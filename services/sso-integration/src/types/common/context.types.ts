@@ -16,9 +16,9 @@ export interface SSORequestContext {
 }
 
 export interface IntegrationMetadata {
-  readonly providerId: string;
-  readonly subdomain: string;
-   externalHospitalId?: string;
+  providerId: string;
+  subdomain: string;
+  externalHospitalId?: string;
 } 
  
 

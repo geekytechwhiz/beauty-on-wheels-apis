@@ -17,6 +17,7 @@ import { SourceSystem } from '../types/common/context.types';
 import type { PatientCreationPayload } from '../types/user-creation.type';
 import type { DoctorCreationPayload } from '../types/user-creation.type';
 import type { AssignDoctorPayload } from '../types/user-creation.type';
+import { buildExternalIdentity } from '../utils/context-builder.util';
 
 /**
  * Maps a patient creation event (HMS) to a create-user payload for a patient.
@@ -37,12 +38,7 @@ export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): 
     gender: patient.gender ?? undefined,
     dateOfBirth: patient.dob ?? undefined,
     organizationID: organizationID ?? tenant.organizationId,
-    externalIdentity: {
-      provider: provider ?? tenant.provider,
-      externalId: String(externalId ?? patient.id),
-      subdomain: tenant.subdomain,
-      sourceSystem: SourceSystem.HMS,
-    },
+    externalIdentity: buildExternalIdentity(patient.id?.toString()),
     patientRoleId: tenant.patientRoleId,
   };
 
@@ -140,12 +136,7 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
     gender: patient.gender ?? undefined,
     dateOfBirth: undefined,
     organizationID,
-    externalIdentity: {
-      provider: context.integration?.providerId ?? tenant.provider,
-      externalId: String(patient.id),
-      subdomain: context.integration?.subdomain ?? tenant.subdomain,
-      sourceSystem: SourceSystem.HMS,
-    },
+    externalIdentity: buildExternalIdentity(patient.id?.toString() ),
     patientRoleId: tenant.patientRoleId,
   };
 

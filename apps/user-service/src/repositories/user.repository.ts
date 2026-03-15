@@ -94,8 +94,7 @@ function buildExternalIdentityKeys(
 
   const tenant =
     ext.tenant?.trim() ||
-    ext.subdomain?.trim() ||
-    user.organizationID?.trim();
+    ext.subdomain?.trim()  
 
   if (!tenant) {
     return {};

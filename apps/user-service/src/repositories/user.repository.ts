@@ -19,11 +19,11 @@ import {
 } from '@api-hub/logger';
 import {
   User,
+  Appointment,
   UserMetadata,
   UserOrganization,
   UserFile,
   UserResponse,
-  SourceSystem,
 } from '../models';
 import { UserNotFoundError, UserAlreadyExistsError, InviteUpdateTooSoonError } from '../utils/errors';
 import { getRoleDetails } from '../services/role.service';
@@ -154,6 +154,14 @@ function userPk(userId: string): string {
 
 function userFileSk(fileId: string): string {
   return `USER_FILE#${fileId}`;
+}
+
+function appointmentPk(patientUserId: string): string {
+  return `USER#${patientUserId}`;
+}
+
+function appointmentSk(appointmentId: string): string {
+  return `APPOINTMENT#${appointmentId}`;
 }
 
 const userOrgPk = (organizationId: string): string => {
@@ -872,6 +880,147 @@ export class UserRepository {
         event: 'user_metadata_get_error',
         err: serializeError(err),
         message: 'Failed to get user metadata',
+      });
+      throw err;
+    }
+  }
+
+  async createAppointment(
+    appointment: Omit<Appointment, 'createdAt' | 'updatedAt' | 'itemType'>,
+    correlationId?: string,
+  ): Promise<Appointment> {
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      appointmentId: appointment.appointmentId,
+      patientUserId: appointment.patientUserId,
+    });
+    const now = new Date().toISOString();
+    const item: Appointment & { pk: string; sk: string } = {
+      pk: appointmentPk(appointment.patientUserId),
+      sk: appointmentSk(appointment.appointmentId),
+      ...appointment,
+      createdAt: now,
+      updatedAt: now,
+      itemType: 'APPOINTMENT',
+    };
+
+    try {
+      await sendDoc<PutCommandOutput>(docClient,
+        new PutCommand({
+          TableName: USER_TABLE_NAME,
+          Item: item,
+        }),
+      );
+
+      logger.info({
+        event: 'appointment_create_success',
+        message: 'Appointment created successfully',
+      });
+
+      const { pk, sk, ...appointmentItem } = item;
+      return appointmentItem;
+    } catch (err) {
+      logger.error({
+        event: 'appointment_create_error',
+        err: serializeError(err),
+        message: 'Failed to create appointment',
+      });
+      throw err;
+    }
+  }
+
+  async getAppointment(
+    patientUserId: string,
+    appointmentId: string,
+    correlationId?: string,
+  ): Promise<Appointment | null> {
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      appointmentId,
+      patientUserId,
+    });
+
+    try {
+      const result = await sendDoc<GetCommandOutput>(docClient,
+        new GetCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: appointmentPk(patientUserId),
+            sk: appointmentSk(appointmentId),
+          },
+        }),
+      );
+
+      if (!result.Item) {
+        logger.info({
+          event: 'appointment_get_not_found',
+          message: 'Appointment not found',
+        });
+        return null;
+      }
+
+      logger.info({
+        event: 'appointment_get_success',
+        message: 'Appointment retrieved successfully',
+      });
+
+      const { pk, sk, ...appointment } = result.Item as Appointment & {
+        pk: string;
+        sk: string;
+      };
+
+      return appointment;
+    } catch (err) {
+      logger.error({
+        event: 'appointment_get_error',
+        err: serializeError(err),
+        message: 'Failed to get appointment',
+      });
+      throw err;
+    }
+  }
+
+  async listAppointments(
+    patientUserId: string,
+    correlationId?: string,
+  ): Promise<Appointment[]> {
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      patientUserId,
+    });
+
+    try {
+      const result = await sendDoc<QueryCommandOutput>(docClient,
+        new QueryCommand({
+          TableName: USER_TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+          ExpressionAttributeValues: {
+            ':pk': appointmentPk(patientUserId),
+            ':skPrefix': appointmentSk(''),
+          },
+        }),
+      );
+
+      const items = (result.Items ?? []).map((item) => {
+        const { pk, sk, ...appointment } = item as Appointment & {
+          pk: string;
+          sk: string;
+        };
+        return appointment;
+      });
+
+      logger.info({
+        event: 'appointment_list_success',
+        message: 'Appointments listed successfully',
+        count: items.length,
+      });
+
+      return items;
+    } catch (err) {
+      logger.error({
+        event: 'appointment_list_error',
+        err: serializeError(err),
+        message: 'Failed to list appointments',
       });
       throw err;
     }

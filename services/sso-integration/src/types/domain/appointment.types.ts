@@ -132,7 +132,7 @@ export interface AppointmentSyncResult {
 
 export interface PendingAppointment {
   appointment: Appointment;
-  reason: 'patient_not_found' | 'schedule_creation_failed';
+  reason: 'patient_not_found' | 'schedule_creation_failed' | 'user_not_resolved';
   timestamp: string;
   retryCount: number;
   patientExternalId: string;

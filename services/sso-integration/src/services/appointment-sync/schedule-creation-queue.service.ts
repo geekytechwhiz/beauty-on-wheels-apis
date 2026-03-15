@@ -4,21 +4,25 @@ import { ScheduleCreationEventPayload } from '../../types/events/schedule-creati
 function assertValidScheduleCreationPayload(
   message: ScheduleCreationEventPayload,
 ): void {
-  if (
-    !message.tenantId ||
-    !message.correlationId ||
-    !message.appointment.externalId ||
-    !message.appointment.startTime ||
-    !message.appointment.endTime ||
-    !message.appointment.status ||
-    !message.doctor.userId ||
-    !message.doctor.externalUserId ||
-    !message.doctor.organizationId ||
-    !message.patient.userId ||
-    !message.patient.externalUserId ||
-    !message.patient.organizationId
-  ) {
-    throw new Error('Schedule creation payload must be normalized before enqueue');
+  const missingFields = [
+    !message.tenantId ? 'tenantId' : null,
+    !message.correlationId ? 'correlationId' : null,
+    !message.appointment.externalId ? 'appointment.externalId' : null,
+    !message.appointment.startTime ? 'appointment.startTime' : null,
+    !message.appointment.endTime ? 'appointment.endTime' : null,
+    !message.appointment.status ? 'appointment.status' : null,
+    !message.doctor.userId ? 'doctor.userId' : null,
+    !message.doctor.externalUserId ? 'doctor.externalUserId' : null,
+    !message.doctor.organizationId ? 'doctor.organizationId' : null,
+    !message.patient.userId ? 'patient.userId' : null,
+    !message.patient.externalUserId ? 'patient.externalUserId' : null,
+    !message.patient.organizationId ? 'patient.organizationId' : null,
+  ].filter(Boolean);
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Schedule creation payload must be normalized before enqueue. Missing: ${missingFields.join(', ')}`,
+    );
   }
 }
 

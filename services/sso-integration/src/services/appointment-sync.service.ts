@@ -18,10 +18,10 @@ import {
   User,
 } from '../types';
 
-import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
+import { CreatedUserInfo } from '../types/user/user.types';
 import { ScheduleCreationEventPayload } from '../types/events/schedule-creation-message.types';
 
-import { getOrganizationId, loadTenantDetails } from '../utils/helper';
+import { loadTenantDetails } from '../utils/helper';
 
 import { HmsAppointmentService } from './appointment-sync/hms-appointment.service';
 import { AppointmentValidationService } from './appointment-sync/appointment-validation.service';
@@ -31,6 +31,7 @@ import { ScheduleConflictService } from './appointment-sync/schedule-conflict.se
 import { ScheduleCreationService } from './appointment-sync/schedule-creation.service';
 import { PendingAppointmentService } from './appointment-sync/pending-appointment.service';
 import { publishScheduleCreation } from './appointment-sync/schedule-creation-queue.service';
+import { publishDoctorProvision } from './appointment-sync/doctor-provision-queue.service';
 
 export class AppointmentSyncService extends BaseService {
   private readonly scheduleClient = getScheduleServiceClient();
@@ -139,6 +140,12 @@ export class AppointmentSyncService extends BaseService {
     context: SSORequestContext;
   }): ScheduleCreationEventPayload {
     const { appointment, doctor, patientUser, patientOrganizationId, context } = params;
+    const subdomain = context.integration?.subdomain ?? '';
+    const normalizedOrganizationId =
+      patientOrganizationId ||
+      doctor.organizationId ||
+      patientUser.organizationId ||
+      loadTenantDetails(subdomain).organizationId;
 
     return {
       tenantId: context.tenantId,
@@ -153,14 +160,88 @@ export class AppointmentSyncService extends BaseService {
         userId: String(doctor.userId),
         externalUserId:
           doctor.externalUserId || String(appointment.doctor.id),
-        organizationId: doctor.organizationId,
+        organizationId: normalizedOrganizationId,
       },
       patient: {
         userId: String(patientUser.id),
         externalUserId: String(appointment.patient.id),
-        organizationId: patientOrganizationId,
+        organizationId: normalizedOrganizationId,
       },
     };
+  }
+
+  private mapUserToCreatedUserInfo(
+    user: User,
+    fallbackExternalUserId: string,
+    fallbackOrganizationId: string,
+  ): CreatedUserInfo {
+    return {
+      userId: String(user.id),
+      email: user.email ?? null,
+      externalUserId:
+        String(user.externalId ?? '') || fallbackExternalUserId,
+      organizationId: user.organizationId ?? fallbackOrganizationId,
+    };
+  }
+
+  private async resolvePatientUser(
+    appointment: Appointment,
+    context: SSORequestContext,
+  ): Promise<User | null> {
+    const patientExternalId = String(appointment.patient.id);
+    const patient = await this.ssoUserServiceClient.findUserByExternalId(
+      { externalId: patientExternalId },
+      context,
+    );
+
+    if (!patient?.id) {
+      return null;
+    }
+
+    return patient;
+  }
+
+  private async resolveDoctorUser(
+    appointment: Appointment,
+    context: SSORequestContext,
+  ): Promise<CreatedUserInfo | null> {
+    const doctorExternalId = String(appointment.doctor.id);
+    const user = await this.ssoUserServiceClient.findUserByExternalId(
+      { externalId: doctorExternalId },
+      context,
+    );
+
+    if (!user?.id) {
+      return null;
+    }
+
+    const subdomain = context.integration?.subdomain ?? '';
+
+    return this.mapUserToCreatedUserInfo(
+      user,
+      doctorExternalId,
+      user.organizationId ?? loadTenantDetails(subdomain).organizationId,
+    );
+  }
+
+  private async enqueuePendingAppointment(
+    appointment: Appointment,
+    reason: PendingAppointment['reason'],
+    context: SSORequestContext,
+  ): Promise<void> {
+    await this.pendingAppointmentService.addPendingAppointment(
+      context.tenantId,
+      {
+        appointment,
+        reason,
+        timestamp: new Date().toISOString(),
+        retryCount: 0,
+        patientExternalId: String(appointment.patient.id),
+        doctorExternalId: String(appointment.doctor.id),
+        externalAppointmentId: String(appointment.appointmentId),
+      },
+      context,
+    );
   }
 
   /**
@@ -425,7 +506,7 @@ export class AppointmentSyncService extends BaseService {
     const doctorExternalId = String(appointment.doctor.id);
 
     this.logger.info({
-      event: 'patient_lookup_start',
+      event: 'user_resolution_start',
       ...this.buildLogContext({
         context,
         externalAppointmentId,
@@ -434,60 +515,14 @@ export class AppointmentSyncService extends BaseService {
       }),
     });
 
-    const userServicePatient = await (this as any).ssoUserServiceClient.findUserByExternalId(
-      { externalId: patientExternalId },
-      context,
-    );
+    const [resolvedPatient, resolvedDoctor] = await Promise.all([
+      this.resolvePatientUser(appointment, context),
+      this.resolveDoctorUser(appointment, context),
+    ]);
 
-    if (userServicePatient) {
+    if (resolvedPatient) {
       this.logger.info({
         event: 'patient_found_in_user_service',
-        ...this.buildLogContext({
-          context,
-          externalAppointmentId,
-          patientExternalId,
-          doctorExternalId,
-          patientUserId: String(userServicePatient.id),
-        }),
-      });
-    }
-
-    let cognitoUser: CognitoUserContext | null = null;
-
-    if (appointment.patient.email) {
-      try {
-        cognitoUser = await this.cognitoService.findCognitoUserByEmail(
-          appointment.patient.email,
-        );
-      } catch (err: any) {
-        if (err?.name !== 'ResourceNotFoundException') {
-          throw err;
-        }
-      }
-    }
-
-    if (!cognitoUser && appointment.patient.phone) {
-      try {
-        cognitoUser = await this.cognitoService.findCognitoUserByPhone(
-          appointment.patient.phone,
-        );
-      } catch (err: any) {
-        if (err?.name !== 'ResourceNotFoundException') {
-          throw err;
-        }
-      }
-    }
-
-    let resolvedPatient = userServicePatient;
-
-    if (!resolvedPatient && cognitoUser) {
-      resolvedPatient = await this.userProvisioningService.getOrCreatePatient(
-        appointment,
-        context,
-      );
-
-      this.logger.info({
-        event: 'patient_created_or_normalized_from_lookup',
         ...this.buildLogContext({
           context,
           externalAppointmentId,
@@ -498,44 +533,73 @@ export class AppointmentSyncService extends BaseService {
       });
     }
 
-    this.logger.info({
-      event: 'patient_lookup_complete',
-      ...this.buildLogContext({
-        context,
-        externalAppointmentId,
+    if (resolvedDoctor) {
+      this.logger.info({
+        event: 'doctor_found_in_user_service',
+        ...this.buildLogContext({
+          context,
+          externalAppointmentId,
+          patientExternalId,
+          doctorExternalId,
+          doctorUserId: resolvedDoctor.userId,
+        }),
+      });
+    }
+
+    if (!resolvedPatient?.id || !resolvedDoctor?.userId) {
+      this.logger.warn({
+        event: 'external_user_not_resolved',
+        tenantId: context.tenantId,
         patientExternalId,
         doctorExternalId,
-        patientUserId: resolvedPatient
-          ? String(resolvedPatient.id)
-          : cognitoUser
-            ? String(cognitoUser.userId)
-            : undefined,
-      }),
-    });
+      });
 
-    if (!resolvedPatient) {
-      if (!userServicePatient) {
+      const subdomain = context.integration?.subdomain ?? '';
+      const organizationId =
+        resolvedDoctor?.organizationId ??
+        doctor.organizationId ??
+        loadTenantDetails(subdomain).organizationId;
+
+      if (!resolvedDoctor?.userId) {
         try {
-          const subdomain = context.integration?.subdomain ?? '';
-          let organizationID = loadTenantDetails(subdomain).organizationId;
-          if (subdomain) {
-            try {
-              organizationID =
-                getOrganizationId(subdomain) ?? loadTenantDetails(subdomain).organizationId;
-            } catch {
-              organizationID = loadTenantDetails(subdomain).organizationId;
-            }
-          }
-          const provider =
-            context.integration?.providerId ?? 'TruTech';
-          const patientEvent =
-            this.patientEventPublisher.createPatientCreationEvent(
-              appointment.patient,
-              (doctor as any).id ?? '',
-              organizationID,
-              provider,
+          await publishDoctorProvision({
+            tenantId: context.tenantId,
+            correlationId: context.correlationId,
+            appointment,
+          });
+          this.logger.info({
+            event: 'doctor_provision_event_triggered_from_sync',
+            ...this.buildLogContext({
               context,
-            );
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+            }),
+          });
+        } catch (err) {
+          this.logger.error({
+            event: 'doctor_provision_event_publish_failed_from_sync',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+            }),
+            err: serializeError(err as Error),
+          });
+        }
+      }
+
+      if (!resolvedPatient?.id) {
+        try {
+          const provider = context.integration?.providerId ?? 'TruTech';
+          const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
+            appointment.patient,
+            resolvedDoctor?.userId ?? doctor.userId ?? '',
+            organizationId,
+            provider,
+            context,
+          );
           await this.patientEventPublisher.publishPatientCreationEvent(
             patientEvent,
             context.correlationId,
@@ -547,9 +611,9 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: String(doctor.userId),
+              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
             }),
-            organizationId: organizationID,
+            organizationId,
           });
         } catch (err) {
           this.logger.error({
@@ -559,7 +623,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: String(doctor.userId),
+              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
             }),
             err: serializeError(err as Error),
           });
@@ -573,20 +637,14 @@ export class AppointmentSyncService extends BaseService {
           externalAppointmentId,
           patientExternalId,
           doctorExternalId,
+          doctorUserId: resolvedDoctor?.userId,
+          patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
         }),
       });
 
-      await this.pendingAppointmentService.addPendingAppointment(
-        context.tenantId,
-        {
-          appointment,
-          reason: 'patient_not_found',
-          timestamp: new Date().toISOString(),
-          retryCount: 0,
-          patientExternalId,
-          doctorExternalId,
-          externalAppointmentId,
-        },
+      await this.enqueuePendingAppointment(
+        appointment,
+        'user_not_resolved',
         context,
       );
 
@@ -596,10 +654,9 @@ export class AppointmentSyncService extends BaseService {
     const subdomain = context.integration?.subdomain ?? '';
     const organizationId =
       resolvedPatient.organizationId ??
-      cognitoUser?.organizationId ??
-      doctor.organizationId ??
+      resolvedDoctor.organizationId ??
       loadTenantDetails(subdomain).organizationId;
-    const doctorUserId = String(doctor.userId);
+    const doctorUserId = String(resolvedDoctor.userId);
     const patientUserId = String(resolvedPatient.id);
 
     const scheduleFetchPayload: FetchSchedulesRequest = {
@@ -682,11 +739,15 @@ export class AppointmentSyncService extends BaseService {
 
     const scheduleCreationPayload = this.buildScheduleCreationEventPayload({
       appointment,
-      doctor,
+      doctor: resolvedDoctor,
       patientUser: resolvedPatient,
       patientOrganizationId: organizationId,
       context,
     });
+
+    if (!scheduleCreationPayload.patient?.userId || !scheduleCreationPayload.doctor?.userId) {
+      throw new Error('Attempted to enqueue schedule creation without resolved users');
+    }
 
     await publishScheduleCreation(scheduleCreationPayload);
     this.logger.info({

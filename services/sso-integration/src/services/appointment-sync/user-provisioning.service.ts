@@ -11,7 +11,7 @@ import {
   mapHmsDoctorToCreateDoctorModel,
   mapHmsAppointmentPatientToCreatePatientModel,
 } from '../../mappers/user-creation.mapper';
-import { CognitoUserContext, CreatedUserInfo } from '../../types/user/user.types';
+import { CreatedUserInfo } from '../../types/user/user.types';
 import { UserExistenceValidator } from '../../validators/user-existence.validator';
 
 function mapUserToCreatedUserInfo(user: User, fallbackEmail?: string | null): CreatedUserInfo {
@@ -23,44 +23,7 @@ function mapUserToCreatedUserInfo(user: User, fallbackEmail?: string | null): Cr
   };
 }
 
-function mapCognitoToCreatedUserInfo(
-  cognitoUser: CognitoUserContext,
-  externalUserId: string,
-  fallbackEmail?: string | null,
-): CreatedUserInfo {
-  return {
-    userId: cognitoUser.userId?.toString() ?? '',
-    email: cognitoUser.email ?? fallbackEmail ?? null,
-    externalUserId,
-    organizationId: cognitoUser.organizationId ?? '',
-  };
-}
-
-function mapCognitoToUser(
-  cognitoUser: CognitoUserContext,
-  externalUserId: string,
-  tenantId: string,
-): User {
-  const timestamp = new Date().toISOString();
-
-  return {
-    invitedUser: cognitoUser.userId ?? '',
-    id: cognitoUser.userId?.toString() ?? '',
-    externalId: cognitoUser.externalUserId ?? externalUserId,
-    provider: cognitoUser.providerId ?? '',
-    tenantId: cognitoUser.subdomain ?? tenantId,
-    email: cognitoUser.email,
-    phone: cognitoUser.phone,
-    status: 'ACTIVE',
-    cognitoUsername: cognitoUser.principalId,
-    organizationId: cognitoUser.organizationId,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-}
-
 export class UserProvisioningService {
-  private readonly cognitoService: CognitoService;
   private readonly userExistenceValidator: UserExistenceValidator;
 
   constructor(
@@ -68,10 +31,9 @@ export class UserProvisioningService {
     private readonly logger: Logger,
   ) {
     this.ssoUserServiceClient = getSSOUserServiceClient();
-    this.cognitoService = new CognitoService();
     this.userExistenceValidator = new UserExistenceValidator(
       this.ssoUserServiceClient,
-      this.cognitoService,
+      new CognitoService(),
       this.logger,
     );
   }
@@ -97,14 +59,6 @@ export class UserProvisioningService {
     if (existenceResult.userServiceUser) {
       return mapUserToCreatedUserInfo(
         existenceResult.userServiceUser,
-        appointment.doctor.email ?? null,
-      );
-    }
-
-    if (existenceResult.cognitoUser) {
-      return mapCognitoToCreatedUserInfo(
-        existenceResult.cognitoUser,
-        doctorExternalId,
         appointment.doctor.email ?? null,
       );
     }
@@ -152,21 +106,6 @@ export class UserProvisioningService {
       });
 
       return mapUserToCreatedUserInfo(existingUser, doctorEmail);
-    }
-
-    if (existenceResult.cognitoUser) {
-      logger.info({
-        event: 'doctor_found_in_cognito',
-        doctorExternalId,
-        doctorEmail,
-        doctorUserId: existenceResult.cognitoUser.userId,
-      });
-
-      return mapCognitoToCreatedUserInfo(
-        existenceResult.cognitoUser,
-        doctorExternalId,
-        doctorEmail,
-      );
     }
 
     // 2️⃣ Doctor not found → create (idempotent via externalUserId + user-service)
@@ -285,16 +224,10 @@ export class UserProvisioningService {
 
     if (existenceResult.cognitoUser) {
       logger.info({
-        event: 'patient_found_in_cognito',
+        event: 'patient_found_in_cognito_creating_user_service_record',
         patientExternalId: externalUserId,
         userId: existenceResult.cognitoUser.userId,
       });
-
-      return mapCognitoToUser(
-        existenceResult.cognitoUser,
-        externalUserId,
-        context.tenantId,
-      );
     }
 
     logger.info({
@@ -315,6 +248,17 @@ export class UserProvisioningService {
       userId: createdUser.userId,
     });
 
-    return createdUser as unknown as User;
+    return {
+      invitedUser: createdUser.userId,
+      id: createdUser.userId,
+      externalId: createdUser.externalUserId,
+      provider: context.integration?.providerId ?? '',
+      tenantId: context.integration?.subdomain ?? context.tenantId,
+      email: createdUser.email ?? undefined,
+      status: 'ACTIVE',
+      organizationId: createdUser.organizationId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
   }
 }

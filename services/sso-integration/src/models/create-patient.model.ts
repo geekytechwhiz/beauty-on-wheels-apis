@@ -5,8 +5,9 @@
  */
 
 import { SourceSystem } from '../types/common/context.types';
-import { PatientCreationPayload } from '../types/user-creation.type';
+import { ExternalIdentity, PatientCreationPayload } from '../types/user-creation.type';
 import { PHONE_CODE } from '../utils/constants';
+import { buildExternalIdentity } from '../utils/context-builder.util';
 
 /** Input for building a create-patient payload from HMS or event data */
 export interface CreatePatientModelInput {
@@ -25,12 +26,7 @@ export interface CreatePatientModelInput {
   /** Organization ID from configuration */
   organizationID: string;
   /** External identity: provider and external id */
-  externalIdentity: {
-    provider: string;
-    externalId: string;
-    subdomain?: string;
-    sourceSystem?: SourceSystem;
-  };
+    externalIdentity: ExternalIdentity;
   /** PATIENT_ROLE_ID from configuration */
   patientRoleId: string;
 }
@@ -78,12 +74,7 @@ export function createPatientModel(input: CreatePatientModelInput): PatientCreat
     userType: 'USER',
     invite: hasPhone ? 'phone' : 'email',
     organizationID: input.organizationID,
-    externalIdentity: {
-      externalUserId: input.externalIdentity.externalId,
-      provider: input.externalIdentity.provider,
-      subdomain: input.externalIdentity.subdomain ?? '',
-      sourceSystem: input.externalIdentity.sourceSystem ?? SourceSystem.HMS,
-    },
+    externalIdentity: buildExternalIdentity(input.externalIdentity.externalUserId),
   };
 
   return payload;

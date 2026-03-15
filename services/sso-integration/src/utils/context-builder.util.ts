@@ -3,6 +3,7 @@ import { getEnvConfig } from '../config/env';
 import { loadTenantDetails } from '../utils/helper';
 import { SourceSystem, SSORequestContext } from '../types/common/context.types';
 import { PatientCreationEvent } from '../types/events';
+import { ExternalIdentity } from '../types/user-creation.type';
 
 export function buildSSORequestContext(
   event:
@@ -74,6 +75,16 @@ export function buildSSORequestContextFromSQS(
   };
 }
 
+export const buildExternalIdentity = (  externalUserId: string): ExternalIdentity => {
+  const {  SUBDOMAIN } = getEnvConfig();
+  const tenant = loadTenantDetails(SUBDOMAIN);
+  return {
+    externalUserId: externalUserId,
+    subdomain: SUBDOMAIN,
+    provider: tenant.provider,
+    sourceSystem: SourceSystem.HMS,
+  };
+}
 /**
  * Build SSORequestContext from appointment queue message (tenantId, correlationId).
  * Used by appointmentProcessor when processing SQS messages from AppointmentSyncQueue.

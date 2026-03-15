@@ -165,6 +165,7 @@ export class AppointmentSyncService extends BaseService {
   async syncAppointments(
     context: SSORequestContext,
     dateRange?: { fromDate?: string; toDate?: string },
+    appointmentsInput?: Appointment[],
   ): Promise<AppointmentSyncResult> {
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
@@ -179,26 +180,21 @@ export class AppointmentSyncService extends BaseService {
 
     const fromDate = dateRange?.fromDate ?? fromDateString(0);
     const toDate = dateRange?.toDate ?? toDateString(5);
+    let appointments: Appointment[] = [];
 
-    const appointments =
+    if(!appointmentsInput || !appointmentsInput.length) {
+     appointments =
       await this.hmsAppointmentService.getAppointmentsForDoctorsInRange(
         fromDate,
         toDate,
         context.correlationId,
         context.tenantId,
       );
-
-    if (!appointments.length) {
-      return {
-        message: 'No appointments found',
-        totalAppointments: 0,
-        status: 'SUCCESS',
-        synced: 0,
-        skipped: 0,
-        failed: 0,
-        pending: 0,
-      };
+    } else {
+      appointments = appointmentsInput;
     }
+
+     
 
     const results = await this.syncDoctorAppointments(appointments, context);
 

@@ -34,6 +34,7 @@ export async function handler(
     tokenSubject: event.headers?.['Authorization']?.split(' ')[6],
   });
 
+  
   try {
     const controller = getAppointmentSyncController();
     const result = await controller.handleSyncAppointments(event);

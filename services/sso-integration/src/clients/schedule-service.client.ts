@@ -21,6 +21,7 @@ import {
 
   import { SSOError } from '../types/errors/sso-error';
   import { SSORequestContext } from '../types/common/context.types';
+import { loadTenantDetails } from '../utils/helper';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -254,9 +255,15 @@ export class ScheduleServiceClient {
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
-
+    const tenant = loadTenantDetails(context.integration?.subdomain);
+     
     try {
-      console.log("recommendServices payload", JSON.stringify(payload));
+      const request = {
+        ...payload,
+        organizationId: tenant.organizationId,
+        organizationID: tenant.organizationId,
+      };
+      console.log("recommendServices payload", JSON.stringify(request));
       const response = await this.packageServiceClient.post<RecommendServicesResponse>(
         '/services/recommend-services',
         payload,

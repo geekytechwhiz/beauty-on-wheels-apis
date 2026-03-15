@@ -6,6 +6,7 @@ import {
   ScheduleCreateRequest,
 } from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
+import { CreatedUserInfo } from '../types/user/user.types';
 import { ScheduleCreationEventPayload } from '../types/events/schedule-creation-message.types';
 import { loadTenantDetails } from '../utils/helper';
 export class AppointmentMapper {
@@ -130,8 +131,14 @@ export class AppointmentMapper {
     orgAddonId: string,
     context: SSORequestContext,
   ): RecommendServicesRequest {
+    const subdomain = context.integration?.subdomain
+    const tenant = loadTenantDetails(subdomain);
+    console.log("tenant", tenant);
+    console.log("event", event);
     const organizationID =
-      context.integration?.subdomain ?? event.doctor.organizationId;
+    event.doctor.organizationId ||
+    event.patient.organizationId ||
+    tenant.organizationId;
     const scheduleTimeStamp = this.getTimestampString(
       event.appointment.startTime,
     );

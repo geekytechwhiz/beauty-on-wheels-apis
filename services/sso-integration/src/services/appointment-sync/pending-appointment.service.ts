@@ -1,7 +1,8 @@
 import { createChildLogger, serializeError } from '@api-hub/logger';
 import { SSORequestContext } from '../../types/common/context.types';
 import { PendingAppointment, User } from '../../types';
-import { CognitoUserContext, CreatedUserInfo } from '../../types/user/user.types';
+import { CognitoUserContext } from '../../types/user/user.types';
+import { ScheduleCreationEventPayload } from '../../types/events/schedule-creation-message.types';
 import { AppointmentIdempotencyService } from './appointment-idempotency.service';
 import { ScheduleCreationService } from './schedule-creation.service';
 import type { ScheduleServiceClient } from '../../clients/schedule-service.client';
@@ -229,10 +230,39 @@ export class PendingAppointmentService {
           patientUserId: String(patient.id),
         });
 
+        const normalizedEventPayload: ScheduleCreationEventPayload = {
+          tenantId: context.tenantId,
+          correlationId: context.correlationId,
+          appointment: {
+            externalId: pendingAppt.externalAppointmentId,
+            startTime: pendingAppt.appointment.startTime,
+            endTime: pendingAppt.appointment.endTime,
+            status: String(pendingAppt.appointment.status),
+          },
+          doctor: {
+            userId: String(doctorCognito.userId),
+            externalUserId:
+              pendingAppt.doctorExternalId ||
+              String(pendingAppt.appointment.doctor.id),
+            organizationId:
+              doctorCognito.organizationId ??
+              patient.organizationId ??
+              context.integration?.subdomain ??
+              '',
+          },
+          patient: {
+            userId: String(patient.id),
+            externalUserId: pendingAppt.patientExternalId,
+            organizationId:
+              patient.organizationId ??
+              doctorCognito.organizationId ??
+              context.integration?.subdomain ??
+              '',
+          },
+        };
+
         await this.scheduleCreationService.createServiceScheduleWithRetry(
-          pendingAppt.appointment,
-          doctorCognito as CreatedUserInfo,
-          patient,
+          normalizedEventPayload,
           context,
         );
 

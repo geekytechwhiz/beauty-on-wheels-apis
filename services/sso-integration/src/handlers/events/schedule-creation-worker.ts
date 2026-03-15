@@ -11,9 +11,13 @@ import { getEnvConfig } from '../../config/env';
 import { getScheduleServiceClient } from '../../clients/schedule-service.client';
 import { getAppointmentMapper } from '../../mappers/appointment.mapper';
 import { ScheduleCreationService } from '../../services/appointment-sync/schedule-creation.service';
-import type { ScheduleCreationMessage } from '../../types/events/schedule-creation-message.types';
+import type {
+  ScheduleCreationEventPayload,
+  ScheduleCreationQueueMessage,
+} from '../../types/events/schedule-creation-message.types';
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 import { emitMetric, MetricNames } from '../../utils/metrics.util';
+import { normalizeScheduleEventPayload } from '../../utils/normalize-schedule-event-payload.util';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -23,7 +27,7 @@ const baseLogger = createLogger({
 /**
  * SQS handler for ScheduleCreationQueue.
  * Creates schedule via ScheduleCreationService. Idempotency is enforced by the
- * Scheduler Service using idempotencyKey = `${tenantId}#${appointmentExternalId}`.
+ * Scheduler Service using idempotencyKey = `${tenantId}#${event.appointment.externalId}`.
  */
 export async function handler(
   event: SQSEvent,
@@ -58,30 +62,36 @@ export async function handler(
 
   for (const record of event.Records) {
     const recordId = record.messageId;
-    let body: ScheduleCreationMessage | undefined;
+    let body: ScheduleCreationEventPayload | undefined;
 
     try {
-      body = JSON.parse(record.body) as ScheduleCreationMessage;
+      const rawBody = JSON.parse(record.body) as ScheduleCreationQueueMessage;
+      body = normalizeScheduleEventPayload(rawBody);
 
       const {
         tenantId,
         correlationId,
-        appointmentExternalId,
         appointment,
         doctor,
-        patientUser,
+        patient,
       } = body;
 
       if (
         !tenantId ||
         !correlationId ||
-        !appointmentExternalId ||
-        !appointment ||
-        !doctor ||
-        !patientUser
+        !appointment?.externalId ||
+        !appointment.startTime ||
+        !appointment.endTime ||
+        !appointment.status ||
+        !doctor?.userId ||
+        !doctor.externalUserId ||
+        !doctor.organizationId ||
+        !patient?.userId ||
+        !patient.externalUserId ||
+        !patient.organizationId
       ) {
         throw new Error(
-          'Message body must contain tenantId, correlationId, appointmentExternalId, appointment, doctor, patientUser',
+          'Message body must contain a normalized schedule creation payload',
         );
       }
 
@@ -91,13 +101,12 @@ export async function handler(
       );
 
       const schedule = await scheduleCreationService.createServiceScheduleWithRetry(
-        appointment,
-        doctor,
-        patientUser,
+        body,
         requestContext,
       );
 
-      const patientExternalId = String(appointment.patient?.id ?? '');
+      const appointmentExternalId = appointment.externalId;
+      const patientExternalId = patient.externalUserId;
       if (patientExternalId) {
         if (process.env.BYPASS_PENDING_APPOINTMENT === 'true') {
           logger.info({
@@ -144,13 +153,13 @@ export async function handler(
     } catch (error) {
       await emitMetric(MetricNames.SCHEDULE_CREATION_FAILURES, 1, 'Count', {
         tenantId: body?.tenantId ?? 'unknown',
-        appointmentExternalId: body?.appointmentExternalId ?? 'unknown',
+        appointmentExternalId: body?.appointment?.externalId ?? 'unknown',
       });
       logger.error({
         event: 'schedule_creation_worker_error',
         recordId,
         tenantId: body?.tenantId,
-        appointmentExternalId: body?.appointmentExternalId,
+        appointmentExternalId: body?.appointment?.externalId,
         correlationId: body?.correlationId,
         err: serializeError(error as Error),
       });

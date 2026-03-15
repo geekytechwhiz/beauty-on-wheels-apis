@@ -6,7 +6,7 @@ import {
   ScheduleCreateRequest,
 } from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
-import { CreatedUserInfo } from '../types/user/user.types';
+import { ScheduleCreationEventPayload } from '../types/events/schedule-creation-message.types';
 import { loadTenantDetails } from '../utils/helper';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
@@ -102,16 +102,19 @@ export class AppointmentMapper {
    * Maps appointment to GetAvailableServicesRequest
    */
   mapAppointmentToGetAvailableServices(
-    appointment: Appointment,
-    patientUser: User,
+    event: ScheduleCreationEventPayload,
     context: SSORequestContext,
-    doctorOrganizationId?: string,
   ): GetAvailableServicesRequest {
     const subdomain = context.integration?.subdomain ?? '';
     const tenant = loadTenantDetails(subdomain);
+    const organizationId =
+      event.doctor.organizationId ||
+      event.patient.organizationId ||
+      tenant.organizationId;
+
     return {
-      organizationId: doctorOrganizationId ?? tenant.organizationId,
-      assignOrgId: doctorOrganizationId ?? tenant.subdomain,
+      organizationId,
+      assignOrgId: organizationId,
       serviceType: 'addon',
       listingType: 'recommended',
       featureKey: 'doctor_consultancy',
@@ -123,32 +126,24 @@ export class AppointmentMapper {
    * Maps appointment to RecommendServicesRequest
    */
   mapAppointmentToRecommendServices(
-    appointment: Appointment,
-    doctorUser: CreatedUserInfo,
-    patientUser: User,
+    event: ScheduleCreationEventPayload,
     orgAddonId: string,
     context: SSORequestContext,
   ): RecommendServicesRequest {
-
-    const organizationID = context.integration.subdomain;
-     
-    console.log("PATIENT USER: ", patientUser);
-    console.log("APPOINTMENT: ", appointment);
-    console.log("DOCTOR USER: ", doctorUser);
-    console.log("ORG ADDON ID: ", orgAddonId);
-    console.log("ORGANIZATION ID: ", organizationID);
-  
-    const scheduleTimeStamp = this.getTimestampString(appointment.startTime);
+    const organizationID =
+      context.integration?.subdomain ?? event.doctor.organizationId;
+    const scheduleTimeStamp = this.getTimestampString(
+      event.appointment.startTime,
+    );
 
     return {
       organizationId: organizationID,
       type: 'addon',
-      userId: String(patientUser.id),
+      userId: event.patient.userId,
       orgAddonId: orgAddonId,
-      assignedDoctorId: String(doctorUser.userId),
+      assignedDoctorId: event.doctor.userId,
       scheduleBy: scheduleTimeStamp,
     };
-    
   }
 
   /**
@@ -157,31 +152,31 @@ export class AppointmentMapper {
    * (idempotencyKey = `${tenantId}#${appointmentExternalId}`).
    */
   mapAppointmentToCreateServiceSchedule(
-    appointment: Appointment,
-    doctorUser: CreatedUserInfo,
-    patientUser: User,
+    event: ScheduleCreationEventPayload,
     userAddonId: string,
     context: SSORequestContext,
   ): CreateServiceScheduleRequest {
-    const startTime = this.formatTime12Hour(appointment.startTime);
-    const endTime = this.formatTime12Hour(appointment.endTime);
-    const scheduleDate = this.formatDateDDMMYYYY(appointment.startTime);
-    const scheduleTimeStamp = this.getTimestampString(appointment.startTime);
+    const startTime = this.formatTime12Hour(event.appointment.startTime);
+    const endTime = this.formatTime12Hour(event.appointment.endTime);
+    const scheduleDate = this.formatDateDDMMYYYY(event.appointment.startTime);
+    const scheduleTimeStamp = this.getTimestampString(
+      event.appointment.startTime,
+    );
     const duration = this.calculateDurationMinutes(
-      appointment.startTime,
-      appointment.endTime,
+      event.appointment.startTime,
+      event.appointment.endTime,
     );
 
-    const doctorName = appointment.doctor.name || '';
-    const doctorEmail = appointment.doctor.email || '';
-    const doctorSpecialty = appointment.doctor.department || 'general';
-    const patientName = appointment.patient.name || '';
-    const patientEmail = appointment.patient.email || '';
+    const doctorName = '';
+    const doctorEmail = '';
+    const doctorSpecialty = 'general';
+    const patientName = '';
+    const patientEmail = '';
 
     const tenantId = context.integration?.subdomain ?? context.tenantId ?? '';
-    const appointmentExternalId = String(appointment.appointmentId);
-    const doctorUserId = String(doctorUser.userId);
-    const patientUserId = String(patientUser.id);
+    const appointmentExternalId = event.appointment.externalId;
+    const doctorUserId = event.doctor.userId;
+    const patientUserId = event.patient.userId;
 
     return {
       serviceType: 'addon',

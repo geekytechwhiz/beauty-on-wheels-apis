@@ -159,3 +159,5 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
 export function buildAssignDoctorPayload(input: AssignDoctorModelInput): AssignDoctorPayload {
   return buildAssignDoctorModel(input);
 }
+
+ 

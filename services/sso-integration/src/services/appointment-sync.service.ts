@@ -19,6 +19,7 @@ import {
 } from '../types';
 
 import { CognitoUserContext, CreatedUserInfo } from '../types/user/user.types';
+import { ScheduleCreationEventPayload } from '../types/events/schedule-creation-message.types';
 
 import { getOrganizationId, loadTenantDetails } from '../utils/helper';
 
@@ -130,6 +131,38 @@ export class AppointmentSyncService extends BaseService {
     };
   }
 
+  private buildScheduleCreationEventPayload(params: {
+    appointment: Appointment;
+    doctor: CreatedUserInfo;
+    patientUser: User;
+    patientOrganizationId: string;
+    context: SSORequestContext;
+  }): ScheduleCreationEventPayload {
+    const { appointment, doctor, patientUser, patientOrganizationId, context } = params;
+
+    return {
+      tenantId: context.tenantId,
+      correlationId: context.correlationId,
+      appointment: {
+        externalId: String(appointment.appointmentId),
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+        status: String(appointment.status),
+      },
+      doctor: {
+        userId: String(doctor.userId),
+        externalUserId:
+          doctor.externalUserId || String(appointment.doctor.id),
+        organizationId: doctor.organizationId,
+      },
+      patient: {
+        userId: String(patientUser.id),
+        externalUserId: String(appointment.patient.id),
+        organizationId: patientOrganizationId,
+      },
+    };
+  }
+
   /**
    * Fetches appointments from HMS and returns only validated appointments.
    * Used by sync handler when enqueueing to AppointmentSyncQueue (no inline processing).
@@ -152,7 +185,7 @@ export class AppointmentSyncService extends BaseService {
     if (!appointments.length) {
       return [];
     }
-
+    console.log("appointments received", JSON.stringify(appointments))
     const { validAppointments } =
       this.appointmentValidationService.validateAppointments(
         appointments,
@@ -445,6 +478,26 @@ export class AppointmentSyncService extends BaseService {
       }
     }
 
+    let resolvedPatient = userServicePatient;
+
+    if (!resolvedPatient && cognitoUser) {
+      resolvedPatient = await this.userProvisioningService.getOrCreatePatient(
+        appointment,
+        context,
+      );
+
+      this.logger.info({
+        event: 'patient_created_or_normalized_from_lookup',
+        ...this.buildLogContext({
+          context,
+          externalAppointmentId,
+          patientExternalId,
+          doctorExternalId,
+          patientUserId: String(resolvedPatient.id),
+        }),
+      });
+    }
+
     this.logger.info({
       event: 'patient_lookup_complete',
       ...this.buildLogContext({
@@ -452,11 +505,15 @@ export class AppointmentSyncService extends BaseService {
         externalAppointmentId,
         patientExternalId,
         doctorExternalId,
-        patientUserId: cognitoUser ? String(cognitoUser.userId) : undefined,
+        patientUserId: resolvedPatient
+          ? String(resolvedPatient.id)
+          : cognitoUser
+            ? String(cognitoUser.userId)
+            : undefined,
       }),
     });
 
-    if (!cognitoUser) {
+    if (!resolvedPatient) {
       if (!userServicePatient) {
         try {
           const subdomain = context.integration?.subdomain ?? '';
@@ -538,9 +595,12 @@ export class AppointmentSyncService extends BaseService {
 
     const subdomain = context.integration?.subdomain ?? '';
     const organizationId =
-      cognitoUser.organizationId ?? loadTenantDetails(subdomain).organizationId;
+      resolvedPatient.organizationId ??
+      cognitoUser?.organizationId ??
+      doctor.organizationId ??
+      loadTenantDetails(subdomain).organizationId;
     const doctorUserId = String(doctor.userId);
-    const patientUserId = String(cognitoUser.userId);
+    const patientUserId = String(resolvedPatient.id);
 
     const scheduleFetchPayload: FetchSchedulesRequest = {
       fromDate: new Date(appointment.startTime).getTime(),
@@ -620,15 +680,15 @@ export class AppointmentSyncService extends BaseService {
       organizationId,
     });
 
-    const patientUser = cognitoUser as unknown as User;
-    await publishScheduleCreation({
-      tenantId: context.tenantId,
-      correlationId: context.correlationId,
-      appointmentExternalId: externalAppointmentId,
+    const scheduleCreationPayload = this.buildScheduleCreationEventPayload({
       appointment,
       doctor,
-      patientUser,
+      patientUser: resolvedPatient,
+      patientOrganizationId: organizationId,
+      context,
     });
+
+    await publishScheduleCreation(scheduleCreationPayload);
     this.logger.info({
       event: 'schedule_creation_enqueued',
       ...this.buildLogContext({

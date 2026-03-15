@@ -1,8 +1,8 @@
 import { createChildLogger, serializeError } from '@api-hub/logger';
 import { getScheduleServiceClient, ScheduleServiceClient } from '../../clients/schedule-service.client';
 import { AppointmentMapper, getAppointmentMapper } from '../../mappers/appointment.mapper';
-import { Appointment, Schedule, SSORequestContext, User } from '../../types';
-import { CreatedUserInfo } from '../../types/user/user.types';
+import { Schedule, SSORequestContext } from '../../types';
+import { ScheduleCreationEventPayload } from '../../types/events/schedule-creation-message.types';
 import { RetryOptions, retryWithBackoff } from '../../utils/retry.util';
  
 
@@ -19,37 +19,32 @@ export class ScheduleCreationService {
   }
 
   async createServiceScheduleWithRetry(
-    appointment: Appointment,
-    doctorUser: CreatedUserInfo,
-    patientUser: User,
+    eventPayload: ScheduleCreationEventPayload,
     context: SSORequestContext,
   ): Promise<Schedule> {
     return retryWithBackoff(
       async () => {
         const logger = createChildLogger(this.logger, {
           correlationId: context.correlationId,
-          appointmentId: appointment.appointmentId,
+          appointmentId: eventPayload.appointment.externalId,
         });
 
         const getAvailableServicesRequest =
           this.appointmentMapper.mapAppointmentToGetAvailableServices(
-            appointment,
-            patientUser,
+            eventPayload,
             context,
-            doctorUser?.organizationId
           );
 
         logger.info({
           event: 'get_available_services_start',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: appointment.appointmentId,
-          doctorExternalId: appointment.doctor.id,
-          patientExternalId: appointment.patient.id,
-          doctorUserId: doctorUser.userId,
-          patientUserId: patientUser.id,
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
           request: getAvailableServicesRequest,
-          ...doctorUser,
         });
 
         const availableServices =
@@ -68,20 +63,18 @@ export class ScheduleCreationService {
           event: 'get_available_services',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
           orgAddonId,
           availableServicesCount: availableServices.length,
         });
 
         const recommendServicesRequest =
           this.appointmentMapper.mapAppointmentToRecommendServices(
-            appointment,
-            doctorUser,
-            patientUser,
+            eventPayload,
             orgAddonId ,
             context,
           );
@@ -90,11 +83,11 @@ export class ScheduleCreationService {
           event: 'recommend_services_start',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
           request: recommendServicesRequest,
         });
 
@@ -113,19 +106,17 @@ export class ScheduleCreationService {
           event: 'recommend_services_success',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
           userAddonId,
         });
 
         const createServiceScheduleRequest =
           this.appointmentMapper.mapAppointmentToCreateServiceSchedule(
-            appointment,
-            doctorUser,
-            patientUser,
+            eventPayload,
             userAddonId,
             context,
           );
@@ -134,11 +125,11 @@ export class ScheduleCreationService {
           event: 'create_service_schedule_start',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
           request: createServiceScheduleRequest,
         });
 
@@ -154,11 +145,11 @@ export class ScheduleCreationService {
             event: 'create_service_schedule_success',
             correlationId: context.correlationId,
             tenantId: context.tenantId,
-            externalAppointmentId: String(appointment.appointmentId),
-            doctorExternalId: String(appointment.doctor.id),
-            patientExternalId: String(appointment.patient.id),
-            doctorUserId: String(doctorUser.userId),
-            patientUserId: String(patientUser.id),
+            externalAppointmentId: eventPayload.appointment.externalId,
+            doctorExternalId: eventPayload.doctor.externalUserId,
+            patientExternalId: eventPayload.patient.externalUserId,
+            doctorUserId: eventPayload.doctor.userId,
+            patientUserId: eventPayload.patient.userId,
             scheduleId: schedule.scheduleId,
           });
         } catch (error: any) {
@@ -173,12 +164,12 @@ export class ScheduleCreationService {
               event: 'create_service_schedule_duplicate_detected',
               correlationId: context.correlationId,
               tenantId: context.tenantId,
-              externalAppointmentId: String(appointment.appointmentId),
-              doctorExternalId: String(appointment.doctor.id),
-              patientExternalId: String(appointment.patient.id),
-              doctorUserId: String(doctorUser.userId),
-              patientUserId: String(patientUser.id),
-              appointmentId: appointment.appointmentId,
+              externalAppointmentId: eventPayload.appointment.externalId,
+              doctorExternalId: eventPayload.doctor.externalUserId,
+              patientExternalId: eventPayload.patient.externalUserId,
+              doctorUserId: eventPayload.doctor.userId,
+              patientUserId: eventPayload.patient.userId,
+              appointmentId: eventPayload.appointment.externalId,
               err: serializeError(error as Error),
             });
             // Rethrow to let AppointmentIdempotencyService / upstream logic classify as duplicate,
@@ -190,12 +181,12 @@ export class ScheduleCreationService {
             event: 'create_service_schedule_error',
             correlationId: context.correlationId,
             tenantId: context.tenantId,
-            externalAppointmentId: String(appointment.appointmentId),
-            doctorExternalId: String(appointment.doctor.id),
-            patientExternalId: String(appointment.patient.id),
-            doctorUserId: String(doctorUser.userId),
-            patientUserId: String(patientUser.id),
-            appointmentId: appointment.appointmentId,
+            externalAppointmentId: eventPayload.appointment.externalId,
+            doctorExternalId: eventPayload.doctor.externalUserId,
+            patientExternalId: eventPayload.patient.externalUserId,
+            doctorUserId: eventPayload.doctor.userId,
+            patientUserId: eventPayload.patient.userId,
+            appointmentId: eventPayload.appointment.externalId,
             err: serializeError(error as Error),
           });
 
@@ -206,18 +197,18 @@ export class ScheduleCreationService {
           event: 'update_service_status_start',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
           addonId: userAddonId,
-          userId: String(patientUser.id),
+          userId: eventPayload.patient.userId,
         });
 
         await this.updateServiceStatusWithRetry(
           userAddonId,
-          String(patientUser.id),
+          eventPayload.patient.userId,
           context,
         );
 
@@ -225,13 +216,13 @@ export class ScheduleCreationService {
           event: 'update_service_status_success',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
           addonId: userAddonId,
-          userId: String(patientUser.id),
+          userId: eventPayload.patient.userId,
         });
 
         return schedule;

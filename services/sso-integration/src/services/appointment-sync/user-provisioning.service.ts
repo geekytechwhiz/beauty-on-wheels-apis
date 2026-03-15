@@ -11,6 +11,16 @@ import {
   mapHmsAppointmentPatientToCreatePatientModel,
 } from '../../mappers/user-creation.mapper';
 import { CreatedUserInfo } from '../../types/user/user.types';
+
+function mapUserToCreatedUserInfo(user: User, fallbackEmail?: string | null): CreatedUserInfo {
+  return {
+    userId: user.id?.toString() ?? '',
+    email: user.email ?? fallbackEmail ?? null,
+    externalUserId: user.externalId?.toString() ?? '',
+    organizationId: user.organizationId ?? '',
+  };
+}
+
 export class UserProvisioningService {
   constructor(
     private readonly ssoUserServiceClient: SSOUserServiceClient,
@@ -33,7 +43,7 @@ export class UserProvisioningService {
       context,
     );
     if (!existingUser) return null;
-    return existingUser as unknown as CreatedUserInfo;
+    return mapUserToCreatedUserInfo(existingUser, appointment.doctor.email ?? null);
   }
 
   async getOrCreateDoctor(
@@ -70,13 +80,7 @@ export class UserProvisioningService {
         ...existingUser,
       });
 
-      return {
-        ...existingUser,
-        userId: existingUser.id?.toString() ?? '',
-        email: doctorEmail,
-        externalUserId: existingUser.externalId?.toString() ?? '',
-        organizationId: existingUser.organizationId ?? '',
-      };
+      return mapUserToCreatedUserInfo(existingUser, doctorEmail);
     }
 
     // 2️⃣ Doctor not found → create (idempotent via externalUserId + user-service)
@@ -148,7 +152,7 @@ export class UserProvisioningService {
             doctorEmail,
             doctorUserId: existingAfterConflict.id,
           });
-          return existingAfterConflict as any as CreatedUserInfo;
+          return mapUserToCreatedUserInfo(existingAfterConflict, doctorEmail);
         }
       }
 

@@ -84,29 +84,51 @@ type UserDBItem = User & {
   gsi1Sk?: string;
 };
 
+function buildExternalIdentityQueryKeys(
+  tenant: string,
+  provider: string,
+  externalUserId: string,
+): { gsi1Pk: string; gsi1Sk: string } {
+  const normalizedTenant = tenant.trim().toLowerCase();
+  const normalizedProvider = provider.trim().toLowerCase();
+  const normalizedExternalUserId = externalUserId.trim().toLowerCase();
+
+  return {
+    gsi1Pk: `TENANT#${normalizedTenant}#PROVIDER#${normalizedProvider}`,
+    gsi1Sk: `EXTERNAL_USER#${normalizedExternalUserId}`,
+  };
+}
 function buildExternalIdentityKeys(
   user: User,
 ): Pick<UserDBItem, 'gsi1Pk' | 'gsi1Sk'> | {} {
   const ext = user.externalIdentity;
-  if (!ext?.provider || !ext.externalUserId) {
+
+  if (!ext) {
+    return {};
+  }
+
+  const provider = ext.provider?.trim();
+  const externalUserId = ext.externalUserId?.trim();
+
+  if (!provider || !externalUserId) {
     return {};
   }
 
   const tenant =
     ext.tenant?.trim() ||
-    ext.subdomain?.trim()  
+    ext.subdomain?.trim();
 
   if (!tenant) {
     return {};
   }
 
-  const provider = ext.provider.trim().toLowerCase();
-  const externalUserId = ext.externalUserId.trim().toLowerCase();
+  const { gsi1Pk, gsi1Sk } = buildExternalIdentityQueryKeys(
+    tenant,
+    provider,
+    externalUserId,
+  );
 
-  return {
-    gsi1Pk: `${tenant}#${provider}`,
-    gsi1Sk: externalUserId,
-  };
+  return { gsi1Pk, gsi1Sk };
 }
 
 function modifyIndexesUsers(user: User): UserDBItem {
@@ -193,12 +215,11 @@ export class UserRepository {
       externalUserId,
     });
 
-    const normalizedTenant = tenant.trim().toLowerCase();
-    const normalizedProvider = provider.trim().toLowerCase();
-    const normalizedExternalUserId = externalUserId.trim().toLowerCase();
-
-    const gsi1Pk = `${normalizedTenant}#${normalizedProvider}`;
-    const gsi1Sk = normalizedExternalUserId;
+    const { gsi1Pk, gsi1Sk } = buildExternalIdentityQueryKeys(
+      tenant,
+      provider,
+      externalUserId,
+    );
 
     logger.info({
       event: 'user_get_by_external_identity_start',
@@ -249,7 +270,11 @@ export class UserRepository {
     const logger = createChildLogger(baseLogger, { userId: user.userID });
   
     const mainUserItem = modifyIndexesUsers(user);
-  
+    logger.info({
+      event: "external_identity_keys_generated",
+      gsi1Pk: mainUserItem.gsi1Pk,
+      gsi1Sk: mainUserItem.gsi1Sk,
+    });
     try {
       await sendDoc(
         docClient,

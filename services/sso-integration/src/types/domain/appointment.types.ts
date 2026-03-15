@@ -272,7 +272,7 @@ export interface CreateServiceScheduleRequest {
   pincode?: string;
   latitude?: number;
   longitude?: number;
-  action: 'createSchedule';
+  action: 'createSchedule' | 'createSession';
   paymentSchedule: 'INSTANT' | 'LATER';
   /** For Scheduler Service idempotency: idempotencyKey = `${tenantId}#${appointmentExternalId}` */
   tenantId: string;

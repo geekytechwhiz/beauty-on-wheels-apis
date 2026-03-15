@@ -18,6 +18,7 @@ import {
   ScheduleDetails,
   PendingAppointment,
 } from '../types';
+import { normalizeSchedulePayload } from '../utils/normalize-schedule-payload.util';
 
   import { SSOError } from '../types/errors/sso-error';
   import { SSORequestContext } from '../types/common/context.types';
@@ -319,10 +320,11 @@ export class ScheduleServiceClient {
     });
 
     try {
+      const normalizedPayload = normalizeSchedulePayload(payload);
 
       const response = await this.packageServiceClient.post<CreateServiceScheduleResponse>(
         '/services/create-schedule',
-        payload,
+        normalizedPayload,
         {
           headers: this.buildHeaders(context),
         },

@@ -43,12 +43,13 @@ export class ScheduleCreationService {
           event: 'get_available_services_start',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+          externalAppointmentId: appointment.appointmentId,
+          doctorExternalId: appointment.doctor.id,
+          patientExternalId: appointment.patient.id,
+          doctorUserId: doctorUser.userId,
+          patientUserId: patientUser.id,
           request: getAvailableServicesRequest,
+          ...doctorUser,
         });
 
         const availableServices =

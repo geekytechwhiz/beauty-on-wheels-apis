@@ -9,7 +9,7 @@ import {
 import {
   mapHmsDoctorToCreateDoctorModel,
   mapHmsAppointmentPatientToCreatePatientModel,
-} from '../../mappers/user-creation.mapper'; 
+} from '../../mappers/user-creation.mapper';
 import { CreatedUserInfo } from '../../types/user/user.types';
 export class UserProvisioningService {
   constructor(
@@ -67,9 +67,16 @@ export class UserProvisioningService {
         doctorExternalId,
         doctorEmail,
         doctorUserId: existingUser.id,
+        ...existingUser,
       });
 
-      return existingUser as any as CreatedUserInfo;
+      return {
+        ...existingUser,
+        userId: existingUser.id?.toString() ?? '',
+        email: doctorEmail,
+        externalUserId: existingUser.externalId?.toString() ?? '',
+        organizationId: existingUser.organizationId ?? '',
+      };
     }
 
     // 2️⃣ Doctor not found → create (idempotent via externalUserId + user-service)
@@ -85,10 +92,11 @@ export class UserProvisioningService {
     );
 
     try {
-      const createdDoctor = await this.ssoUserServiceClient.createDoctorWithRetry(
-        doctorRequestPayload,
-        context,
-      );
+      const createdDoctor =
+        await this.ssoUserServiceClient.createDoctorWithRetry(
+          doctorRequestPayload,
+          context,
+        );
 
       logger.info({
         event: 'doctor_created_success',
@@ -157,11 +165,11 @@ export class UserProvisioningService {
       patientExternalId: appointment.patient.id,
     });
 
-    const externalUserId = String(appointment.patient.id); 
+    const externalUserId = String(appointment.patient.id);
 
     const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
-      { 
-        externalId: externalUserId, 
+      {
+        externalId: externalUserId,
       },
       context,
     );

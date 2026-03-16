@@ -310,6 +310,46 @@ export class ScheduleServiceClient {
     }
   }
 
+    async getAllAddons(context: SSORequestContext,
+      payload: RecommendServicesRequest,
+    ): Promise<AvailableService[]> {
+    const logger = createChildLogger(this.logger, {
+      correlationId: context.correlationId,
+    });
+    try {
+        const response: any = await this.packageServiceClient.post<AvailableService[]>(
+          '/services/get-all-addons',
+          payload,
+          {
+            headers: this.buildHeaders(context)
+          },
+        );
+        console.log("getAllAddons response", JSON.stringify(response.data));
+        const items = response.data?.data?.items ?? [];
+        return items ?? [];
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        logger.error({
+          event: 'get_all_addons_error',
+          status: axiosError.response?.status,
+          err: serializeError(axiosError),
+        });
+        throw SSOError.downstreamError(
+          `Get all addons failed: ${axiosError.message}`,
+          axiosError,
+        );
+      }
+      logger.error({
+        event: 'get_all_addons_unexpected_error',
+        err: serializeError(error as Error),
+      });
+      throw SSOError.downstreamError(
+        'Unexpected error during get all addons',
+        error as Error,
+      );
+    }
+  }
   async createServiceSchedule(
     payload: CreateServiceScheduleRequest,
     context: SSORequestContext,

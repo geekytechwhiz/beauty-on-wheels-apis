@@ -81,7 +81,7 @@ export class FriendFamilyService {
       // User not found: check inviter F&F limit before handler runs invite flow
       const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
       if (inviterHasInvitee) {
-        throw new Error('USER_CANNOT_INVITE_MORE_FNF');
+        throw new FnfLimitReachedError();
       }
       logger.info({ event: 'friend_family_search_user_not_found_invite_path' });
       return { success: false };

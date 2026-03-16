@@ -1,5 +1,9 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
+import {
+  createChildLogger,
+  createLogger,
+  serializeError,
+} from '@api-hub/logger';
 
 import { getEnvConfig } from '../config/env';
 import {
@@ -20,8 +24,8 @@ import {
 } from '../types';
 import { normalizeSchedulePayload } from '../utils/normalize-schedule-payload.util';
 
-  import { SSOError } from '../types/errors/sso-error';
-  import { SSORequestContext } from '../types/common/context.types';
+import { SSOError } from '../types/errors/sso-error';
+import { SSORequestContext } from '../types/common/context.types';
 import { loadTenantDetails } from '../utils/helper';
 
 const baseLogger = createLogger({
@@ -30,7 +34,6 @@ const baseLogger = createLogger({
 });
 
 export class ScheduleServiceClient {
-
   private readonly client: AxiosInstance;
   private readonly packageServiceClient: AxiosInstance;
 
@@ -60,7 +63,6 @@ export class ScheduleServiceClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-
         this.logger.error({
           event: 'schedule_service_request_error',
           status: error.response?.status,
@@ -75,7 +77,6 @@ export class ScheduleServiceClient {
     this.packageServiceClient.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-
         this.logger.error({
           event: 'package_service_request_error',
           status: error.response?.status,
@@ -101,13 +102,11 @@ export class ScheduleServiceClient {
     payload: FetchSchedulesRequest,
     context: SSORequestContext,
   ): Promise<Schedule[]> {
-
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
 
     try {
-
       const response = await this.client.post<FetchSchedulesResponse>(
         '/fetch/schedules',
         payload,
@@ -119,13 +118,17 @@ export class ScheduleServiceClient {
       // Extract schedules from the response structure
       // The API returns data.items, where each item has scheduled[] or schedule object
       const schedules: Schedule[] = [];
-      
+
       if (response.data.data?.items) {
         for (const item of response.data.data.items) {
           // Check if item has scheduled array
           if (item.scheduled && Array.isArray(item.scheduled)) {
             for (const scheduledItem of item.scheduled) {
-              schedules.push(this.mapScheduledItemToSchedule(scheduledItem as unknown as any));
+              schedules.push(
+                this.mapScheduledItemToSchedule(
+                  scheduledItem as unknown as any,
+                ),
+              );
             }
           }
           // Check if item has schedule object
@@ -136,11 +139,8 @@ export class ScheduleServiceClient {
       }
 
       return schedules;
-
     } catch (error) {
-
       if (axios.isAxiosError(error)) {
-
         const axiosError = error as AxiosError;
 
         if (axiosError.response?.status === 400) {
@@ -154,7 +154,6 @@ export class ScheduleServiceClient {
         }
 
         if (axiosError.response?.status === 404) {
-
           logger.info({
             event: 'schedule_fetch_not_found',
             payload,
@@ -187,41 +186,36 @@ export class ScheduleServiceClient {
     }
   }
 
-  
-
   // Service-based schedule creation methods
   async getAvailableServices(
     payload: GetAvailableServicesRequest,
     context: SSORequestContext,
   ): Promise<AvailableService[]> {
-
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
 
     try {
-      console.log("getAvailableServices payload", JSON.stringify(payload));
-      const response = await this.packageServiceClient.post<GetAvailableServicesResponse>(
-        '/services/get-available-services',
-        payload,
-        {
-          headers: this.buildHeaders(context),
-        },
-      );
+      console.log('getAvailableServices payload', JSON.stringify(payload));
+      const response =
+        await this.packageServiceClient.post<GetAvailableServicesResponse>(
+          '/services/get-available-services',
+          payload,
+          {
+            headers: this.buildHeaders(context),
+          },
+        );
 
       // Extract items from data.items array
       const items = response.data.data?.items ?? [];
-      
+
       // Map addonId to orgAddonId for compatibility
-      return items.map(item => ({
+      return items.map((item) => ({
         ...item,
         orgAddonId: item.addonId || item.orgAddonId,
       }));
-
     } catch (error) {
-
       if (axios.isAxiosError(error)) {
-
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -252,44 +246,42 @@ export class ScheduleServiceClient {
     payload: RecommendServicesRequest,
     context: SSORequestContext,
   ): Promise<{ userAddonId: string }> {
-
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
     const tenant = loadTenantDetails(context.integration?.subdomain);
-     
+    let addonId = '';
     try {
       const request = {
         ...payload,
         organizationId: tenant.organizationId,
         organizationID: tenant.organizationId,
       };
-      console.log("recommendServices payload", JSON.stringify(request));
-      const response = await this.packageServiceClient.post<RecommendServicesResponse>(
-        '/services/recommend-services',
-        payload,
-        {
-          headers: this.buildHeaders(context),
-        },
-      );
+      console.log('recommendServices payload', JSON.stringify(request));
+      const response =
+        await this.packageServiceClient.post<RecommendServicesResponse>(
+          '/services/recommend-services',
+          payload,
+          {
+            headers: this.buildHeaders(context),
+          },
+        );  
 
       // The API returns data.userAddonId directly (not an array)
       if (!response.data.data?.userAddonId) {
-        
-        const allAddons = await this.getAllAddons(context, payload);
-        if (!allAddons || allAddons.length === 0) {
+        const userAddonDetails = await this.getUserAddonDetails(
+          context,
+          payload,
+        );
+        if (!userAddonDetails || userAddonDetails.length === 0) {
           throw new Error('No available services found');
         }
-        const addonId = allAddons[0]?.addonId;
-        response.data.data.userAddonId = addonId;
+        addonId = userAddonDetails[0]?.userAddonId as string;
       }
-
-      return { userAddonId: response.data.data.userAddonId };
-
+      console.log('recommendServices response', JSON.stringify(response.data));
+      return { userAddonId: addonId };
     } catch (error) {
-
       if (axios.isAxiosError(error)) {
-
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -316,23 +308,27 @@ export class ScheduleServiceClient {
     }
   }
 
-    async getAllAddons(context: SSORequestContext,
-      payload: RecommendServicesRequest,
-    ): Promise<AvailableService[]> {
+  async getUserAddonDetails(
+    context: SSORequestContext,
+    payload: RecommendServicesRequest,
+  ): Promise<AvailableService[]> {
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
+    const request = {
+      ...payload,
+      userId: payload.userId,
+      action: 'recommended',
+    };
     try {
-        const response: any = await this.packageServiceClient.post<AvailableService[]>(
-          '/services/get-all-addons',
-          payload,
-          {
-            headers: this.buildHeaders(context)
-          },
-        );
-        console.log("getAllAddons response", JSON.stringify(response.data));
-        const items = response.data?.data?.items ?? [];
-        return items ?? [];
+      const response: any = await this.packageServiceClient.post<
+        AvailableService[]
+      >('/services/get-user-addon-details', request, {
+        headers: this.buildHeaders(context),
+      });
+      console.log('getAllAddons response', JSON.stringify(response.data));
+      const items = response.data?.data?.items ?? [];
+      return items ?? [];
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError;
@@ -360,7 +356,6 @@ export class ScheduleServiceClient {
     payload: CreateServiceScheduleRequest,
     context: SSORequestContext,
   ): Promise<Schedule> {
-
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
@@ -368,25 +363,27 @@ export class ScheduleServiceClient {
     try {
       const normalizedPayload = normalizeSchedulePayload(payload);
 
-      const response = await this.packageServiceClient.post<CreateServiceScheduleResponse>(
-        '/services/create-schedule',
-        normalizedPayload,
-        {
-          headers: this.buildHeaders(context),
-        },
-      );
+      const response =
+        await this.packageServiceClient.post<CreateServiceScheduleResponse>(
+          '/services/create-schedule',
+          normalizedPayload,
+          {
+            headers: this.buildHeaders(context),
+          },
+        );
 
       if (!response.data.data?.scheduleDetails) {
-        throw new Error('No schedule details returned from create service schedule');
+        throw new Error(
+          'No schedule details returned from create service schedule',
+        );
       }
 
       // Convert ScheduleDetails to Schedule format
-      return this.mapScheduleDetailsToSchedule(response.data.data.scheduleDetails);
-
+      return this.mapScheduleDetailsToSchedule(
+        response.data.data.scheduleDetails,
+      );
     } catch (error) {
-
       if (axios.isAxiosError(error)) {
-
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -396,7 +393,10 @@ export class ScheduleServiceClient {
         });
 
         if (axiosError.response?.status === 409) {
-          throw SSOError.downstreamError('Service schedule already exists', axiosError);
+          throw SSOError.downstreamError(
+            'Service schedule already exists',
+            axiosError,
+          );
         }
 
         throw SSOError.downstreamError(
@@ -421,27 +421,23 @@ export class ScheduleServiceClient {
     payload: UpdateServiceStatusRequest,
     context: SSORequestContext,
   ): Promise<UpdateServiceStatusResponse> {
-
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
 
     try {
-
-      const response = await this.packageServiceClient.post<UpdateServiceStatusResponse>(
-        '/services/update-status',
-        payload,
-        {
-          headers: this.buildHeaders(context),
-        },
-      );
+      const response =
+        await this.packageServiceClient.post<UpdateServiceStatusResponse>(
+          '/services/update-status',
+          payload,
+          {
+            headers: this.buildHeaders(context),
+          },
+        );
 
       return response.data;
-
     } catch (error) {
-
       if (axios.isAxiosError(error)) {
-
         const axiosError = error as AxiosError;
 
         logger.error({
@@ -505,7 +501,10 @@ export class ScheduleServiceClient {
           error,
         );
       }
-      throw SSOError.downstreamError('Store pending appointment failed', error as Error);
+      throw SSOError.downstreamError(
+        'Store pending appointment failed',
+        error as Error,
+      );
     }
   }
 
@@ -541,7 +540,10 @@ export class ScheduleServiceClient {
           error,
         );
       }
-      throw SSOError.downstreamError('Get pending appointments failed', error as Error);
+      throw SSOError.downstreamError(
+        'Get pending appointments failed',
+        error as Error,
+      );
     }
   }
 
@@ -571,7 +573,10 @@ export class ScheduleServiceClient {
           error,
         );
       }
-      throw SSOError.downstreamError('Remove pending appointment failed', error as Error);
+      throw SSOError.downstreamError(
+        'Remove pending appointment failed',
+        error as Error,
+      );
     }
   }
 
@@ -586,12 +591,16 @@ export class ScheduleServiceClient {
       correlationId: context.correlationId,
     });
     try {
-      await this.client.patch('/internal/pending-appointments/retry-count', {
-        tenantId,
-        patientExternalId,
-        externalAppointmentId,
-        retryCount,
-      }, { headers: this.buildHeaders(context) });
+      await this.client.patch(
+        '/internal/pending-appointments/retry-count',
+        {
+          tenantId,
+          patientExternalId,
+          externalAppointmentId,
+          retryCount,
+        },
+        { headers: this.buildHeaders(context) },
+      );
     } catch (error) {
       if (axios.isAxiosError(error)) {
         logger.error({
@@ -604,7 +613,10 @@ export class ScheduleServiceClient {
           error,
         );
       }
-      throw SSOError.downstreamError('Update pending appointment retry count failed', error as Error);
+      throw SSOError.downstreamError(
+        'Update pending appointment retry count failed',
+        error as Error,
+      );
     }
   }
 
@@ -621,7 +633,10 @@ export class ScheduleServiceClient {
       correlationId: context.correlationId,
     });
     try {
-      const response = await this.client.post<{ alreadyProcessed: boolean; scheduleId?: string }>(
+      const response = await this.client.post<{
+        alreadyProcessed: boolean;
+        scheduleId?: string;
+      }>(
         '/internal/appointment-idempotency/check',
         { tenantId, appointmentExternalId },
         { headers: this.buildHeaders(context) },
@@ -639,7 +654,10 @@ export class ScheduleServiceClient {
           error,
         );
       }
-      throw SSOError.downstreamError('Check appointment idempotency failed', error as Error);
+      throw SSOError.downstreamError(
+        'Check appointment idempotency failed',
+        error as Error,
+      );
     }
   }
 
@@ -670,7 +688,10 @@ export class ScheduleServiceClient {
           error,
         );
       }
-      throw SSOError.downstreamError('Mark appointment processed failed', error as Error);
+      throw SSOError.downstreamError(
+        'Mark appointment processed failed',
+        error as Error,
+      );
     }
   }
 
@@ -701,20 +722,25 @@ export class ScheduleServiceClient {
       startTime: scheduledItem.startTime,
       endTime: scheduledItem.endTime,
       scheduleDate: scheduledItem.scheduleDate,
-      appointmentType: (scheduledItem as { consultationType?: string }).consultationType || 'ONLINE',
-      owner: scheduledItem.owner ? {
-        userId: scheduledItem.owner.userId,
-        userType: scheduledItem.owner.userType,
-      } : {
-        userId: '',
-        userType: 'STAFF',
-      },
-      participantInfo: (scheduledItem.participantInfo || []).map(p => ({
+      appointmentType:
+        (scheduledItem as { consultationType?: string }).consultationType ||
+        'ONLINE',
+      owner: scheduledItem.owner
+        ? {
+            userId: scheduledItem.owner.userId,
+            userType: scheduledItem.owner.userType,
+          }
+        : {
+            userId: '',
+            userType: 'STAFF',
+          },
+      participantInfo: (scheduledItem.participantInfo || []).map((p) => ({
         userId: p.userId,
         userType: p.userType as 'STAFF' | 'USER',
         organizationID: p.organizationID || '',
       })),
-      organizationID: (scheduledItem.participantInfo?.[0]?.organizationID as string) || '',
+      organizationID:
+        (scheduledItem.participantInfo?.[0]?.organizationID as string) || '',
       meta: {
         externalAppointmentId: scheduledItem.scheduleId,
       },
@@ -724,7 +750,9 @@ export class ScheduleServiceClient {
   /**
    * Maps ScheduleDetails from the API response to Schedule format
    */
-  private mapScheduleDetailsToSchedule(scheduleDetails: ScheduleDetails): Schedule {
+  private mapScheduleDetailsToSchedule(
+    scheduleDetails: ScheduleDetails,
+  ): Schedule {
     return {
       scheduleId: scheduleDetails.id || scheduleDetails.scheduleId || '',
       startTime: scheduleDetails.startTime,
@@ -735,14 +763,15 @@ export class ScheduleServiceClient {
         userId: scheduleDetails.owner.userId,
         userType: scheduleDetails.owner.userType,
       },
-      participantInfo: scheduleDetails.participantInfo.map(p => ({
+      participantInfo: scheduleDetails.participantInfo.map((p) => ({
         userId: p.userId,
         userType: p.userType as 'STAFF' | 'USER',
         organizationID: p.organizationID,
       })),
       organizationID: scheduleDetails.organizationID,
       meta: {
-        externalAppointmentId: scheduleDetails.id || scheduleDetails.scheduleId || '',
+        externalAppointmentId:
+          scheduleDetails.id || scheduleDetails.scheduleId || '',
         ...scheduleDetails.meta,
       },
     };
@@ -752,7 +781,6 @@ export class ScheduleServiceClient {
 let scheduleServiceClientInstance: ScheduleServiceClient | null = null;
 
 export function getScheduleServiceClient(): ScheduleServiceClient {
-
   if (!scheduleServiceClientInstance) {
     scheduleServiceClientInstance = new ScheduleServiceClient();
   }

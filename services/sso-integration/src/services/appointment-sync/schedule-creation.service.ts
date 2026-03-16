@@ -93,24 +93,14 @@ export class ScheduleCreationService {
         request: recommendServicesRequest,
       });
 
-      const recommendResult = await this.scheduleClient.recommendServices(
+      const { userAddonId } = await this.scheduleClient.recommendServices(
         recommendServicesRequest,
         context,
-      );
-      let userAddonId = '';
-      if (!recommendResult?.userAddonId) {
-        const allAddons = await this.scheduleClient.getAllAddons(
-          context,
-          recommendServicesRequest,
-        );
-        if (!allAddons || allAddons.length === 0) {
-          throw new Error('No available services found');
-        }
-        const addonId = allAddons[0]?.addonId;
-        console.log('addonId', addonId);
-        recommendResult.userAddonId = addonId;
-      }
-      userAddonId = recommendResult?.userAddonId;
+      ); 
+      if (!userAddonId) {
+        
+        throw new Error('No available services found');
+      }  
 
       logger.info({
         event: 'recommend_services_success',
@@ -121,7 +111,7 @@ export class ScheduleCreationService {
         patientExternalId: eventPayload.patient.externalUserId,
         doctorUserId: eventPayload.doctor.userId,
         patientUserId: eventPayload.patient.userId,
-        userAddonI: userAddonId,
+        userAddonI: userAddonId ,
       });
 
       const createServiceScheduleRequest =

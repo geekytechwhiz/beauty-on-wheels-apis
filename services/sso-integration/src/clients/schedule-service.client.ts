@@ -27,6 +27,7 @@ import { normalizeSchedulePayload } from '../utils/normalize-schedule-payload.ut
 import { SSOError } from '../types/errors/sso-error';
 import { SSORequestContext } from '../types/common/context.types';
 import { loadTenantDetails } from '../utils/helper';
+import { buildHeaders } from '../utils/request.utils';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -89,15 +90,6 @@ export class ScheduleServiceClient {
     );
   }
 
-  private buildHeaders(context: SSORequestContext): Record<string, string> {
-    const config = getEnvConfig();
-
-    return {
-      'X-Correlation-Id': context.correlationId,
-      Authorization: `Bearer ${config.INTERNAL_SERVICE_TOKEN}`,
-    };
-  }
-
   async fetchSchedules(
     payload: FetchSchedulesRequest,
     context: SSORequestContext,
@@ -111,7 +103,7 @@ export class ScheduleServiceClient {
         '/fetch/schedules',
         payload,
         {
-          headers: this.buildHeaders(context),
+          headers: buildHeaders(context),
         },
       );
 
@@ -202,7 +194,7 @@ export class ScheduleServiceClient {
           '/services/get-available-services',
           payload,
           {
-            headers: this.buildHeaders(context),
+            headers: buildHeaders(context),
           },
         );
 
@@ -263,7 +255,7 @@ export class ScheduleServiceClient {
           '/services/recommend-services',
           request,
           {
-            headers: this.buildHeaders(context),
+            headers: buildHeaders(context),
           },
         );
 
@@ -322,13 +314,13 @@ export class ScheduleServiceClient {
     };
     try {
       console.log('getUserAddonDetails request', JSON.stringify(request));
-      console.log('getUserAddonDetails headers', JSON.stringify(this.buildHeaders(context)));
+      console.log('getUserAddonDetails headers', JSON.stringify(buildHeaders(context)));
       const response =
         await this.packageServiceClient.post<GetAvailableServicesResponse>(
           '/services/get-user-addon-service',
           request,
           {
-        headers: this.buildHeaders(context),
+        headers: buildHeaders(context),
           },
         );
       console.log('getUserAddonDetails response', JSON.stringify(response.data));
@@ -373,7 +365,7 @@ export class ScheduleServiceClient {
           '/services/create-schedule',
           normalizedPayload,
           {
-            headers: this.buildHeaders(context),
+            headers: buildHeaders(context),
           },
         );
 
@@ -438,7 +430,7 @@ export class ScheduleServiceClient {
           '/services/update-status',
           payload,
           {
-            headers: this.buildHeaders(context),
+            headers: buildHeaders(context),
           },
         );
 
@@ -494,7 +486,7 @@ export class ScheduleServiceClient {
           payload: pending,
           status: 'PENDING',
         },
-        { headers: this.buildHeaders(context) },
+        { headers: buildHeaders(context) },
       );
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -528,7 +520,7 @@ export class ScheduleServiceClient {
         '/internal/pending-appointments',
         {
           params: { tenantId, patientExternalId },
-          headers: this.buildHeaders(context),
+          headers: buildHeaders(context),
         },
       );
       return response.data?.items ?? [];
@@ -566,7 +558,7 @@ export class ScheduleServiceClient {
     try {
       await this.client.delete('/internal/pending-appointments', {
         params: { tenantId, patientExternalId, externalAppointmentId },
-        headers: this.buildHeaders(context),
+        headers: buildHeaders(context),
       });
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -606,7 +598,7 @@ export class ScheduleServiceClient {
           externalAppointmentId,
           retryCount,
         },
-        { headers: this.buildHeaders(context) },
+        { headers: buildHeaders(context) },
       );
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -646,7 +638,7 @@ export class ScheduleServiceClient {
       }>(
         '/internal/appointment-idempotency/check',
         { tenantId, appointmentExternalId },
-        { headers: this.buildHeaders(context) },
+        { headers: buildHeaders(context) },
       );
       return response.data ?? { alreadyProcessed: false };
     } catch (error) {
@@ -681,7 +673,7 @@ export class ScheduleServiceClient {
       await this.client.post(
         '/internal/appointment-idempotency/mark',
         { tenantId, appointmentExternalId, scheduleId },
-        { headers: this.buildHeaders(context) },
+        { headers: buildHeaders(context) },
       );
     } catch (error) {
       if (axios.isAxiosError(error)) {

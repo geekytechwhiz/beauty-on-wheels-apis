@@ -8,8 +8,8 @@ import {
   PatientCreationPayload,
 } from '../types/user-creation.type';
 import { User } from '../types/user/user.types';
-import { getOrganizationId } from '../utils/helper';
-import { buildServiceHeaders } from '../utils/request.utils';
+  import { getOrganizationId } from '../utils/helper';
+  import { buildHeaders } from '../utils/request.utils';
 import { BaseClient } from '@api-hub/service-clients';
 import { CreatedUserInfo } from '../types/user/user.types';
 
@@ -37,7 +37,7 @@ export class SSOUserServiceClient extends BaseClient {
           provider: context.integration.providerId,
           externalUserId,
         },
-        headers: buildServiceHeaders(context),
+        headers: buildHeaders(context),
       });
 
       // User-service returns { success, data, message, error, meta }; user is in data
@@ -100,7 +100,7 @@ export class SSOUserServiceClient extends BaseClient {
     console.log('createDoctor payload', JSON.stringify(payload));
 
     const response = await this.client.post<unknown>('/user', payload, {
-      headers: buildServiceHeaders(context),
+      headers: buildHeaders(context),
     });
 
     console.log('createDoctor response', response);
@@ -222,7 +222,7 @@ export class SSOUserServiceClient extends BaseClient {
     };
     
     const response = await this.client.post<{ data: User }>('/user', patientCreationPayload, {
-      headers: buildServiceHeaders(context),
+      headers: buildHeaders(context),
     });
 
     const user = response.data.data;
@@ -248,7 +248,7 @@ export class SSOUserServiceClient extends BaseClient {
       const response = await this.client.post<{ message: string }>(
         '/user/assign-doctor',
         payload,
-        { headers: buildServiceHeaders(context) },
+        { headers: buildHeaders(context) },
       );
 
       return response.data;

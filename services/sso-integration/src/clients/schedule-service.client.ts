@@ -275,7 +275,13 @@ export class ScheduleServiceClient {
 
       // The API returns data.userAddonId directly (not an array)
       if (!response.data.data?.userAddonId) {
-        throw new Error('No userAddonId returned from recommend services');
+        
+        const allAddons = await this.getAllAddons(context, payload);
+        if (!allAddons || allAddons.length === 0) {
+          throw new Error('No available services found');
+        }
+        const addonId = allAddons[0]?.addonId;
+        response.data.data.userAddonId = addonId;
       }
 
       return { userAddonId: response.data.data.userAddonId };

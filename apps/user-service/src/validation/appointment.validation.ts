@@ -11,8 +11,8 @@ export const createAppointmentSchema = z.object({
   doctorUserId: requiredString('doctorUserId'),
   patientExternalId: requiredString('patientExternalId'),
   doctorExternalId: requiredString('doctorExternalId'),
-  startTime: requiredString('startTime'),
-  endTime: requiredString('endTime'),
+  startTime: z.number().min(1, 'startTime is required').optional(), 
+  endTime: z.number().min(1, 'endTime is required').optional(),
   status: requiredString('status'),
   sourceSystem: requiredString('sourceSystem'),
 });

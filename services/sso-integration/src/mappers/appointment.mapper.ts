@@ -57,8 +57,8 @@ export class AppointmentMapper {
   }
 
   /**
-   * Converts ISO 8601 datetime to 12-hour format (e.g., "11:40 AM").
-   * If the value is already in 12-hour format or cannot be parsed, returns it as-is.
+   * Converts ISO 8601 datetime to 12-hour format with leading zero on hour (e.g. "05:00 PM", "05:15 PM").
+   * If the value cannot be parsed, returns it as-is.
    */
   private formatTime12Hour(isoDateTime: string): string {
     const date = new Date(isoDateTime);
@@ -69,8 +69,9 @@ export class AppointmentMapper {
     const minutes = date.getUTCMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const hours12 = hours % 12 || 12;
+    const hoursStr = hours12.toString().padStart(2, '0');
     const minutesStr = minutes.toString().padStart(2, '0');
-    return `${hours12}:${minutesStr} ${ampm}`;
+    return `${hoursStr}:${minutesStr} ${ampm}`;
   }
 
   /**

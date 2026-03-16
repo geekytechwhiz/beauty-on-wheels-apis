@@ -73,8 +73,8 @@ export function normalizeSchedulePayload(
     action: normalizedAction,
     userId: derivedUserId,
     staffId: derivedStaffId,
-    patientUserId: toTrimmedString(payload.patientUserId) ?? derivedUserId,
-    doctorUserId: toTrimmedString(payload.doctorUserId) ?? derivedStaffId,
+    // patientUserId: toTrimmedString(payload.patientUserId) ?? derivedUserId,
+    // doctorUserId: toTrimmedString(payload.doctorUserId) ?? derivedStaffId,
     userName,
     userEmail:
       toTrimmedString(payload.userEmail) ?? buildFallbackEmail('user', derivedUserId),

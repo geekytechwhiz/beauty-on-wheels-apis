@@ -173,51 +173,64 @@ export class AppointmentMapper {
    */
   mapAppointmentToCreateServiceSchedule(
     event: ScheduleCreationEventPayload,
-    userAddonId: string,
-    context: SSORequestContext,
+    userAddonId: string
   ): CreateServiceScheduleRequest {
+  
     const startTime = this.formatTime12Hour(event.appointment.startTime);
     const endTime = this.formatTime12Hour(event.appointment.endTime);
+  
     const scheduleDate = this.formatDateDDMMYYYY(event.appointment.startTime);
+  
     const scheduleTimeStamp = this.getTimestampString(
       event.appointment.startTime,
     );
-    const duration = this.calculateDurationMinutes(
-      event.appointment.startTime,
-      event.appointment.endTime,
+  
+    const duration = String(
+      this.calculateDurationMinutes(
+        event.appointment.startTime,
+        event.appointment.endTime,
+      ),
     );
-
+  
     const doctorName = event.doctor.name ?? '';
     const doctorEmail = event.doctor.email ?? '';
     const doctorSpecialty = 'general';
+  
     const patientName = event.patient.name ?? '';
     const patientEmail = event.patient.email ?? '';
-
-    const tenantId = context.integration?.subdomain ?? context.tenantId ?? '';
-    const appointmentExternalId = event.appointment.externalId;
+  
     const doctorUserId = event.doctor.userId;
     const patientUserId = event.patient.userId;
-
+  
     return {
       serviceType: 'addon',
+  
       userAddonId,
+  
       userId: patientUserId,
       userName: patientName,
       userEmail: patientEmail,
+  
       staffId: doctorUserId,
       staffName: doctorName,
       staffEmail: doctorEmail,
       staffSpecialty: doctorSpecialty,
+  
       startTime,
       endTime,
       duration,
+  
       scheduleDate,
       scheduleTimeStamp,
+  
       scheduleType: 'ONLINE',
+  
+      pincode: '134114',
+      latitude: 0,
+      longitude: 0,
+  
       action: 'createSchedule',
       paymentSchedule: 'INSTANT',
-      tenantId,
-      appointmentExternalId,
     };
   }
 }

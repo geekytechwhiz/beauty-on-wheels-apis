@@ -11,7 +11,7 @@ export interface Appointment {
   endTime: string;
   status: string;
   sourceSystem: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: number;
+  updatedAt: number;
   itemType: 'APPOINTMENT';
 }

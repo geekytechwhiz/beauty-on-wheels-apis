@@ -894,7 +894,7 @@ export class UserRepository {
       appointmentId: appointment.appointmentId,
       patientUserId: appointment.patientUserId,
     });
-    const now = new Date().toISOString();
+    const now = Date.now();
     const item: Appointment & { pk: string; sk: string } = {
       pk: appointmentPk(appointment.patientUserId),
       sk: appointmentSk(appointment.appointmentId),

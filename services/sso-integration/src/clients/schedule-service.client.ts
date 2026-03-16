@@ -485,7 +485,7 @@ export class ScheduleServiceClient {
     });
     try {
       await this.client.post(
-        '/internal/pending-appointments',
+        '/pending-appointments',
         {
           tenantId,
           appointmentExternalId: pending.externalAppointmentId,

@@ -241,7 +241,7 @@ export interface RecommendServicesRequest {
   userId: string;
   orgAddonId: string;
   assignedDoctorId: string;
-  scheduleBy: string; // timestamp as string
+  scheduleBy: string; // timestamp as number
 }
 
 export interface RecommendServicesResponse {
@@ -273,12 +273,7 @@ export interface CreateServiceScheduleRequest {
   latitude?: number;
   longitude?: number;
   action: 'createSchedule' | 'createSession';
-  paymentSchedule: 'INSTANT' | 'LATER';
-  /** For Scheduler Service idempotency: idempotencyKey = `${tenantId}#${appointmentExternalId}` */
-  tenantId: string;
-  appointmentExternalId: string;
-  doctorUserId: string;
-  patientUserId: string;
+  paymentSchedule: 'INSTANT' | 'LATER'; 
 }
 
 export interface ScheduleDetails {

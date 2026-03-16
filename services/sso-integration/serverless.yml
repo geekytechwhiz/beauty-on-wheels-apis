@@ -45,7 +45,7 @@ provider:
     TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '60000'}
     # Optional JSON map: {"tenantId":{"baseUrl":"...","apiKey":"...","timeoutMs":60000}}
     TENANT_HMS_CONFIG: ${env:TENANT_HMS_CONFIG, '{}'}
-
+    BYPASS_SUFFIX_APPOINTMENTS: ${env:BYPASS_SUFFIX_APPOINTMENTS, true}
     # Internal Services
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}

@@ -118,7 +118,6 @@ export class ScheduleCreationService {
         this.appointmentMapper.mapAppointmentToCreateServiceSchedule(
           eventPayload,
           userAddonId,
-          context,
         );
 
       logger.info({

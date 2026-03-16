@@ -168,7 +168,7 @@ export class AppointmentMapper {
 
   /**
    * Maps appointment to CreateServiceScheduleRequest.
-   * Includes tenantId, appointmentExternalId, doctorUserId, patientUserId for Scheduler Service idempotency
+   * Includes tenantId and appointmentExternalId for Scheduler Service idempotency
    * (idempotencyKey = `${tenantId}#${appointmentExternalId}`).
    */
   mapAppointmentToCreateServiceSchedule(
@@ -218,8 +218,6 @@ export class AppointmentMapper {
       paymentSchedule: 'INSTANT',
       tenantId,
       appointmentExternalId,
-      doctorUserId,
-      patientUserId,
     };
   }
 }

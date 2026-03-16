@@ -277,8 +277,8 @@ export interface CreateServiceScheduleRequest {
   /** For Scheduler Service idempotency: idempotencyKey = `${tenantId}#${appointmentExternalId}` */
   tenantId: string;
   appointmentExternalId: string;
-  doctorUserId: string;
-  patientUserId: string;
+  // doctorUserId: string;
+  // patientUserId: string;
 }
 
 export interface ScheduleDetails {

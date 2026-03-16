@@ -315,18 +315,19 @@ export class ScheduleServiceClient {
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,
     });
-    const request = {
-      ...payload,
+    const request = { 
       userId: payload.userId,
       action: 'recommended',
     };
     try {
+      console.log('getUserAddonDetails request', JSON.stringify(request));
+      console.log('getUserAddonDetails headers', JSON.stringify(this.buildHeaders(context)));
       const response: any = await this.packageServiceClient.post<
         AvailableService[]
       >('/services/get-user-addon-details', request, {
         headers: this.buildHeaders(context),
       });
-      console.log('getAllAddons response', JSON.stringify(response.data));
+      console.log('getUserAddonDetails response', JSON.stringify(response.data));
       const items = response.data?.data?.items ?? [];
       return items ?? [];
     } catch (error) {

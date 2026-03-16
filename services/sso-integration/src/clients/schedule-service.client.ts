@@ -261,14 +261,15 @@ export class ScheduleServiceClient {
       const response =
         await this.packageServiceClient.post<RecommendServicesResponse>(
           '/services/recommend-services',
-          payload,
+          request,
           {
             headers: this.buildHeaders(context),
           },
-        );  
+        );
 
       // The API returns data.userAddonId directly (not an array)
-      if (!response.data.data?.userAddonId) {
+      addonId = response.data.data?.userAddonId ?? '';
+      if (!addonId) {
         const userAddonDetails = await this.getUserAddonDetails(
           context,
           payload,
@@ -322,11 +323,14 @@ export class ScheduleServiceClient {
     try {
       console.log('getUserAddonDetails request', JSON.stringify(request));
       console.log('getUserAddonDetails headers', JSON.stringify(this.buildHeaders(context)));
-      const response: any = await this.packageServiceClient.post<
-        AvailableService[]
-      >('/services/get-user-addon-details', request, {
+      const response =
+        await this.packageServiceClient.post<GetAvailableServicesResponse>(
+          '/services/get-user-addon-service',
+          request,
+          {
         headers: this.buildHeaders(context),
-      });
+          },
+        );
       console.log('getUserAddonDetails response', JSON.stringify(response.data));
       const items = response.data?.data?.items ?? [];
       return items ?? [];

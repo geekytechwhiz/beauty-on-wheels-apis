@@ -233,16 +233,42 @@ export class ScheduleCreationService {
     userId: string,
     context: SSORequestContext,
   ): Promise<void> {
+    console.log(
+      'updateServiceStatusWithRetry: start',
+      JSON.stringify({ addonId, userId, correlationId: context.correlationId }),
+    );
     await retryWithBackoff(async () => {
-      await this.scheduleClient.updateServiceStatus(
-        {
-          addonId,
-          type: 'addon',
-          userId,
-          scheduleStatus: 'confirmed',
-        },
-        context,
+      const payload = {
+        addonId,
+        type: 'addon' as const,
+        userId,
+        scheduleStatus: 'confirmed' as const,
+        paymentStatus: 'completed' as const,
+      };
+      console.log(
+        'updateServiceStatusWithRetry: calling updateServiceStatus',
+        JSON.stringify({ payload, correlationId: context.correlationId }),
       );
+      try {
+        const response = await this.scheduleClient.updateServiceStatus(
+          payload,
+          context,
+        );
+        console.log(
+          'updateServiceStatusWithRetry: updateServiceStatus response',
+          JSON.stringify({ response, correlationId: context.correlationId }),
+        );
+      } catch (err) {
+        console.error(
+          'updateServiceStatusWithRetry: updateServiceStatus error',
+          JSON.stringify({ err, correlationId: context.correlationId }),
+        );
+        throw err;
+      }
     }, this.retryOptions);
+    console.log(
+      'updateServiceStatusWithRetry: complete',
+      JSON.stringify({ addonId, userId, correlationId: context.correlationId }),
+    );
   }
 }

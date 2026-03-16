@@ -574,7 +574,7 @@ functions:
     memorySize: 256
     events:
       - http:
-          path: /pending-appointments/{patientUserId}/{appointmentId}
+          path: /users/{patientUserId}/pending-appointments/{appointmentId}
           method: get
           cors:
             origin: ${self:custom.cors.origin}

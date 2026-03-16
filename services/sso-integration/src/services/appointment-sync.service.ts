@@ -161,11 +161,15 @@ export class AppointmentSyncService extends BaseService {
         externalUserId:
           doctor.externalUserId || String(appointment.doctor.id),
         organizationId: normalizedOrganizationId,
+        name: appointment.doctor.name  ,
+        email: doctor.email || undefined,
       },
       patient: {
         userId: String(patientUser.id),
         externalUserId: String(appointment.patient.id),
         organizationId: normalizedOrganizationId,
+        name: appointment.patient.name || undefined,
+        email: patientUser.email || undefined,
       },
     };
   }

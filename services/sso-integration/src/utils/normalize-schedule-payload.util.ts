@@ -63,7 +63,10 @@ export function normalizeSchedulePayload(
     toTrimmedString(payload.doctorUserId) ??
     DEFAULT_STAFF_NAME;
 
-  const normalizedAction: ScheduleAction = 'createSession';
+  const normalizedAction: ScheduleAction =
+    payload.action === 'createSession' || payload.action === 'createSchedule'
+      ? payload.action
+      : 'createSchedule';
 
   return {
     ...payload,

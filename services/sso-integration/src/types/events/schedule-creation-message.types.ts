@@ -12,6 +12,8 @@ export interface ScheduleCreationParticipantPayload {
   userId: string;
   externalUserId: string;
   organizationId: string;
+  name?: string;
+  email?: string;
 }
 
 /**

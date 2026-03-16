@@ -46,10 +46,19 @@ function normalizeParticipant(params: {
   fallbackUserId?: unknown;
   fallbackExternalUserId?: unknown;
   fallbackOrganizationId?: unknown;
+  fallbackName?: unknown;
+  fallbackEmail?: unknown;
   label: 'doctor' | 'patient';
 }): ScheduleCreationParticipantPayload {
-  const { legacyEntity, fallbackUserId, fallbackExternalUserId, fallbackOrganizationId, label } =
-    params;
+  const {
+    legacyEntity,
+    fallbackUserId,
+    fallbackExternalUserId,
+    fallbackOrganizationId,
+    fallbackName,
+    fallbackEmail,
+    label,
+  } = params;
 
   const userId =
     toNonEmptyString(legacyEntity?.userId) ??
@@ -72,10 +81,21 @@ function normalizeParticipant(params: {
     throw new Error(`Legacy schedule message is missing normalized ${label} identifiers`);
   }
 
+  const name =
+    toNonEmptyString(legacyEntity?.name) ??
+    toNonEmptyString(legacyEntity?.fullName) ??
+    toNonEmptyString(fallbackName);
+
+  const email =
+    toNonEmptyString(legacyEntity?.email) ??
+    toNonEmptyString(fallbackEmail);
+
   return {
     userId,
     externalUserId,
     organizationId,
+    ...(name ? { name } : {}),
+    ...(email ? { email } : {}),
   };
 }
 
@@ -111,6 +131,8 @@ function normalizeLegacyScheduleCreationMessage(
   const doctor = normalizeParticipant({
     legacyEntity: legacyDoctor,
     fallbackExternalUserId: appointment?.doctor?.id,
+    fallbackName: appointment?.doctor?.name,
+    fallbackEmail: legacyDoctor?.email,
     label: 'doctor',
   });
 
@@ -120,6 +142,8 @@ function normalizeLegacyScheduleCreationMessage(
     fallbackExternalUserId: appointment?.patient?.id,
     fallbackOrganizationId:
       legacyDoctor?.organizationId ?? legacyDoctor?.organizationID ?? doctor.organizationId,
+    fallbackName: appointment?.patient?.name,
+    fallbackEmail: legacyPatient?.email,
     label: 'patient',
   });
 
@@ -154,11 +178,15 @@ export function normalizeScheduleEventPayload(
         userId: payload.doctor.userId,
         externalUserId: payload.doctor.externalUserId,
         organizationId: payload.doctor.organizationId,
+        name: payload.doctor.name,
+        email: payload.doctor.email,
       },
       patient: {
         userId: payload.patient.userId,
         externalUserId: payload.patient.externalUserId,
         organizationId: payload.patient.organizationId,
+        name: payload.patient.name,
+        email: payload.patient.email,
       },
     };
   }

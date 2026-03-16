@@ -394,6 +394,8 @@ export class ScheduleServiceClient {
         logger.error({
           event: 'create_service_schedule_error',
           status: axiosError.response?.status,
+          responseData: axiosError.response?.data,
+          requestPayload: payload,
           err: serializeError(axiosError),
         });
 

@@ -6,7 +6,6 @@ import {
   ScheduleCreateRequest,
 } from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
-import { CreatedUserInfo } from '../types/user/user.types';
 import { ScheduleCreationEventPayload } from '../types/events/schedule-creation-message.types';
 import { loadTenantDetails } from '../utils/helper';
 export class AppointmentMapper {
@@ -58,12 +57,16 @@ export class AppointmentMapper {
   }
 
   /**
-   * Converts ISO 8601 time to 12-hour format (e.g., "11:40 AM")
+   * Converts ISO 8601 datetime to 12-hour format (e.g., "11:40 AM").
+   * If the value is already in 12-hour format or cannot be parsed, returns it as-is.
    */
   private formatTime12Hour(isoDateTime: string): string {
     const date = new Date(isoDateTime);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    if (isNaN(date.getTime())) {
+      return isoDateTime;
+    }
+    const hours = date.getUTCHours();
+    const minutes = date.getUTCMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const hours12 = hours % 12 || 12;
     const minutesStr = minutes.toString().padStart(2, '0');
@@ -71,25 +74,34 @@ export class AppointmentMapper {
   }
 
   /**
-   * Converts ISO 8601 date to DD-MM-YYYY format
+   * Converts ISO 8601 datetime to DD-MM-YYYY format.
+   * Falls back to today's date string if parsing fails.
    */
   private formatDateDDMMYYYY(isoDateTime: string): string {
     const date = new Date(isoDateTime);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
+    if (isNaN(date.getTime())) {
+      const now = new Date();
+      const day = now.getUTCDate().toString().padStart(2, '0');
+      const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+      return `${day}-${month}-${now.getUTCFullYear()}`;
+    }
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const year = date.getUTCFullYear();
     return `${day}-${month}-${year}`;
   }
 
   /**
-   * Calculates duration in minutes between two ISO datetime strings
+   * Calculates duration in minutes between two ISO datetime strings.
+   * Returns "15" as a safe default when either timestamp cannot be parsed.
    */
   private calculateDurationMinutes(startTime: string, endTime: string): string {
     const start = new Date(startTime).getTime();
     const end = new Date(endTime).getTime();
-    const durationMs = end - start;
-    const durationMinutes = Math.round(durationMs / (1000 * 60));
-    return durationMinutes.toString();
+    if (isNaN(start) || isNaN(end) || end <= start) {
+      return '15';
+    }
+    return Math.round((end - start) / (1000 * 60)).toString();
   }
 
   /**
@@ -174,11 +186,11 @@ export class AppointmentMapper {
       event.appointment.endTime,
     );
 
-    const doctorName = '';
-    const doctorEmail = '';
+    const doctorName = event.doctor.name ?? '';
+    const doctorEmail = event.doctor.email ?? '';
     const doctorSpecialty = 'general';
-    const patientName = '';
-    const patientEmail = '';
+    const patientName = event.patient.name ?? '';
+    const patientEmail = event.patient.email ?? '';
 
     const tenantId = context.integration?.subdomain ?? context.tenantId ?? '';
     const appointmentExternalId = event.appointment.externalId;

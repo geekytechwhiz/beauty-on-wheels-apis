@@ -1,4 +1,6 @@
-export interface PatientCreationEvent {
+import { ExternalIdentity } from '../user-creation.type';
+
+  export interface PatientCreationEvent {
   eventType: 'patient.creation.requested';
   eventId: string;
   timestamp: string;
@@ -32,11 +34,7 @@ export interface PatientCreationEvent {
         symptoms?: unknown[];
       } | null;
     };
-    externalIdentity: {
-      subdomain: string;
-      provider: string;
-      externalUserId: string;
-    };
+    externalIdentity: ExternalIdentity;
 
     /**
      * Doctor identifier in our system (if already created) or external system.

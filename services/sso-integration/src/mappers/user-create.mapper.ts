@@ -4,7 +4,7 @@ import { Appointment, SourceSystem, SSORequestContext } from '../types'
 import { SSOError } from '../types/errors/sso-error'
 import { DoctorCreationPayload } from '../types/user-creation.type'
 import { processPhoneNumber } from '../utils/phone-processor'
-import { DOCTOR_ROLE_ID } from '../utils/constants'
+import { loadTenantDetails } from '../utils/helper'
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -14,11 +14,18 @@ export function makeDoctorCreationPayload(
   appointment: Appointment,
   context: SSORequestContext
 ): DoctorCreationPayload {
-
   const logger =
     createChildLogger(baseLogger, { correlationId: context.correlationId })
 
+  const subdomain = context.integration?.subdomain ?? ''
+  const tenant = loadTenantDetails(subdomain)
+  const doctorRoleId = tenant.doctorRoleId
+  if (!doctorRoleId) {
+    throw SSOError.invalidRequest('Doctor role ID is required')
+  }
+
   const config = getSSOConfig()
+  const now = Date.now()
 
   logger.info({
     event: 'doctor_mapping_start',
@@ -85,7 +92,7 @@ export function makeDoctorCreationPayload(
       bio: config.doctor.bio
     },
 
-    userRole: [DOCTOR_ROLE_ID],
+    userRole: [doctorRoleId],
     invite: "email",
     userType: 'STAFF',
 
@@ -96,10 +103,10 @@ export function makeDoctorCreationPayload(
       externalHospitalId: context.integration?.externalHospitalId,
       subdomain: context.integration?.subdomain,
       sourceSystem: SourceSystem.HMS,
-      provider: context.integration?.providerId ?? 'TruTech'
+      provider: context.integration?.providerId ?? tenant.provider
     },
   
-    role: DOCTOR_ROLE_ID,
+    role: doctorRoleId,
 
     source: 'HMS',
 
@@ -109,7 +116,11 @@ export function makeDoctorCreationPayload(
 
     firstName: doctorName.trim(),
 
-    lastName: doctorName.trim(),  
+    lastName: doctorName.trim(),
+
+    createdDate: now,
+
+    modifiedDate: now
   }
 
   logger.info({

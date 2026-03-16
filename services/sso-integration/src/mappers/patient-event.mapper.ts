@@ -1,20 +1,24 @@
-import { PATIENT_ROLE_ID, PHONE_CODE, PROVIDER, SUBDOMAIN } from "../utils/constants";
+import { loadTenantDetails } from "../utils/helper";
+import { SourceSystem } from "../types/common/context.types";
 import { PatientCreationEvent } from "../types/events";
 import { PatientCreationPayload } from "../types/user-creation.type";
-import { SourceSystem } from "../types/common/context.types";
+import { PHONE_CODE } from "../utils/constants";
 
 export function mapPatientEventToCreateUserPayload(
   event: PatientCreationEvent
 ): PatientCreationPayload {
   const { patient, organizationID, provider, externalId } = event.data;
-
+  const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
+  const tenant = loadTenantDetails(subdomain);
+  if (!tenant.patientRoleId || !tenant.provider) {
+    throw new Error('PATIENT_ROLE_ID and PROVIDER are required');
+  }
   const name = (patient.name ?? "").toString().trim();
   const gender = patient.gender ?? "";
   const dob = patient.dob ?? "";
   const email = (patient.email ?? "") || "";
-  const phone = (patient.phone ?? "") || "";
-  const phoneCode = patient.phoneCode ?? PHONE_CODE.SOUTH_AFRICA;
-
+  const phone = (patient.phone ?? "") || ""; 
+  const now = Date.now();
   const medicalHistory =
     (patient.medicalHistory as {
       allergies?: unknown[];
@@ -31,14 +35,14 @@ export function mapPatientEventToCreateUserPayload(
   return {
     invite: phone ? "phone" : "email",
     userInfo: {
-      name,
+      name : name ?? "",
       namePrefix: patient.namePrefix ?? "",
-      gender,
-      dateOfBirth: dob,
+      gender : gender ?? "",
+      dateOfBirth: dob ?? "",
       contact: {
-        email,
-        phone,
-        phoneCode,
+        email: email ?? "",
+        phone: phone ?? "",
+        phoneCode:   PHONE_CODE.SOUTH_AFRICA,
       },
       emergencyContact,
       medicalHistory: {
@@ -46,24 +50,19 @@ export function mapPatientEventToCreateUserPayload(
         chronicDiseases: medicalHistory.chronicDiseases ?? [],
         symptoms: medicalHistory.symptoms ?? [],
       },
-      friendNFamily: {
-        name: "",
-        relation: "",
-        phone: "",
-        phoneCode: PHONE_CODE.SOUTH_AFRICA,
-        email: "",
-      },
+      friendNFamily: { },
     },
-    userRole: [PATIENT_ROLE_ID],
+    userRole: [tenant.patientRoleId],
     userType: "USER",
-    organizationID,
+    organizationID: organizationID ?? tenant.organizationId,
     externalIdentity: {
       externalUserId: String(externalId || patient.id),
-      // Use organizationID as the external hospital/tenant identifier where applicable.
-      externalHospitalId: organizationID,
-      subdomain: SUBDOMAIN.TRUE_TECH,
+      externalHospitalId: organizationID ?? tenant.organizationId,
+      subdomain: tenant.subdomain,
       sourceSystem: SourceSystem.HMS,
-      provider: provider || PROVIDER.TRUE_TECH,
+      provider: provider || tenant.provider,
     },
+    createdDate: now,
+    modifiedDate: now,
   };
 }

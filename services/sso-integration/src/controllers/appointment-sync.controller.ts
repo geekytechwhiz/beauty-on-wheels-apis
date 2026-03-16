@@ -6,6 +6,7 @@ import { BaseController } from '../core/base.controller'
 import { AppointmentSyncService } from '../services/appointment-sync.service'
 import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware'
 import { SSOError } from '../types/errors/sso-error'
+import { Appointment } from '../types'
 
 export class AppointmentSyncController extends BaseController {
 
@@ -40,19 +41,20 @@ export class AppointmentSyncController extends BaseController {
       
       let fromDate: string | undefined
       let toDate: string | undefined
-
+      let appointments: Appointment[] = [];
       if (event.body) {
         try {
           const parsed = JSON.parse(event.body)
           fromDate = typeof parsed.fromDate === 'string' ? parsed.fromDate : undefined
           toDate = typeof parsed.toDate === 'string' ? parsed.toDate : undefined
+          appointments = parsed.appointments ?? [];
         } catch {
           // ignore body parse errors; fallback to defaults in service
         }
       }
 
       const result =
-        await this.appointmentSyncService.syncAppointments(context, { fromDate, toDate })
+        await this.appointmentSyncService.syncAppointments(context, { fromDate, toDate },appointments )
 
       logger.info({
         event: 'appointment_sync_success',

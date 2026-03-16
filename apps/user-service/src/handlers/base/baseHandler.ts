@@ -7,6 +7,7 @@ import {
   OrganizationNotFoundError,
   ValidationError,
   InviteUpdateTooSoonError,
+  FnfLimitReachedError,
   type DomainError,
 } from '../../errors';
 
@@ -71,6 +72,13 @@ async function toErrorResponse(
         code: 'INVITE_UPDATE_TOO_SOON',
         details: [{ message: err.message, field: err.field }],
       },
+    );
+  }
+  if (err instanceof FnfLimitReachedError) {
+    return ApiResponse.conflict(
+      'USER.USER_CANNOT_INVITE_MORE_FNF',
+      { requestId: ctx.correlationId, event: ctx.event },
+      { code: 'USER_CANNOT_INVITE_MORE_FNF', details: [{ message: 'USER_CANNOT_INVITE_MORE_FNF' }] },
     );
   }
   if (err instanceof Error && 'statusCode' in err && typeof (err as DomainError).statusCode === 'number') {

@@ -56,7 +56,7 @@ export interface DoctorCreationPayload {
   invite: 'phone' | 'email';
   userType: 'STAFF';
   organizationID: string;
-
+  externalId: string;
   role: string;
   source: string;
   email: string;
@@ -64,6 +64,8 @@ export interface DoctorCreationPayload {
   firstName: string;
   lastName: string;
   externalIdentity: ExternalIdentity;
+  createdDate: number;
+  modifiedDate: number;
 }
 
 /**
@@ -97,7 +99,8 @@ export interface PatientCreationPayload {
   invite: 'phone' | 'email';
   organizationID: string;
   externalIdentity: ExternalIdentity;
- 
+  createdDate?: number;
+  modifiedDate?: number;
 }
 
 /**

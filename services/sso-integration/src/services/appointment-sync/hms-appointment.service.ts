@@ -3,8 +3,13 @@ import {
   createPerformanceTimer,
   serializeError,
 } from '@api-hub/logger';
-import { Appointment, PatientEMRSummary } from '../../types';
+import { Appointment, AppointmentStatus, PatientEMRSummary } from '../../types';
 import { SSOError } from '../../types/errors/sso-error';
+import { appendSuffixToContacts } from '../../utils/helper';
+import { getTruTechClientForTenant } from '../../clients/tru-tech.clients';
+import { TruTechAdapter } from '../../adapters/trutech.adapter.ts';
+import { TruTechPatientEMRResponse } from '../../types/external/trutech.types';
+import { VisitStatus, VisitType } from '../../types/enums';
 
 type TruTechClient = {
   getAppointmentsForDoctorsInRange: (
@@ -26,30 +31,29 @@ type TruTechClient = {
   ) => Promise<{ emr?: unknown[] }>;
 };
 
-type TruTechAdapter = {
-  mapAppointments: (appointments: unknown[]) => Appointment[];
-  mapPatientEMRSummary: (
-    response: unknown,
-    patientId: number,
-  ) => PatientEMRSummary;
-};
-
 export class HmsAppointmentService {
   constructor(
     private readonly truTechClient: TruTechClient,
     private readonly truTechAdapter: TruTechAdapter,
     private readonly logger: any,
-  ) {}
+  ) {
+    this.truTechAdapter = new TruTechAdapter();
+  }
 
+  /**
+   * @param tenantId Optional. When provided, uses per-tenant HMS config (getTruTechClientForTenant).
+   */
   async getAppointmentsForDoctorsInRange(
     startDate: string,
     endDate: string,
     correlationId: string,
+    tenantId?: string,
   ): Promise<Appointment[]> {
     const logger = createChildLogger(this.logger, {
       correlationId,
       startDate,
       endDate,
+      tenantId,
     });
 
     const timer = createPerformanceTimer(
@@ -57,14 +61,19 @@ export class HmsAppointmentService {
       'hms_get_appointments_for_doctors_in_range',
     );
 
+    const client = tenantId
+      ? getTruTechClientForTenant(tenantId)
+      : this.truTechClient;
+
     logger.info({
       event: 'hms_get_appointments_for_doctors_in_range_start',
       startDate,
       endDate,
+      tenantId,
     });
 
     try {
-      const response = await this.truTechClient.getAppointmentsForDoctorsInRange(
+      const response = await client.getAppointmentsForDoctorsInRange(
         startDate,
         endDate,
         correlationId,
@@ -89,19 +98,69 @@ export class HmsAppointmentService {
         });
         return [];
       }
-
-      const mapped = this.truTechAdapter.mapAppointments(
-        response.appointments || [],
+      //   const mappedAppointments: Appointment[] =  [
+      //     {
+      //         "appointmentId": 80,
+      //         "startTime": "2026-03-14T17:00:00.000000Z",
+      //         "endTime": "2026-03-14T17:15:00.000000Z",
+      //         "status": AppointmentStatus.SCHEDULED,
+      //         "notes": null,
+      //         "patient": {
+      //             "id": 1234,
+      //             "mrn": "MR0002195",
+      //             "name": "Suhas M",
+      //             "gender": "Male",
+      //             "age": "26 years",
+      //             "dob": null,
+      //             "phone": "9073421399",
+      //             "email": null
+      //         },
+      //         "doctor": {
+      //             "id": 987,
+      //             "name": "ABDUL RASHID AHMED",
+      //             "department": "GENERAL DOCTORS",
+      //             "phone": "123456789",
+      //             "email": "doc.trutech@yopmail.com"
+      //         },
+      //         "consultationType": {
+      //             "id": 208,
+      //             "name": "Test Consultation"
+      //         },
+      //         "visit": {
+      //             "id": 1091,
+      //             "visitType": VisitType.TELECONSULTATION,
+      //             "createdAt": "2026-03-14T08:57:01.000000Z",
+      //             "status": VisitStatus.ACTIVE
+      //         }
+      //     }
+      // ]
+      let mappedAppointments = this.truTechAdapter.mapAppointments(
+        response.appointments as any[],
       );
+      const isPendingAppointmentBypassEnabled = (): boolean =>
+        process.env.BYPASS_SUFFIX_APPOINTMENTS === 'true';
+      if (isPendingAppointmentBypassEnabled()) {
+        mappedAppointments = this.truTechAdapter.mapAppointments(
+          response.appointments as any[],
+        );
+      } else {
+        const appointmentsWithSuffix = appendSuffixToContacts(
+          response.appointments,
+          'c',
+        );
+        mappedAppointments = this.truTechAdapter.mapAppointments(
+          appointmentsWithSuffix as any[],
+        );
+      }
 
       logger.info({
         event: 'hms_get_appointments_for_doctors_in_range_success',
-        appointmentCount: mapped.length,
+        appointmentCount: mappedAppointments.length,
         startDate,
         endDate,
       });
 
-      return mapped;
+      return mappedAppointments;
     } catch (error) {
       timer.end();
 
@@ -138,7 +197,7 @@ export class HmsAppointmentService {
       doctorId,
       correlationId,
     );
-    return this.truTechAdapter.mapAppointments(response.appointments || []);
+    return this.truTechAdapter.mapAppointments(response.appointments as any[]);
   }
 
   async getPatientEMRSummary(
@@ -165,10 +224,7 @@ export class HmsAppointmentService {
       }
 
       const truTechPatientEMRResponse =
-        await this.truTechClient.getPatientEMRSummary(
-          patientId,
-          correlationId,
-        );
+        await this.truTechClient.getPatientEMRSummary(patientId, correlationId);
 
       timer.end();
 
@@ -179,7 +235,7 @@ export class HmsAppointmentService {
       });
 
       return this.truTechAdapter.mapPatientEMRSummary(
-        truTechPatientEMRResponse,
+        truTechPatientEMRResponse as TruTechPatientEMRResponse,
         patientId,
       );
     } catch (error) {
@@ -208,4 +264,3 @@ export class HmsAppointmentService {
     }
   }
 }
-

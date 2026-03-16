@@ -12,7 +12,7 @@ import {
   PatientEMRSummary, 
   Appointment,
 } from '../types';
-import { TruTechEMRVisit, TruTechPatientEMRResponse, TruTechVerifyContext, TruTechVerifyResponse, VisitStatus, VisitType } from '../types/appointment.types';
+import { TruTechEMRVisit, TruTechPatientEMRResponse, TruTechVerifyContext, TruTechVerifyResponse,   } from '../types/external/trutech.types';
 import { SSOError } from '../types/errors/sso-error';
 
 const baseLogger = createLogger({
@@ -29,7 +29,7 @@ export class TruTechAdapter {
   // Verify Launch Response Mapping
   // ---------------------------------------------------------
 
-  mapVerifyResponse(response: TruTechVerifyResponse): TruTechVerifyResponse {
+  public mapVerifyResponse(response: TruTechVerifyResponse): TruTechVerifyResponse {
     if (response.status !== 'success' || !response.doctor_uid) {
       throw SSOError.verificationFailed(
         response.message || 'TruTech verification failed',
@@ -52,7 +52,7 @@ export class TruTechAdapter {
   // Map Appointment List
   // ---------------------------------------------------------
 
-  mapAppointments(appointments: TruTechAppointment[]): Appointment[] {
+ public mapAppointments(appointments: TruTechAppointment[]): Appointment[] {
     this.logger.debug({
       event: 'trutech_map_appointments_start',  
       appointmentCount: appointments?.length ?? 0,
@@ -96,7 +96,7 @@ export class TruTechAdapter {
   // Map EMR Summary
   // ---------------------------------------------------------
 
-  mapPatientEMRSummary(
+  public mapPatientEMRSummary(
     response: TruTechPatientEMRResponse,
     patientId: number,
   ): PatientEMRSummary {
@@ -110,7 +110,7 @@ export class TruTechAdapter {
       );
     }
 
-    const visits = (response.emr || []).map((visit) =>
+    const visits = (response.emr || []).map((visit: TruTechEMRVisit) =>
       this.normalizeEMRVisit(visit),
     );
 
@@ -127,39 +127,39 @@ export class TruTechAdapter {
       startTime: appt.start_time,
       endTime: appt.end_time,
       status: appt.status as AppointmentStatus,
-      notes: appt.notes,
+      notes: appt.notes ?? '',
 
       patient: {
-        age: appt.patient.age || null,
-        id: appt.patient.id,
-        mrn: appt.patient.mrn || '',
-        name: appt.patient.name,
-        gender: appt.patient.gender,
-        dateOfBirth: appt.patient.dob,
-        phone: appt.patient.phone,
-        email: appt.patient.email,
-        dob: appt.patient.dob,
-        organizationId: appt.patient.organizationId,
+        age: appt.patient ? appt.patient.age : null,
+        id: appt.patient ? appt.patient.id : null,
+        mrn: appt.patient ? appt.patient.mrn : '',
+        name: appt.patient ? appt.patient.name : '',
+        gender: appt.patient ? appt.patient.gender : '',
+        dateOfBirth: appt.patient ? appt.patient.dob : '',
+        phone: appt.patient ? appt.patient.phone : '',
+        email: appt.patient ? appt.patient.email : '',
+        dob: appt.patient ? appt.patient.dob : '',
+        organizationId: appt.patient ? appt.patient.organizationId : '',
       } as Patient,
 
       doctor: {
-        id: appt.doctor.id,
-        name: appt.doctor.name,
-        department: appt.doctor.department,
-        phone: appt.doctor.phone,
-        email: appt.doctor.email,
+        id: appt.doctor ? appt.doctor.id : null,
+        name: appt.doctor ? appt.doctor.name : null,
+        department: appt.doctor ? appt.doctor.department : null,
+        phone: appt.doctor ? appt.doctor.phone : null,
+        email: appt.doctor ? appt.doctor.email : null,
       } as Doctor,
 
       consultationType: {
-        id: appt.consultation_type.id,
-        name: appt.consultation_type.name,
+        id: appt.consultation_type?.id ?? null,
+        name: appt.consultation_type?.name ?? '',
       } as ConsultationType,
 
       visit: {
-        id: appt.visit.id,
-        visitType: appt.visit.visit_type as VisitType,
-        createdAt: appt.visit.created_at,
-        status: appt.visit.status as VisitStatus,
+        id: appt.visit?.id ?? null,
+        visitType: (appt.visit?.visit_type ?? null) as any,
+        createdAt: appt.visit?.created_at ?? null,
+        status: (appt.visit?.status ?? null) as any,
       } as Visit,
     };
   }
@@ -174,20 +174,20 @@ export class TruTechAdapter {
       visitType: visit.visit_type,
       date: visit.date,
 
-      diagnosis: (visit.diagnosis || []).map((d) => ({
+      diagnosis: (visit.diagnosis || []).map((d:any) => ({
         code: d.code,
         name: d.name,
         type: d.type,
       })),
 
-      vitals: (visit.vitals || []).map((v) => ({
+      vitals: (visit.vitals || []).map((v:any) => ({
         name: v.name,
         value: v.value,
         unit: v.unit,
         recordedAt: v.recorded_at,
       })),
 
-      medicines: (visit.medicines || []).map((m) => ({
+      medicines: (visit.medicines || []).map((m:any) => ({
         name: m.name,
         dosage: m.dosage,
         frequency: m.frequency,
@@ -195,26 +195,26 @@ export class TruTechAdapter {
         instructions: m.instructions,
       })),
 
-      investigations: (visit.investigations || []).map((i) => ({
+      investigations: (visit.investigations || []).map((i:any) => ({
         name: i.name,
         result: i.result,
         status: i.status,
         date: i.date,
       })),
 
-      services: (visit.services || []).map((s) => ({
+      services: (visit.services || []).map((s:any) => ({
         name: s.name,
         status: s.status,
         date: s.date,
       })),
 
-      allergies: (visit.allergies || []).map((a) => ({
+      allergies: (visit.allergies || []).map((a:any) => ({
         allergen: a.allergen,
         reaction: a.reaction,
         severity: a.severity,
       })),
 
-      followups: (visit.followups || []).map((f) => ({
+      followups: (visit.followups || []).map((f:any) => ({
         date: f.date,
         notes: f.notes,
         doctorId: f.doctor_id,

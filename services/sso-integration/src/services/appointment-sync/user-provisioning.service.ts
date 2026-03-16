@@ -1,26 +1,75 @@
-import { createChildLogger } from '@api-hub/logger';
+import { createChildLogger, type Logger } from '@api-hub/logger';
 
 import { Appointment, User } from '../../types';
 import { SSORequestContext } from '../../types/common/context.types';
-import { makePatientCreationPayload } from '../../mappers/patient.mapper';
 import {
   getSSOUserServiceClient,
   SSOUserServiceClient,
 } from '../../clients/user-service.client';
-import { makeDoctorCreationPayload } from '../../mappers/user-create.mapper';
+import { CognitoService } from '../cognito.service';
+import {
+  mapHmsDoctorToCreateDoctorModel,
+  mapHmsAppointmentPatientToCreatePatientModel,
+} from '../../mappers/user-creation.mapper';
+import { CreatedUserInfo } from '../../types/user/user.types';
+import { UserExistenceValidator } from '../../validators/user-existence.validator';
+
+function mapUserToCreatedUserInfo(user: User, fallbackEmail?: string | null): CreatedUserInfo {
+  return {
+    userId: user.id?.toString() ?? '',
+    email: user.email ?? fallbackEmail ?? null,
+    externalUserId: user.externalId?.toString() ?? '',
+    organizationId: user.organizationId ?? '',
+  };
+}
 
 export class UserProvisioningService {
+  private readonly userExistenceValidator: UserExistenceValidator;
+
   constructor(
     private readonly ssoUserServiceClient: SSOUserServiceClient,
-    private readonly logger: any,
+    private readonly logger: Logger,
   ) {
     this.ssoUserServiceClient = getSSOUserServiceClient();
+    this.userExistenceValidator = new UserExistenceValidator(
+      this.ssoUserServiceClient,
+      new CognitoService(),
+      this.logger,
+    );
+  }
+
+  /**
+   * Lookup doctor by external id only. Used by appointmentProcessor to decide
+   * whether to enqueue to DoctorProvisionQueue (when null) or continue processing.
+   */
+  async getDoctorIfExists(
+    appointment: Appointment,
+    context: SSORequestContext,
+  ): Promise<CreatedUserInfo | null> {
+    const doctorExternalId = String(appointment.doctor.id);
+    const existenceResult = await this.userExistenceValidator.checkUserExists(
+      {
+        externalId: doctorExternalId,
+        email: appointment.doctor.email ?? null,
+        phone: appointment.doctor.phone ?? null,
+      },
+      context,
+    );
+
+    if (existenceResult.userServiceUser) {
+      return mapUserToCreatedUserInfo(
+        existenceResult.userServiceUser,
+        appointment.doctor.email ?? null,
+      );
+    }
+
+    return null;
   }
 
   async getOrCreateDoctor(
     appointment: Appointment,
     context: SSORequestContext,
-  ): Promise<User> {
+  ): Promise<CreatedUserInfo> {
     const doctorExternalId = String(appointment.doctor.id);
     const doctorEmail = appointment.doctor.email ?? null;
 
@@ -37,10 +86,15 @@ export class UserProvisioningService {
     });
 
     // 1️⃣ Check if doctor already exists (idempotent read)
-    const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
-      { externalId: doctorExternalId },
+    const existenceResult = await this.userExistenceValidator.checkUserExists(
+      {
+        externalId: doctorExternalId,
+        email: doctorEmail,
+        phone: appointment.doctor.phone ?? null,
+      },
       context,
     );
+    const existingUser = existenceResult.userServiceUser;
 
     if (existingUser) {
       logger.info({
@@ -48,9 +102,10 @@ export class UserProvisioningService {
         doctorExternalId,
         doctorEmail,
         doctorUserId: existingUser.id,
+        ...existingUser,
       });
 
-      return existingUser;
+      return mapUserToCreatedUserInfo(existingUser, doctorEmail);
     }
 
     // 2️⃣ Doctor not found → create (idempotent via externalUserId + user-service)
@@ -60,16 +115,17 @@ export class UserProvisioningService {
       doctorEmail,
     });
 
-    const doctorRequestPayload = makeDoctorCreationPayload(
+    const doctorRequestPayload = mapHmsDoctorToCreateDoctorModel(
       appointment,
       context,
     );
 
     try {
-      const createdDoctor = await this.ssoUserServiceClient.createDoctorWithRetry(
-        doctorRequestPayload,
-        context,
-      );
+      const createdDoctor =
+        await this.ssoUserServiceClient.createDoctorWithRetry(
+          doctorRequestPayload,
+          context,
+        );
 
       logger.info({
         event: 'doctor_created_success',
@@ -98,21 +154,28 @@ export class UserProvisioningService {
       //   );
       // }
 
-      return createdDoctor as any as User;
-    } catch (error: any) {
+      return createdDoctor;
+    } catch (error: unknown) {
       // 3️⃣ Handle race condition (another process created the user)
-      if (error?.response?.status === 409) {
+      const conflictStatus = (error as { response?: { status?: number } })?.response?.status;
+
+      if (conflictStatus === 409) {
         logger.warn({
           event: 'doctor_creation_conflict_fetching_existing',
           doctorExternalId,
           doctorEmail,
         });
 
-        const existingAfterConflict =
-          await this.ssoUserServiceClient.findUserByExternalId(
-            { externalId: doctorExternalId },
+        const existingAfterConflict = (
+          await this.userExistenceValidator.checkUserExists(
+            {
+              externalId: doctorExternalId,
+              email: doctorEmail,
+              phone: appointment.doctor.phone ?? null,
+            },
             context,
-          );
+          )
+        ).userServiceUser;
 
         if (existingAfterConflict) {
           logger.info({
@@ -121,7 +184,7 @@ export class UserProvisioningService {
             doctorEmail,
             doctorUserId: existingAfterConflict.id,
           });
-          return existingAfterConflict;
+          return mapUserToCreatedUserInfo(existingAfterConflict, doctorEmail);
         }
       }
 
@@ -138,14 +201,17 @@ export class UserProvisioningService {
       patientExternalId: appointment.patient.id,
     });
 
-    const externalUserId = String(appointment.patient.id); 
+    const externalUserId = String(appointment.patient.id);
 
-    const existingUser = await this.ssoUserServiceClient.findUserByExternalId(
-      { 
-        externalId: externalUserId, 
+    const existenceResult = await this.userExistenceValidator.checkUserExists(
+      {
+        externalId: externalUserId,
+        email: appointment.patient.email ?? null,
+        phone: appointment.patient.phone ?? null,
       },
       context,
     );
+    const existingUser = existenceResult.userServiceUser;
 
     if (existingUser) {
       logger.info({
@@ -156,11 +222,22 @@ export class UserProvisioningService {
       return existingUser;
     }
 
+    if (existenceResult.cognitoUser) {
+      logger.info({
+        event: 'patient_found_in_cognito_creating_user_service_record',
+        patientExternalId: externalUserId,
+        userId: existenceResult.cognitoUser.userId,
+      });
+    }
+
     logger.info({
       event: 'patient_not_found_creating',
       patientExternalId: externalUserId,
     });
-    const patientRequestPayload = makePatientCreationPayload(appointment, context);
+    const patientRequestPayload = mapHmsAppointmentPatientToCreatePatientModel(
+      appointment,
+      context,
+    );
     const createdUser = await this.ssoUserServiceClient.createPatient(
       patientRequestPayload,
       context,
@@ -168,9 +245,20 @@ export class UserProvisioningService {
 
     logger.info({
       event: 'patient_created',
-      userId: createdUser.id,
+      userId: createdUser.userId,
     });
 
-    return createdUser;
+    return {
+      invitedUser: createdUser.userId,
+      id: createdUser.userId,
+      externalId: createdUser.externalUserId,
+      provider: context.integration?.providerId ?? '',
+      tenantId: context.integration?.subdomain ?? context.tenantId,
+      email: createdUser.email ?? undefined,
+      status: 'ACTIVE',
+      organizationId: createdUser.organizationId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
   }
 }

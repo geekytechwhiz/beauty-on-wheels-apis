@@ -1,4 +1,5 @@
 export * from './User';
+export * from './Appointment';
 export * from './UserMetadata';
 export * from './UserOrganization';
 export * from './UserFile';

@@ -1,4 +1,5 @@
 export interface User {
+    invitedUser: any
     id: string | number
     externalId: string | number
     provider: string
@@ -102,4 +103,17 @@ export interface User {
     authType: "USER" | "SERVICE" | "EXTERNAL"
 
   }
- 
+  export interface CreatedUserInfo {
+    userId: string;
+    email: string | null;
+    externalUserId: string  
+    organizationId: string  
+  }
+  
+  export type TenantDetails = {
+    organizationId: string;
+    subdomain: string;
+    doctorRoleId: string;
+    patientRoleId: string;
+    provider: string;
+  }

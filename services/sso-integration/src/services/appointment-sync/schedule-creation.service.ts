@@ -1,258 +1,294 @@
-import { createChildLogger, serializeError } from '@api-hub/logger'; 
-import { Appointment, Schedule, SSORequestContext, User } from '../../types';
-import { CognitoUserContext } from '../../types/user/user.types';
-import { retryWithBackoff, RetryOptions } from '../../utils/retry.util';
-
-type ScheduleClient = any;
-
-type AppointmentMapper = any;
+import { createChildLogger, serializeError } from '@api-hub/logger';
+import {
+  getScheduleServiceClient,
+  ScheduleServiceClient,
+} from '../../clients/schedule-service.client';
+import {
+  AppointmentMapper,
+  getAppointmentMapper,
+} from '../../mappers/appointment.mapper';
+import { Schedule, SSORequestContext } from '../../types';
+import { ScheduleCreationEventPayload } from '../../types/events/schedule-creation-message.types';
+import { RetryOptions, retryWithBackoff } from '../../utils/retry.util';
 
 export class ScheduleCreationService {
   constructor(
-    private readonly scheduleClient: ScheduleClient,
+    private readonly scheduleClient: ScheduleServiceClient,
     private readonly appointmentMapper: AppointmentMapper,
     private readonly logger: any,
     private readonly retryOptions: RetryOptions,
-  ) {}
+  ) {
+    this.scheduleClient = getScheduleServiceClient();
+    this.appointmentMapper = getAppointmentMapper();
+  }
 
   async createServiceScheduleWithRetry(
-    appointment: Appointment,
-    doctorUser: CognitoUserContext,
-    patientUser: User,
+    eventPayload: ScheduleCreationEventPayload,
     context: SSORequestContext,
   ): Promise<Schedule> {
-    return retryWithBackoff(
-      async () => {
-        const logger = createChildLogger(this.logger, {
-          correlationId: context.correlationId,
-          appointmentId: appointment.appointmentId,
-        });
+    return retryWithBackoff(async () => {
+      const logger = createChildLogger(this.logger, {
+        correlationId: context.correlationId,
+        appointmentId: eventPayload.appointment.externalId,
+      });
 
-        const getAvailableServicesRequest =
-          this.appointmentMapper.mapAppointmentToGetAvailableServices(
-            appointment,
-            patientUser,
-            context,
-            doctorUser?.organizationId
-          );
-
-        logger.info({
-          event: 'get_available_services_start',
-          correlationId: context.correlationId,
-          tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
-          request: getAvailableServicesRequest,
-        });
-
-        const availableServices =
-          await this.scheduleClient.getAvailableServices(
-            getAvailableServicesRequest,
-            context,
-          );
-
-        if (!availableServices || availableServices.length === 0) {
-          throw new Error('No available services found');
-        }
-
-        const orgAddonId = availableServices[0].orgAddonId;
-
-        logger.info({
-          event: 'get_available_services',
-          correlationId: context.correlationId,
-          tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
-          orgAddonId,
-          availableServicesCount: availableServices.length,
-        });
-
-        const recommendServicesRequest =
-          this.appointmentMapper.mapAppointmentToRecommendServices(
-            appointment,
-            doctorUser,
-            patientUser,
-            orgAddonId || '',
-          );
-
-        logger.info({
-          event: 'recommend_services_start',
-          correlationId: context.correlationId,
-          tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
-          request: recommendServicesRequest,
-        });
-
-        const recommendResult = await this.scheduleClient.recommendServices(
-          recommendServicesRequest,
+      const getAvailableServicesRequest =
+        this.appointmentMapper.mapAppointmentToGetAvailableServices(
+          eventPayload,
           context,
         );
 
-        if (!recommendResult?.userAddonId) {
-          throw new Error('No userAddonId returned from recommend services');
-        }
+      logger.info({
+        event: 'get_available_services_start',
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+        externalAppointmentId: eventPayload.appointment.externalId,
+        doctorExternalId: eventPayload.doctor.externalUserId,
+        patientExternalId: eventPayload.patient.externalUserId,
+        doctorUserId: eventPayload.doctor.userId,
+        patientUserId: eventPayload.patient.userId,
+        request: getAvailableServicesRequest,
+      });
 
-        const userAddonId = recommendResult.userAddonId;
+      const availableServices = await this.scheduleClient.getAvailableServices(
+        getAvailableServicesRequest,
+        context,
+      );
 
-        logger.info({
-          event: 'recommend_services_success',
-          correlationId: context.correlationId,
-          tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
+      if (!availableServices || availableServices.length === 0) {
+        throw new Error('No available services found');
+      }
+
+      const orgAddonId = availableServices[0].orgAddonId;
+
+      logger.info({
+        event: 'get_available_services',
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+        externalAppointmentId: eventPayload.appointment.externalId,
+        doctorExternalId: eventPayload.doctor.externalUserId,
+        patientExternalId: eventPayload.patient.externalUserId,
+        doctorUserId: eventPayload.doctor.userId,
+        patientUserId: eventPayload.patient.userId,
+        orgAddonId,
+        availableServicesCount: availableServices.length,
+      });
+
+      const recommendServicesRequest =
+        this.appointmentMapper.mapAppointmentToRecommendServices(
+          eventPayload,
+          orgAddonId,
+          context,
+        );
+
+      logger.info({
+        event: 'recommend_services_start',
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+        externalAppointmentId: eventPayload.appointment.externalId,
+        doctorExternalId: eventPayload.doctor.externalUserId,
+        patientExternalId: eventPayload.patient.externalUserId,
+        doctorUserId: eventPayload.doctor.userId,
+        patientUserId: eventPayload.patient.userId,
+        request: recommendServicesRequest,
+      });
+
+      const { userAddonId } = await this.scheduleClient.recommendServices(
+        recommendServicesRequest,
+        context,
+      ); 
+      if (!userAddonId) {
+        
+        throw new Error('No available services found');
+      }  
+
+      logger.info({
+        event: 'recommend_services_success',
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+        externalAppointmentId: eventPayload.appointment.externalId,
+        doctorExternalId: eventPayload.doctor.externalUserId,
+        patientExternalId: eventPayload.patient.externalUserId,
+        doctorUserId: eventPayload.doctor.userId,
+        patientUserId: eventPayload.patient.userId,
+        userAddonI: userAddonId ,
+      });
+
+      const createServiceScheduleRequest =
+        this.appointmentMapper.mapAppointmentToCreateServiceSchedule(
+          eventPayload,
           userAddonId,
-        });
+        );
 
-        const createServiceScheduleRequest =
-          this.appointmentMapper.mapAppointmentToCreateServiceSchedule(
-            appointment,
-            doctorUser,
-            patientUser,
-            userAddonId,
-          );
+      logger.info({
+        event: 'create_service_schedule_start',
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+        externalAppointmentId: eventPayload.appointment.externalId,
+        doctorExternalId: eventPayload.doctor.externalUserId,
+        patientExternalId: eventPayload.patient.externalUserId,
+        doctorUserId: eventPayload.doctor.userId,
+        patientUserId: eventPayload.patient.userId,
+        request: createServiceScheduleRequest,
+      });
+
+      let schedule: Schedule;
+
+      try {
+        schedule = await this.scheduleClient.createServiceSchedule(
+          createServiceScheduleRequest,
+          context,
+        );
 
         logger.info({
-          event: 'create_service_schedule_start',
+          event: 'create_service_schedule_success',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
-          request: createServiceScheduleRequest,
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
+          scheduleId: schedule.scheduleId,
         });
+      } catch (error: any) {
+        // If downstream indicates the schedule already exists, treat as safe duplicate
+        const isDuplicate =
+          error?.message === 'Service schedule already exists' ||
+          error?.code === 'ServiceScheduleExists' ||
+          error?.response?.status === 409;
 
-        let schedule: Schedule;
-
-        try {
-          schedule = await this.scheduleClient.createServiceSchedule(
-            createServiceScheduleRequest,
-            context,
-          );
-
-          logger.info({
-            event: 'create_service_schedule_success',
+        if (isDuplicate) {
+          logger.warn({
+            event: 'create_service_schedule_duplicate_detected',
             correlationId: context.correlationId,
             tenantId: context.tenantId,
-            externalAppointmentId: String(appointment.appointmentId),
-            doctorExternalId: String(appointment.doctor.id),
-            patientExternalId: String(appointment.patient.id),
-            doctorUserId: String(doctorUser.userId),
-            patientUserId: String(patientUser.id),
-            scheduleId: schedule.scheduleId,
-          });
-        } catch (error: any) {
-          // If downstream indicates the schedule already exists, treat as safe duplicate
-          const isDuplicate =
-            error?.message === 'Service schedule already exists' ||
-            error?.code === 'ServiceScheduleExists' ||
-            error?.response?.status === 409;
-
-          if (isDuplicate) {
-            logger.warn({
-              event: 'create_service_schedule_duplicate_detected',
-              correlationId: context.correlationId,
-              tenantId: context.tenantId,
-              externalAppointmentId: String(appointment.appointmentId),
-              doctorExternalId: String(appointment.doctor.id),
-              patientExternalId: String(appointment.patient.id),
-              doctorUserId: String(doctorUser.userId),
-              patientUserId: String(patientUser.id),
-              appointmentId: appointment.appointmentId,
-              err: serializeError(error as Error),
-            });
-            // Rethrow to let AppointmentIdempotencyService / upstream logic classify as duplicate,
-            // but do not keep retrying this as a transient error.
-            throw error;
-          }
-
-          logger.error({
-            event: 'create_service_schedule_error',
-            correlationId: context.correlationId,
-            tenantId: context.tenantId,
-            externalAppointmentId: String(appointment.appointmentId),
-            doctorExternalId: String(appointment.doctor.id),
-            patientExternalId: String(appointment.patient.id),
-            doctorUserId: String(doctorUser.userId),
-            patientUserId: String(patientUser.id),
-            appointmentId: appointment.appointmentId,
+            externalAppointmentId: eventPayload.appointment.externalId,
+            doctorExternalId: eventPayload.doctor.externalUserId,
+            patientExternalId: eventPayload.patient.externalUserId,
+            doctorUserId: eventPayload.doctor.userId,
+            patientUserId: eventPayload.patient.userId,
+            appointmentId: eventPayload.appointment.externalId,
             err: serializeError(error as Error),
           });
-
+          // Rethrow to let AppointmentIdempotencyService / upstream logic classify as duplicate,
+          // but do not keep retrying this as a transient error.
           throw error;
         }
 
-        logger.info({
-          event: 'update_service_status_start',
+        logger.error({
+          event: 'create_service_schedule_error',
           correlationId: context.correlationId,
           tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
-          addonId: userAddonId,
-          userId: String(patientUser.id),
+          externalAppointmentId: eventPayload.appointment.externalId,
+          doctorExternalId: eventPayload.doctor.externalUserId,
+          patientExternalId: eventPayload.patient.externalUserId,
+          doctorUserId: eventPayload.doctor.userId,
+          patientUserId: eventPayload.patient.userId,
+          appointmentId: eventPayload.appointment.externalId,
+          err: serializeError(error as Error),
         });
 
-        await this.updateServiceStatusWithRetry(
-          userAddonId,
-          String(patientUser.id),
-          context,
-        );
+        throw error;
+      }
 
-        logger.info({
-          event: 'update_service_status_success',
-          correlationId: context.correlationId,
-          tenantId: context.tenantId,
-          externalAppointmentId: String(appointment.appointmentId),
-          doctorExternalId: String(appointment.doctor.id),
-          patientExternalId: String(appointment.patient.id),
-          doctorUserId: String(doctorUser.userId),
-          patientUserId: String(patientUser.id),
-          addonId: userAddonId,
-          userId: String(patientUser.id),
-        });
+      logger.info({
+        event: 'update_service_status_start',
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+        externalAppointmentId: eventPayload.appointment.externalId,
+        organizationId: eventPayload.patient.organizationId,
+        doctorExternalId: eventPayload.doctor.externalUserId,
+        patientExternalId: eventPayload.patient.externalUserId,
+        doctorUserId: eventPayload.doctor.userId,
+        patientUserId: eventPayload.patient.userId,
+        addonId: userAddonId,
+        userId: eventPayload.patient.userId,
+      });
 
-        return schedule;
-      },
-      this.retryOptions,
-    );
+      await this.updateServiceStatusWithRetry(
+        userAddonId,
+        eventPayload.patient.userId,
+        eventPayload.patient.organizationId,
+        context,
+      );
+
+      logger.info({
+        event: 'update_service_status_success',
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+        externalAppointmentId: eventPayload.appointment.externalId,
+        doctorExternalId: eventPayload.doctor.externalUserId,
+        patientExternalId: eventPayload.patient.externalUserId,
+        doctorUserId: eventPayload.doctor.userId,
+        patientUserId: eventPayload.patient.userId,
+        addonId: userAddonId,
+        userId: eventPayload.patient.userId,
+      });
+
+      return schedule;
+    }, this.retryOptions);
   }
 
   async updateServiceStatusWithRetry(
     addonId: string,
     userId: string,
+    organizationId: string,
     context: SSORequestContext,
   ): Promise<void> {
-    await retryWithBackoff(
-      async () => {
-        await this.scheduleClient.updateServiceStatus(
-          {
-            addonId,
-            type: 'addon',
-            userId,
-            scheduleStatus: 'confirmed',
-          },
+    console.log(
+      'updateServiceStatusWithRetry: start',
+      JSON.stringify({
+        addonId,
+        userId,
+        organizationId,
+        correlationId: context.correlationId,
+      }),
+    );
+    await retryWithBackoff(async () => {
+      const payload = {
+        addonId,
+        type: 'addon' as const,
+        userId,
+        organizationId,
+        scheduleStatus: 'confirmed' as const,
+        paymentStatus: 'completed' as const,
+      };
+      console.log(
+        'updateServiceStatusWithRetry: calling updateServiceStatus',
+        JSON.stringify({ payload, correlationId: context.correlationId }),
+      );
+      try {
+        const response = await this.scheduleClient.updateServiceStatus(
+          payload,
           context,
         );
-      },
-      this.retryOptions,
+        console.log(
+          'updateServiceStatusWithRetry: updateServiceStatus response',
+          JSON.stringify({ response, correlationId: context.correlationId }),
+        );
+      } catch (err) {
+        console.error(
+          'updateServiceStatusWithRetry: updateServiceStatus error',
+          JSON.stringify({
+            err,
+            addonId,
+            userId,
+            organizationId,
+            correlationId: context.correlationId,
+          }),
+        );
+        throw err;
+      }
+    }, this.retryOptions);
+    console.log(
+      'updateServiceStatusWithRetry: complete',
+      JSON.stringify({
+        addonId,
+        userId,
+        organizationId,
+        correlationId: context.correlationId,
+      }),
     );
   }
 }
-

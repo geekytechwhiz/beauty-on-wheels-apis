@@ -132,7 +132,7 @@ export interface AppointmentSyncResult {
 
 export interface PendingAppointment {
   appointment: Appointment;
-  reason: 'patient_not_found' | 'schedule_creation_failed';
+  reason: 'patient_not_found' | 'schedule_creation_failed' | 'user_not_resolved';
   timestamp: string;
   retryCount: number;
   patientExternalId: string;
@@ -214,7 +214,7 @@ export interface GetAvailableServicesRequest {
 
 export interface AvailableService {
   addonId: string; // This is the orgAddonId
-  orgAddonId?: string; // Alias for addonId
+  orgAddonId: string; // Alias for addonId
   title?: string;
   description?: string;
   featureKey?: string;
@@ -241,7 +241,7 @@ export interface RecommendServicesRequest {
   userId: string;
   orgAddonId: string;
   assignedDoctorId: string;
-  scheduleBy: string; // timestamp as string
+  scheduleBy: string; // timestamp as number
 }
 
 export interface RecommendServicesResponse {
@@ -272,8 +272,8 @@ export interface CreateServiceScheduleRequest {
   pincode?: string;
   latitude?: number;
   longitude?: number;
-  action: 'createSchedule';
-  paymentSchedule: 'INSTANT' | 'LATER';
+  action: 'createSchedule' | 'createSession';
+  paymentSchedule: 'INSTANT' | 'LATER'; 
 }
 
 export interface ScheduleDetails {
@@ -359,6 +359,7 @@ export interface UpdateServiceStatusRequest {
   addonId: string;
   type: 'addon';
   userId: string;
+  organizationId: string;
   scheduleStatus: 'confirmed' | 'cancelled' | 'completed';
   paymentStatus?: 'completed' | 'pending' | 'failed';
 }

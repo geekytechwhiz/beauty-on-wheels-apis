@@ -20,7 +20,7 @@ export function mapRegistryConfigToLibConfig(
     authConfig: registry.authConfig
       ? { credentialsSecretArn: registry.authConfig.credentialsSecretArn }
       : undefined,
-    timeout: 10000,
+    timeout: 30000,
     circuitBreaker: { enabled: true, failureThreshold: 5, resetTimeoutMs: 60000 },
   };
 }

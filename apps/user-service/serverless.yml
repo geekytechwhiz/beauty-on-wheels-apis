@@ -551,6 +551,57 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+  createPendingAppointment:
+    handler: src/handlers/create-pending-appointment.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /pending-appointments
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  getPendingAppointment:
+    handler: src/handlers/get-pending-appointment.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /users/{patientUserId}/pending-appointments/{appointmentId}
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+  listPendingAppointments:
+    handler: src/handlers/list-appointments.main
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /users/{patientUserId}/pending-appointments
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
   listOrganizationUsers:
     handler: src/handlers/listOrganizationUsers.main
     timeout: 5

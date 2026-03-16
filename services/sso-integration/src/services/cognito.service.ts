@@ -56,6 +56,63 @@ export class CognitoService {
     }
   }
 
+  private async findCognitoUserByFilter(
+    filter: string,
+    logContext: Record<string, unknown>,
+  ): Promise<CognitoUserContext | null> {
+    try {
+      const cmd = new ListUsersCommand({
+        UserPoolId: this.userPoolId!,
+        Filter: filter,
+        Limit: 1,
+      });
+
+      const res = await this.client.send(cmd);
+
+      if (!res.Users || res.Users.length === 0) {
+        this.logger.info({
+          event: 'cognito_find_user_by_filter_not_found',
+          ...logContext,
+        });
+
+        return null;
+      }
+
+      const user = res.Users[0];
+      const claims = Object.fromEntries(
+        (user.Attributes || []).map((a) => [a.Name, a.Value]),
+      ) as unknown as CognitoUserClaims;
+      const mapped = this.mapCognitoClaimsToAuthContext(claims);
+
+      this.logger.info({
+        event: 'cognito_find_user_by_filter_success',
+        cognitoUsername: user.Username,
+        ...logContext,
+      });
+
+      return mapped;
+    } catch (err: any) {
+      if (
+        err.name === 'ResourceNotFoundException' ||
+        err.message === 'ResourceNotFoundException'
+      ) {
+        this.logger.info({
+          event: 'cognito_find_user_by_filter_not_found',
+          ...logContext,
+        });
+        return null;
+      }
+
+      this.logger.error({
+        event: 'cognito_lookup_error',
+        err: serializeError(err),
+        ...logContext,
+      });
+
+      return null;
+    }
+  }
+
  
   /**
    * Find user by email
@@ -92,39 +149,9 @@ export class CognitoService {
         lookupEmail: normalizedEmail,
       });
   
-      const cmd = new ListUsersCommand({
-        UserPoolId: this.userPoolId!,
-        Filter: `email = "${normalizedEmail}"`,
-        Limit: 1,
-      });
-  
-      const res = await this.client.send(cmd);
-  
-      if (!res.Users || res.Users.length === 0) {
-  
-        this.logger.info({
-          event: 'cognito_find_user_by_email_not_found',
-          email: normalizedEmail,
-        });
-  
-        return null;
-      }
-  
-      const user = res.Users[0];
-  
-      const claims = Object.fromEntries(
-        (user.Attributes || []).map((a) => [a.Name, a.Value]),
-      ) as unknown as CognitoUserClaims;
-  
-      const mapped = this.mapCognitoClaimsToAuthContext(claims);
-  
-      this.logger.info({
-        event: 'cognito_find_user_by_email_success',
+      return this.findCognitoUserByFilter(`email = "${normalizedEmail}"`, {
         email: normalizedEmail,
-        cognitoUsername: user.Username,
       });
-  
-      return mapped;
   
     } catch (err: any) {
 
@@ -183,39 +210,10 @@ export class CognitoService {
         lookupPhone: cognitoPhoneNumber,
       });
   
-      const cmd = new ListUsersCommand({
-        UserPoolId: this.userPoolId!,
-        Filter: `phone_number = "${cognitoPhoneNumber}"`,
-        Limit: 1,
-      });
-  
-      const res = await this.client.send(cmd);
-  
-      if (!res.Users || res.Users.length === 0) {
-  
-        this.logger.info({
-          event: 'cognito_find_user_by_phone_not_found',
-          phone: cognitoPhoneNumber,
-        });
-  
-        return null;
-      }
-  
-      const user = res.Users[0];
-  
-      const claims = Object.fromEntries(
-        (user.Attributes || []).map((a) => [a.Name, a.Value]),
-      ) as unknown as CognitoUserClaims;
-  
-      const mapped = this.mapCognitoClaimsToAuthContext(claims);
-  
-      this.logger.info({
-        event: 'cognito_find_user_by_phone_success',
-        phone: cognitoPhoneNumber,
-        cognitoUsername: user.Username,
-      });
-  
-      return mapped;
+      return this.findCognitoUserByFilter(
+        `phone_number = "${cognitoPhoneNumber}"`,
+        { phone: cognitoPhoneNumber },
+      );
   
     } catch (err: any) {
   
@@ -236,6 +234,19 @@ export class CognitoService {
   
       return null;
     }
+  }
+
+  async findCognitoUserByEmailOrPhone(params: {
+    email?: string | null;
+    phone?: string | null;
+  }): Promise<CognitoUserContext | null> {
+    const cognitoUserByEmail = await this.findCognitoUserByEmail(params.email);
+
+    if (cognitoUserByEmail) {
+      return cognitoUserByEmail;
+    }
+
+    return this.findCognitoUserByPhone(params.phone);
   }
   /**
    * Find user by phone

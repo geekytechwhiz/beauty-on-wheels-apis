@@ -8,7 +8,7 @@ import {
 import { CognitoUserContext } from '../../types/user/user.types';
 import { FetchSchedulesRequest } from '../../types/appointment-sync.types';
 import { TENANT_MAP } from '../../config/tenant-map-config';
-import { getOrganizationIdBySubdomain } from '../../utils/helper';
+import { loadTenantDetails } from '../../utils/helper';
 
 type ScheduleClient = {
   fetchSchedules: (
@@ -66,11 +66,12 @@ export class AppointmentIdempotencyService {
       appointmentId: appointment.appointmentId,
     });
 
+    const subdomain = context.integration?.subdomain ?? '';
+    const tenant = loadTenantDetails(subdomain);
     const payload: FetchSchedulesRequest = {
       fromDate: new Date(appointment.startTime).getTime(),
       toDate: new Date(appointment.endTime).getTime(),
-      organizationID: getOrganizationIdBySubdomain(context.integration?.subdomain  ),
-        
+      organizationID: tenant.organizationId,
       doctorId: String(doctorUser.userId),
       userId: String(patientUser.id),
     };

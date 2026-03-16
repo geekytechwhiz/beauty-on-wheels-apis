@@ -1,162 +1,125 @@
-import * as jwt from 'jsonwebtoken'
-import { randomUUID } from 'crypto'
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand
+} from "@aws-sdk/client-secrets-manager"
 
 import {
   createLogger,
   createChildLogger,
   serializeError
-} from '@api-hub/logger'
-
-import {
-  ServiceTokenContext,
-  ServiceTokenResult
-} from '../types/launch.types'
-import { ServiceTokenPayload } from '../types/servicesToken.type'
-import { CognitoService } from './cognito.service'
+} from "@api-hub/logger"
 
 const baseLogger = createLogger({
-  service: 'sso-integration',
+  service: "sso-integration",
   redactPII: true
 })
 
+const logger = createChildLogger(baseLogger, {
+  component: "SecretsService"
+})
 
-export class ServiceTokenService {
+/**
+ * Hardcoded Secret ARN
+ * (as requested - no ENV dependency)
+ */
+const SERVICE_TOKEN_SECRET_ARN =
+  "arn:aws:secretsmanager:us-east-1:542476693486:secret:DEV_DEMO_SECRETMANAGER-Sf8xzP"
 
-  private readonly cognitoService: CognitoService;
-  private readonly logger = createChildLogger(baseLogger, {
-    component: 'ServiceTokenService'
-  })
+/**
+ * AWS Secrets Manager Client
+ */
+const secretsClient = new SecretsManagerClient({
+  region: "us-east-1"
+})
 
-  private readonly secret: string
-  private readonly issuer: string
-  private readonly audience: string
+/**
+ * Cached secret to avoid repeated AWS calls
+ */
+let cachedSecret: string | null = null
 
-  constructor() {
+/**
+ * Track ongoing fetch to avoid duplicate requests
+ */
+let loadingPromise: Promise<string> | null = null
 
-    this.secret = process.env.SERVICE_TOKEN_SECRET || ''
-    this.issuer = process.env.SERVICE_TOKEN_ISSUER || "firminiq-integration"
-    this.audience = process.env.SERVICE_TOKEN_AUDIENCE || "myvitalrx-api"
-    this.cognitoService = new CognitoService();
-    if (!this.secret) {
-
-      this.logger.warn({
-        event: "service_token_secret_missing"
-      })
-
-    }
-
-  }
-
-  async generateToken(
-    tenantId: string,
-    context: ServiceTokenContext,
-    correlationId?: string
-  ): Promise<ServiceTokenResult> {
-
-    const logger = createChildLogger(this.logger, {
-      correlationId,
-      tenantId,
-      userId: context.userId
+/**
+ * Fetch service token secret from Secrets Manager
+ */
+async function fetchSecret(): Promise<string> {
+  try {
+    logger.info({
+      event: "fetching_secret_from_secrets_manager"
     })
 
-    // The doctor may have a personal Cognito password that differs from the SSO
-    // common password. Force-set the SSO password (Permanent=true) before every
-    // SSO authentication so InitiateAuth always succeeds with a known credential.
-    const ssoPassword = process.env.COGNITO_SSO_COMMON_PASSWORD || 'common@2026';
-    await this.cognitoService.setPassword(context.userId, ssoPassword);
+    const command = new GetSecretValueCommand({
+      SecretId: SERVICE_TOKEN_SECRET_ARN
+    })
 
-    const token = await this.cognitoService.generateToken(context.userId, context.role);
-    // if (!this.secret) {
+    const response = await secretsClient.send(command)
 
-    //   const error = new Error("SERVICE_TOKEN_SECRET missing")
-
-    //   logger.error({
-    //     event: "service_token_generate_failed",
-    //     err: serializeError(error)
-    //   })
-
-    //   throw error
-
-    // }
-
-    // const now = Math.floor(Date.now() / 1000)
-
-    // const payload: ServiceTokenPayload = {
-
-    //   iss: this.issuer,
-
-    //   aud: this.audience,
-
-    //   sub: "integration-hms",
-
-    //   tokenType: "SERVICE",
-
-    //   tenantId,
-
-    //   context,
-
-    //   jti: randomUUID(),
-
-    //   iat: now,
-
-    //   exp: now + 3600
-
-    // }
-
-    // const token = jwt.sign(
-    //   payload,
-    //   this.secret,
-    //   { algorithm: "HS256" }
-    // )
-
-    // logger.info({
-    //   event: "service_token_generated",
-    //   role: context.role
-    // })
-
-    return {
-      accessToken: token.updateToken || '',
-      updateToken: token.accessToken || '',
-      refreshToken: token.refreshToken || '',
-      expiresIn: token.expiresIn || 0,
-      userId: context.userId,
-      role: context.role
+    if (!response.SecretString) {
+      throw new Error("SecretString is empty")
     }
 
-  }
+    /**
+     * Secret can be JSON or plain string
+     */
+    let secretValue: string
 
-  verifyToken(token: string): ServiceTokenPayload {
+    try {
+      const parsed = JSON.parse(response.SecretString)
 
-    if (!this.secret) {
+      secretValue =
+        parsed.service_token_secret ||
+        parsed.SERVICE_TOKEN_SECRET ||
+        parsed.secret ||
+        ""
 
-      throw new Error("SERVICE_TOKEN_SECRET missing")
-
-    }
-
-    return jwt.verify(
-      token,
-      this.secret,
-      {
-        algorithms: ["HS256"],
-        issuer: this.issuer,
-        audience: this.audience
+      if (!secretValue) {
+        throw new Error("service_token_secret not found in secret JSON")
       }
-    ) as ServiceTokenPayload
+    } catch {
+      /**
+       * Secret stored as plain string
+       */
+      secretValue = response.SecretString
+    }
 
+    logger.info({
+      event: "secret_loaded_successfully"
+    })
+
+    return secretValue
+  } catch (error) {
+    logger.error({
+      event: "secret_fetch_failed",
+      err: serializeError(error)
+    })
+
+    throw error
   }
-
 }
 
-let instance: ServiceTokenService | null = null
+/**
+ * Public method used by services
+ */
+export async function getServiceTokenSecret(): Promise<string> {
 
-export function getServiceTokenService() {
-
-  if (!instance) {
-
-    instance = new ServiceTokenService()
-
+  /**
+   * Return cached value if available
+   */
+  if (cachedSecret) {
+    return cachedSecret
   }
 
-  return instance
+  /**
+   * Prevent parallel AWS calls
+   */
+  if (!loadingPromise) {
+    loadingPromise = fetchSecret()
+  }
 
+  cachedSecret = await loadingPromise
+
+  return cachedSecret
 }

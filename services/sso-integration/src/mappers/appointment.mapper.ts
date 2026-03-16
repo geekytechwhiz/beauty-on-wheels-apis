@@ -6,8 +6,8 @@ import {
   ScheduleCreateRequest,
 } from '../types/domain/appointment.types';
 import { SSORequestContext } from '../types/common/context.types';
-import { CognitoUserContext } from '../types/user/user.types';
-import { CONSTANTS } from '../utils/constants';
+import { ScheduleCreationEventPayload } from '../types/events/schedule-creation-message.types';
+import { loadTenantDetails } from '../utils/helper';
 export class AppointmentMapper {
   mapAppointmentToSchedule(
     appointment: Appointment,
@@ -57,38 +57,52 @@ export class AppointmentMapper {
   }
 
   /**
-   * Converts ISO 8601 time to 12-hour format (e.g., "11:40 AM")
+   * Converts ISO 8601 datetime to 12-hour format with leading zero on hour (e.g. "05:00 PM", "05:15 PM").
+   * If the value cannot be parsed, returns it as-is.
    */
   private formatTime12Hour(isoDateTime: string): string {
     const date = new Date(isoDateTime);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    if (isNaN(date.getTime())) {
+      return isoDateTime;
+    }
+    const hours = date.getUTCHours();
+    const minutes = date.getUTCMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const hours12 = hours % 12 || 12;
+    const hoursStr = hours12.toString().padStart(2, '0');
     const minutesStr = minutes.toString().padStart(2, '0');
-    return `${hours12}:${minutesStr} ${ampm}`;
+    return `${hoursStr}:${minutesStr} ${ampm}`;
   }
 
   /**
-   * Converts ISO 8601 date to DD-MM-YYYY format
+   * Converts ISO 8601 datetime to DD-MM-YYYY format.
+   * Falls back to today's date string if parsing fails.
    */
   private formatDateDDMMYYYY(isoDateTime: string): string {
     const date = new Date(isoDateTime);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
+    if (isNaN(date.getTime())) {
+      const now = new Date();
+      const day = now.getUTCDate().toString().padStart(2, '0');
+      const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+      return `${day}-${month}-${now.getUTCFullYear()}`;
+    }
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const year = date.getUTCFullYear();
     return `${day}-${month}-${year}`;
   }
 
   /**
-   * Calculates duration in minutes between two ISO datetime strings
+   * Calculates duration in minutes between two ISO datetime strings.
+   * Returns "15" as a safe default when either timestamp cannot be parsed.
    */
   private calculateDurationMinutes(startTime: string, endTime: string): string {
     const start = new Date(startTime).getTime();
     const end = new Date(endTime).getTime();
-    const durationMs = end - start;
-    const durationMinutes = Math.round(durationMs / (1000 * 60));
-    return durationMinutes.toString();
+    if (isNaN(start) || isNaN(end) || end <= start) {
+      return '15';
+    }
+    return Math.round((end - start) / (1000 * 60)).toString();
   }
 
   /**
@@ -102,16 +116,19 @@ export class AppointmentMapper {
    * Maps appointment to GetAvailableServicesRequest
    */
   mapAppointmentToGetAvailableServices(
-    appointment: Appointment,
-    patientUser: User,
+    event: ScheduleCreationEventPayload,
     context: SSORequestContext,
-    doctorOrganizationId?: string,
   ): GetAvailableServicesRequest {
-    
+    const subdomain = context.integration?.subdomain ?? '';
+    const tenant = loadTenantDetails(subdomain);
+    const organizationId =
+      event.doctor.organizationId ||
+      event.patient.organizationId ||
+      tenant.organizationId;
 
     return {
-      organizationId: doctorOrganizationId ?? CONSTANTS.ORGANIZATION_ID,
-      assignOrgId: doctorOrganizationId ?? context?.integration.subdomain,
+      organizationId,
+      assignOrgId: organizationId,
       serviceType: 'addon',
       listingType: 'recommended',
       featureKey: 'doctor_consultancy',
@@ -123,78 +140,95 @@ export class AppointmentMapper {
    * Maps appointment to RecommendServicesRequest
    */
   mapAppointmentToRecommendServices(
-    appointment: Appointment,
-    doctorUser: CognitoUserContext,
-    patientUser: User,
+    event: ScheduleCreationEventPayload,
     orgAddonId: string,
     context: SSORequestContext,
   ): RecommendServicesRequest {
-
-    const organizationID = context.integration.subdomain;
-     
-    console.log("PATIENT USER: ", patientUser);
-    console.log("APPOINTMENT: ", appointment);
-    console.log("DOCTOR USER: ", doctorUser);
-    console.log("ORG ADDON ID: ", orgAddonId);
-    console.log("ORGANIZATION ID: ", organizationID);
-  
-    const scheduleTimeStamp = this.getTimestampString(appointment.startTime);
+    const subdomain = context.integration?.subdomain
+    const tenant = loadTenantDetails(subdomain);
+    console.log("tenant", tenant);
+    console.log("event", event);
+    const organizationID =
+    event.doctor.organizationId ||
+    event.patient.organizationId ||
+    tenant.organizationId;
+    const scheduleTimeStamp = this.getTimestampString(
+      event.appointment.startTime,
+    );
 
     return {
       organizationId: organizationID,
       type: 'addon',
-      userId: String(patientUser.id),
+      userId: event.patient.userId,
       orgAddonId: orgAddonId,
-      assignedDoctorId: String(doctorUser.userId),
+      assignedDoctorId: event.doctor.userId,
       scheduleBy: scheduleTimeStamp,
     };
-    
   }
 
   /**
-   * Maps appointment to CreateServiceScheduleRequest
+   * Maps appointment to CreateServiceScheduleRequest.
+   * Includes tenantId and appointmentExternalId for Scheduler Service idempotency
+   * (idempotencyKey = `${tenantId}#${appointmentExternalId}`).
    */
   mapAppointmentToCreateServiceSchedule(
-    appointment: Appointment,
-    doctorUser: CognitoUserContext,
-    patientUser: User,
-    userAddonId: string,
+    event: ScheduleCreationEventPayload,
+    userAddonId: string
   ): CreateServiceScheduleRequest {
-      
-    const startTime = this.formatTime12Hour(appointment.startTime);
-    const endTime = this.formatTime12Hour(appointment.endTime);
-    const scheduleDate = this.formatDateDDMMYYYY(appointment.startTime);
-    const scheduleTimeStamp = this.getTimestampString(appointment.startTime);
-    const duration = this.calculateDurationMinutes(
-      appointment.startTime,
-      appointment.endTime,
+  
+    const startTime = this.formatTime12Hour(event.appointment.startTime);
+    const endTime = this.formatTime12Hour(event.appointment.endTime);
+  
+    const scheduleDate = this.formatDateDDMMYYYY(event.appointment.startTime);
+  
+    const scheduleTimeStamp = this.getTimestampString(
+      event.appointment.startTime,
     );
-
-    // Extract doctor information
-    const doctorName = appointment.doctor.name || '';
-    const doctorEmail = appointment.doctor.email || '';
-    const doctorSpecialty = appointment.doctor.department || 'general';
-
-    // Extract patient information
-    const patientName = appointment.patient.name || '';
-    const patientEmail = appointment.patient.email || '';
-
+  
+    const duration = String(
+      this.calculateDurationMinutes(
+        event.appointment.startTime,
+        event.appointment.endTime,
+      ),
+    );
+  
+    const doctorName = event.doctor.name ?? '';
+    const doctorEmail = event.doctor.email ?? '';
+    const doctorSpecialty = 'general';
+  
+    const patientName = event.patient.name ?? '';
+    const patientEmail = event.patient.email ?? '';
+  
+    const doctorUserId = event.doctor.userId;
+    const patientUserId = event.patient.userId;
+  
     return {
       serviceType: 'addon',
-      userAddonId: userAddonId,
-      userId: String(patientUser.id),
+  
+      userAddonId,
+  
+      userId: patientUserId,
       userName: patientName,
       userEmail: patientEmail,
-      staffId: String(doctorUser.userId),
+  
+      staffId: doctorUserId,
       staffName: doctorName,
       staffEmail: doctorEmail,
       staffSpecialty: doctorSpecialty,
-      startTime: startTime,
-      endTime: endTime,
-      duration: duration,
-      scheduleDate: scheduleDate,
-      scheduleTimeStamp: scheduleTimeStamp,
+  
+      startTime,
+      endTime,
+      duration,
+  
+      scheduleDate,
+      scheduleTimeStamp,
+  
       scheduleType: 'ONLINE',
+  
+      pincode: '134114',
+      latitude: 0,
+      longitude: 0,
+  
       action: 'createSchedule',
       paymentSchedule: 'INSTANT',
     };

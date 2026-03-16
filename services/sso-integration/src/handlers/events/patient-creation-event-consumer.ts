@@ -9,10 +9,12 @@ import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
 import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { getSSOConfig } from '../../config/sso-config';
-import { AppointmentSyncService } from '../../services/appointment-sync.service';
+import { publishPendingReprocess } from '../../services/appointment-sync/pending-reprocess-queue.service';
 
-import { AssignDoctorPayload } from '../../types/user-creation.type';
-import { mapPatientEventToCreateUserPayload } from '../../mappers/patient-event.mapper';
+import {
+  mapHmsPatientToCreatePatientModel,
+  buildAssignDoctorPayload,
+} from '../../mappers/user-creation.mapper';
 
 import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util';
 import { PatientCreationEvent } from '../../types/events';
@@ -101,8 +103,8 @@ async function processPatientCreationEvent(
     throw new Error('Invalid patient creation event');
   }
 
-  const { patient, doctorId,  provider, externalId, organizationID } = event.data;
-  
+  const { patient, doctorId, provider, externalId, organizationID, } = event.data;
+  console.log('event.data in patient-creation-event-consumer', event.data);
   /**
    * Validate event
    */
@@ -152,9 +154,9 @@ async function processPatientCreationEvent(
   }
 
   /**
-   * Map event → createUser payload
+   * Map event → createUser payload (CreatePatientModel)
    */
-  const patientPayload = mapPatientEventToCreateUserPayload(event);
+  const patientPayload = mapHmsPatientToCreatePatientModel(event);
 
   logger.info({
     event: 'patient_creation_event_mapped_payload',
@@ -199,66 +201,109 @@ async function processPatientCreationEvent(
     requestContext,
   );
 
+  /**
+   * Extract patient userId (CreatedUserInfo.userId)
+   */
+  const patientUserId = createdPatient?.userId; 
+
+
+  if (!patientUserId) {
+    logger.error({
+      event: 'patient_creation_missing_user_id',
+      patientId: patient.id,
+      response: createdPatient,
+    });
+
+    return;
+  }
+
   logger.info({
     event: 'patient_creation_event_success',
     patientId: patient.id,
-    userId: createdPatient.id,
+    userId: patientUserId,
   });
-
+//   {
+//     "organizationId": "mm3208au877eaa2d",
+//     "sender": {
+//         "userType": "STAFF",
+//         "userId": "01KJC8S5RZDG19EGT3XM5Y7XG3",
+//         "profileImage": "d2zvxvbt9m8l3w.cloudfront.net/profile-picture/01KJC8S5RZDG19EGT3XM5Y7XG3/1772177136053",
+//         "presenceStatus": "ONLINE",
+//         "name": "doc cardio",
+//         "email": "doc.paper.c@yopmail.com"
+//     },
+//     "receiver": {
+//         "userId": "01KKGXREYGDRZCCY6AP6YKZQGC",
+//         "name": "Sanjose",
+//         "email": "sanjo.paper@yopmail.com",
+//         "profileImage": "",
+//         "userType": "MOBILE",
+//         "presenceStatus": "OFFLINE"
+//     }
+// }
   /**
-   * Assign doctor if provided
+   * Assign doctor if provided (AssignDoctorModel; sender ≠ receiver enforced)
    */
   if (doctorId) {
-
-    const assignDoctorPayload: AssignDoctorPayload = {
+    const assignDoctorPayload = buildAssignDoctorPayload({
       organizationId: patientPayload.organizationID,
-
-      sender: {
-        userId: String(doctorId),
-      },
-
-      receiver: {
-        userId: String(createdPatient.id),
+      doctorUserId: String(doctorId),
+      patientUserId: String(patientUserId),
+      doctor: { userType: 'STAFF' },
+      patient: {
         name: patient.name,
         email: patient.email ?? undefined,
-        userType: 'MOBILE',
+        userType: 'USER',
       },
-    };
-
-    const assignResult = await userServiceClient.assignDoctor(
-      assignDoctorPayload,
-      requestContext,
-    );
-
-    logger.info({
-      event: 'patient_assign_doctor_success',
-      patientId: patient.id,
-      userId: createdPatient.id,
-      doctorId,
-      organizationId: patientPayload.organizationID,
-      message: assignResult?.message,
     });
+
+    try {
+      const assignResult = await userServiceClient.assignDoctor(
+        assignDoctorPayload,
+        requestContext,
+      );
+
+      logger.info({
+        event: 'patient_assign_doctor_success',
+        patientId: patient.id,
+        userId: patientUserId,
+        doctorId,
+        organizationId: patientPayload.organizationID,
+        message: assignResult?.message,
+      });
+    } catch (error) {
+      logger.error({
+        event: 'patient_assign_doctor_failed',
+        patientId: patient.id,
+        userId: patientUserId,
+        doctorId,
+        organizationId: patientPayload.organizationID,
+        err: serializeError(error as Error),
+      });
+    }
   }
 
   /**
-   * Trigger pending appointment reprocess for this patient
+   * Publish to PendingAppointmentReprocessQueue so worker re-enqueues pending appointments to AQ.
+   * Do not reprocess inline; keeps consumer lightweight.
    */
   try {
-    const appointmentSyncService = new AppointmentSyncService();
-
-    await appointmentSyncService.reprocessPendingAppointmentsForPatient(
-      externalId,
-      requestContext,
-    );
+    await publishPendingReprocess({
+      tenantId: requestContext.tenantId,
+      patientExternalId: externalId,
+      correlationId,
+    });
 
     logger.info({
-      event: 'pending_appointments_reprocess_triggered',
+      event: 'pending_reprocess_enqueued',
+      tenantId: requestContext.tenantId,
       patientExternalId: externalId,
-      userId: createdPatient.id,
+      correlationId,
+      userId: patientUserId,
     });
   } catch (error) {
     logger.error({
-      event: 'pending_appointments_reprocess_failed',
+      event: 'pending_reprocess_enqueue_failed',
       patientExternalId: externalId,
       err: serializeError(error as Error),
     });

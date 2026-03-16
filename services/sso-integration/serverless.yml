@@ -7,61 +7,93 @@ provider:
   runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+
   deploymentBucket:
     name: ${self:provider.stage}-mvx-sso-integration-bucket
     serverSideEncryption: AES256
+
   memorySize: 256
-  timeout: 30
+  timeout: 120
+
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
+
   environment:
     NODE_ENV: ${self:provider.stage}
     SERVICE_NAME: ${self:service}
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+
+  
+
+    # Cognito
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
     COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, '6v68r2stt9b4rgr3u8348bslsi'}
-    # Set to remap TruTech email domains to Cognito test-email domains
-    # e.g. COGNITO_EMAIL_DOMAIN_OVERRIDE=yopmail.com  → doctor@hospital.com becomes doctor@yopmail.com
     COGNITO_EMAIL_DOMAIN_OVERRIDE: ${env:COGNITO_EMAIL_DOMAIN_OVERRIDE, 'hms.com'}
+    COGNITO_SSO_COMMON_PASSWORD: Comm@n123
+    DOCTOR_ROLE_ID: 04a9f451-a93b-4889-85c3-877b443df639
+    PATIENT_ROLE_ID: 0a1beb2b-1934-4a28-9176-12d5716a488e
+    SUBDOMAIN: qahms_test_2
+    INTERNAL_SERVICE_TOKEN: b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1
+    SSO_DEFAULT_ORGANIZATION_ID: mm1usge33d4f9b61
+    PROVIDER: TRU_TECH_TEST 
 
-    # TruTech adapter config
+    # TruTech HMS (default; overridden per-tenant via TENANT_HMS_CONFIG when set)
     TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
     TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
-    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '15000'}
-
+    TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '60000'}
+    # Optional JSON map: {"tenantId":{"baseUrl":"...","apiKey":"...","timeoutMs":60000}}
+    TENANT_HMS_CONFIG: ${env:TENANT_HMS_CONFIG, '{}'}
+    BYPASS_SUFFIX_APPOINTMENTS: ${env:BYPASS_SUFFIX_APPOINTMENTS, true}
+    # Internal Services
     USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
     ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
-    SERVICE_TOKEN_SECRET: ${env:SERVICE_TOKEN_SECRET, 'dummy-service-token-secret-for-local-dev'}
+
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
-    # Internal service-to-service auth token, sourced from SSM Parameter Store
-    # ARN: arn:aws:ssm:us-east-1:542476693486:parameter/INTERNAL_SERVICE_TOKEN
-    # INTERNAL_SERVICE_TOKEN: ${ssm:INTERNAL_SERVICE_TOKEN~true}
-    COGNITO_SSO_COMMON_PASSWORD: Comm@n123
-    INTERNAL_SERVICE_TOKEN: b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1
-    
+
     # Schedule Service
     SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'}
-    SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '10000'}
-    # Package/Service API (for service-based schedule creation)
+    SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '60000'}
+
+    # Package Service
     PACKAGE_SERVICE_API_URL: ${env:PACKAGE_SERVICE_API_URL, 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'}
-    PACKAGE_SERVICE_API_TIMEOUT_MS: ${env:PACKAGE_SERVICE_API_TIMEOUT_MS, '10000'}
+    PACKAGE_SERVICE_API_TIMEOUT_MS: ${env:PACKAGE_SERVICE_API_TIMEOUT_MS, '60000'}
+
     # Appointment Sync
+    BYPASS_PENDING_APPOINTMENT: ${env:BYPASS_PENDING_APPOINTMENT, 'false'}
     APPOINTMENT_SYNC_MAX_RETRIES: ${env:APPOINTMENT_SYNC_MAX_RETRIES, '3'}
-    APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '1000'}
-    APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '10000'}
+    APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '5000'}
+    APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '60000'}
     APPOINTMENT_SYNC_CONCURRENCY_LIMIT: ${env:APPOINTMENT_SYNC_CONCURRENCY_LIMIT, '5'}
 
+    # Infrastructure
     PATIENT_CREATION_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/542476693486/dev-sso-integration-patient-creation-queue
+    APPOINTMENT_SYNC_QUEUE_URL:
+      Ref: AppointmentSyncQueue
+    DOCTOR_PROVISION_QUEUE_URL:
+      Ref: DoctorProvisionQueue
+    SCHEDULE_CREATION_QUEUE_URL:
+      Ref: ScheduleCreationQueue
+    PENDING_REPROCESS_QUEUE_URL:
+      Ref: PendingAppointmentReprocessQueue
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
-    SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'}
-    HMS_SYNC_SCHEDULE_EXPRESSION: ${env:HMS_SYNC_SCHEDULE_EXPRESSION, 'rate(30 minutes)'}
+
+    SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'} 
+
     REGISTERED_HMS_DOCTOR_IDS: 4
-    INTEGRATION_PROVIDER_AFRICA_HMS: africa-hms
-    
+    INTEGRATION_PROVIDER_AFRICA_HMS: africa-hmsc
+    # SERVICE_TOKEN_SECRET: ${ssm:/sso/${self:provider.stage}/service-token-secret}
+
   iamRoleStatements:
+
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: "*"
     - Effect: Allow
       Action:
         - cognito-idp:AdminInitiateAuth
@@ -72,12 +104,14 @@ provider:
         - cognito-idp:ListUsers
       Resource:
         - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+    
     - Effect: Allow
       Action:
         - sqs:SendMessage
         - sqs:ReceiveMessage
         - sqs:DeleteMessage
         - sqs:GetQueueAttributes
+        - sqs:ChangeMessageVisibility
       Resource:
         - Fn::GetAtt:
             - PatientCreationQueue
@@ -85,6 +119,41 @@ provider:
         - Fn::GetAtt:
             - PatientCreationDLQ
             - Arn
+        - Fn::GetAtt:
+            - AppointmentSyncQueue
+            - Arn
+        - Fn::GetAtt:
+            - AppointmentSyncDLQ
+            - Arn
+        - Fn::GetAtt:
+            - ScheduleCreationQueue
+            - Arn
+        - Fn::GetAtt:
+            - ScheduleCreationDLQ
+            - Arn
+        - Fn::GetAtt:
+            - DoctorProvisionQueue
+            - Arn
+        - Fn::GetAtt:
+            - DoctorProvisionDLQ
+            - Arn
+        - Fn::GetAtt:
+            - PendingAppointmentReprocessQueue
+            - Arn
+        - Fn::GetAtt:
+            - PendingAppointmentReprocessDLQ
+            - Arn
+
+    - Effect: Allow
+      Action:
+        - cloudwatch:PutMetricData
+      Resource: '*'
+
+    - Effect: Allow
+      Action:
+        - secretsmanager:GetSecretValue
+      Resource:
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:DEV_DEMO_SECRETMANAGER*
 
 plugins:
   - serverless-esbuild
@@ -103,16 +172,20 @@ custom:
     external:
       - '@aws-sdk/client-cognito-identity-provider'
       - '@aws-sdk/client-sqs'
+
   dotenv:
     logging: false
+
   serverless-offline:
     httpPort: 3000
     noPrependStageInUrl: true
 
 functions:
+
   health:
     handler: src/handlers/health.handler
     description: Health check endpoint
+    timeout: 30
     events:
       - http:
           path: /health
@@ -122,7 +195,7 @@ functions:
   ssoLaunch:
     handler: src/handlers/http/sso-launch.handler
     description: SSO launch endpoint for TruTech integration
-    timeout: 30
+    timeout: 60
     events:
       - http:
           path: /sso/launch
@@ -135,14 +208,11 @@ functions:
               - X-Request-Id
             allowCredentials: false
 
-  # ---------------------------------------------------------------------------
-  # Appointments Endpoints (Phase 1)
-  # ---------------------------------------------------------------------------
-
   appointmentsToday:
     handler: src/handlers/http/appointments.handler
     description: Get today's appointments for the authenticated doctor
-    timeout: 15
+    timeout: 30
+    memorySize: 512
     events:
       - http:
           path: /appointments/today
@@ -155,43 +225,12 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          # authorizer:
-            # name: authorizer
-            # type: token
-            # identitySource: method.request.header.Authorization
-            # arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
 
-  # patientEMR:
-  #   handler: src/handlers/http/patient-emr.handler
-  #   description: Get patient EMR summary for last 3 visits
-  #   timeout: 15
-  #   events:
-  #     - http:
-  #         path: /appointments/{patientId}/emr
-  #         method: get
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #         request:
-  #           parameters:
-  #             paths:
-  #               patientId: true
-  #         # authorizer:
-  #         #   name: authorizer
-  #         #   type: token
-  #         #   identitySource: method.request.header.Authorization
-  #         #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authorizer-service-${self:provider.stage}-authorizer
-
-  # Service-to-service: do NOT attach Cognito authorizer. Auth is done in Lambda via service token (SERVICE_TOKEN_SECRET).
   appointmentSync:
     handler: src/handlers/http/appointment-sync.handler
-    description: Sync today's appointments into schedule service (service-to-service; use Bearer service token)
-    timeout: 30
+    description: Sync today's appointments into schedule service
+    timeout: 120
+    memorySize: 512
     events:
       - http:
           path: /appointments/sync
@@ -204,80 +243,193 @@ functions:
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false
-          # No authorizer: caller must send Authorization: Bearer <service-jwt> (signed with SERVICE_TOKEN_SECRET)
- 
+
   patientCreationEventConsumer:
     handler: src/handlers/events/patient-creation-event-consumer.handler
-    description: Background worker for processing patient creation events from SQS
+    description: Background worker for patient creation events
     timeout: 60
     memorySize: 512
+    reservedConcurrency: 20
     events:
       - sqs:
           arn:
             Fn::GetAtt:
               - PatientCreationQueue
               - Arn
-          batchSize: 10
+          batchSize: 5
           functionResponseType: ReportBatchItemFailures
 
-  # Service-to-service (and EventBridge): no Cognito authorizer. When invoked via HTTP, Lambda validates service token.
   syncHmsAppointments:
     handler: src/handlers/events/sync-hms-appointments.handler
-    description: Periodic HMS appointment sync from TruTech (scheduler or HTTP; use Bearer service token for HTTP)
+    description: HMS appointment sync from TruTech (scheduler-only, enqueue-only)
     timeout: 900
     memorySize: 512
+    # No HTTP events; triggered only by EventBridge Scheduler (see resources)
+
+  appointmentProcessor:
+    handler: src/handlers/events/appointment-processor.handler
+    description: Process one appointment per SQS message from AppointmentSyncQueue
+    timeout: 120
+    memorySize: 512
+    reservedConcurrency: 50
     events:
-      - http:
-          path: /appointments/sync/hms
-          method: post
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-          # No authorizer: for HTTP callers use Authorization: Bearer <service-jwt> (validated in Lambda)
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - AppointmentSyncQueue
+              - Arn
+          batchSize: 1
+          functionResponseType: ReportBatchItemFailures
 
+  doctorProvisionWorker:
+    handler: src/handlers/events/doctor-provision-worker.handler
+    description: Create doctor then re-enqueue appointment to AppointmentSyncQueue
+    timeout: 120
+    memorySize: 512
+    reservedConcurrency: 20
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - DoctorProvisionQueue
+              - Arn
+          batchSize: 1
+          functionResponseType: ReportBatchItemFailures
 
+  scheduleCreationWorker:
+    handler: src/handlers/events/schedule-creation-worker.handler
+    description: Create schedule from ScheduleCreationQueue (async schedule creation)
+    timeout: 120
+    memorySize: 512
+    reservedConcurrency: 30
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - ScheduleCreationQueue
+              - Arn
+          batchSize: 1
+          functionResponseType: ReportBatchItemFailures
+
+  pendingAppointmentReprocessWorker:
+    handler: src/handlers/events/pending-appointment-reprocess-worker.handler
+    description: Re-enqueue pending appointments to AppointmentSyncQueue after patient creation
+    timeout: 60
+    memorySize: 256
+    reservedConcurrency: 20
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - PendingAppointmentReprocessQueue
+              - Arn
+          batchSize: 1
+          functionResponseType: ReportBatchItemFailures
 
 resources:
+
   Resources:
+
     PatientCreationDLQ:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
-        MessageRetentionPeriod: 1209600  # 14 days
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
+        MessageRetentionPeriod: 1209600
 
-    # SQS Queue for Patient Creation Events
     PatientCreationQueue:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
         VisibilityTimeout: 300
         MessageRetentionPeriod: 1209600
-        ReceiveMessageWaitTimeSeconds: 0
+        ReceiveMessageWaitTimeSeconds: 20
         RedrivePolicy:
           deadLetterTargetArn:
             Fn::GetAtt:
               - PatientCreationDLQ
               - Arn
           maxReceiveCount: 3
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
+
+    AppointmentSyncDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-appointment-sync-dlq
+        MessageRetentionPeriod: 1209600
+
+    AppointmentSyncQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-appointment-sync-queue
+        VisibilityTimeout: 300
+        MessageRetentionPeriod: 1209600
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - AppointmentSyncDLQ
+              - Arn
+          maxReceiveCount: 3
+
+    ScheduleCreationDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-schedule-creation-dlq
+        MessageRetentionPeriod: 1209600
+
+    ScheduleCreationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-schedule-creation-queue
+        VisibilityTimeout: 300
+        MessageRetentionPeriod: 1209600
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - ScheduleCreationDLQ
+              - Arn
+          maxReceiveCount: 3
+
+    DoctorProvisionDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-doctor-provision-dlq
+        MessageRetentionPeriod: 1209600
+
+    DoctorProvisionQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-doctor-provision-queue
+        VisibilityTimeout: 300
+        MessageRetentionPeriod: 1209600
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - DoctorProvisionDLQ
+              - Arn
+          maxReceiveCount: 3
+
+    PendingAppointmentReprocessDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-pending-reprocess-dlq
+        MessageRetentionPeriod: 1209600
+
+    PendingAppointmentReprocessQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-pending-reprocess-queue
+        VisibilityTimeout: 120
+        MessageRetentionPeriod: 1209600
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - PendingAppointmentReprocessDLQ
+              - Arn
+          maxReceiveCount: 3
+
     SyncHmsAppointmentsScheduleRole:
       Type: AWS::IAM::Role
       Properties:
@@ -288,6 +440,7 @@ resources:
               Principal:
                 Service: scheduler.amazonaws.com
               Action: sts:AssumeRole
+
         Policies:
           - PolicyName: InvokeSyncHmsAppointmentsLambda
             PolicyDocument:
@@ -296,8 +449,10 @@ resources:
                 - Effect: Allow
                   Action:
                     - lambda:InvokeFunction
+                    - lambda:InvokeAsync
                   Resource:
                     - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
+
     SyncHmsAppointmentsScheduleMorning:
       Type: AWS::Scheduler::Schedule
       Properties:
@@ -306,14 +461,98 @@ resources:
         FlexibleTimeWindow:
           Mode: OFF
         State: ENABLED
+
         Target:
           Arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-syncHmsAppointments
           RoleArn: !GetAtt SyncHmsAppointmentsScheduleRole.Arn
+
           Input: |
             {
               "source": "hms-appointments-scheduler",
               "schedule": "morning"
             }
+
           RetryPolicy:
             MaximumEventAgeInSeconds: 3600
             MaximumRetryAttempts: 3
+
+    # CloudWatch Alarms: DLQ message count (trigger when any message is in DLQ)
+    AlarmAppointmentSyncDLQ:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:provider.stage}-sso-integration-appointment-sync-dlq
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: ${self:provider.stage}-sso-integration-appointment-sync-dlq
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    AlarmScheduleCreationDLQ:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:provider.stage}-sso-integration-schedule-creation-dlq
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: ${self:provider.stage}-sso-integration-schedule-creation-dlq
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    AlarmDoctorProvisionDLQ:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:provider.stage}-sso-integration-doctor-provision-dlq
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: ${self:provider.stage}-sso-integration-doctor-provision-dlq
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    AlarmPendingReprocessDLQ:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:provider.stage}-sso-integration-pending-reprocess-dlq
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: ${self:provider.stage}-sso-integration-pending-reprocess-dlq
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    AlarmPatientCreationDLQ:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching

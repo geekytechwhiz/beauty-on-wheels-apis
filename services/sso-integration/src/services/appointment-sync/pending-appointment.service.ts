@@ -2,8 +2,10 @@ import { createChildLogger, serializeError } from '@api-hub/logger';
 import { SSORequestContext } from '../../types/common/context.types';
 import { PendingAppointment, User } from '../../types';
 import { CognitoUserContext } from '../../types/user/user.types';
+import { ScheduleCreationEventPayload } from '../../types/events/schedule-creation-message.types';
 import { AppointmentIdempotencyService } from './appointment-idempotency.service';
 import { ScheduleCreationService } from './schedule-creation.service';
+import type { ScheduleServiceClient } from '../../clients/schedule-service.client';
 
 type CognitoService = {
   findCognitoUserByEmail: (email: string) => Promise<CognitoUserContext | null>;
@@ -16,9 +18,12 @@ type UserServiceClient = {
   ) => Promise<User | null>;
 };
 
+const isPendingAppointmentBypassEnabled = (): boolean =>
+  process.env.BYPASS_PENDING_APPOINTMENT === 'true';
+
 export class PendingAppointmentService {
   constructor(
-    private readonly pendingAppointments: PendingAppointment[],
+    private readonly scheduleClient: ScheduleServiceClient,
     private readonly cognitoService: CognitoService,
     private readonly appointmentIdempotencyService: AppointmentIdempotencyService,
     private readonly scheduleCreationService: ScheduleCreationService,
@@ -27,34 +32,80 @@ export class PendingAppointmentService {
     private readonly userServiceClient?: UserServiceClient,
   ) {}
 
-  addPendingAppointment(pending: PendingAppointment): void {
+  async addPendingAppointment(
+    tenantId: string,
+    pending: PendingAppointment,
+    context: SSORequestContext,
+  ): Promise<void> {
+    if (isPendingAppointmentBypassEnabled()) {
+      this.logger.info({
+        event: 'pending_appointment_storage_bypassed',
+        message: 'Pending appointment storage bypassed (testing mode)',
+        correlationId: context.correlationId,
+        tenantId,
+        appointmentExternalId: pending.externalAppointmentId,
+        patientExternalId: pending.patientExternalId,
+      });
+      return;
+    }
     this.logger.info({
       event: 'pending_appointment_added',
-      correlationId: undefined,
-      tenantId: undefined,
+      correlationId: context.correlationId,
+      tenantId,
       externalAppointmentId: pending.externalAppointmentId,
       doctorExternalId: pending.doctorExternalId,
       patientExternalId: pending.patientExternalId,
       doctorUserId: null,
       patientUserId: null,
     });
-    this.pendingAppointments.push(pending);
+    await this.scheduleClient.storePendingAppointment(tenantId, pending, context);
   }
 
-  getPendingAppointmentsByPatient(
+  async getPendingAppointmentsByPatient(
+    tenantId: string,
     patientExternalId: string,
-  ): PendingAppointment[] {
-    return this.pendingAppointments.filter(
-      (p) => p.patientExternalId === patientExternalId,
+    context: SSORequestContext,
+  ): Promise<PendingAppointment[]> {
+    if (isPendingAppointmentBypassEnabled()) {
+      this.logger.info({
+        event: 'pending_appointment_retrieve_bypassed',
+        message: 'BYPASS_PENDING_APPOINTMENT enabled — skipping pending retrieve',
+        correlationId: context.correlationId,
+        tenantId,
+        patientExternalId,
+      });
+      return [];
+    }
+    return this.scheduleClient.getPendingAppointmentsByPatient(
+      tenantId,
+      patientExternalId,
+      context,
     );
   }
 
-  removePendingAppointment(pending: PendingAppointment): void {
-    const index = this.pendingAppointments.indexOf(pending);
-
-    if (index > -1) {
-      this.pendingAppointments.splice(index, 1);
+  async removePendingAppointment(
+    tenantId: string,
+    patientExternalId: string,
+    externalAppointmentId: string,
+    context: SSORequestContext,
+  ): Promise<void> {
+    if (isPendingAppointmentBypassEnabled()) {
+      this.logger.info({
+        event: 'pending_appointment_remove_bypassed',
+        message: 'BYPASS_PENDING_APPOINTMENT enabled — skipping pending remove',
+        correlationId: context.correlationId,
+        tenantId,
+        appointmentExternalId: externalAppointmentId,
+        patientExternalId,
+      });
+      return;
     }
+    await this.scheduleClient.removePendingAppointment(
+      tenantId,
+      patientExternalId,
+      externalAppointmentId,
+      context,
+    );
   }
 
   async reprocessPendingAppointments(
@@ -66,7 +117,11 @@ export class PendingAppointmentService {
       patientExternalId,
     });
 
-    const pending = this.getPendingAppointmentsByPatient(patientExternalId);
+    const pending = await this.getPendingAppointmentsByPatient(
+      context.tenantId,
+      patientExternalId,
+      context,
+    );
 
     if (!pending.length) {
       logger.info({
@@ -134,7 +189,7 @@ export class PendingAppointmentService {
             doctorUserId: null,
             patientUserId: String(patient.id),
           });
-          return;
+          continue;
         }
 
         const isDuplicate = await this.appointmentIdempotencyService.checkDuplicateSchedule(
@@ -155,7 +210,12 @@ export class PendingAppointmentService {
             doctorUserId: String(doctorCognito.userId),
             patientUserId: String(patient.id),
           });
-          this.removePendingAppointment(pendingAppt);
+          await this.removePendingAppointment(
+            context.tenantId,
+            pendingAppt.patientExternalId,
+            pendingAppt.externalAppointmentId,
+            context,
+          );
           continue;
         }
 
@@ -170,10 +230,39 @@ export class PendingAppointmentService {
           patientUserId: String(patient.id),
         });
 
+        const normalizedEventPayload: ScheduleCreationEventPayload = {
+          tenantId: context.tenantId,
+          correlationId: context.correlationId,
+          appointment: {
+            externalId: pendingAppt.externalAppointmentId,
+            startTime: pendingAppt.appointment.startTime,
+            endTime: pendingAppt.appointment.endTime,
+            status: String(pendingAppt.appointment.status),
+          },
+          doctor: {
+            userId: String(doctorCognito.userId),
+            externalUserId:
+              pendingAppt.doctorExternalId ||
+              String(pendingAppt.appointment.doctor.id),
+            organizationId:
+              doctorCognito.organizationId ??
+              patient.organizationId ??
+              context.integration?.subdomain ??
+              '',
+          },
+          patient: {
+            userId: String(patient.id),
+            externalUserId: pendingAppt.patientExternalId,
+            organizationId:
+              patient.organizationId ??
+              doctorCognito.organizationId ??
+              context.integration?.subdomain ??
+              '',
+          },
+        };
+
         await this.scheduleCreationService.createServiceScheduleWithRetry(
-          pendingAppt.appointment,
-          doctorCognito as CognitoUserContext,
-          patient,
+          normalizedEventPayload,
           context,
         );
 
@@ -188,12 +277,30 @@ export class PendingAppointmentService {
           patientUserId: String(patient.id),
         });
 
-        this.removePendingAppointment(pendingAppt);
+        await this.removePendingAppointment(
+          context.tenantId,
+          pendingAppt.patientExternalId,
+          pendingAppt.externalAppointmentId,
+          context,
+        );
       } catch (error) {
-        pendingAppt.retryCount++;
+        const newRetryCount = pendingAppt.retryCount + 1;
 
-        if (pendingAppt.retryCount >= this.maxRetries) {
-          this.removePendingAppointment(pendingAppt);
+        if (newRetryCount >= this.maxRetries) {
+          await this.removePendingAppointment(
+            context.tenantId,
+            pendingAppt.patientExternalId,
+            pendingAppt.externalAppointmentId,
+            context,
+          );
+        } else {
+          await this.scheduleClient.updatePendingAppointmentRetryCount(
+            context.tenantId,
+            pendingAppt.patientExternalId,
+            pendingAppt.externalAppointmentId,
+            newRetryCount,
+            context,
+          );
         }
 
         logger.error({
@@ -206,10 +313,10 @@ export class PendingAppointmentService {
           doctorUserId: null,
           patientUserId: String(patient.id),
           appointmentId: pendingAppt.appointment.appointmentId,
+          retryCount: newRetryCount,
           err: serializeError(error as Error),
         });
       }
     }
   }
 }
-

@@ -143,10 +143,10 @@ export class FriendFamilyService {
 
     // ── Step 1: member is a PATIENT ───────────────────────────────────────────
     // A patient already exists in the system → cannot be added as an F&F member.
-    const memberUserType = String((userDetails as any).userType ?? '').toUpperCase();
-    const memberDefinedRole = String((userDetails as any).definedRoleCode ?? '').toUpperCase();
-    const memberRoleName = String((userDetails as any).roleName ?? '').toUpperCase();
-    console.log("MEMBER ROLE NAME: ",memberRoleName)
+    const memberUserType = String((memberDetails as any).userType ?? '').toUpperCase();
+    const memberDefinedRole = String((memberDetails as any).definedRoleCode ?? '').toUpperCase();
+    const memberRoleName = String((memberDetails as any).roleName ?? '').toUpperCase();
+    console.log("MEMBER ROLE NAME: ", memberRoleName);
     if (memberUserType === 'PATIENT' || memberDefinedRole === 'PATIENT' || memberRoleName === 'PATIENT') {
       logger.warn({ event: 'friend_family_add_member_is_patient', userId, memberId });
       throw new UserAlreadyExistsError((memberDetails as any).emailAddress ?? memberId);

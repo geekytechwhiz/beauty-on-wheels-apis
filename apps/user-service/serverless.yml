@@ -569,7 +569,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   getPendingAppointment:
-    handler: src/handlers/get-appointment.handler.main
+    handler: src/handlers/get-pending-appointment.main
     timeout: 10
     memorySize: 256
     events:
@@ -586,7 +586,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listPendingAppointments:
-    handler: src/handlers/list-appointments.handler.main
+    handler: src/handlers/list-appointments.main
     timeout: 10
     memorySize: 256
     events:

@@ -359,6 +359,7 @@ export interface UpdateServiceStatusRequest {
   addonId: string;
   type: 'addon';
   userId: string;
+  organizationId: string;
   scheduleStatus: 'confirmed' | 'cancelled' | 'completed';
   paymentStatus?: 'completed' | 'pending' | 'failed';
 }

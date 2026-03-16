@@ -197,6 +197,7 @@ export class ScheduleCreationService {
         correlationId: context.correlationId,
         tenantId: context.tenantId,
         externalAppointmentId: eventPayload.appointment.externalId,
+        organizationId: eventPayload.patient.organizationId,
         doctorExternalId: eventPayload.doctor.externalUserId,
         patientExternalId: eventPayload.patient.externalUserId,
         doctorUserId: eventPayload.doctor.userId,
@@ -208,6 +209,7 @@ export class ScheduleCreationService {
       await this.updateServiceStatusWithRetry(
         userAddonId,
         eventPayload.patient.userId,
+        eventPayload.patient.organizationId,
         context,
       );
 
@@ -231,17 +233,24 @@ export class ScheduleCreationService {
   async updateServiceStatusWithRetry(
     addonId: string,
     userId: string,
+    organizationId: string,
     context: SSORequestContext,
   ): Promise<void> {
     console.log(
       'updateServiceStatusWithRetry: start',
-      JSON.stringify({ addonId, userId, correlationId: context.correlationId }),
+      JSON.stringify({
+        addonId,
+        userId,
+        organizationId,
+        correlationId: context.correlationId,
+      }),
     );
     await retryWithBackoff(async () => {
       const payload = {
         addonId,
         type: 'addon' as const,
         userId,
+        organizationId,
         scheduleStatus: 'confirmed' as const,
         paymentStatus: 'completed' as const,
       };
@@ -261,14 +270,25 @@ export class ScheduleCreationService {
       } catch (err) {
         console.error(
           'updateServiceStatusWithRetry: updateServiceStatus error',
-          JSON.stringify({ err, correlationId: context.correlationId }),
+          JSON.stringify({
+            err,
+            addonId,
+            userId,
+            organizationId,
+            correlationId: context.correlationId,
+          }),
         );
         throw err;
       }
     }, this.retryOptions);
     console.log(
       'updateServiceStatusWithRetry: complete',
-      JSON.stringify({ addonId, userId, correlationId: context.correlationId }),
+      JSON.stringify({
+        addonId,
+        userId,
+        organizationId,
+        correlationId: context.correlationId,
+      }),
     );
   }
 }

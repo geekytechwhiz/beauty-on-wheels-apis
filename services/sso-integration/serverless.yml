@@ -169,7 +169,7 @@ custom:
     external:
       - '@aws-sdk/client-cognito-identity-provider'
       - '@aws-sdk/client-sqs'
-   stageUrls:
+  stageUrls:
     dev:
       WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
       PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'

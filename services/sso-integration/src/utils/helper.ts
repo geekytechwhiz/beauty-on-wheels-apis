@@ -1,3 +1,4 @@
+import { createLogger } from "@api-hub/logger";
 import { getEnvConfig } from "../config/env"; 
 
 export const makePrefixFromGender = (gender: string): string => {
@@ -126,3 +127,7 @@ export function appendSuffixToContacts<T extends any[]>(
   }
 }
  
+export const baseLogger = createLogger({
+  service: 'sso-integration',
+  redactPII: true,
+});

@@ -1,6 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import {
-  createLogger,
   createChildLogger,
   serializeError,
 } from '@api-hub/logger';
@@ -9,12 +8,8 @@ import { getEnvConfig } from '../config/env';
 import { getTenantHmsConfig, TenantHmsConfig } from '../config/tenant-hms-config';
 import { SSOError } from '../types/errors/sso-error';
 import { TruTechAppointmentsResponse, TruTechPatientEMRResponse, TruTechVerifyResponse } from '../types';
-
-const baseLogger = createLogger({
-  service: 'sso-integration',
-  redactPII: true
-});
-
+import { baseLogger } from '../utils/helper';
+ 
 export interface TruTechClientConfig {
   baseURL: string;
   apiKey: string;

@@ -231,6 +231,10 @@ export class AppointmentSyncService extends BaseService {
   private async enqueuePendingAppointment(
     appointment: Appointment,
     reason: PendingAppointment['reason'],
+    pendingMetadata: Pick<
+      PendingAppointment,
+      'tenantId' | 'organizationID' | 'patientUserId' | 'doctorUserId'
+    >,
     context: SSORequestContext,
   ): Promise<void> {
     await this.pendingAppointmentService.addPendingAppointment(
@@ -240,6 +244,11 @@ export class AppointmentSyncService extends BaseService {
         reason,
         timestamp: new Date().toISOString(),
         retryCount: 0,
+        appointmentId: `APT-${String(appointment.appointmentId)}`,
+        tenantId: pendingMetadata.tenantId,
+        organizationID: pendingMetadata.organizationID,
+        patientUserId: pendingMetadata.patientUserId,
+        doctorUserId: pendingMetadata.doctorUserId,
         patientExternalId: String(appointment.patient.id),
         doctorExternalId: String(appointment.doctor.id),
         externalAppointmentId: String(appointment.appointmentId),
@@ -649,6 +658,12 @@ export class AppointmentSyncService extends BaseService {
       await this.enqueuePendingAppointment(
         appointment,
         'user_not_resolved',
+        {
+          tenantId: context.tenantId,
+          organizationID: organizationId,
+          doctorUserId: resolvedDoctor?.userId,
+          patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
+        },
         context,
       );
 

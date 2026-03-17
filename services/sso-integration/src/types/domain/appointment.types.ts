@@ -139,6 +139,11 @@ export interface PendingAppointment {
   reason: 'patient_not_found' | 'schedule_creation_failed' | 'user_not_resolved';
   timestamp: string;
   retryCount: number;
+  appointmentId?: string;
+  tenantId?: string;
+  organizationID?: string;
+  patientUserId?: string;
+  doctorUserId?: string;
   patientExternalId: string;
   doctorExternalId: string;
   externalAppointmentId: string;

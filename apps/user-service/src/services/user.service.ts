@@ -1138,7 +1138,8 @@ export class UserService {
 
       // Set modifiedDate
       updates.modifiedDate = Date.now();
-
+      updates.generalSetting = updates.generalSetting ?? existing.generalSetting;
+       console.log("UPDATES: ", JSON.stringify(updates));
       await this.repository.updateUser(userId, organizationId, updates);
       const updated = await this.repository.getUser(userId, organizationId);
       if (!updated) {
@@ -1867,6 +1868,8 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         userBasicDetails.countryCode || orgBasicDetails?.organizationInfo?.address?.countryCode || ''
       );
 
+      console.log("USER General DETAILS: ", JSON.stringify(userBasicDetails?.generalSetting));
+
       // Resolve units from org defaultSetting and user overrides (match legacy getUserUnits: sign_up/get_user_profile/dynamodb.js)
       const orgDefaultSetting = orgBasicDetails?.organizationInfo?.defaultSetting
         ?? orgBasicDetails?.defaultSetting
@@ -1883,8 +1886,14 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         temperatureUnit: 'C',
         weightUnit: 'kg',
         cholesterolUnit: 'mg/dL',
-        water: 'l',
-        distance: 'km',
+        waterUnit: 'l',
+        distanceUnit: 'km',
+        bloodGlucoseUnit: 'mmol/L',
+        oxygenUnit: 'SpO2',
+        caloriesUnit: 'kcal',
+        speedUnit: 'km/h',
+        powerUnit: 'W',
+        physicalEffortUnit: 'METs',
       };
       const orgUnitsKeys = (orgUnits && typeof orgUnits === 'object') ? Object.keys(orgUnits) : [];
       const userUnits: Record<string, string> = {};
@@ -1905,8 +1914,16 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       } catch {
         // continue with defaults
       }
-      // Legacy returns only keys defined in org's units config (can be {} when org has no units)
-      const units = userUnits;
+
+      // Ensure all standard unit keys are present in the response.
+      // Prefer (in order): user override -> org default-derived value -> hardcoded preferred default.
+      const units: Record<string, string> = {};
+      for (const key of Object.keys(preferredUnits)) {
+        const existing = userUnits[key];
+        units[key] = typeof existing === 'string' && existing
+          ? existing
+          : preferredUnits[key];
+      }
 
       // Get email/phone verification status (matches original: getEmailPhoneVerifiedStatus)
       let emailVerified = false;
@@ -2034,18 +2051,61 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
           gender: fnfDetails.gender || '',
           permissions: this.makeFamilyPermissionReadonly(uniquePermissions),
         } : null,
-        generalSettings: {
-          promotions: (userBasicDetails as any).promotions !== undefined ? (userBasicDetails as any).promotions : true,
-          medication: (userBasicDetails as any).medication !== undefined ? (userBasicDetails as any).medication : true,
-          appointment: (userBasicDetails as any).appointment !== undefined ? (userBasicDetails as any).appointment : true,
-          newsAndArticles: (userBasicDetails as any).newsAndArticles !== undefined ? (userBasicDetails as any).newsAndArticles : true,
-          emergencyVital: (userBasicDetails as any).emergencyVital !== undefined ? (userBasicDetails as any).emergencyVital : true,
-          medicationReminders: (userBasicDetails as any).medicationReminders !== undefined ? (userBasicDetails as any).medicationReminders : true,
-          appointmentReminders: (userBasicDetails as any).appointmentReminders !== undefined ? (userBasicDetails as any).appointmentReminders : true,
-          activityGoals: (userBasicDetails as any).activityGoals !== undefined ? (userBasicDetails as any).activityGoals : true,
-          healthCheckIn: (userBasicDetails as any).healthCheckIn !== undefined ? (userBasicDetails as any).healthCheckIn : true,
-          debugMode: (userBasicDetails as any).debugMode || false,
-        },
+        generalSettings: (() => {
+          const gs = (userBasicDetails as any).generalSetting || {};
+          return {
+            promotions:
+              gs.promotions ??
+              ((userBasicDetails as any).promotions !== undefined
+                ? (userBasicDetails as any).promotions
+                : true),
+            medication:
+              gs.medication ??
+              ((userBasicDetails as any).medication !== undefined
+                ? (userBasicDetails as any).medication
+                : true),
+            appointment:
+              gs.appointment ??
+              ((userBasicDetails as any).appointment !== undefined
+                ? (userBasicDetails as any).appointment
+                : true),
+            newsAndArticles:
+              gs.newsAndArticles ??
+              ((userBasicDetails as any).newsAndArticles !== undefined
+                ? (userBasicDetails as any).newsAndArticles
+                : true),
+            emergencyVital:
+              gs.emergencyVital ??
+              ((userBasicDetails as any).emergencyVital !== undefined
+                ? (userBasicDetails as any).emergencyVital
+                : true),
+            medicationReminders:
+              gs.medicationReminders ??
+              ((userBasicDetails as any).medicationReminders !== undefined
+                ? (userBasicDetails as any).medicationReminders
+                : true),
+            appointmentReminders:
+              gs.appointmentReminders ??
+              ((userBasicDetails as any).appointmentReminders !== undefined
+                ? (userBasicDetails as any).appointmentReminders
+                : true),
+            activityGoals:
+              gs.activityGoals ??
+              ((userBasicDetails as any).activityGoals !== undefined
+                ? (userBasicDetails as any).activityGoals
+                : true),
+            healthCheckIn:
+              gs.healthCheckIn ??
+              ((userBasicDetails as any).healthCheckIn !== undefined
+                ? (userBasicDetails as any).healthCheckIn
+                : true),
+            debugMode:
+              gs.debugMode ??
+              ((userBasicDetails as any).debugMode !== undefined
+                ? (userBasicDetails as any).debugMode
+                : false),
+          };
+        })(),
         communicationSettings: {
           sms: (userBasicDetails as any).sms !== undefined ? (userBasicDetails as any).sms : (orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.sms ?? true),
           chat_with_push: (userBasicDetails as any).chat_with_push !== undefined ? (userBasicDetails as any).chat_with_push : (orgBasicDetails?.organizationInfo?.defaultSetting?.notifications?.chat_with_push ?? true),

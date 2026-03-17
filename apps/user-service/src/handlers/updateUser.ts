@@ -216,7 +216,7 @@ async function updateUser(
       switch (action) {
         case 'LANGUAGE': {
           if (!body?.language) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -235,7 +235,7 @@ async function updateUser(
         }
         case 'DATE_FORMAT': {
           if (!body?.dateFormat) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -288,7 +288,7 @@ async function updateUser(
           }
           
           if (!unitsSettings || Object.keys(unitsSettings).length === 0) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -325,7 +325,7 @@ async function updateUser(
           }
           
           if (!communicationSettings || Object.keys(communicationSettings).length === 0) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -358,11 +358,20 @@ async function updateUser(
           const generalSetting: Record<string, unknown> = {};
           for (const key of keys) {
             if (hasOwn(body, key)) {
-              generalSetting[key] = body[key];
+              const raw = body[key];
+              // Normalize to boolean so we don't persist 0/1 integers
+              const value =
+                typeof raw === 'boolean'
+                  ? raw
+                  : raw === 1 ||
+                    raw === '1' ||
+                    raw === 'true' ||
+                    raw === 'TRUE';
+              generalSetting[key] = value;
             }
           }
           if (Object.keys(generalSetting).length === 0) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -376,6 +385,7 @@ async function updateUser(
               },
             );
           }
+          // Also store the consolidated object for backwards compatibility
           userData.generalSetting = generalSetting;
           break;
         }
@@ -507,7 +517,7 @@ async function updateUser(
         }
         case 'CHIEF_MEDICAL_ISSUE': {
           if (!body?.chiefMedicalIssue) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -535,7 +545,7 @@ async function updateUser(
         }
         case 'EMERGENCY_CONTACT': {
           if (!body?.emergencyContact || Object.keys(body.emergencyContact).length === 0) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -555,7 +565,7 @@ async function updateUser(
         case 'WORKING_HOURS': {
           const validationMessage = validateWorkingHours(body?.workingHours);
           if (validationMessage) {
-            return ApiResponse.unprocessableEntity(
+            return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
               { requestId: correlationId, event },
               {
@@ -675,6 +685,7 @@ async function updateUser(
         {
           title: 'Success',
           description: 'The operation completed successfully.',
+          severity: 'SUCCESS',
         },
         { requestId: correlationId, event },
       );
@@ -719,7 +730,7 @@ async function updateUser(
       duration,
       correlationId,
     );
-    return ApiResponse.unprocessableEntity(
+    return ApiResponse.badRequest(
       'COMMON.VALIDATION_ERROR',
       { requestId: correlationId, event },
       {
@@ -788,6 +799,7 @@ async function updateUser(
       {
         title: 'Success',
         description: 'The operation completed successfully.',
+        severity: 'SUCCESS',
       },
       { requestId: correlationId, event },
     );

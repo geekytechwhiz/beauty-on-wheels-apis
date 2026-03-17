@@ -217,14 +217,13 @@ export class CognitoService {
         // return `Comm@n12${Math.random().toString(36).substring(5)}`;
         return  'Comm@n123';
       };
-      
-      const temporaryPassword = generatePassword();
+       
       const cmd = new AdminCreateUserCommand({
         UserPoolId: this.userPoolId,
         Username: usernameForCognito,
         UserAttributes: attrs,
         MessageAction: 'SUPPRESS',
-        TemporaryPassword: temporaryPassword,
+        // TemporaryPassword: temporaryPassword,
       });
       await this.client.send(cmd);
       

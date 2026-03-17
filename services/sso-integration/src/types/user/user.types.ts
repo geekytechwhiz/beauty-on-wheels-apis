@@ -102,6 +102,8 @@ export interface User {
   
     authType: "USER" | "SERVICE" | "EXTERNAL"
 
+    password: string | null
+
   }
   export interface CreatedUserInfo {
     userId: string;

@@ -100,7 +100,7 @@ provider:
         - cognito-idp:AdminGetUser
         - cognito-idp:ListUsers
       Resource:
-        - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+        - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_*'}
     
     - Effect: Allow
       Action:

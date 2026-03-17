@@ -1,19 +1,22 @@
+import { createChildLogger, serializeError } from '@api-hub/logger';
+import { BaseClient } from '@api-hub/service-clients';
 import axios from 'axios';
-import { serializeError } from '@api-hub/logger';
 import { SSORequestContext } from '../types/common/context.types';
+import { PendingAppointment } from '../types/domain/appointment.types';
 import { SSOError } from '../types/errors/sso-error';
 import {
   AssignDoctorPayload,
   DoctorCreationPayload,
   PatientCreationPayload,
 } from '../types/user-creation.type';
-import { User } from '../types/user/user.types';
-  import { getOrganizationId } from '../utils/helper';
-  import { buildHeaders } from '../utils/request.utils';
-import { BaseClient } from '@api-hub/service-clients';
-import { CreatedUserInfo } from '../types/user/user.types';
+import { CreatedUserInfo, User } from '../types/user/user.types';
+import { baseLogger, getOrganizationId } from '../utils/helper';
+import { buildHeaders } from '../utils/request.utils';
 
 export class SSOUserServiceClient extends BaseClient {
+  private readonly logger = createChildLogger(baseLogger, {
+    component: 'SSOUserServiceClient',
+  });
   constructor() {
     super(process.env.USER_SERVICE_BASE_URL || '', 'user-service');
   }
@@ -272,6 +275,55 @@ export class SSOUserServiceClient extends BaseClient {
       );
     }
   }
+  async storePendingAppointment(
+    tenantId: string,
+    pending: PendingAppointment,
+    context: SSORequestContext,
+  ): Promise<void> {
+    try {
+      const organizationID =
+        pending.organizationID ?? getOrganizationId(context.integration.subdomain);
+
+      const requestBody = {
+        appointmentId:
+          pending.appointmentId ?? `appt-${pending.externalAppointmentId}`,
+        externalAppointmentId: pending.externalAppointmentId,
+        tenantId: pending.tenantId ?? tenantId,
+        organizationID,
+        patientUserId: pending.patientUserId ?? pending.patientExternalId,
+        doctorUserId: pending.doctorUserId ?? pending.doctorExternalId,
+        patientExternalId: pending.patientExternalId,
+        doctorExternalId: pending.doctorExternalId,
+        startTime: new Date(pending.appointment.startTime).getTime(),
+        endTime: new Date(pending.appointment.endTime).getTime(),
+        status: 'PENDING',
+        sourceSystem: context.sourceSystem,
+      };
+
+      await this.client.post(
+        '/pending-appointments',
+        requestBody,
+        { headers: buildHeaders(context) },
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        this.logger.error({
+          event: 'store_pending_appointment_error',
+          status: error.response?.status,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Store pending appointment failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError(
+        'Store pending appointment failed',
+        error as Error,
+      );
+    }
+  }
+
 }
 
 export function getSSOUserServiceClient(): SSOUserServiceClient {

@@ -60,14 +60,14 @@ provider:
     PACKAGE_SERVICE_API_TIMEOUT_MS: ${env:PACKAGE_SERVICE_API_TIMEOUT_MS, '60000'}
 
     # Appointment Sync
-    # BYPASS_PENDING_APPOINTMENT: ${env:BYPASS_PENDING_APPOINTMENT, 'false'}
+    BYPASS_PENDING_APPOINTMENT: ${env:BYPASS_PENDING_APPOINTMENT, 'true'}
     APPOINTMENT_SYNC_MAX_RETRIES: ${env:APPOINTMENT_SYNC_MAX_RETRIES, '3'}
     APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '5000'}
     APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '60000'}
     APPOINTMENT_SYNC_CONCURRENCY_LIMIT: ${env:APPOINTMENT_SYNC_CONCURRENCY_LIMIT, '5'}
 
     # Infrastructure
-    PATIENT_CREATION_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/542476693486/dev-sso-integration-patient-creation-queue
+    PATIENT_CREATION_QUEUE_URL: ${self:custom.stageUrls.${self:provider.stage}.PATIENT_CREATION_QUEUE_URL}
     APPOINTMENT_SYNC_QUEUE_URL:
       Ref: AppointmentSyncQueue
     DOCTOR_PROVISION_QUEUE_URL:
@@ -100,7 +100,7 @@ provider:
         - cognito-idp:AdminGetUser
         - cognito-idp:ListUsers
       Resource:
-        - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
+        - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.stageUrls.${self:provider.stage}.COGNITO_USER_POOL_ID}
     
     - Effect: Allow
       Action:
@@ -150,7 +150,7 @@ provider:
       Action:
         - secretsmanager:GetSecretValue
       Resource:
-        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:DEV_DEMO_SECRETMANAGER*
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.stageUrls.${self:provider.stage}.SECRET_MANAGER_NAME}
 
 plugins:
   - serverless-esbuild
@@ -172,6 +172,7 @@ custom:
   
   stageUrls:
     dev:
+      SECRET_MANAGER_NAME: 'DEV_DEMO_SECRETMANAGER'
       COGNITO_USER_POOL_ID: 'us-east-1_AK1HTxdlX'
       COGNITO_CLIENT_ID: '6v68r2stt9b4rgr3u8348bslsi'
       DOCTOR_ROLE_ID: '04a9f451-a93b-4889-85c3-877b443df639'
@@ -187,6 +188,7 @@ custom:
       PATIENT_CREATION_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/542476693486/dev-sso-integration-patient-creation-queue'
 
     stg:
+      SECRET_MANAGER_NAME: 'STG_DEMO_SECRETMANAGER'
       COGNITO_USER_POOL_ID: 'us-east-1_wttVwD9Ax'
       COGNITO_CLIENT_ID: '51dhgth4oijapf4m1gv51p09tp'
       DOCTOR_ROLE_ID: '8ebed8e0-6011-4eff-9c1d-1cceb451225a'
@@ -202,6 +204,7 @@ custom:
       PATIENT_CREATION_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/542476693486/stg-sso-integration-patient-creation-queue'
 
     prd:
+      SECRET_MANAGER_NAME: 'PRD_DEMO_SECRETMANAGER'
       COGNITO_USER_POOL_ID: 'us-east-1_0uZJvIS5R'
       COGNITO_CLIENT_ID: '1a5qc2h57l6gjk5719gb9cecfi'
       DOCTOR_ROLE_ID: '04a9f451-a93b-4889-85c3-877b443df639'

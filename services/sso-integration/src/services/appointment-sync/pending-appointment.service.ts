@@ -6,6 +6,7 @@ import { ScheduleCreationEventPayload } from '../../types/events/schedule-creati
 import { AppointmentIdempotencyService } from './appointment-idempotency.service';
 import { ScheduleCreationService } from './schedule-creation.service';
 import type { ScheduleServiceClient } from '../../clients/schedule-service.client';
+import { SSOUserServiceClient } from '../../clients/user-service.client';
 
 type CognitoService = {
   findCognitoUserByEmail: (email: string) => Promise<CognitoUserContext | null>;
@@ -30,6 +31,7 @@ export class PendingAppointmentService {
     private readonly logger: any,
     private readonly maxRetries: number,
     private readonly userServiceClient?: UserServiceClient,
+    private readonly ssoUserServiceClient?: SSOUserServiceClient,
   ) {}
 
   async addPendingAppointment(
@@ -55,10 +57,10 @@ export class PendingAppointmentService {
       externalAppointmentId: pending.externalAppointmentId,
       doctorExternalId: pending.doctorExternalId,
       patientExternalId: pending.patientExternalId,
-      doctorUserId: null,
-      patientUserId: null,
+      doctorUserId: pending.doctorUserId ?? null,
+      patientUserId: pending.patientUserId ?? null,
     });
-    await this.scheduleClient.storePendingAppointment(tenantId, pending, context);
+    await this.ssoUserServiceClient?.storePendingAppointment(tenantId, pending, context);
   }
 
   async getPendingAppointmentsByPatient(

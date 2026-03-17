@@ -1,36 +1,32 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
 import {
   createChildLogger,
-  createLogger,
-  serializeError,
+  serializeError
 } from '@api-hub/logger';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { getEnvConfig } from '../config/env';
 import {
-  FetchSchedulesRequest,
-  FetchSchedulesResponse,
-  Schedule,
-  GetAvailableServicesRequest,
-  GetAvailableServicesResponse,
   AvailableService,
-  RecommendServicesRequest,
-  RecommendServicesResponse,
   CreateServiceScheduleRequest,
   CreateServiceScheduleResponse,
+  FetchSchedulesRequest,
+  FetchSchedulesResponse,
+  GetAvailableServicesRequest,
+  GetAvailableServicesResponse,
+  PendingAppointment,
+  RecommendServicesRequest,
+  RecommendServicesResponse,
+  Schedule,
+  ScheduleDetails,
   UpdateServiceStatusRequest,
   UpdateServiceStatusResponse,
-  ScheduleDetails,
-  PendingAppointment,
-} from '../types'; 
-import { SSOError } from '../types/errors/sso-error';
+} from '../types';
 import { SSORequestContext } from '../types/common/context.types';
-import { loadTenantDetails } from '../utils/helper';
+import { SSOError } from '../types/errors/sso-error';
+import { baseLogger, loadTenantDetails } from '../utils/helper';
 import { buildHeaders } from '../utils/request.utils';
 
-const baseLogger = createLogger({
-  service: 'sso-integration',
-  redactPII: true,
-});
+
 
 export class ScheduleServiceClient {
   private readonly client: AxiosInstance;
@@ -464,45 +460,6 @@ export class ScheduleServiceClient {
   // Pending appointments (Scheduler service owns storage; these call Scheduler APIs)
   // ---------------------------------------------------------------------------
 
-  async storePendingAppointment(
-    tenantId: string,
-    pending: PendingAppointment,
-    context: SSORequestContext,
-  ): Promise<void> {
-    const logger = createChildLogger(this.logger, {
-      correlationId: context.correlationId,
-    });
-    try {
-      await this.client.post(
-        '/pending-appointments',
-        {
-          tenantId,
-          appointmentExternalId: pending.externalAppointmentId,
-          patientExternalId: pending.patientExternalId,
-          doctorExternalId: pending.doctorExternalId,
-          payload: pending,
-          status: 'PENDING',
-        },
-        { headers: buildHeaders(context) },
-      );
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        logger.error({
-          event: 'store_pending_appointment_error',
-          status: error.response?.status,
-          err: serializeError(error),
-        });
-        throw SSOError.downstreamError(
-          `Store pending appointment failed: ${error.message}`,
-          error,
-        );
-      }
-      throw SSOError.downstreamError(
-        'Store pending appointment failed',
-        error as Error,
-      );
-    }
-  }
 
   async getPendingAppointmentsByPatient(
     tenantId: string,

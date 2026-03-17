@@ -82,6 +82,7 @@ provider:
 
     REGISTERED_HMS_DOCTOR_IDS: 4
     INTEGRATION_PROVIDER_AFRICA_HMS: africa-hmsc
+    SERVICE_TOKEN_SECRET_ID: ${self:custom.stageUrls.${self:provider.stage}.SECRET_MANAGER_NAME}
 
   iamRoleStatements:
 
@@ -150,7 +151,7 @@ provider:
       Action:
         - secretsmanager:GetSecretValue
       Resource:
-        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.stageUrls.${self:provider.stage}.SECRET_MANAGER_NAME}
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.stageUrls.${self:provider.stage}.SECRET_MANAGER_NAME}*
 
 plugins:
   - serverless-esbuild

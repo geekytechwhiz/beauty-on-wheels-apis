@@ -32,10 +32,6 @@ const envSchema = z.object({
     .string()
     .url('USER_SERVICE_BASE_URL must be a valid URL'),
 
-  ROLE_SERVICE_BASE_URL: z
-    .string()
-    .url('ROLE_SERVICE_BASE_URL must be a valid URL'),
-
   // Static service token used for internal service-to-service communication
   // (e.g. SSO → Schedule Service, User Service). This should be provisioned
   // via the environment and treated as a secret.
@@ -93,14 +89,4 @@ export function getEnvConfig(): EnvConfig {
     return loadEnvConfig();
   }
   return cachedConfig;
-}
-
-export function isProduction(): boolean {
-  const env = getEnvConfig().NODE_ENV;
-  return env === 'prd' || env === 'production';
-}
-
-export function isDevelopment(): boolean {
-  const env = getEnvConfig().NODE_ENV;
-  return env === 'dev' || env === 'development';
 }

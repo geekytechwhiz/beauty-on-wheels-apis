@@ -10,6 +10,7 @@ import { Context, SQSEvent } from 'aws-lambda';
 import { AppointmentSyncService } from '../../services/appointment-sync.service';
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 import { publishDoctorProvision } from '../../services/appointment-sync/doctor-provision-queue.service';
+import { Appointment } from '../../types';
 
 const baseLogger = createLogger({
   service: 'sso-integration',

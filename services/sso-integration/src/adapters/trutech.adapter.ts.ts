@@ -1,7 +1,6 @@
 import { createLogger, createChildLogger } from '@api-hub/logger';
 
 import {
-  TruTechAppointmentsResponse,
   TruTechAppointment,
   Patient,
   Doctor,
@@ -12,7 +11,7 @@ import {
   PatientEMRSummary, 
   Appointment,
 } from '../types';
-import { TruTechEMRVisit, TruTechPatientEMRResponse, TruTechVerifyContext, TruTechVerifyResponse,   } from '../types/external/trutech.types';
+import { TruTechEMRVisit, TruTechPatientEMRResponse } from '../types/external/trutech.types';
 import { SSOError } from '../types/errors/sso-error';
 
 const baseLogger = createLogger({
@@ -24,29 +23,6 @@ export class TruTechAdapter {
   private readonly logger = createChildLogger(baseLogger, {
     component: 'TruTechAdapter',
   });
-
-  // ---------------------------------------------------------
-  // Verify Launch Response Mapping
-  // ---------------------------------------------------------
-
-  public mapVerifyResponse(response: TruTechVerifyResponse): TruTechVerifyResponse {
-    if (response.status !== 'success' || !response.doctor_uid) {
-      throw SSOError.verificationFailed(
-        response.message || 'TruTech verification failed',
-      );
-    }
-
-    const context = response.context;
-
-    return {
-      doctor_uid: response.doctor_uid,
-      context: {
-        ...context,
-        tenant_id: context?.tenant_id || '',
-        drid: context?.drid || 0,
-      } as TruTechVerifyContext,
-    };
-  }
 
   // ---------------------------------------------------------
   // Map Appointment List

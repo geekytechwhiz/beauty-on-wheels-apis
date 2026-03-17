@@ -79,13 +79,13 @@ export class CognitoUserService {
           userType: String(input.userType || ''),
           userID: String(input.userID || ''),
           organizationID: input.organizationID,
-          organizationId: input.organizationExternalId ?? input.organizationID,
+          // organizationId: input.organizationExternalId ?? input.organizationID,
           role: input.role,
           roleName: input.roleName ?? '',
           permissions: JSON.stringify(input.permissions || []),
-          providerId: input.providerId,
-          externalUserId: input.externalUserId,
-          subdomain: input.subdomain,
+          // providerId: input.providerId,
+          // externalUserId: input.externalUserId,
+          // subdomain: input.subdomain,
         },
       });
 

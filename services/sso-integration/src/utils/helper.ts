@@ -1,5 +1,4 @@
 import { getEnvConfig } from "../config/env"; 
-import { EXTERNAL_USER_MAP } from "../config/tenant-map-config";
 
 export const makePrefixFromGender = (gender: string): string => {
   const prefixes: Record<string, string> = { male: "Mr", female: "Ms" };
@@ -34,34 +33,6 @@ export function getOrganizationId(subdomain: string): string {
   }
   return tenantDetails.organizationId;
 }
-/**
- * Returns cached internal userId for (subdomain, externalUserId) if present.
- * Cache is in-memory only; not used by findUserByExternalId (user-service is source of truth).
- */
-export function getCachedUserId(
-  subdomain: string,
-  externalUserId: string
-): string | undefined {
-  return EXTERNAL_USER_MAP[subdomain]?.[externalUserId] ?? undefined;
-}
-
-/**
- * Stores internal userId for (subdomain, externalUserId) in process memory.
- * Optional; findUserByExternalId no longer uses this cache.
- */
-export function setCachedUserId(
-  subdomain: string,
-  externalUserId: string,
-  userId: string
-): void {
-  if (!EXTERNAL_USER_MAP[subdomain]) {
-    EXTERNAL_USER_MAP[subdomain] = {};
-  }
-
-  EXTERNAL_USER_MAP[subdomain][externalUserId] = userId;
-}
-
-
 /**
  * Helper function to append a suffix to doctor and patient contact details.
  *

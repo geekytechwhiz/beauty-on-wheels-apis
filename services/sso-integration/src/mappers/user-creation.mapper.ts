@@ -3,28 +3,24 @@
  * Uses CreatePatientModel, CreateDoctorModel, and AssignDoctorModel.
  */
 
-import { getEnvConfig } from '../config/env';
 import { getSSOConfig } from '../config/sso-config';
-import { loadTenantDetails } from '../utils/helper';
-import { createPatientModel, type CreatePatientModelInput } from '../models/create-patient.model';
-import { createDoctorModel, type CreateDoctorModelInput } from '../models/create-doctor.model';
 import { buildAssignDoctorModel, type AssignDoctorModelInput } from '../models/assign-doctor.model';
-import { PatientCreationEvent } from '../types/events';
+import { createDoctorModel, type CreateDoctorModelInput } from '../models/create-doctor.model';
+import { createPatientModel, type CreatePatientModelInput } from '../models/create-patient.model';
 import type { Appointment, SSORequestContext } from '../types';
-import { processPhoneNumber } from '../utils/phone-processor';
-import { getOrganizationId } from '../utils/helper';
 import { SourceSystem } from '../types/common/context.types';
-import type { PatientCreationPayload } from '../types/user-creation.type';
-import type { DoctorCreationPayload } from '../types/user-creation.type';
-import type { AssignDoctorPayload } from '../types/user-creation.type';
+import { PatientCreationEvent } from '../types/events';
+import type { AssignDoctorPayload, DoctorCreationPayload, PatientCreationPayload } from '../types/user-creation.type';
 import { buildExternalIdentity } from '../utils/context-builder.util';
+import { getOrganizationId, loadTenantDetails } from '../utils/helper';
+import { processPhoneNumber } from '../utils/phone-processor';
 
 /**
  * Maps a patient creation event (HMS) to a create-user payload for a patient.
  * Uses CreatePatientModel; output is compatible with createUserSchema.
  */
 export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): PatientCreationPayload {
-  const { patient, organizationID, provider, externalId } = event.data;
+  const { patient, organizationID,  } = event.data;
   const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
   const tenant = loadTenantDetails(subdomain);
 

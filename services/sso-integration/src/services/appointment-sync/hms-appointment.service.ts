@@ -3,13 +3,12 @@ import {
   createPerformanceTimer,
   serializeError,
 } from '@api-hub/logger';
-import { Appointment, AppointmentStatus, PatientEMRSummary } from '../../types';
-import { SSOError } from '../../types/errors/sso-error';
-import { appendSuffixToContacts } from '../../utils/helper';
-import { getTruTechClientForTenant } from '../../clients/tru-tech.clients';
 import { TruTechAdapter } from '../../adapters/trutech.adapter.ts';
+import { getTruTechClientForTenant } from '../../clients/tru-tech.clients';
+import { Appointment, PatientEMRSummary } from '../../types';
+import { SSOError } from '../../types/errors/sso-error';
 import { TruTechPatientEMRResponse } from '../../types/external/trutech.types';
-import { VisitStatus, VisitType } from '../../types/enums';
+import { appendSuffixToContacts } from '../../utils/helper';
 
 type TruTechClient = {
   getAppointmentsForDoctorsInRange: (

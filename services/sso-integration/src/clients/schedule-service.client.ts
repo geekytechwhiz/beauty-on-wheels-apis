@@ -21,9 +21,7 @@ import {
   UpdateServiceStatusResponse,
   ScheduleDetails,
   PendingAppointment,
-} from '../types';
-import { normalizeSchedulePayload } from '../utils/normalize-schedule-payload.util';
-
+} from '../types'; 
 import { SSOError } from '../types/errors/sso-error';
 import { SSORequestContext } from '../types/common/context.types';
 import { loadTenantDetails } from '../utils/helper';
@@ -357,13 +355,12 @@ export class ScheduleServiceClient {
       correlationId: context.correlationId,
     });
 
-    try {
-      const normalizedPayload = normalizeSchedulePayload(payload);
+    try { 
 
       const response =
         await this.packageServiceClient.post<CreateServiceScheduleResponse>(
           '/services/create-schedule',
-          normalizedPayload,
+          payload,
           {
             headers: buildHeaders(context),
           },

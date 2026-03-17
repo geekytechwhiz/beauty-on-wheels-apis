@@ -56,7 +56,7 @@ export interface DoctorCreationPayload {
   invite: 'phone' | 'email';
   userType: 'STAFF';
   organizationID: string;
-  externalId: string;
+  externalId?: string;
   role: string;
   source: string;
   email: string;

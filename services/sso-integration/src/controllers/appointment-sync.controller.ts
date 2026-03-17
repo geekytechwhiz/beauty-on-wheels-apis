@@ -1,12 +1,11 @@
-import { APIGatewayProxyEvent } from 'aws-lambda'
-import { createChildLogger } from '@api-hub/logger'
 import { ApiResponse } from '@api-hub/utils'
+import { APIGatewayProxyEvent } from 'aws-lambda'
 
 import { BaseController } from '../core/base.controller'
-import { AppointmentSyncService } from '../services/appointment-sync.service'
 import { checkRateLimit, getRateLimitHeaders } from '../middleware/rate-limit.middleware'
-import { SSOError } from '../types/errors/sso-error'
+import { AppointmentSyncService } from '../services/appointment-sync.service'
 import { Appointment } from '../types'
+import { SSOError } from '../types/errors/sso-error'
 
 export class AppointmentSyncController extends BaseController {
 

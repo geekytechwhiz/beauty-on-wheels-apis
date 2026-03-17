@@ -33,6 +33,9 @@ import { PendingAppointmentService } from './appointment-sync/pending-appointmen
 import { publishScheduleCreation } from './appointment-sync/schedule-creation-queue.service';
 import { publishDoctorProvision } from './appointment-sync/doctor-provision-queue.service';
 
+const isPendingAppointmentBypassEnabled = (): boolean =>
+  process.env.BYPASS_PENDING_APPOINTMENT === 'true';
+
 export class AppointmentSyncService extends BaseService {
   private readonly scheduleClient = getScheduleServiceClient();
   private readonly appointmentMapper = getAppointmentMapper();
@@ -528,10 +531,13 @@ export class AppointmentSyncService extends BaseService {
       }),
     });
 
-    const [resolvedPatient, resolvedDoctor] = await Promise.all([
+    const [initialResolvedPatient, initialResolvedDoctor] = await Promise.all([
       this.resolvePatientUser(appointment, context),
       this.resolveDoctorUser(appointment, context),
     ]);
+
+    let resolvedPatient = initialResolvedPatient;
+    const resolvedDoctor = initialResolvedDoctor ?? doctor;
 
     if (resolvedPatient) {
       this.logger.info({
@@ -603,7 +609,41 @@ export class AppointmentSyncService extends BaseService {
         }
       }
 
-      if (!resolvedPatient?.id) {
+      if (isPendingAppointmentBypassEnabled() && !resolvedPatient?.id) {
+        try {
+          resolvedPatient = await this.userProvisioningService.getOrCreatePatient(
+            appointment,
+            context,
+          );
+          this.logger.info({
+            event: 'patient_created_inline_with_bypass',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              patientUserId: String(resolvedPatient.id),
+            }),
+            message:
+              'BYPASS_PENDING_APPOINTMENT enabled - patient created inline, continuing appointment processing',
+          });
+        } catch (err) {
+          this.logger.error({
+            event: 'patient_inline_creation_failed_with_bypass',
+            ...this.buildLogContext({
+              context,
+              externalAppointmentId,
+              patientExternalId,
+              doctorExternalId,
+              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+            }),
+            err: serializeError(err as Error),
+          });
+        }
+      }
+
+      if (!resolvedPatient?.id && !isPendingAppointmentBypassEnabled()) {
         try {
           const provider = context.integration?.providerId ?? 'TruTech';
           const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
@@ -643,31 +683,49 @@ export class AppointmentSyncService extends BaseService {
         }
       }
 
-      this.logger.info({
-        event: 'pending_appointment_create',
-        ...this.buildLogContext({
+      if (isPendingAppointmentBypassEnabled() && !resolvedPatient?.id) {
+        this.logger.info({
+          event: 'pending_appointment_bypassed',
+          message:
+            'BYPASS_PENDING_APPOINTMENT enabled - skipping pending appointment persistence and waiting for a follow-up sync call',
+          ...this.buildLogContext({
+            context,
+            externalAppointmentId,
+            patientExternalId,
+            doctorExternalId,
+            doctorUserId: resolvedDoctor?.userId,
+            patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
+          }),
+        });
+      } else {
+        this.logger.info({
+          event: 'pending_appointment_create',
+          ...this.buildLogContext({
+            context,
+            externalAppointmentId,
+            patientExternalId,
+            doctorExternalId,
+            doctorUserId: resolvedDoctor?.userId,
+            patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
+          }),
+        });
+
+        await this.enqueuePendingAppointment(
+          appointment,
+          'user_not_resolved',
+          {
+            tenantId: context.tenantId,
+            organizationID: organizationId,
+            doctorUserId: resolvedDoctor?.userId,
+            patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
+          },
           context,
-          externalAppointmentId,
-          patientExternalId,
-          doctorExternalId,
-          doctorUserId: resolvedDoctor?.userId,
-          patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
-        }),
-      });
+        );
+      }
 
-      await this.enqueuePendingAppointment(
-        appointment,
-        'user_not_resolved',
-        {
-          tenantId: context.tenantId,
-          organizationID: organizationId,
-          doctorUserId: resolvedDoctor?.userId,
-          patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
-        },
-        context,
-      );
-
-      return 'pending';
+      if (!resolvedPatient?.id || !resolvedDoctor?.userId) {
+        return 'pending';
+      }
     }
 
     const subdomain = context.integration?.subdomain ?? '';

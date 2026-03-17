@@ -7,7 +7,6 @@ import {
 import {
   AdminGetUserCommand,
   AdminInitiateAuthCommand,
-  AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
   ListUsersCommand,
   UserNotFoundException,
@@ -300,40 +299,6 @@ export class CognitoService {
       });
 
       return {};
-    }
-  }
-
-  /**
-   * Set permanent password for a user
-   */
-  async setPassword(username: string, password: string): Promise<void> {
-    try {
-      this.logger.info({
-        event: 'cognito_set_password_start',
-        username,
-      });
-
-      const cmd = new AdminSetUserPasswordCommand({
-        UserPoolId: this.userPoolId!,
-        Username: username,
-        Password: password,
-        Permanent: true,
-      });
-
-      await this.client.send(cmd);
-
-      this.logger.info({
-        event: 'cognito_set_password_success',
-        username,
-      });
-    } catch (err) {
-      this.logger.error({
-        event: 'cognito_set_password_failed',
-        username,
-        err: serializeError(err),
-      });
-      
-      // throw err;
     }
   }
 

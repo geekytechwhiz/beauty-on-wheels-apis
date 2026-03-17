@@ -17,6 +17,10 @@ import {  VisitType } from "../enums"
       externalHospitalId?: string;
     }
   }
+  export interface RateLimitState {
+    count: number;
+    resetAt: number; // Unix timestamp in milliseconds
+  }
   export interface Patient {
     id: number;
     mrn: string; 

@@ -28,41 +28,39 @@ provider:
   
 
     # Cognito
-    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_AK1HTxdlX'}
-    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, '6v68r2stt9b4rgr3u8348bslsi'}
-    COGNITO_EMAIL_DOMAIN_OVERRIDE: ${env:COGNITO_EMAIL_DOMAIN_OVERRIDE, 'hms.com'}
+    COGNITO_USER_POOL_ID: ${self:custom.stageUrls.${self:provider.stage}.COGNITO_USER_POOL_ID}
+    COGNITO_CLIENT_ID: ${self:custom.stageUrls.${self:provider.stage}.COGNITO_CLIENT_ID}
     COGNITO_SSO_COMMON_PASSWORD: Comm@n123
-    DOCTOR_ROLE_ID: 04a9f451-a93b-4889-85c3-877b443df639
-    PATIENT_ROLE_ID: 0a1beb2b-1934-4a28-9176-12d5716a488e
-    SUBDOMAIN: qahms_test_2
-    INTERNAL_SERVICE_TOKEN: b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1
-    SSO_DEFAULT_ORGANIZATION_ID: mm1usge33d4f9b61
-    PROVIDER: TRU_TECH_TEST 
+    DOCTOR_ROLE_ID: ${self:custom.stageUrls.${self:provider.stage}.DOCTOR_ROLE_ID}
+    PATIENT_ROLE_ID: ${self:custom.stageUrls.${self:provider.stage}.PATIENT_ROLE_ID}
+    SUBDOMAIN: qahms
+    INTERNAL_SERVICE_TOKEN: ${self:custom.stageUrls.${self:provider.stage}.INTERNAL_SERVICE_TOKEN}
+    SSO_DEFAULT_ORGANIZATION_ID: ${self:custom.stageUrls.${self:provider.stage}.SSO_DEFAULT_ORGANIZATION_ID}
+    PROVIDER: TRU_TECH
 
-    # TruTech HMS (default; overridden per-tenant via TENANT_HMS_CONFIG when set)
-    TRU_TECH_BASE_URL: ${env:TRU_TECH_BASE_URL, 'https://qahms.zmtrutech.com'}
-    TRU_TECH_API_KEY: ${env:TRU_TECH_API_KEY, '03faace2-7d0b-4e77-95b1-82c4a48943d3'}
+    # TruTech HMS (default)
+    TRU_TECH_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.TRU_TECH_BASE_URL}
+    TRU_TECH_API_KEY: ${self:custom.stageUrls.${self:provider.stage}.TRU_TECH_API_KEY}
     TRU_TECH_TIMEOUT_MS: ${env:TRU_TECH_TIMEOUT_MS, '60000'}
-    # Optional JSON map: {"tenantId":{"baseUrl":"...","apiKey":"...","timeoutMs":60000}}
     TENANT_HMS_CONFIG: ${env:TENANT_HMS_CONFIG, '{}'}
     BYPASS_SUFFIX_APPOINTMENTS: ${env:BYPASS_SUFFIX_APPOINTMENTS, true}
     # Internal Services
-    USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'}
-    ROLE_SERVICE_BASE_URL: ${env:ROLE_SERVICE_BASE_URL, 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'}
+    USER_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
+    ROLE_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ROLE_SERVICE_BASE_URL}
 
     RATE_LIMIT_WINDOW_MS: ${env:RATE_LIMIT_WINDOW_MS, '60000'}
     RATE_LIMIT_MAX_REQUESTS: ${env:RATE_LIMIT_MAX_REQUESTS, '100'}
 
     # Schedule Service
-    SCHEDULE_SERVICE_API_URL: ${env:SCHEDULE_SERVICE_API_URL, 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'}
+    SCHEDULE_SERVICE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.SCHEDULE_SERVICE_API_URL}
     SCHEDULE_SERVICE_API_TIMEOUT_MS: ${env:SCHEDULE_SERVICE_API_TIMEOUT_MS, '60000'}
 
     # Package Service
-    PACKAGE_SERVICE_API_URL: ${env:PACKAGE_SERVICE_API_URL, 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'}
+    PACKAGE_SERVICE_API_URL: ${self:custom.stageUrls.${self:provider.stage}.PACKAGE_SERVICE_BASE_URL}
     PACKAGE_SERVICE_API_TIMEOUT_MS: ${env:PACKAGE_SERVICE_API_TIMEOUT_MS, '60000'}
 
     # Appointment Sync
-    BYPASS_PENDING_APPOINTMENT: ${env:BYPASS_PENDING_APPOINTMENT, 'false'}
+    # BYPASS_PENDING_APPOINTMENT: ${env:BYPASS_PENDING_APPOINTMENT, 'false'}
     APPOINTMENT_SYNC_MAX_RETRIES: ${env:APPOINTMENT_SYNC_MAX_RETRIES, '3'}
     APPOINTMENT_SYNC_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_RETRY_DELAY_MS, '5000'}
     APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS: ${env:APPOINTMENT_SYNC_MAX_RETRY_DELAY_MS, '60000'}
@@ -84,7 +82,6 @@ provider:
 
     REGISTERED_HMS_DOCTOR_IDS: 4
     INTEGRATION_PROVIDER_AFRICA_HMS: africa-hmsc
-    # SERVICE_TOKEN_SECRET: ${ssm:/sso/${self:provider.stage}/service-token-secret}
 
   iamRoleStatements:
 
@@ -172,13 +169,90 @@ custom:
     external:
       - '@aws-sdk/client-cognito-identity-provider'
       - '@aws-sdk/client-sqs'
+   stageUrls:
+    dev:
+      WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
+      PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
+      ROLE_API_URL: 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'
+      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      PACKAGE_SERVICE_BASE_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
+      SCHEDULE_SERVICE_API_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
+      # Dev appointment list API for showActiveAppointment (POST /fetch/schedules)
+      APPOINTMENT_SCHEDULES_API_URL: 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'
+      deploymentBucket: dev-mvx-user-service-bucket
 
+    stg:
+      WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
+      PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
+      ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
+      ORGANIZATION_API_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
+      USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
+      PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
+      SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
+      APPOINTMENT_SCHEDULES_API_URL: 'https://bp1u0buyi6.execute-api.us-east-1.amazonaws.com'
+      deploymentBucket: nvstg-mvx-user-service-bucket
+    prd:
+      WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
+      PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
+      ROLE_API_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
+      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/prd'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      PACKAGE_SERVICE_BASE_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
+      SCHEDULE_SERVICE_API_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
+      deploymentBucket: nvprd-mvx-user-service-bucket
   dotenv:
     logging: false
 
   serverless-offline:
     httpPort: 3000
     noPrependStageInUrl: true
+
+  stageUrls:
+    dev:
+      COGNITO_USER_POOL_ID: 'us-east-1_AK1HTxdlX'
+      COGNITO_CLIENT_ID: '6v68r2stt9b4rgr3u8348bslsi'
+      DOCTOR_ROLE_ID: '04a9f451-a93b-4889-85c3-877b443df639'
+      PATIENT_ROLE_ID: '0a1beb2b-1934-4a28-9176-12d5716a488e'
+      INTERNAL_SERVICE_TOKEN: 'b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1'
+      SSO_DEFAULT_ORGANIZATION_ID: 'mm1usge33d4f9b61'
+      TRU_TECH_BASE_URL: 'https://qahms.zmtrutech.com'
+      TRU_TECH_API_KEY: '03faace2-7d0b-4e77-95b1-82c4a48943d3'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      ROLE_SERVICE_BASE_URL: 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'
+      PACKAGE_SERVICE_BASE_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
+      SCHEDULE_SERVICE_API_URL: 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'
+      PATIENT_CREATION_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/542476693486/dev-sso-integration-patient-creation-queue'
+
+    stg:
+      COGNITO_USER_POOL_ID: 'us-east-1_wttVwD9Ax'
+      COGNITO_CLIENT_ID: '51dhgth4oijapf4m1gv51p09tp'
+      DOCTOR_ROLE_ID: '8ebed8e0-6011-4eff-9c1d-1cceb451225a'
+      PATIENT_ROLE_ID: '94734512-2b90-41a9-a310-ee8db9c599e0'
+      INTERNAL_SERVICE_TOKEN: 'b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1'
+      SSO_DEFAULT_ORGANIZATION_ID: 'mmng2b256cdf9adc'
+      TRU_TECH_BASE_URL: 'https://qahms.zmtrutech.com'
+      TRU_TECH_API_KEY: '03faace2-7d0b-4e77-95b1-82c4a48943d3'
+      USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
+      ROLE_SERVICE_BASE_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
+      PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
+      SCHEDULE_SERVICE_API_URL: 'https://bp1u0buyi6.execute-api.us-east-1.amazonaws.com'
+      PATIENT_CREATION_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/542476693486/stg-sso-integration-patient-creation-queue'
+
+    prd:
+      COGNITO_USER_POOL_ID: 'us-east-1_0uZJvIS5R'
+      COGNITO_CLIENT_ID: '1a5qc2h57l6gjk5719gb9cecfi'
+      DOCTOR_ROLE_ID: '04a9f451-a93b-4889-85c3-877b443df639'
+      PATIENT_ROLE_ID: '0a1beb2b-1934-4a28-9176-12d5716a488e'
+      INTERNAL_SERVICE_TOKEN: 'b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1'
+      SSO_DEFAULT_ORGANIZATION_ID: 'mm1usge33d4f9b61'
+      TRU_TECH_BASE_URL: 'https://qahms.zmtrutech.com'
+      TRU_TECH_API_KEY: '03faace2-7d0b-4e77-95b1-82c4a48943d3'
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/prd'
+      ROLE_SERVICE_BASE_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
+      PACKAGE_SERVICE_BASE_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
+      SCHEDULE_SERVICE_API_URL: 'https://pddkbzgw78.execute-api.us-east-1.amazonaws.com'
+      PATIENT_CREATION_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/542476693486/prd-sso-integration-patient-creation-queue'
 
 functions:
 

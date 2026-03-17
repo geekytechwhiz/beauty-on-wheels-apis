@@ -212,8 +212,8 @@ export class LaunchService extends BaseService {
         patient,
         doctor?.id?.toString() ?? '', // Use internal doctor ID, not external TruTech ID
         this.config.defaultOrganizationID,
-        'TruTech',
-        ctx.correlationId,
+        'TruTech', 
+        ctx,
       ),
     );
 

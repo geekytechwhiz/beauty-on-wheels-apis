@@ -1,19 +1,18 @@
 import { createChildLogger } from '@api-hub/logger';
-import { RequestContext, SSORequestContext } from '../../context/request-context';
+import { SSORequestContext } from '../../types/common/context.types';
 import {
   Appointment,
   Schedule,
   User,
 } from '../../types';
+import { FetchSchedulesRequest } from '../../types/domain/appointment.types';
 import { CognitoUserContext } from '../../types/user/user.types';
-import { FetchSchedulesRequest } from '../../types/appointment-sync.types';
-import { TENANT_MAP } from '../../config/tenant-map-config';
 import { loadTenantDetails } from '../../utils/helper';
 
 type ScheduleClient = {
   fetchSchedules: (
     payload: FetchSchedulesRequest,
-    context: RequestContext,
+    context: SSORequestContext,
   ) => Promise<Schedule[]>;
 };
 
@@ -59,7 +58,7 @@ export class AppointmentIdempotencyService {
     appointment: Appointment,
     doctorUser: CognitoUserContext,
     patientUser: User,
-    context: RequestContext,
+    context: SSORequestContext,
   ): Promise<boolean> {
     const logger = createChildLogger(this.logger, {
       correlationId: context.correlationId,

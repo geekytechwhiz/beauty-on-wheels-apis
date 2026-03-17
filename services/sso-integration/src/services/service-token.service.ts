@@ -18,12 +18,10 @@ const logger = createChildLogger(baseLogger, {
   component: "SecretsService"
 })
 
-/**
- * Hardcoded Secret ARN
- * (as requested - no ENV dependency)
- */
-const SERVICE_TOKEN_SECRET_ARN =
-  "arn:aws:secretsmanager:us-east-1:542476693486:secret:DEV_DEMO_SECRETMANAGER-Sf8xzP"
+const SERVICE_TOKEN_SECRET_ID = process.env.SERVICE_TOKEN_SECRET_ID
+if (!SERVICE_TOKEN_SECRET_ID) {
+  throw new Error("Missing required env var: SERVICE_TOKEN_SECRET_ID")
+}
 
 /**
  * AWS Secrets Manager Client
@@ -52,7 +50,7 @@ async function fetchSecret(): Promise<string> {
     })
 
     const command = new GetSecretValueCommand({
-      SecretId: SERVICE_TOKEN_SECRET_ARN
+      SecretId: SERVICE_TOKEN_SECRET_ID
     })
 
     const response = await secretsClient.send(command)

@@ -169,45 +169,7 @@ custom:
     external:
       - '@aws-sdk/client-cognito-identity-provider'
       - '@aws-sdk/client-sqs'
-  stageUrls:
-    dev:
-      WEB_URL: 'https://dev-deeplink.myvitalrx.com/download-dev.html'
-      PORTAL_LINK: 'https://usdev-console.myvitalrx.com/en/login'
-      ROLE_API_URL: 'https://qtzgcngz60.execute-api.us-east-1.amazonaws.com/dev'
-      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
-      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
-      PACKAGE_SERVICE_BASE_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
-      SCHEDULE_SERVICE_API_URL: 'https://v1w4b4vunl.execute-api.us-east-1.amazonaws.com/dev'
-      # Dev appointment list API for showActiveAppointment (POST /fetch/schedules)
-      APPOINTMENT_SCHEDULES_API_URL: 'https://pyima0ntak.execute-api.us-east-1.amazonaws.com'
-      deploymentBucket: dev-mvx-user-service-bucket
-
-    stg:
-      WEB_URL: 'https://stg-deeplink.myvitalrx.com/download-stg.html'
-      PORTAL_LINK: 'https://usstg-console.myvitalrx.com/en/login'
-      ROLE_API_URL: 'https://qxsbrkassk.execute-api.us-east-1.amazonaws.com/stg'
-      ORGANIZATION_API_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
-      USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
-      PACKAGE_SERVICE_BASE_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
-      SCHEDULE_SERVICE_API_URL: 'https://7cksvft1m2.execute-api.us-east-1.amazonaws.com/stg'
-      APPOINTMENT_SCHEDULES_API_URL: 'https://bp1u0buyi6.execute-api.us-east-1.amazonaws.com'
-      deploymentBucket: nvstg-mvx-user-service-bucket
-    prd:
-      WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
-      PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
-      ROLE_API_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
-      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/prd'
-      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
-      PACKAGE_SERVICE_BASE_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
-      SCHEDULE_SERVICE_API_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
-      deploymentBucket: nvprd-mvx-user-service-bucket
-  dotenv:
-    logging: false
-
-  serverless-offline:
-    httpPort: 3000
-    noPrependStageInUrl: true
-
+  
   stageUrls:
     dev:
       COGNITO_USER_POOL_ID: 'us-east-1_AK1HTxdlX'
@@ -254,6 +216,14 @@ custom:
       SCHEDULE_SERVICE_API_URL: 'https://pddkbzgw78.execute-api.us-east-1.amazonaws.com'
       PATIENT_CREATION_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/542476693486/prd-sso-integration-patient-creation-queue'
 
+  dotenv:
+    logging: false
+
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
+  
 functions:
 
   health:

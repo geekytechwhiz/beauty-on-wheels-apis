@@ -14,6 +14,7 @@ import {
 
 import {    CognitoUserContext, CognitoUserClaims } from '../types/user/user.types';
 import { cognitoPhone } from '@api-hub/utils';
+import { get } from 'http';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -306,13 +307,12 @@ export class CognitoService {
    * Generate JWT token from Cognito for a specific user.
    * For SSO launch, we authenticate using a shared password.
    */
-  async generateToken(username: string, _role?: string) {
+  async generateToken(username: string, password: string, _role?: string) {
     try {
       console.log("USERNAME: ", username);
       console.log("ROLE: ", _role);
       const authUsername = username.trim();
-      const authPassword =
-        process.env.COGNITO_SSO_COMMON_PASSWORD || 'Comm@n123';
+      const authPassword = password;
 
       this.logger.info({
         event: 'cognito_generate_token_start',
@@ -430,7 +430,7 @@ export class CognitoService {
         externalUserId: claims["custom:externalUserId"],
         providerId: claims["custom:providerId"],
         subdomain: claims["custom:subdomain"],
-        
+        password: null,
       authType: "USER",
     };
   }

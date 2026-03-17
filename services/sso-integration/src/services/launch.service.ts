@@ -13,6 +13,7 @@ import { SSOErrorCode } from '../types/enums';
 import { SSOError } from '../types/errors/sso-error';
 import { TruTechVerifyContext } from '../types/external/trutech.types';
 import { ROLE } from '../utils/constants';
+import { getEnvConfig } from '../config/env';
 export class LaunchService extends BaseService {
    
 
@@ -156,7 +157,8 @@ export class LaunchService extends BaseService {
     doctorContext: TruTechVerifyContext,
     ctx: SSORequestContext,
   ): Promise<CognitoUserContext> {
-  
+    
+    const env = getEnvConfig();
     const userAttributes =
       await this.cognitoService.findCognitoUserByEmail(
         doctorContext.email,
@@ -165,7 +167,7 @@ export class LaunchService extends BaseService {
     if (!userAttributes) {
       throw SSOError.invalidRequest('User not yet registered');
     }
-  
+    userAttributes.password = env.COGNITO_SSO_COMMON_PASSWORD || 'Comm@n123';
     return userAttributes;
   }
 
@@ -174,9 +176,11 @@ export class LaunchService extends BaseService {
   ) {
     const cognitoUsername =
       cognitoUserContext.userId ?? cognitoUserContext.email ?? cognitoUserContext.phone ?? '';
-
+    if (!cognitoUserContext.password) {
+      throw new Error('User password is required');
+    }
     return this.cognitoService.generateToken(
-      cognitoUsername, ROLE.DOCTOR);
+      cognitoUsername, cognitoUserContext.password, ROLE.DOCTOR);
   }
 
   private async fetchAppointments(

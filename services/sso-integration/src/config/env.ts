@@ -6,7 +6,7 @@ const envSchema = z.object({
     .default('dev'),
   SERVICE_NAME: z.string().default('sso-integration'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-
+  COGNITO_SSO_COMMON_PASSWORD: z.string().min(1, 'COGNITO_SSO_COMMON_PASSWORD is required for user creation'),
   COGNITO_USER_POOL_ID: z.string().min(1, 'COGNITO_USER_POOL_ID is required'),
   COGNITO_CLIENT_ID: z.string().min(1, 'COGNITO_CLIENT_ID is required'),
 

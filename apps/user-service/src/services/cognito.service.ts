@@ -8,6 +8,7 @@ import {
   UsernameExistsException,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { createLogger, serializeError } from '@api-hub/logger';
+import { generatePassword } from '@api-hub/utils';
 
 const logger = createLogger({ service: 'cognito-service' });
 
@@ -19,7 +20,8 @@ export class CognitoService {
     if (!userPoolId) {
       logger.warn({
         event: 'cognito_service_init_missing_pool_id',
-        message: 'Cognito User Pool ID is not configured. Cognito operations will be skipped.',
+        message:
+          'Cognito User Pool ID is not configured. Cognito operations will be skipped.',
       });
     }
     this.client = new CognitoIdentityProviderClient({ region });
@@ -40,7 +42,8 @@ export class CognitoService {
       logger.debug({
         event: 'cognito_user_exists_skipped',
         identifier,
-        message: 'Cognito User Pool ID not configured, skipping user existence check',
+        message:
+          'Cognito User Pool ID not configured, skipping user existence check',
       });
       return false;
     }
@@ -63,11 +66,23 @@ export class CognitoService {
         // Not found as username — fall back to attribute search using ListUsers
         try {
           const isEmail = String(identifier).includes('@');
-          const searchIdentifier = isEmail ? String(identifier).toLowerCase() : identifier;
-          const filter = isEmail ? `email = "${searchIdentifier}"` : `phone_number = "${searchIdentifier}"`;
-          const listCmd = new ListUsersCommand({ UserPoolId: this.userPoolId, Filter: filter, Limit: 1 });
+          const searchIdentifier = isEmail
+            ? String(identifier).toLowerCase()
+            : identifier;
+          const filter = isEmail
+            ? `email = "${searchIdentifier}"`
+            : `phone_number = "${searchIdentifier}"`;
+          const listCmd = new ListUsersCommand({
+            UserPoolId: this.userPoolId,
+            Filter: filter,
+            Limit: 1,
+          });
           const res = await this.client.send(listCmd);
-          const found = !!(res && (res as any).Users && (res as any).Users.length > 0);
+          const found = !!(
+            res &&
+            (res as any).Users &&
+            (res as any).Users.length > 0
+          );
           logger.debug({
             event: 'cognito_user_exists_checked_list',
             identifier,
@@ -109,7 +124,9 @@ export class CognitoService {
    * Get custom user attributes (userID, organizationID) from Cognito User Pool by username (e.g. JWT sub).
    * Used when authorizer or JWT claims do not provide these (e.g. for searchFnF).
    */
-  async getUserAttributes(username: string): Promise<{ userID?: string; organizationID?: string }> {
+  async getUserAttributes(
+    username: string,
+  ): Promise<{ userID?: string; organizationID?: string }> {
     if (!this.userPoolId) {
       logger.debug({
         event: 'cognito_get_user_attrs_skipped',
@@ -124,7 +141,8 @@ export class CognitoService {
       });
       const res = await this.client.send(cmd);
       const attrs = res.UserAttributes ?? [];
-      const getAttr = (name: string) => attrs.find((a) => a.Name === name)?.Value;
+      const getAttr = (name: string) =>
+        attrs.find((a) => a.Name === name)?.Value;
       return {
         userID: getAttr('custom:userID') ?? undefined,
         organizationID: getAttr('custom:organizationID') ?? undefined,
@@ -168,7 +186,7 @@ export class CognitoService {
         roleName: string;
         permissions?: string;
       };
-    }
+    },
   ): Promise<void> {
     if (!this.userPoolId) {
       const error = new Error('Cognito User Pool ID is not configured');
@@ -183,13 +201,16 @@ export class CognitoService {
 
     try {
       const attrs: Array<{ Name: string; Value: string }> = [];
-      const isEmail = String(identifier).includes('@');      
+      const isEmail = String(identifier).includes('@');
       if (options?.email) {
         attrs.push({ Name: 'email', Value: String(options.email) });
         attrs.push({ Name: 'email_verified', Value: 'true' });
       }
       if (options?.phoneNumber) {
-        attrs.push({ Name: 'phone_number', Value: String(options.phoneNumber) });
+        attrs.push({
+          Name: 'phone_number',
+          Value: String(options.phoneNumber),
+        });
         attrs.push({ Name: 'phone_number_verified', Value: 'true' });
       }
 
@@ -202,21 +223,35 @@ export class CognitoService {
       // Add custom attributes matching old implementation
       if (options?.customAttributes) {
         const custom = options.customAttributes;
-        if (custom.userType) attrs.push({ Name: 'custom:userType', Value: String(custom.userType) });
-        if (custom.userID) attrs.push({ Name: 'custom:userID', Value: String(custom.userID) });
-        if (custom.organizationID) attrs.push({ Name: 'custom:organizationID', Value: String(custom.organizationID) });
-        if (custom.role) attrs.push({ Name: 'custom:role', Value: String(custom.role) });
-        if (custom.permissions) attrs.push({ Name: 'custom:permissions', Value: String(custom.permissions) });
-        attrs.push({ Name: 'custom:src', Value: isEmail ? String(identifier).toLowerCase() : String(identifier) });
+        if (custom.userType)
+          attrs.push({
+            Name: 'custom:userType',
+            Value: String(custom.userType),
+          });
+        if (custom.userID)
+          attrs.push({ Name: 'custom:userID', Value: String(custom.userID) });
+        if (custom.organizationID)
+          attrs.push({
+            Name: 'custom:organizationID',
+            Value: String(custom.organizationID),
+          });
+        if (custom.role)
+          attrs.push({ Name: 'custom:role', Value: String(custom.role) });
+        if (custom.permissions)
+          attrs.push({
+            Name: 'custom:permissions',
+            Value: String(custom.permissions),
+          });
+        attrs.push({
+          Name: 'custom:src',
+          Value: isEmail
+            ? String(identifier).toLowerCase()
+            : String(identifier),
+        });
       }
 
       const usernameForCognito = String(identifier).toLowerCase();
-      
-      // Generate password
-      const generatePassword = (): string => {
-        return `Comm@n12`;
-      };
-      
+
       const temporaryPassword = generatePassword();
       const cmd = new AdminCreateUserCommand({
         UserPoolId: this.userPoolId,
@@ -226,7 +261,7 @@ export class CognitoService {
         TemporaryPassword: temporaryPassword,
       });
       await this.client.send(cmd);
-      
+
       const setPasswordCmd = new AdminSetUserPasswordCommand({
         UserPoolId: this.userPoolId,
         Username: usernameForCognito,
@@ -234,7 +269,7 @@ export class CognitoService {
         Permanent: true,
       });
       await this.client.send(setPasswordCmd);
-      
+
       logger.info({
         event: 'cognito_user_created',
         identifier,

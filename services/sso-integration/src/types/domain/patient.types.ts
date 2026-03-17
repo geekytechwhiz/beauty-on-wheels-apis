@@ -1,3 +1,7 @@
+import { SSORequestContext } from "../common/context.types"
+import { DoctorCreationPayload, PatientCreationPayload } from "../user-creation.type" 
+import { User } from "../user/user.types"
+
 export interface Patient {
     id: number
     mrn: string
@@ -18,3 +22,25 @@ export interface CreateExternalUserPayload extends Patient {
   role: string;
   source: string;
 }
+
+export interface SsoUserServiceClient {
+  findByExternalId: (
+    criteria: {
+      provider: string;
+      externalId: string;
+      tenantId: string;
+    },
+    context: SSORequestContext,
+  ) => Promise<User | null>;
+
+  createDoctorUser: (
+    payload: DoctorCreationPayload,
+    context: SSORequestContext,
+  ) => Promise<User>;
+
+  createPatient: (
+    payload: PatientCreationPayload,
+     
+    context: SSORequestContext,
+  ) => Promise<User>;
+};

@@ -24,8 +24,17 @@ export async function handler(
     awsRequestId,
     httpMethod: event.httpMethod,
     path: event.path,
+    token: event.headers?.Authorization,
+    tokenType: event.headers?.['Authorization']?.split(' ')[0],
+    tokenValue: event.headers?.['Authorization']?.split(' ')[1],
+    tokenExpiresAt: event.headers?.['Authorization']?.split(' ')[2],
+    tokenIssuedAt: event.headers?.['Authorization']?.split(' ')[3],
+    tokenIssuer: event.headers?.['Authorization']?.split(' ')[4],
+    tokenAudience: event.headers?.['Authorization']?.split(' ')[5],
+    tokenSubject: event.headers?.['Authorization']?.split(' ')[6],
   });
 
+  
   try {
     const controller = getAppointmentSyncController();
     const result = await controller.handleSyncAppointments(event);
@@ -47,8 +56,8 @@ export async function handler(
     });
 
     return ApiResponse.internalServerError(
-      'COMMON.INTERNAL_ERROR',
-      { requestId: correlationId, event },
+      { title: 'Error', description: 'An unexpected error occurred', severity: 'ERROR' },
+      { requestId: correlationId, },
       { code: 'INTERNAL_ERROR' },
     );
   }

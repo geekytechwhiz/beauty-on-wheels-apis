@@ -6,6 +6,7 @@ import { getOrganization } from '../services/organization.service';
 import { PackageRepository } from '../repositories/package.repositrory';
 import { RoleRepository } from '../repositories/role.repository';
 import { validateCreateUser } from '../validation/request.validators';
+import { ExternalIdentity } from '../models';
 
 const userService = new UserService();
 const userRepository = new UserRepository();
@@ -27,11 +28,13 @@ const handler = async (
       userType: any;
       organizationID: string;
       userID: string;
+      externalIdentity: ExternalIdentity;
     };
   },
 ) => {
   const data = req.validatedCreateUser!;
-  const { userInfo, userRole, userType, organizationID, userID } = data;
+  console.log("Create User request body ", data);
+  const { userInfo, userRole, userType, organizationID, userID, externalIdentity } = data;
   const authHeader = req.context.authHeader;
   const correlationId = req.context.correlationId;
   const body = req.body ?? {};
@@ -55,6 +58,7 @@ const handler = async (
   const contactAddress = (userInfo.contact as any)?.address;
   const userTypeUpper = String(userType || '').toUpperCase();
   const userData: any = {
+    externalIdentity: externalIdentity,
     fullName: userInfo.name,
     namePrefix: userInfo.namePrefix,
     profilePic: userInfo.profilePic,

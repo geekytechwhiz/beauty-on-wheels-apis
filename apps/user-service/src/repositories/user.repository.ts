@@ -8,6 +8,7 @@ import {
   type GetCommandOutput,
   type PutCommandOutput,
   type UpdateCommandOutput,
+  TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { sendDoc } from '../utils/dynamodb-send';
@@ -18,6 +19,7 @@ import {
 } from '@api-hub/logger';
 import {
   User,
+  Appointment,
   UserMetadata,
   UserOrganization,
   UserFile,
@@ -78,13 +80,63 @@ type UserDBItem = User & {
   sk: string;
   PK?: string;
   SK?: string;
+  gsi1Pk?: string;
+  gsi1Sk?: string;
 };
+
+function buildExternalIdentityQueryKeys(
+  tenant: string,
+  provider: string,
+  externalUserId: string,
+): { gsi1Pk: string; gsi1Sk: string } {
+  const normalizedTenant = tenant.trim().toLowerCase();
+  const normalizedProvider = provider.trim().toLowerCase();
+  const normalizedExternalUserId = externalUserId.trim().toLowerCase();
+
+  return {
+    gsi1Pk: `TENANT#${normalizedTenant}#PROVIDER#${normalizedProvider}`,
+    gsi1Sk: `EXTERNAL_USER#${normalizedExternalUserId}`,
+  };
+}
+function buildExternalIdentityKeys(
+  user: User,
+): Pick<UserDBItem, 'gsi1Pk' | 'gsi1Sk'> | {} {
+  const ext = user.externalIdentity;
+
+  if (!ext) {
+    return {};
+  }
+
+  const provider = ext.provider?.trim();
+  const externalUserId = ext.externalUserId?.trim();
+
+  if (!provider || !externalUserId) {
+    return {};
+  }
+
+  const tenant =
+    ext.tenant?.trim() ||
+    ext.subdomain?.trim();
+
+  if (!tenant) {
+    return {};
+  }
+
+  const { gsi1Pk, gsi1Sk } = buildExternalIdentityQueryKeys(
+    tenant,
+    provider,
+    externalUserId,
+  );
+
+  return { gsi1Pk, gsi1Sk };
+}
 
 function modifyIndexesUsers(user: User): UserDBItem {
   return {
     ...user,
     pk: `ORG#${user.organizationID}`,
     sk: `USER#${user.userID}`,
+    ...buildExternalIdentityKeys(user),
   };
 }
 
@@ -102,6 +154,14 @@ function userPk(userId: string): string {
 
 function userFileSk(fileId: string): string {
   return `USER_FILE#${fileId}`;
+}
+
+function appointmentPk(patientUserId: string): string {
+  return `USER#${patientUserId}`;
+}
+
+function appointmentSk(appointmentId: string): string {
+  return `APPOINTMENT#${appointmentId}`;
 }
 
 const userOrgPk = (organizationId: string): string => {
@@ -152,30 +212,111 @@ export interface ListOrganizationUsersOptions {
 }
 
 export class UserRepository {
+  async getUserByExternalIdentity(
+    tenant: string,
+    provider: string,
+    externalUserId: string,
+  ): Promise<User | null> {
+    const logger = createChildLogger(baseLogger, {
+      tenant,
+      provider,
+      externalUserId,
+    });
+
+    const { gsi1Pk, gsi1Sk } = buildExternalIdentityQueryKeys(
+      tenant,
+      provider,
+      externalUserId,
+    );
+
+    logger.info({
+      event: 'user_get_by_external_identity_start',
+      gsi1Pk,
+      gsi1Sk,
+    });
+
+    const result = await sendDoc<QueryCommandOutput>(
+      docClient,
+      new QueryCommand({
+        TableName: USER_TABLE_NAME,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'gsi1Pk = :pk AND gsi1Sk = :sk',
+        ExpressionAttributeValues: {
+          ':pk': gsi1Pk,
+          ':sk': gsi1Sk,
+        },
+        Limit: 1,
+      }) as unknown as QueryCommandInput,
+    );
+
+    const item = result.Items?.[0] as UserDBItem | undefined;
+
+    if (!item) {
+      logger.info({
+        event: 'user_get_by_external_identity_not_found',
+        gsi1Pk,
+        gsi1Sk,
+      });
+      return null;
+    }
+
+    logger.info({
+      event: 'user_get_by_external_identity_success',
+      gsi1Pk,
+      gsi1Sk,
+      userID: item.userID,
+      organizationID: item.organizationID,
+    });
+
+    // strip internal index fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { pk, sk, PK, SK, gsi1Pk: _gpk, gsi1Sk: _gsk, ...rest } = item;
+    return rest as User;
+  }
+
   async createUser(user: User): Promise<void> {
-    const item = modifyIndexesUsers(user);
+    const logger = createChildLogger(baseLogger, { userId: user.userID });
+  
+    const mainUserItem = modifyIndexesUsers(user);
+    logger.info({
+      event: "external_identity_keys_generated",
+      gsi1Pk: mainUserItem.gsi1Pk,
+      gsi1Sk: mainUserItem.gsi1Sk,
+    });
     try {
-      await sendDoc<PutCommandOutput>(docClient,
-        new PutCommand({
-          TableName: USER_TABLE_NAME,
-          Item: item,
-          ConditionExpression:
-            'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+      await sendDoc(
+        docClient,
+        new TransactWriteCommand({
+          TransactItems: [
+            {
+              Put: {
+                TableName: USER_TABLE_NAME,
+                Item: mainUserItem,
+                ConditionExpression:
+                  'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+              },
+            },
+          ],
         }),
       );
-      const logger = createChildLogger(baseLogger, { userId: user.userID });
-      logger.info({ event: 'user_created', message: 'User created' });
+  
+      logger.info({
+        event: 'user_created',
+        message: 'User created successfully',
+      });
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
-      const logger = createChildLogger(baseLogger, { userId: user.userID });
-      if (code === 'ConditionalCheckFailedException') {
+  
+      if (code === 'TransactionCanceledException') {
         throw new UserAlreadyExistsError(user.userID);
       }
+  
       logger.error({
         event: 'user_create_error',
         err: serializeError(err),
         message: 'Failed to create user',
       });
+  
       throw err;
     }
   }
@@ -739,6 +880,147 @@ export class UserRepository {
         event: 'user_metadata_get_error',
         err: serializeError(err),
         message: 'Failed to get user metadata',
+      });
+      throw err;
+    }
+  }
+
+  async createAppointment(
+    appointment: Omit<Appointment, 'createdAt' | 'updatedAt' | 'itemType'>,
+    correlationId?: string,
+  ): Promise<Appointment> {
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      appointmentId: appointment.appointmentId,
+      patientUserId: appointment.patientUserId,
+    });
+    const now = Date.now();
+    const item: Appointment & { pk: string; sk: string } = {
+      pk: appointmentPk(appointment.patientUserId),
+      sk: appointmentSk(appointment.appointmentId),
+      ...appointment,
+      createdAt: now,
+      updatedAt: now,
+      itemType: 'APPOINTMENT',
+    };
+
+    try {
+      await sendDoc<PutCommandOutput>(docClient,
+        new PutCommand({
+          TableName: USER_TABLE_NAME,
+          Item: item,
+        }),
+      );
+
+      logger.info({
+        event: 'appointment_create_success',
+        message: 'Appointment created successfully',
+      });
+
+      const { pk, sk, ...appointmentItem } = item;
+      return appointmentItem;
+    } catch (err) {
+      logger.error({
+        event: 'appointment_create_error',
+        err: serializeError(err),
+        message: 'Failed to create appointment',
+      });
+      throw err;
+    }
+  }
+
+  async getAppointment(
+    patientUserId: string,
+    appointmentId: string,
+    correlationId?: string,
+  ): Promise<Appointment | null> {
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      appointmentId,
+      patientUserId,
+    });
+
+    try {
+      const result = await sendDoc<GetCommandOutput>(docClient,
+        new GetCommand({
+          TableName: USER_TABLE_NAME,
+          Key: {
+            pk: appointmentPk(patientUserId),
+            sk: appointmentSk(appointmentId),
+          },
+        }),
+      );
+
+      if (!result.Item) {
+        logger.info({
+          event: 'appointment_get_not_found',
+          message: 'Appointment not found',
+        });
+        return null;
+      }
+
+      logger.info({
+        event: 'appointment_get_success',
+        message: 'Appointment retrieved successfully',
+      });
+
+      const { pk, sk, ...appointment } = result.Item as Appointment & {
+        pk: string;
+        sk: string;
+      };
+
+      return appointment;
+    } catch (err) {
+      logger.error({
+        event: 'appointment_get_error',
+        err: serializeError(err),
+        message: 'Failed to get appointment',
+      });
+      throw err;
+    }
+  }
+
+  async listAppointments(
+    patientUserId: string,
+    correlationId?: string,
+  ): Promise<Appointment[]> {
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      patientUserId,
+    });
+
+    try {
+      const result = await sendDoc<QueryCommandOutput>(docClient,
+        new QueryCommand({
+          TableName: USER_TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+          ExpressionAttributeValues: {
+            ':pk': appointmentPk(patientUserId),
+            ':skPrefix': appointmentSk(''),
+          },
+        }),
+      );
+
+      const items = (result.Items ?? []).map((item) => {
+        const { pk, sk, ...appointment } = item as Appointment & {
+          pk: string;
+          sk: string;
+        };
+        return appointment;
+      });
+
+      logger.info({
+        event: 'appointment_list_success',
+        message: 'Appointments listed successfully',
+        count: items.length,
+      });
+
+      return items;
+    } catch (err) {
+      logger.error({
+        event: 'appointment_list_error',
+        err: serializeError(err),
+        message: 'Failed to list appointments',
       });
       throw err;
     }

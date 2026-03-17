@@ -2,6 +2,18 @@ import { createLogger, createChildLogger } from '@api-hub/logger';
 import { UserRepository } from '../repositories/user.repository';
 import { FriendFamilyRepository, type FriendFamilyMapping } from '../repositories/friendFamily.repository';
 import { UserNotFoundError } from '../utils/errors';
+import {
+  OrganizationNotExistError,
+  OrganizationOnHoldError,
+  OrganizationMismatchError,
+  EmailOrPhoneRequiredError,
+  FnfLimitReachedError,
+  UserAlreadyInvitedBySomeoneError,
+  UserAlreadyAddedAsFnfError,
+  UserAlreadyExistsError,
+  MemberNotFoundError,
+  FnfDoesNotExistError,
+} from '../errors';
 import { getOrganization } from './organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -69,7 +81,7 @@ export class FriendFamilyService {
       // User not found: check inviter F&F limit before handler runs invite flow
       const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
       if (inviterHasInvitee) {
-        throw new Error('USER_CANNOT_INVITE_MORE_FNF');
+        throw new FnfLimitReachedError();
       }
       logger.info({ event: 'friend_family_search_user_not_found_invite_path' });
       return { success: false };
@@ -116,9 +128,9 @@ export class FriendFamilyService {
     const logger = createChildLogger(baseLogger, { organizationID, userId, memberId });
 
     const org = await getOrganization(organizationID, authHeader);
-    if (!org) throw new Error('ORGANIZATION_NOT_EXIST');
+    if (!org) throw new OrganizationNotExistError();
     const status = String((org as any).status ?? '').toLowerCase();
-    if (ORG_NON_AVAILABLE.includes(status)) throw new Error('ORGANIZATION_IS_ON_HOLD');
+    if (ORG_NON_AVAILABLE.includes(status)) throw new OrganizationOnHoldError();
 
     const userDetails = await userRepository.getUser(userId, organizationID);
     if (!userDetails) throw new UserNotFoundError(userId);
@@ -127,8 +139,38 @@ export class FriendFamilyService {
 
     const userOrgId = (userDetails as any).organizationID ?? (userDetails as any).organizationId;
     const memberOrgId = (memberDetails as any).organizationID ?? (memberDetails as any).organizationId;
-    if (userOrgId !== memberOrgId) {
-      throw new Error('ORGANIZATION_MISMATCH');
+    if (userOrgId !== memberOrgId) throw new OrganizationMismatchError();
+
+    // ── Step 1: member is a PATIENT ───────────────────────────────────────────
+    // A patient already exists in the system → cannot be added as an F&F member.
+    const memberUserType = String((memberDetails as any).userType ?? '').toUpperCase();
+    const memberDefinedRole = String((memberDetails as any).definedRoleCode ?? '').toUpperCase();
+    const memberRoleName = String((memberDetails as any).roleName ?? '').toUpperCase();
+    console.log("MEMBER ROLE NAME: ", memberRoleName);
+    if (memberUserType === 'PATIENT' || memberDefinedRole === 'PATIENT' || memberRoleName === 'PATIENT') {
+      logger.warn({ event: 'friend_family_add_member_is_patient', userId, memberId });
+      throw new UserAlreadyExistsError((memberDetails as any).emailAddress ?? memberId);
+    }
+
+    // ── Step 2: memberId already has an inviter (FNF limit) ───────────────────
+    // INVITE_F&F#memberId → INVITER#[any] → memberId is already someone else's F&F invitee
+    const memberAlreadyLinked = await friendFamilyRepository.checkFriendFamily(memberId, true);
+    if (memberAlreadyLinked) {
+      logger.warn({ event: 'friend_family_add_member_already_invited', userId, memberId });
+      throw new FnfLimitReachedError(); // USER_CANNOT_INVITE_MORE_FNF
+    }
+
+    // ── Step 3: requester (userId) already invited someone ────────────────────
+    // INVITE_F&F#userId → INVITEE#[any] OR INVITE_F&F#userId → INVITER#[any]
+    await this.checkFriendFamilyLimit(userId); // throws USER_ALREADY_INVITED_BY_SOMEONE if linked
+
+    // ── Duplicate pair guard (both directions A→B and B→A) ────────────────────
+    const existingLink =
+      (await friendFamilyRepository.getUserMapping(userId, memberId)) ??
+      (await friendFamilyRepository.getUserMapping(memberId, userId));
+    if (existingLink) {
+      logger.warn({ event: 'friend_family_add_member_already_exists', userId, memberId });
+      throw new UserAlreadyAddedAsFnfError();
     }
 
     const relationNorm = (relation || 'FAMILY').toUpperCase();
@@ -172,9 +214,7 @@ export class FriendFamilyService {
   ): Promise<void> {
     const { memberId, fullName, relation, relationship, emergencyContact, manageHealth } = body;
     const mapping = await friendFamilyRepository.getUserMapping(userId, memberId);
-    if (!mapping) {
-      throw new Error('MEMBER_NOT_FOUND');
-    }
+    if (!mapping) throw new MemberNotFoundError(memberId);
     const updates: Parameters<FriendFamilyRepository['updateMapping']>[2] = {};
     if (fullName !== undefined) updates.memberName = fullName;
     if (relation !== undefined) updates.relation = relation;
@@ -235,9 +275,7 @@ export class FriendFamilyService {
   async deleteMember(userID: string, memberID: string, organizationID?: string): Promise<void> {
     const mapping1 = await friendFamilyRepository.getUserMapping(userID, memberID);
     const mapping2 = await friendFamilyRepository.getUserMapping(memberID, userID);
-    if (!mapping1 && !mapping2) {
-      throw new Error('FNF_DOES_NOT_EXIST');
-    }
+    if (!mapping1 && !mapping2) throw new FnfDoesNotExistError();
     const [uid, mid] = mapping1 ? [userID, memberID] : [memberID, userID];
     await friendFamilyRepository.deleteMapping(uid, mid);
   }
@@ -249,20 +287,26 @@ export class FriendFamilyService {
   async checkInvite(inviterId: string, inviteeId: string): Promise<FriendFamilyMapping | null> {
     return friendFamilyRepository.getUserMapping(inviterId, inviteeId);
   }
+  /**
+   * Validates that userID (the requester / inviter) is free to create a new F&F link.
+   *
+   * DynamoDB key meanings for userID:
+   *   pk = INVITE_F&F#userID, sk = INVITEE#[memberId]  → userID already INVITED someone
+   *   pk = INVITE_F&F#userID, sk = INVITER#[inviterId] → userID was already INVITED BY someone
+   *
+   * Both cases mean userID is already in a F&F relationship → USER_ALREADY_INVITED_BY_SOMEONE.
+   */
   async checkFriendFamilyLimit(userID: string): Promise<boolean> {
+    // Scenario 2a — INVITE_F&F#userID → INVITEE#[any]:
+    // userID already invited / added someone as their F&F member
     const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
-    if (inviterHasInvitee) {
-      throw new Error('USER_CANNOT_INVITE_MORE_FNF');
-    } 
-    // Invitee already linked to someone?
+    if (inviterHasInvitee) throw new UserAlreadyInvitedBySomeoneError(); // USER_ALREADY_INVITED_BY_SOMEONE
+
+    // Scenario 2b — INVITE_F&F#userID → INVITER#[any]:
+    // userID is already someone else's F&F member (was invited by another user)
     const inviteeInviterMapping = await friendFamilyRepository.checkFriendFamily(userID, true);
-    if (inviteeInviterMapping) {
-      const existingInviterId = inviteeInviterMapping.sk.split('#')[1];
-      if (existingInviterId === userID) {
-        throw new Error('USER_ALREADY_INVITED');
-      }
-      throw new Error('USER_ALREADY_INVITED_BY_SOMEONE');
-    }
+    if (inviteeInviterMapping) throw new UserAlreadyInvitedBySomeoneError(); // USER_ALREADY_INVITED_BY_SOMEONE
+
     return true;
-  } 
+  }
 }

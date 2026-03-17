@@ -1,21 +1,21 @@
-import { UserRepository, ListOrganizationUsersOptions } from '../repositories/user.repository';
-import { OrganizationRepository } from '../repositories/organization.repository';
-import { getOrganization as getOrganizationViaApi } from './organization.service';
-import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
-import { User, UserMetadata, UserOrganization, UserFile, UserResponse } from '../models';
-import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
-import { CognitoService } from './cognito.service';
-import { publishEvent } from '../events/event.publisher';
+import { createChildLogger, createLogger, createPerformanceTimer, serializeError } from '@api-hub/logger';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
-import { notifyUser } from './notification.service';
-import { RoleRepository } from '../repositories/role.repository';
+import { publishEvent } from '../events/event.publisher';
+import { User, UserFile, UserMetadata, UserOrganization, UserResponse } from '../models';
+import { OrganizationRepository } from '../repositories/organization.repository';
 import { PackageRepository } from '../repositories/package.repositrory';
+import { RoleRepository } from '../repositories/role.repository';
+import { ListOrganizationUsersOptions, UserRepository } from '../repositories/user.repository';
+import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
+import { CognitoService } from './cognito.service';
+import { FriendFamilyService } from './friendFamily.service';
+import { notifyUser } from './notification.service';
+import { getOrganization as getOrganizationViaApi } from './organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const roleRepository = new RoleRepository();
 const packageRepository = new PackageRepository();
-import { FriendFamilyService } from './friendFamily.service';
 
 const friendFamilyService = new FriendFamilyService();
 function generateSortableId() {
@@ -36,6 +36,18 @@ export class UserService {
   constructor() {
     this.repository = new UserRepository();
     this.organizationRepository = new OrganizationRepository();
+  }
+
+  async getUserByExternalIdentity(
+    tenant: string,
+    provider: string,
+    externalUserId: string,
+  ): Promise<User | null> {
+    return this.repository.getUserByExternalIdentity(
+      tenant,
+      provider,
+      externalUserId,
+    );
   }
 
   async createUser(
@@ -165,7 +177,31 @@ export class UserService {
           const username = explicitUsername || normalizedEmail || normalizedPhone;
           
           const permissionIds: string[] = []; // Permissions would come from role service
-          
+          const externalIdentity: any = data.externalIdentity  
+
+          logger.info({
+            event: 'service_createUser_external_identity_received',
+            correlationId,
+            userId: data.userID,
+            organizationID,
+            integrationType: externalIdentity?.integrationType,
+            externalUserId: externalIdentity?.externalUserId,
+            externalHospitalId: externalIdentity?.externalHospitalId,
+            subdomain: externalIdentity?.subdomain,
+            provider: externalIdentity?.provider,
+            sourceSystem: externalIdentity?.sourceSystem,
+          });
+          if (externalIdentity?.sourceSystem === 'HMS') {
+            logger.info({
+              event: 'service_createUser_hms_user_detected',
+              correlationId,
+              userId: data.userID,
+              externalUserId: externalIdentity.externalUserId,
+              hospitalId: externalIdentity.externalHospitalId,
+              provider: externalIdentity.provider,
+              subdomain: externalIdentity.subdomain,
+            });
+          }
           await cognitoService.createUser(
             username,
             {
@@ -176,11 +212,26 @@ export class UserService {
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
                 role: JSON.stringify(userRoleArray),
-                roleName: roleName,
                 permissions: JSON.stringify(permissionIds),
               },
-            }
+            },
           );
+          logger.info({
+            event: 'service_createUser_cognito_payload',
+            correlationId,
+            username,
+            email: normalizedEmail,
+            phone: normalizedPhone,
+            organizationID,
+            externalIdentity: {
+              integrationType: externalIdentity?.integrationType,
+              externalUserId: externalIdentity?.externalUserId,
+              externalHospitalId: externalIdentity?.externalHospitalId,
+              subdomain: externalIdentity?.subdomain,
+              provider: externalIdentity?.provider,
+              sourceSystem: externalIdentity?.sourceSystem,
+            }
+          });
           logger.info({ event: 'service_createUser_cognito_success', email: normalizedEmail, phone: normalizedPhone, username });
         } catch (err) {
           if (err instanceof UserAlreadyExistsError) {
@@ -190,8 +241,19 @@ export class UserService {
 
           logger.error({
             event: 'service_createUser_cognito_error',
+            correlationId,
             email: normalizedEmail,
             phone: normalizedPhone,
+            organizationID,
+            externalIdentity: {
+              integrationType: data?.externalIdentity?.integrationType,
+              externalUserId: data?.externalIdentity?.externalUserId,
+              externalHospitalId: data?.externalIdentity?.externalHospitalId,
+              subdomain: data?.externalIdentity?.subdomain,
+              provider: data?.externalIdentity?.provider,
+              sourceSystem: data?.externalIdentity?.sourceSystem,
+            },
+            provider: data?.externalIdentity?.provider,
             err: serializeError(err),
             message: 'Failed to create user in Cognito',
           });

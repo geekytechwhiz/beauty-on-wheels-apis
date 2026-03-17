@@ -45,6 +45,10 @@ export class CreateUserService {
       assignDoctor,
       roleName: inputRoleName,
       definedRoleCode: inputDefinedRoleCode,
+      providerId,
+      externalUserId,
+      subdomain,
+      organizationExternalId,
     } = input;
 
     const invitedBy = userID;
@@ -112,6 +116,12 @@ export class CreateUserService {
           organizationID,
           roleName: roleName ?? undefined,
           permissions: [],
+          // SSO / external metadata for Cognito custom attributes
+          providerId,
+          externalUserId,
+          subdomain,
+          organizationExternalId,
+          role: (definedRoleCode ?? userType)?.toString().toLowerCase(),
         },
         log
       );

@@ -1,8 +1,7 @@
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { createLogger, createChildLogger } from '@api-hub/logger';
 import { getEnvConfig } from '../config/env';
-import { SSOError } from '../types/errors/sso-error';
-import { RateLimitState } from '../types/appointment.types';
+import { RateLimitState } from '../types/domain/appointment.types';
 
 const baseLogger = createLogger({ service: 'sso-integration', redactPII: true });
 const logger = createChildLogger(baseLogger, { component: 'sso-integration' });
@@ -104,16 +103,6 @@ export function checkRateLimit(event: APIGatewayProxyEvent): RateLimitResult {
   };
 }
 
-export function enforceRateLimit(event: APIGatewayProxyEvent): void {
-  const result = checkRateLimit(event);
-  
-  if (!result.allowed) {
-    throw SSOError.rateLimitExceeded(
-      `Rate limit exceeded. Try again after ${new Date(result.resetAt).toISOString()}`
-    );
-  }
-}
-
 export function getRateLimitHeaders(result: RateLimitResult): Record<string, string> {
   return {
     'X-RateLimit-Limit': result.limit.toString(),
@@ -122,9 +111,3 @@ export function getRateLimitHeaders(result: RateLimitResult): Record<string, str
   };
 }
 
-export function resetRateLimitStore(): void {
-  rateLimitStore.clear();
-  logger.info({
-    event: 'rate_limit_store_reset',
-  });
-}

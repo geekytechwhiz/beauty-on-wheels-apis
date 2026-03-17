@@ -1,152 +1,123 @@
-import * as jwt from 'jsonwebtoken'
-import { randomUUID } from 'crypto'
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand
+} from "@aws-sdk/client-secrets-manager"
 
 import {
   createLogger,
   createChildLogger,
   serializeError
-} from '@api-hub/logger'
-
-import { getEnvConfig } from '../config/env'
-import {
-  ServiceTokenContext,
-  ServiceTokenResult
-} from '../types/launch.types'
-import { ServiceTokenPayload } from '../types/servicesToken.type'
+} from "@api-hub/logger"
 
 const baseLogger = createLogger({
-  service: 'sso-integration',
+  service: "sso-integration",
   redactPII: true
 })
 
+const logger = createChildLogger(baseLogger, {
+  component: "SecretsService"
+})
 
-export class ServiceTokenService {
-
-  private readonly logger = createChildLogger(baseLogger, {
-    component: 'ServiceTokenService'
-  })
-
-  private readonly secret: string
-  private readonly issuer: string
-  private readonly audience: string
-
-  constructor() {
-
-    this.secret = process.env.SERVICE_TOKEN_SECRET || ''
-    this.issuer = process.env.SERVICE_TOKEN_ISSUER || "firminiq-integration"
-    this.audience = process.env.SERVICE_TOKEN_AUDIENCE || "myvitalrx-api"
-
-    if (!this.secret) {
-
-      this.logger.warn({
-        event: "service_token_secret_missing"
-      })
-
-    }
-
-  }
-
-  generateToken(
-    tenantId: string,
-    context: ServiceTokenContext,
-    correlationId?: string
-  ): ServiceTokenResult {
-
-    const logger = createChildLogger(this.logger, {
-      correlationId,
-      tenantId,
-      userId: context.userId
-    })
-
-    if (!this.secret) {
-
-      const error = new Error("SERVICE_TOKEN_SECRET missing")
-
-      logger.error({
-        event: "service_token_generate_failed",
-        err: serializeError(error)
-      })
-
-      throw error
-
-    }
-
-    const now = Math.floor(Date.now() / 1000)
-
-    const payload: ServiceTokenPayload = {
-
-      iss: this.issuer,
-
-      aud: this.audience,
-
-      sub: "integration-hms",
-
-      tokenType: "SERVICE",
-
-      tenantId,
-
-      context,
-
-      jti: randomUUID(),
-
-      iat: now,
-
-      exp: now + 3600
-
-    }
-
-    const token = jwt.sign(
-      payload,
-      this.secret,
-      { algorithm: "HS256" }
-    )
-
-    logger.info({
-      event: "service_token_generated",
-      role: context.role
-    })
-
-    return {
-      token,
-      expiresIn: 3600,
-      userId: context.userId,
-      role: context.role
-    }
-
-  }
-
-  verifyToken(token: string): ServiceTokenPayload {
-
-    if (!this.secret) {
-
-      throw new Error("SERVICE_TOKEN_SECRET missing")
-
-    }
-
-    return jwt.verify(
-      token,
-      this.secret,
-      {
-        algorithms: ["HS256"],
-        issuer: this.issuer,
-        audience: this.audience
-      }
-    ) as ServiceTokenPayload
-
-  }
-
+const SERVICE_TOKEN_SECRET_ID = process.env.SERVICE_TOKEN_SECRET_ID
+if (!SERVICE_TOKEN_SECRET_ID) {
+  throw new Error("Missing required env var: SERVICE_TOKEN_SECRET_ID")
 }
 
-let instance: ServiceTokenService | null = null
+/**
+ * AWS Secrets Manager Client
+ */
+const secretsClient = new SecretsManagerClient({
+  region: "us-east-1"
+})
 
-export function getServiceTokenService() {
+/**
+ * Cached secret to avoid repeated AWS calls
+ */
+let cachedSecret: string | null = null
 
-  if (!instance) {
+/**
+ * Track ongoing fetch to avoid duplicate requests
+ */
+let loadingPromise: Promise<string> | null = null
 
-    instance = new ServiceTokenService()
+/**
+ * Fetch service token secret from Secrets Manager
+ */
+async function fetchSecret(): Promise<string> {
+  try {
+    logger.info({
+      event: "fetching_secret_from_secrets_manager"
+    })
 
+    const command = new GetSecretValueCommand({
+      SecretId: SERVICE_TOKEN_SECRET_ID
+    })
+
+    const response = await secretsClient.send(command)
+
+    if (!response.SecretString) {
+      throw new Error("SecretString is empty")
+    }
+
+    /**
+     * Secret can be JSON or plain string
+     */
+    let secretValue: string
+
+    try {
+      const parsed = JSON.parse(response.SecretString)
+
+      secretValue =
+        parsed.service_token_secret ||
+        parsed.SERVICE_TOKEN_SECRET ||
+        parsed.secret ||
+        ""
+
+      if (!secretValue) {
+        throw new Error("service_token_secret not found in secret JSON")
+      }
+    } catch {
+      /**
+       * Secret stored as plain string
+       */
+      secretValue = response.SecretString
+    }
+
+    logger.info({
+      event: "secret_loaded_successfully"
+    })
+
+    return secretValue
+  } catch (error) {
+    logger.error({
+      event: "secret_fetch_failed",
+      err: serializeError(error)
+    })
+
+    throw error
+  }
+}
+
+/**
+ * Public method used by services
+ */
+export async function getServiceTokenSecret(): Promise<string> {
+
+  /**
+   * Return cached value if available
+   */
+  if (cachedSecret) {
+    return cachedSecret
   }
 
-  return instance
+  /**
+   * Prevent parallel AWS calls
+   */
+  if (!loadingPromise) {
+    loadingPromise = fetchSecret()
+  }
 
+  cachedSecret = await loadingPromise
+
+  return cachedSecret
 }

@@ -6,12 +6,15 @@ import {
 
 import {
   AdminGetUserCommand,
+  AdminInitiateAuthCommand,
   CognitoIdentityProviderClient,
   ListUsersCommand,
   UserNotFoundException,
 } from '@aws-sdk/client-cognito-identity-provider';
 
-import { TruTechVerifiedPayload } from '../types/appointment.types';
+import {    CognitoUserContext, CognitoUserClaims } from '../types/user/user.types';
+import { cognitoPhone } from '@api-hub/utils';
+import { get } from 'http';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -21,10 +24,17 @@ const baseLogger = createLogger({
 export class CognitoService {
   private readonly client: CognitoIdentityProviderClient;
   private readonly userPoolId = process.env.COGNITO_USER_POOL_ID;
+  private readonly clientId = process.env.COGNITO_CLIENT_ID;
 
   private readonly logger = createChildLogger(baseLogger, {
     component: 'CognitoService',
   });
+
+  // token cache
+  private cachedToken?: {
+    accessToken: string;
+    expiry: number;
+  };
 
   constructor() {
     this.client = new CognitoIdentityProviderClient({
@@ -35,68 +45,212 @@ export class CognitoService {
       this.logger.error({
         event: 'cognito_service_init_missing_pool_id',
       });
-
       throw new Error('COGNITO_USER_POOL_ID not configured');
+    }
+
+    if (!this.clientId) {
+      this.logger.error({
+        event: 'cognito_service_init_missing_client_id',
+      });
+      throw new Error('COGNITO_CLIENT_ID not configured');
     }
   }
 
-  /**
-   * Find user by email
-   * First attempts AdminGetUser (fast)
-   * Falls back to ListUsers if username != email
-   */
-  async findUserByEmail(
-    email: string,
-  ): Promise<TruTechVerifiedPayload | null> {
+  private async findCognitoUserByFilter(
+    filter: string,
+    logContext: Record<string, unknown>,
+  ): Promise<CognitoUserContext | null> {
     try {
-      this.logger.debug({
-        event: 'cognito_find_user_by_email_start',
-        email,
-      });
-
       const cmd = new ListUsersCommand({
         UserPoolId: this.userPoolId!,
-        Filter: `email = "${email}"`,
+        Filter: filter,
         Limit: 1,
       });
 
       const res = await this.client.send(cmd);
 
-      const user = res.Users?.[0];
-
-      if (!user) {
+      if (!res.Users || res.Users.length === 0) {
         this.logger.info({
-          event: 'cognito_find_user_by_email_not_found',
-          email,
+          event: 'cognito_find_user_by_filter_not_found',
+          ...logContext,
         });
 
         return null;
       }
 
-      const mapped = this.mapUser(user);
+      const user = res.Users[0];
+      const claims = Object.fromEntries(
+        (user.Attributes || []).map((a) => [a.Name, a.Value]),
+      ) as unknown as CognitoUserClaims;
+      const mapped = this.mapCognitoClaimsToAuthContext(claims);
 
       this.logger.info({
-        event: 'cognito_find_user_by_email_success',
-        email,
-        hasDoctorUid: !!mapped.doctorUid,
-        hasTenantId: !!mapped.tenantId,
-        hasOrganizationId: !!mapped.organizationId,
+        event: 'cognito_find_user_by_filter_success',
+        cognitoUsername: user.Username,
+        ...logContext,
       });
 
       return mapped;
-    } catch (err) {
+    } catch (err: any) {
+      if (
+        err.name === 'ResourceNotFoundException' ||
+        err.message === 'ResourceNotFoundException'
+      ) {
+        this.logger.info({
+          event: 'cognito_find_user_by_filter_not_found',
+          ...logContext,
+        });
+        return null;
+      }
+
       this.logger.error({
-        event: 'cognito_user_lookup_failed',
-        email,
+        event: 'cognito_lookup_error',
         err: serializeError(err),
+        ...logContext,
       });
 
-      throw err;
+      return null;
     }
   }
 
+ 
   /**
-   * Fetch specific user attributes using AdminGetUser
+   * Find user by email
+   */
+  async findCognitoUserByEmail(
+    email: string | null | undefined,
+  ): Promise<CognitoUserContext | null> {
+  
+    try {
+  
+      if (!email || typeof email !== 'string') {
+        this.logger.warn({
+          event: 'cognito_find_user_by_email_invalid_input',
+          email,
+        });
+        return null;
+      }
+  
+      const rawEmail = email.trim().toLowerCase();
+  
+      if (!rawEmail.includes('@')) {
+        this.logger.warn({
+          event: 'cognito_email_invalid_format',
+          email: rawEmail,
+        });
+        return null;
+      }
+  
+      const normalizedEmail = rawEmail;
+  
+      this.logger.debug({
+        event: 'cognito_find_user_by_email_start',
+        originalEmail: rawEmail,
+        lookupEmail: normalizedEmail,
+      });
+  
+      return this.findCognitoUserByFilter(`email = "${normalizedEmail}"`, {
+        email: normalizedEmail,
+      });
+  
+    } catch (err: any) {
+
+      if (
+        err.name === 'ResourceNotFoundException' ||
+        err.message === 'ResourceNotFoundException'
+      ) {
+    
+        this.logger.info({
+          event: 'cognito_find_user_by_email_not_found',
+          email
+        });
+    
+        return null;
+      }
+    
+      this.logger.error({
+        event: 'cognito_lookup_error',
+        email,
+        err: serializeError(err),
+      });
+    
+      return null;
+    }
+  }
+
+  async findCognitoUserByPhone(
+    phone: string | null | undefined,
+  ): Promise<CognitoUserContext | null> {
+  
+    try {
+  
+      if (!phone || typeof phone !== 'string') {
+        this.logger.warn({
+          event: 'cognito_find_user_by_phone_invalid_input',
+          phone,
+        });
+        return null;
+      }
+  
+      const rawPhone = phone.trim();
+  
+      const cognitoPhoneNumber = cognitoPhone(rawPhone, 'ZA');
+  
+      if (!cognitoPhoneNumber) {
+        this.logger.warn({
+          event: 'cognito_phone_invalid',
+          phone: rawPhone
+        });
+        return null;
+      }
+  
+      this.logger.debug({
+        event: 'cognito_find_user_by_phone_start',
+        originalPhone: rawPhone,
+        lookupPhone: cognitoPhoneNumber,
+      });
+  
+      return this.findCognitoUserByFilter(
+        `phone_number = "${cognitoPhoneNumber}"`,
+        { phone: cognitoPhoneNumber },
+      );
+  
+    } catch (err: any) {
+  
+      if (err.name === 'ResourceNotFoundException' || err.message === 'ResourceNotFoundException') {
+  
+        this.logger.info({
+          event: 'cognito_find_user_by_phone_not_found',
+          phone
+        }); 
+        return null;
+      }
+  
+      this.logger.error({
+        event: 'cognito_lookup_error',
+        phone,
+        err: serializeError(err),
+      });
+  
+      return null;
+    }
+  }
+
+  async findCognitoUserByEmailOrPhone(params: {
+    email?: string | null;
+    phone?: string | null;
+  }): Promise<CognitoUserContext | null> {
+    const cognitoUserByEmail = await this.findCognitoUserByEmail(params.email);
+
+    if (cognitoUserByEmail) {
+      return cognitoUserByEmail;
+    }
+
+    return this.findCognitoUserByPhone(params.phone);
+  }
+  /**
+   * Find user by phone
+   * Fetch specific user attributes
    */
   async getUserAttributes(
     username: string,
@@ -127,8 +281,6 @@ export class CognitoService {
       this.logger.info({
         event: 'cognito_get_user_attrs_success',
         username,
-        hasUserID: !!result.userID,
-        hasOrganizationID: !!result.organizationID,
       });
 
       return result;
@@ -138,7 +290,6 @@ export class CognitoService {
           event: 'cognito_user_not_found',
           username,
         });
-
         return {};
       }
 
@@ -151,24 +302,137 @@ export class CognitoService {
       return {};
     }
   }
- 
-  private mapUser(user: any): TruTechVerifiedPayload {
-    const attributes = Object.fromEntries(
-      (user.Attributes || []).map((a: any) => [a.Name, a.Value]),
-    );
 
-    return {
-      email: attributes.email,
-      // Prefer dedicated doctorUid attribute if present, otherwise fall back to legacy custom:userID
-      doctorUid: attributes['custom:doctorUid'] || attributes['custom:userID'],
-      // Support both camelCase and legacy organizationID attribute names
-      organizationId:
-        attributes['custom:organizationId'] || attributes['custom:organizationID'],
-      doctorId: attributes['custom:doctorId'],
-      tenantSubdomain: attributes['custom:tenantSubdomain'],
-      // Fall back to primary email if dedicated doctorEmail is not set
-      doctorEmail: attributes['custom:doctorEmail'] || attributes.email,
-      tenantId: attributes['custom:tenantId'],
-    } as TruTechVerifiedPayload;
+  /**
+   * Generate JWT token from Cognito for a specific user.
+   * For SSO launch, we authenticate using a shared password.
+   */
+  async generateToken(username: string, password: string, _role?: string) {
+    try {
+      console.log("USERNAME: ", username);
+      console.log("ROLE: ", _role);
+      const authUsername = username.trim();
+      const authPassword = password;
+
+      this.logger.info({
+        event: 'cognito_generate_token_start',
+        username: authUsername,
+      });
+  
+      const cmd = new AdminInitiateAuthCommand({
+        UserPoolId: this.userPoolId!,
+        ClientId: this.clientId!,
+        AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
+        AuthParameters: {
+          USERNAME: authUsername,
+          PASSWORD: authPassword,
+        },
+      });
+
+      const res = await this.client.send(cmd);
+      const auth = res.AuthenticationResult;
+
+      this.logger.info({
+        event: 'cognito_generate_token_success',
+        username: authUsername,
+      });
+
+      return {
+        accessToken: auth?.AccessToken,    // Cognito AccessToken
+        updateToken: auth?.IdToken,        // Cognito IdToken
+        refreshToken: auth?.RefreshToken,  // Cognito RefreshToken
+        expiresIn: auth?.ExpiresIn,
+      };
+    } catch (err) {
+      this.logger.error({
+        event: 'cognito_generate_token_failed',
+        username,
+        err: serializeError(err),
+      });
+
+      // throw err;
+      return null;
+    }
   }
-} 
+
+  /**
+   * Get cached token for service-to-service calls
+   */
+  async getServiceToken(
+    username: string,
+    password: string,
+  ): Promise<string> {
+    try {
+      const now = Date.now();
+
+      if (this.cachedToken && this.cachedToken.expiry > now) {
+        this.logger.debug({
+          event: 'cognito_token_cache_hit',
+        });
+
+        return this.cachedToken.accessToken;
+      }
+
+      this.logger.info({
+        event: 'cognito_token_cache_miss_generating_new',
+      });
+
+      const result:any= await this.generateToken(username, password);
+
+      if (!result.accessToken) {
+        throw new Error('Failed to generate Cognito token');
+      }
+
+      const expiresIn = result.expiresIn ?? 3600;
+
+      this.cachedToken = {
+        accessToken: result.accessToken,
+        expiry: now + (expiresIn - 60) * 1000,
+      };
+
+      this.logger.info({
+        event: 'cognito_token_cached',
+        expiresIn,
+      });
+
+      return result.accessToken;
+    } catch (err) {
+      this.logger.error({
+        event: 'cognito_get_service_token_failed',
+        err: serializeError(err),
+      });
+
+      throw err;
+    }
+  }
+
+  /**
+   * Map Cognito user to payload
+     */
+  private mapCognitoClaimsToAuthContext(claims: CognitoUserClaims): CognitoUserContext {
+    return {
+      principalId: claims["custom:userID"],
+  
+      userId: claims["custom:id"],
+
+      organizationId: claims["custom:organizationID"],
+      userType: claims["custom:userType"],
+      email: claims.email,
+      phone: claims.phone_number,
+      roles: claims["custom:role"]
+        ? JSON.parse(claims["custom:role"])
+        : [],
+  
+      permissions: claims["custom:permissions"]
+        ? JSON.parse(claims["custom:permissions"])
+        : [],
+   
+        externalUserId: claims["custom:externalUserId"],
+        providerId: claims["custom:providerId"],
+        subdomain: claims["custom:subdomain"],
+        password: null,
+      authType: "USER",
+    };
+  }
+}
+ 

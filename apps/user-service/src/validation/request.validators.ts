@@ -15,6 +15,11 @@ import {
   assignDoctorSchema,
   listDoctorPatientsQuerySchema,
 } from './user.validation';
+import {
+  createAppointmentSchema,
+  getAppointmentSchema,
+  listAppointmentsSchema,
+} from './appointment.validation';
 import { listOrganizationUsersPostSchema } from './listOrganizationUsersPost.validation';
 import { fetchFriendFamilySchema, addMemberFriendFamilySchema, updateFriendFamilySchema, deleteFriendFamilySchema, friendFamilySearchSchema } from './friendFamily.validation';
 import { v2UserListSchema } from './v2-user-list.validation';
@@ -73,6 +78,53 @@ export function validateUpdateUserMetadata(req: any) {
     );
   }
   req.validatedUpdateMetadata = result.data;
+}
+
+export function validateCreateAppointment(req: any) {
+  const body = req?.body ?? {};
+  const result = createAppointmentSchema.safeParse(body);
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      422,
+      'VALIDATION_ERROR',
+      result.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
+    );
+  }
+  req.validatedCreateAppointment = result.data;
+}
+
+export function validateGetAppointment(req: any) {
+  const payload = {
+    patientUserId: req?.pathParameters?.patientUserId ?? req?.params?.patientUserId,
+    appointmentId: req?.pathParameters?.appointmentId ?? req?.params?.appointmentId,
+  };
+  const result = getAppointmentSchema.safeParse(payload);
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      422,
+      'VALIDATION_ERROR',
+      result.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
+    );
+  }
+  req.validatedGetAppointment = result.data;
+}
+
+export function validateListAppointments(req: any) {
+  const payload = {
+    patientUserId: req?.pathParameters?.patientUserId ?? req?.params?.patientUserId,
+  };
+  const result = listAppointmentsSchema.safeParse(payload);
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      422,
+      'VALIDATION_ERROR',
+      result.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
+    );
+  }
+  req.validatedListAppointments = result.data;
 }
 
 export function validateContacts(req: any) {
@@ -147,8 +199,15 @@ export function validateFetchFriendFamily(req: any) {
 
 export function validateAddMemberFriendFamily(req: any) {
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
-  const userId = body.userId ?? body.userID ?? req?.context?.user?.userId;
+  const organizationID =
+    body.organizationID ??
+    req?.context?.userContext?.organizationId ??
+    req?.context?.user?.organizationId;
+  const userId =
+    body.userId ??
+    body.userID ??
+    req?.context?.userContext?.userId ??
+    req?.context?.user?.userId;
   const payload = { ...body, organizationID, userId };
   const result = addMemberFriendFamilySchema.safeParse(payload);
   if (!result.success) {
@@ -169,8 +228,15 @@ export function validateAddMemberFriendFamily(req: any) {
 
 export function validateUpdateFriendFamily(req: any) {
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
-  const userId = body.userId ?? body.userID ?? req?.context?.user?.userId;
+  const organizationID =
+    body.organizationID ??
+    req?.context?.userContext?.organizationId ??
+    req?.context?.user?.organizationId;
+  const userId =
+    body.userId ??
+    body.userID ??
+    req?.context?.userContext?.userId ??
+    req?.context?.user?.userId;
   const payload = { ...body, organizationID };
   const result = updateFriendFamilySchema.safeParse(payload);
   if (!result.success) {
@@ -211,7 +277,10 @@ export function validateFriendFamilySearch(req: any) {
     throw err;
   }
   const body = req?.body ?? {};
-  const organizationID = body.organizationID ?? req?.context?.user?.organizationId;
+  const organizationID =
+    body.organizationID ??
+    req?.context?.userContext?.organizationId ??
+    req?.context?.user?.organizationId;
   const result = friendFamilySearchSchema.safeParse({ ...body, organizationID });
   if (!result.success) {
     throwVal(

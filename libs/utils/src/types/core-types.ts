@@ -37,6 +37,8 @@ export interface ApiResponseBody<T = unknown> {
 export interface ResponseOptions {
   requestId: string;
   headers?: Record<string, string>;
+  /** Optional event passthrough for error handlers (e.g. API Gateway event). */
+  event?: unknown;
 }
 
 export interface ErrorHandlerOptions {

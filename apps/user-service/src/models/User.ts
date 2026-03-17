@@ -121,18 +121,15 @@ export interface User{
   externalIdentity?: ExternalIdentity;
 }
 
-const SourceSystem = {
-  HMS: 'HMS',
-  FHIR: 'FHIR',
-  CUSTOM: 'CUSTOM',
-  MARKETPLACE: 'MARKETPLACE',
-} as const;
+export type SourceSystem = 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE';
 export interface ExternalIdentity {
   integrationType: string; // TruTech
   externalUserId: string; // user id from external system
   externalHospitalId?: string; // org id or tenant id
-  subdomain: string; // subdomain of the external system
-  sourceSystem: typeof SourceSystem; 
+  subdomain: string;  
+  sourceSystem: SourceSystem 
+  provider: string;
+  tenant?: string;
 };
 export interface UserResponse {
   phoneNumber: string;

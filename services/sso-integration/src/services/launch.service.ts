@@ -1,21 +1,21 @@
-import { LaunchProcessResult } from '../types/launch.types';
+import { LaunchProcessResult, ServiceTokenResult, UserRole } from '../types/launch.types';
 
-import { 
-  Patient,  
-  User, 
-  RequestContext,
+import { BaseService } from '../core/base.service';
+import {
+  CognitoUserContext,
+  Patient,
+  SSORequestContext,
   TruTechAppointment,
   TruTechAppointmentsResponse,
+  User,
 } from '../types';
- 
-import { BaseService } from '../core/base.service';
-import { getCreateDoctorMapper } from '../mappers/create-doctor.mapper';
-import {   TruTechVerifiedPayload, TruTechVerifyContext } from '../types/appointment.types';
-import { SSOError } from '../types/errors/sso-error';
 import { SSOErrorCode } from '../types/enums';
-import { DoctorCreationPayload } from '../types/user-creation.types';
+import { SSOError } from '../types/errors/sso-error';
+import { TruTechVerifyContext } from '../types/external/trutech.types';
+import { ROLE } from '../utils/constants';
+import { getEnvConfig } from '../config/env';
 export class LaunchService extends BaseService {
-  private readonly doctorMapper = getCreateDoctorMapper();
+   
 
   constructor() {
     super('LaunchService');
@@ -23,9 +23,9 @@ export class LaunchService extends BaseService {
 
   async processLaunch(
     launchToken: string,
-    correlationId: string,
-  ): Promise<LaunchProcessResult> {
-    const ctx: RequestContext = { correlationId };
+    ctx: SSORequestContext,
+  ): Promise<LaunchProcessResult> { 
+    const { correlationId } = ctx;
 
     try {
       this.logger.info({
@@ -46,18 +46,18 @@ export class LaunchService extends BaseService {
         },
       });
 
-      const doctor = await this.ensureDoctorExists(verifyResponse.context, ctx);
+      const cognitoUserContext = await this.ensureDoctorExists(verifyResponse.context, ctx);
 
       this.logger.info({
         event: 'launch_doctor_resolved',
         correlationId,
-        doctorId: doctor.id,
-        externalId: doctor.externalId,
+        doctorId: cognitoUserContext?.userId,
+        externalId: cognitoUserContext?.externalUserId,
       });
 
-      const serviceToken = await this.generateServiceToken(
-        doctor,
-        verifyResponse.context,
+      const userToken:any= await this.generateUserToken(
+        cognitoUserContext  
+       
       );
 
       const appointmentsResponse = await this.fetchAppointments(
@@ -78,7 +78,7 @@ export class LaunchService extends BaseService {
 
       if (rawAppointments.length > 0) {
         eventsPublished = await this.publishPatientCreationEvents(
-          doctor,
+            cognitoUserContext as unknown as User,
           rawAppointments,
           verifyResponse.context,
           ctx,
@@ -87,26 +87,33 @@ export class LaunchService extends BaseService {
         this.logger.info({
           event: 'launch_patient_events_published',
           correlationId,
-          doctorId: doctor.id,
+          doctorId: cognitoUserContext?.userId ?? '',
           patientEventsCount: eventsPublished,
         });
       } else {
         this.logger.info({
           event: 'launch_no_appointments_skipping_patient_events',
           correlationId,
-          doctorId: doctor.id,
+          doctorId: cognitoUserContext?.userId ?? '',
         });
       }
 
       const mappedAppointments = this.truTechAdapter.mapAppointments(
         rawAppointments,
       );
-
+     const tokenResult: ServiceTokenResult = {
+      accessToken: userToken.accessToken ?? '',
+      updateToken: userToken.updateToken ?? '',
+      refreshToken: userToken.refreshToken ?? '',
+      expiresIn: userToken.expiresIn ?? 0,
+      userId:  cognitoUserContext?.userId ?? '',
+      role: ROLE.DOCTOR as UserRole,
+     };
       return {
-        doctor,
+        doctor: cognitoUserContext as unknown as User,
         appointments: mappedAppointments,
         patientEventsPublished: eventsPublished,
-        serviceToken,
+        serviceToken: tokenResult,
       };
     } catch (error) {
       this.logger.error({
@@ -130,7 +137,7 @@ export class LaunchService extends BaseService {
     }
   }
 
-  private async verifyLaunchToken(launchToken: string, ctx: RequestContext) {
+  private async verifyLaunchToken(launchToken: string, ctx: SSORequestContext) {
     const response = await this.truTechClient.verifyLaunchToken(
       launchToken,
       ctx.correlationId,
@@ -148,82 +155,37 @@ export class LaunchService extends BaseService {
 
   private async ensureDoctorExists(
     doctorContext: TruTechVerifyContext,
-    ctx: RequestContext,
-  ): Promise<User> {
-    this.logger.debug({
-      event: 'ensure_doctor_lookup_cognito_start',
-      correlationId: ctx.correlationId,
-      email: doctorContext.email,
-    });
-
-    const userAttributes: TruTechVerifiedPayload | null = await this.cognitoService.findUserByEmail(doctorContext.email);
-
-    this.logger.debug({
-      event: 'ensure_doctor_lookup_cognito_result',
-      correlationId: ctx.correlationId,
-      email: doctorContext.email,
-      hasUserAttributes: !!userAttributes,
-      hasDoctorUid: !!userAttributes?.doctorUid,
-    });
-
-    if (userAttributes?.doctorUid) {
-      this.logger.info({
-        event: 'ensure_doctor_exists_in_cognito',
-        correlationId: ctx.correlationId,
-        email: doctorContext.email,
-        doctorUid: userAttributes.doctorUid,
-      });
-
-      return {
-        id: userAttributes.doctorUid,
-        externalId: doctorContext.drid,
-        provider: 'TruTech',
-        tenantId: doctorContext.tenant_id,
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+    ctx: SSORequestContext,
+  ): Promise<CognitoUserContext> {
+    
+    const env = getEnvConfig();
+    const userAttributes =
+      await this.cognitoService.findCognitoUserByEmail(
+        doctorContext.email,
+      );
+  
+    if (!userAttributes) {
+      throw SSOError.invalidRequest('User not yet registered');
     }
-
-    const payloadL:DoctorCreationPayload = this.doctorMapper.mapTruTechDoctorToOurSystem(
-      doctorContext,
-      ctx.correlationId,
-    );
-
-    this.logger.info({
-      event: 'ensure_doctor_create_start',
-      correlationId: ctx.correlationId,
-      email: doctorContext.email,
-    });
-
-    // const newDoctor = await this.userServiceClient.createUser(payload, {
-    //   token: '',
-    //   correlationId: ctx.correlationId,
-    // });
-
-    const newDoctor = await this.ssoUserServiceClient.createUser(payloadL as DoctorCreationPayload, ctx.correlationId, '');
-    this.logger.info({
-      event: 'doctor_created',
-      userId: newDoctor.id,
-    });
-
-    return newDoctor;
+    userAttributes.password = env.COGNITO_SSO_COMMON_PASSWORD || 'Comm@n123';
+    return userAttributes;
   }
 
-  private async generateServiceToken(
-    doctor: User,
-    doctorContext: TruTechVerifyContext,
+  private async generateUserToken(
+    cognitoUserContext: CognitoUserContext, 
   ) {
-    return this.serviceTokenService.generateToken(doctorContext.tenant_id, {
-      userId: doctor.id.toString(),
-      role: 'DOCTOR',
-      appointmentId: doctorContext.drid,
-    });
+    const cognitoUsername =
+      cognitoUserContext.userId ?? cognitoUserContext.email ?? cognitoUserContext.phone ?? '';
+    if (!cognitoUserContext.password) {
+      throw new Error('User password is required');
+    }
+    return this.cognitoService.generateToken(
+      cognitoUsername, cognitoUserContext.password, ROLE.DOCTOR);
   }
 
   private async fetchAppointments(
     doctorId: number,
-    ctx: RequestContext,
+    ctx: SSORequestContext,
   ): Promise<TruTechAppointmentsResponse> {
     const response = await this.truTechClient.getTodaysAppointments(
       doctorId,
@@ -237,7 +199,7 @@ export class LaunchService extends BaseService {
     doctor: User,
     appointments: TruTechAppointment[] | undefined,
     doctorInfo: TruTechVerifyContext,
-    ctx: RequestContext,
+    ctx: SSORequestContext,
   ): Promise<number> {
     const uniquePatients = new Map<number, Patient>();
 
@@ -254,8 +216,8 @@ export class LaunchService extends BaseService {
         patient,
         doctor?.id?.toString() ?? '', // Use internal doctor ID, not external TruTech ID
         this.config.defaultOrganizationID,
-        'TruTech',
-        ctx.correlationId,
+        'TruTech', 
+        ctx,
       ),
     );
 

@@ -211,4 +211,25 @@ export class ApiResponse {
       options.headers
     );
   }
+
+  /** Generic error response for any status code (e.g. 400, 401, 403, 404, 409, 500). */
+  static error(
+    statusCode: number,
+    message: Message,
+    options: ResponseOptions,
+    error?: ErrorBody,
+  ): APIGatewayProxyResult {
+    return createResponse(
+      statusCode,
+      {
+        success: false,
+        statusCode,
+        message,
+        data: null,
+        error: error ?? { code: 'ERROR' },
+        meta: buildMeta(options),
+      },
+      options.headers
+    );
+  }
 }

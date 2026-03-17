@@ -3,15 +3,31 @@ import { UserAlreadyExistsError } from '../utils/errors';
 import { serializeError } from '@api-hub/logger';
 
 export interface CognitoUserInput {
-  email?: string
-  phoneNumber?: string
-  phoneCode?: string  
-  username?: string
-  userType?: string
-  userID?: string
-  organizationID: string
-  roleName?: string
-  permissions?: string[]
+  email?: string;
+  phoneNumber?: string;
+  phoneCode?: string;
+  username?: string;
+  userType?: string;
+  userID?: string;
+  organizationID: string;
+  roleName?: string;
+  permissions?: string[];
+
+  /** External/SSO metadata for Cognito custom attributes */
+  providerId?: string;
+  externalUserId?: string;
+  subdomain?: string;
+  /**
+   * External organization identifier (e.g. HMS tenant/org id) to be
+   * stored as custom:organizationId in Cognito, in addition to the
+   * internal numeric organizationID.
+   */
+  organizationExternalId?: string;
+  /**
+   * Logical role label for Cognito (e.g. "doctor", "patient").
+   * When not provided, the caller can derive it from userType/definedRoleCode.
+   */
+  role?: string;
 }
 
 export interface CognitoUserResult {
@@ -63,8 +79,13 @@ export class CognitoUserService {
           userType: String(input.userType || ''),
           userID: String(input.userID || ''),
           organizationID: input.organizationID,
+          // organizationId: input.organizationExternalId ?? input.organizationID,
+          role: input.role,
           roleName: input.roleName ?? '',
           permissions: JSON.stringify(input.permissions || []),
+          // providerId: input.providerId,
+          // externalUserId: input.externalUserId,
+          // subdomain: input.subdomain,
         },
       });
 

@@ -14,8 +14,8 @@ const userRepository = new UserRepository();
 const handler = async (req: LambdaRequest<any>) => {
   const authHeader = req.context.authHeader;
   const body = (req.body ?? {}) as any;
-  const organizationID = body.organizationID ?? req.context.user?.organizationId;
   const fromToken = getUserIdAndOrganizationIdFromToken(authHeader);
+  const organizationID = body.organizationID ?? req.context.userContext?.organizationId ?? fromToken.organizationId;
   let userID = '';
   if (fromToken.sub) {
     const region = process.env.REGION ?? process.env.AWS_REGION ?? 'us-east-1';

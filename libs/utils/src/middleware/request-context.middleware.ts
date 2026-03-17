@@ -30,15 +30,27 @@ export const buildRequestContext = (event: any) => {
    * - req.pathParameters
    * - req.params (merged path + query)
    *
-   * For non-API Gateway invocations (e.g. direct Lambda invoke) where
-   * identifiers are sent at the top level of the event, we also map
-   * `event.userId` / `event.organizationId` into pathParameters.
+   * Supports three direct-Lambda invocation shapes:
+   *   1. API Gateway  → event.pathParameters / event.queryStringParameters
+   *   2. Top-level    → { userId, userID, organizationId, organizationID }
+   *   3. Nested data  → { data: { userID, organizationID, userId, organizationId } }
+   *                     (common pattern when invoking via a lambda-invoker utility)
    */
+  const directPayload = event.data ?? event; // unwrap { data: {...} } wrapper if present
+
+  const resolvedUserId =
+    directPayload.userId ||
+    directPayload.userID;
+
+  const resolvedOrganizationId =
+    directPayload.organizationId ||
+    directPayload.organizationID;
+
   const normalizedPathParameters =
     event.pathParameters ??
-    (((event.userId || event.organizationId) && {
-      ...(event.userId && { userId: String(event.userId) }),
-      ...(event.organizationId && { organizationId: String(event.organizationId) }),
+    (((resolvedUserId || resolvedOrganizationId) && {
+      ...(resolvedUserId && { userId: String(resolvedUserId) }),
+      ...(resolvedOrganizationId && { organizationId: String(resolvedOrganizationId) }),
     }) as Record<string, string> | undefined);
 
   const normalizedQueryParameters = event.queryStringParameters ?? undefined;

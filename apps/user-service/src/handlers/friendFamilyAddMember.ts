@@ -18,11 +18,12 @@ interface Body {
 }
 
 const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
-  const body = req.body ?? {};
+  const body = req.body as Body ?? {};
   const organizationID = body.organizationID ?? req.context.userContext?.organizationId ?? '';
   const userId = body.userId ?? body.userID ?? req.context.userContext?.userId ?? '';
   const authHeader = req.context.authHeader;
   const { organizationID: _o, ...addBody } = body as any;
+  console.log("Organization Details: ", organizationID, userId, authHeader, addBody);
   return friendFamilyService.addMember(organizationID, { ...addBody, userId }, authHeader);
 };
 

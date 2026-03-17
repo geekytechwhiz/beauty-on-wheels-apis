@@ -115,6 +115,7 @@ export const withLambdaHandler =
       return handleError(error, {
         correlationId,
         logger,
+        event,
       });
     }
   };

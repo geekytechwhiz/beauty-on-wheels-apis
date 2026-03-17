@@ -1,12 +1,13 @@
+import { splitPhoneNumber } from '@api-hub/utils';
+
 export interface ProcessedPhoneNumber {
   phoneCode: string;
   phoneNumber: string;
 }
 
-
 export function processPhoneNumber(
   phone: string | undefined | null,
-  defaultPhoneCode: string = '+27'
+  defaultPhoneCode = '+27'
 ): ProcessedPhoneNumber {
   // Return defaults if phone is empty
   if (!phone || typeof phone !== 'string' || phone.trim().length === 0) {
@@ -16,22 +17,30 @@ export function processPhoneNumber(
     };
   }
 
-  // Trim whitespace
   const cleaned = phone.trim();
 
-  // If phone starts with "+27", extract it as phoneCode
-  if (cleaned.startsWith('+27')) {
+  try {
+    // Prefer shared libphonenumber-based helper for consistent parsing
+    const { phoneCode, phoneNumber } = splitPhoneNumber(cleaned, 'ZA');
+
     return {
-      phoneCode: '+27',
-      phoneNumber: cleaned.slice(3).trim(), // Remove "+27" prefix
+      phoneCode: phoneCode || defaultPhoneCode,
+      phoneNumber,
+    };
+  } catch {
+    // Fallback to previous simple behavior if parsing fails
+    if (cleaned.startsWith('+27')) {
+      return {
+        phoneCode: '+27',
+        phoneNumber: cleaned.slice(3).trim(), // Remove "+27" prefix
+      };
+    }
+
+    return {
+      phoneCode: defaultPhoneCode,
+      phoneNumber: cleaned,
     };
   }
-
-  // Otherwise, use default phoneCode and phone as phoneNumber
-  return {
-    phoneCode: defaultPhoneCode,
-    phoneNumber: cleaned,
-  };
 }
 
 /**

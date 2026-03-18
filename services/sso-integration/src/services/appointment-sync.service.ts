@@ -125,7 +125,7 @@ export class AppointmentSyncService extends BaseService {
         gender: 'Male',
         age: '23 years 3 months',
         dob: null,
-        phone: '2342343234',
+        phone: '2389712345',
         email: null,
       },
       doctor: {

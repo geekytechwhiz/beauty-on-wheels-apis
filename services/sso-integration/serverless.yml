@@ -67,7 +67,8 @@ provider:
     APPOINTMENT_SYNC_CONCURRENCY_LIMIT: ${env:APPOINTMENT_SYNC_CONCURRENCY_LIMIT, '5'}
 
     # Infrastructure
-    PATIENT_CREATION_QUEUE_URL: ${self:custom.stageUrls.${self:provider.stage}.PATIENT_CREATION_QUEUE_URL}
+    PATIENT_CREATION_QUEUE_URL: 
+      Ref: PatientCreationQueue
     APPOINTMENT_SYNC_QUEUE_URL:
       Ref: AppointmentSyncQueue
     DOCTOR_PROVISION_QUEUE_URL:
@@ -288,6 +289,23 @@ functions:
             headers:
               - Content-Type
               - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+
+  appointmentPush:
+    handler: src/handlers/http/appointment-push.handler
+    description: Enqueue a single appointment to trigger downstream processing (debug/admin)
+    timeout: 30
+    memorySize: 256
+    events:
+      - http:
+          path: /appointments/push
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
               - X-Correlation-Id
               - X-Request-Id
             allowCredentials: false

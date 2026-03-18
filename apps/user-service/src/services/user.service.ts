@@ -1888,8 +1888,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         cholesterolUnit: 'mg/dL',
         waterUnit: 'l',
         distanceUnit: 'km',
-        bloodGlucoseUnit: 'mmol/L',
-        oxygenUnit: 'SpO2',
         caloriesUnit: 'kcal',
         speedUnit: 'km/h',
         powerUnit: 'W',

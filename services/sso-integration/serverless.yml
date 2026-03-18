@@ -293,23 +293,6 @@ functions:
               - X-Request-Id
             allowCredentials: false
 
-  appointmentPush:
-    handler: src/handlers/http/appointment-push.handler
-    description: Enqueue a single appointment to trigger downstream processing (debug/admin)
-    timeout: 30
-    memorySize: 256
-    events:
-      - http:
-          path: /appointments/push
-          method: post
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-
   patientCreationEventConsumer:
     handler: src/handlers/events/patient-creation-event-consumer.handler
     description: Background worker for patient creation events

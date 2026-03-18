@@ -323,7 +323,17 @@ async function updateUser(
               },
             );
           }
-          userData.unitsSettings = unitsSettings;
+
+          // Merge with existing unitsSettings so partial updates don't reset other keys
+          const existingUnitsSettings =
+            (existing as any)?.unitsSettings &&
+            typeof (existing as any).unitsSettings === 'object'
+              ? (existing as any).unitsSettings
+              : {};
+          userData.unitsSettings = {
+            ...existingUnitsSettings,
+            ...(unitsSettings as Record<string, unknown>),
+          };
           break;
         }
         case 'COMMUNICATION_SETTINGS': {

@@ -254,7 +254,8 @@ async function updateUser(
         }
         case 'UNITS_SETTINGS': {
           // Support both wrapped format and flat format
-          let unitsSettings = body?.unitsSettings ?? body?.units;
+          let unitsSettings =
+            body?.unitsSettings ?? body?.unitSettings ?? body?.units;
           
           // If no wrapper provided, build from flat fields
           if (!unitsSettings) {
@@ -282,8 +283,28 @@ async function updateUser(
                 builtSettings[key] = body[key];
               }
             }
+            // Backwards-compatible aliases that clients sometimes send
+            if (hasOwn(body, 'distance') && !hasOwn(builtSettings, 'distanceUnit')) {
+              builtSettings.distanceUnit = body.distance;
+            }
+            if (hasOwn(body, 'water') && !hasOwn(builtSettings, 'waterUnit')) {
+              builtSettings.waterUnit = body.water;
+            }
             if (Object.keys(builtSettings).length > 0) {
               unitsSettings = builtSettings;
+            }
+          }
+
+          // Normalize common aliases inside the wrapped object too
+          if (unitsSettings && typeof unitsSettings === 'object') {
+            const us = unitsSettings as Record<string, unknown>;
+            if (us.distance !== undefined && us.distanceUnit === undefined) {
+              us.distanceUnit = us.distance;
+              delete us.distance;
+            }
+            if (us.water !== undefined && us.waterUnit === undefined) {
+              us.waterUnit = us.water;
+              delete us.water;
             }
           }
           
@@ -390,9 +411,6 @@ async function updateUser(
           break;
         }
         case 'UPLOAD': {
-          const srcRegisEntity = String(
-            (existing as any).srcRegisEntity || '',
-          ).toLowerCase();
           const emailInput = hasOwn(body, 'emailAddress')
             ? body.emailAddress
             : hasOwn(body, 'email')

@@ -8,7 +8,7 @@ import {
   UsernameExistsException,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { createLogger, serializeError } from '@api-hub/logger';
-
+import { generatePassword } from '@api-hub/utils';
 const logger = createLogger({ service: 'cognito-service' });
 
 export class CognitoService {
@@ -213,17 +213,14 @@ export class CognitoService {
       const usernameForCognito = String(identifier).toLowerCase();
       
       // Generate password
-      const generatePassword = (): string => {
-        // return `Comm@n12${Math.random().toString(36).substring(5)}`;
-        return  'Comm@n123';
-      };
-       
+
+      const temporaryPassword = generatePassword();
       const cmd = new AdminCreateUserCommand({
         UserPoolId: this.userPoolId,
         Username: usernameForCognito,
         UserAttributes: attrs,
         MessageAction: 'SUPPRESS',
-        // TemporaryPassword: temporaryPassword,
+        TemporaryPassword: temporaryPassword,
       });
       await this.client.send(cmd);
       

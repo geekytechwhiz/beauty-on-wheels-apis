@@ -24,3 +24,4 @@ export * from './helper/domain.helper';
 export * from './enums/core';
 export * from './helper/date.helper';
 export * from './helper/phone_helper';
+export * from './helper/jwt.helpers';

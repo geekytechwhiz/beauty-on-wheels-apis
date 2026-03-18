@@ -93,7 +93,7 @@ export class ApiResponse {
   }
 
   static badRequest(
-    message: Message,
+    message: any | Message,
     options: ResponseOptions,
     error?: ErrorBody,
   ): APIGatewayProxyResult {
@@ -113,7 +113,7 @@ export class ApiResponse {
   }
 
   static unauthorized(
-    message: Message,
+    message: any | Message,
     options: ResponseOptions,
     error?: ErrorBody,
   ): APIGatewayProxyResult {
@@ -153,7 +153,7 @@ export class ApiResponse {
   }
 
   static notFound(
-    message: Message,
+    message: any | Message,
     options: ResponseOptions,
     error?: ErrorBody,
   ): APIGatewayProxyResult {
@@ -193,7 +193,7 @@ export class ApiResponse {
   }
 
   static internalServerError(
-    message: Message,
+    message: any | Message,
     options: ResponseOptions,
     error?: ErrorBody,
   ): APIGatewayProxyResult {

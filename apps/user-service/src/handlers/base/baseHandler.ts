@@ -70,7 +70,15 @@ async function toErrorResponse(
       { requestId: ctx.correlationId, event: ctx.event },
       {
         code: 'INVITE_UPDATE_TOO_SOON',
-        details: [{ message: err.message, field: err.field }],
+        details: [
+          {
+            message: err.message,
+            field: err.field,
+            pendingHours: err.pendingHours,
+            pendingMinutes: err.pendingMinutes,
+            pendingTimeFormatted: err.pendingTimeFormatted,
+          },
+        ],
       },
     );
   }

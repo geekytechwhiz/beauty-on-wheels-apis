@@ -100,7 +100,7 @@ export async function handleError(
   }));
   console.log("CDN ERROR MESSAGE : ",cdnMessage);
   const message: Message = {
-    title: cdnMessage.title,
+    title: errorCode === 'INVITE_UPDATE_TOO_SOON' ? cdnMessage.description : cdnMessage.title,
     description: cdnMessage.description,
     severity: cdnMessage.severity,
   };
@@ -144,6 +144,14 @@ export async function handleError(
 
     case 409:
       return ApiResponse.conflict(
+        message,
+        optionsPayload,
+        errorPayload
+      );
+
+    case 429:
+      return ApiResponse.error(
+        429,
         message,
         optionsPayload,
         errorPayload

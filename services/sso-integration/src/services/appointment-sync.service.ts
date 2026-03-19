@@ -107,6 +107,47 @@ export class AppointmentSyncService extends BaseService {
     );
   }
 
+  private shouldInjectTestAppointment(): boolean {
+    return process.env.INJECT_TEST_APPOINTMENT === 'true';
+  }
+
+  private buildTestAppointment(): Appointment {
+    return {
+      appointmentId: 121,
+      startTime: '2026-03-17T15:15:00.000000Z',
+      endTime: '2026-03-17T15:30:00.000000Z',
+      status: 1 as any,
+      notes: null,
+      patient: {
+        id: 3129,
+        mrn: 'MR0002214',
+        name: 'John Doe',
+        gender: 'Male',
+        age: '23 years 3 months',
+        dob: null,
+        phone: '2389712345',
+        email: null,
+      },
+      doctor: {
+        id: 4,
+        name: 'ABDUL RASHID AHMED',
+        department: 'GENERAL DOCTORS',
+        phone: '123456789',
+        email: 'abdul@hms.com',
+      },
+      consultationType: {
+        id: 208,
+        name: 'Test Consultation',
+      },
+      visit: {
+        id: 1115,
+        visitType: 1 as any,
+        createdAt: '2026-03-17T15:15:00.000000Z',
+        status: 1,
+      },
+    };
+  }
+
   private buildLogContext(params: {
     context: SSORequestContext;
     externalAppointmentId?: string;
@@ -322,6 +363,16 @@ export class AppointmentSyncService extends BaseService {
       );
     } else {
       appointments = appointmentsInput;
+    }
+
+    // For local testing only: inject a deterministic appointment into the fetched list
+    if (this.shouldInjectTestAppointment()) {
+      appointments.push(this.buildTestAppointment());
+      logger.warn({
+        event: 'appointment_test_injected_into_sync',
+        tenantId: context.tenantId,
+        appointmentId: 121,
+      });
     }
 
      

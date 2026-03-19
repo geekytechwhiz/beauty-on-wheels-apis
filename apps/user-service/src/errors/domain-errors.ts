@@ -83,9 +83,10 @@ export class InviteUpdateTooSoonError extends DomainError {
   public readonly hoursSinceUpdate: number;
 
   constructor(field: 'email' | 'sms', lastUpdatedAt: string, hoursSinceUpdate: number) {
-    const fieldName = field.toUpperCase();
+    const pendingHours = Math.max(0, 24 - hoursSinceUpdate);
+    // `${field.toUpperCase()} invite was updated less than 24 hours ago. Last updated: ${lastUpdatedAt}. Hours since update: ${hoursSinceUpdate.toFixed(2)}`,
     super(
-      `${fieldName} invite was updated less than 24 hours ago. Last updated: ${lastUpdatedAt}. Hours since update: ${hoursSinceUpdate.toFixed(2)}`,
+      `Invite sent recently. You can resend it after ${pendingHours.toFixed(2)} pending hours.`,
       'INVITE_UPDATE_TOO_SOON',
       429,
     );

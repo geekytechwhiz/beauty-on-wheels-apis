@@ -1914,14 +1914,36 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       }
 
       // Ensure all standard unit keys are present in the response.
-      // Prefer (in order): user override -> org default-derived value -> hardcoded preferred default.
+      // Prefer (in order): user.unitsSettings -> legacy top-level user field -> org default-derived value -> hardcoded preferred default.
       const units: Record<string, string> = {};
-      for (const key of Object.keys(preferredUnits)) {
-        const existing = userUnits[key];
-        units[key] = typeof existing === 'string' && existing
-          ? existing
-          : preferredUnits[key];
+      const u = userBasicDetails as any;
+      const unitKeys = Object.keys(preferredUnits);
+      for (const key of unitKeys) {
+        const fromUserSettings = (() => {
+          const us = u?.unitsSettings;
+          if (!us) return undefined;
+          const direct =
+            typeof us?.[key] === 'string' && us[key] ? us[key] : undefined;
+          if (direct) return direct;
+          // Accept legacy aliases stored in unitsSettings
+          if (key === 'distanceUnit') {
+            return typeof us?.distance === 'string' && us.distance ? us.distance : undefined;
+          }
+          if (key === 'waterUnit') {
+            return typeof us?.water === 'string' && us.water ? us.water : undefined;
+          }
+          return undefined;
+        })();
+        const fromLegacyTopLevel =
+          typeof u?.[key] === 'string' && u[key] ? u[key] : undefined;
+        const fromOrgDerived =
+          typeof userUnits[key] === 'string' && userUnits[key] ? userUnits[key] : undefined;
+        units[key] = fromUserSettings ?? fromLegacyTopLevel ?? fromOrgDerived ?? preferredUnits[key];
       }
+
+      // Backwards-compatible aliases in response payload
+      units.distance = units.distanceUnit;
+      units.water = units.waterUnit;
 
       // Get email/phone verification status (matches original: getEmailPhoneVerifiedStatus)
       let emailVerified = false;

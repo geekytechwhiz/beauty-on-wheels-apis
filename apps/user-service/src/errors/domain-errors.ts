@@ -3,6 +3,23 @@
  * Use these in services/repositories; BaseHandler maps them to HTTP responses.
  */
 
+/** Format decimal hours into whole hours and minutes (for consistent "pending time" display) */
+export function formatPendingTime(pendingHoursDecimal: number): {
+  hours: number;
+  minutes: number;
+  formatted: string;
+} {
+  const hours = Math.floor(pendingHoursDecimal);
+  const minutes = Math.round((pendingHoursDecimal - hours) * 60);
+  const formatted =
+    hours > 0 && minutes > 0
+      ? `${hours} hour${hours !== 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}`
+      : hours > 0
+        ? `${hours} hour${hours !== 1 ? 's' : ''}`
+        : `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  return { hours, minutes, formatted };
+}
+
 /** Base for all domain errors; optional statusCode for HTTP mapping */
 export class DomainError extends Error {
   constructor(
@@ -81,12 +98,18 @@ export class InviteUpdateTooSoonError extends DomainError {
   public readonly field: 'email' | 'sms';
   public readonly lastUpdatedAt: string;
   public readonly hoursSinceUpdate: number;
+  /** Whole hours until resend is allowed (same format as display) */
+  public readonly pendingHours: number;
+  /** Whole minutes in addition to pendingHours */
+  public readonly pendingMinutes: number;
+  /** Human-readable e.g. "23 hours and 56 minutes" */
+  public readonly pendingTimeFormatted: string;
 
   constructor(field: 'email' | 'sms', lastUpdatedAt: string, hoursSinceUpdate: number) {
-    const pendingHours = Math.max(0, 24 - hoursSinceUpdate);
-    // `${field.toUpperCase()} invite was updated less than 24 hours ago. Last updated: ${lastUpdatedAt}. Hours since update: ${hoursSinceUpdate.toFixed(2)}`,
+    const pendingHoursDecimal = Math.max(0, 24 - hoursSinceUpdate);
+    const pending = formatPendingTime(pendingHoursDecimal);
     super(
-      `Invite sent recently. You can resend it after ${pendingHours.toFixed(2)} pending hours.`,
+      `Invite sent recently. You can resend it after ${pending.formatted}.`,
       'INVITE_UPDATE_TOO_SOON',
       429,
     );
@@ -94,6 +117,9 @@ export class InviteUpdateTooSoonError extends DomainError {
     this.field = field;
     this.lastUpdatedAt = lastUpdatedAt;
     this.hoursSinceUpdate = hoursSinceUpdate;
+    this.pendingHours = pending.hours;
+    this.pendingMinutes = pending.minutes;
+    this.pendingTimeFormatted = pending.formatted;
   }
 }
 

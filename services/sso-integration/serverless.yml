@@ -30,7 +30,7 @@ provider:
     # Cognito
     COGNITO_USER_POOL_ID: ${self:custom.stageUrls.${self:provider.stage}.COGNITO_USER_POOL_ID}
     COGNITO_CLIENT_ID: ${self:custom.stageUrls.${self:provider.stage}.COGNITO_CLIENT_ID}
-    COGNITO_SSO_COMMON_PASSWORD: Comm@n123
+    COGNITO_SSO_COMMON_PASSWORD: Comm@n12
     DOCTOR_ROLE_ID: ${self:custom.stageUrls.${self:provider.stage}.DOCTOR_ROLE_ID}
     PATIENT_ROLE_ID: ${self:custom.stageUrls.${self:provider.stage}.PATIENT_ROLE_ID}
     SUBDOMAIN: qahms

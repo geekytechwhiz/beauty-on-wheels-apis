@@ -3,25 +3,34 @@ import { NotificationTemplate, TemplateKey } from '../types/template.types';
 export const templates: Record<TemplateKey, NotificationTemplate> = {
   WELCOME_USER: {
     subject: 'Welcome to {{ORG_NAME}}, {{USER_FIRST_NAME}}!',
-    body: `Dear {{USER_FIRST_NAME}},<br><br>
-We welcome you to {{ORG_NAME}}, where your health and well-being are our top priorities.
-<br><br>
-<a href="{{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}" target="_blank" style="color: blue; font-weight:bold">
-Download here
-</a>
-<br><br>
-Warm regards,<br>{{ORG_INFO}}`,
+    body: `Dear {{USER_FIRST_NAME}},
+<br><br>We welcome you to {{ORG_NAME}}, where your health and well-being are our top priorities. To get started and access our services, please sign in by clicking the link below:
+<br><br><a href="{{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}" target="_blank" style="color: blue; font-weight:bold">Download here</a>
+<br><br>Our entire medical team is committed to providing you with personalized and compassionate care. If you have any questions or need assistance, please do not hesitate to contact us.
+<br><br>We look forward to being your trusted partner in health.
+<br><br>Warm regards,
+<br><br>{{ORG_INFO}}
+`,
     sms: 'Welcome to {{ORG_NAME}}! To get started, please sign in using this link:',
   },
 
   WELCOME_STAFF: {
     subject: "Welcome to {{ORG_NAME}}'s Portal, {{STAFF_FIRST_NAME}}",
-    body: `Dear {{STAFF_FIRST_NAME}},<br><br>
-We are pleased to welcome you to {{ORG_NAME}}'s web portal.
-<br><br>
-<a href="{{PORTAL_LINK}}" target="_blank">{{PORTAL_LINK}}</a>
-<br><br>
-{{ORG_INFO}}`,
+    body: `Dear {{STAFF_FIRST_NAME}},
+<br><br>We are pleased to welcome you to {{ORG_NAME}}'s web portal. To begin using the portal, please sign in by clicking the link below:
+<br><br><a href="{{PORTAL_LINK}}" style="color: blue; font-weight:bold" target="_blank">{{PORTAL_LINK}}</a>
+<br><br>As part of the sign-in process, you will receive a One-Time Password (OTP) in a separate email. Please use that OTP to sign in.
+<br><br><b>First-Time Sign in Instructions:</b>
+<ul>
+<li>Click the link above to access the portal.</li>
+<li>Enter your registered email address.</li>
+<li>Check your inbox for the OTP email.</li>
+<li>Enter the OTP when prompted to complete your sign in.</li>
+</ul>
+<br><br>The portal provides you with essential resources to streamline your work, save time and enhance efficiency. If you need any assistance or have any questions, please do not hesitate to contact us.
+<br><br>Best regards,
+<br><br>{{ORG_INFO}}
+`,
     sms: "Welcome to {{ORG_NAME}}'s Portal! Sign in here: {{PORTAL_LINK}}",
   },
 

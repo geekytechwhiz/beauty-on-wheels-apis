@@ -281,6 +281,14 @@ async function processPatientCreationEvent(
         err: serializeError(error as Error),
       });
     }
+  } else {
+    logger.warn({
+      event: 'patient_assign_doctor_skipped',
+      reason: 'doctor_id_missing_in_event',
+      patientId: patient.id,
+      userId: patientUserId,
+      organizationId: patientPayload.organizationID,
+    });
   }
 
   /**

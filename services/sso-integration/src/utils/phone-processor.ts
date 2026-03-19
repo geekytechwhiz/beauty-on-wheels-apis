@@ -7,7 +7,7 @@ export interface ProcessedPhoneNumber {
 
 export function processPhoneNumber(
   phone: string | undefined | null,
-  defaultPhoneCode = '+27'
+  defaultPhoneCode = '+91'
 ): ProcessedPhoneNumber {
   // Return defaults if phone is empty
   if (!phone || typeof phone !== 'string' || phone.trim().length === 0) {

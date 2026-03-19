@@ -366,14 +366,6 @@ export class AppointmentSyncService extends BaseService {
     }
 
     // For local testing only: inject a deterministic appointment into the fetched list
-    if (this.shouldInjectTestAppointment()) {
-      appointments.push(this.buildTestAppointment());
-      logger.warn({
-        event: 'appointment_test_injected_into_sync',
-        tenantId: context.tenantId,
-        appointmentId: 121,
-      });
-    }
 
      
 

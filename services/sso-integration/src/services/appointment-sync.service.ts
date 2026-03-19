@@ -578,6 +578,9 @@ export class AppointmentSyncService extends BaseService {
         resolvedDoctor?.organizationId ??
         doctor.organizationId ??
         loadTenantDetails(subdomain).organizationId;
+      const resolvedDoctorUserId = resolvedDoctor?.userId
+        ? String(resolvedDoctor.userId)
+        : undefined;
 
       if (!resolvedDoctor?.userId) {
         try {
@@ -622,7 +625,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
               patientUserId: String(resolvedPatient.id),
             }),
             message:
@@ -636,7 +639,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
             }),
             err: serializeError(err as Error),
           });
@@ -646,12 +649,28 @@ export class AppointmentSyncService extends BaseService {
       if (!resolvedPatient?.id && !isPendingAppointmentBypassEnabled()) {
         try {
           const provider = context.integration?.providerId ?? 'TruTech';
+
+          if (!resolvedDoctorUserId) {
+            this.logger.warn({
+              event: 'patient_creation_event_without_resolved_doctor',
+              ...this.buildLogContext({
+                context,
+                externalAppointmentId,
+                patientExternalId,
+                doctorExternalId,
+              }),
+              organizationId,
+              message:
+                'Publishing patient creation event without doctor userId; patient creation can continue, but doctor assignment will be skipped until doctor provisioning completes',
+            });
+          }
+
           const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
             appointment.patient,
-            resolvedDoctor?.userId ?? doctor.userId ?? '',
             organizationId,
             provider,
             context,
+            resolvedDoctorUserId,
           );
           await this.patientEventPublisher.publishPatientCreationEvent(
             patientEvent,
@@ -664,7 +683,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
             }),
             organizationId,
           });
@@ -676,7 +695,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
             }),
             err: serializeError(err as Error),
           });

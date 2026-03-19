@@ -235,11 +235,16 @@ export class PatientEventPublisher {
    */
   createPatientCreationEvent(
     patient: Patient,
-    doctorId: number|string,
     organizationID: string, 
       provider: string,
       context: SSORequestContext, 
+      doctorId?: number | string,
   ): PatientCreationEvent {
+    const hasDoctorId =
+      doctorId !== undefined &&
+      doctorId !== null &&
+      String(doctorId).trim() !== '';
+
     return {
       eventType: 'patient.creation.requested',
       eventId: `${provider}-${patient.id}-${Date.now()}`,
@@ -260,7 +265,7 @@ export class PatientEventPublisher {
           medicalHistory: null,
         },
         externalIdentity: buildExternalIdentity(String(patient.id)),
-        doctorId,
+        ...(hasDoctorId ? { doctorId } : {}),
         organizationID,
         provider,
         externalId: String(patient.id),

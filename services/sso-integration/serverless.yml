@@ -505,7 +505,8 @@ resources:
     SyncHmsAppointmentsScheduleMorning:
       Type: AWS::Scheduler::Schedule
       Properties:
-        ScheduleExpression: cron(0 9 * * ? *)
+      # ScheduleExpression: cron(0 9 * * ? *)
+        ScheduleExpression: cron(30 11 * * ? *)
         ScheduleExpressionTimezone: Africa/Lusaka
         FlexibleTimeWindow:
           Mode: OFF

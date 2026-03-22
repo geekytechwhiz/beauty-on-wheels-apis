@@ -1,19 +1,25 @@
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { CancellationReconciliationMessage } from '../../types/events/cancellation-reconciliation-message.types';
+import {
+  hasNonEmptyTrimmed,
+  isValidReconciliationDateField,
+} from '../../utils/cancellation-reconciliation-validation.util';
+
+const sqsClient = new SQSClient({});
 
 function assertValidPayload(message: CancellationReconciliationMessage): void {
-  const missingFields = [
-    !message.tenantId ? 'tenantId' : null,
-    !message.correlationId ? 'correlationId' : null,
-    !message.organizationId ? 'organizationId' : null,
-    !message.fromDate ? 'fromDate' : null,
-    !message.toDate ? 'toDate' : null,
-    !Array.isArray(message.appointments) ? 'appointments' : null,
-  ].filter(Boolean);
+  const missingFields: string[] = [];
+
+  if (!hasNonEmptyTrimmed(message.tenantId)) missingFields.push('tenantId');
+  if (!hasNonEmptyTrimmed(message.correlationId)) missingFields.push('correlationId');
+  if (!hasNonEmptyTrimmed(message.organizationId)) missingFields.push('organizationId');
+  if (!isValidReconciliationDateField(message.fromDate)) missingFields.push('fromDate');
+  if (!isValidReconciliationDateField(message.toDate)) missingFields.push('toDate');
+  if (!Array.isArray(message.appointments)) missingFields.push('appointments');
 
   if (missingFields.length > 0) {
     throw new Error(
-      `Cancellation reconciliation payload missing: ${missingFields.join(', ')}`,
+      `Cancellation reconciliation payload invalid or missing: ${missingFields.join(', ')}`,
     );
   }
 }
@@ -28,12 +34,10 @@ export async function publishCancellationReconciliation(
 
   assertValidPayload(message);
 
-  const sqs = new SQSClient({});
-  await sqs.send(
+  await sqsClient.send(
     new SendMessageCommand({
       QueueUrl: queueUrl,
       MessageBody: JSON.stringify(message),
     }),
   );
 }
-

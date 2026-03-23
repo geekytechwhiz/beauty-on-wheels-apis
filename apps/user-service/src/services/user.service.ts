@@ -212,6 +212,7 @@ export class UserService {
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
                 role: JSON.stringify(userRoleArray),
+                roleName: String(roleName || ''),
                 permissions: JSON.stringify(permissionIds),
               },
             },
@@ -469,6 +470,10 @@ export class UserService {
           mrn: (user as any).mrn,
           ORG_NAME: orgDetails?.name || (orgDetails as any)?.organizationInfo?.organizationName || (orgDetails as any)?.organizationInfo?.name || '',
           ORG_INFO: orgInfo,
+          // SMS placeholders used by template.registry.ts for welcome messages.
+          ACCOUNT_CREATED_INFO: 'Your account has been created successfully.',
+          ANDROID_APP_URL: process.env.ANDROID_APP_URL || '',
+          IOS_APP_URL: process.env.IOS_APP_URL || '',
         };
 
         // Extend templateData based on user type (STAFF / USER / FNF)

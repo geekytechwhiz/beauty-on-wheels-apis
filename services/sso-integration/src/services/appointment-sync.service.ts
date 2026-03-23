@@ -32,9 +32,13 @@ import { ScheduleCreationService } from './appointment-sync/schedule-creation.se
 import { PendingAppointmentService } from './appointment-sync/pending-appointment.service';
 import { publishScheduleCreation } from './appointment-sync/schedule-creation-queue.service';
 import { publishDoctorProvision } from './appointment-sync/doctor-provision-queue.service';
+import { publishCancellationReconciliation } from './appointment-sync/cancellation-reconciliation-queue.service';
+import { CancellationReconciliationMessage } from '../types/events/cancellation-reconciliation-message.types';
 
 const isPendingAppointmentBypassEnabled = (): boolean =>
   process.env.BYPASS_PENDING_APPOINTMENT === 'true';
+const isCancellationReconciliationEnabled = (): boolean =>
+  process.env.ENABLE_CANCELLED_APPOINTMENT_RECONCILIATION === 'true';
 
 export class AppointmentSyncService extends BaseService {
   private readonly scheduleClient = getScheduleServiceClient();
@@ -365,17 +369,38 @@ export class AppointmentSyncService extends BaseService {
       appointments = appointmentsInput;
     }
 
-    // For local testing only: inject a deterministic appointment into the fetched list
-    if (this.shouldInjectTestAppointment()) {
-      appointments.push(this.buildTestAppointment());
-      logger.warn({
-        event: 'appointment_test_injected_into_sync',
+    if (isCancellationReconciliationEnabled()) {
+      try {
+        logger.info({
+          event: 'reconciliation_enqueue_start',
+          tenantId: context.tenantId,
+          correlationId: context.correlationId,
+          appointmentCount: appointments.length,
+          fromDate,
+          toDate,
+        });
+        await this.enqueueCancellationReconciliation(
+          appointments,
+          context,
+          fromDate,
+          toDate,
+        );
+      } catch (error) {
+        logger.error({
+          event: 'reconciliation_enqueue_failed',
+          tenantId: context.tenantId,
+          correlationId: context.correlationId,
+          err: serializeError(error as Error),
+        });
+      }
+    } else {
+      logger.debug({
+        event: 'reconciliation_enqueue_skipped',
+        reason: 'feature_flag_disabled',
         tenantId: context.tenantId,
-        appointmentId: 121,
+        correlationId: context.correlationId,
       });
     }
-
-     
 
     const results = await this.syncDoctorAppointments(appointments, context);
 
@@ -385,6 +410,331 @@ export class AppointmentSyncService extends BaseService {
     });
 
     return results;
+  }
+
+  private async enqueueCancellationReconciliation(
+    appointments: Appointment[],
+    context: SSORequestContext,
+    fromDate: string,
+    toDate: string,
+  ): Promise<void> {
+    const subdomain = context.integration?.subdomain ?? '';
+    const organizationId = loadTenantDetails(subdomain).organizationId;
+    const message: CancellationReconciliationMessage = {
+      tenantId: context.tenantId,
+      correlationId: context.correlationId,
+      organizationId,
+      fromDate,
+      toDate,
+      appointments: appointments.map((appointment) => ({
+        doctorExternalId: String(appointment.doctor.id),
+        patientExternalId: String(appointment.patient.id),
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+      })),
+    };
+
+    await publishCancellationReconciliation(message);
+    this.logger.info({
+      event: 'reconciliation_enqueue_success',
+      tenantId: context.tenantId,
+      correlationId: context.correlationId,
+      organizationId,
+      appointmentCount: message.appointments.length,
+    });
+  }
+
+  async reconcileMissingAppointmentsAsCancelledFromQueue(
+    message: CancellationReconciliationMessage,
+    context: SSORequestContext,
+  ): Promise<{ cancelled: number; failed: number; skipped: number }> {
+    const fromDateMs = this.parseDateToEpoch(message.fromDate);
+    const toDateMs = this.parseDateToEpoch(message.toDate);
+    if (!Number.isFinite(fromDateMs) || !Number.isFinite(toDateMs)) {
+      throw new Error('Invalid reconciliation window dates');
+    }
+
+    const doctorExternalIds = [
+      ...new Set(message.appointments.map((a) => a.doctorExternalId)),
+    ];
+
+    this.logger.info({
+      event: 'reconciliation_worker_start',
+      tenantId: message.tenantId,
+      correlationId: message.correlationId,
+      organizationId: message.organizationId,
+      fromDate: message.fromDate,
+      toDate: message.toDate,
+      inputAppointments: message.appointments.length,
+      doctorCount: doctorExternalIds.length,
+    });
+
+    const internalDoctorToKeys = new Map<string, Set<string>>();
+    const patientExternalToInternal = new Map<string, string>();
+    for (const doctorExternalId of doctorExternalIds) {
+      const doctorUser = await this.ssoUserServiceClient.findUserByExternalId(
+        { externalId: doctorExternalId },
+        context,
+      );
+      if (!doctorUser?.id) {
+        continue;
+      }
+      const internalDoctorId = String(doctorUser.id);
+      const keys = new Set(
+        message.appointments
+          .filter((a) => a.doctorExternalId === doctorExternalId)
+          .map(async (a) => {
+            let internalPatientId = patientExternalToInternal.get(a.patientExternalId);
+            if (!internalPatientId) {
+              const patientUser = await this.ssoUserServiceClient.findUserByExternalId(
+                { externalId: a.patientExternalId },
+                context,
+              );
+              if (!patientUser?.id) {
+                return null;
+              }
+              internalPatientId = String(patientUser.id);
+              patientExternalToInternal.set(a.patientExternalId, internalPatientId);
+            }
+
+            return this.buildMatchKey(
+              internalDoctorId,
+              internalPatientId,
+              this.parseDateToEpoch(a.startTime),
+              this.parseDateToEpoch(a.endTime),
+            );
+          }),
+      );
+      const resolvedKeys = await Promise.all(Array.from(keys));
+      internalDoctorToKeys.set(
+        internalDoctorId,
+        new Set(resolvedKeys.filter((k): k is string => !!k)),
+      );
+    }
+
+    const fetchedSchedules = await this.scheduleClient.fetchSchedules(
+      {
+        fromDate: fromDateMs,
+        toDate: toDateMs,
+        organizationID: message.organizationId,
+      },
+      context,
+    );
+
+    this.logger.info({
+      event: 'reconciliation_schedules_fetched',
+      tenantId: message.tenantId,
+      correlationId: message.correlationId,
+      organizationId: message.organizationId,
+      fetchedScheduleCount: fetchedSchedules.length,
+      doctorMatchSetCount: internalDoctorToKeys.size,
+    });
+
+    let cancelled = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    for (const schedule of fetchedSchedules) {
+      const status = (
+        schedule.scheduledStatus ||
+        schedule.serviceStatus ||
+        ''
+      ).toLowerCase();
+      if (status !== 'confirmed') {
+        skipped++;
+        continue;
+      }
+
+      const doctorId = schedule.assignedStaffId || schedule.owner?.userId;
+      const patientUserId = schedule.patientUserId || this.resolvePatientUserIdFromSchedule(schedule);
+      const addonId = schedule.userAddonId;
+      const organizationId = schedule.organizationId || schedule.organizationID;
+      if (!doctorId || !patientUserId || !addonId || !organizationId) {
+        skipped++;
+        this.logger.warn({
+          event: 'reconciliation_skip_missing_fields',
+          doctorId,
+          patientUserId,
+          addonId,
+          organizationId,
+          scheduleId: schedule.scheduleId,
+        });
+        continue;
+      }
+
+      const startEpoch = this.parseScheduleEpoch(
+        schedule.scheduleTimeStamp,
+        schedule.scheduleDate,
+        schedule.startTime,
+      );
+      const endEpoch = this.parseScheduleEpoch(
+        undefined,
+        schedule.scheduleDate,
+        schedule.endTime,
+      );
+      const scheduleKey = this.buildMatchKey(
+        doctorId,
+        patientUserId,
+        startEpoch,
+        endEpoch,
+      );
+
+      const doctorKeys = internalDoctorToKeys.get(doctorId);
+      if (!doctorKeys) {
+        skipped++;
+        continue;
+      }
+
+      if (doctorKeys.has(scheduleKey)) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        this.logger.info({
+          event: 'reconciliation_cancel_candidate',
+          tenantId: message.tenantId,
+          correlationId: message.correlationId,
+          scheduleId: schedule.scheduleId,
+          doctorId,
+          patientUserId,
+          addonId,
+          organizationId,
+        });
+        await this.cancelConfirmedScheduleWithRetry(
+          addonId,
+          patientUserId,
+          organizationId,
+          context,
+        );
+        cancelled++;
+        this.logger.info({
+          event: 'reconciliation_cancel_success',
+          tenantId: message.tenantId,
+          correlationId: message.correlationId,
+          scheduleId: schedule.scheduleId,
+          addonId,
+          patientUserId,
+          organizationId,
+        });
+      } catch (error) {
+        failed++;
+        this.logger.error({
+          event: 'reconciliation_cancel_failed',
+          addonId,
+          patientUserId,
+          organizationId,
+          scheduleId: schedule.scheduleId,
+          err: serializeError(error as Error),
+        });
+      }
+    }
+
+    this.logger.info({
+      event: 'reconciliation_worker_complete',
+      tenantId: message.tenantId,
+      correlationId: message.correlationId,
+      organizationId: message.organizationId,
+      cancelled,
+      failed,
+      skipped,
+      fetchedScheduleCount: fetchedSchedules.length,
+    });
+
+    return { cancelled, failed, skipped };
+  }
+
+  private async cancelConfirmedScheduleWithRetry(
+    addonId: string,
+    userId: string,
+    organizationId: string,
+    context: SSORequestContext,
+  ): Promise<void> {
+    let delayMs = this.initialDelayMs;
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        await this.scheduleClient.updateServiceStatus(
+          {
+            addonId,
+            type: 'addon',
+            userId,
+            organizationId,
+            scheduleStatus: 'cancelled',
+          },
+          context,
+        );
+        return;
+      } catch (error) {
+        if (attempt >= this.maxRetries) {
+          throw error;
+        }
+        await this.sleep(delayMs);
+        delayMs = Math.min(delayMs * 2, this.maxDelayMs);
+      }
+    }
+  }
+
+  private resolvePatientUserIdFromSchedule(schedule: {
+    participantInfo?: Array<{ userId: string; userType: string }>;
+  }): string | undefined {
+    return schedule.participantInfo?.find((p) => p.userType === 'USER')?.userId;
+  }
+
+  private buildMatchKey(
+    doctorId: string,
+    patientId: string,
+    startEpoch: number,
+    endEpoch: number,
+  ): string {
+    const normalizedEnd = Number.isFinite(endEpoch) ? endEpoch : startEpoch;
+    return `doctor::${doctorId}|patient::${patientId}|start::${startEpoch}|end::${normalizedEnd}`;
+  }
+
+  private parseDateToEpoch(input: string): number {
+    const asNumber = Number(input);
+    if (Number.isFinite(asNumber) && asNumber > 0) {
+      return asNumber;
+    }
+    return new Date(input).getTime();
+  }
+
+  private parseScheduleEpoch(
+    scheduleTimeStamp?: string,
+    scheduleDate?: string,
+    timeText?: string,
+  ): number {
+    if (scheduleTimeStamp) {
+      const parsed = Number(scheduleTimeStamp);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+    if (!scheduleDate || !timeText) {
+      return Number.NaN;
+    }
+
+    // scheduleDate format expected: DD-MM-YYYY
+    const [day, month, year] = scheduleDate.split('-').map(Number);
+    if (!day || !month || !year) {
+      return Number.NaN;
+    }
+
+    const timeMatch = timeText.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!timeMatch) {
+      return Number.NaN;
+    }
+
+    let hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2]);
+    const meridian = timeMatch[3].toUpperCase();
+    if (meridian === 'PM' && hour < 12) hour += 12;
+    if (meridian === 'AM' && hour === 12) hour = 0;
+
+    return new Date(year, month - 1, day, hour, minute, 0, 0).getTime();
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -629,6 +979,9 @@ export class AppointmentSyncService extends BaseService {
         resolvedDoctor?.organizationId ??
         doctor.organizationId ??
         loadTenantDetails(subdomain).organizationId;
+      const resolvedDoctorUserId = resolvedDoctor?.userId
+        ? String(resolvedDoctor.userId)
+        : undefined;
 
       if (!resolvedDoctor?.userId) {
         try {
@@ -673,7 +1026,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
               patientUserId: String(resolvedPatient.id),
             }),
             message:
@@ -687,7 +1040,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
             }),
             err: serializeError(err as Error),
           });
@@ -697,12 +1050,28 @@ export class AppointmentSyncService extends BaseService {
       if (!resolvedPatient?.id && !isPendingAppointmentBypassEnabled()) {
         try {
           const provider = context.integration?.providerId ?? 'TruTech';
+
+          if (!resolvedDoctorUserId) {
+            this.logger.warn({
+              event: 'patient_creation_event_without_resolved_doctor',
+              ...this.buildLogContext({
+                context,
+                externalAppointmentId,
+                patientExternalId,
+                doctorExternalId,
+              }),
+              organizationId,
+              message:
+                'Publishing patient creation event without doctor userId; patient creation can continue, but doctor assignment will be skipped until doctor provisioning completes',
+            });
+          }
+
           const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
             appointment.patient,
-            resolvedDoctor?.userId ?? doctor.userId ?? '',
             organizationId,
             provider,
             context,
+            resolvedDoctorUserId,
           );
           await this.patientEventPublisher.publishPatientCreationEvent(
             patientEvent,
@@ -715,7 +1084,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
             }),
             organizationId,
           });
@@ -727,7 +1096,7 @@ export class AppointmentSyncService extends BaseService {
               externalAppointmentId,
               patientExternalId,
               doctorExternalId,
-              doctorUserId: resolvedDoctor?.userId ?? doctor.userId,
+              doctorUserId: resolvedDoctorUserId,
             }),
             err: serializeError(err as Error),
           });

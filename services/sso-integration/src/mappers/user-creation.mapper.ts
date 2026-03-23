@@ -29,7 +29,7 @@ export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): 
     contact: {
       email: patient.email ?? undefined,
       phone: patient.phone ?? undefined,
-      phoneCode: patient.phoneCode ?? '+27',
+      phoneCode: patient.phoneCode ?? '+91',
     },
     gender: patient.gender ?? undefined,
     dateOfBirth: patient.dob ?? undefined,

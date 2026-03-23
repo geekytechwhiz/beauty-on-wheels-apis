@@ -11,7 +11,7 @@ export const templates: Record<TemplateKey, NotificationTemplate> = {
 <br><br>Warm regards,
 <br><br>{{ORG_INFO}}
 `,
-    sms: 'Welcome to {{ORG_NAME}}! To get started, please sign in using this link:',
+    sms: 'Welcome to {{ORG_NAME}}! {{ACCOUNT_CREATED_INFO}} Sign in using: {{WEB_DNS_URL}}?referrer={{HOSPITAL_ID}}&referrer_name={{ORG_NAME}}&referrer_address={{ORG_ADDRESS}}&source={{TYPE}}{{DEVICE}}. Download MyVitalRx app: Android {{ANDROID_APP_URL}} | iOS {{IOS_APP_URL}}',
   },
 
   WELCOME_STAFF: {
@@ -31,7 +31,7 @@ export const templates: Record<TemplateKey, NotificationTemplate> = {
 <br><br>Best regards,
 <br><br>{{ORG_INFO}}
 `,
-    sms: "Welcome to {{ORG_NAME}}'s Portal! Sign in here: {{PORTAL_LINK}}",
+    sms: "Welcome to {{ORG_NAME}}'s Portal! {{ACCOUNT_CREATED_INFO}} Sign in here: {{PORTAL_LINK}}. Download MyVitalRx app: Android {{ANDROID_APP_URL}} | iOS {{IOS_APP_URL}}",
   },
 
   INVITE_USER: {

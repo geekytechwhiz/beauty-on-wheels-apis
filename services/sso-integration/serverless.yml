@@ -77,6 +77,9 @@ provider:
       Ref: ScheduleCreationQueue
     PENDING_REPROCESS_QUEUE_URL:
       Ref: PendingAppointmentReprocessQueue
+    CANCELLATION_RECONCILIATION_QUEUE_URL:
+      Ref: CancellationReconciliationQueue
+    ENABLE_CANCELLED_APPOINTMENT_RECONCILIATION: ${env:ENABLE_CANCELLED_APPOINTMENT_RECONCILIATION, 'true'}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
 
     SYNC_LOOKAHEAD_DAYS: ${env:SYNC_LOOKAHEAD_DAYS, '1'} 
@@ -141,6 +144,12 @@ provider:
             - Arn
         - Fn::GetAtt:
             - PendingAppointmentReprocessDLQ
+            - Arn
+        - Fn::GetAtt:
+            - CancellationReconciliationQueue
+            - Arn
+        - Fn::GetAtt:
+            - CancellationReconciliationDLQ
             - Arn
 
     - Effect: Allow
@@ -375,6 +384,21 @@ functions:
           batchSize: 1
           functionResponseType: ReportBatchItemFailures
 
+  cancellationReconciliationWorker:
+    handler: src/handlers/events/cancellation-reconciliation-worker.handler
+    description: Reconcile missing TruTech appointments and cancel confirmed schedules
+    timeout: 120
+    memorySize: 512
+    reservedConcurrency: 20
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - CancellationReconciliationQueue
+              - Arn
+          batchSize: 1
+          functionResponseType: ReportBatchItemFailures
+
 resources:
 
   Resources:
@@ -479,6 +503,26 @@ resources:
               - Arn
           maxReceiveCount: 3
 
+    CancellationReconciliationDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-cancellation-reconciliation-dlq
+        MessageRetentionPeriod: 1209600
+
+    CancellationReconciliationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-sso-integration-cancellation-reconciliation-queue
+        VisibilityTimeout: 300
+        MessageRetentionPeriod: 1209600
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - CancellationReconciliationDLQ
+              - Arn
+          maxReceiveCount: 3
+
     SyncHmsAppointmentsScheduleRole:
       Type: AWS::IAM::Role
       Properties:
@@ -505,7 +549,8 @@ resources:
     SyncHmsAppointmentsScheduleMorning:
       Type: AWS::Scheduler::Schedule
       Properties:
-        ScheduleExpression: cron(0 9 * * ? *)
+      # ScheduleExpression: cron(0 9 * * ? *)
+        ScheduleExpression: cron(30 11 * * ? *)
         ScheduleExpressionTimezone: Africa/Lusaka
         FlexibleTimeWindow:
           Mode: OFF
@@ -599,6 +644,22 @@ resources:
         Dimensions:
           - Name: QueueName
             Value: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    AlarmCancellationReconciliationDLQ:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:provider.stage}-sso-integration-cancellation-reconciliation-dlq
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: ${self:provider.stage}-sso-integration-cancellation-reconciliation-dlq
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1

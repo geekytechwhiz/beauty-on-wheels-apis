@@ -33,31 +33,31 @@ const ssoConfigSchema = z.object({
   
   // Default patient values
   patient: z.object({
-    phoneCode: z.string().default('+27'), // South Africa default
+    phoneCode: z.string().default('+91'), // South Africa default
     emergencyContact: z.object({
       name: z.string().default(''),
       relation: z.string().default(''),
       phone: z.string().default(''),
-      phoneCode: z.string().default('+27'),
+      phoneCode: z.string().default('+91'),
       email: z.string().default(''),
     }).default({
       name: '',
       relation: '',
       phone: '',
-      phoneCode: '+27',
+      phoneCode: '+91',
       email: '',
     }),
     friendNFamily: z.object({
       name: z.string().default(''),
       relation: z.string().default(''),
       phone: z.string().default(''),
-      phoneCode: z.string().default('+27'),
+      phoneCode: z.string().default('+91'),
       email: z.string().default(''),
     }).default({
       name: '',
       relation: '',
       phone: '',
-      phoneCode: '+27',
+      phoneCode: '+91',
       email: '',
     }),
     medicalHistory: z.object({
@@ -107,19 +107,19 @@ export function loadSSOConfig(): SSOConfig {
       },
     },
     patient: {
-      phoneCode: '+27', // South Africa
+      phoneCode: '+91', // South Africa
       emergencyContact: {
         name: '',
         relation: '',
         phone: '',
-        phoneCode: '+27',
+        phoneCode: '+91',
         email: '',
       },
       friendNFamily: {
         name: '',
         relation: '',
         phone: '',
-        phoneCode: '+27',
+        phoneCode: '+91',
         email: '',
       },
       medicalHistory: {

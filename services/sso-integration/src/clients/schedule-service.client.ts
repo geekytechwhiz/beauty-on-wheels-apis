@@ -107,19 +107,28 @@ export class ScheduleServiceClient {
 
       if (response.data.data?.items) {
         for (const item of response.data.data.items) {
+          const itemMeta = {
+            userAddonId: item.userAddonId as string | undefined,
+            orgAddonId: item.orgAddonId as string | undefined,
+            scheduledStatus: item.scheduledStatus as string | undefined,
+            serviceStatus: item.serviceStatus as string | undefined,
+            organizationId: item.organizationId as string | undefined,
+            assignedStaffId: item.assignedStaffId as string | undefined,
+          };
           // Check if item has scheduled array
           if (item.scheduled && Array.isArray(item.scheduled)) {
             for (const scheduledItem of item.scheduled) {
               schedules.push(
                 this.mapScheduledItemToSchedule(
-                  scheduledItem as unknown as any,
+                  scheduledItem,
+                  itemMeta,
                 ),
               );
             }
           }
           // Check if item has schedule object
           else if (item.schedule) {
-            schedules.push(this.mapScheduleDetailsToSchedule(item.schedule));
+            schedules.push(this.mapScheduleDetailsToSchedule(item.schedule, itemMeta));
           }
         }
       }
@@ -661,7 +670,6 @@ export class ScheduleServiceClient {
       userId: string;
       userType: string;
       organizationID?: string;
-      [key: string]: unknown;
     }>;
     owner?: {
       userId: string;
@@ -669,12 +677,25 @@ export class ScheduleServiceClient {
       [key: string]: unknown;
     };
     [key: string]: unknown;
+  },
+  itemMeta?: {
+    userAddonId?: string;
+    orgAddonId?: string;
+    scheduledStatus?: string;
+    serviceStatus?: string;
+    organizationId?: string;
+    assignedStaffId?: string;
   }): Schedule {
+    const patientUserId = (scheduledItem.participantInfo || []).find(
+      (p) => p.userType === 'USER',
+    )?.userId;
+
     return {
       scheduleId: scheduledItem.scheduleId,
       startTime: scheduledItem.startTime,
       endTime: scheduledItem.endTime,
       scheduleDate: scheduledItem.scheduleDate,
+      scheduleTimeStamp: scheduledItem.scheduleTimeStamp,
       appointmentType:
         (scheduledItem as { consultationType?: string }).consultationType ||
         'ONLINE',
@@ -694,6 +715,13 @@ export class ScheduleServiceClient {
       })),
       organizationID:
         (scheduledItem.participantInfo?.[0]?.organizationID as string) || '',
+      organizationId: itemMeta?.organizationId,
+      userAddonId: itemMeta?.userAddonId,
+      orgAddonId: itemMeta?.orgAddonId,
+      scheduledStatus: itemMeta?.scheduledStatus,
+      serviceStatus: itemMeta?.serviceStatus,
+      assignedStaffId: itemMeta?.assignedStaffId,
+      patientUserId,
       meta: {
         externalAppointmentId: scheduledItem.scheduleId,
       },
@@ -705,12 +733,25 @@ export class ScheduleServiceClient {
    */
   private mapScheduleDetailsToSchedule(
     scheduleDetails: ScheduleDetails,
+  itemMeta?: {
+    userAddonId?: string;
+    orgAddonId?: string;
+    scheduledStatus?: string;
+    serviceStatus?: string;
+    organizationId?: string;
+    assignedStaffId?: string;
+  },
   ): Schedule {
+    const patientUserId =
+      (scheduleDetails.meta?.userId as string | undefined) ||
+      scheduleDetails.participantInfo.find((p) => p.userType === 'USER')?.userId;
+
     return {
       scheduleId: scheduleDetails.id || scheduleDetails.scheduleId || '',
       startTime: scheduleDetails.startTime,
       endTime: scheduleDetails.endTime,
       scheduleDate: scheduleDetails.scheduleDate,
+      scheduleTimeStamp: scheduleDetails.scheduleTimeStamp,
       appointmentType: scheduleDetails.appointmentType || 'ONLINE',
       owner: {
         userId: scheduleDetails.owner.userId,
@@ -722,6 +763,15 @@ export class ScheduleServiceClient {
         organizationID: p.organizationID,
       })),
       organizationID: scheduleDetails.organizationID,
+      organizationId: itemMeta?.organizationId ?? scheduleDetails.organizationID,
+      userAddonId:
+        itemMeta?.userAddonId ??
+        (scheduleDetails.meta?.userAddonId as string | undefined),
+      orgAddonId: itemMeta?.orgAddonId,
+      scheduledStatus: itemMeta?.scheduledStatus,
+      serviceStatus: itemMeta?.serviceStatus,
+      assignedStaffId: itemMeta?.assignedStaffId,
+      patientUserId,
       meta: {
         externalAppointmentId:
           scheduleDetails.id || scheduleDetails.scheduleId || '',

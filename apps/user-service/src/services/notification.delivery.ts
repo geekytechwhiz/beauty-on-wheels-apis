@@ -142,7 +142,8 @@ export async function sendSms(options: { phone?: string; template?: string; temp
   try {
     const phone = resolvePhoneNumber({ phone: options.phone });
     const formattedPhone = normalizeIndianPhone(phone);
-
+    console.log("FINAL TEMPLATE DATA : ",options.templateData);
+    console.log("FINAL TEMPLATE : ",options.template);
     let message = '';
     try {
       if (options.template) {

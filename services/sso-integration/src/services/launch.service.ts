@@ -214,10 +214,10 @@ export class LaunchService extends BaseService {
     const events = Array.from(uniquePatients.values()).map((patient) =>
       this.patientEventPublisher.createPatientCreationEvent(
         patient,
-        doctor?.id?.toString() ?? '', // Use internal doctor ID, not external TruTech ID
         this.config.defaultOrganizationID,
         'TruTech', 
         ctx,
+        doctor?.id?.toString() ?? '', // Use internal doctor ID, not external TruTech ID
       ),
     );
 

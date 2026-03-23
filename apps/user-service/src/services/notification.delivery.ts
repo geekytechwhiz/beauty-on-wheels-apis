@@ -165,7 +165,7 @@ export async function sendSms(options: { phone?: string; template?: string; temp
       phoneNumber: formattedPhone,
       message,
     };
-
+    console.log("PAYLOAD : ",payload);
     try {
       await axios({ 
         method: 'POST', 

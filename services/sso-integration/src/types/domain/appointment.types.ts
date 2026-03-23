@@ -192,7 +192,7 @@ export interface FetchSchedulesRequest {
   fromDate: number; // timestamp
   toDate: number; // timestamp
   organizationID: string;
-  doctorId: string;
+  doctorId?: string;
   userId?: string;
 }
 
@@ -209,6 +209,14 @@ export interface Schedule {
   participantInfo: ScheduleParticipantInfo[];
   organizationID: string;
   meta?: ScheduleMeta;
+  userAddonId?: string;
+  orgAddonId?: string;
+  scheduledStatus?: string;
+  serviceStatus?: string;
+  organizationId?: string;
+  assignedStaffId?: string;
+  scheduleTimeStamp?: string;
+  patientUserId?: string;
 }
 
 // Service-based schedule creation types

@@ -24,7 +24,10 @@ export class UserRepository {
     }
     const url = buildUserServiceUrl(baseUrl, organizationId, userId);
     try {
+      console.log('url', url);
+      console.log('headers', buildHeaders(authHeader));
       const response = await fetch(url, { headers: buildHeaders(authHeader) });
+      console.log('response', response);
       if (!response.ok) {
         logger.warn({ event: 'user_service_api_non_ok', status: response.status });
         return null;

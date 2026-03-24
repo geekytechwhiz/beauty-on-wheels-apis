@@ -48,6 +48,7 @@ const handler = async (req: LambdaRequest<Params>) => {
 
   if (!isRootOrg) {
     transformed.accountAlias = organization.organizationId;
+    console.log('authHeader', authHeader);
     const adminDetails = Array.isArray(organization.adminDetails) ? organization.adminDetails : [];
     let enrichedAdminDetails: unknown = null;
     if (adminDetails.length > 0) {

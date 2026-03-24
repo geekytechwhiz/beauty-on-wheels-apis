@@ -26,6 +26,8 @@ export class UserRepository {
     try {
       console.log('url', url);
       console.log('headers', buildHeaders(authHeader));
+
+      console.log('authHeader', authHeader);
       const response = await fetch(url, { headers: buildHeaders(authHeader) });
       console.log('response', response);
       if (!response.ok) {

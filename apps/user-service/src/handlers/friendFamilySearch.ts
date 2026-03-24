@@ -38,13 +38,13 @@ const handler = async (req: LambdaRequest<any>) => {
   }
 
   const result = await friendFamilyService.searchFnf(organizationID, userID, body, authHeader);
-
   if (result.success && result.invitedUser && result.data) {
     return result.data;
   }
 
   await friendFamilyService.checkFriendFamilyLimit(userID);
   const userData = buildCreateUserPayloadFromFnfSearch(body, organizationID, userID) as any;
+  console.log("USERDATA >>>",userData)
   const roleIds = Array.isArray(userData.userRole) ? userData.userRole.map((r: string) => String(r)) : [];
   if (roleIds.length > 0) {
     const rolePermissions = await userRepository
@@ -60,8 +60,9 @@ const handler = async (req: LambdaRequest<any>) => {
   const correlationId = req.context.correlationId;
   const newUser = await userService.createUser(
     userData,
-    userID,
+    userData.roleName,
     organizationID,
+    userID,
     correlationId,
     authHeader,
     undefined,

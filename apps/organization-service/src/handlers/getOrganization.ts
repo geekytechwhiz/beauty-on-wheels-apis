@@ -37,6 +37,7 @@ interface Params {
 
 const handler = async (req: LambdaRequest<Params>) => {
   const { organizationId } = req.params;
+  console.log('req', req);
   const authHeader = req.context.authHeader ?? req.event.headers?.Authorization ?? req.event.headers?.authorization ?? req.event.headers?.AUTHORIZATION;
   const { correlationId } = req.context;
   const event = req.event;

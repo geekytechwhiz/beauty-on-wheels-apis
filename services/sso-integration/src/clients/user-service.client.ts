@@ -12,6 +12,8 @@ import {
 import { CreatedUserInfo, User } from '../types/user/user.types';
 import { baseLogger, getOrganizationId } from '../utils/helper';
 import { buildHeaders } from '../utils/request.utils';
+import { CognitoService } from '../services/cognito.service';
+import { UserExistenceValidator } from '../validators/user-existence.validator';
 
 export class SSOUserServiceClient extends BaseClient {
   private readonly logger = createChildLogger(baseLogger, {
@@ -176,22 +178,26 @@ export class SSOUserServiceClient extends BaseClient {
           ...logBase,
           retryAttempt: 0,
         });
-
-        const existingUser = await this.findUserByExternalId(
-          { externalId: externalUserId },
+        const userExistenceValidator = new UserExistenceValidator(
+          this,
+          new CognitoService(),
+          this.logger,
+        );
+        const existenceResult = await userExistenceValidator.checkUserExists(
+          { externalId: externalUserId, email: payload.email ?? null, phone: payload.userInfo?.contact?.phone ?? null },
           context,
         );
 
-        if (existingUser) {
+        if (existenceResult.userServiceUser) {
           console.info('createDoctor_conflict_resolved_existing', {
             ...logBase,
-            doctorUserId: existingUser.id,
+            doctorUserId: existenceResult.userServiceUser.id,
           });
           const organizationId = getOrganizationId(subdomain);
           return {
-            userId: String(existingUser.id),
+              userId: String(existenceResult.userServiceUser.id),
             email:
-              existingUser.email ??
+              existenceResult.userServiceUser.email ??
               payload.email ??
               payload.userInfo?.contact?.email ??
               null,

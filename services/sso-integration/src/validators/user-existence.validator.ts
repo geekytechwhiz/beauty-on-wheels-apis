@@ -34,29 +34,38 @@ export class UserExistenceValidator {
       phone: input.phone ?? undefined,
     });
 
-    const userServiceUser = await this.userServiceClient.findUserByExternalId(
-      { externalId: input.externalId },
-      context,
-    );
+    const hasEmail =
+      typeof input.email === 'string' && input.email.trim() !== '';
+    const hasPhone =
+      typeof input.phone === 'string' && input.phone.trim() !== '';
 
-    if (userServiceUser) {
+    const [userServiceUser, cognitoUser] = await Promise.all([
+      this.userServiceClient.findUserByExternalId(
+        { externalId: input.externalId },
+        context,
+      ),
+      hasEmail || hasPhone
+        ? this.cognitoService.findCognitoUserByEmailOrPhone({
+            email: input.email,
+            phone: input.phone,
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (userServiceUser && cognitoUser) {
+      logger.info({
+        event: 'user_existence_found_in_user_service_and_cognito',
+        userId: userServiceUser.id,
+        cognitoUserId: cognitoUser.userId,
+        organizationId:
+          userServiceUser.organizationId ?? cognitoUser.organizationId,
+      });
+    } else if (userServiceUser) {
       logger.info({
         event: 'user_existence_found_in_user_service',
         userId: userServiceUser.id,
       });
-
-      return {
-        userServiceUser,
-        cognitoUser: null,
-      };
-    }
-
-    const cognitoUser = await this.cognitoService.findCognitoUserByEmailOrPhone({
-      email: input.email,
-      phone: input.phone,
-    });
-
-    if (cognitoUser) {
+    } else if (cognitoUser) {
       logger.info({
         event: 'user_existence_found_in_cognito',
         userId: cognitoUser.userId,
@@ -69,7 +78,7 @@ export class UserExistenceValidator {
     }
 
     return {
-      userServiceUser: null,
+      userServiceUser,
       cognitoUser,
     };
   }

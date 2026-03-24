@@ -18,6 +18,8 @@ import {
 
 import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util';
 import { PatientCreationEvent } from '../../types/events';
+import { UserExistenceValidator } from '../../validators/user-existence.validator';
+import { CognitoService } from '../../services/cognito.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -87,7 +89,11 @@ async function processPatientCreationEvent(
   const config = getSSOConfig();
 
   let event: PatientCreationEvent;
-
+  const userExistenceValidator = new UserExistenceValidator(
+    userServiceClient,
+    new CognitoService(),
+    logger,
+  );
   /**
    * Parse SQS body
    */
@@ -136,21 +142,36 @@ async function processPatientCreationEvent(
   /**
    * Check if patient already exists
    */
-  const existingPatient = await userServiceClient.findUserByExternalId(
-    { externalId },
+ 
+  const existenceResult = await userExistenceValidator.checkUserExists(
+    {
+      externalId: externalId,
+      email: patient.email ?? null,
+      phone: patient.phone ?? null,
+    },
     requestContext,
   );
 
-  if (existingPatient) {
+  if (existenceResult.userServiceUser) {
     logger.info({
       event: 'patient_creation_event_skipped',
       reason: 'patient_already_exists',
       patientId: patient.id,
       externalId,
-      userId: existingPatient.id,
+      userId: existenceResult.userServiceUser.id,
     });
 
     return;
+  }
+
+  if (existenceResult.cognitoUser) {
+    logger.info({
+      event: 'patient_creation_event_found_in_cognito_creating_user_service_record',
+      patientId: patient.id,
+      externalId,
+      userId: existenceResult.cognitoUser.userId,
+      organizationId: existenceResult.cognitoUser.organizationId,
+    });
   }
 
   /**

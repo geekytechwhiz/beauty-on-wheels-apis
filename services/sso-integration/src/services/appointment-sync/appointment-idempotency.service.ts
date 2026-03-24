@@ -9,6 +9,42 @@ import { FetchSchedulesRequest } from '../../types/domain/appointment.types';
 import { CognitoUserContext } from '../../types/user/user.types';
 import { loadTenantDetails } from '../../utils/helper';
 
+/**
+ * True when `stored` has the same value as `expected` for every key in `expected`.
+ * Ignores keys only present on `stored` (e.g. correlationId, startTime format variants).
+ */
+function externalAppointmentPayloadMatches(
+  stored: Record<string, unknown> | undefined,
+  expected: Record<string, string>,
+): boolean {
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+    return false;
+  }
+  for (const [key, val] of Object.entries(expected)) {
+    if (stored[key] === undefined) {
+      return false;
+    }
+    if (String(stored[key]) !== String(val)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Only stable HMS identifiers — avoids false mismatches from ISO time string / status formatting between systems.
+ * Full `externalAppointment` blob still passes through fetchSchedules for clients.
+ */
+function buildExpectedExternalAppointmentKeys(
+  appointment: Appointment,
+  context: SSORequestContext,
+): Record<string, string> {
+  return {
+    externalId: String(appointment.appointmentId),
+    tenantId: context.tenantId,
+  };
+}
+
 type ScheduleClient = {
   fetchSchedules: (
     payload: FetchSchedulesRequest,
@@ -81,10 +117,25 @@ export class AppointmentIdempotencyService {
     );
 
     const externalAppointmentId = String(appointment.appointmentId);
+    const expectedExt = buildExpectedExternalAppointmentKeys(
+      appointment,
+      context,
+    );
 
     const hasDuplicate = schedules.some((schedule: Schedule) => {
-      const hasMatchingMeta =
+      const ext = schedule.meta?.externalAppointment as
+        | Record<string, unknown>
+        | undefined;
+
+      const hasMatchingExternalAppointment =
+        ext !== undefined &&
+        externalAppointmentPayloadMatches(ext, expectedExt);
+
+      const hasMatchingMetaId =
         schedule.meta?.externalAppointmentId === externalAppointmentId;
+
+      const hasMatchingMeta =
+        hasMatchingExternalAppointment || hasMatchingMetaId;
 
       const hasMatchingParticipants =
         schedule.participantInfo?.some(

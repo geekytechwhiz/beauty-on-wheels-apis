@@ -157,6 +157,8 @@ export interface ScheduleParticipantInfo {
 
 export interface ScheduleMeta {
   externalAppointmentId: string;
+  /** Copied from user-addon record when present (HMS sync); used for idempotency vs incoming appointment */
+  externalAppointment?: Record<string, unknown>;
   consultationType?: string;
   visitId?: number;
   integration?: {

@@ -114,6 +114,9 @@ export class ScheduleServiceClient {
             serviceStatus: item.serviceStatus as string | undefined,
             organizationId: item.organizationId as string | undefined,
             assignedStaffId: item.assignedStaffId as string | undefined,
+            externalAppointment: item.externalAppointment as
+              | Record<string, unknown>
+              | undefined,
           };
           // Check if item has scheduled array
           if (item.scheduled && Array.isArray(item.scheduled)) {
@@ -685,10 +688,15 @@ export class ScheduleServiceClient {
     serviceStatus?: string;
     organizationId?: string;
     assignedStaffId?: string;
+    externalAppointment?: Record<string, unknown>;
   }): Schedule {
     const patientUserId = (scheduledItem.participantInfo || []).find(
       (p) => p.userType === 'USER',
     )?.userId;
+
+    const ext = itemMeta?.externalAppointment;
+    const hmsExternalId =
+      ext?.externalId != null ? String(ext.externalId) : '';
 
     return {
       scheduleId: scheduledItem.scheduleId,
@@ -723,7 +731,9 @@ export class ScheduleServiceClient {
       assignedStaffId: itemMeta?.assignedStaffId,
       patientUserId,
       meta: {
-        externalAppointmentId: scheduledItem.scheduleId,
+        externalAppointmentId:
+          hmsExternalId || String(scheduledItem.scheduleId ?? ''),
+        ...(ext ? { externalAppointment: ext } : {}),
       },
     };
   }
@@ -740,11 +750,16 @@ export class ScheduleServiceClient {
     serviceStatus?: string;
     organizationId?: string;
     assignedStaffId?: string;
+    externalAppointment?: Record<string, unknown>;
   },
   ): Schedule {
     const patientUserId =
       (scheduleDetails.meta?.userId as string | undefined) ||
       scheduleDetails.participantInfo.find((p) => p.userType === 'USER')?.userId;
+
+    const ext = itemMeta?.externalAppointment;
+    const hmsExternalId =
+      ext?.externalId != null ? String(ext.externalId) : '';
 
     return {
       scheduleId: scheduleDetails.id || scheduleDetails.scheduleId || '',
@@ -773,9 +788,17 @@ export class ScheduleServiceClient {
       assignedStaffId: itemMeta?.assignedStaffId,
       patientUserId,
       meta: {
-        externalAppointmentId:
-          scheduleDetails.id || scheduleDetails.scheduleId || '',
         ...scheduleDetails.meta,
+        externalAppointmentId:
+          hmsExternalId ||
+          String(
+            (scheduleDetails.meta as Record<string, unknown> | undefined)
+              ?.externalAppointmentId ??
+              scheduleDetails.id ??
+              scheduleDetails.scheduleId ??
+              '',
+          ),
+        ...(ext ? { externalAppointment: ext } : {}),
       },
     };
   }

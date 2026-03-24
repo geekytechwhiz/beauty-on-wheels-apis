@@ -212,6 +212,7 @@ export class UserService {
                 userID: String(data.userID || ''),
                 organizationID: String(organizationID || ''),
                 role: JSON.stringify(userRoleArray),
+                roleName: String(roleName || ''),
                 permissions: JSON.stringify(permissionIds),
               },
             },
@@ -469,18 +470,28 @@ export class UserService {
           mrn: (user as any).mrn,
           ORG_NAME: orgDetails?.name || (orgDetails as any)?.organizationInfo?.organizationName || (orgDetails as any)?.organizationInfo?.name || '',
           ORG_INFO: orgInfo,
+          // SMS placeholders used by template.registry.ts for welcome messages.
+          ACCOUNT_CREATED_INFO: 'Your account has been created successfully.',
+          ANDROID_APP_URL: process.env.ANDROID_APP_URL || '',
+          IOS_APP_URL: process.env.IOS_APP_URL || '',
         };
 
         // Extend templateData based on user type (STAFF / USER / FNF)
         const templateData: Record<string, unknown> = { ...baseTemplateData };
 
         if (userTypeUpper === 'STAFF') {
+          console.log("USER TYPE STAFF")
+          console.log("TEMPLATE DATA: STAFF", templateData);
+          console.log("TEMPLATE: STAFF", template);
           Object.assign(templateData, {
             STAFF_FIRST_NAME: user.firstName,
             PORTAL_LINK: process.env.PORTAL_LINK || '',
             ORG_ADDRESS: orgAddress,
           });
         } else if (userTypeUpper === 'FNF') {
+          console.log("USER TYPE FNF")
+          console.log("TEMPLATE DATA: FNF", templateData);
+          console.log("TEMPLATE: FNF", template);
           Object.assign(templateData, {
             WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
             HOSPITAL_ID: orgDetails?.organizationID || '',
@@ -491,6 +502,9 @@ export class UserService {
             USER_NAME: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
           });
         } else {
+          console.log("USER TYPE NOT STAFF AND FNF")
+          console.log("TEMPLATE DATA: 123", templateData);
+          console.log("TEMPLATE: 123", template);
           // default USER and others
           Object.assign(templateData, {
             WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
@@ -524,6 +538,8 @@ export class UserService {
             template,
             message: 'Publishing UserCreatedNotificationRequested to SNS',
           });
+          console.log("TEMPLATE DATA: ", templateData);
+          console.log("TEMPLATE: ", template);
           await notifyUser({
             userId: user.userID,
             email: user.emailAddress,

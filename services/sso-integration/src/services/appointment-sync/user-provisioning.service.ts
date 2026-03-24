@@ -14,7 +14,10 @@ import {
 import { CreatedUserInfo } from '../../types/user/user.types';
 import { UserExistenceValidator } from '../../validators/user-existence.validator';
 
-function mapUserToCreatedUserInfo(user: User, fallbackEmail?: string | null): CreatedUserInfo {
+function mapUserToCreatedUserInfo(
+  user: User,
+  fallbackEmail?: string | null,
+): CreatedUserInfo {
   return {
     userId: user.id?.toString() ?? '',
     email: user.email ?? fallbackEmail ?? null,
@@ -25,7 +28,6 @@ function mapUserToCreatedUserInfo(user: User, fallbackEmail?: string | null): Cr
 
 export class UserProvisioningService {
   private readonly userExistenceValidator: UserExistenceValidator;
-
   constructor(
     private readonly ssoUserServiceClient: SSOUserServiceClient,
     private readonly logger: Logger,
@@ -95,6 +97,7 @@ export class UserProvisioningService {
       context,
     );
     const existingUser = existenceResult.userServiceUser;
+    const existingCognitoUser = existenceResult.cognitoUser;
 
     if (existingUser) {
       logger.info({
@@ -105,6 +108,9 @@ export class UserProvisioningService {
         ...existingUser,
       });
 
+      if (!existingCognitoUser) {
+        throw new Error('Doctor found in user service but not in cognito');
+      }
       return mapUserToCreatedUserInfo(existingUser, doctorEmail);
     }
 
@@ -157,7 +163,8 @@ export class UserProvisioningService {
       return createdDoctor;
     } catch (error: unknown) {
       // 3️⃣ Handle race condition (another process created the user)
-      const conflictStatus = (error as { response?: { status?: number } })?.response?.status;
+      const conflictStatus = (error as { response?: { status?: number } })
+        ?.response?.status;
 
       if (conflictStatus === 409) {
         logger.warn({

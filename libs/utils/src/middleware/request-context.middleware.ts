@@ -1,23 +1,8 @@
 import { decodeJwtPayload } from '../helper/jwt.helpers';
 
-const getHeaderValueCaseInsensitive = (headers?: Record<string, unknown>, headerName = 'authorization'): string | undefined => {
-  if (!headers || typeof headers !== 'object') return undefined;
-  const normalizedHeaderName = headerName.toLowerCase();
-  for (const [key, value] of Object.entries(headers)) {
-    if (key.toLowerCase() !== normalizedHeaderName) continue;
-    if (typeof value === 'string' && value.trim()) return value;
-    if (Array.isArray(value)) {
-      const firstString = value.find((item) => typeof item === 'string' && item.trim()) as string | undefined;
-      if (firstString) return firstString;
-    }
-  }
-  return undefined;
-};
-
 export const buildRequestContext = (event: any) => {
   const authHeader =
-    getHeaderValueCaseInsensitive(event.headers, 'authorization') ||
-    getHeaderValueCaseInsensitive(event.multiValueHeaders, 'authorization');
+    event.headers?.Authorization || event.headers?.authorization;
 
   const decoded = authHeader ? decodeJwtPayload(authHeader) : {};
 

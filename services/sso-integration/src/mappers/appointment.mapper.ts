@@ -144,7 +144,7 @@ export class AppointmentMapper {
     orgAddonId: string,
     context: SSORequestContext,
   ): RecommendServicesRequest {
-    const subdomain = context.integration?.subdomain
+    const subdomain = context.integration?.subdomain;
     const tenant = loadTenantDetails(subdomain);
     console.log("tenant", tenant);
     console.log("event", event);
@@ -155,6 +155,11 @@ export class AppointmentMapper {
     const scheduleTimeStamp = this.getTimestampString(
       event.appointment.startTime,
     );
+    const durationMinutes = this.calculateDurationMinutes(
+      event.appointment.startTime,
+      event.appointment.endTime,
+    );
+    const scheduleDate = this.formatDateDDMMYYYY(event.appointment.startTime);
 
     return {
       organizationId: organizationID,
@@ -163,6 +168,18 @@ export class AppointmentMapper {
       orgAddonId: orgAddonId,
       assignedDoctorId: event.doctor.userId,
       scheduleBy: scheduleTimeStamp,
+      externalAppointment: {
+        externalId: event.appointment.externalId,
+        startTime: event.appointment.startTime,
+        endTime: event.appointment.endTime,
+        status: event.appointment.status,
+        doctorExternalUserId: event.doctor.externalUserId,
+        patientExternalUserId: event.patient.externalUserId,
+        durationMinutes,
+        scheduleDate,
+        tenantId: event.tenantId,
+        correlationId: event.correlationId,
+      },
     };
   }
 

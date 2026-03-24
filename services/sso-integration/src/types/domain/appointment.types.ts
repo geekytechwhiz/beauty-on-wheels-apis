@@ -252,6 +252,24 @@ export interface GetAvailableServicesResponse {
   [key: string]: unknown;
 }
 
+/**
+ * TruTech / HMS appointment context passed with recommend-services so package
+ * service can persist or correlate userAddon recommendation with source system.
+ */
+export interface RecommendServicesExternalAppointment {
+  externalId: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  doctorExternalUserId: string;
+  patientExternalUserId: string;
+  durationMinutes: string;
+  /** DD-MM-YYYY derived from startTime */
+  scheduleDate: string;
+  tenantId: string;
+  correlationId: string;
+}
+
 export interface RecommendServicesRequest {
   organizationId: string;
   type: 'addon';
@@ -259,6 +277,7 @@ export interface RecommendServicesRequest {
   orgAddonId: string;
   assignedDoctorId: string;
   scheduleBy: string; // timestamp as number
+  externalAppointment: RecommendServicesExternalAppointment;
 }
 
 export interface RecommendServicesResponse {

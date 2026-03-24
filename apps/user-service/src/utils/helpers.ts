@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { APIGatewayProxyEvent } from 'aws-lambda';
+import { splitPhoneNumber } from '@api-hub/utils';
 import type {
   BaseUserResponse,
   StaffResponse,
@@ -79,9 +80,15 @@ export function getUserIdAndOrganizationIdFromToken(authHeader: string | undefin
 export function parsePhoneForCreateUser(phone: string): { phoneCode: string; phoneNumber: string } {
   const raw = (phone ?? '').toString().replace(/\s/g, '').trim();
   if (!raw) return { phoneCode: '', phoneNumber: '' };
-  const match = raw.match(/^(\+\d{1,4})(.*)$/);
-  if (match) {
-    return { phoneCode: match[1], phoneNumber: (match[2] ?? '').trim() };
+
+  // Prefer libphonenumber-based split to avoid greedy regex issues
+  // (e.g. +919465228458 should become +91 / 9465228458).
+  const parsed = splitPhoneNumber(raw);
+  const phoneCode = (parsed.phoneCode ?? '').toString().trim();
+  const phoneNumber = (parsed.phoneNumber ?? '').toString().trim();
+
+  if (phoneCode || phoneNumber) {
+    return { phoneCode, phoneNumber };
   }
   return { phoneCode: '', phoneNumber: raw };
 }

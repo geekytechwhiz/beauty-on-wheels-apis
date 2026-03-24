@@ -1,6 +1,7 @@
 import { decodeJwtPayload } from '../helper/jwt.helpers';
 
 export const buildRequestContext = (event: any) => {
+  console.log('event frm middleware', event);
   const authHeader =
     event.headers?.Authorization || event.headers?.authorization;
 

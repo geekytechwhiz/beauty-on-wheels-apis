@@ -1,4 +1,5 @@
 export interface TruTechAppointmentMatchPayload {
+  externalAppointmentId: string;
   doctorExternalId: string;
   patientExternalId: string;
   startTime: string;

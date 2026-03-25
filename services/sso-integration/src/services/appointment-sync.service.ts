@@ -427,6 +427,7 @@ export class AppointmentSyncService extends BaseService {
       fromDate,
       toDate,
       appointments: appointments.map((appointment) => ({
+        externalAppointmentId: String(appointment.appointmentId),
         doctorExternalId: String(appointment.doctor.id),
         patientExternalId: String(appointment.patient.id),
         startTime: appointment.startTime,
@@ -457,6 +458,11 @@ export class AppointmentSyncService extends BaseService {
     const doctorExternalIds = [
       ...new Set(message.appointments.map((a) => a.doctorExternalId)),
     ];
+    const sourceExternalAppointmentIds = new Set(
+      message.appointments
+        .map((a) => a.externalAppointmentId?.trim())
+        .filter((id): id is string => !!id),
+    );
 
     this.logger.info({
       event: 'reconciliation_worker_start',
@@ -549,6 +555,13 @@ export class AppointmentSyncService extends BaseService {
       const patientUserId = schedule.patientUserId || this.resolvePatientUserIdFromSchedule(schedule);
       const addonId = schedule.userAddonId;
       const organizationId = schedule.organizationId || schedule.organizationID;
+      const fetchedExternalAppointmentIdRaw =
+        (schedule.meta as Record<string, unknown> | undefined)
+          ?.externalAppointmentId;
+      const fetchedExternalAppointmentId =
+        fetchedExternalAppointmentIdRaw != null
+          ? String(fetchedExternalAppointmentIdRaw).trim()
+          : '';
       if (!doctorId || !patientUserId || !addonId || !organizationId) {
         skipped++;
         this.logger.warn({
@@ -559,6 +572,16 @@ export class AppointmentSyncService extends BaseService {
           organizationId,
           scheduleId: schedule.scheduleId,
         });
+        continue;
+      }
+
+      // Fast-path: if this external appointment still exists in TruTech response,
+      // this schedule must not be cancelled.
+      if (
+        fetchedExternalAppointmentId &&
+        sourceExternalAppointmentIds.has(fetchedExternalAppointmentId)
+      ) {
+        skipped++;
         continue;
       }
 
@@ -579,11 +602,9 @@ export class AppointmentSyncService extends BaseService {
         endEpoch,
       );
 
-      const doctorKeys = internalDoctorToKeys.get(doctorId);
-      if (!doctorKeys) {
-        skipped++;
-        continue;
-      }
+      // If TruTech did not return any appointment for this doctor in the window,
+      // we should treat fetched schedules as cancel candidates (not skip).
+      const doctorKeys = internalDoctorToKeys.get(doctorId) ?? new Set<string>();
 
       if (doctorKeys.has(scheduleKey)) {
         skipped++;
@@ -686,8 +707,10 @@ export class AppointmentSyncService extends BaseService {
     startEpoch: number,
     endEpoch: number,
   ): string {
-    const normalizedEnd = Number.isFinite(endEpoch) ? endEpoch : startEpoch;
-    return `doctor::${doctorId}|patient::${patientId}|start::${startEpoch}|end::${normalizedEnd}`;
+    // Use stable identity (doctor + patient + start) to avoid false mismatches
+    // from end-time timezone/format differences between systems.
+    void endEpoch;
+    return `doctor::${doctorId}|patient::${patientId}|start::${startEpoch}`;
   }
 
   private parseDateToEpoch(input: string): number {

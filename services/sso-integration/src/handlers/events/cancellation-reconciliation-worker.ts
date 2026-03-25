@@ -29,16 +29,21 @@ function getAppointmentSyncService(): AppointmentSyncService {
 }
 
 function validateMessageBody(body: CancellationReconciliationMessage): void {
+  const appointmentsHaveExternalAppointmentId =
+    Array.isArray(body.appointments) &&
+    body.appointments.every((a) => hasNonEmptyTrimmed(a.externalAppointmentId));
+
   if (
     !hasNonEmptyTrimmed(body.tenantId) ||
     !hasNonEmptyTrimmed(body.correlationId) ||
     !hasNonEmptyTrimmed(body.organizationId) ||
     !isValidReconciliationDateField(body.fromDate) ||
     !isValidReconciliationDateField(body.toDate) ||
-    !Array.isArray(body.appointments)
+    !Array.isArray(body.appointments) ||
+    !appointmentsHaveExternalAppointmentId
   ) {
     throw new Error(
-      'Message body must contain non-empty tenantId, correlationId, organizationId, valid fromDate, valid toDate, and appointments array',
+      'Message body must contain non-empty tenantId, correlationId, organizationId, valid fromDate, valid toDate, and appointments with externalAppointmentId',
     );
   }
 }

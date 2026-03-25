@@ -526,8 +526,14 @@ export class AppointmentSyncService extends BaseService {
     message: CancellationReconciliationMessage,
     context: SSORequestContext,
   ): Promise<{ cancelled: number; failed: number; skipped: number }> {
+    const isDateOnly = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v.trim());
     const fromDateMs = this.parseDateToEpoch(message.fromDate);
-    const toDateMs = this.parseDateToEpoch(message.toDate);
+    let toDateMs = this.parseDateToEpoch(message.toDate);
+    // When toDate is provided as YYYY-MM-DD, Date parsing yields start-of-day.
+    // Expand to cover the full day by moving to next day's start.
+    if (isDateOnly(message.toDate) && Number.isFinite(toDateMs)) {
+      toDateMs = toDateMs + 24 * 60 * 60 * 1000;
+    }
     if (!Number.isFinite(fromDateMs) || !Number.isFinite(toDateMs)) {
       throw new Error('Invalid reconciliation window dates');
     }

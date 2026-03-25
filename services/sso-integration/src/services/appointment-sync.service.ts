@@ -111,47 +111,6 @@ export class AppointmentSyncService extends BaseService {
     );
   }
 
-  private shouldInjectTestAppointment(): boolean {
-    return process.env.INJECT_TEST_APPOINTMENT === 'true';
-  }
-
-  private buildTestAppointment(): Appointment {
-    return {
-      appointmentId: 121,
-      startTime: '2026-03-17T15:15:00.000000Z',
-      endTime: '2026-03-17T15:30:00.000000Z',
-      status: 1 as any,
-      notes: null,
-      patient: {
-        id: 3129,
-        mrn: 'MR0002214',
-        name: 'John Doe',
-        gender: 'Male',
-        age: '23 years 3 months',
-        dob: null,
-        phone: '2389712345',
-        email: null,
-      },
-      doctor: {
-        id: 4,
-        name: 'ABDUL RASHID AHMED',
-        department: 'GENERAL DOCTORS',
-        phone: '123456789',
-        email: 'abdul@hms.com',
-      },
-      consultationType: {
-        id: 208,
-        name: 'Test Consultation',
-      },
-      visit: {
-        id: 1115,
-        visitType: 1 as any,
-        createdAt: '2026-03-17T15:15:00.000000Z',
-        status: 1,
-      },
-    };
-  }
-
   private buildLogContext(params: {
     context: SSORequestContext;
     externalAppointmentId?: string;
@@ -303,6 +262,124 @@ export class AppointmentSyncService extends BaseService {
       },
       context,
     );
+  }
+
+  private async handleUnresolvedPatient(params: {
+    appointment: Appointment;
+    context: SSORequestContext;
+    externalAppointmentId: string;
+    patientExternalId: string;
+    doctorExternalId: string;
+    organizationId: string;
+    resolvedDoctorUserId?: string;
+    resolvedDoctorForLog?: { userId?: string };
+    resolvedPatientForLog?: User | null;
+  }): Promise<void> {
+    const {
+      appointment,
+      context,
+      externalAppointmentId,
+      patientExternalId,
+      doctorExternalId,
+      organizationId,
+      resolvedDoctorUserId,
+      resolvedDoctorForLog,
+      resolvedPatientForLog,
+    } = params;
+
+    const existingPendingAppointments =
+      await this.pendingAppointmentService.getPendingAppointmentsByPatient(
+        context.tenantId,
+        patientExternalId,
+        context,
+      );
+
+    this.logger.info({
+      event: 'pending_appointment_create',
+      ...this.buildLogContext({
+        context,
+        externalAppointmentId,
+        patientExternalId,
+        doctorExternalId,
+        doctorUserId: resolvedDoctorForLog?.userId,
+        patientUserId: resolvedPatientForLog
+          ? String(resolvedPatientForLog.id)
+          : undefined,
+      }),
+      existingPendingCount: existingPendingAppointments.length,
+    });
+
+    await this.enqueuePendingAppointment(
+      appointment,
+      'user_not_resolved',
+      {
+        tenantId: context.tenantId,
+        organizationID: organizationId,
+        doctorUserId: resolvedDoctorForLog?.userId,
+        patientUserId: resolvedPatientForLog
+          ? String(resolvedPatientForLog.id)
+          : undefined,
+      },
+      context,
+    );
+
+    if (existingPendingAppointments.length > 0) {
+      this.logger.info({
+        event: 'patient_creation_event_enqueue_skipped_existing_pending',
+        ...this.buildLogContext({
+          context,
+          externalAppointmentId,
+          patientExternalId,
+          doctorExternalId,
+          doctorUserId: resolvedDoctorUserId,
+        }),
+        organizationId,
+        existingPendingCount: existingPendingAppointments.length,
+      });
+      return;
+    }
+
+    const provider = context.integration?.providerId ?? 'TruTech';
+
+    if (!resolvedDoctorUserId) {
+      this.logger.warn({
+        event: 'patient_creation_event_without_resolved_doctor',
+        ...this.buildLogContext({
+          context,
+          externalAppointmentId,
+          patientExternalId,
+          doctorExternalId,
+        }),
+        organizationId,
+        message:
+          'Publishing patient creation event without doctor userId; patient creation can continue, but doctor assignment will be skipped until doctor provisioning completes',
+      });
+    }
+
+    const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
+      appointment.patient,
+      organizationId,
+      provider,
+      context,
+      resolvedDoctorUserId,
+    );
+
+    await this.patientEventPublisher.publishPatientCreationEvent(
+      patientEvent,
+      context.correlationId,
+    );
+
+    this.logger.info({
+      event: 'patient_creation_event_triggered_from_sync',
+      ...this.buildLogContext({
+        context,
+        externalAppointmentId,
+        patientExternalId,
+        doctorExternalId,
+        doctorUserId: resolvedDoctorUserId,
+      }),
+      organizationId,
+    });
   }
 
   /**
@@ -1093,44 +1170,16 @@ export class AppointmentSyncService extends BaseService {
 
       if (!resolvedPatient?.id && !isPendingAppointmentBypassEnabled()) {
         try {
-          const provider = context.integration?.providerId ?? 'TruTech';
-
-          if (!resolvedDoctorUserId) {
-            this.logger.warn({
-              event: 'patient_creation_event_without_resolved_doctor',
-              ...this.buildLogContext({
-                context,
-                externalAppointmentId,
-                patientExternalId,
-                doctorExternalId,
-              }),
-              organizationId,
-              message:
-                'Publishing patient creation event without doctor userId; patient creation can continue, but doctor assignment will be skipped until doctor provisioning completes',
-            });
-          }
-
-          const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
-            appointment.patient,
-            organizationId,
-            provider,
+          await this.handleUnresolvedPatient({
+            appointment,
             context,
-            resolvedDoctorUserId,
-          );
-          await this.patientEventPublisher.publishPatientCreationEvent(
-            patientEvent,
-            context.correlationId,
-          );
-          this.logger.info({
-            event: 'patient_creation_event_triggered_from_sync',
-            ...this.buildLogContext({
-              context,
-              externalAppointmentId,
-              patientExternalId,
-              doctorExternalId,
-              doctorUserId: resolvedDoctorUserId,
-            }),
+            externalAppointmentId,
+            patientExternalId,
+            doctorExternalId,
             organizationId,
+            resolvedDoctorUserId,
+            resolvedDoctorForLog: resolvedDoctor,
+            resolvedPatientForLog: resolvedPatient,
           });
         } catch (err) {
           this.logger.error({
@@ -1161,30 +1210,6 @@ export class AppointmentSyncService extends BaseService {
             patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
           }),
         });
-      } else {
-        this.logger.info({
-          event: 'pending_appointment_create',
-          ...this.buildLogContext({
-            context,
-            externalAppointmentId,
-            patientExternalId,
-            doctorExternalId,
-            doctorUserId: resolvedDoctor?.userId,
-            patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
-          }),
-        });
-
-        await this.enqueuePendingAppointment(
-          appointment,
-          'user_not_resolved',
-          {
-            tenantId: context.tenantId,
-            organizationID: organizationId,
-            doctorUserId: resolvedDoctor?.userId,
-            patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
-          },
-          context,
-        );
       }
 
       if (!resolvedPatient?.id || !resolvedDoctor?.userId) {

@@ -57,9 +57,16 @@ export class PatientEventPublisher {
     });
 
     try {
+      const tenantId = event.tenantId;
+      const patientExternalId = String(event.data.externalId);
+      const messageGroupId = `tenant:${tenantId}|patient:${patientExternalId}`;
+      const messageDeduplicationId = messageGroupId; // deterministic => suppress duplicates
+
       const command = new SendMessageCommand({
         QueueUrl: this.queueUrl,
         MessageBody: JSON.stringify(event),
+        MessageGroupId: messageGroupId,
+        MessageDeduplicationId: messageDeduplicationId,
         MessageAttributes: {
           EventType: {
             DataType: 'String',
@@ -142,6 +149,8 @@ export class PatientEventPublisher {
         const entries = batch.map((event, index) => ({
           Id: `${batchIndex}-${index}`,
           MessageBody: JSON.stringify(event),
+          MessageGroupId: `tenant:${event.tenantId}|patient:${String(event.data.externalId)}`,
+          MessageDeduplicationId: `tenant:${event.tenantId}|patient:${String(event.data.externalId)}`,
           MessageAttributes: {
             EventType: {
               DataType: 'String',
@@ -250,6 +259,7 @@ export class PatientEventPublisher {
       eventId: `${provider}-${patient.id}-${Date.now()}`,
       timestamp: new Date().toISOString(),
       correlationId: context.correlationId,
+      tenantId: context.tenantId,
       data: {
         patient: {
           id: patient.id,

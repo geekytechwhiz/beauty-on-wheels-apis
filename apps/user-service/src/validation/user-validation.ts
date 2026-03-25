@@ -19,7 +19,9 @@ export class UserValidationService {
   ) {
     if (!organizationID) return;
 
-    const org = await getOrganization(organizationID, authHeader);
+    const org = await getOrganization(organizationID, authHeader, {
+      minimal: true,
+    });
 
     if (!org) {
       throw new OrganizationNotFoundError(

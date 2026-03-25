@@ -406,16 +406,20 @@ resources:
     PatientCreationDLQ:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq.fifo
+        FifoQueue: true
+        ContentBasedDeduplication: false
         MessageRetentionPeriod: 1209600
 
     PatientCreationQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-queue.fifo
         VisibilityTimeout: 300
         MessageRetentionPeriod: 1209600
         ReceiveMessageWaitTimeSeconds: 20
+        FifoQueue: true
+        ContentBasedDeduplication: false
         RedrivePolicy:
           deadLetterTargetArn:
             Fn::GetAtt:

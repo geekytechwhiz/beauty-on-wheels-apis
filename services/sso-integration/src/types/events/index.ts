@@ -5,6 +5,7 @@ import { ExternalIdentity } from '../user-creation.type';
   eventId: string;
   timestamp: string;
   correlationId: string;
+  tenantId: string;
 
   data: {
     /**

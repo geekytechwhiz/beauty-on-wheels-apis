@@ -49,7 +49,7 @@ export async function handler(
     const recordId = record.messageId;
 
     const correlationId =
-      record.attributes?.MessageGroupId ||
+      record.messageAttributes?.CorrelationId?.stringValue ||
       awsRequestId ||
       'unknown';
 
@@ -217,10 +217,27 @@ async function processPatientCreationEvent(
   /**
    * Create patient
    */
-  const createdPatient = await userServiceClient.createPatient(
-    patientPayload,
-    requestContext,
-  );
+  let createdPatient: Awaited<
+    ReturnType<typeof userServiceClient.createPatient>
+  >;
+  try {
+    createdPatient = await userServiceClient.createPatient(
+      patientPayload,
+      requestContext,
+    );
+  } catch (error) {
+    const status = (error as any)?.response?.status;
+    if (status === 409) {
+      logger.info({
+        event: 'patient_creation_conflict_skipped',
+        reason: 'patient_already_exists_conflict',
+        patientId: patient.id,
+        externalId,
+      });
+      return;
+    }
+    throw error;
+  }
 
   /**
    * Extract patient userId (CreatedUserInfo.userId)

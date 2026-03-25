@@ -504,6 +504,7 @@ export class AppointmentSyncService extends BaseService {
       fromDate,
       toDate,
       appointments: appointments.map((appointment) => ({
+        externalAppointmentId: String(appointment.appointmentId),
         doctorExternalId: String(appointment.doctor.id),
         patientExternalId: String(appointment.patient.id),
         startTime: appointment.startTime,
@@ -534,6 +535,11 @@ export class AppointmentSyncService extends BaseService {
     const doctorExternalIds = [
       ...new Set(message.appointments.map((a) => a.doctorExternalId)),
     ];
+    const sourceExternalAppointmentIds = new Set(
+      message.appointments
+        .map((a) => a.externalAppointmentId?.trim())
+        .filter((id): id is string => !!id),
+    );
 
     this.logger.info({
       event: 'reconciliation_worker_start',
@@ -610,6 +616,10 @@ export class AppointmentSyncService extends BaseService {
     let cancelled = 0;
     let failed = 0;
     let skipped = 0;
+    let skippedNonConfirmed = 0;
+    let skippedMissingFields = 0;
+    let skippedFoundInSourceByExternalId = 0;
+    let skippedMatchedByKey = 0;
 
     for (const schedule of fetchedSchedules) {
       const status = (
@@ -619,6 +629,7 @@ export class AppointmentSyncService extends BaseService {
       ).toLowerCase();
       if (status !== 'confirmed') {
         skipped++;
+        skippedNonConfirmed++;
         continue;
       }
 
@@ -626,8 +637,14 @@ export class AppointmentSyncService extends BaseService {
       const patientUserId = schedule.patientUserId || this.resolvePatientUserIdFromSchedule(schedule);
       const addonId = schedule.userAddonId;
       const organizationId = schedule.organizationId || schedule.organizationID;
+      const metaObj = schedule.meta as Record<string, unknown> | undefined;
+      const extObj = (metaObj?.externalAppointment as Record<string, unknown> | undefined);
+      const fetchedExternalAppointmentId =
+        (extObj?.externalId != null ? String(extObj.externalId) : '')?.trim() ||
+        (metaObj?.externalAppointmentId != null ? String(metaObj.externalAppointmentId) : '')?.trim();
       if (!doctorId || !patientUserId || !addonId || !organizationId) {
         skipped++;
+        skippedMissingFields++;
         this.logger.warn({
           event: 'reconciliation_skip_missing_fields',
           doctorId,
@@ -636,6 +653,17 @@ export class AppointmentSyncService extends BaseService {
           organizationId,
           scheduleId: schedule.scheduleId,
         });
+        continue;
+      }
+
+      // Fast-path: if this external appointment still exists in TruTech response,
+      // this schedule must not be cancelled.
+      if (
+        fetchedExternalAppointmentId &&
+        sourceExternalAppointmentIds.has(fetchedExternalAppointmentId)
+      ) {
+        skipped++;
+        skippedFoundInSourceByExternalId++;
         continue;
       }
 
@@ -656,14 +684,13 @@ export class AppointmentSyncService extends BaseService {
         endEpoch,
       );
 
-      const doctorKeys = internalDoctorToKeys.get(doctorId);
-      if (!doctorKeys) {
-        skipped++;
-        continue;
-      }
+      // If TruTech did not return any appointment for this doctor in the window,
+      // we should treat fetched schedules as cancel candidates (not skip).
+      const doctorKeys = internalDoctorToKeys.get(doctorId) ?? new Set<string>();
 
       if (doctorKeys.has(scheduleKey)) {
         skipped++;
+        skippedMatchedByKey++;
         continue;
       }
 
@@ -715,6 +742,10 @@ export class AppointmentSyncService extends BaseService {
       cancelled,
       failed,
       skipped,
+      skippedNonConfirmed,
+      skippedMissingFields,
+      skippedFoundInSourceByExternalId,
+      skippedMatchedByKey,
       fetchedScheduleCount: fetchedSchedules.length,
     });
 
@@ -763,8 +794,10 @@ export class AppointmentSyncService extends BaseService {
     startEpoch: number,
     endEpoch: number,
   ): string {
-    const normalizedEnd = Number.isFinite(endEpoch) ? endEpoch : startEpoch;
-    return `doctor::${doctorId}|patient::${patientId}|start::${startEpoch}|end::${normalizedEnd}`;
+    // Use stable identity (doctor + patient + start) to avoid false mismatches
+    // from end-time timezone/format differences between systems.
+    void endEpoch;
+    return `doctor::${doctorId}|patient::${patientId}|start::${startEpoch}`;
   }
 
   private parseDateToEpoch(input: string): number {

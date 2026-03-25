@@ -16,6 +16,12 @@ function assertValidPayload(message: CancellationReconciliationMessage): void {
   if (!isValidReconciliationDateField(message.fromDate)) missingFields.push('fromDate');
   if (!isValidReconciliationDateField(message.toDate)) missingFields.push('toDate');
   if (!Array.isArray(message.appointments)) missingFields.push('appointments');
+  if (
+    Array.isArray(message.appointments) &&
+    message.appointments.some((a) => !hasNonEmptyTrimmed(a.externalAppointmentId))
+  ) {
+    missingFields.push('appointments[].externalAppointmentId');
+  }
 
   if (missingFields.length > 0) {
     throw new Error(

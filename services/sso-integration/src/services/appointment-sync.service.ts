@@ -539,6 +539,10 @@ export class AppointmentSyncService extends BaseService {
     let cancelled = 0;
     let failed = 0;
     let skipped = 0;
+    let skippedNonConfirmed = 0;
+    let skippedMissingFields = 0;
+    let skippedFoundInSourceByExternalId = 0;
+    let skippedMatchedByKey = 0;
 
     for (const schedule of fetchedSchedules) {
       const status = (
@@ -548,6 +552,7 @@ export class AppointmentSyncService extends BaseService {
       ).toLowerCase();
       if (status !== 'confirmed') {
         skipped++;
+        skippedNonConfirmed++;
         continue;
       }
 
@@ -555,15 +560,14 @@ export class AppointmentSyncService extends BaseService {
       const patientUserId = schedule.patientUserId || this.resolvePatientUserIdFromSchedule(schedule);
       const addonId = schedule.userAddonId;
       const organizationId = schedule.organizationId || schedule.organizationID;
-      const fetchedExternalAppointmentIdRaw =
-        (schedule.meta as Record<string, unknown> | undefined)
-          ?.externalAppointmentId;
+      const metaObj = schedule.meta as Record<string, unknown> | undefined;
+      const extObj = (metaObj?.externalAppointment as Record<string, unknown> | undefined);
       const fetchedExternalAppointmentId =
-        fetchedExternalAppointmentIdRaw != null
-          ? String(fetchedExternalAppointmentIdRaw).trim()
-          : '';
+        (extObj?.externalId != null ? String(extObj.externalId) : '')?.trim() ||
+        (metaObj?.externalAppointmentId != null ? String(metaObj.externalAppointmentId) : '')?.trim();
       if (!doctorId || !patientUserId || !addonId || !organizationId) {
         skipped++;
+        skippedMissingFields++;
         this.logger.warn({
           event: 'reconciliation_skip_missing_fields',
           doctorId,
@@ -582,6 +586,7 @@ export class AppointmentSyncService extends BaseService {
         sourceExternalAppointmentIds.has(fetchedExternalAppointmentId)
       ) {
         skipped++;
+        skippedFoundInSourceByExternalId++;
         continue;
       }
 
@@ -608,6 +613,7 @@ export class AppointmentSyncService extends BaseService {
 
       if (doctorKeys.has(scheduleKey)) {
         skipped++;
+        skippedMatchedByKey++;
         continue;
       }
 
@@ -659,6 +665,10 @@ export class AppointmentSyncService extends BaseService {
       cancelled,
       failed,
       skipped,
+      skippedNonConfirmed,
+      skippedMissingFields,
+      skippedFoundInSourceByExternalId,
+      skippedMatchedByKey,
       fetchedScheduleCount: fetchedSchedules.length,
     });
 

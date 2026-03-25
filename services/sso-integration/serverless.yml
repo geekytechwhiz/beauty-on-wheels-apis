@@ -406,7 +406,9 @@ resources:
     PatientCreationDLQ:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq
+        QueueName: ${self:provider.stage}-sso-integration-patient-creation-dlq.fifo
+        FifoQueue: true
+        ContentBasedDeduplication: false
         MessageRetentionPeriod: 1209600
 
     PatientCreationQueue:

@@ -37,6 +37,8 @@ interface Params {
 
 const handler = async (req: LambdaRequest<Params>) => {
   const { organizationId } = req.params;
+  const view = String(req.event.queryStringParameters?.view ?? '').toLowerCase();
+  const isMinimalView = view === 'minimal';
   console.log('req from handler', req);
   const authHeader = req.context.authHeader ?? req.event.headers?.Authorization ?? req.event.headers?.authorization ?? req.event.headers?.AUTHORIZATION;
   const { correlationId } = req.context;
@@ -45,6 +47,43 @@ const handler = async (req: LambdaRequest<Params>) => {
   const organization = await organizationService.getOrganization(organizationId);
   const orgRecord = organization as unknown as Record<string, unknown>;
   const isRootOrg = organizationId.toUpperCase() === 'ROOT';
+
+  if (isMinimalView) {
+    const minimalOrgInfo: Record<string, unknown> =
+      organization.organizationInfo && typeof organization.organizationInfo === 'object'
+        ? { ...(organization.organizationInfo as Record<string, unknown>) }
+        : {
+            organizationID: organization.organizationId,
+            organizationName: organization.name,
+            name: organization.name,
+            organizationType: organization.organizationType,
+          };
+
+    if (
+      (!minimalOrgInfo.address || typeof minimalOrgInfo.address !== 'object')
+    ) {
+      const addressObj: Record<string, unknown> = {};
+      if (organization.country) addressObj.country = organization.country;
+      if (organization.address) addressObj.address = organization.address;
+      if (organization.state) addressObj.state = organization.state;
+      if (organization.city) addressObj.city = organization.city;
+      if (organization.postalCode) addressObj.postalCode = organization.postalCode;
+      if (organization.countryCode) addressObj.countryCode = organization.countryCode;
+      if (Object.keys(addressObj).length > 0) {
+        minimalOrgInfo.address = addressObj;
+      }
+    }
+
+    return {
+      organizationId: organization.organizationId,
+      organizationID: organization.organizationId,
+      name: organization.name,
+      status: organization.status,
+      organizationType: organization.organizationType,
+      organizationInfo: minimalOrgInfo,
+    };
+  }
+
   const transformed: Record<string, unknown> = {};
 
   if (!isRootOrg) {

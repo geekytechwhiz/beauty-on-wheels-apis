@@ -69,10 +69,12 @@ export class CreateUserService {
     try {
       await UserValidationService.validateOrganization(
         organizationID,
-        authHeader
+        authHeader,
       );
 
-      const orgDetails = await getOrganization(organizationID, authHeader);
+      const orgDetails = await getOrganization(organizationID, authHeader, {
+        minimal: true,
+      });
       if (!orgDetails) {
         const err: any = new Error("Organization does not exist");
         err.statusCode = 400;

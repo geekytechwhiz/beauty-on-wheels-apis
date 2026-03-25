@@ -37,7 +37,9 @@ export const handler = async (
   const body = req.body ?? {};
 
   if (organizationID) {
-    const org = await getOrganization(organizationID, authHeader);
+    const org = await getOrganization(organizationID, authHeader, {
+      minimal: true,
+    });
     if (!org) {
       throwOrgError("Organization does not exist", "ORGANIZATION_NOT_FOUND");
     }

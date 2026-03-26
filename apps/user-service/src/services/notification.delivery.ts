@@ -145,26 +145,71 @@ export async function sendSms(options: { phone?: string; template?: string; temp
     console.log("FINAL TEMPLATE DATA : ",options.templateData);
     console.log("FINAL TEMPLATE : ",options.template);
     let message = '';
+    // try {
+    //   if (options.template) {
+    //     const map: Record<string, any> = { WELCOME: 'WELCOME_USER', WELCOME_USER: 'WELCOME_USER', WELCOME_STAFF: 'WELCOME_STAFF', INVITE: 'INVITE_USER', PROFILE_UPDATED: 'PROFILE_UPDATED' };
+    //     const key = (map[options.template as string] || options.template) as any;
+    //     const rendered = renderTemplate(key, options.templateData || {});
+    //     message = rendered.sms || rendered.body || `${options.template}`;
+    //   } else if (options.templateData && Object.keys(options.templateData).length > 0) {
+    //     message = Object.entries(options.templateData).map(([k, v]) => `${k}=${v}`).join(', ');
+    //   } else {
+    //     message = 'You have a new notification from MyVitalRx';
+    //   }
+    // } catch (err) {
+    //   message = options.template || 'You have a new notification from MyVitalRx';
+    // }
+    let payload;
     try {
-      if (options.template) {
-        const map: Record<string, any> = { WELCOME: 'WELCOME_USER', WELCOME_USER: 'WELCOME_USER', WELCOME_STAFF: 'WELCOME_STAFF', INVITE: 'INVITE_USER', PROFILE_UPDATED: 'PROFILE_UPDATED' };
-        const key = (map[options.template as string] || options.template) as any;
-        const rendered = renderTemplate(key, options.templateData || {});
-        message = rendered.sms || rendered.body || `${options.template}`;
-      } else if (options.templateData && Object.keys(options.templateData).length > 0) {
-        message = Object.entries(options.templateData).map(([k, v]) => `${k}=${v}`).join(', ');
+      if (options.template && options.templateData && Object.keys(options.templateData).length > 0) {
+       if(options.template =="WELCOME_USER"){
+        payload = {
+            "phoneNumber": formattedPhone,
+            "templateKey": "WELCOME_USER",
+            "language": "en",
+              "variables": {
+                "orgName":options.templateData?.ORG_NAME,
+                "HOSPITAL_ID":options.templateData?.HOSPITAL_ID,
+                "ORG_ADDRESS":options.templateData?.ORG_ADDRESS,
+                "TYPE":options.templateData?.TYPE,
+                "DEVICE":options.templateData?.DEVICE
+            }
+        }
+       }else if(options.template =="WELCOME_STAFF"){
+        payload = {
+          "phoneNumber": formattedPhone,
+          "templateKey": "WELCOME_STAFF",
+          "language": "en",
+            "variables": {
+              "orgName":options.templateData?.ORG_NAME,
+          }
+        }
+       }else if(options.template=="INVITE_USER"){
+        payload = {
+          "phoneNumber": formattedPhone,
+          "templateKey": "INVITE_USER",
+          "language": "en",
+            "variables": {
+              "orgName":options.templateData?.ORG_NAME,
+          }
+        }
+       }else if(options.template=="PROFILE_UPDATED"){
+        payload = {
+          "phoneNumber": formattedPhone,
+          "templateKey": "PROFILE_UPDATED",
+          "language": "en",
+            "variables": {
+              "orgName":""
+          }
+        }
+       }
       } else {
-        message = 'You have a new notification from MyVitalRx';
+        if (!options.template || !options.templateData) throw new Error('Template Or TemplateData is missing');
       }
     } catch (err) {
-      message = options.template || 'You have a new notification from MyVitalRx';
+      console.error("TEMPLATE / TEMPLATE DATA ERROR : ",err)
     }
 
-    const payload = {
-      dltContentId: process.env.DLT_CONTENT_ID || '',
-      phoneNumber: formattedPhone,
-      message,
-    };
     console.log("PAYLOAD : ",payload);
     try {
       await axios({ 

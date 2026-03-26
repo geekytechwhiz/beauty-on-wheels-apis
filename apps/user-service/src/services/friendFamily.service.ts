@@ -6,7 +6,6 @@ import {
   OrganizationNotExistError,
   OrganizationOnHoldError,
   OrganizationMismatchError,
-  EmailOrPhoneRequiredError,
   FnfLimitReachedError,
   UserAlreadyInvitedBySomeoneError,
   UserAlreadyAddedAsFnfError,
@@ -60,7 +59,9 @@ export class FriendFamilyService {
     authHeader?: string
   ): Promise<{ success: boolean; invitedUser?: string; data?: Record<string, unknown> }> {
     const logger = createChildLogger(baseLogger, { organizationID, userID });
-    const org = await getOrganization(organizationID, authHeader);
+    const org = await getOrganization(organizationID, authHeader, {
+      minimal: true,
+    });
     if (!org) {
       throw new Error('ORGANIZATION_NOT_EXIST');
     }
@@ -127,7 +128,9 @@ export class FriendFamilyService {
     const { memberId, userName, memberName, relation, relationship, emergencyContact, manageHealth } = body;
     const logger = createChildLogger(baseLogger, { organizationID, userId, memberId });
 
-    const org = await getOrganization(organizationID, authHeader);
+    const org = await getOrganization(organizationID, authHeader, {
+      minimal: true,
+    });
     if (!org) throw new OrganizationNotExistError();
     const status = String((org as any).status ?? '').toLowerCase();
     if (ORG_NON_AVAILABLE.includes(status)) throw new OrganizationOnHoldError();

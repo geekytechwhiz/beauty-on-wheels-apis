@@ -61,15 +61,16 @@ export function buildSSORequestContextFromSQS(
   correlationId: string,
 ): SSORequestContext {
   const { INTERNAL_SERVICE_TOKEN, SUBDOMAIN } = getEnvConfig();
-  const tenant = loadTenantDetails(SUBDOMAIN);
+  const tenantId = event.tenantId || SUBDOMAIN;
+  const tenant = loadTenantDetails(tenantId);
   return {
     correlationId,
-    tenantId: SUBDOMAIN,
+    tenantId,
     serviceToken: INTERNAL_SERVICE_TOKEN ? `${INTERNAL_SERVICE_TOKEN}` : null,
     source: 'sso-integration',
     integration: {
       providerId: tenant.provider,
-      subdomain: SUBDOMAIN,
+      subdomain: tenantId,
     },
     sourceSystem: SourceSystem.HMS,
   };

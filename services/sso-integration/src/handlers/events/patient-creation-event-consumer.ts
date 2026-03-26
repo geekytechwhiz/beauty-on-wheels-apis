@@ -49,7 +49,7 @@ export async function handler(
     const recordId = record.messageId;
 
     const correlationId =
-      record.attributes?.MessageGroupId ||
+      record.messageAttributes?.CorrelationId?.stringValue ||
       awsRequestId ||
       'unknown';
 

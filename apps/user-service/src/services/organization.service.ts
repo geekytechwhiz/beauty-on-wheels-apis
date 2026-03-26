@@ -11,6 +11,10 @@ export interface OrganizationApiPayload {
   [key: string]: unknown;
 }
 
+export interface GetOrganizationOptions {
+  minimal?: boolean;
+}
+
 /**
  * Fetches organization details via Organization service HTTP API.
  * Use for service-to-service checks (e.g. create user validation) so organization remains source of truth.
@@ -19,6 +23,7 @@ export interface OrganizationApiPayload {
 export async function getOrganization(
   organizationId: string,
   authHeader?: string,
+  options?: GetOrganizationOptions,
 ): Promise<OrganizationApiPayload | null> {
   const apiBaseUrl = process.env.ORGANIZATION_API_URL;
   const logger = createChildLogger(baseLogger, { organizationId });
@@ -30,7 +35,8 @@ export async function getOrganization(
   }
 
   try {
-    const url = `${apiBaseUrl.replace(/\/$/, '')}/organization/${organizationId}`;
+    const baseUrl = `${apiBaseUrl.replace(/\/$/, '')}/organization/${organizationId}`;
+    const url = options?.minimal ? `${baseUrl}?view=minimal` : baseUrl;
     const response = await axios.get(url, {
       headers: {
         'Content-Type': 'application/json',

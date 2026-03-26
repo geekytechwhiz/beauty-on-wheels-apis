@@ -111,47 +111,6 @@ export class AppointmentSyncService extends BaseService {
     );
   }
 
-  private shouldInjectTestAppointment(): boolean {
-    return process.env.INJECT_TEST_APPOINTMENT === 'true';
-  }
-
-  private buildTestAppointment(): Appointment {
-    return {
-      appointmentId: 121,
-      startTime: '2026-03-17T15:15:00.000000Z',
-      endTime: '2026-03-17T15:30:00.000000Z',
-      status: 1 as any,
-      notes: null,
-      patient: {
-        id: 3129,
-        mrn: 'MR0002214',
-        name: 'John Doe',
-        gender: 'Male',
-        age: '23 years 3 months',
-        dob: null,
-        phone: '2389712345',
-        email: null,
-      },
-      doctor: {
-        id: 4,
-        name: 'ABDUL RASHID AHMED',
-        department: 'GENERAL DOCTORS',
-        phone: '123456789',
-        email: 'abdul@hms.com',
-      },
-      consultationType: {
-        id: 208,
-        name: 'Test Consultation',
-      },
-      visit: {
-        id: 1115,
-        visitType: 1 as any,
-        createdAt: '2026-03-17T15:15:00.000000Z',
-        status: 1,
-      },
-    };
-  }
-
   private buildLogContext(params: {
     context: SSORequestContext;
     externalAppointmentId?: string;
@@ -305,6 +264,124 @@ export class AppointmentSyncService extends BaseService {
     );
   }
 
+  private async handleUnresolvedPatient(params: {
+    appointment: Appointment;
+    context: SSORequestContext;
+    externalAppointmentId: string;
+    patientExternalId: string;
+    doctorExternalId: string;
+    organizationId: string;
+    resolvedDoctorUserId?: string;
+    resolvedDoctorForLog?: { userId?: string };
+    resolvedPatientForLog?: User | null;
+  }): Promise<void> {
+    const {
+      appointment,
+      context,
+      externalAppointmentId,
+      patientExternalId,
+      doctorExternalId,
+      organizationId,
+      resolvedDoctorUserId,
+      resolvedDoctorForLog,
+      resolvedPatientForLog,
+    } = params;
+
+    const existingPendingAppointments =
+      await this.pendingAppointmentService.getPendingAppointmentsByPatient(
+        context.tenantId,
+        patientExternalId,
+        context,
+      );
+
+    this.logger.info({
+      event: 'pending_appointment_create',
+      ...this.buildLogContext({
+        context,
+        externalAppointmentId,
+        patientExternalId,
+        doctorExternalId,
+        doctorUserId: resolvedDoctorForLog?.userId,
+        patientUserId: resolvedPatientForLog
+          ? String(resolvedPatientForLog.id)
+          : undefined,
+      }),
+      existingPendingCount: existingPendingAppointments.length,
+    });
+
+    await this.enqueuePendingAppointment(
+      appointment,
+      'user_not_resolved',
+      {
+        tenantId: context.tenantId,
+        organizationID: organizationId,
+        doctorUserId: resolvedDoctorForLog?.userId,
+        patientUserId: resolvedPatientForLog
+          ? String(resolvedPatientForLog.id)
+          : undefined,
+      },
+      context,
+    );
+
+    if (existingPendingAppointments.length > 0) {
+      this.logger.info({
+        event: 'patient_creation_event_enqueue_skipped_existing_pending',
+        ...this.buildLogContext({
+          context,
+          externalAppointmentId,
+          patientExternalId,
+          doctorExternalId,
+          doctorUserId: resolvedDoctorUserId,
+        }),
+        organizationId,
+        existingPendingCount: existingPendingAppointments.length,
+      });
+      return;
+    }
+
+    const provider = context.integration?.providerId ?? 'TruTech';
+
+    if (!resolvedDoctorUserId) {
+      this.logger.warn({
+        event: 'patient_creation_event_without_resolved_doctor',
+        ...this.buildLogContext({
+          context,
+          externalAppointmentId,
+          patientExternalId,
+          doctorExternalId,
+        }),
+        organizationId,
+        message:
+          'Publishing patient creation event without doctor userId; patient creation can continue, but doctor assignment will be skipped until doctor provisioning completes',
+      });
+    }
+
+    const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
+      appointment.patient,
+      organizationId,
+      provider,
+      context,
+      resolvedDoctorUserId,
+    );
+
+    await this.patientEventPublisher.publishPatientCreationEvent(
+      patientEvent,
+      context.correlationId,
+    );
+
+    this.logger.info({
+      event: 'patient_creation_event_triggered_from_sync',
+      ...this.buildLogContext({
+        context,
+        externalAppointmentId,
+        patientExternalId,
+        doctorExternalId,
+        doctorUserId: resolvedDoctorUserId,
+      }),
+      organizationId,
+    });
+  }
+
   /**
    * Fetches appointments from HMS and returns only validated appointments.
    * Used by sync handler when enqueueing to AppointmentSyncQueue (no inline processing).
@@ -449,8 +526,14 @@ export class AppointmentSyncService extends BaseService {
     message: CancellationReconciliationMessage,
     context: SSORequestContext,
   ): Promise<{ cancelled: number; failed: number; skipped: number }> {
+    const isDateOnly = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v.trim());
     const fromDateMs = this.parseDateToEpoch(message.fromDate);
-    const toDateMs = this.parseDateToEpoch(message.toDate);
+    let toDateMs = this.parseDateToEpoch(message.toDate);
+    // When toDate is provided as YYYY-MM-DD, Date parsing yields start-of-day.
+    // Expand to cover the full day by moving to next day's start.
+    if (isDateOnly(message.toDate) && Number.isFinite(toDateMs)) {
+      toDateMs = toDateMs + 24 * 60 * 60 * 1000;
+    }
     if (!Number.isFinite(fromDateMs) || !Number.isFinite(toDateMs)) {
       throw new Error('Invalid reconciliation window dates');
     }
@@ -482,9 +565,11 @@ export class AppointmentSyncService extends BaseService {
         { externalId: doctorExternalId },
         context,
       );
+      console.log("doctorUser", JSON.stringify(doctorUser))
       if (!doctorUser?.id) {
         continue;
       }
+      console.log("doctorUser found", JSON.stringify(doctorUser))
       const internalDoctorId = String(doctorUser.id);
       const keys = new Set(
         message.appointments
@@ -511,7 +596,10 @@ export class AppointmentSyncService extends BaseService {
             );
           }),
       );
+
+      console.log("keys", JSON.stringify(keys))
       const resolvedKeys = await Promise.all(Array.from(keys));
+      console.log("resolvedKeys", JSON.stringify(resolvedKeys))
       internalDoctorToKeys.set(
         internalDoctorId,
         new Set(resolvedKeys.filter((k): k is string => !!k)),
@@ -527,6 +615,8 @@ export class AppointmentSyncService extends BaseService {
       context,
     );
 
+    console.log("fetchedSchedules", JSON.stringify(fetchedSchedules))
+
     this.logger.info({
       event: 'reconciliation_schedules_fetched',
       tenantId: message.tenantId,
@@ -539,6 +629,10 @@ export class AppointmentSyncService extends BaseService {
     let cancelled = 0;
     let failed = 0;
     let skipped = 0;
+    let skippedNonConfirmed = 0;
+    let skippedMissingFields = 0;
+    let skippedFoundInSourceByExternalId = 0;
+    let skippedMatchedByKey = 0;
 
     for (const schedule of fetchedSchedules) {
       const status = (
@@ -548,6 +642,7 @@ export class AppointmentSyncService extends BaseService {
       ).toLowerCase();
       if (status !== 'confirmed') {
         skipped++;
+        skippedNonConfirmed++;
         continue;
       }
 
@@ -555,15 +650,14 @@ export class AppointmentSyncService extends BaseService {
       const patientUserId = schedule.patientUserId || this.resolvePatientUserIdFromSchedule(schedule);
       const addonId = schedule.userAddonId;
       const organizationId = schedule.organizationId || schedule.organizationID;
-      const fetchedExternalAppointmentIdRaw =
-        (schedule.meta as Record<string, unknown> | undefined)
-          ?.externalAppointmentId;
+      const metaObj = schedule.meta as Record<string, unknown> | undefined;
+      const extObj = (metaObj?.externalAppointment as Record<string, unknown> | undefined);
       const fetchedExternalAppointmentId =
-        fetchedExternalAppointmentIdRaw != null
-          ? String(fetchedExternalAppointmentIdRaw).trim()
-          : '';
+        (extObj?.externalId != null ? String(extObj.externalId) : '')?.trim() ||
+        (metaObj?.externalAppointmentId != null ? String(metaObj.externalAppointmentId) : '')?.trim();
       if (!doctorId || !patientUserId || !addonId || !organizationId) {
         skipped++;
+        skippedMissingFields++;
         this.logger.warn({
           event: 'reconciliation_skip_missing_fields',
           doctorId,
@@ -582,6 +676,7 @@ export class AppointmentSyncService extends BaseService {
         sourceExternalAppointmentIds.has(fetchedExternalAppointmentId)
       ) {
         skipped++;
+        skippedFoundInSourceByExternalId++;
         continue;
       }
 
@@ -602,12 +697,17 @@ export class AppointmentSyncService extends BaseService {
         endEpoch,
       );
 
+      console.log("startEpoch", startEpoch)
+      console.log("scheduleKey", scheduleKey)
+
       // If TruTech did not return any appointment for this doctor in the window,
       // we should treat fetched schedules as cancel candidates (not skip).
       const doctorKeys = internalDoctorToKeys.get(doctorId) ?? new Set<string>();
+      console.log("doctorKeys", doctorKeys)
 
       if (doctorKeys.has(scheduleKey)) {
         skipped++;
+        skippedMatchedByKey++;
         continue;
       }
 
@@ -659,6 +759,10 @@ export class AppointmentSyncService extends BaseService {
       cancelled,
       failed,
       skipped,
+      skippedNonConfirmed,
+      skippedMissingFields,
+      skippedFoundInSourceByExternalId,
+      skippedMatchedByKey,
       fetchedScheduleCount: fetchedSchedules.length,
     });
 
@@ -1072,44 +1176,16 @@ export class AppointmentSyncService extends BaseService {
 
       if (!resolvedPatient?.id && !isPendingAppointmentBypassEnabled()) {
         try {
-          const provider = context.integration?.providerId ?? 'TruTech';
-
-          if (!resolvedDoctorUserId) {
-            this.logger.warn({
-              event: 'patient_creation_event_without_resolved_doctor',
-              ...this.buildLogContext({
-                context,
-                externalAppointmentId,
-                patientExternalId,
-                doctorExternalId,
-              }),
-              organizationId,
-              message:
-                'Publishing patient creation event without doctor userId; patient creation can continue, but doctor assignment will be skipped until doctor provisioning completes',
-            });
-          }
-
-          const patientEvent = this.patientEventPublisher.createPatientCreationEvent(
-            appointment.patient,
-            organizationId,
-            provider,
+          await this.handleUnresolvedPatient({
+            appointment,
             context,
-            resolvedDoctorUserId,
-          );
-          await this.patientEventPublisher.publishPatientCreationEvent(
-            patientEvent,
-            context.correlationId,
-          );
-          this.logger.info({
-            event: 'patient_creation_event_triggered_from_sync',
-            ...this.buildLogContext({
-              context,
-              externalAppointmentId,
-              patientExternalId,
-              doctorExternalId,
-              doctorUserId: resolvedDoctorUserId,
-            }),
+            externalAppointmentId,
+            patientExternalId,
+            doctorExternalId,
             organizationId,
+            resolvedDoctorUserId,
+            resolvedDoctorForLog: resolvedDoctor,
+            resolvedPatientForLog: resolvedPatient,
           });
         } catch (err) {
           this.logger.error({
@@ -1140,30 +1216,6 @@ export class AppointmentSyncService extends BaseService {
             patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
           }),
         });
-      } else {
-        this.logger.info({
-          event: 'pending_appointment_create',
-          ...this.buildLogContext({
-            context,
-            externalAppointmentId,
-            patientExternalId,
-            doctorExternalId,
-            doctorUserId: resolvedDoctor?.userId,
-            patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
-          }),
-        });
-
-        await this.enqueuePendingAppointment(
-          appointment,
-          'user_not_resolved',
-          {
-            tenantId: context.tenantId,
-            organizationID: organizationId,
-            doctorUserId: resolvedDoctor?.userId,
-            patientUserId: resolvedPatient ? String(resolvedPatient.id) : undefined,
-          },
-          context,
-        );
       }
 
       if (!resolvedPatient?.id || !resolvedDoctor?.userId) {

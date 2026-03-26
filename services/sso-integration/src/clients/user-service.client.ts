@@ -313,6 +313,15 @@ export class SSOUserServiceClient extends BaseClient {
       );
     } catch (error) {
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 409) {
+          this.logger.info({
+            event: 'store_pending_appointment_conflict_skipped',
+            tenantId,
+            externalAppointmentId: pending.externalAppointmentId,
+            patientExternalId: pending.patientExternalId,
+          });
+          return;
+        }
         this.logger.error({
           event: 'store_pending_appointment_error',
           status: error.response?.status,

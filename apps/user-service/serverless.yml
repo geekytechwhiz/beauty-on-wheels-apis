@@ -44,7 +44,7 @@ provider:
     DEFAULT_AWS_REGION: ${self:provider.region}
     SECRET_STAGE: ${opt:secretStage, 'DEV'}
     SECRET_MANAGER_NAME: ${opt:secretStage, 'DEV'}_DEMO_SECRETMANAGER 
-    SMS_API_URL: https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev/send-sms
+    SMS_API_URL: https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev/v1/send-sms
     SEND_EMAIL_API_URL: ${env:SEND_EMAIL_API_URL, 'https://dtzbyn9f4g.execute-api.us-east-1.amazonaws.com/dev/send-email'}
     DLT_CONTENT_ID: '1207176413550655404'
     PORTAL_LINK: ${self:custom.stageUrls.${self:provider.stage}.PORTAL_LINK, ''}

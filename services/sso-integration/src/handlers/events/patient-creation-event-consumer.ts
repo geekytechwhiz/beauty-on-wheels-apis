@@ -152,16 +152,20 @@ async function processPatientCreationEvent(
     requestContext,
   );
 
+  const resolvedOrganizationId = organizationID || config.defaultOrganizationID;
+  let patientUserId: string | undefined;
+  let usedExistingPatient = false;
+
   if (existenceResult.userServiceUser) {
+    patientUserId = String(existenceResult.userServiceUser.id);
+    usedExistingPatient = true;
     logger.info({
-      event: 'patient_creation_event_skipped',
+      event: 'patient_creation_event_existing_user_continue',
       reason: 'patient_already_exists',
       patientId: patient.id,
       externalId,
-      userId: existenceResult.userServiceUser.id,
+      userId: patientUserId,
     });
-
-    return;
   }
 
   if (existenceResult.cognitoUser) {
@@ -177,89 +181,73 @@ async function processPatientCreationEvent(
   /**
    * Map event → createUser payload (CreatePatientModel)
    */
-  const patientPayload = mapHmsPatientToCreatePatientModel(event);
+  if (!patientUserId) {
+    const patientPayload = mapHmsPatientToCreatePatientModel(event);
 
-  logger.info({
-    event: 'patient_creation_event_mapped_payload',
-    correlationId,
-    patientId: patient.id,
-    userType: patientPayload.userType,
-    userRole: patientPayload.userRole,
-  });
-
-  /**
-   * Validate contact info
-   */
-  const hasEmail =
-    typeof patientPayload.userInfo.contact.email === 'string' &&
-    patientPayload.userInfo.contact.email.trim() !== '';
-
-  const hasPhone =
-    typeof patientPayload.userInfo.contact.phone === 'string' &&
-    patientPayload.userInfo.contact.phone.trim() !== '';
-
-  if (!hasEmail && !hasPhone) {
-    logger.error({
-      event: 'patient_creation_event_invalid_contact',
-      reason: 'missing_email_and_phone',
+    logger.info({
+      event: 'patient_creation_event_mapped_payload',
+      correlationId,
       patientId: patient.id,
+      userType: patientPayload.userType,
+      userRole: patientPayload.userRole,
     });
 
-    return;
-  }
+    /**
+     * Validate contact info
+     */
+    const hasEmail =
+      typeof patientPayload.userInfo.contact.email === 'string' &&
+      patientPayload.userInfo.contact.email.trim() !== '';
 
-  /**
-   * Fallback organization
-   */
-  patientPayload.organizationID =
-    organizationID || config.defaultOrganizationID;
+    const hasPhone =
+      typeof patientPayload.userInfo.contact.phone === 'string' &&
+      patientPayload.userInfo.contact.phone.trim() !== '';
 
-  /**
-   * Create patient
-   */
-  let createdPatient: Awaited<
-    ReturnType<typeof userServiceClient.createPatient>
-  >;
-  try {
-    createdPatient = await userServiceClient.createPatient(
+    if (!hasEmail && !hasPhone) {
+      logger.error({
+        event: 'patient_creation_event_invalid_contact',
+        reason: 'missing_email_and_phone',
+        patientId: patient.id,
+      });
+
+      return;
+    }
+
+    /**
+     * Fallback organization
+     */
+    patientPayload.organizationID = resolvedOrganizationId;
+
+    /**
+     * Create patient
+     */
+    const createdPatient = await userServiceClient.createPatient(
       patientPayload,
       requestContext,
     );
-  } catch (error) {
-    const status = (error as any)?.response?.status;
-    if (status === 409) {
-      logger.info({
-        event: 'patient_creation_conflict_skipped',
-        reason: 'patient_already_exists_conflict',
+
+    /**
+     * Extract patient userId (CreatedUserInfo.userId)
+     */
+    patientUserId = createdPatient?.userId;
+
+
+    if (!patientUserId) {
+      logger.error({
+        event: 'patient_creation_missing_user_id',
         patientId: patient.id,
-        externalId,
+        response: createdPatient,
       });
+
       return;
     }
-    throw error;
-  }
 
-  /**
-   * Extract patient userId (CreatedUserInfo.userId)
-   */
-  const patientUserId = createdPatient?.userId; 
-
-
-  if (!patientUserId) {
-    logger.error({
-      event: 'patient_creation_missing_user_id',
+    logger.info({
+      event: 'patient_creation_event_success',
       patientId: patient.id,
-      response: createdPatient,
+      userId: patientUserId,
     });
-
-    return;
   }
-
-  logger.info({
-    event: 'patient_creation_event_success',
-    patientId: patient.id,
-    userId: patientUserId,
-  });
 //   {
 //     "organizationId": "mm3208au877eaa2d",
 //     "sender": {
@@ -283,8 +271,17 @@ async function processPatientCreationEvent(
    * Assign doctor if provided (AssignDoctorModel; sender ≠ receiver enforced)
    */
   if (doctorId) {
+    logger.info({
+      event: 'patient_assign_doctor_attempt',
+      patientId: patient.id,
+      userId: patientUserId,
+      doctorId,
+      organizationId: resolvedOrganizationId,
+      assignmentSource: usedExistingPatient ? 'existing_patient' : 'newly_created_patient',
+    });
+
     const assignDoctorPayload = buildAssignDoctorPayload({
-      organizationId: patientPayload.organizationID,
+      organizationId: resolvedOrganizationId,
       doctorUserId: String(doctorId),
       patientUserId: String(patientUserId),
       doctor: { userType: 'STAFF' },
@@ -306,7 +303,7 @@ async function processPatientCreationEvent(
         patientId: patient.id,
         userId: patientUserId,
         doctorId,
-        organizationId: patientPayload.organizationID,
+        organizationId: resolvedOrganizationId,
         message: assignResult?.message,
       });
     } catch (error) {
@@ -315,7 +312,7 @@ async function processPatientCreationEvent(
         patientId: patient.id,
         userId: patientUserId,
         doctorId,
-        organizationId: patientPayload.organizationID,
+        organizationId: resolvedOrganizationId,
         err: serializeError(error as Error),
       });
     }
@@ -325,7 +322,7 @@ async function processPatientCreationEvent(
       reason: 'doctor_id_missing_in_event',
       patientId: patient.id,
       userId: patientUserId,
-      organizationId: patientPayload.organizationID,
+      organizationId: resolvedOrganizationId,
     });
   }
 

@@ -63,6 +63,7 @@
     "@swc/jest": "~0.2.38",
     "@types/aws-lambda": "^8.10.159",
     "@types/jest": "^30.0.0",
+    "@types/luxon": "^3.7.1",
     "@types/node": "20.19.9",
     "@types/winston": "^2.4.4",
     "@vitest/ui": "^4.0.0",

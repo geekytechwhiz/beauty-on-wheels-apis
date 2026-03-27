@@ -14,6 +14,7 @@ import {
 import { TruTechEMRVisit, TruTechPatientEMRResponse } from '../types/external/trutech.types';
 import { SSOError } from '../types/errors/sso-error';
 import { getEnvConfig } from '../config/env';
+import { DateTime } from 'luxon';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -222,82 +223,24 @@ export class TruTechAdapter {
       return raw;
     }
 
+    // Treat HMS value as local wall-clock time in source timezone even if
+    // payload includes Z/offset suffix.
     const normalized = raw.replace(' ', 'T');
-    const match = normalized.match(
-      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(\.(\d{1,6}))?)?(?:Z|[+-]\d{2}:\d{2})?$/,
-    );
+    const withoutZone = normalized.replace(/(Z|[+-]\d{2}:\d{2})$/, '');
+    const parsed = DateTime.fromISO(withoutZone, {
+      zone: this.appointmentSourceTimezone,
+    });
 
-    if (!match) {
+    if (!parsed.isValid) {
       this.logger.warn({
         event: 'trutech_timezone_parse_fallback',
         rawDateTime: raw,
+        reason: parsed.invalidReason,
       });
       return raw;
     }
 
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    const day = Number(match[3]);
-    const hour = Number(match[4]);
-    const minute = Number(match[5]);
-    const second = Number(match[6] ?? '0');
-    const fraction = (match[8] ?? '').padEnd(3, '0').slice(0, 3);
-    const millisecond = Number(fraction || '0');
-
-    const naiveUtcMillis = Date.UTC(
-      year,
-      month - 1,
-      day,
-      hour,
-      minute,
-      second,
-      millisecond,
-    );
-
-    const offsetMsFirstPass =
-      this.getTimeZoneOffsetMs(
-        this.appointmentSourceTimezone,
-        naiveUtcMillis,
-      );
-    let utcMillis = naiveUtcMillis - offsetMsFirstPass;
-
-    // Re-evaluate once at corrected instant for timezone rules stability.
-    const offsetMsSecondPass =
-      this.getTimeZoneOffsetMs(
-        this.appointmentSourceTimezone,
-        utcMillis,
-      );
-    utcMillis = naiveUtcMillis - offsetMsSecondPass;
-
-    return new Date(utcMillis).toISOString();
-  }
-
-  private getTimeZoneOffsetMs(timeZone: string, utcMillis: number): number {
-    const dtf = new Intl.DateTimeFormat('en-GB', {
-      timeZone,
-      hour12: false,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    const parts = dtf.formatToParts(new Date(utcMillis));
-    const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-
-    const tzAsUtc = Date.UTC(
-      Number(map.year),
-      Number(map.month) - 1,
-      Number(map.day),
-      Number(map.hour),
-      Number(map.minute),
-      Number(map.second),
-      0,
-    );
-
-    const utcWithoutMs = utcMillis - (utcMillis % 1000);
-    return tzAsUtc - utcWithoutMs;
+    return parsed.toUTC().toISO() ?? raw;
   }
 }
 

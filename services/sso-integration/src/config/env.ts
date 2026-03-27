@@ -50,6 +50,7 @@ const envSchema = z.object({
     .min(1000)
     .default(10000),
   APPOINTMENT_SYNC_CONCURRENCY_LIMIT: z.coerce.number().min(1).default(5),
+  APPOINTMENT_SOURCE_TIMEZONE: z.string().min(1).default('Africa/Lusaka'),
 
   DOCTOR_ROLE_ID: z.string().min(1, 'DOCTOR_ROLE_ID is required'),
 

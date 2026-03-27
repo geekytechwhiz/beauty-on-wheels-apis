@@ -13,6 +13,8 @@ import {
 } from '../types';
 import { TruTechEMRVisit, TruTechPatientEMRResponse } from '../types/external/trutech.types';
 import { SSOError } from '../types/errors/sso-error';
+import { getEnvConfig } from '../config/env';
+import { DateTime } from 'luxon';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -23,6 +25,12 @@ export class TruTechAdapter {
   private readonly logger = createChildLogger(baseLogger, {
     component: 'TruTechAdapter',
   });
+  private readonly appointmentSourceTimezone: string;
+
+  constructor() {
+    const env = getEnvConfig();
+    this.appointmentSourceTimezone = env.APPOINTMENT_SOURCE_TIMEZONE || 'Africa/Lusaka';
+  }
 
   // ---------------------------------------------------------
   // Map Appointment List
@@ -98,10 +106,16 @@ export class TruTechAdapter {
  
 
   private normalizeAppointment(appt: TruTechAppointment): Appointment {
+    const startTimeUtc = this.convertSourceLocalToUtcIso(appt.start_time);
+    const endTimeUtc = this.convertSourceLocalToUtcIso(appt.end_time);
+    const visitCreatedAtUtc = this.convertSourceLocalToUtcIso(
+      appt.visit?.created_at ?? '',
+    );
+
     return {
       appointmentId: appt.appointment_id,
-      startTime: appt.start_time,
-      endTime: appt.end_time,
+      startTime: startTimeUtc ?? null,
+      endTime: endTimeUtc ?? null,
       status: appt.status as AppointmentStatus,
       notes: appt.notes ?? '',
 
@@ -134,7 +148,7 @@ export class TruTechAdapter {
       visit: {
         id: appt.visit?.id ?? null,
         visitType: (appt.visit?.visit_type ?? null) as any,
-        createdAt: appt.visit?.created_at ?? null,
+        createdAt: visitCreatedAtUtc || null,
         status: (appt.visit?.status ?? null) as any,
       } as Visit,
     };
@@ -197,7 +211,18 @@ export class TruTechAdapter {
       })),
     };
   }
-}
+
+  /**
+   * Convert HMS datetime to UTC ISO string.
+   * Treat incoming HMS values as local clock time in configured source timezone
+   * and convert to UTC ISO for downstream processing.
+   */
+  private convertSourceLocalToUtcIso(dateTime: string) {
+      return DateTime.fromISO(dateTime, {
+      zone: this.appointmentSourceTimezone,
+      }).toUTC().toISO();
+    }
+  }
 
 let adapterInstance: TruTechAdapter | null = null;
 

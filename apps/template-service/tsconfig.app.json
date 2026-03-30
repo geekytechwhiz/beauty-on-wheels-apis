@@ -12,16 +12,5 @@
     "emitDeclarationOnly": false
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts"],
-  "references": [
-    {
-      "path": "../../libs/template-storage/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/template-core/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/utils"
-    }
-  ]
+  "exclude": ["src/**/*.spec.ts"]
 }

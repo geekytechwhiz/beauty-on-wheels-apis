@@ -1,7 +1,3 @@
-import { withLambdaHandler } from '@api-hub/utils';
+import { buildHealthHandler } from '@api-hub/template';
 
-const healthHandler = async () => ({ status: 'ok' as const });
-
-export const main = withLambdaHandler(healthHandler, {
-  successMessageKey: 'HEALTH.HEALTH_CHECK_OK',
-});
+export const main = buildHealthHandler();

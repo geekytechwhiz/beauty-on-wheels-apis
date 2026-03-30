@@ -209,20 +209,28 @@ async function processRecord(
     } else {
       try {
         recordLogger.info({ event: 'inviteNotificationStream_sms_sending', phoneNumber });
-
+        const payload = {
+          phoneNumber:  `${phoneCode}${phoneNumber}`,
+          templateKey: "WELCOME_SMS",
+          language: 'en',
+          variables: {
+            "orgName":organizationName,
+          },
+        };
         await axios.post(
           SMS_API_URL,
           {
-              "phoneNumber": `${phoneCode}${phoneNumber}`,
-              "templateKey": "USER_WELCOME_SMS",
-              "language": "en",
-                "variables": {
-                  "orgName":organizationName,
-                  "HOSPITAL_ID":organizationID,
-                  "ORG_ADDRESS":organizationAddress,
-                  "TYPE":'INVITE',
-                  "DEVICE":''
-              }
+              // "phoneNumber": `${phoneCode}${phoneNumber}`,
+              // "templateKey": "WELCOME_SMS",
+              // "language": "en",
+              //   "variables": {
+              //     "orgName":organizationName,
+              //     "HOSPITAL_ID":organizationID,
+              //     "ORG_ADDRESS":organizationAddress,
+              //     "TYPE":'INVITE',
+              //     "DEVICE":''
+              // }
+              ...payload
           },
           { timeout: 10_000 },
         );

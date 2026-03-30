@@ -71,6 +71,15 @@
     },
     {
       "path": "./libs/service-clients"
+    },
+    {
+      "path": "./apps/template-service"
+    },
+    {
+      "path": "./libs/template-core"
+    },
+    {
+      "path": "./libs/template-storage"
     }
   ]
 }

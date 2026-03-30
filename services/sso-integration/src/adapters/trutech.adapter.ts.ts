@@ -114,8 +114,8 @@ export class TruTechAdapter {
 
     return {
       appointmentId: appt.appointment_id,
-      startTime: startTimeUtc,
-      endTime: endTimeUtc,
+      startTime: startTimeUtc ?? null,
+      endTime: endTimeUtc ?? null,
       status: appt.status as AppointmentStatus,
       notes: appt.notes ?? '',
 
@@ -217,32 +217,12 @@ export class TruTechAdapter {
    * Treat incoming HMS values as local clock time in configured source timezone
    * and convert to UTC ISO for downstream processing.
    */
-  private convertSourceLocalToUtcIso(dateTime: string): string {
-    const raw = String(dateTime ?? '').trim();
-    if (!raw) {
-      return raw;
-    }
-
-    // Treat HMS value as local wall-clock time in source timezone even if
-    // payload includes Z/offset suffix.
-    const normalized = raw.replace(' ', 'T');
-    const withoutZone = normalized.replace(/(Z|[+-]\d{2}:\d{2})$/, '');
-    const parsed = DateTime.fromISO(withoutZone, {
+  private convertSourceLocalToUtcIso(dateTime: string) {
+      return DateTime.fromISO(dateTime, {
       zone: this.appointmentSourceTimezone,
-    });
-
-    if (!parsed.isValid) {
-      this.logger.warn({
-        event: 'trutech_timezone_parse_fallback',
-        rawDateTime: raw,
-        reason: parsed.invalidReason,
-      });
-      return raw;
+      }).toUTC().toISO();
     }
-
-    return parsed.toUTC().toISO() ?? raw;
   }
-}
 
 let adapterInstance: TruTechAdapter | null = null;
 

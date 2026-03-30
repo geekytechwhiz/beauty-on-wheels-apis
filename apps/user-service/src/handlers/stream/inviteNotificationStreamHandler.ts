@@ -209,16 +209,28 @@ async function processRecord(
     } else {
       try {
         recordLogger.info({ event: 'inviteNotificationStream_sms_sending', phoneNumber });
-        const wel_message = WELCOME_MESSAGE
-        .replace(/{{ORG_NAME}}/g, organizationName)
-        .replace(/{{PORTAL_LINK}}/g, PORTAL_LINK);
-
+        const payload = {
+          phoneNumber:  `${phoneCode}${phoneNumber}`,
+          templateKey: "WELCOME_SMS",
+          language: 'en',
+          variables: {
+            "orgName":organizationName,
+          },
+        };
         await axios.post(
           SMS_API_URL,
           {
-            "dltContentId": WELCOME_DLT_CONTENT_ID,
-            "phoneNumber": `${phoneCode}${phoneNumber}`,
-             message: wel_message
+              // "phoneNumber": `${phoneCode}${phoneNumber}`,
+              // "templateKey": "WELCOME_SMS",
+              // "language": "en",
+              //   "variables": {
+              //     "orgName":organizationName,
+              //     "HOSPITAL_ID":organizationID,
+              //     "ORG_ADDRESS":organizationAddress,
+              //     "TYPE":'INVITE',
+              //     "DEVICE":''
+              // }
+              ...payload
           },
           { timeout: 10_000 },
         );

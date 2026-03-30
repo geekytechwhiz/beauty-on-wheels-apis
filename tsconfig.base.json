@@ -34,12 +34,15 @@
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
       "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
       "@api-hub/service-clients": ["libs/service-clients/src/index.ts"],
-      "@api-hub/template-core": ["libs/template-core/src/index.ts"],
-      "@api-hub/template-dto": ["libs/template-core/src/index.ts"],
-      "@api-hub/template-rules": ["libs/template-core/src/index.ts"],
-      "@api-hub/template-executor": ["libs/template-core/src/index.ts"],
-      "@api-hub/template-repository": ["libs/template-core/src/index.ts"],
-      "@api-hub/template-storage": ["libs/template-storage/src/index.ts"]
+      "@api-hub/template": ["libs/template/src/index.ts"],
+      "@api-hub/template/*": ["libs/template/src/*"],
+      "@api-hub/rule-engine": ["libs/rule-engine/src/index.ts"],
+      "@api-hub/template-core": ["libs/template/src/index.ts"],
+      "@api-hub/template-dto": ["libs/template/src/api/request.schemas.ts"],
+      "@api-hub/template-rules": ["libs/rule-engine/src/index.ts"],
+      "@api-hub/template-executor": ["libs/template/src/application/index.ts"],
+      "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
+      "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"]
     }
   }
 }

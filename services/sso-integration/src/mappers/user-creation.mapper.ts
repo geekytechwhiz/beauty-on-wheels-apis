@@ -130,7 +130,7 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
       phoneCode: config.patient.phoneCode,
     },
     gender: patient.gender ?? undefined,
-    dateOfBirth: undefined,
+    dateOfBirth: patient.dob ?? undefined,
     organizationID,
     externalIdentity: buildExternalIdentity(patient.id?.toString() ),
     patientRoleId: tenant.patientRoleId,

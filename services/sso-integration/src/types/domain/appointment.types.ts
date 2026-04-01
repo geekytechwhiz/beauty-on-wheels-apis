@@ -2,8 +2,8 @@ import {  VisitType } from "../enums"
 
     export interface Appointment {
     appointmentId: number
-    startTime: string
-    endTime: string
+    startTime: string | null
+    endTime: string | null
     status: AppointmentStatus
     notes?: string | null
   

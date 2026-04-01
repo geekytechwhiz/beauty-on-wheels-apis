@@ -238,7 +238,7 @@ custom:
   userTableStreamTimestamp:
     dev: '2026-03-03T06:46:28.426'
     stg: '2026-01-23T11:08:57.849'
-    prd: ''
+    prd: '2026-04-01T07:47:19.032'
   
   # Full DynamoDB Stream ARN built dynamically from region, accountId, stage, and timestamp
   userTableStreamArn: 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/user-table-${self:provider.stage}/stream/${self:custom.userTableStreamTimestamp.${self:provider.stage}}'
@@ -270,10 +270,11 @@ custom:
       WEB_URL: 'https://prd-deeplink.myvitalrx.com/download.html'
       PORTAL_LINK: 'https://usprd-console.myvitalrx.com/en/login'
       ROLE_API_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
-      ORGANIZATION_API_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/prd'
-      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      ORGANIZATION_API_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
+      USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
       PACKAGE_SERVICE_BASE_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
       SCHEDULE_SERVICE_API_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
+      APPOINTMENT_SCHEDULES_API_URL: 'https://pddkbzgw78.execute-api.us-east-1.amazonaws.com'
       deploymentBucket: nvprd-mvx-user-service-bucket
 
   cors:

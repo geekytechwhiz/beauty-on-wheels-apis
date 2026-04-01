@@ -224,7 +224,7 @@ custom:
       SSO_DEFAULT_ORGANIZATION_ID: 'mm1usge33d4f9b61'
       TRU_TECH_BASE_URL: 'https://qahms.zmtrutech.com'
       TRU_TECH_API_KEY: '03faace2-7d0b-4e77-95b1-82c4a48943d3'
-      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/prd'
+      USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
       ROLE_SERVICE_BASE_URL: 'https://4dczf1vsgl.execute-api.us-east-1.amazonaws.com/prd'
       PACKAGE_SERVICE_BASE_URL: 'https://t9iqf5gu49.execute-api.us-east-1.amazonaws.com/prd'
       SCHEDULE_SERVICE_API_URL: 'https://pddkbzgw78.execute-api.us-east-1.amazonaws.com'

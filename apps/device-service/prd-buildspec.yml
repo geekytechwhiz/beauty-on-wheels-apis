@@ -5,7 +5,7 @@ env:
     STAGE: 'prd'
     DEPLOYMENT_BUCKET: 'prd-mvx-device-service-bucket'
     STACK_NAME: 'prd-device-service'
-    SEED_META: ''
+    SEED_META: 'true'
 
 phases:
   install:

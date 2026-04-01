@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     STAGE: 'prd'
-    DEPLOYMENT_BUCKET: 'prd-mvx-organization-service-bucket'
+    DEPLOYMENT_BUCKET: 'nvprd-mvx-organization-service-bucket'
     STACK_NAME: 'prd-organization-service'
     SEED_META: ''
 

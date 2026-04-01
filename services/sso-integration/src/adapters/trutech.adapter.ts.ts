@@ -111,6 +111,7 @@ export class TruTechAdapter {
     const visitCreatedAtUtc = this.convertSourceLocalToUtcIso(
       appt.visit?.created_at ?? '',
     );
+    const formattedDob = this.formatDobForUserCreation(appt.patient?.dob);
 
     return {
       appointmentId: appt.appointment_id,
@@ -125,10 +126,10 @@ export class TruTechAdapter {
         mrn: appt.patient ? appt.patient.mrn : '',
         name: appt.patient ? appt.patient.name : '',
         gender: appt.patient ? appt.patient.gender : '',
-        dateOfBirth: appt.patient ? appt.patient.dob : '',
+        dateOfBirth: formattedDob,
         phone: appt.patient ? appt.patient.phone : '',
         email: appt.patient ? appt.patient.email : '',
-        dob: appt.patient ? appt.patient.dob : '',
+        dob: formattedDob,
         organizationId: appt.patient ? appt.patient.organizationId : '',
       } as Patient,
 
@@ -222,6 +223,24 @@ export class TruTechAdapter {
       zone: this.appointmentSourceTimezone,
       }).toUTC().toISO();
     }
+
+  /**
+   * TruTech sends DOB in YYYY-MM-DD. Convert to DD-MM-YYYY before user creation.
+   * For placeholder values like 0000-00-00, return empty string.
+   */
+  private formatDobForUserCreation(dob?: string | null): string {
+    const rawDob = (dob ?? '').trim();
+    if (!rawDob) return '';
+    if (rawDob === '0000-00-00') return '';
+
+    const isoDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(rawDob);
+    if (!isoDateMatch) {
+      return rawDob;
+    }
+
+    const [, year, month, day] = isoDateMatch;
+    return `${day}-${month}-${year}`;
+  }
   }
 
 let adapterInstance: TruTechAdapter | null = null;

@@ -6,10 +6,28 @@ import {
   resolveTemplateScope,
   type TemplateScope,
 } from '../policies';
-import { createTemplateBodySchema, executeTemplateBodySchema, updateTemplateBodySchema } from './request.schemas';
+import {
+  createTemplateBodySchema,
+  executeTemplateBodySchema,
+  publishTemplateBodySchema,
+  updateTemplateBodySchema,
+} from './request.schemas';
 
 function issueDetails(issues: ZodIssue[]) {
   return issues.map((issue) => ({ field: issue.path.join('.'), message: issue.message }));
+}
+
+function getIdempotencyKey(req: any): string | undefined {
+  const header =
+    req.event?.headers?.['Idempotency-Key'] ??
+    req.event?.headers?.['idempotency-key'] ??
+    req.event?.headers?.['IDEMPOTENCY-KEY'];
+
+  if (typeof header !== 'string' || header.trim() === '') {
+    return undefined;
+  }
+
+  return header.trim();
 }
 
 function requireRequestOrganizationId(req: any): string {
@@ -38,7 +56,11 @@ export function validateCreateTemplate(req: any) {
       issueDetails(result.error.issues),
     );
   }
-  req.validatedCreateTemplate = { orgId: requestOrgId, body: result.data };
+  req.validatedCreateTemplate = {
+    orgId: requestOrgId,
+    body: result.data,
+    idempotencyKey: getIdempotencyKey(req),
+  };
 }
 
 export function validateGetTemplate(req: any) {
@@ -47,11 +69,17 @@ export function validateGetTemplate(req: any) {
   if (!templateId || String(templateId).trim() === '') {
     throw new TemplateValidationError('template id is required', 'COMMON.BAD_REQUEST');
   }
+  const viewRaw =
+    req.query?.view ??
+    req.event?.queryStringParameters?.view ??
+    req.event?.multiValueQueryStringParameters?.view?.[0];
+  const view = typeof viewRaw === 'string' && viewRaw.toLowerCase() === 'raw' ? 'raw' : 'published';
   req.validatedGetTemplate = {
     orgId,
     scope,
     templateId: String(templateId),
     version: req.params?.version ?? undefined,
+    view,
   };
 }
 
@@ -76,6 +104,7 @@ export function validateUpdateTemplate(req: any) {
     scope,
     templateId: String(templateId),
     body: result.data,
+    idempotencyKey: getIdempotencyKey(req),
   };
 }
 
@@ -99,5 +128,30 @@ export function validateExecuteTemplate(req: any) {
     orgId: requestOrgId,
     templateId: String(templateId),
     body: result.data,
+  };
+}
+
+export function validatePublishTemplate(req: any) {
+  const { orgId, scope } = resolveScopedOrganization(req);
+  const templateId = req.params?.id ?? req.pathParameters?.id;
+  if (!templateId || String(templateId).trim() === '') {
+    throw new TemplateValidationError('template id is required', 'COMMON.BAD_REQUEST');
+  }
+
+  const result = publishTemplateBodySchema.safeParse(req.body ?? {});
+  if (!result.success) {
+    throw new TemplateValidationError(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      'TEMPLATE.TEMPLATE_VALIDATION_FAILED',
+      issueDetails(result.error.issues),
+    );
+  }
+
+  req.validatedPublishTemplate = {
+    orgId,
+    scope,
+    templateId: String(templateId),
+    body: result.data,
+    idempotencyKey: getIdempotencyKey(req),
   };
 }

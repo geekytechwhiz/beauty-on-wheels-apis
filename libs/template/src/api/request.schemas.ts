@@ -1,4 +1,27 @@
+import { assertValidRuleSet, type RuleSet } from '@api-hub/rule-engine';
 import { z } from 'zod';
+import { normalizeTemplateStatus } from '../domain/template-status';
+
+const ruleSetSchema = z.custom<RuleSet>(
+  (value) => {
+    try {
+      assertValidRuleSet(value);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  {
+    message: 'rules must be a valid enterprise rule set',
+  },
+);
+
+const templateProfileSchema = z.object({
+  profileTemplateType: z.string().min(1),
+  category: z.string().min(1),
+  condition: z.string().min(1),
+  country: z.string().min(1),
+});
 
 export const createTemplateBodySchema = z.object({
   templateId: z.string().min(1),
@@ -7,10 +30,14 @@ export const createTemplateBodySchema = z.object({
   extendsTemplateId: z.string().min(1).optional(),
   extendsVersion: z.string().min(1).optional(),
   extendsBaseOrgId: z.string().min(1).optional(),
+  profile: templateProfileSchema.optional(),
   config: z.record(z.string(), z.unknown()).default({}),
-  rules: z.unknown().optional(),
+  rules: ruleSetSchema.optional(),
   actions: z.unknown().optional(),
-  status: z.enum(['draft', 'published', 'archived']).default('draft'),
+  status: z
+    .string()
+    .optional()
+    .transform((s) => (s === undefined ? undefined : normalizeTemplateStatus(s))),
   createdBy: z.string().optional(),
 });
 
@@ -21,10 +48,14 @@ export const updateTemplateBodySchema = z.object({
   extendsTemplateId: z.string().min(1).optional(),
   extendsVersion: z.string().min(1).optional(),
   extendsBaseOrgId: z.string().min(1).optional(),
+  profile: templateProfileSchema.optional(),
   config: z.record(z.string(), z.unknown()).optional(),
-  rules: z.unknown().optional(),
+  rules: ruleSetSchema.optional(),
   actions: z.unknown().optional(),
-  status: z.enum(['draft', 'published', 'archived']).optional(),
+  status: z
+    .string()
+    .optional()
+    .transform((s) => (s === undefined ? undefined : normalizeTemplateStatus(s))),
 });
 
 export type UpdateTemplateBody = z.infer<typeof updateTemplateBodySchema>;
@@ -35,3 +66,9 @@ export const executeTemplateBodySchema = z.object({
 });
 
 export type ExecuteTemplateBody = z.infer<typeof executeTemplateBodySchema>;
+
+export const publishTemplateBodySchema = z.object({
+  version: z.string().min(1),
+});
+
+export type PublishTemplateBody = z.infer<typeof publishTemplateBodySchema>;

@@ -11,6 +11,7 @@ const config: Config = {
     '^@api-hub/template$': '<rootDir>/../../libs/template/src/index.ts',
     '^@api-hub/template/(.*)$': '<rootDir>/../../libs/template/src/$1',
     '^@api-hub/rule-engine$': '<rootDir>/../../libs/rule-engine/src/index.ts',
+    '^@api-hub/care-plan$': '<rootDir>/../../libs/template/src/care-plan/index.ts',
     '^@api-hub/template-core$': '<rootDir>/../../libs/template/src/index.ts',
     '^@api-hub/template-storage$': '<rootDir>/../../libs/template/src/infrastructure/index.ts',
     '^@api-hub/template-dto$': '<rootDir>/../../libs/template/src/api/request.schemas.ts',

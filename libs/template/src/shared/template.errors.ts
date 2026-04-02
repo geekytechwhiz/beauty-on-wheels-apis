@@ -13,8 +13,16 @@ export class TemplateError extends Error {
 }
 
 export class TemplateValidationError extends TemplateError {
-  constructor(message: string, code = 'TEMPLATE.TEMPLATE_VALIDATION_FAILED', details?: TemplateErrorDetails) {
+  public readonly context?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    code = 'TEMPLATE.TEMPLATE_VALIDATION_FAILED',
+    details?: TemplateErrorDetails,
+    context?: Record<string, unknown>,
+  ) {
     super(code, message, 400, details);
+    this.context = context;
   }
 }
 
@@ -48,8 +56,32 @@ export class TemplateResolveError extends TemplateError {
   }
 }
 
+export class TemplateInvalidStateTransitionError extends TemplateError {
+  constructor(message = 'Invalid template state transition') {
+    super('TEMPLATE.TEMPLATE_INVALID_STATE_TRANSITION', message, 409);
+  }
+}
+
 export class TemplateSchemaRefMissingError extends TemplateError {
   constructor(message = 'Template schema reference is missing') {
     super('TEMPLATE.TEMPLATE_SCHEMA_REF_MISSING', message, 500);
+  }
+}
+
+export class TemplateRuntimeBindingConflictError extends TemplateError {
+  constructor(message = 'Runtime template version is already bound') {
+    super('TEMPLATE.TEMPLATE_RUNTIME_BINDING_CONFLICT', message, 409);
+  }
+}
+
+export class TemplateNotPublishedError extends TemplateError {
+  constructor(message = 'Template must be PUBLISHED for this operation') {
+    super('TEMPLATE.TEMPLATE_NOT_PUBLISHED', message, 409);
+  }
+}
+
+export class TemplateHierarchyError extends TemplateError {
+  constructor(message = 'Invalid template hierarchy') {
+    super('TEMPLATE.TEMPLATE_HIERARCHY_INVALID', message, 400);
   }
 }

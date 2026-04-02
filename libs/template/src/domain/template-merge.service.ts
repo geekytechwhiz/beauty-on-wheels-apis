@@ -1,5 +1,10 @@
+import { loadRuleSet } from '@api-hub/rule-engine';
 import type { ResolvedTemplate, TemplateDefinition, TemplateDocument, TemplateMetadata } from './template.types';
 
+/**
+ * Deep-merges plain objects; non-object values in `overlay` overwrite `base`.
+ * Used when resolving an org template (child) over a base template.
+ */
 export function deepMerge(
   base: Record<string, unknown>,
   overlay: Record<string, unknown>,
@@ -29,7 +34,7 @@ export function deepMerge(
 
 export function parseTemplateDocument(raw: unknown): TemplateDocument {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { config: {}, rules: {}, actions: [] };
+    return { config: {}, rules: [], actions: [] };
   }
 
   const value = raw as Record<string, unknown>;
@@ -40,7 +45,7 @@ export function parseTemplateDocument(raw: unknown): TemplateDocument {
 
   return {
     config,
-    rules: 'rules' in value ? value.rules : {},
+    rules: 'rules' in value ? loadRuleSet(value.rules) : [],
     actions: 'actions' in value ? value.actions : [],
   };
 }
@@ -58,6 +63,11 @@ export function mergeMetadataAndDocument(
     extendsTemplateId: metadata.baseTemplateId,
     extendsVersion: metadata.baseVersion,
     extendsBaseOrgId: metadata.baseOrgId,
+    masterTemplateVersionId: metadata.masterTemplateVersionId,
+    snapshotRef: metadata.snapshotRef,
+    snapshotId: metadata.snapshotId,
+    profile: metadata.profile,
+    profileKey: metadata.profileKey,
     config: { ...document.config },
     rules: document.rules,
     actions: document.actions,
@@ -80,6 +90,14 @@ export function toResolvedTemplate(template: TemplateDefinition): ResolvedTempla
   };
 }
 
+/**
+ * Applies a child template layer on top of an already-resolved base.
+ *
+ * - **config**: deep-merged from base → child.
+ * - **rules** / **actions**: if the child document defines the property (including an **empty array**),
+ *   that value **replaces** the base entirely; it is not a patch. To inherit base rules/actions,
+ *   omit the key in the child document (do not send `rules: []` unless you intend to clear rules).
+ */
 export function mergeResolvedTemplateLayer(
   base: ResolvedTemplate,
   layer: TemplateDefinition,

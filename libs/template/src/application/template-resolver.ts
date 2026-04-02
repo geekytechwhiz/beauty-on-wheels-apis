@@ -6,7 +6,8 @@ import {
   type TemplateDefinition,
   type TemplateMetadata,
 } from '../domain';
-import { TemplateNotFoundError, TemplateResolveError } from '../shared';
+import { normalizeTemplateStatus } from '../domain/template-status';
+import { TemplateNotFoundError, TemplateNotPublishedError, TemplateResolveError } from '../shared';
 import type { TemplateRepository } from './template-repository.port';
 import type { TemplateDocumentLoader } from './dto';
 
@@ -18,14 +19,24 @@ export class TemplateResolver {
     private readonly loadDocument: TemplateDocumentLoader,
   ) {}
 
+  /**
+   * Resolves the template chain (base → … → leaf) for **execution** semantics.
+   * Always uses the **published** template version only (never “latest” draft).
+   */
   async resolve(orgId: string, templateId: string, version?: string): Promise<ResolvedTemplate> {
-    const resolvedVersion = version ?? (await this.pickLatestVersion(orgId, templateId));
-
-    if (!resolvedVersion) {
-      throw new TemplateNotFoundError(`Template ${templateId} has no versions`);
+    const published = await this.repository.getPublishedVersion(orgId, templateId);
+    if (!published) {
+      throw new TemplateNotPublishedError(
+        `No published template '${templateId}' for org '${orgId}'`,
+      );
+    }
+    if (version && published.version !== version) {
+      throw new TemplateResolveError(
+        `Requested version '${version}' does not match published version '${published.version}'`,
+      );
     }
 
-    return this.resolveChain(orgId, templateId, resolvedVersion, 0, new Set<string>());
+    return this.resolveChain(orgId, templateId, published.version, 0, new Set<string>());
   }
 
   async getRaw(orgId: string, templateId: string, version: string): Promise<TemplateDefinition | null> {
@@ -36,15 +47,7 @@ export class TemplateResolver {
   }
 
   async pickLatestMetadata(orgId: string, templateId: string): Promise<TemplateMetadata | null> {
-    const versions = await this.repository.listVersionsForTemplate(orgId, templateId);
-    if (versions.length === 0) return null;
-    versions.sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1));
-    return versions[0] ?? null;
-  }
-
-  private async pickLatestVersion(orgId: string, templateId: string): Promise<string | null> {
-    const latest = await this.pickLatestMetadata(orgId, templateId);
-    return latest?.version ?? null;
+    return this.repository.getLatestVersion(orgId, templateId);
   }
 
   private async resolveChain(
@@ -68,7 +71,22 @@ export class TemplateResolver {
     try {
       const metadata = await this.repository.getByKey(orgId, templateId, version);
       if (!metadata) {
-        throw new TemplateNotFoundError(`Template ${templateId}@${version} not found`);
+        if (depth > 0) {
+          throw new TemplateNotFoundError(
+            `Base template '${templateId}' @ '${version}' not found under org '${orgId}'. ` +
+              `Create the MASTER template first (e.g. POST /templates with type MASTER for this id/version), ` +
+              `or fix extendsTemplateId, extendsVersion, and extendsBaseOrgId on the child template.`,
+          );
+        }
+        throw new TemplateNotFoundError(
+          `Template '${templateId}' @ '${version}' not found under org '${orgId}'`,
+        );
+      }
+
+      if (normalizeTemplateStatus(metadata.status) !== 'PUBLISHED') {
+        throw new TemplateNotPublishedError(
+          `Template '${templateId}' @ '${version}' must be PUBLISHED to participate in resolution`,
+        );
       }
 
       const document = await this.loadDocument(metadata);

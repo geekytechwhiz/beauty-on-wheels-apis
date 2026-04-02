@@ -1,5 +1,9 @@
 export * from './template-repository.port';
+export * from './template-outbox.port';
+export * from './runtime-binding.repository.port';
+export * from './template-idempotency.port';
 export * from './template-storage.port';
+export * from './ports/template-event-publisher.port';
 export * from './template-document-loader';
 export * from './template-executor';
 export * from './template-resolver';
@@ -7,4 +11,7 @@ export * from './dto';
 export * from './use-cases/create-template.use-case';
 export * from './use-cases/get-template.use-case';
 export * from './use-cases/update-template.use-case';
+export * from './use-cases/publish-template.use-case';
 export * from './use-cases/execute-template.use-case';
+export * from './use-cases/process-template-outbox.use-case';
+export * from './use-cases/bind-runtime-template.use-case';

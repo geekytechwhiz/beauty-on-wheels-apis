@@ -1,0 +1,281 @@
+service: template-service
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-template-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
+    REGION: ${self:provider.region}
+    TEMPLATE_TABLE: template-library-${self:provider.stage}
+    TEMPLATE_BUCKET: ${self:provider.stage}-mvx-templates-library
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+    EVENT_BUS: ${self:provider.stage}-template-service-bus 
+    # Merge libs/rules/global/rules.json before template rules on execute. Set false to disable.
+    TEMPLATE_GLOBAL_RULES_ENABLED: 'true'
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:TransactWriteItems
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/template-library-${self:provider.stage}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/template-library-${self:provider.stage}/index/*
+
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource:
+        - arn:aws:s3:::${self:custom.templateBucketName}/*
+
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource: '*'
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
+
+custom:
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+  templateBucketName: mvx-${self:provider.stage}-templates-library
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
+    loader:
+      '.json': 'json'
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
+  createTemplate:
+    handler: src/handlers/createTemplate.main
+    events:
+      - http:
+          path: templates
+          method: post
+          cors: true
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  getTemplate:
+    handler: src/handlers/getTemplate.main
+    events:
+      - http:
+          path: templates/{id}
+          method: get
+          cors: true
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  updateTemplate:
+    handler: src/handlers/updateTemplate.main
+    events:
+      - http:
+          path: templates/{id}
+          method: put
+          cors: true
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  publishTemplate:
+    handler: src/handlers/publishTemplate.main
+    events:
+      - http:
+          path: templates/{id}/publish
+          method: post
+          cors: true
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  processTemplateOutbox:
+    handler: src/handlers/processOutbox.main
+    events:
+      - schedule: rate(1 minute)
+
+  carePlanTemplatePublishedConsumer:
+    handler: src/handlers/events/carePlanTemplatePublished.main
+    events:
+      - eventBridge:
+          eventBus:
+            Ref: TemplateEventBus
+          pattern:
+            source:
+              - template-service
+            detail-type:
+              - Template.Published.v1
+          retryPolicy:
+            maximumEventAge: 3600
+            maximumRetryAttempts: 2
+          deadLetterQueueArn:
+            Fn::GetAtt:
+              - TemplateEventsDLQ
+              - Arn
+
+  carePlanCreatedBindingConsumer:
+    handler: src/handlers/events/carePlanCreatedBinding.main
+    events:
+      - eventBridge:
+          eventBus:
+            Ref: TemplateEventBus
+          pattern:
+            source:
+              - careplan-service
+            detail-type:
+              - CarePlan.Created.v1
+          retryPolicy:
+            maximumEventAge: 3600
+            maximumRetryAttempts: 2
+          deadLetterQueueArn:
+            Fn::GetAtt:
+              - TemplateEventsDLQ
+              - Arn
+
+  taskCarePlanAssignedConsumer:
+    handler: src/handlers/events/taskCarePlanAssigned.main
+    events:
+      - eventBridge:
+          eventBus:
+            Ref: TemplateEventBus
+          pattern:
+            source:
+              - careplan-service
+            detail-type:
+              - CarePlan.Assigned.v1
+          retryPolicy:
+            maximumEventAge: 3600
+            maximumRetryAttempts: 2
+          deadLetterQueueArn:
+            Fn::GetAtt:
+              - TemplateEventsDLQ
+              - Arn
+
+  executeTemplate:
+    handler: src/handlers/executeTemplate.main
+    events:
+      - http:
+          path: templates/{id}/execute
+          method: post
+          cors: true
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  createCarePlanDraft:
+    handler: src/handlers/createCarePlanDraft.main
+    events:
+      - http:
+          path: care-plans/draft
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    TemplateEventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:provider.stage}-template-service-bus
+
+    TemplateBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.templateBucketName}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+
+     
+
+    TemplateEventsDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: template-events-dlq-${self:provider.stage}

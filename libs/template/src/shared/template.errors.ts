@@ -14,15 +14,28 @@ export class TemplateError extends Error {
 
 export class TemplateValidationError extends TemplateError {
   public readonly context?: Record<string, unknown>;
+  /** Dot-path into template config/document when validation is field-scoped. */
+  public readonly fieldPath?: string;
+  /** Registry metadata name when validation is metadata-driven. */
+  public readonly metadataKey?: string;
 
   constructor(
     message: string,
     code = 'TEMPLATE.TEMPLATE_VALIDATION_FAILED',
     details?: TemplateErrorDetails,
     context?: Record<string, unknown>,
+    fieldPath?: string,
+    metadataKey?: string,
   ) {
     super(code, message, 400, details);
     this.context = context;
+    this.fieldPath = fieldPath;
+    this.metadataKey = metadataKey;
+  }
+
+  /** Alias for {@link TemplateError.code} — stable validation error codes. */
+  get errorCode(): string {
+    return this.code;
   }
 }
 
@@ -83,5 +96,17 @@ export class TemplateNotPublishedError extends TemplateError {
 export class TemplateHierarchyError extends TemplateError {
   constructor(message = 'Invalid template hierarchy') {
     super('TEMPLATE.TEMPLATE_HIERARCHY_INVALID', message, 400);
+  }
+}
+
+export class MetadataNotFoundError extends TemplateError {
+  constructor(message = 'Metadata definition not found') {
+    super('METADATA.NOT_FOUND', message, 404);
+  }
+}
+
+export class MetadataDefinitionConflictError extends TemplateError {
+  constructor(message = 'Metadata definition already exists for this type, name, and version') {
+    super('METADATA.ALREADY_EXISTS', message, 409);
   }
 }

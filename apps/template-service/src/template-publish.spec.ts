@@ -9,6 +9,8 @@ import {
   TEMPLATE_MASTER_ORG_ID,
   TemplateInvalidStateTransitionError,
   TemplateNotPublishedError,
+  ValidationEngine,
+  type MetadataRepository,
   type RuntimeBindingRepository,
   type TemplateEvent,
   type TemplateEventPublisher,
@@ -19,6 +21,40 @@ import {
   type RuntimeTemplateBinding,
   type TemplateStorage,
 } from '@api-hub/template';
+
+class NoopMetadataRepository implements MetadataRepository {
+  async getMetadata(): Promise<null> {
+    return null;
+  }
+
+  async getMetadataExact(): Promise<null> {
+    return null;
+  }
+
+  async getApplicableMetadata(): Promise<never[]> {
+    return [];
+  }
+
+  async getAllByType(): Promise<never[]> {
+    return [];
+  }
+
+  async listMetadataByType(): Promise<never[]> {
+    return [];
+  }
+
+  async listVersionsForName(): Promise<never[]> {
+    return [];
+  }
+
+  async upsertMetadata(): Promise<void> {
+    return undefined;
+  }
+
+  async deleteMetadata(): Promise<void> {
+    return undefined;
+  }
+}
 
 class MemoryTemplateRepository implements TemplateRepository {
   readonly outboxEvents: TemplateOutboxEventRecord[] = [];
@@ -185,17 +221,26 @@ describe('template event publishing', () => {
     const eventPublisher = new MemoryEventPublisher();
 
     const loadDocument = buildTemplateDocumentLoader(storage);
-    const createTemplateUseCase = new CreateTemplateUseCase(repository, storage, loadDocument, repository);
+    const validationEngine = new ValidationEngine(new NoopMetadataRepository(), repository);
+    const createTemplateUseCase = new CreateTemplateUseCase(
+      repository,
+      storage,
+      loadDocument,
+      validationEngine,
+      repository,
+    );
     const updateTemplateUseCase = new UpdateTemplateUseCase(
       repository,
       storage,
       loadDocument,
+      validationEngine,
       repository,
     );
     const publishTemplateUseCase = new PublishTemplateUseCase(
       repository,
       loadDocument,
       storage,
+      validationEngine,
       repository,
     );
     const processOutboxUseCase = new ProcessTemplateOutboxUseCase(repository, eventPublisher);
@@ -282,10 +327,12 @@ describe('template event publishing', () => {
     const storage = new MemoryTemplateStorage();
     const idempotencyStore = new MemoryIdempotencyStore();
     const loadDocument = buildTemplateDocumentLoader(storage);
+    const validationEngine = new ValidationEngine(new NoopMetadataRepository(), repository);
     const createTemplateUseCase = new CreateTemplateUseCase(
       repository,
       storage,
       loadDocument,
+      validationEngine,
       idempotencyStore,
     );
 

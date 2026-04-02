@@ -1,8 +1,9 @@
+import type { MetadataModeKind } from '../domain/metadata-definition.types';
 import { TemplateValidationError } from '../shared/template.errors';
 
 export type StructuralControlOp = 'Add' | 'Remove' | 'Update' | 'Min' | 'Max';
 
-export type MetadataModeKind = 'Fixed' | 'Expandable' | 'FixedDefaultExpandable';
+export type { MetadataModeKind };
 
 export interface FieldControlSpec {
   structural?: Partial<Record<StructuralControlOp, string>>;
@@ -141,5 +142,120 @@ export function assertOrgChangesRespectMasterControls(
 export function assertControlMatrixDefined(path: string, spec: FieldControlSpec | undefined): void {
   if (!spec) {
     throw new TemplateValidationError(`Control matrix missing for ${path}`);
+  }
+}
+
+const STRUCTURAL_OPS: StructuralControlOp[] = ['Add', 'Remove', 'Update', 'Min', 'Max'];
+
+function isYesNoStructuralValue(v: unknown): boolean {
+  if (typeof v !== 'string') {
+    return false;
+  }
+  const t = v.trim().toLowerCase();
+  return t === 'yes' || t === 'no';
+}
+
+function isNumericLike(v: unknown): boolean {
+  if (typeof v === 'number' && !Number.isNaN(v)) {
+    return true;
+  }
+  if (typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Validates shape of `config.controlMatrix` when present (authoring-side).
+ * Runtime org vs master enforcement remains default DENY via {@link assertOrgChangesRespectMasterControls}.
+ */
+export function validateControlMatrixConfig(config: Record<string, unknown>): void {
+  const raw = config[CONTROL_MATRIX_KEY];
+  if (raw === undefined || raw === null) {
+    return;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new TemplateValidationError(
+      'controlMatrix must be an object',
+      'TEMPLATE.CONTROL_MATRIX_INVALID',
+      undefined,
+      undefined,
+      CONTROL_MATRIX_KEY,
+    );
+  }
+  const cm = raw as Record<string, unknown>;
+  for (const [path, spec] of Object.entries(cm)) {
+    if (!path || String(path).trim() === '') {
+      throw new TemplateValidationError(
+        'controlMatrix paths must be non-empty strings',
+        'TEMPLATE.CONTROL_MATRIX_INVALID',
+      );
+    }
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
+      throw new TemplateValidationError(
+        `controlMatrix["${path}"] must be an object`,
+        'TEMPLATE.CONTROL_MATRIX_INVALID',
+        undefined,
+        undefined,
+        path,
+      );
+    }
+    const s = spec as Record<string, unknown>;
+    if (s.metadataMode !== undefined) {
+      const m = s.metadataMode;
+      if (m !== 'Fixed' && m !== 'Expandable' && m !== 'FixedDefaultExpandable') {
+        throw new TemplateValidationError(
+          `Invalid metadataMode for control path "${path}"`,
+          'TEMPLATE.CONTROL_MATRIX_INVALID',
+          undefined,
+          undefined,
+          path,
+        );
+      }
+    }
+    const structural = s.structural;
+    if (structural === undefined) {
+      continue;
+    }
+    if (typeof structural !== 'object' || Array.isArray(structural)) {
+      throw new TemplateValidationError(
+        `controlMatrix["${path}"].structural must be an object`,
+        'TEMPLATE.CONTROL_MATRIX_INVALID',
+        undefined,
+        undefined,
+        path,
+      );
+    }
+    const st = structural as Record<string, unknown>;
+    for (const [op, val] of Object.entries(st)) {
+      if (!STRUCTURAL_OPS.includes(op as StructuralControlOp)) {
+        throw new TemplateValidationError(
+          `Unknown structural op "${op}" for path "${path}"`,
+          'TEMPLATE.CONTROL_MATRIX_INVALID',
+          undefined,
+          { op },
+          path,
+        );
+      }
+      if (op === 'Min' || op === 'Max') {
+        if (!isNumericLike(val)) {
+          throw new TemplateValidationError(
+            `Min/Max must be numeric for path "${path}"`,
+            'TEMPLATE.CONTROL_MATRIX_INVALID',
+            undefined,
+            { op },
+            path,
+          );
+        }
+      } else if (!isYesNoStructuralValue(val)) {
+        throw new TemplateValidationError(
+          `Structural op "${op}" for path "${path}" must be Yes or No`,
+          'TEMPLATE.CONTROL_MATRIX_INVALID',
+          undefined,
+          { op, val },
+          path,
+        );
+      }
+    }
   }
 }

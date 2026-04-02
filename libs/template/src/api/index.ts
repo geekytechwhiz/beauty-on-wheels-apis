@@ -7,3 +7,4 @@ export * from './handlers/update-template.handler';
 export * from './handlers/publish-template.handler';
 export * from './handlers/execute-template-handler';
 export * from './handlers/health.handler';
+export * from './handlers/metadata-registry-handlers';

@@ -9,10 +9,9 @@ import {
 } from '../../domain';
 import { buildProfileKey } from '../../domain/template-profile';
 import { normalizeTemplateStatus } from '../../domain/template-status';
-import { assertSafeTemplateRuleActions } from '../../validation/template-rule-actions.validator';
-import { assertOrgChangesRespectMasterControls } from '../../validation/template-controls.validator';
 import { TEMPLATE_MASTER_ORG_ID } from '../../policies';
 import { TemplateHierarchyError, TemplateVersionExistsError } from '../../shared';
+import type { ValidationEngine } from '../../validation/validation-engine';
 import type { CreateTemplateInput, TemplateDocumentLoader } from '../dto';
 import type { TemplateIdempotencyStore } from '../template-idempotency.port';
 import type { TemplateRepository } from '../template-repository.port';
@@ -23,6 +22,7 @@ export class CreateTemplateUseCase {
     private readonly repository: TemplateRepository,
     private readonly storage: TemplateStorage,
     private readonly loadDocument: TemplateDocumentLoader,
+    private readonly validationEngine: ValidationEngine,
     private readonly idempotencyStore: TemplateIdempotencyStore = {
       getResult: async () => null,
       saveResult: async () => undefined,
@@ -58,9 +58,8 @@ export class CreateTemplateUseCase {
       actions: input.body.actions ?? [],
     };
 
-    assertSafeTemplateRuleActions(document.rules);
-
     let masterTemplateVersionId: string | undefined;
+    let masterDocument: TemplateDocument | null = null;
     if (input.body.type === 'ORG') {
       if (!input.body.extendsTemplateId || !input.body.extendsVersion) {
         throw new TemplateHierarchyError('ORG template must extend a published master template');
@@ -79,12 +78,17 @@ export class CreateTemplateUseCase {
       }
       masterTemplateVersionId = `${base.templateId}#${base.version}`;
 
-      const masterDoc = await this.loadDocument(base);
-      assertOrgChangesRespectMasterControls(
-        masterDoc.config as Record<string, unknown>,
-        document.config as Record<string, unknown>,
-      );
+      masterDocument = await this.loadDocument(base);
     }
+
+    await this.validationEngine.validateTemplate({
+      orgId: input.orgId,
+      document,
+      profile: input.body.profile,
+      masterDocument,
+      validatePublishedLinks: false,
+      ruleActionScope: 'draft',
+    });
 
     const schemaRef = this.storage.generateKey({
       orgId: storageOrgId,

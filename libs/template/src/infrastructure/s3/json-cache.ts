@@ -23,4 +23,8 @@ export class TtlJsonCache<T> {
     }
     this.store.set(key, { value, expiresAt: Date.now() + this.ttlMs });
   }
+
+  clear(): void {
+    this.store.clear();
+  }
 }

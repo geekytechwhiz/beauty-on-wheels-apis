@@ -3,3 +3,7 @@ export * from './template-rule-actions.validator';
 export * from './template-sections.validator';
 export * from './template-linking.validator';
 export * from './template-controls.validator';
+export * from './metadata-applicability';
+export * from './metadata-context';
+export * from './metadata-field-value.validator';
+export * from './validation-engine';

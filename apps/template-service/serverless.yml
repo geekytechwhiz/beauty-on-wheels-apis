@@ -12,9 +12,9 @@ provider:
   runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  deploymentBucket:
-    name: ${self:provider.stage}-mvx-template-service-bucket
-    serverSideEncryption: AES256
+  # deploymentBucket:
+  #   name: ${self:provider.stage}-mvx-template-service-bucket
+  #   serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 
@@ -114,6 +114,62 @@ functions:
     events:
       - http:
           path: /health
+          method: get
+          cors: true
+
+  listApplicableMetadata:
+    handler: src/handlers/listApplicableMetadata.main
+    events:
+      - http:
+          path: metadata/applicable
+          method: get
+          cors: true
+
+  listMetadataVersions:
+    handler: src/handlers/listMetadataVersions.main
+    events:
+      - http:
+          path: metadata/{type}/{name}/versions
+          method: get
+          cors: true
+
+  upsertMetadataDefinition:
+    handler: src/handlers/upsertMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}/{name}/{version}
+          method: put
+          cors: true
+
+  deleteMetadataDefinition:
+    handler: src/handlers/deleteMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}/{name}/{version}
+          method: delete
+          cors: true
+
+  listMetadataByType:
+    handler: src/handlers/listMetadataByType.main
+    events:
+      - http:
+          path: metadata/{type}
+          method: get
+          cors: true
+
+  createMetadataDefinition:
+    handler: src/handlers/createMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}
+          method: post
+          cors: true
+
+  getMetadataDefinition:
+    handler: src/handlers/getMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}/{name}
           method: get
           cors: true
 

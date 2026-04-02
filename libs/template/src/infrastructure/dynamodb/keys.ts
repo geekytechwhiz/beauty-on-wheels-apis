@@ -24,6 +24,7 @@ export function gsi3SkPublished(templateId: string, version: string): string {
 }
 
 export const ENTITY_TYPE = 'TEMPLATE' as const;
+export const METADATA_ENTITY_TYPE = 'METADATA' as const;
 export const OUTBOX_ENTITY_TYPE = 'OUTBOX' as const;
 export const RUNTIME_BINDING_ENTITY_TYPE = 'RUNTIME_BINDING' as const;
 export const IDEMPOTENCY_ENTITY_TYPE = 'IDEMPOTENCY' as const;
@@ -59,3 +60,17 @@ export function idempotencyPk(idempotencyKey: string): string {
 export function idempotencySk(): string {
   return 'RESULT';
 }
+
+/** pk = METADATA#&lt;type&gt; e.g. METADATA#FIELD */
+export function metadataPk(metadataType: string): string {
+  return `METADATA#${metadataType}`;
+}
+
+/** sk = METADATA#&lt;name&gt;#&lt;version&gt; e.g. METADATA#ReviewCadence#v1 */
+export function metadataSk(name: string, version: string): string {
+  return `METADATA#${name}#${version}`;
+}
+
+/** Types queried in parallel for getApplicableMetadata (extend as new partitions are added). */
+export const METADATA_REGISTRY_TYPES = ['FIELD', 'SECTION'] as const;
+export type MetadataRegistryType = (typeof METADATA_REGISTRY_TYPES)[number];

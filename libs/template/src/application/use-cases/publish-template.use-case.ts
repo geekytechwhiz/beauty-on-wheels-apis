@@ -3,16 +3,16 @@ import {
   TemplateStateManager,
   type TemplateEvent,
   type TemplateDefinition,
+  type TemplateDocument,
   type TemplateMetadata,
 } from '../../domain';
 import { buildProfileKey } from '../../domain/template-profile';
 import { normalizeTemplateStatus } from '../../domain/template-status';
 import { computeSnapshotId } from '../../domain/template-snapshot';
-import { assertPublishedLinkTargets } from '../../validation/template-linking.validator';
-import { assertCarePlanSections } from '../../validation/template-sections.validator';
-import { assertSafeTemplateRuleActions } from '../../validation/template-rule-actions.validator';
 import { TEMPLATE_MASTER_ORG_ID } from '../../policies';
+import type { ValidationEngine } from '../../validation/validation-engine';
 import {
+  TemplateHierarchyError,
   TemplateInvalidStateTransitionError,
   TemplateNotFoundError,
   TemplateValidationError,
@@ -27,6 +27,7 @@ export class PublishTemplateUseCase {
     private readonly repository: TemplateRepository,
     private readonly loadDocument: TemplateDocumentLoader,
     private readonly storage: TemplateStorage,
+    private readonly validationEngine: ValidationEngine,
     private readonly idempotencyStore: TemplateIdempotencyStore = {
       getResult: async () => null,
       saveResult: async () => undefined,
@@ -64,25 +65,37 @@ export class PublishTemplateUseCase {
     }
 
     const document = await this.loadDocument(source);
-    assertSafeTemplateRuleActions(document.rules, { scope: 'publish' });
-    assertCarePlanSections(document.config as Record<string, unknown>);
-
-    const resolvePublished = async (orgId: string, templateId: string) => {
-      let m = await this.repository.getPublishedVersion(orgId, templateId);
-      if (!m) {
-        m = await this.repository.getPublishedVersion(TEMPLATE_MASTER_ORG_ID, templateId);
-      }
-      return m ? { version: m.version, status: m.status } : null;
-    };
-    await assertPublishedLinkTargets(
-      document.config as Record<string, unknown>,
-      resolvePublished,
-      input.orgId,
-    );
 
     if (!source.profile) {
       throw new TemplateValidationError('Template profile is required before publish');
     }
+
+    let masterDocument: TemplateDocument | null = null;
+    if (source.type === 'ORG') {
+      if (!source.baseTemplateId || !source.baseVersion) {
+        throw new TemplateHierarchyError('ORG template must extend a master template');
+      }
+      const baseOrg = source.baseOrgId ?? TEMPLATE_MASTER_ORG_ID;
+      const masterMeta = await this.repository.getByKey(
+        baseOrg,
+        source.baseTemplateId,
+        source.baseVersion,
+      );
+      if (!masterMeta) {
+        throw new TemplateHierarchyError('Base master template not found');
+      }
+      masterDocument = await this.loadDocument(masterMeta);
+    }
+
+    await this.validationEngine.validateTemplate({
+      orgId: input.orgId,
+      document,
+      profile: source.profile,
+      masterDocument,
+      validatePublishedLinks: true,
+      ruleActionScope: 'publish',
+    });
+
     const profileKey = buildProfileKey(source.orgId, source.profile);
 
     const snapshotId = computeSnapshotId(document);

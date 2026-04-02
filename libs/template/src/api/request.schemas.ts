@@ -72,3 +72,58 @@ export const publishTemplateBodySchema = z.object({
 });
 
 export type PublishTemplateBody = z.infer<typeof publishTemplateBodySchema>;
+
+export const metadataPartitionTypeSchema = z
+  .string()
+  .min(1)
+  .regex(/^[A-Za-z0-9_-]+$/, 'metadata type must be alphanumeric, underscore, or hyphen');
+
+export const metadataNameSegmentSchema = z
+  .string()
+  .min(1)
+  .regex(/^[^/]+$/, 'metadata name must not contain slashes');
+
+export const metadataVersionSegmentSchema = z.string().min(1).regex(/^[^/]+$/, 'version must not contain slashes');
+
+export const metadataApplicabilitySchema = z.object({
+  templateType: z.array(z.string()),
+  category: z.array(z.string()),
+  condition: z.array(z.string()),
+  country: z.array(z.string()),
+});
+
+export const metadataConstraintsSchema = z
+  .object({
+    minSelections: z.number().optional(),
+    maxSelections: z.number().optional(),
+    minValue: z.number().optional(),
+    maxValue: z.number().optional(),
+    regex: z.string().optional(),
+    maxLength: z.number().optional(),
+    minLength: z.number().optional(),
+  })
+  .optional();
+
+export const metadataDefinitionPayloadSchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(['ENUM', 'MULTI_ENUM', 'NUMERIC', 'BOOLEAN', 'STRING']),
+  values: z.array(z.string()).optional(),
+  defaultValue: z.unknown().optional(),
+  metadataMode: z.enum(['Fixed', 'Expandable', 'FixedDefaultExpandable']),
+  applicability: metadataApplicabilitySchema,
+  constraints: metadataConstraintsSchema,
+  status: z.enum(['ACTIVE', 'INACTIVE']),
+  version: z.string().min(1),
+});
+
+export const metadataDefinitionUpsertBodySchema = z.object({
+  type: z.enum(['ENUM', 'MULTI_ENUM', 'NUMERIC', 'BOOLEAN', 'STRING']),
+  values: z.array(z.string()).optional(),
+  defaultValue: z.unknown().optional(),
+  metadataMode: z.enum(['Fixed', 'Expandable', 'FixedDefaultExpandable']),
+  applicability: metadataApplicabilitySchema,
+  constraints: metadataConstraintsSchema,
+  status: z.enum(['ACTIVE', 'INACTIVE']),
+});
+
+export const metadataListStatusQuerySchema = z.enum(['all', 'active', 'inactive']).optional();

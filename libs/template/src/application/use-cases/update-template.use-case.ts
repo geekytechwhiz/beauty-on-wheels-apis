@@ -10,9 +10,8 @@ import {
 } from '../../domain';
 import { buildProfileKey } from '../../domain/template-profile';
 import { normalizeTemplateStatus } from '../../domain/template-status';
-import { assertSafeTemplateRuleActions } from '../../validation/template-rule-actions.validator';
-import { assertOrgChangesRespectMasterControls } from '../../validation/template-controls.validator';
 import { requiresNewVersion } from '../../validation/requires-new-version';
+import type { ValidationEngine } from '../../validation/validation-engine';
 import { TEMPLATE_MASTER_ORG_ID } from '../../policies';
 import {
   TemplateHierarchyError,
@@ -30,6 +29,7 @@ export class UpdateTemplateUseCase {
     private readonly repository: TemplateRepository,
     private readonly storage: TemplateStorage,
     private readonly loadDocument: TemplateDocumentLoader,
+    private readonly validationEngine: ValidationEngine,
     private readonly idempotencyStore: TemplateIdempotencyStore = {
       getResult: async () => null,
       saveResult: async () => undefined,
@@ -63,8 +63,6 @@ export class UpdateTemplateUseCase {
       actions: input.body.actions ?? sourceDocument.actions,
     };
 
-    assertSafeTemplateRuleActions(mergedDocument.rules);
-
     const nextExtendsId = input.body.extendsTemplateId ?? source.baseTemplateId;
     const nextExtendsVer = input.body.extendsVersion ?? source.baseVersion;
     const nextExtendsOrg = input.body.extendsBaseOrgId ?? source.baseOrgId;
@@ -74,6 +72,7 @@ export class UpdateTemplateUseCase {
       (input.body.extendsBaseOrgId !== undefined && input.body.extendsBaseOrgId !== source.baseOrgId);
 
     let masterTemplateVersionId = source.masterTemplateVersionId;
+    let masterDocument: TemplateDocument | null = null;
     if (source.type === 'ORG') {
       if (!nextExtendsId || !nextExtendsVer) {
         throw new TemplateHierarchyError('ORG template must extend a master template');
@@ -95,12 +94,18 @@ export class UpdateTemplateUseCase {
       if (!masterMeta) {
         throw new TemplateHierarchyError('Base master template not found');
       }
-      const masterDoc = await this.loadDocument(masterMeta);
-      assertOrgChangesRespectMasterControls(
-        masterDoc.config as Record<string, unknown>,
-        mergedDocument.config as Record<string, unknown>,
-      );
+      masterDocument = await this.loadDocument(masterMeta);
     }
+
+    const profile = input.body.profile ?? source.profile;
+    await this.validationEngine.validateTemplate({
+      orgId: input.orgId,
+      document: mergedDocument,
+      profile,
+      masterDocument,
+      validatePublishedLinks: false,
+      ruleActionScope: 'draft',
+    });
 
     const normSource = normalizeTemplateStatus(source.status);
     if (normSource === 'PUBLISHED') {
@@ -132,7 +137,6 @@ export class UpdateTemplateUseCase {
 
     await this.storage.uploadTemplate(schemaRef, mergedDocument);
 
-    const profile = input.body.profile ?? source.profile;
     const profileKey = profile ? buildProfileKey(source.orgId, profile) : source.profileKey;
 
     let nextStatus: TemplateStatus;

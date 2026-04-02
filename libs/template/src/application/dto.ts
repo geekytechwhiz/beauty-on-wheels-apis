@@ -1,5 +1,6 @@
 import type { RuleSet } from '@api-hub/rule-engine';
 import type { TemplateDefinition, TemplateDocument, TemplateStatus, TemplateType } from '../domain';
+import type { MetadataDefinition } from '../domain/metadata-definition.types';
 import type { TemplateProfileDimensions } from '../domain/template-profile';
 
 export interface CreateTemplateBody {
@@ -86,3 +87,48 @@ export interface PublishTemplateInput {
 }
 
 export type TemplateReadResult = TemplateDefinition | null;
+
+/** Registry payload (create/update). Timestamps are server-controlled. */
+export type MetadataDefinitionPayload = Omit<MetadataDefinition, 'createdAt' | 'updatedAt'>;
+
+export interface ListMetadataByTypeInput {
+  metadataType: string;
+  status?: 'all' | 'active' | 'inactive';
+}
+
+export interface ListMetadataVersionsInput {
+  metadataType: string;
+  name: string;
+}
+
+export interface GetMetadataDefinitionInput {
+  metadataType: string;
+  name: string;
+  /** When omitted, resolves latest ACTIVE version (same as validation engine). */
+  version?: string;
+}
+
+export interface UpsertMetadataDefinitionInput {
+  metadataType: string;
+  name: string;
+  version: string;
+  body: Omit<MetadataDefinitionPayload, 'name' | 'version'>;
+}
+
+export interface CreateMetadataDefinitionInput {
+  metadataType: string;
+  body: MetadataDefinitionPayload;
+}
+
+export interface DeleteMetadataDefinitionInput {
+  metadataType: string;
+  name: string;
+  version: string;
+}
+
+export interface ListApplicableMetadataInput {
+  templateType: string;
+  category: string;
+  condition: string;
+  country: string;
+}

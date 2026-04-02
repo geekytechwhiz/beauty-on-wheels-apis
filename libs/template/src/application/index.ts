@@ -1,4 +1,5 @@
 export * from './template-repository.port';
+export * from './metadata-repository.port';
 export * from './template-outbox.port';
 export * from './runtime-binding.repository.port';
 export * from './template-idempotency.port';
@@ -15,3 +16,10 @@ export * from './use-cases/publish-template.use-case';
 export * from './use-cases/execute-template.use-case';
 export * from './use-cases/process-template-outbox.use-case';
 export * from './use-cases/bind-runtime-template.use-case';
+export * from './use-cases/list-applicable-metadata.use-case';
+export * from './use-cases/list-metadata-by-type.use-case';
+export * from './use-cases/list-metadata-versions.use-case';
+export * from './use-cases/get-metadata-definition.use-case';
+export * from './use-cases/create-metadata-definition.use-case';
+export * from './use-cases/upsert-metadata-definition.use-case';
+export * from './use-cases/delete-metadata-definition.use-case';

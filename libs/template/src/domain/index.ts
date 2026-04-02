@@ -1,4 +1,6 @@
 export * from './template.types';
+export * from './metadata-definition.types';
+export * from './metadata-applicability';
 export * from './care-plan-section-types';
 export * from './template-status';
 export * from './template-profile';

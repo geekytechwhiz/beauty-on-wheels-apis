@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width">
+    <link rel="stylesheet" href="../style/style.css" />
+    <title>Policies</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+    <div class="contact-box-wrapper">
+        <div class="header">
+            <h1>Privacy Policy / Privacy Statement</h1>
+        </div>
+
+        <div class="boxes">
+            <div class="item">
+                <div class="avatar">
+                    <img class="icon" src="../icons/india.png" />
+                </div>
+                <div class="name" data-policy="https://usprd-app.myvitalrx.com/v1/IND/privacy-policy.html">
+                    India - English
+                </div>
+            </div>
+
+            <div class="item">
+                <div class="avatar">
+                    <img class="icon" src="../icons/zambia.png" />
+                </div>
+                <div class="name" data-policy="https://usprd-app.myvitalrx.com/v1/ZMB/privacy-policy.html">
+                    Zambia - English
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $('.name').on('click', function (e) {
+            const policyUrl = $(e.currentTarget).data('policy');
+            window.open(policyUrl, '_blank');
+        });
+    </script>
+</body>
+</html>

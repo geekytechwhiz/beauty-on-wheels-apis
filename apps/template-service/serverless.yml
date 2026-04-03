@@ -12,6 +12,8 @@ provider:
   runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+  # Must match the CodePipeline / CloudFormation stack name (see buildspec STACK_NAME + suffix).
+  stackName: ${self:provider.stage}-template-service-serverless-stack
   deploymentBucket:
     name: ${self:provider.stage}-mvx-template-service-bucket
     serverSideEncryption: AES256

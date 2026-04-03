@@ -4,6 +4,7 @@ env:
   variables:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-template-service-bucket'
+    # ROLLBACK_COMPLETE: delete the CF stack (often stg-template-service-serverless-stack), then redeploy.
     STACK_NAME: 'stg-template-service'
 
 phases:

@@ -11,13 +11,13 @@ import {
   assertOrgChangesRespectMasterControls,
   validateControlMatrixConfig,
 } from './template-controls.validator';
+import { validateConfigAgainstApplicableMetadata } from './metadata-field-value.validator';
+import { buildMetadataApplicabilityContext } from './metadata-context';
 
 /** Validates `template.config.controlMatrix` shape (authoring-side). */
 export function validateControlMatrix(template: { config: Record<string, unknown> }): void {
   validateControlMatrixConfig(template.config);
 }
-import { validateConfigAgainstApplicableMetadata } from './metadata-field-value.validator';
-import { buildMetadataApplicabilityContext } from './metadata-context';
 
 export type ValidationRuleActionScope = 'publish' | 'draft';
 

@@ -4,6 +4,10 @@ env:
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-template-service-bucket'
+    # If deploy uses "${STACK_NAME}-serverless-stack", the CF stack is dev-template-service-serverless-stack.
+    # ROLLBACK_COMPLETE (failed create): that stack cannot be updated — delete it, then redeploy:
+    #   aws cloudformation delete-stack --stack-name dev-template-service-serverless-stack
+    #   aws cloudformation wait stack-delete-complete --stack-name dev-template-service-serverless-stack
     STACK_NAME: 'dev-template-service'
 
 phases:

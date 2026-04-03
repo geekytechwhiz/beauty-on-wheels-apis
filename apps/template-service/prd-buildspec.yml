@@ -4,6 +4,7 @@ env:
   variables:
     STAGE: 'prd'
     DEPLOYMENT_BUCKET: 'prd-mvx-template-service-bucket'
+    # ROLLBACK_COMPLETE: delete the CF stack (often prd-template-service-serverless-stack), then redeploy.
     STACK_NAME: 'prd-template-service'
 
 phases:

@@ -9,7 +9,13 @@
     "fhir-gateway:offline:dev": "cd services/fhir-gateway && FHIR_GATEWAY_LOCAL_DEV=true serverless offline",
     "fhir-gateway:offline:dev:watch": "cd services/fhir-gateway && pnpm run offline:dev:watch",
     "authorizer-service:offline": "cd services/authorizer-service && serverless offline",
-    "build:all": "nx run many --target=build --all"
+    "build:all": "nx run many --target=build --all",
+    "aggregator:backend:dev": "pnpm --filter @api-hub/api-aggregator-backend dev",
+    "aggregator:backend:build": "pnpm --filter @api-hub/api-aggregator-backend build",
+    "aggregator:backend:start": "pnpm --filter @api-hub/api-aggregator-backend start",
+    "aggregator:frontend:dev": "pnpm --filter @api-hub/api-aggregator-frontend dev",
+    "aggregator:frontend:dev:registry": "pnpm --filter @api-hub/api-aggregator-frontend dev:registry",
+    "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build"
   },
   "private": true,
   "dependencies": {
@@ -43,6 +49,7 @@
     "serverless-dotenv-plugin": "^6.0.0",
     "serverless-esbuild": "^1.57.0",
     "serverless-offline": "^13.9.0",
+    "serverless-openapi-documentation": "^0.4.0",
     "ulid": "^3.0.2",
     "winston": "^3.19.0",
     "zod": "^4.2.1"
@@ -79,6 +86,7 @@
     "nx": "22.3.3",
     "prettier": "~3.6.2",
     "serverless": "^3.40.0",
+    "serverless-openapi-documenter": "^0.1.1",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
     "tslib": "^2.3.0",

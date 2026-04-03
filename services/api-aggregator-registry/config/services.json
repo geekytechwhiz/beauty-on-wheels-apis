@@ -1,0 +1,16 @@
+[
+  {
+    "name": "template-service",
+    "url": "https://5f25vvwbh5.execute-api.us-east-1.amazonaws.com/dev/dev/swagger.json",
+    "version": "v1",
+    "module": "template",
+    "rules": ["public-read"]
+  },
+  {
+    "name": "user-service",
+    "url": "https://example.com/user/swagger.json",
+    "version": "v1",
+    "module": "user",
+    "rules": ["auth-required"]
+  }
+]

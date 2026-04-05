@@ -33,7 +33,7 @@ export interface FhirObservation {
  */
 export function canonicalToFhirObservation(
   canonical: ObservationValue,
-  _profileName: string = 'Observation',
+  _profileName = 'Observation',
   _fhirVersion: FhirVersion = 'r4'
 ): FhirObservation {
   const observation: FhirObservation = {

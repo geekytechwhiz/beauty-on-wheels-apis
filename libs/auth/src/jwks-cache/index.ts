@@ -5,7 +5,7 @@
  */
 
 import * as https from 'https';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const jwkToPem = require('jwk-to-pem') as (jwk: { kty: string; n: string; e: string }) => string;
 
 /** Default TTL for JWKS cache (Cognito key rotation). 10 minutes. */

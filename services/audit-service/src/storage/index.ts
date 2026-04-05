@@ -8,7 +8,9 @@ export interface AuditStorage {
 
 export function createAuditStorage(): AuditStorage {
   return {
-    async write(_event: unknown) {},
+    async write(_event: unknown): Promise<void> {
+      return;
+    },
     async query(_criteria: unknown) {
       return [];
     },

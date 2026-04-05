@@ -15,7 +15,7 @@
       "default": "./dist/index.js"
     }
   },
+  // eslint-disable-next-line @nx/dependency-checks
   "dependencies": { 
-    
   }
 }

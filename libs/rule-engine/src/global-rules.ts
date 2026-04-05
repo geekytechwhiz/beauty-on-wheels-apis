@@ -9,7 +9,7 @@ type GlobalRulesDoc = { rules: unknown };
  */
 export function getDefaultGlobalRules(): RuleSet {
   // Path from libs/rule-engine/src → libs/rules/global/rules.json
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const doc = require('../../rules/global/rules.json') as GlobalRulesDoc;
   return loadRuleSet(doc.rules);
 }

@@ -30,7 +30,7 @@ describe('integration-events canonicalLabEventTypes', () => {
     });
 
     it('narrows type when true', () => {
-      const value: string = 'REPORT_READY';
+      const value = 'REPORT_READY';
       if (isCanonicalLabEventType(value)) {
         const _typed: CanonicalLabEventType = value;
         expect(_typed).toBe('REPORT_READY');

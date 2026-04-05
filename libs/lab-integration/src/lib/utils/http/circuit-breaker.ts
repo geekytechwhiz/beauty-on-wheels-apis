@@ -9,9 +9,9 @@ export class CircuitBreaker {
   private successCount = 0;
 
   constructor(
-    private readonly failureThreshold: number = 5,
-    private readonly resetTimeoutMs: number = 60000, // 1 minute
-    private readonly halfOpenMaxAttempts: number = 3
+    private readonly failureThreshold = 5,
+    private readonly resetTimeoutMs = 60000, // 1 minute
+    private readonly halfOpenMaxAttempts = 3
   ) {}
 
   /**

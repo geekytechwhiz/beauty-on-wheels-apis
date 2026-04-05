@@ -4,5 +4,6 @@ packages:
   - 'services/*'
   - 'tools/*'
   - 'backend'
+  - 'api-center'
   - 'data-access'
 autoInstallPeers: true

@@ -20,6 +20,18 @@ phases:
 
   build:
     commands:
+      - echo "🔍 Detecting affected NX projects..."
+      - PROJECTS=$(npx nx show projects --affected --base=origin/dev --head=HEAD --select=projects)
+      - echo "Projects: $PROJECTS"
+
+      # 🔥 Run rule checker
+      - echo "🔍 Running Rule Checker..."
+      - node scripts/rule-checker.js "$PROJECTS"
+
+      # 🔥 Run lint & tests
+      - echo "🧪 Running Lint & Tests..."
+      - npm run lint || exit 1
+      - npx nx affected:test --base=origin/dev --head=HEAD
       - cd apps/template-service
       - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
       - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless

@@ -70,7 +70,7 @@ phases:
       - cd apps/template-service
 
 # 🔥 Install plugin locally (critical for pnpm monorepo)
-      - pnpm add -D serverless-auto-swagger
+      # - pnpm add -D serverless-auto-swagger
 
       - export NODE_OPTIONS="--max-old-space-size=4096"
       - export SLS_DEBUG=*

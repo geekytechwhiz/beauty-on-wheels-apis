@@ -15,9 +15,9 @@ provider:
   stage: ${opt:stage, 'dev'}
   # Must match the CodePipeline / CloudFormation stack name (see buildspec STACK_NAME + suffix).
   # stackName: ${self:provider.stage}-template-service-serverless-stack
-  # deploymentBucket:
-  #   name: ${self:provider.stage}-mvx-template-service-bucket
-  #   serverSideEncryption: AES256
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-template-service-bucket
+    serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 

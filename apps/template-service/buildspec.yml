@@ -20,8 +20,12 @@ phases:
 
   build:
     commands:
+      # Shallow CodeBuild clones often lack origin/dev; Nx affected runs `git diff base...head` and exits 1 if the ref is missing.
+      - echo "🔍 Fetching dev for Nx affected (ensures origin/dev exists)..."
+      - git fetch --no-tags --depth=100 origin dev
       - echo "🔍 Detecting affected NX projects..."
-      - PROJECTS=$(npx nx show projects --affected --base=origin/dev --head=HEAD --select=projects)
+      # Default output is newline-separated; rule-checker expects comma-separated project names.
+      - PROJECTS=$(npx nx show projects --affected --base=origin/dev --head=HEAD --sep=,)
       # Quote the whole shell command — unquoted "Projects: " breaks YAML (colon+space reads as a mapping key).
       - "echo \"Projects: $PROJECTS\""
 

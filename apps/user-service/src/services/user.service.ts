@@ -913,11 +913,11 @@ export class UserService {
     ]);
 
     // Extract roles and permissions data
-    let roleName: string = '';
-    let roleType: string = '';
+    let roleName = '';
+    let roleType = '';
     let permission: any = {};
     let userPermissions: any[] = [];
-    let isDefault: boolean = false;
+    let isDefault = false;
 
     // Process role permissions results
     if (rolePermissionsResults.status === 'fulfilled' && rolePermissionsResults.value) {
@@ -1873,7 +1873,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       }
 
       // Get user category: prefer DB userType (source of truth), then userCat, then request param, then default
-      let userCategory =
+      const userCategory =
         (userBasicDetails.userType && String(userBasicDetails.userType).trim()) ||
         userBasicDetails.userCat?.[0] ||
         userType ||

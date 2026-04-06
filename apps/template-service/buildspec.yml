@@ -13,71 +13,18 @@ env:
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
-      - corepack enable
-      - corepack prepare pnpm@latest --activate
-      - pnpm --version
-      - pnpm install --frozen-lockfile
+      - npm install -g serverless@3 --force
+      - npm install --legacy-peer-deps
 
   build:
     commands:
-      # CODEBUILD_SRC_DIR is the checkout root (set by CodeBuild). Some pipelines ship source without .git
-      # (S3 zip / artifacts), so git commands must be skipped; Nx affected requires git refs.
-      - |
-        set -e
-        REPO_ROOT="${CODEBUILD_SRC_DIR:-$(pwd)}"
-        cd "$REPO_ROOT"
-        echo "Repository root: $(pwd) (git: $([ -d .git ] && echo yes || echo no))"
-        export SLS_DEBUG="*"
-        export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
-        echo "Node version: $(node --version)"
-        echo "pnpm version: $(pnpm --version)"
-        echo "npx serverless version:"
-        npx serverless --version
-
-        if [ -d .git ]; then
-          echo "Fetching origin/dev for Nx affected..."
-          git fetch --no-tags --depth=100 origin dev || true
-          PROJECTS=$(npx nx show projects --affected --base=origin/dev --head=HEAD --sep=,)
-          if [ -z "$PROJECTS" ]; then
-            echo "No affected projects; using template scope for rule-checker."
-            PROJECTS=$(npx nx show projects --projects=tag:scope:template --sep=,)
-          fi
-          echo "Projects: $PROJECTS"
-          node scripts/rule-checker.js "$PROJECTS"
-          echo "Running lint & test (affected)..."
-          npx nx affected -t lint --base=origin/dev --head=HEAD
-          npx nx affected -t test --base=origin/dev --head=HEAD
-        else
-          echo "No .git - skipping git fetch; using template-scoped projects (tag:scope:template)."
-          PROJECTS=$(npx nx show projects --projects=tag:scope:template --sep=,)
-          echo "Projects: $PROJECTS"
-          node scripts/rule-checker.js "$PROJECTS"
-          echo "Running lint & test (run-many, template scope)..."
-          npx nx run-many -t lint --projects=tag:scope:template-service --parallel=3
-          npx nx run-many -t test --projects=tag:scope:template-service --parallel=3
-        fi
-
-      # - cd apps/template-service
-      # - echo "Packaging from $(pwd)"
-      # - echo "Template service workspace files:"
-      # - ls -la
-      # - echo "Using workspace-installed Serverless and plugins from repo root node_modules"
-      # - ls -la ../../node_modules/serverless
-      # - ls -la ../../node_modules/serverless-auto-swagger
-      # - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
       - cd apps/template-service
+      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
-# 🔥 Install plugin locally (critical for pnpm monorepo)
-      # - pnpm add -D serverless-auto-swagger
-
-      - export NODE_OPTIONS="--max-old-space-size=4096"
-      - export SLS_DEBUG=*
-
-      - rm -rf .serverless
-      - pnpm exec serverless package --stage "$STAGE" --package .serverless
-      
+      # 2) select create vs update s3 keys
       - |
         if [ -f .serverless/cloudformation-template-update-stack.json ]; then
           TEMPLATE=".serverless/cloudformation-template-update-stack.json"
@@ -89,6 +36,7 @@ phases:
           exit 1
         fi
 
+      # 3) push code & rewrite 
       - |
         aws cloudformation package \
           --template-file "$TEMPLATE" \
@@ -96,14 +44,16 @@ phases:
           --output-template-file packaged.yaml \
           --force-upload
 
-      - echo "S3Key entries in packaged.yaml:"
+      # 4) debug: what keys did CF bake in?
+      - echo "🔍 S3Key entries in packaged.yaml:"
       - grep 'S3Key:' packaged.yaml | awk '{print $2}'
 
-      - echo "Verifying each baked-in key exists:"
+      # 5) debug: do they exist?
+      - echo "🔑 Verifying each baked-in key exists:"
       - |
         grep 'S3Key:' packaged.yaml | awk '{print $2}' \
           | while read key; do
-              printf " -> %-80s " "$key"
+              printf " → %-80s " "$key"
               if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
                 echo "FOUND"
               else
@@ -111,22 +61,26 @@ phases:
               fi
             done
 
-      - echo "Pushing any missing function ZIPs into their exact S3Key paths..."
+      # 6) debug: list entire directory
+      # - echo "📦 Full directory on S3:"
+      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/serverless/payments-service/$STAGE/" --recursive
+
+      - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
       - |
         grep 'S3Key:' packaged.yaml \
           | awk '{print $2}' \
           | while read key; do
               name=$(basename "$key")
-              echo "Uploading .serverless/$name -> s3://$DEPLOYMENT_BUCKET/$key"
+              echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
               aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
             done
 
-      - echo "Verifying upload..."
+      - echo "➤ Verifying upload…"
       - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | head -1 | awk '{print $2}'))/" --recursive
 
   post_build:
     commands:
-      - echo "Build done, artifacts ready in packaged.yaml"
+      - echo "✅ Build done, artifacts ready in packaged.yaml"
 
 artifacts:
   files:

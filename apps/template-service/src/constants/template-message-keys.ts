@@ -1,7 +1,4 @@
-/**
- * CDN: add these keys under `ERROR_MESSAGES_CDN_URL` / `error-messages/{lang}.json`
- * (same pipeline as other services). Titles/descriptions are resolved at runtime.
- */
+ 
 export const TEMPLATE_CDN_MESSAGE_KEYS = [
   'TEMPLATE.TEMPLATE_CREATED_SUCCESS',
   'TEMPLATE.TEMPLATE_RETRIEVED_SUCCESS',

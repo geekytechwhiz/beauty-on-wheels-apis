@@ -74,6 +74,9 @@
     },
     {
       "path": "./apps/template-service"
+    },
+    {
+      "path": "./libs/template"
     }
   ]
 }

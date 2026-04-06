@@ -15,7 +15,11 @@
       "default": "./dist/index.js"
     }
   },
-  // eslint-disable-next-line @nx/dependency-checks
   "dependencies": { 
+    "axios": "^1.6.0",
+    "axios-retry": "^4.5.0",
+    "@api-hub/logger": "0.0.1",
+    "@aws-sdk/client-cognito-identity-provider": "^3.958.0",
+    "@api-hub/utils": "0.0.1"
   }
 }

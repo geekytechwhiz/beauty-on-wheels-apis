@@ -74,10 +74,9 @@ phases:
 
       - export NODE_OPTIONS="--max-old-space-size=4096"
       - export SLS_DEBUG=*
-      - export ESBUILD_BINARY_PATH=$(pwd)/node_modules/esbuild/bin/esbuild
 
       - rm -rf .serverless
-      - npx serverless package --stage "$STAGE" --package .serverless
+      - pnpm exec serverless package --stage "$STAGE" --package .serverless
       
       - |
         if [ -f .serverless/cloudformation-template-update-stack.json ]; then

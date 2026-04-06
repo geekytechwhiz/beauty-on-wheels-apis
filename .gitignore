@@ -81,6 +81,8 @@ api-endpoints-export.xlsx
 myVitalRx/
 # Only ignore top-level scripts/ (e.g. script outputs). App-specific scripts (e.g. device-service seed data) stay tracked.
 /scripts/
+!/scripts/
+!/scripts/rule-checker.js
 vite.config.*.timestamp*
 apps/template-service/.esbuild/.build/src/handlers/createCarePlanDraft.js
 apps/template-service/.esbuild/.build/src/handlers/createCarePlanDraft.js.map

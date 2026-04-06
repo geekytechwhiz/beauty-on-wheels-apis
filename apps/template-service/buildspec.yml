@@ -40,7 +40,7 @@ phases:
             PROJECTS=$(npx nx show projects --projects=tag:scope:template --sep=,)
           fi
           echo "Projects: $PROJECTS"
-          node scripts/rule-checker.js "$PROJECTS"
+          node sscripts/rule-checker.js "$PROJECTS"
           echo "🧪 Lint & test (affected)..."
           npx nx affected -t lint --base=origin/dev --head=HEAD
           npx nx affected -t test --base=origin/dev --head=HEAD

@@ -49,8 +49,8 @@ phases:
           echo "Projects: $PROJECTS"
           node scripts/rule-checker.js "$PROJECTS"
           echo "Running lint & test (run-many, template scope)..."
-          npx nx run-many -t lint --projects=tag:scope:template --parallel=3
-          npx nx run-many -t test --projects=tag:scope:template --parallel=3
+          npx nx run-many -t lint --projects=tag:scope:template-service --parallel=3
+          npx nx run-many -t test --projects=tag:scope:template-service --parallel=3
         fi
 
       - cd apps/template-service

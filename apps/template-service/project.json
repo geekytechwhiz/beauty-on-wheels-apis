@@ -16,7 +16,14 @@
         "jestConfig": "apps/template-service/jest.config.ts",
         "passWithNoTests": true
       }
+      
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["apps/template-service/src/**/*.{ts,tsx,js,jsx}"]
+      }
     }
   },
-  "tags": ["type:app", "scope:template"]
+  "tags": ["type:app", "scope:template-service"]
 }

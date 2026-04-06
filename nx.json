@@ -66,6 +66,6 @@
       "dependsOn": ["^build"]
     }
   },
-  "analytics": true,
-  "nxCloudId": "69d275e29fd33a1bfb0036f1"
+  "analytics": true
+   
 }

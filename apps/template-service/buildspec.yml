@@ -59,15 +59,26 @@ phases:
           npx nx run-many -t test --projects=tag:scope:template-service --parallel=3
         fi
 
+      # - cd apps/template-service
+      # - echo "Packaging from $(pwd)"
+      # - echo "Template service workspace files:"
+      # - ls -la
+      # - echo "Using workspace-installed Serverless and plugins from repo root node_modules"
+      # - ls -la ../../node_modules/serverless
+      # - ls -la ../../node_modules/serverless-auto-swagger
+      # - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
       - cd apps/template-service
-      - echo "Packaging from $(pwd)"
-      - echo "Template service workspace files:"
-      - ls -la
-      - echo "Using workspace-installed Serverless and plugins from repo root node_modules"
-      - ls -la ../../node_modules/serverless
-      - ls -la ../../node_modules/serverless-auto-swagger
-      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
+# 🔥 Install plugin locally (critical for pnpm monorepo)
+      - pnpm add -D serverless-auto-swagger
+
+      - export NODE_OPTIONS="--max-old-space-size=4096"
+      - export SLS_DEBUG=*
+      - export ESBUILD_BINARY_PATH=$(pwd)/node_modules/esbuild/bin/esbuild
+
+      - rm -rf .serverless
+      - npx serverless package --stage "$STAGE" --package .serverless
+      
       - |
         if [ -f .serverless/cloudformation-template-update-stack.json ]; then
           TEMPLATE=".serverless/cloudformation-template-update-stack.json"

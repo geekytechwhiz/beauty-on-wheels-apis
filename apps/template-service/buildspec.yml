@@ -13,7 +13,7 @@ env:
 phases:
   install:
     runtime-versions:
-      nodejs: 22
+      nodejs: 20
     commands:
       - corepack enable
       - corepack prepare pnpm@latest --activate
@@ -29,6 +29,12 @@ phases:
         REPO_ROOT="${CODEBUILD_SRC_DIR:-$(pwd)}"
         cd "$REPO_ROOT"
         echo "Repository root: $(pwd) (git: $([ -d .git ] && echo yes || echo no))"
+        export SLS_DEBUG="*"
+        export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+        echo "Node version: $(node --version)"
+        echo "pnpm version: $(pnpm --version)"
+        echo "npx serverless version:"
+        npx serverless --version
 
         if [ -d .git ]; then
           echo "Fetching origin/dev for Nx affected..."
@@ -54,8 +60,13 @@ phases:
         fi
 
       - cd apps/template-service
-      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
-      - rm -rf .serverless && pnpm exec serverless package --stage "$STAGE" --package .serverless
+      - echo "Packaging from $(pwd)"
+      - echo "Template service workspace files:"
+      - ls -la
+      - echo "Using workspace-installed Serverless and plugins from repo root node_modules"
+      - ls -la ../../node_modules/serverless
+      - ls -la ../../node_modules/serverless-auto-swagger
+      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
       - |
         if [ -f .serverless/cloudformation-template-update-stack.json ]; then

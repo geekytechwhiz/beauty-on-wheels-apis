@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import { main } from './createTemplate';
 
 // eslint-disable-next-line no-var
 var mockCreateExecute: jest.Mock;
@@ -12,7 +13,6 @@ jest.mock('../runtime', () => {
   };
 });
 
-import { main } from './createTemplate';
 
 describe('createTemplate handler', () => {
   let consoleLogSpy: jest.SpyInstance;

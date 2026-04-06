@@ -1,4 +1,4 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 import { main } from './health';
 
 describe('health handler', () => {
@@ -32,7 +32,7 @@ describe('health handler', () => {
     } as unknown as Context;
 
     // Act
-    const result = null as unknown as APIGatewayProxyResult; //await main(event, context);
+    const result = await main(event, context);
 
     // Assert
     expect(result.statusCode).toBe(200);

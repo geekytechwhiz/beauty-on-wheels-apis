@@ -20,23 +20,36 @@ phases:
 
   build:
     commands:
-      # Shallow CodeBuild clones often lack origin/dev; Nx affected runs `git diff base...head` and exits 1 if the ref is missing.
-      - echo "🔍 Fetching dev for Nx affected (ensures origin/dev exists)..."
-      - git fetch --no-tags --depth=100 origin dev
-      - echo "🔍 Detecting affected NX projects..."
-      # Default output is newline-separated; rule-checker expects comma-separated project names.
-      - PROJECTS=$(npx nx show projects --affected --base=origin/dev --head=HEAD --sep=,)
-      # Quote the whole shell command — unquoted "Projects: " breaks YAML (colon+space reads as a mapping key).
-      - "echo \"Projects: $PROJECTS\""
+      # CODEBUILD_SRC_DIR is the checkout root (set by CodeBuild). Some pipelines ship source without .git
+      # (S3 zip / artifacts), so git commands must be skipped; Nx affected requires git refs.
+      - |
+        set -e
+        REPO_ROOT="${CODEBUILD_SRC_DIR:-$(pwd)}"
+        cd "$REPO_ROOT"
+        echo "Repository root: $(pwd) (git: $([ -d .git ] && echo yes || echo no))"
 
-      # 🔥 Run rule checker
-      - echo "🔍 Running Rule Checker..."
-      - node scripts/rule-checker.js "$PROJECTS"
-
-      # 🔥 Run lint & tests
-      - echo "🧪 Running Lint & Tests..."
-      - npx nx affected:lint --base=origin/dev --head=HEAD
-      - npx nx affected:test --base=origin/dev --head=HEAD
+        if [ -d .git ]; then
+          echo "🔍 Fetching origin/dev for Nx affected..."
+          git fetch --no-tags --depth=100 origin dev || true
+          PROJECTS=$(npx nx show projects --affected --base=origin/dev --head=HEAD --sep=,)
+          if [ -z "$PROJECTS" ]; then
+            echo "No affected projects; using template scope for rule-checker."
+            PROJECTS=$(npx nx show projects --projects=tag:scope:template --sep=,)
+          fi
+          echo "Projects: $PROJECTS"
+          node scripts/rule-checker.js "$PROJECTS"
+          echo "🧪 Lint & test (affected)..."
+          npx nx affected -t lint --base=origin/dev --head=HEAD
+          npx nx affected -t test --base=origin/dev --head=HEAD
+        else
+          echo "No .git — skipping git fetch; using template-scoped projects (tag:scope:template)."
+          PROJECTS=$(npx nx show projects --projects=tag:scope:template --sep=,)
+          echo "Projects: $PROJECTS"
+          node scripts/rule-checker.js "$PROJECTS"
+          echo "🧪 Lint & test (run-many, template scope)..."
+          npx nx run-many -t lint --projects=tag:scope:template --parallel=3
+          npx nx run-many -t test --projects=tag:scope:template --parallel=3
+        fi
       - cd apps/template-service
       - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
       - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless

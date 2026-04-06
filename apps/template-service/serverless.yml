@@ -5,7 +5,7 @@ frameworkVersion: '3'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
-  - serverless-auto-swagger
+  # - serverless-auto-swagger
   - serverless-offline
 
 provider:
@@ -111,34 +111,31 @@ custom:
     loader:
       '.json': 'json'
 
-  autoswagger:
-    title: Template Service API
-    description: Template library, metadata registry, execution, and care-plan draft APIs
-    version: 1.0.0
-    apiType: http
-    basePath: /${self:provider.stage}
-    schemes:
-      - https
-      - http
-    host: ${self:custom.apiHost, ''}
-    generateSwaggerOnDeploy: true
-    # serverless-auto-swagger generates Swagger 2.0 definitions.
-    # Keep this config Swagger 2.0 compatible to avoid mixed-version output.
-    # Do not merge the manual OpenAPI file into serverless-auto-swagger output.
-    # Mixing generated swagger: "2.0" with openapi: "3.x" causes Swagger UI render failures.
-    useStage: true
-    swaggerPath: swagger
-    excludeStages:
-      - prd
-    tags:
-      - name: Health
-        description: Health check endpoints
-      - name: Templates
-        description: Template definitions, publish, and execute
-      - name: Metadata
-        description: Metadata registry operations
-      - name: CarePlans
-        description: Care plan draft generation
+  # autoswagger:
+  #   title: Template Service API
+  #   description: Template library, metadata registry, execution, and care-plan draft APIs
+  #   version: 1.0.0
+  #   apiType: http
+  #   basePath: /${self:provider.stage}
+  #   schemes:
+  #     - https
+  #     - http
+  #   host: ${self:custom.apiHost, ''}
+  #   generateSwaggerOnDeploy: true
+     
+  #   useStage: true
+  #   swaggerPath: swagger
+  #   excludeStages:
+  #     - prd
+  #   tags:
+  #     - name: Health
+  #       description: Health check endpoints
+  #     - name: Templates
+  #       description: Template definitions, publish, and execute
+  #     - name: Metadata
+  #       description: Metadata registry operations
+  #     - name: CarePlans
+  #       description: Care plan draft generation
 
 functions:
   health:

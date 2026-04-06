@@ -1,4 +1,5 @@
-import type { RuleSet } from '../../../rule-engine/src/types';
+ 
+import { RuleSet } from '@api-hub/rule-engine';
 import { TemplateValidationError } from '../shared/template.errors';
 
 const ALLOWED_TEMPLATE_RULE_ACTION_TYPES = new Set(['SET', 'TRIGGER_EVENT']);

@@ -18,6 +18,11 @@ describe('createTemplate handler', () => {
   let consoleLogSpy: jest.SpyInstance;
   let consoleWarnSpy: jest.SpyInstance;
 
+  function bearerToken(payload: Record<string, unknown>): string {
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    return `Bearer header.${encoded}.signature`;
+  }
+
   beforeAll(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -43,7 +48,10 @@ describe('createTemplate handler', () => {
       path: '/dev/templates',
       pathParameters: null,
       queryStringParameters: null,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: bearerToken({ organizationId: 'org-1', sub: 'user-1' }),
+      },
       body: JSON.stringify(body),
     } as unknown as APIGatewayProxyEvent;
   }
@@ -89,7 +97,10 @@ describe('createTemplate handler', () => {
     const event = {
       httpMethod: 'POST',
       path: '/dev/templates',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: bearerToken({ organizationId: 'org-1', sub: 'user-1' }),
+      },
       body: 'not-json',
     } as unknown as APIGatewayProxyEvent;
 

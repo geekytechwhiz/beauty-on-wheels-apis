@@ -19,6 +19,11 @@ describe('getTemplate handler', () => {
   let consoleLogSpy: jest.SpyInstance;
   let consoleWarnSpy: jest.SpyInstance;
 
+  function bearerToken(payload: Record<string, unknown>): string {
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    return `Bearer header.${encoded}.signature`;
+  }
+
   beforeAll(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -39,7 +44,9 @@ describe('getTemplate handler', () => {
       path: '/dev/templates/tpl-1',
       pathParameters: { id: 'tpl-1' },
       queryStringParameters: null,
-      headers: {},
+      headers: {
+        Authorization: bearerToken({ organizationId: 'org-1', sub: 'user-1' }),
+      },
       body: null,
       ...overrides,
     } as unknown as APIGatewayProxyEvent;

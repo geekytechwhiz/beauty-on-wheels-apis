@@ -26,11 +26,20 @@ const projects = projectsArg.split(',').map(p => p.trim());
 console.log(blue(`🔍 Running checks for projects: ${projects.join(', ')}`));
 
 // ---------- CONFIG ----------
-const SECRET_PATTERNS = [
+const SECRET_NAME_PATTERNS = [
   /api[_-]?key/i,
   /secret/i,
   /password/i,
   /token/i
+];
+
+const SAFE_SECRET_IDENTIFIER_PATTERNS = [
+  /authHeader/i,
+  /authorization/i,
+  /bearer/i,
+  /jwt/i,
+  /decoded/i,
+  /authorizer/i
 ];
 
 // ---------- UTIL ----------
@@ -49,6 +58,38 @@ function fail(ruleId, message, file) {
 
 function warn(ruleId, message, file) {
   console.log(yellow(`⚠️ [${ruleId}] ${message} → ${file}`));
+}
+
+function matchesAnyPattern(value, patterns) {
+  return patterns.some(pattern => pattern.test(value));
+}
+
+function getStaticStringValue(node) {
+  if (!node) return null;
+
+  if (node.type === 'StringLiteral') {
+    return node.value;
+  }
+
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0) {
+    return node.quasis.map(quasi => quasi.value.cooked ?? '').join('');
+  }
+
+  return null;
+}
+
+function getKeyName(node) {
+  if (!node) return null;
+
+  if (node.type === 'Identifier') return node.name;
+  if (node.type === 'StringLiteral') return node.value;
+
+  return null;
+}
+
+function isSafeSecretContext(name, value) {
+  const candidate = `${name} ${value}`;
+  return matchesAnyPattern(candidate, SAFE_SECRET_IDENTIFIER_PATTERNS);
 }
 
 // Get files from apps + libs
@@ -146,11 +187,30 @@ function checkSecrets() {
   const files = getFiles('**/*.ts');
 
   files.forEach(file => {
-    const content = fs.readFileSync(file, 'utf-8');
+    const ast = parseFile(file);
 
-    SECRET_PATTERNS.forEach(pattern => {
-      if (pattern.test(content)) {
-        fail('SEC-001', `Possible hardcoded secret (${pattern})`, file);
+    traverse(ast, {
+      VariableDeclarator(path) {
+        if (path.node.id.type !== 'Identifier') return;
+
+        const name = path.node.id.name;
+        const value = getStaticStringValue(path.node.init);
+
+        if (!value) return;
+        if (!matchesAnyPattern(name, SECRET_NAME_PATTERNS)) return;
+        if (isSafeSecretContext(name, value)) return;
+
+        fail('SEC-001', `Possible hardcoded secret in variable "${name}"`, file);
+      },
+      ObjectProperty(path) {
+        const name = getKeyName(path.node.key);
+        const value = getStaticStringValue(path.node.value);
+
+        if (!name || !value) return;
+        if (!matchesAnyPattern(name, SECRET_NAME_PATTERNS)) return;
+        if (isSafeSecretContext(name, value)) return;
+
+        fail('SEC-001', `Possible hardcoded secret in property "${name}"`, file);
       }
     });
   });

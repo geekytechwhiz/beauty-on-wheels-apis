@@ -4,8 +4,8 @@ export function resolveOrganizationIdFromRequest(req: {
   event: APIGatewayProxyEvent;
   context?: { userContext?: { organizationId?: string } };
 }): string | undefined {
-  // const fromJwt = req.context?.userContext?.organizationId;
-  const fromJwt = 'org-123';
+  const fromJwt = req.context?.userContext?.organizationId;
+ 
   if (fromJwt !== undefined && fromJwt !== null && String(fromJwt).trim() !== '') {
     return String(fromJwt);
   }

@@ -87,12 +87,10 @@ describe('getTemplate handler', () => {
 
   it('returns 400 when template id is missing (validation)', async () => {
     // Arrange
+    // No `id` in pathParameters → validation fails before the use case runs
     const event = baseEvent({
       pathParameters: {},
-      params: undefined,
     });
-    // buildRequestContext merges pathParameters into params; empty id triggers validation
-    (event as { pathParameters?: Record<string, string> }).pathParameters = {};
 
     // Act
     const result = await main(event, context);

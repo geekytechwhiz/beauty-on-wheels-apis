@@ -30,7 +30,7 @@ provider:
   environment:
     REGION: ${self:provider.region}
     TEMPLATE_TABLE: template-library-${self:provider.stage}
-    TEMPLATE_BUCKET: ${self:provider.stage}-mvx-templates-library-mib
+    TEMPLATE_BUCKET: ${self:provider.stage}-mvx-templates-library
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'

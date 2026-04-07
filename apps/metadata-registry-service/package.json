@@ -1,0 +1,16 @@
+{
+  "name": "@api-hub/metadata-registry-service",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-eventbridge": "^3.958.0",
+    "@aws-sdk/lib-dynamodb": "^3.958.0"
+  },
+  "devDependencies": {
+    "esbuild-plugin-tsconfig-paths": "^1.0.1",
+    "serverless-auto-swagger": "^3.0.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-esbuild": "^1.57.0",
+    "serverless-offline": "^13.9.0"
+  }
+}

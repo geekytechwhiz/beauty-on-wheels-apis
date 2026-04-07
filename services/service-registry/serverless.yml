@@ -1,4 +1,4 @@
-service: api-aggregator-registry
+service: service-registry
 
 frameworkVersion: '3'
 

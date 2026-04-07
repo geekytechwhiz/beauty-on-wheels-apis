@@ -47,7 +47,7 @@ export async function health(): Promise<APIGatewayProxyResultV2> {
   await ensureBootstrapped();
   return json(200, {
     status: 'ok',
-    service: 'api-aggregator-registry',
+    service: 'service-registry',
     servicesRegistered: listServices().length,
     timestamp: new Date().toISOString(),
   });

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "rootDir": "../..",
+    "outDir": "../../dist/apps/metadata-registry-service",
+    "types": ["node"],
+    "tsBuildInfoFile": "../../dist/apps/metadata-registry-service/tsconfig.app.tsbuildinfo",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs", "src/**/*.spec.ts"]
+}

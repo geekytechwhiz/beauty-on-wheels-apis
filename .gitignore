@@ -128,3 +128,8 @@ apps/template-service/docs/OKR-master.json
 apps/template-service/docs/single-table-migration.md
 apps/template-service/docs/template-library-tester-guide.md
 apps/template-service/scripts/migrate-single-table-aux-data.mjs
+
+apps/metadata-registry-service.zip
+apps/metadata-registry-service/*.zip
+
+apps/metadata-registry-service/.esbuild/

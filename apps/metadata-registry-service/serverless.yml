@@ -1,0 +1,607 @@
+service: metadata-registry-service
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:custom.deploymentBucket.${self:provider.stage}}
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
+    REGION: ${self:provider.region}
+    METADATA_REGISTRY_TABLE: metadata-registry-table-${self:provider.stage}
+    EVENT_BUS: metadata-registry-service-bus-${self:provider.stage}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/metadata-registry-table-${self:provider.stage}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/metadata-registry-table-${self:provider.stage}/index/*
+
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource:
+        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/metadata-registry-service-bus-${self:provider.stage}
+
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
+
+custom:
+  apiHost: ''
+  deploymentBucket:
+    dev: dev-mvx-metadata-registry-service-bucket
+    stg: nvstg-mvx-metadata-registry-service-bucket
+    prd: nvprd-mvx-metadata-registry-service-bucket
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
+  autoswagger:
+    title: Metadata Registry Service API
+    description: Metadata types, values, applicability (module, category, condition, country), JSON-schema validation on valueAttributes, DynamoDB single-table, EventBridge events
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - prd
+    typefiles:
+      - src/types/api-types.d.ts
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    memorySize: 256
+    events:
+      - http:
+          path: /health
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          summary: Health check
+          description: 'No authentication. Standard ApiResponse envelope; data has status and service.'
+          swaggerTags:
+            - Health
+          responseData:
+            200:
+              description: OK
+              bodyType: HealthPayload
+            500:
+              description: Server error
+
+  listMetadataTypes:
+    handler: src/handlers/listMetadataTypes.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: List metadata types
+          description: 'Returns every metadata type. Arrays are wrapped as data.items in the success envelope.'
+          swaggerTags:
+            - MetadataTypes
+          responseData:
+            200:
+              description: data.items is MetadataType[]
+              bodyType: MetadataTypeListPayload
+            401:
+              description: Unauthorized
+            500:
+              description: Server error
+
+  createMetadataType:
+    handler: src/handlers/createMetadataType.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Create metadata type
+          description: 'Creates type row; emits METADATA_TYPE_CREATED. metadataTypeCode is immutable. createdBy defaults from authorizer.'
+          swaggerTags:
+            - MetadataTypes
+          bodyType: CreateMetadataTypeRequest
+          responseData:
+            200:
+              description: Created MetadataType in data
+              bodyType: MetadataType
+            400:
+              description: Validation error (Zod / JSON)
+            401:
+              description: Unauthorized
+            409:
+              description: Type code already exists
+            500:
+              description: Server error
+
+  getMetadataType:
+    handler: src/handlers/getMetadataType.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Get metadata type by code
+          description: 'Path param metadataTypeCode is the immutable key (e.g. SPECIALTY).'
+          swaggerTags:
+            - MetadataTypes
+          responseData:
+            200:
+              description: MetadataType in data
+              bodyType: MetadataType
+            401:
+              description: Unauthorized
+            404:
+              description: Type not found
+            500:
+              description: Server error
+
+  updateMetadataType:
+    handler: src/handlers/updateMetadataType.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Update metadata type
+          description: 'Partial update. Schema change bumps version; emits METADATA_SCHEMA_UPDATED or METADATA_TYPE_UPDATED.'
+          swaggerTags:
+            - MetadataTypes
+          bodyType: UpdateMetadataTypeRequest
+          responseData:
+            200:
+              description: Updated MetadataType
+              bodyType: MetadataType
+            400:
+              description: Validation error
+            401:
+              description: Unauthorized
+            404:
+              description: Type not found
+            500:
+              description: Server error
+
+  inactivateMetadataType:
+    handler: src/handlers/inactivateMetadataType.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/inactivate
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Inactivate metadata type
+          description: 'Sets status INACTIVE; version increments; emits METADATA_TYPE_UPDATED.'
+          swaggerTags:
+            - MetadataTypes
+          responseData:
+            200:
+              description: Type with status INACTIVE
+              bodyType: MetadataType
+            401:
+              description: Unauthorized
+            404:
+              description: Type not found
+            500:
+              description: Server error
+
+  createMetadataValue:
+    handler: src/handlers/createMetadataValue.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/values
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Create metadata value
+          description: 'Parent type must be ACTIVE. Writes VALUE# and APPL# rows; emits METADATA_VALUE_CREATED and METADATA_RELATION_UPDATED.'
+          swaggerTags:
+            - MetadataValues
+          bodyType: CreateMetadataValueRequest
+          responseData:
+            200:
+              description: Created MetadataValue
+              bodyType: MetadataValue
+            400:
+              description: Validation (Zod / attributeSchema)
+            401:
+              description: Unauthorized
+            404:
+              description: Parent type missing or inactive
+            409:
+              description: Value code already exists for type
+            500:
+              description: Server error
+
+  listMetadataValuesByContext:
+    handler: src/handlers/listMetadataValuesByContext.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/values
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: List metadata values by applicability context
+          description: 'Query params default to GLOBAL. Returns ACTIVE values matching module/category/condition/country rules.'
+          swaggerTags:
+            - MetadataValues
+          queryStringParameters:
+            module:
+              required: false
+              type: string
+              description: 'Default GLOBAL'
+            category:
+              required: false
+              type: string
+              description: 'Default GLOBAL'
+            condition:
+              required: false
+              type: string
+              description: 'Default GLOBAL'
+            country:
+              required: false
+              type: string
+              description: 'Default GLOBAL'
+          responseData:
+            200:
+              description: data.items — filtered MetadataValue[]
+              bodyType: MetadataValueListPayload
+            400:
+              description: Invalid query
+            401:
+              description: Unauthorized
+            500:
+              description: Server error
+
+  getMetadataValue:
+    handler: src/handlers/getMetadataValue.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Get metadata value
+          description: 'Path codes are immutable.'
+          swaggerTags:
+            - MetadataValues
+          responseData:
+            200:
+              description: MetadataValue in data
+              bodyType: MetadataValue
+            401:
+              description: Unauthorized
+            404:
+              description: Not found
+            500:
+              description: Server error
+
+  updateMetadataValue:
+    handler: src/handlers/updateMetadataValue.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Update metadata value
+          description: 'Codes immutable. Applicability or attributes may bump version; emits METADATA_VALUE_UPDATED / METADATA_RELATION_UPDATED.'
+          swaggerTags:
+            - MetadataValues
+          bodyType: UpdateMetadataValueRequest
+          responseData:
+            200:
+              description: Updated MetadataValue
+              bodyType: MetadataValue
+            400:
+              description: Validation error
+            401:
+              description: Unauthorized
+            404:
+              description: Not found
+            500:
+              description: Server error
+
+  inactivateMetadataValue:
+    handler: src/handlers/inactivateMetadataValue.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}/inactivate
+          method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Inactivate metadata value
+          description: 'Emits METADATA_VALUE_INACTIVATED.'
+          swaggerTags:
+            - MetadataValues
+          responseData:
+            200:
+              description: Value with status INACTIVE
+              bodyType: MetadataValue
+            401:
+              description: Unauthorized
+            404:
+              description: Not found
+            500:
+              description: Server error
+
+  validateMetadataValue:
+    handler: src/handlers/validateMetadataValue.main
+    memorySize: 256
+    events:
+      - http:
+          path: metadata-types/validate-value
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          summary: Validate metadata value for context
+          description: 'Checks type/value ACTIVE, attributeSchema, and APPL# row for prioritized context.'
+          swaggerTags:
+            - Validation
+          bodyType: ValidateMetadataValueRequest
+          responseData:
+            200:
+              description: '{ valid, reason? } in data'
+              bodyType: ValidateMetadataValuePayload
+            400:
+              description: Invalid body
+            401:
+              description: Unauthorized
+            500:
+              description: Server error
+
+resources:
+  Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,OPTIONS'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,OPTIONS'"
+
+    MetadataRegistryServiceBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: metadata-registry-service-bus-${self:provider.stage}
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+    MetadataRegistryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: metadata-registry-table-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+          - AttributeName: gsi1pk
+            AttributeType: S
+          - AttributeName: gsi1sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: gsi1pk
+                KeyType: HASH
+              - AttributeName: gsi1sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+  Outputs:
+    MetadataRegistryServiceBusName:
+      Description: Name of the metadata registry EventBridge bus
+      Value: !Ref MetadataRegistryServiceBus
+      Export:
+        Name: ${self:provider.stage}-${self:service}-EventBusName
+
+    MetadataRegistryTableName:
+      Description: Metadata registry DynamoDB table name
+      Value: !Ref MetadataRegistryTable
+      Export:
+        Name: ${self:provider.stage}-${self:service}-TableName

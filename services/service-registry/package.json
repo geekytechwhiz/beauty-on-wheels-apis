@@ -1,5 +1,5 @@
 {
-  "name": "@api-hub/api-aggregator-registry",
+  "name": "@api-hub/service-registry",
   "version": "0.0.1",
   "private": true,
   "scripts": {

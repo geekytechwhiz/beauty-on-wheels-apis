@@ -1,0 +1,23 @@
+{
+  "name": "metadata-registry-service",
+  "projectType": "application",
+  "sourceRoot": "apps/metadata-registry-service/src",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "pnpm exec tsc -p apps/metadata-registry-service/tsconfig.app.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/metadata-registry-service/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": ["type:app"]
+}

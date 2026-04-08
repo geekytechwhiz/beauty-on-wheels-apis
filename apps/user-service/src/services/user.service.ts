@@ -1163,21 +1163,21 @@ export class UserService {
       }
 
       // Best-effort notification that profile changed
-      try {
-        const notifyEmail = updates.emailAddress ?? updated.emailAddress;
-        const notifyName = updates.fullName ?? updated.fullName ?? updated.firstName;
-        await notifyUser({
-          userId: updated.userID,
-          email: notifyEmail,
-          name: notifyName,
-          channels: updates.emailAddress ? ['email'] : [],
-          template: 'PROFILE_UPDATED',
-          templateData: updates,
-          correlationId,
-        });
-      } catch (notifyErr) {
-        logger.warn({ event: 'service_updateUser_notification_failed', err: serializeError(notifyErr) });
-      }
+      // try {
+      //   const notifyEmail = updates.emailAddress ?? updated.emailAddress;
+      //   const notifyName = updates.fullName ?? updated.fullName ?? updated.firstName;
+      //   await notifyUser({
+      //     userId: updated.userID,
+      //     email: notifyEmail,
+      //     name: notifyName,
+      //     channels: updates.emailAddress ? ['email'] : [],
+      //     template: 'PROFILE_UPDATED',
+      //     templateData: updates,
+      //     correlationId,
+      //   });
+      // } catch (notifyErr) {
+      //   logger.warn({ event: 'service_updateUser_notification_failed', err: serializeError(notifyErr) });
+      // }
 
       logger.info({ event: 'service_updateUser_success' });
       timer.end();

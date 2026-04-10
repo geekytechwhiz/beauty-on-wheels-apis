@@ -1,6 +1,7 @@
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
+import { SecretManagerService } from '@api-hub/service-clients';
 import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser } from '../models';
 import { OrganizationNotFoundError, PermissionDeniedError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
@@ -9,13 +10,27 @@ import { notifyAdminForOrganizationActivated } from './notification.service';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 
+const extractSubdomainFromUrl = (urlValue?: string): string | undefined => {
+  if (!urlValue) return undefined;
+  try {
+    const hostname = new URL(urlValue).hostname.toLowerCase();
+    const [subdomain] = hostname.split('.');
+    const normalized = subdomain?.trim();
+    return normalized || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export class OrganizationService {
   private repository: OrganizationRepository;
   private userRepository: UserRepository;
+  private secretManagerService: SecretManagerService;
 
-  constructor(repository?: OrganizationRepository, userRepository?: UserRepository) {
+  constructor(repository?: OrganizationRepository, userRepository?: UserRepository, secretManagerService?: SecretManagerService) {
     this.repository = repository ?? new OrganizationRepository();
     this.userRepository = userRepository ?? new UserRepository();
+    this.secretManagerService = secretManagerService ?? new SecretManagerService();
   }
 
   async createOrganization(data: Partial<Organization>, correlationId?: string): Promise<Organization> {
@@ -47,12 +62,30 @@ export class OrganizationService {
               state: (data.state || '').toLowerCase(),
               organizationType: data.organizationType?.toLowerCase(),
             };
+      const resolvedSubdomain = data.subdomain ?? extractSubdomainFromUrl(data.integration?.apiBaseUrl);
+      const integrationApiKey = data.integration?.apiKey?.trim();
+      const generatedApiKeyRef = resolvedSubdomain ? `${resolvedSubdomain.toLowerCase()}apikey` : undefined;
+      if (integrationApiKey && generatedApiKeyRef) {
+        await this.secretManagerService.addApiKey(generatedApiKeyRef, integrationApiKey);
+      }
+      const sanitizedIntegration = data.integration
+        ? {
+            ...data.integration,
+            apiKeyRef: generatedApiKeyRef ?? data.integration.apiKeyRef,
+            apiKey: undefined,
+          }
+        : undefined;
 
       const organization: Organization = {
         pk: `ORG#${organizationId}`,
         sk: 'ORG_DETAILS',
         gsi1pk: 'ORG_LIST',
         gsi1sk: `ORG#${organizationId}`,
+        gsi2pk: resolvedSubdomain ? `LOOKUP#${resolvedSubdomain.toLowerCase()}` : undefined,
+        gsi2sk:
+          resolvedSubdomain && data.integration?.providerId
+            ? `PROVIDER#${data.integration.providerId}#ORG#${organizationId}`
+            : undefined,
         organizationId,
         createdAt: now,
         createdBy: data.createdBy,
@@ -111,11 +144,14 @@ export class OrganizationService {
         organizationInfo,
         searchFields,
         website: data.website,
+        subdomain: resolvedSubdomain,
         taxId: data.taxId,
         registrationNumber: data.registrationNumber,
         description: data.description,
         industry: data.industry,
         size: data.size,
+        integration: sanitizedIntegration,
+        sourceSystem: data.sourceSystem || 'TruTech',
       };
 
       await this.repository.createOrganization(organization);
@@ -182,6 +218,24 @@ export class OrganizationService {
       const existing = await this.repository.getOrganization(organizationId);
       if (!existing) {
         throw new OrganizationNotFoundError(organizationId);
+      }
+
+      const resolvedSubdomain =
+        updates.subdomain ?? extractSubdomainFromUrl(updates.integration?.apiBaseUrl) ?? existing.subdomain;
+      if (resolvedSubdomain && !updates.subdomain) {
+        updates.subdomain = resolvedSubdomain;
+      }
+      const updateIntegrationApiKey = updates.integration?.apiKey?.trim();
+      const generatedApiKeyRef = resolvedSubdomain ? `${resolvedSubdomain.toLowerCase()}apikey` : undefined;
+      if (updateIntegrationApiKey && generatedApiKeyRef) {
+        await this.secretManagerService.addApiKey(generatedApiKeyRef, updateIntegrationApiKey);
+      }
+      if (updates.integration) {
+        updates.integration = {
+          ...updates.integration,
+          apiKeyRef: generatedApiKeyRef ?? updates.integration.apiKeyRef,
+          apiKey: undefined,
+        };
       }
 
       await this.repository.updateOrganization(organizationId, updates);
@@ -643,6 +697,29 @@ export class OrganizationService {
       timer.end();
       throw err;
     }
+  }
+
+  async getExternalTenantByApiBaseUrl(apiBaseUrl: string, providerId?: string): Promise<{
+    tenantId: string;
+    organizationId: string;
+    subdomain: string;
+  }> {
+    const subdomain = extractSubdomainFromUrl(apiBaseUrl);
+    if (!subdomain) {
+      const err: any = new Error('Unable to extract subdomain from apiBaseUrl');
+      err.statusCode = 400;
+      err.code = 'INVALID_API_BASE_URL';
+      throw err;
+    }
+    const organization = await this.repository.getOrganizationBySubdomain(subdomain, providerId);
+    if (!organization) {
+      throw new OrganizationNotFoundError(subdomain);
+    }
+    return {
+      tenantId: organization.organizationId,
+      organizationId: organization.organizationId,
+      subdomain,
+    };
   }
 
 

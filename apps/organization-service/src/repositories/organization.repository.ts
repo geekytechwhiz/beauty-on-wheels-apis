@@ -364,6 +364,28 @@ export class OrganizationRepository {
       exprValues[':size'] = updates.size;
     }
 
+    if (updates.subdomain !== undefined) {
+      updateParts.push('subdomain = :subdomain');
+      exprValues[':subdomain'] = updates.subdomain;
+      if (updates.subdomain) {
+        updateParts.push('gsi2pk = :gsi2pk');
+        exprValues[':gsi2pk'] = `LOOKUP#${String(updates.subdomain).toLowerCase()}`;
+      } else {
+        updateParts.push('gsi2pk = :gsi2pk');
+        exprValues[':gsi2pk'] = null;
+      }
+    }
+
+    if (updates.integration !== undefined) {
+      updateParts.push('integration = :integration');
+      exprValues[':integration'] = updates.integration;
+      const provider = updates.integration?.providerId;
+      if (provider && updates.subdomain) {
+        updateParts.push('gsi2sk = :gsi2sk');
+        exprValues[':gsi2sk'] = `PROVIDER#${provider}#ORG#${organizationId}`;
+      }
+    }
+
     try {
       await ddbDocClient.send(
         new UpdateCommand({
@@ -1033,6 +1055,39 @@ export class OrganizationRepository {
     } catch (err) {
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.error({ event: 'organization_files_list_error', err: serializeError(err), message: 'Failed to list organization files' });
+      throw err;
+    }
+  }
+
+  async getOrganizationBySubdomain(subdomain: string, providerId?: string): Promise<Organization | null> {
+    const normalizedSubdomain = subdomain.trim().toLowerCase();
+    if (!normalizedSubdomain) return null;
+    try {
+      const exprValues: Record<string, unknown> = {
+        ':gsi2pk': `LOOKUP#${normalizedSubdomain}`,
+      };
+      let keyConditionExpression = 'gsi2pk = :gsi2pk';
+      if (providerId) {
+        keyConditionExpression += ' AND begins_with(gsi2sk, :gsi2sk)';
+        exprValues[':gsi2sk'] = `PROVIDER#${providerId}#`;
+      }
+      const response = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          IndexName: 'GSI2',
+          KeyConditionExpression: keyConditionExpression,
+          ExpressionAttributeValues: exprValues,
+          Limit: 1,
+        }),
+      );
+      const item = (response.Items?.[0] as Organization | undefined) ?? null;
+      if (!item || item.deleted === true) {
+        return null;
+      }
+      return this.sanitizeOrganization(item);
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { subdomain: normalizedSubdomain, providerId });
+      logger.error({ event: 'organization_get_by_subdomain_error', err: serializeError(err) });
       throw err;
     }
   }

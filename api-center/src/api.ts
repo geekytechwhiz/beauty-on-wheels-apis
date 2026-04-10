@@ -1,17 +1,4 @@
-/**
- * API Aggregator + Registry — HTTP API (Serverless).
- *
- * Endpoints (relative to `VITE_API_BASE_URL`, no trailing slash):
- * - GET  /health
- * - GET  /services
- * - POST /services
- * - GET  /specs
- * - GET  /specs/{service}  (?version= optional)
- *
- * Local: omit `VITE_API_BASE_URL` to use Vite proxy `/api` → http://localhost:4000
- * Deployed: set `VITE_API_BASE_URL` or run `pnpm dev:registry`.
- */
-
+ 
 export interface ServiceVersionRecord {
   url: string;
 }

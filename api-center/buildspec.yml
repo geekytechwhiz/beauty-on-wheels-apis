@@ -2,7 +2,6 @@ version: 0.2
 
 env:
   variables:
-    NODE_ENV: production
     VITE_S3_BUCKET_NAME: dev-mvx-developer-hub
     VITE_S3_SPECS_PREFIX: specs
     VITE_S3_FIGMA_DESIGNS_KEY: figma/designs.json
@@ -24,10 +23,11 @@ phases:
         fi
       - 'echo "Resolved deploy bucket: ${DEPLOY_BUCKET}"'
       - 'echo "Installing dependencies..."'
-      - npm install
+      - npm install --include=dev
   build:
     commands:
       - cd api-center
+      - export NODE_ENV=production
       - 'echo "Building api-center..."'
       - npm run build
   post_build:

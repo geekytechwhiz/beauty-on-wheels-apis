@@ -150,7 +150,10 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   const registrationNumber =
     normalizeString(input?.registrationNumber) || normalizeString(organizationInfo?.licenseNumber);
   const licenseNumber = normalizeString(organizationInfo?.licenseNumber);
-  const integrationInput = input?.integration && typeof input.integration === 'object' ? input.integration : undefined;
+  const integrationInput =
+    organizationInfo?.integration && typeof organizationInfo.integration === 'object'
+      ? organizationInfo.integration
+      : undefined;
   const apiBaseUrl = normalizeString(integrationInput?.apiBaseUrl);
   const derivedSubdomain = extractSubdomainFromUrl(apiBaseUrl);
   const integrationSubdomain = normalizeString(integrationInput?.subdomain) || derivedSubdomain;

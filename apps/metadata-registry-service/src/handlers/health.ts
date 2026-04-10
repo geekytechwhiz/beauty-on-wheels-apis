@@ -1,12 +1,11 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/utils';
 
-interface Params {
-  [key: string]: unknown;
-}
-
-const handler = async (_req: LambdaRequest<Params>) => ({
-  status: 'ok',
-  service: 'metadata-registry-service',
-});
+const handler = async () => {
+  return {
+    status: 'ok',
+    service: 'metadata-registry-service',
+    timestamp: new Date().toISOString(),
+  };
+};
 
 export const main = withLambdaHandler(handler);

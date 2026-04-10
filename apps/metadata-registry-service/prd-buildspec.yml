@@ -2,13 +2,10 @@ version: 0.2
 
 env:
   variables:
-    STAGE: 'dev'
-    DEPLOYMENT_BUCKET: 'dev-mvx-metadata-registry-service-bucket'
-    # If deploy uses "${STACK_NAME}-serverless-stack", the CF stack is dev-metadata-registry-service-serverless-stack.
-    # ROLLBACK_COMPLETE (failed create): that stack cannot be updated — delete it, then redeploy:
-    #   aws cloudformation delete-stack --stack-name dev-metadata-registry-service-serverless-stack
-    #   aws cloudformation wait stack-delete-complete --stack-name dev-metadata-registry-service-serverless-stack
-    STACK_NAME: 'dev-metadata-registry-service'
+    STAGE: 'prd'
+    DEPLOYMENT_BUCKET: 'prd-mvx-metadata-registry-service-bucket'
+    # ROLLBACK_COMPLETE: delete the CF stack (often prd-metadata-registry-service-serverless-stack), then redeploy.
+    STACK_NAME: 'prd-metadata-registry-service'
 
 phases:
   install:
@@ -21,8 +18,7 @@ phases:
   build:
     commands:
       - cd apps/metadata-registry-service
-      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
-      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
+      - npx serverless package --stage "$STAGE" --package .serverless
 
       # 2) select create vs update s3 keys
       - |

@@ -14,7 +14,7 @@ import {
   MetadataValidationError,
 } from '../domain/errors';
 import type { ApplicabilityContext, MetadataType, MetadataValue } from '../domain/types';
-import { MetadataRegistryRepository } from '../repository/metadata-registry.repository';
+import { MetadataRegistryRepository, type PaginatedResult } from '../repository/metadata-registry.repository';
 import { assertValueAttributesMatchSchema } from '../validators/value-attributes.validator';
 import type {
   CreateMetadataTypeInput,
@@ -184,16 +184,34 @@ export class MetadataRegistryService {
     return t;
   }
 
-  async listMetadataTypes(): Promise<MetadataType[]> {
-    const key = 'all';
+  async listMetadataTypes(options?: { includeInactive?: boolean }): Promise<MetadataType[]> {
+    const key = `all:${options?.includeInactive ?? false}`;
     const hit = this.typeListCache.get(key);
     if (hit) {
       return hit;
     }
     const list = await this.repo.listMetadataTypes();
-    list.sort((a, b) => a.metadataTypeCode.localeCompare(b.metadataTypeCode));
-    this.typeListCache.set(key, list);
-    return list;
+    const filtered = options?.includeInactive
+      ? list
+      : list.filter((t) => t.status === 'ACTIVE');
+    filtered.sort((a, b) => a.metadataTypeCode.localeCompare(b.metadataTypeCode));
+    this.typeListCache.set(key, filtered);
+    return filtered;
+  }
+
+  async listMetadataTypesPaginated(options?: {
+    limit?: number;
+    nextToken?: string;
+    includeInactive?: boolean;
+  }): Promise<PaginatedResult<MetadataType>> {
+    const result = await this.repo.listMetadataTypesPaginated(
+      options?.limit,
+      options?.nextToken,
+    );
+    if (!options?.includeInactive) {
+      result.items = result.items.filter((t) => t.status === 'ACTIVE');
+    }
+    return result;
   }
 
   async createMetadataValue(
@@ -394,10 +412,29 @@ export class MetadataRegistryService {
   async listMetadataValuesByContext(
     metadataTypeCode: string,
     ctx: ApplicabilityContext,
+    options?: { includeInactive?: boolean },
   ): Promise<MetadataValue[]> {
     const all = await this.repo.listMetadataValues(metadataTypeCode);
-    return all.filter(
-      (v) => v.status === 'ACTIVE' && valueAppliesToContext(v, ctx),
+    return all.filter((v) => {
+      if (!options?.includeInactive && v.status !== 'ACTIVE') return false;
+      return valueAppliesToContext(v, ctx);
+    });
+  }
+
+  async listMetadataValuesPaginated(
+    metadataTypeCode: string,
+    options?: {
+      limit?: number;
+      nextToken?: string;
+      includeInactive?: boolean;
+    },
+  ): Promise<PaginatedResult<MetadataValue>> {
+    const statusFilter = options?.includeInactive ? undefined : 'ACTIVE' as const;
+    return this.repo.listMetadataValuesPaginated(
+      metadataTypeCode,
+      options?.limit,
+      options?.nextToken,
+      statusFilter,
     );
   }
 

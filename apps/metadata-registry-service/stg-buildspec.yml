@@ -2,13 +2,10 @@ version: 0.2
 
 env:
   variables:
-    STAGE: 'dev'
-    DEPLOYMENT_BUCKET: 'dev-mvx-metadata-registry-service-bucket'
-    # If deploy uses "${STACK_NAME}-serverless-stack", the CF stack is dev-metadata-registry-service-serverless-stack.
-    # ROLLBACK_COMPLETE (failed create): that stack cannot be updated — delete it, then redeploy:
-    #   aws cloudformation delete-stack --stack-name dev-metadata-registry-service-serverless-stack
-    #   aws cloudformation wait stack-delete-complete --stack-name dev-metadata-registry-service-serverless-stack
-    STACK_NAME: 'dev-metadata-registry-service'
+    STAGE: 'stg'
+    DEPLOYMENT_BUCKET: 'stg-mvx-metadata-registry-service-bucket'
+    # ROLLBACK_COMPLETE: delete the CF stack (often stg-metadata-registry-service-serverless-stack), then redeploy.
+    STACK_NAME: 'stg-metadata-registry-service'
 
 phases:
   install:

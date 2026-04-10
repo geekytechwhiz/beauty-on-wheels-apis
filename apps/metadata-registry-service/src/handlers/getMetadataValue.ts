@@ -1,18 +1,19 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
-import { getMetadataRegistryService } from '../runtime';
-import { validateMetadataTypeAndValueParams } from '../validation/request.validators';
+import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { MetadataValidationError } from '@api-hub/metadata';
+import { getService } from '../utils/service-factory';
 
-interface Params {
-  metadataTypeCode: string;
-  metadataValueCode: string;
-  [key: string]: unknown;
-}
-
-const handler = async (req: LambdaRequest<Params>) => {
-  const { metadataTypeCode, metadataValueCode } = req.params;
-  return getMetadataRegistryService().getMetadataValue(metadataTypeCode, metadataValueCode);
+const validate = (req: LambdaRequest) => {
+  if (!req.pathParameters?.metadataTypeCode) {
+    throw new MetadataValidationError('metadataTypeCode path parameter is required');
+  }
+  if (!req.pathParameters?.metadataValueCode) {
+    throw new MetadataValidationError('metadataValueCode path parameter is required');
+  }
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateMetadataTypeAndValueParams,
-});
+const handler = async (req: LambdaRequest) => {
+  const { metadataTypeCode, metadataValueCode } = req.pathParameters!;
+  return getService().getMetadataValue(metadataTypeCode, metadataValueCode);
+};
+
+export const main = withLambdaHandler(handler, { validator: validate });

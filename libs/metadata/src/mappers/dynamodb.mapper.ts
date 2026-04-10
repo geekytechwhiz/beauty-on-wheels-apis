@@ -1,6 +1,6 @@
 import { ENTITY_TYPE } from '../domain/constants';
 import type { MetadataType, MetadataValue } from '../domain/types';
-import { gsi1pkRegistryTypes, gsi1skMetadataType, pkMetadataType, skAppl, skTypeMetadata, skValue } from '../repository/keys';
+import { gsi1pkRegistryTypes, gsi1pkTypeValues, gsi1skMetadataType, gsi1skMetadataValue, pkMetadataType, skAppl, skTypeMetadata, skValue } from '../repository/keys';
 
 export type MetadataTypeItem = MetadataType & {
   pk: string;
@@ -8,12 +8,23 @@ export type MetadataTypeItem = MetadataType & {
   entityType: typeof ENTITY_TYPE.METADATA_TYPE;
   gsi1pk: string;
   gsi1sk: string;
+  sk1: string; // status
+  sk2: string; // createdAt
+  sk3: string; // updatedAt
+  sk5: string; // entityType
 };
 
 export type MetadataValueItem = MetadataValue & {
   pk: string;
   sk: string;
   entityType: typeof ENTITY_TYPE.METADATA_VALUE;
+  gsi1pk: string;
+  gsi1sk: string;
+  sk1: string; // status
+  sk2: string; // createdAt
+  sk3: string; // updatedAt
+  sk4: string; // metadataValueCode
+  sk5: string; // entityType
 };
 
 export type MetadataApplItem = {
@@ -26,6 +37,8 @@ export type MetadataApplItem = {
   category: string;
   condition: string;
   country: string;
+  sk4: string; // metadataValueCode
+  sk5: string; // entityType
 };
 
 export function toMetadataTypeItem(type: MetadataType): MetadataTypeItem {
@@ -37,6 +50,10 @@ export function toMetadataTypeItem(type: MetadataType): MetadataTypeItem {
     entityType: ENTITY_TYPE.METADATA_TYPE,
     gsi1pk: gsi1pkRegistryTypes(),
     gsi1sk: gsi1skMetadataType(type.metadataTypeCode),
+    sk1: type.status,
+    sk2: type.createdAt,
+    sk3: type.updatedAt,
+    sk5: ENTITY_TYPE.METADATA_TYPE,
   };
 }
 
@@ -46,6 +63,13 @@ export function toMetadataValueItem(value: MetadataValue): MetadataValueItem {
     pk: pkMetadataType(value.metadataTypeCode),
     sk: skValue(value.metadataValueCode),
     entityType: ENTITY_TYPE.METADATA_VALUE,
+    gsi1pk: gsi1pkTypeValues(value.metadataTypeCode),
+    gsi1sk: gsi1skMetadataValue(value.status, value.metadataValueCode),
+    sk1: value.status,
+    sk2: value.createdAt,
+    sk3: value.updatedAt,
+    sk4: value.metadataValueCode,
+    sk5: ENTITY_TYPE.METADATA_VALUE,
   };
 }
 
@@ -65,23 +89,21 @@ export function toApplItem(
     category,
     condition,
     country,
+    sk4: metadataValueCode,
+    sk5: ENTITY_TYPE.METADATA_APPL,
   };
 }
 
+const INDEX_KEYS = ['pk', 'sk', 'entityType', 'gsi1pk', 'gsi1sk', 'sk1', 'sk2', 'sk3', 'sk4', 'sk5'];
+
 export function fromMetadataTypeItem(item: Record<string, unknown>): MetadataType {
   const rest = { ...item };
-  delete rest.pk;
-  delete rest.sk;
-  delete rest.entityType;
-  delete rest.gsi1pk;
-  delete rest.gsi1sk;
+  for (const k of INDEX_KEYS) delete rest[k];
   return rest as unknown as MetadataType;
 }
 
 export function fromMetadataValueItem(item: Record<string, unknown>): MetadataValue {
   const rest = { ...item };
-  delete rest.pk;
-  delete rest.sk;
-  delete rest.entityType;
+  for (const k of INDEX_KEYS) delete rest[k];
   return rest as unknown as MetadataValue;
 }

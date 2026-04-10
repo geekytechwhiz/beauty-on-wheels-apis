@@ -1,23 +1,31 @@
-import type { CreateMetadataTypeInput } from '@api-hub/metadata';
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
-import { getMetadataRegistryService } from '../runtime';
-import { extractActorId } from '../utils/helper';
-import { validateCreateMetadataType } from '../validation/request.validators';
+import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import {
+  createMetadataTypeSchema,
+  MetadataValidationError,
+} from '@api-hub/metadata';
+import { getService } from '../utils/service-factory';
 
-interface Params {
-  [key: string]: unknown;
-}
+const validate = (req: LambdaRequest) => {
+  const result = createMetadataTypeSchema.safeParse(req.body);
+  if (!result.success) {
+    throw new MetadataValidationError(
+      'Validation failed',
+      result.error.issues.map((i) => ({
+        field: i.path.join('.'),
+        message: i.message,
+      })),
+    );
+  }
+  (req as any).validatedBody = result.data;
+};
 
-const handler = async (req: LambdaRequest<Params>) => {
-  const body = (req as unknown as { validatedCreateMetadataTypeBody: CreateMetadataTypeInput })
-    .validatedCreateMetadataTypeBody;
-  const actorId = extractActorId(req);
-  return getMetadataRegistryService().createMetadataType({
-    ...body,
-    createdBy: body.createdBy ?? actorId,
-  });
+const handler = async (req: LambdaRequest) => {
+  const input = (req as any).validatedBody;
+  input.createdBy = req.context.userContext?.userId;
+  return getService().createMetadataType(input);
 };
 
 export const main = withLambdaHandler(handler, {
-  validator: validateCreateMetadataType,
+  validator: validate,
+  useCreated: true,
 });

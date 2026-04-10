@@ -1,6 +1,6 @@
 import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
 import {
-  updateMetadataValueSchema,
+  listMetadataValuesQuerySchema,
   MetadataValidationError,
 } from '@api-hub/metadata';
 import { getService } from '../utils/service-factory';
@@ -9,27 +9,36 @@ const validate = (req: LambdaRequest) => {
   if (!req.pathParameters?.metadataTypeCode) {
     throw new MetadataValidationError('metadataTypeCode path parameter is required');
   }
-  if (!req.pathParameters?.metadataValueCode) {
-    throw new MetadataValidationError('metadataValueCode path parameter is required');
-  }
-  const result = updateMetadataValueSchema.safeParse(req.body);
+  const result = listMetadataValuesQuerySchema.safeParse(req.params);
   if (!result.success) {
     throw new MetadataValidationError(
-      'Validation failed',
+      'Invalid query parameters',
       result.error.issues.map((i) => ({
         field: i.path.join('.'),
         message: i.message,
       })),
     );
   }
-  (req as any).validatedBody = result.data;
+  (req as any).validatedQuery = result.data;
 };
 
 const handler = async (req: LambdaRequest) => {
-  const { metadataTypeCode, metadataValueCode } = req.pathParameters!;
-  const input = (req as any).validatedBody;
-  input.updatedBy = req.context.userContext?.userId;
-  return getService().updateMetadataValue(metadataTypeCode, metadataValueCode, input);
+  const metadataTypeCode = req.pathParameters!.metadataTypeCode;
+  const query = (req as any).validatedQuery;
+
+  const result = await getService().listMetadataValuesPaginated(
+    metadataTypeCode,
+    {
+      limit: query.limit,
+      nextToken: query.nextToken,
+      includeInactive: query.includeInactive,
+    },
+  );
+
+  return {
+    items: result.items,
+    nextToken: result.nextToken,
+  };
 };
 
 export const main = withLambdaHandler(handler, { validator: validate });

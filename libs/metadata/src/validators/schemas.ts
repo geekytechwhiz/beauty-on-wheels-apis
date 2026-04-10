@@ -62,7 +62,15 @@ export const validateMetadataValueBodySchema = z.object({
   context: contextSchema,
 });
 
-export const listMetadataValuesQuerySchema = z.object({
+const paginationSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  nextToken: z.string().optional(),
+  includeInactive: z.coerce.boolean().optional().default(false),
+});
+
+export const listMetadataTypesQuerySchema = paginationSchema;
+
+export const listMetadataValuesQuerySchema = paginationSchema.extend({
   module: z.string().optional().default(GLOBAL_DIMENSION),
   category: z.string().optional().default(GLOBAL_DIMENSION),
   condition: z.string().optional().default(GLOBAL_DIMENSION),
@@ -73,3 +81,5 @@ export type CreateMetadataTypeInput = z.infer<typeof createMetadataTypeSchema>;
 export type UpdateMetadataTypeInput = z.infer<typeof updateMetadataTypeSchema>;
 export type CreateMetadataValueInput = z.infer<typeof createMetadataValueSchema>;
 export type UpdateMetadataValueInput = z.infer<typeof updateMetadataValueSchema>;
+export type ListMetadataTypesQuery = z.infer<typeof listMetadataTypesQuerySchema>;
+export type ListMetadataValuesQuery = z.infer<typeof listMetadataValuesQuerySchema>;

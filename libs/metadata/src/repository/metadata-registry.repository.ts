@@ -22,7 +22,20 @@ import {
   toMetadataValueItem,
   type MetadataApplItem,
 } from '../mappers/dynamodb.mapper';
-import { gsi1pkRegistryTypes, pkMetadataType, skAppl, skTypeMetadata, skValue } from './keys';
+import {
+  LSI_CREATED_AT,
+  LSI_ENTITY_TYPE,
+  LSI_STATUS,
+  LSI_UPDATED_AT,
+  LSI_VALUE_CODE,
+  gsi1pkRegistryTypes,
+  gsi1pkTypeValues,
+  gsi1skMetadataValue,
+  pkMetadataType,
+  skAppl,
+  skTypeMetadata,
+  skValue,
+} from './keys';
 
 const baseLogger = createLogger({ service: 'metadata-registry-repository' });
 
@@ -33,9 +46,21 @@ async function sendDoc<T>(
   return (await (client as { send: (cmd: unknown) => Promise<unknown> }).send(command)) as T;
 }
 
-const APPL_PREFIX = 'APPL#';
-const VALUE_PREFIX = 'VALUE#';
 const BATCH_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 50;
+
+export interface PaginatedResult<T> {
+  items: T[];
+  nextToken?: string;
+}
+
+function encodeToken(key: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(key)).toString('base64url');
+}
+
+function decodeToken(token: string): Record<string, unknown> {
+  return JSON.parse(Buffer.from(token, 'base64url').toString('utf-8'));
+}
 
 export class MetadataRegistryRepository {
   constructor(
@@ -83,12 +108,14 @@ export class MetadataRegistryRepository {
     const names: Record<string, string> = {
       '#ua': 'updatedAt',
       '#et': 'entityType',
+      '#sk3': 'sk3',
     };
     const values: Record<string, unknown> = {
       ':ua': patch.updatedAt,
       ':et': ENTITY_TYPE.METADATA_TYPE,
+      ':sk3': patch.updatedAt,
     };
-    const sets: string[] = ['#ua = :ua'];
+    const sets: string[] = ['#ua = :ua', '#sk3 = :sk3'];
     let idx = 0;
     const assign = (field: keyof MetadataType, attr: string) => {
       if (patch[field] === undefined) return;
@@ -108,6 +135,12 @@ export class MetadataRegistryRepository {
     assign('status', 'status');
     assign('version', 'version');
     assign('updatedBy', 'updatedBy');
+
+    if (patch.status) {
+      names['#sk1'] = 'sk1';
+      values[':sk1'] = patch.status;
+      sets.push('#sk1 = :sk1');
+    }
 
     const result = await sendDoc<UpdateCommandOutput>(
       this.docClient,
@@ -143,6 +176,73 @@ export class MetadataRegistryRepository {
       .map((it) => fromMetadataTypeItem(it));
   }
 
+  async listMetadataTypesPaginated(
+    limit: number = DEFAULT_PAGE_SIZE,
+    nextToken?: string,
+  ): Promise<PaginatedResult<MetadataType>> {
+    const result = await sendDoc<QueryCommandOutput>(
+      this.docClient,
+      new QueryCommand({
+        TableName: this.tableName,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'gsi1pk = :gpk',
+        ExpressionAttributeValues: {
+          ':gpk': gsi1pkRegistryTypes(),
+        },
+        Limit: limit,
+        ExclusiveStartKey: nextToken ? decodeToken(nextToken) : undefined,
+      }),
+    );
+    const items = (result.Items ?? []) as Record<string, unknown>[];
+    return {
+      items: items
+        .filter((it) => it.entityType === ENTITY_TYPE.METADATA_TYPE)
+        .map((it) => fromMetadataTypeItem(it)),
+      nextToken: result.LastEvaluatedKey
+        ? encodeToken(result.LastEvaluatedKey as Record<string, unknown>)
+        : undefined,
+    };
+  }
+
+  async listMetadataValuesPaginated(
+    metadataTypeCode: string,
+    limit: number = DEFAULT_PAGE_SIZE,
+    nextToken?: string,
+    statusFilter?: 'ACTIVE' | 'INACTIVE',
+  ): Promise<PaginatedResult<MetadataValue>> {
+    const gsi1pk = gsi1pkTypeValues(metadataTypeCode);
+
+    const keyExpr = statusFilter
+      ? 'gsi1pk = :gpk AND begins_with(gsi1sk, :statusPrefix)'
+      : 'gsi1pk = :gpk';
+
+    const exprValues: Record<string, unknown> = { ':gpk': gsi1pk };
+    if (statusFilter) {
+      exprValues[':statusPrefix'] = `${statusFilter}#`;
+    }
+
+    const result = await sendDoc<QueryCommandOutput>(
+      this.docClient,
+      new QueryCommand({
+        TableName: this.tableName,
+        IndexName: 'GSI1',
+        KeyConditionExpression: keyExpr,
+        ExpressionAttributeValues: exprValues,
+        Limit: limit,
+        ExclusiveStartKey: nextToken ? decodeToken(nextToken) : undefined,
+      }),
+    );
+    const items = (result.Items ?? []) as Record<string, unknown>[];
+    return {
+      items: items
+        .filter((it) => it.entityType === ENTITY_TYPE.METADATA_VALUE)
+        .map((it) => fromMetadataValueItem(it)),
+      nextToken: result.LastEvaluatedKey
+        ? encodeToken(result.LastEvaluatedKey as Record<string, unknown>)
+        : undefined,
+    };
+  }
+
   async getMetadataValue(metadataTypeCode: string, metadataValueCode: string): Promise<MetadataValue | null> {
     const pk = pkMetadataType(metadataTypeCode);
     const sk = skValue(metadataValueCode);
@@ -161,16 +261,15 @@ export class MetadataRegistryRepository {
   }
 
   async listMetadataValues(metadataTypeCode: string): Promise<MetadataValue[]> {
-    const pk = pkMetadataType(metadataTypeCode);
+    const gsi1pk = gsi1pkTypeValues(metadataTypeCode);
     const result = await sendDoc<QueryCommandOutput>(
       this.docClient,
       new QueryCommand({
         TableName: this.tableName,
-        KeyConditionExpression: 'pk = :pk AND begins_with(#sk, :vp)',
-        ExpressionAttributeNames: { '#sk': 'sk' },
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'gsi1pk = :gpk',
         ExpressionAttributeValues: {
-          ':pk': pk,
-          ':vp': VALUE_PREFIX,
+          ':gpk': gsi1pk,
         },
       }),
     );
@@ -200,12 +299,17 @@ export class MetadataRegistryRepository {
   ): Promise<MetadataValue> {
     const pk = pkMetadataType(metadataTypeCode);
     const sk = skValue(metadataValueCode);
-    const names: Record<string, string> = { '#ua': 'updatedAt', '#et': 'entityType' };
+    const names: Record<string, string> = {
+      '#ua': 'updatedAt',
+      '#et': 'entityType',
+      '#sk3': 'sk3',
+    };
     const values: Record<string, unknown> = {
       ':ua': patch.updatedAt,
       ':et': ENTITY_TYPE.METADATA_VALUE,
+      ':sk3': patch.updatedAt,
     };
-    const sets: string[] = ['#ua = :ua'];
+    const sets: string[] = ['#ua = :ua', '#sk3 = :sk3'];
     let idx = 0;
     const assign = (field: keyof MetadataValue, attr: string) => {
       if (patch[field] === undefined) return;
@@ -227,6 +331,16 @@ export class MetadataRegistryRepository {
     assign('valueAttributes', 'valueAttributes');
     assign('version', 'version');
     assign('updatedBy', 'updatedBy');
+
+    if (patch.status) {
+      names['#gsi1sk'] = 'gsi1sk';
+      values[':gsi1sk'] = gsi1skMetadataValue(patch.status, metadataValueCode);
+      sets.push('#gsi1sk = :gsi1sk');
+
+      names['#sk1'] = 'sk1';
+      values[':sk1'] = patch.status;
+      sets.push('#sk1 = :sk1');
+    }
 
     const result = await sendDoc<UpdateCommandOutput>(
       this.docClient,
@@ -269,7 +383,6 @@ export class MetadataRegistryRepository {
 
   async deleteAllApplForValue(metadataTypeCode: string, metadataValueCode: string): Promise<void> {
     const pk = pkMetadataType(metadataTypeCode);
-    const suffix = `#VALUE#${metadataValueCode}`;
     let lastKey: Record<string, unknown> | undefined;
 
     do {
@@ -277,19 +390,18 @@ export class MetadataRegistryRepository {
         this.docClient,
         new QueryCommand({
           TableName: this.tableName,
-          KeyConditionExpression: 'pk = :pk AND begins_with(#sk, :ap)',
-          ExpressionAttributeNames: { '#sk': 'sk' },
+          IndexName: LSI_VALUE_CODE,
+          KeyConditionExpression: 'pk = :pk AND sk4 = :vc',
+          FilterExpression: 'entityType = :et',
           ExpressionAttributeValues: {
             ':pk': pk,
-            ':ap': APPL_PREFIX,
+            ':vc': metadataValueCode,
+            ':et': ENTITY_TYPE.METADATA_APPL,
           },
           ExclusiveStartKey: lastKey,
         }),
       );
-      const items = (result.Items ?? []).filter((it) => {
-        const sk = String((it as { sk?: string }).sk ?? '');
-        return sk.endsWith(suffix);
-      }) as Record<string, unknown>[];
+      const items = (result.Items ?? []) as Record<string, unknown>[];
 
       for (let i = 0; i < items.length; i += BATCH_SIZE) {
         const chunk = items.slice(i, i + BATCH_SIZE);
@@ -346,5 +458,104 @@ export class MetadataRegistryRepository {
       logger.error({ event: 'replaceApplRows_failed', err: serializeError(err) });
       throw err;
     }
+  }
+
+  async listMetadataValuesByStatus(
+    metadataTypeCode: string,
+    status: 'ACTIVE' | 'INACTIVE',
+  ): Promise<MetadataValue[]> {
+    const pk = pkMetadataType(metadataTypeCode);
+    const result = await sendDoc<QueryCommandOutput>(
+      this.docClient,
+      new QueryCommand({
+        TableName: this.tableName,
+        IndexName: LSI_STATUS,
+        KeyConditionExpression: 'pk = :pk AND sk1 = :s',
+        FilterExpression: 'entityType = :et',
+        ExpressionAttributeValues: {
+          ':pk': pk,
+          ':s': status,
+          ':et': ENTITY_TYPE.METADATA_VALUE,
+        },
+      }),
+    );
+    return ((result.Items ?? []) as Record<string, unknown>[]).map(fromMetadataValueItem);
+  }
+
+  async listItemsByCreatedAt(
+    metadataTypeCode: string,
+    options?: { from?: string; to?: string; scanForward?: boolean },
+  ): Promise<MetadataValue[]> {
+    const pk = pkMetadataType(metadataTypeCode);
+    let keyExpr = 'pk = :pk';
+    const exprValues: Record<string, unknown> = { ':pk': pk, ':et': ENTITY_TYPE.METADATA_VALUE };
+    if (options?.from && options?.to) {
+      keyExpr += ' AND sk2 BETWEEN :from AND :to';
+      exprValues[':from'] = options.from;
+      exprValues[':to'] = options.to;
+    } else if (options?.from) {
+      keyExpr += ' AND sk2 >= :from';
+      exprValues[':from'] = options.from;
+    } else if (options?.to) {
+      keyExpr += ' AND sk2 <= :to';
+      exprValues[':to'] = options.to;
+    }
+    const result = await sendDoc<QueryCommandOutput>(
+      this.docClient,
+      new QueryCommand({
+        TableName: this.tableName,
+        IndexName: LSI_CREATED_AT,
+        KeyConditionExpression: keyExpr,
+        FilterExpression: 'entityType = :et',
+        ExpressionAttributeValues: exprValues,
+        ScanIndexForward: options?.scanForward ?? true,
+      }),
+    );
+    return ((result.Items ?? []) as Record<string, unknown>[]).map(fromMetadataValueItem);
+  }
+
+  async listItemsByUpdatedAt(
+    metadataTypeCode: string,
+    options?: { since?: string; scanForward?: boolean },
+  ): Promise<MetadataValue[]> {
+    const pk = pkMetadataType(metadataTypeCode);
+    let keyExpr = 'pk = :pk';
+    const exprValues: Record<string, unknown> = { ':pk': pk, ':et': ENTITY_TYPE.METADATA_VALUE };
+    if (options?.since) {
+      keyExpr += ' AND sk3 >= :since';
+      exprValues[':since'] = options.since;
+    }
+    const result = await sendDoc<QueryCommandOutput>(
+      this.docClient,
+      new QueryCommand({
+        TableName: this.tableName,
+        IndexName: LSI_UPDATED_AT,
+        KeyConditionExpression: keyExpr,
+        FilterExpression: 'entityType = :et',
+        ExpressionAttributeValues: exprValues,
+        ScanIndexForward: options?.scanForward ?? false,
+      }),
+    );
+    return ((result.Items ?? []) as Record<string, unknown>[]).map(fromMetadataValueItem);
+  }
+
+  async listItemsByEntityType(
+    metadataTypeCode: string,
+    entityType: string,
+  ): Promise<Record<string, unknown>[]> {
+    const pk = pkMetadataType(metadataTypeCode);
+    const result = await sendDoc<QueryCommandOutput>(
+      this.docClient,
+      new QueryCommand({
+        TableName: this.tableName,
+        IndexName: LSI_ENTITY_TYPE,
+        KeyConditionExpression: 'pk = :pk AND sk5 = :et',
+        ExpressionAttributeValues: {
+          ':pk': pk,
+          ':et': entityType,
+        },
+      }),
+    );
+    return (result.Items ?? []) as Record<string, unknown>[];
   }
 }

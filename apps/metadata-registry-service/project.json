@@ -5,7 +5,6 @@
   "targets": {
     "build": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
       "options": {
         "command": "pnpm exec tsc -p apps/metadata-registry-service/tsconfig.app.json",
         "cwd": "{workspaceRoot}"
@@ -17,7 +16,13 @@
         "jestConfig": "apps/metadata-registry-service/jest.config.ts",
         "passWithNoTests": true
       }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["apps/metadata-registry-service/src/**/*.{ts,tsx,js,jsx}"]
+      }
     }
   },
-  "tags": ["type:app"]
+  "tags": ["type:app", "scope:metadata-registry-service"]
 }

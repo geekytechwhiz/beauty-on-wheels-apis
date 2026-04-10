@@ -1,4 +1,16 @@
 import { GSI1_PK_REGISTRY_TYPES } from '../domain/constants';
+import type { RegistryStatus } from '../domain/types';
+
+/** sk1 = status */
+export const LSI_STATUS = 'pk-sk1-index';
+/** sk2 = createdAt */
+export const LSI_CREATED_AT = 'pk-sk2-index';
+/** sk3 = updatedAt */
+export const LSI_UPDATED_AT = 'pk-sk3-index';
+/** sk4 = metadataValueCode */
+export const LSI_VALUE_CODE = 'pk-sk4-index';
+/** sk5 = entityType */
+export const LSI_ENTITY_TYPE = 'pk-sk5-index';
 
 export function pkMetadataType(metadataTypeCode: string): string {
   return `METADATA_TYPE#${metadataTypeCode}`;
@@ -28,4 +40,12 @@ export function gsi1pkRegistryTypes(): string {
 
 export function gsi1skMetadataType(metadataTypeCode: string): string {
   return `METADATA_TYPE#${metadataTypeCode}`;
+}
+
+export function gsi1pkTypeValues(metadataTypeCode: string): string {
+  return `TYPE_VALUES#${metadataTypeCode}`;
+}
+
+export function gsi1skMetadataValue(status: RegistryStatus, metadataValueCode: string): string {
+  return `${status}#VALUE#${metadataValueCode}`;
 }

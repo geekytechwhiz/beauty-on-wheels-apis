@@ -90,6 +90,7 @@ provider:
         - secretsmanager:GetSecretValue
       Resource:
         - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.SecretManagerService.${self:provider.stage}}
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.SecretManagerService.${self:provider.stage}}*
 
     # SNS (for organization events)
     - Effect: Allow

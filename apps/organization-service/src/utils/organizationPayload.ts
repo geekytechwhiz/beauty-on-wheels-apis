@@ -55,7 +55,20 @@ export type NormalizedOrganizationPayload = {
   supportedVitals?: unknown;
   organizationInfo?: Record<string, unknown>;
   searchFields?: Record<string, unknown>;
+  integration?: {
+    providerId?: string;
+    providerName?: string;
+    integrationType?: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE';
+    externalHospitalId?: string;
+    apiBaseUrl?: string;
+    apiKey?: string;
+    apiKeyRef?: string;
+    subdomain?: string;
+    metadata?: Record<string, unknown>;
+  };
+  subdomain?: string;
 };
+import { extractSubdomainFromUrl } from './helpers';
 
 type NormalizationResult = {
   data: NormalizedOrganizationPayload;
@@ -137,6 +150,32 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   const registrationNumber =
     normalizeString(input?.registrationNumber) || normalizeString(organizationInfo?.licenseNumber);
   const licenseNumber = normalizeString(organizationInfo?.licenseNumber);
+  const integrationInput = input?.integration && typeof input.integration === 'object' ? input.integration : undefined;
+  const apiBaseUrl = normalizeString(integrationInput?.apiBaseUrl);
+  const derivedSubdomain = extractSubdomainFromUrl(apiBaseUrl);
+  const integrationSubdomain = normalizeString(integrationInput?.subdomain) || derivedSubdomain;
+  const integration =
+    integrationInput || derivedSubdomain
+      ? {
+          providerId: normalizeString(integrationInput?.providerId),
+          providerName: normalizeString(integrationInput?.providerName),
+          integrationType: normalizeString(integrationInput?.integrationType) as
+            | 'HMS'
+            | 'FHIR'
+            | 'CUSTOM'
+            | 'MARKETPLACE'
+            | undefined,
+          externalHospitalId: normalizeString(integrationInput?.externalHospitalId),
+          apiBaseUrl,
+          apiKey: normalizeString(integrationInput?.apiKey),
+          apiKeyRef: normalizeString(integrationInput?.apiKeyRef),
+          subdomain: integrationSubdomain,
+          metadata:
+            integrationInput?.metadata && typeof integrationInput.metadata === 'object'
+              ? (integrationInput.metadata as Record<string, unknown>)
+              : undefined,
+        }
+      : undefined;
 
   const organizationSizeRaw =
     normalizeString(input?.organizationSize) || normalizeString(organizationInfo?.organizationSize);
@@ -319,6 +358,8 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
       description,
       industry,
       size,
+      integration,
+      subdomain: integrationSubdomain,
     },
     errors,
   };

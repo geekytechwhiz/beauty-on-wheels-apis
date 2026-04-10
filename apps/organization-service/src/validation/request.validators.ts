@@ -7,6 +7,7 @@ import {
   createOrganizationSchema,
   getLinkedOrganizationsSchema,
   linkUnlinkOrganizationSchema,
+  getExternalTenantSchema,
   setOrgStatusSchema,
   updateOrganizationMetadataSchema,
 } from './organization.validation';
@@ -114,6 +115,15 @@ export function validateMetadataTypeParam(req: any) {
   const type = req?.params?.type?.toUpperCase() || 'ORGANIZATION';
   if (type !== 'ROOT' && type !== 'ORGANIZATION') {
     throwValidationError('type must be ROOT or ORGANIZATION', 400, 'INVALID_TYPE');
+  }
+}
+
+export function validateGetExternalTenant(req: any) {
+  const body = req?.body ?? {};
+  const result = getExternalTenantSchema.safeParse(body);
+  if (!result.success) {
+    const first = result.error.issues[0];
+    throwValidationError(first?.message ?? 'Validation failed', 400, 'VALIDATION_ERROR');
   }
 }
 

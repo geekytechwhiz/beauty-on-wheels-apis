@@ -41,6 +41,7 @@ provider:
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
     GET_ONBOARDING_SCREENS_LAMBDA: ${self:provider.stage}_global_get_onboarding_screens
     DEVICE_API_BASE_URL: ${self:custom.deviceApiUrl.${self:provider.stage}}
+    SECRET_MANAGER_NAME: ${self:custom.SecretManagerService.${self:provider.stage}}
 
   tags:
     Service: ${self:service}
@@ -80,6 +81,15 @@ provider:
         - events:PutEvents
       Resource:
         - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/organization-service-bus-${self:provider.stage}
+
+    # Secrets Manager (HMS API keys)
+    - Effect: Allow
+      Action:
+        - secretsmanager:CreateSecret
+        - secretsmanager:PutSecretValue
+        - secretsmanager:GetSecretValue
+      Resource:
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.SecretManagerService.${self:provider.stage}}
 
     # SNS (for organization events)
     - Effect: Allow
@@ -123,6 +133,10 @@ custom:
     dev: dev-mvx-organization-service-bucket
     stg: nvstg-mvx-organization-service-bucket
     prd: nvprd-mvx-organization-service-bucket
+  SecretManagerService:
+    dev: DEV_DEMO_SECRETMANAGER
+    stg: STG_DEMO_SECRETMANAGER
+    prd: PRD_DEMO_SECRETMANAGER
   esbuild:
     bundle: true
     minify: false
@@ -816,6 +830,45 @@ functions:
                 description: Bad request
               500:
                 description: Internal server error
+
+  getExternalTenant:
+    handler: src/handlers/getExternalTenant.main
+    timeout: 5
+    memorySize: 256
+    events:
+      - http:
+          path: organization/get-external-tenant
+          method: post
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          documentation:
+            summary: Resolve tenant by subdomain
+            description: Extracts subdomain from apiBaseUrl and resolves organization tenant via GSI2.
+            tags:
+              - Organizations
+            requestBody:
+              description: URL used to derive subdomain and optional provider id
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - apiBaseUrl
+                    properties:
+                      apiBaseUrl:
+                        type: string
+                        format: uri
+                      providerId:
+                        type: string
+            responses:
+              200:
+                description: Tenant resolved successfully
+              400:
+                description: Validation error or invalid URL
+              404:
+                description: Tenant mapping not found
 
   listOrganizationFiles:
     handler: src/handlers/listOrganizationFiles.main

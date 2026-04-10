@@ -82,10 +82,10 @@ export class MetadataRegistryService {
       multiSelectAllowed: input.multiSelectAllowed,
       applicableModules: input.applicableModules,
       attributeSchema: input.attributeSchema,
-      status: 'ACTIVE',
+      status: input.status,
       version: 1,
       createdAt: ts,
-      updatedAt: ts,
+      lastModifiedAt: ts,
       createdBy: input.createdBy,
     };
 
@@ -127,7 +127,7 @@ export class MetadataRegistryService {
     const patch: Partial<MetadataType> = {
       ...input,
       version: nextVersion,
-      updatedAt: ts,
+      lastModifiedAt: ts,
     };
 
     const updated = await this.repo.updateMetadataType(metadataTypeCode, patch);
@@ -149,7 +149,7 @@ export class MetadataRegistryService {
     return updated;
   }
 
-  async inactivateMetadataType(metadataTypeCode: string, updatedBy?: string): Promise<MetadataType> {
+  async inactivateMetadataType(metadataTypeCode: string, lastModifiedBy?: string): Promise<MetadataType> {
     const existing = await this.repo.getMetadataType(metadataTypeCode);
     if (!existing) {
       throw new MetadataNotFoundError('MetadataType', metadataTypeCode);
@@ -158,8 +158,8 @@ export class MetadataRegistryService {
     const updated = await this.repo.updateMetadataType(metadataTypeCode, {
       status: 'INACTIVE',
       version: existing.version + 1,
-      updatedAt: ts,
-      updatedBy,
+      lastModifiedAt: ts,
+      lastModifiedBy,
     });
     this.invalidateCaches();
     await this.emit({
@@ -240,7 +240,7 @@ export class MetadataRegistryService {
       valueAttributes: input.valueAttributes,
       version: 1,
       createdAt: ts,
-      updatedAt: ts,
+      lastModifiedAt: ts,
       createdBy: input.createdBy,
     };
 
@@ -340,7 +340,7 @@ export class MetadataRegistryService {
     const patch: Partial<MetadataValue> = {
       ...input,
       valueAttributes: nextAttrs,
-      updatedAt: ts,
+      lastModifiedAt: ts,
       version,
     };
 
@@ -368,7 +368,7 @@ export class MetadataRegistryService {
   async inactivateMetadataValue(
     metadataTypeCode: string,
     metadataValueCode: string,
-    updatedBy?: string,
+    lastModifiedBy?: string,
   ): Promise<MetadataValue> {
     const existing = await this.repo.getMetadataValue(metadataTypeCode, metadataValueCode);
     if (!existing) {
@@ -378,8 +378,8 @@ export class MetadataRegistryService {
     const updated = await this.repo.updateMetadataValue(metadataTypeCode, metadataValueCode, {
       status: 'INACTIVE',
       version: existing.version + 1,
-      updatedAt: ts,
-      updatedBy,
+      lastModifiedAt: ts,
+      lastModifiedBy,
     });
     this.invalidateCaches();
     await this.emit({

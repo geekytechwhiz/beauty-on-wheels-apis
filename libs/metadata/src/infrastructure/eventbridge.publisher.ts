@@ -12,6 +12,15 @@ export class MetadataRegistryEventBridgePublisher {
 
   async publish(event: MetadataRegistryEvent): Promise<void> {
     const logger = createChildLogger(baseLogger, { eventType: event.type });
+      // ✅ Skip EventBridge in local
+  if (process.env.IS_OFFLINE) {
+    logger.info({
+      event: 'metadata_registry_event_mocked',
+      message: 'Skipping EventBridge publish in local',
+      payload: event,
+    });
+    return;
+  }
     const response = await this.client.send(
       new PutEventsCommand({
         Entries: [

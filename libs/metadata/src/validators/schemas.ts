@@ -16,6 +16,8 @@ export const createMetadataTypeSchema = z.object({
   multiSelectAllowed: z.boolean(),
   applicableModules: z.array(z.string()).default([]),
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
+  /** ACTIVE | INACTIVE — defaults to ACTIVE when omitted (future selection behavior). */
+  status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
   createdBy: z.string().optional(),
 });
 
@@ -27,7 +29,7 @@ export const updateMetadataTypeSchema = z.object({
   applicableModules: z.array(z.string()).optional(),
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  updatedBy: z.string().optional(),
+  lastModifiedBy: z.string().optional(),
 });
 
 export const createMetadataValueSchema = z.object({
@@ -53,7 +55,7 @@ export const updateMetadataValueSchema = z.object({
   applicableCountries: z.array(z.string()).optional(),
   valueAttributes: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  updatedBy: z.string().optional(),
+  lastModifiedBy: z.string().optional(),
 });
 
 export const validateMetadataValueBodySchema = z.object({

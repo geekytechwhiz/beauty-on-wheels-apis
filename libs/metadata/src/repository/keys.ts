@@ -5,7 +5,7 @@ import type { RegistryStatus } from '../domain/types';
 export const LSI_STATUS = 'pk-sk1-index';
 /** sk2 = createdAt */
 export const LSI_CREATED_AT = 'pk-sk2-index';
-/** sk3 = updatedAt */
+/** sk3 = lastModifiedAt */
 export const LSI_UPDATED_AT = 'pk-sk3-index';
 /** sk4 = metadataValueCode */
 export const LSI_VALUE_CODE = 'pk-sk4-index';
@@ -48,4 +48,16 @@ export function gsi1pkTypeValues(metadataTypeCode: string): string {
 
 export function gsi1skMetadataValue(status: RegistryStatus, metadataValueCode: string): string {
   return `${status}#VALUE#${metadataValueCode}`;
+}
+
+export function gsi2skMetadataType(metadataTypeCode: string): string {
+  return metadataTypeCode;
+}
+
+export function gsi2skMetadataValue(metadataTypeCode: string, metadataValueCode: string): string {
+  return `${metadataTypeCode}#${metadataValueCode}`;
+}
+
+export function gsi2skAppl(metadataTypeCode: string, metadataValueCode: string): string {
+  return `${metadataTypeCode}#${metadataValueCode}`;
 }

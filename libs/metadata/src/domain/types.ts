@@ -6,9 +6,9 @@ export type RegistryStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface AuditFields {
   createdAt: string;
-  updatedAt: string;
+  lastModifiedAt: string;
   createdBy?: string;
-  updatedBy?: string;
+  lastModifiedBy?: string;
 }
 
 export interface MetadataType extends AuditFields {

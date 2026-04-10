@@ -106,16 +106,16 @@ export class MetadataRegistryRepository {
     const pk = pkMetadataType(metadataTypeCode);
     const sk = skTypeMetadata();
     const names: Record<string, string> = {
-      '#ua': 'updatedAt',
+      '#lma': 'lastModifiedAt',
       '#et': 'entityType',
       '#sk3': 'sk3',
     };
     const values: Record<string, unknown> = {
-      ':ua': patch.updatedAt,
+      ':lma': patch.lastModifiedAt,
       ':et': ENTITY_TYPE.METADATA_TYPE,
-      ':sk3': patch.updatedAt,
+      ':sk3': patch.lastModifiedAt,
     };
-    const sets: string[] = ['#ua = :ua', '#sk3 = :sk3'];
+    const sets: string[] = ['#lma = :lma', '#sk3 = :sk3'];
     let idx = 0;
     const assign = (field: keyof MetadataType, attr: string) => {
       if (patch[field] === undefined) return;
@@ -134,7 +134,7 @@ export class MetadataRegistryRepository {
     assign('attributeSchema', 'attributeSchema');
     assign('status', 'status');
     assign('version', 'version');
-    assign('updatedBy', 'updatedBy');
+    assign('lastModifiedBy', 'lastModifiedBy');
 
     if (patch.status) {
       names['#sk1'] = 'sk1';
@@ -300,16 +300,16 @@ export class MetadataRegistryRepository {
     const pk = pkMetadataType(metadataTypeCode);
     const sk = skValue(metadataValueCode);
     const names: Record<string, string> = {
-      '#ua': 'updatedAt',
+      '#lma': 'lastModifiedAt',
       '#et': 'entityType',
       '#sk3': 'sk3',
     };
     const values: Record<string, unknown> = {
-      ':ua': patch.updatedAt,
+      ':lma': patch.lastModifiedAt,
       ':et': ENTITY_TYPE.METADATA_VALUE,
-      ':sk3': patch.updatedAt,
+      ':sk3': patch.lastModifiedAt,
     };
-    const sets: string[] = ['#ua = :ua', '#sk3 = :sk3'];
+    const sets: string[] = ['#lma = :lma', '#sk3 = :sk3'];
     let idx = 0;
     const assign = (field: keyof MetadataValue, attr: string) => {
       if (patch[field] === undefined) return;
@@ -330,7 +330,7 @@ export class MetadataRegistryRepository {
     assign('applicableCountries', 'applicableCountries');
     assign('valueAttributes', 'valueAttributes');
     assign('version', 'version');
-    assign('updatedBy', 'updatedBy');
+    assign('lastModifiedBy', 'lastModifiedBy');
 
     if (patch.status) {
       names['#gsi1sk'] = 'gsi1sk';

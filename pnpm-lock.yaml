@@ -292,30 +292,7 @@ importers:
 
   apps/device-service: {}
 
-  apps/metadata-registry-service:
-    dependencies:
-      '@aws-sdk/client-eventbridge':
-        specifier: ^3.958.0
-        version: 3.958.0
-      '@aws-sdk/lib-dynamodb':
-        specifier: ^3.958.0
-        version: 3.958.0(@aws-sdk/client-dynamodb@3.958.0)
-    devDependencies:
-      esbuild-plugin-tsconfig-paths:
-        specifier: ^1.0.1
-        version: 1.0.1
-      serverless-auto-swagger:
-        specifier: ^3.0.0
-        version: 3.1.0(serverless@3.40.0(@types/node@20.19.9))
-      serverless-dotenv-plugin:
-        specifier: ^6.0.0
-        version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
-      serverless-esbuild:
-        specifier: ^1.57.0
-        version: 1.57.0(esbuild@0.27.2)
-      serverless-offline:
-        specifier: ^13.9.0
-        version: 13.9.0(serverless@3.40.0(@types/node@20.19.9))
+  apps/metadata-registry-service: {}
 
   apps/organization-service:
     dependencies:

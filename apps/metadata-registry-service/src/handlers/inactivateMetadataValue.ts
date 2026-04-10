@@ -13,8 +13,8 @@ const validate = (req: LambdaRequest) => {
 
 const handler = async (req: LambdaRequest) => {
   const { metadataTypeCode, metadataValueCode } = req.pathParameters!;
-  const updatedBy = req.context.userContext?.userId;
-  return getService().inactivateMetadataValue(metadataTypeCode, metadataValueCode, updatedBy);
+  const lastModifiedBy = req.context.userContext?.userId;
+  return getService().inactivateMetadataValue(metadataTypeCode, metadataValueCode, lastModifiedBy);
 };
 
 export const main = withLambdaHandler(handler, { validator: validate });

@@ -25,7 +25,7 @@ const validate = (req: LambdaRequest) => {
 const handler = async (req: LambdaRequest) => {
   const metadataTypeCode = req.pathParameters!.metadataTypeCode;
   const input = (req as any).validatedBody;
-  input.updatedBy = req.context.userContext?.userId;
+  input.lastModifiedBy = req.context.userContext?.userId;
   return getService().updateMetadataType(metadataTypeCode, input);
 };
 

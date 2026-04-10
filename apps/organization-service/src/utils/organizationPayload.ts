@@ -68,6 +68,7 @@ export type NormalizedOrganizationPayload = {
   };
   subdomain?: string;
 };
+import { extractSubdomainFromUrl } from './helpers';
 
 type NormalizationResult = {
   data: NormalizedOrganizationPayload;
@@ -88,18 +89,6 @@ const buildPhone = (phoneCode?: unknown, phoneNumber?: unknown): string | undefi
     return code.startsWith('+') ? `${code}${number}` : `+${code}${number}`;
   }
   return number;
-};
-
-const extractSubdomain = (urlValue?: string): string | undefined => {
-  if (!urlValue) return undefined;
-  try {
-    const hostname = new URL(urlValue).hostname.toLowerCase();
-    const [subdomain] = hostname.split('.');
-    const normalized = subdomain?.trim();
-    return normalized || undefined;
-  } catch {
-    return undefined;
-  }
 };
 
 export const normalizeOrganizationPayload = (input: any): NormalizationResult => {
@@ -163,7 +152,7 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   const licenseNumber = normalizeString(organizationInfo?.licenseNumber);
   const integrationInput = input?.integration && typeof input.integration === 'object' ? input.integration : undefined;
   const apiBaseUrl = normalizeString(integrationInput?.apiBaseUrl);
-  const derivedSubdomain = extractSubdomain(apiBaseUrl);
+  const derivedSubdomain = extractSubdomainFromUrl(apiBaseUrl);
   const integrationSubdomain = normalizeString(integrationInput?.subdomain) || derivedSubdomain;
   const integration =
     integrationInput || derivedSubdomain

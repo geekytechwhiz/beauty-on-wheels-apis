@@ -7,20 +7,9 @@ import { OrganizationNotFoundError, PermissionDeniedError, OrganizationNotActive
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { notifyAdminForOrganizationActivated } from './notification.service';
+import { extractSubdomainFromUrl } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
-
-const extractSubdomainFromUrl = (urlValue?: string): string | undefined => {
-  if (!urlValue) return undefined;
-  try {
-    const hostname = new URL(urlValue).hostname.toLowerCase();
-    const [subdomain] = hostname.split('.');
-    const normalized = subdomain?.trim();
-    return normalized || undefined;
-  } catch {
-    return undefined;
-  }
-};
 
 export class OrganizationService {
   private repository: OrganizationRepository;

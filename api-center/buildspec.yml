@@ -3,6 +3,7 @@ version: 0.2
 env:
   variables:
     NODE_ENV: production
+    VITE_S3_BUCKET_NAME: dev-mvx-developer-hub
     VITE_S3_SPECS_PREFIX: specs
     VITE_S3_FIGMA_DESIGNS_KEY: figma/designs.json
 
@@ -16,14 +17,17 @@ phases:
   pre_build:
     commands:
       - |
-        if [ -z "${DEPLOY_BUCKET:-}" ]; then
-          echo "DEPLOY_BUCKET is required."
+        export DEPLOY_BUCKET="${DEPLOY_BUCKET:-${VITE_S3_BUCKET_NAME:-}}"
+        if [ -z "${DEPLOY_BUCKET}" ]; then
+          echo "DEPLOY_BUCKET or VITE_S3_BUCKET_NAME is required."
           exit 1
         fi
+      - echo "Resolved deploy bucket: ${DEPLOY_BUCKET}"
       - echo "Installing dependencies..."
       - npm install
   build:
     commands:
+      - cd api-center
       - echo "Building api-center..."
       - npm run build
   post_build:

@@ -22,18 +22,17 @@ phases:
           exit 1
         fi
       - 'echo "Resolved deploy bucket: ${DEPLOY_BUCKET}"'
-      - 'echo "Installing dependencies..."'
-      - npm install --include=dev
+      - 'echo "Installing api-center dependencies..."'
+      - npm --prefix api-center install --include=dev
   build:
     commands:
-      - cd api-center
       - export NODE_ENV=production
       - 'echo "Building api-center..."'
-      - npm run build
+      - npm --prefix api-center run build
   post_build:
     commands:
-      - 'echo "Deploying dist/ to s3://${DEPLOY_BUCKET}"'
-      - aws s3 sync dist/ "s3://${DEPLOY_BUCKET}" --delete --exclude "specs/*"
+      - 'echo "Deploying api-center/dist/ to s3://${DEPLOY_BUCKET}"'
+      - aws s3 sync api-center/dist/ "s3://${DEPLOY_BUCKET}" --delete --exclude "specs/*"
       - |
         if [ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then
           echo "Invalidating CloudFront distribution ${CLOUDFRONT_DISTRIBUTION_ID}..."
@@ -45,7 +44,7 @@ phases:
         fi
 
 artifacts:
-  base-directory: dist
+  base-directory: api-center/dist
   files:
     - '**/*'
 

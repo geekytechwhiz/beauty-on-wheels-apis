@@ -12,8 +12,8 @@ phases:
     runtime-versions:
       nodejs: 20
     commands:
-      - echo "Using Node $(node --version)"
-      - echo "Using npm $(npm --version)"
+      - 'echo "Using Node $(node --version)"'
+      - 'echo "Using npm $(npm --version)"'
   pre_build:
     commands:
       - |
@@ -22,17 +22,17 @@ phases:
           echo "DEPLOY_BUCKET or VITE_S3_BUCKET_NAME is required."
           exit 1
         fi
-      - echo "Resolved deploy bucket: ${DEPLOY_BUCKET}"
-      - echo "Installing dependencies..."
+      - 'echo "Resolved deploy bucket: ${DEPLOY_BUCKET}"'
+      - 'echo "Installing dependencies..."'
       - npm install
   build:
     commands:
       - cd api-center
-      - echo "Building api-center..."
+      - 'echo "Building api-center..."'
       - npm run build
   post_build:
     commands:
-      - echo "Deploying dist/ to s3://${DEPLOY_BUCKET}"
+      - 'echo "Deploying dist/ to s3://${DEPLOY_BUCKET}"'
       - aws s3 sync dist/ "s3://${DEPLOY_BUCKET}" --delete --exclude "specs/*"
       - |
         if [ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then

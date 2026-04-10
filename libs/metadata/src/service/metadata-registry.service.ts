@@ -87,6 +87,7 @@ export class MetadataRegistryService {
       createdAt: ts,
       lastModifiedAt: ts,
       createdBy: input.createdBy,
+      lastModifiedBy: input.createdBy,
     };
 
     try {
@@ -242,6 +243,7 @@ export class MetadataRegistryService {
       createdAt: ts,
       lastModifiedAt: ts,
       createdBy: input.createdBy,
+      lastModifiedBy: input.createdBy,
     };
 
     const tuples = expandApplicabilityTuples({

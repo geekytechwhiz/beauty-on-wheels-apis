@@ -1,0 +1,50 @@
+version: 0.2
+
+env:
+  variables:
+    NODE_ENV: production
+    VITE_S3_SPECS_PREFIX: specs
+    VITE_S3_FIGMA_DESIGNS_KEY: figma/designs.json
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Using Node $(node --version)"
+      - echo "Using npm $(npm --version)"
+  pre_build:
+    commands:
+      - |
+        if [ -z "${DEPLOY_BUCKET:-}" ]; then
+          echo "DEPLOY_BUCKET is required."
+          exit 1
+        fi
+      - echo "Installing dependencies..."
+      - npm install
+  build:
+    commands:
+      - echo "Building api-center..."
+      - npm run build
+  post_build:
+    commands:
+      - echo "Deploying dist/ to s3://${DEPLOY_BUCKET}"
+      - aws s3 sync dist/ "s3://${DEPLOY_BUCKET}" --delete --exclude "specs/*"
+      - |
+        if [ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then
+          echo "Invalidating CloudFront distribution ${CLOUDFRONT_DISTRIBUTION_ID}..."
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/*"
+        else
+          echo "Skipping CloudFront invalidation; CLOUDFRONT_DISTRIBUTION_ID not set."
+        fi
+
+artifacts:
+  base-directory: dist
+  files:
+    - '**/*'
+
+cache:
+  paths:
+    - /root/.npm/**/*

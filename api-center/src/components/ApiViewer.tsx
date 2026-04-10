@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo } from 'react';
+import { Suspense, lazy, useMemo, type ReactNode } from 'react';
 import {
   Alert,
   Box,
@@ -22,20 +22,27 @@ export type ViewerKind = 'swagger' | 'redoc';
 export interface ApiViewerProps {
   viewer: ViewerKind;
   onViewerChange: (v: ViewerKind) => void;
-  spec: object | undefined;
+  specUrl?: string;
+  spec?: object;
   loading: boolean;
   error: Error | null;
   title: string;
+  placeholder?: string;
+  actions?: ReactNode;
 }
 
 export function ApiViewer({
   viewer,
   onViewerChange,
+  specUrl,
   spec,
   loading,
   error,
   title,
+  placeholder,
+  actions,
 }: ApiViewerProps) {
+  const stableSpecUrl = useMemo(() => specUrl, [specUrl]);
   const stableSpec = useMemo(() => spec, [spec]);
 
   return (
@@ -46,9 +53,10 @@ export function ApiViewer({
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
-        borderRadius: 2,
+        borderRadius: 5,
         overflow: 'hidden',
         border: (t) => `1px solid ${t.palette.divider}`,
+        boxShadow: '0 18px 42px rgba(15, 23, 42, 0.06)',
       }}
     >
       <Box
@@ -58,24 +66,29 @@ export function ApiViewer({
           justifyContent: 'space-between',
           gap: 2,
           flexWrap: 'wrap',
-          px: 2,
-          py: 1.5,
+          px: 2.5,
+          py: 2,
           borderBottom: (t) => `1px solid ${t.palette.divider}`,
           bgcolor: 'background.paper',
+          backgroundImage:
+            'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244,247,251,0.82))',
         }}
       >
-        <Typography variant="h6" component="h1">
+        <Typography variant="h5" component="h1">
           {title}
         </Typography>
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={viewer}
-          onChange={(_, v: ViewerKind | null) => v && onViewerChange(v)}
-        >
-          <ToggleButton value="swagger">Swagger UI</ToggleButton>
-          <ToggleButton value="redoc">Redoc</ToggleButton>
-        </ToggleButtonGroup>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={viewer}
+            onChange={(_, v: ViewerKind | null) => v && onViewerChange(v)}
+          >
+            <ToggleButton value="swagger">Swagger UI</ToggleButton>
+            <ToggleButton value="redoc">Redoc</ToggleButton>
+          </ToggleButtonGroup>
+          {actions}
+        </Box>
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'auto' }}>
@@ -99,7 +112,7 @@ export function ApiViewer({
             {error.message}
           </Alert>
         )}
-        {!loading && !error && stableSpec && (
+        {!loading && !error && (stableSpec || stableSpecUrl) && (
           <Suspense
             fallback={
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -108,13 +121,18 @@ export function ApiViewer({
             }
           >
             {viewer === 'swagger' ? (
-              <SwaggerPanel spec={stableSpec} />
+              <SwaggerPanel spec={stableSpec} url={stableSpecUrl} />
             ) : (
-              <RedocPanel spec={stableSpec} />
+              <RedocPanel spec={stableSpec} specUrl={stableSpecUrl} />
             )}
           </Suspense>
         )}
-        {!loading && !error && !stableSpec && (
+        {!loading && !error && !stableSpec && !stableSpecUrl && placeholder && (
+          <Alert severity="info" sx={{ m: 2 }}>
+            {placeholder}
+          </Alert>
+        )}
+        {!loading && !error && !stableSpec && !stableSpecUrl && !placeholder && (
           <Typography color="text.secondary" sx={{ p: 3 }}>
             No specification loaded.
           </Typography>

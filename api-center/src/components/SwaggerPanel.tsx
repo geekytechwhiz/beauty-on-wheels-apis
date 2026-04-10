@@ -1,13 +1,14 @@
 import SwaggerUI from 'swagger-ui-react';
 
 export interface SwaggerPanelProps {
-  spec: object;
+  url?: string;
+  spec?: object;
 }
 
-export function SwaggerPanel({ spec }: SwaggerPanelProps) {
+export function SwaggerPanel({ url, spec }: SwaggerPanelProps) {
   return (
     <div className="swagger-panel">
-      <SwaggerUI spec={spec} />
+      <SwaggerUI spec={spec} url={url} />
     </div>
   );
 }

@@ -1,8 +1,10 @@
 import {
   Box,
   CircularProgress,
+  Divider,
   Drawer,
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   Toolbar,
@@ -53,38 +55,48 @@ export function Sidebar({
           {error.message}
         </Typography>
       )}
-      <List dense disablePadding>
-        <ListItemButton
-          selected={selectedService === null}
-          onClick={() => {
-            onSelect(null);
-            if (!isMdUp) onMobileClose();
-          }}
-        >
-          <ListItemText primary="All services" secondary="Merged OpenAPI" />
-        </ListItemButton>
+      <List
+        component="nav"
+        sx={{
+          p: 0,
+          width: '100%',
+          maxWidth: 360,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          backgroundColor: 'background.paper',
+        }}
+      >
         {services.map((s) => (
-          <ListItemButton
-            key={s.name}
-            selected={selectedService === s.name}
-            onClick={() => {
-              onSelect(s.name);
-              if (!isMdUp) onMobileClose();
-            }}
-          >
-            <ListItemText
-              primary={s.name}
-              secondary={serviceListSecondary(s)}
-              secondaryTypographyProps={{ noWrap: true, title: s.versions[s.latest]?.url }}
-            />
-          </ListItemButton>
+          <ListItem key={s.name}>
+            <ListItemButton
+              selected={selectedService === s.name}
+              onClick={() => {
+                onSelect(s.name);
+                if (!isMdUp) onMobileClose();
+              }}
+            >
+              <ListItemText
+                primary={s.name}
+                secondary={serviceListSecondary(s)}
+                secondaryTypographyProps={{
+                  noWrap: true,
+                  title: s.versions[s.latest]?.url,
+                }}
+              />
+            </ListItemButton>
+            <Divider component="li" />
+          </ListItem>
         ))}
       </List>
     </>
   );
 
   return (
-    <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+    <Box
+      component="nav"
+      sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+    >
       <Drawer
         variant="temporary"
         open={mobileOpen}

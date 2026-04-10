@@ -140,7 +140,7 @@ export class OrganizationService {
         industry: data.industry,
         size: data.size,
         integration: sanitizedIntegration,
-        sourceSystem: data.sourceSystem || 'TruTech',
+        sourceSystem: data.sourceSystem ?? (data.organizationType?.toUpperCase() === 'HMS' ? 'TruTech' : ''),
       };
 
       await this.repository.createOrganization(organization);

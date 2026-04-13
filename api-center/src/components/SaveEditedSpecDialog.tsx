@@ -24,6 +24,7 @@ export interface SaveEditedSpecDialogProps {
   allowMajorIncrement: boolean;
   loading: boolean;
   error: string | null;
+  publishBlockedReason?: string | null;
   onClose: () => void;
   onConfirm: () => void;
   onVersionBumpChange: (value: VersionBumpType) => void;
@@ -39,6 +40,7 @@ export function SaveEditedSpecDialog({
   allowMajorIncrement,
   loading,
   error,
+  publishBlockedReason,
   onClose,
   onConfirm,
   onVersionBumpChange,
@@ -93,12 +95,17 @@ export function SaveEditedSpecDialog({
         </Alert>
 
         {error && <Alert severity="error">{error}</Alert>}
+        {publishBlockedReason && <Alert severity="error">{publishBlockedReason}</Alert>}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={onConfirm} disabled={!nextVersion || loading}>
+        <Button
+          variant="contained"
+          onClick={onConfirm}
+          disabled={!nextVersion || loading || Boolean(publishBlockedReason)}
+        >
           {loading ? 'Saving…' : 'Save as new version'}
         </Button>
       </DialogActions>

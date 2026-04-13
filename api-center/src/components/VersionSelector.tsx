@@ -1,4 +1,6 @@
 import {
+  Box,
+  Chip,
   FormControl,
   InputLabel,
   MenuItem,
@@ -6,7 +8,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import type { OpenApiSpecFile } from '../services/S3Service';
+import type { OpenApiSpecFile, SpecReviewStatus } from '../services/S3Service';
 
 export interface VersionSelectorProps {
   serviceName: string | null;
@@ -14,6 +16,18 @@ export interface VersionSelectorProps {
   selectedVersion: string | null;
   loading: boolean;
   onChange: (version: string) => void;
+}
+
+function getStatusChipColor(status: SpecReviewStatus): 'warning' | 'success' | 'error' {
+  switch (status) {
+    case 'approved':
+      return 'success';
+    case 'rejected':
+      return 'error';
+    case 'pending':
+    default:
+      return 'warning';
+  }
 }
 
 export function VersionSelector({
@@ -53,10 +67,36 @@ export function VersionSelector({
           value={selectedVersion ?? ''}
           label="Version history"
           onChange={(event) => onChange(event.target.value)}
+          renderValue={(value) => {
+            const selected = versions.find((version) => version.version === value);
+            if (!selected) {
+              return value;
+            }
+
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <span>{selected.version}</span>
+                <Chip
+                  size="small"
+                  label={selected.status}
+                  color={getStatusChipColor(selected.status)}
+                  sx={{ textTransform: 'capitalize', height: 22 }}
+                />
+              </Box>
+            );
+          }}
         >
           {versions.map((version) => (
             <MenuItem key={version.version} value={version.version}>
-              {version.version}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                <span>{version.version}</span>
+                <Chip
+                  size="small"
+                  label={version.status}
+                  color={getStatusChipColor(version.status)}
+                  sx={{ textTransform: 'capitalize', ml: 'auto' }}
+                />
+              </Box>
             </MenuItem>
           ))}
         </Select>

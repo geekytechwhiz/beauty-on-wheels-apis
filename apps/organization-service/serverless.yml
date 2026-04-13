@@ -849,7 +849,7 @@ functions:
             tags:
               - Organizations
             requestBody:
-              description: URL used to derive subdomain and optional provider id
+              description: URL used to derive subdomain and optional provider (for GSI2 lookup)
               required: true
               content:
                 application/json:
@@ -861,7 +861,7 @@ functions:
                       apiBaseUrl:
                         type: string
                         format: uri
-                      providerId:
+                      provider:
                         type: string
             responses:
               200:

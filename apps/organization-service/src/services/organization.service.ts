@@ -72,8 +72,8 @@ export class OrganizationService {
         gsi1sk: `ORG#${organizationId}`,
         gsi2pk: resolvedSubdomain ? `LOOKUP#${resolvedSubdomain.toLowerCase()}` : undefined,
         gsi2sk:
-          resolvedSubdomain && data.integration?.providerId
-            ? `PROVIDER#${data.integration.providerId}#ORG#${organizationId}`
+          resolvedSubdomain && data.integration?.provider
+            ? `PROVIDER#${data.integration.provider}#ORG#${organizationId}`
             : undefined,
         organizationId,
         createdAt: now,
@@ -688,7 +688,7 @@ export class OrganizationService {
     }
   }
 
-  async getExternalTenantByApiBaseUrl(apiBaseUrl: string, providerId?: string): Promise<{
+  async getExternalTenantByApiBaseUrl(apiBaseUrl: string, provider?: string): Promise<{
     tenantId: string;
     organizationId: string;
     subdomain: string;
@@ -700,7 +700,7 @@ export class OrganizationService {
       err.code = 'INVALID_API_BASE_URL';
       throw err;
     }
-    const organization = await this.repository.getOrganizationBySubdomain(subdomain, providerId);
+    const organization = await this.repository.getOrganizationBySubdomain(subdomain, provider);
     if (!organization) {
       throw new OrganizationNotFoundError(subdomain);
     }

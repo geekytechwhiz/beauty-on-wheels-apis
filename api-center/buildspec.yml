@@ -2,6 +2,10 @@ version: 0.2
 
 env:
   variables:
+    AWS_REGION: us-east-1
+    LAMBDA_FUNCTION_NAME: api-center-basic-auth
+    S3_BUCKET: dev-mvx-developer-hub
+    CLOUDFRONT_DIST_ID: ""
     VITE_S3_BUCKET_NAME: dev-mvx-developer-hub
     VITE_S3_SPECS_PREFIX: specs
     VITE_S3_FIGMA_DESIGNS_KEY: figma/designs.json
@@ -18,33 +22,54 @@ phases:
   pre_build:
     commands:
       - |
-        export DEPLOY_BUCKET="${DEPLOY_BUCKET:-${VITE_S3_BUCKET_NAME:-}}"
-        if [ -z "${DEPLOY_BUCKET}" ]; then
-          echo "DEPLOY_BUCKET or VITE_S3_BUCKET_NAME is required."
+        if [ -z "${AWS_REGION:-}" ]; then
+          echo "AWS_REGION is required."
           exit 1
         fi
-      - 'echo "Resolved deploy bucket: ${DEPLOY_BUCKET}"'
+        if [ -z "${LAMBDA_FUNCTION_NAME:-}" ]; then
+          echo "LAMBDA_FUNCTION_NAME is required."
+          exit 1
+        fi
+        if [ -z "${S3_BUCKET:-}" ]; then
+          echo "S3_BUCKET is required."
+          exit 1
+        fi
+      - 'echo "Deploying Lambda@Edge code in ${AWS_REGION}..."'
+      - 'cd api-center/lambda-edge/api-center-basic-auth && zip -r function.zip index.js && cd -'
+      - |
+        aws lambda update-function-code \
+          --region "${AWS_REGION}" \
+          --function-name "${LAMBDA_FUNCTION_NAME}" \
+          --zip-file "fileb://api-center/lambda-edge/api-center-basic-auth/function.zip"
+      - |
+        LAMBDA_VERSION="$(aws lambda publish-version \
+          --region "${AWS_REGION}" \
+          --function-name "${LAMBDA_FUNCTION_NAME}" \
+          --query 'Version' \
+          --output text)"
+        echo "Published Lambda version: ${LAMBDA_VERSION}"
       - 'echo "Installing api-center dependencies..."'
       - npm --prefix api-center install --include=dev
   build:
     commands:
       - export NODE_ENV=production
-      - 'echo "Building api-center..."'
+      - 'echo "Building frontend (api-center)..."'
       - npm --prefix api-center run build
   post_build:
     commands:
-      - 'echo "Deploying api-center/dist/ to s3://${DEPLOY_BUCKET}"'
+      - 'echo "Deploying api-center/dist/ to s3://${S3_BUCKET}"'
       - 'echo "CloudFront app URL (VITE_CLOUDFRONT_URL): ${VITE_CLOUDFRONT_URL}"'
-      - aws s3 sync api-center/dist/ "s3://${DEPLOY_BUCKET}" --delete --exclude "specs/*"
+      - aws s3 sync api-center/dist/ "s3://${S3_BUCKET}" --delete --exclude "specs/*"
       - |
-        if [ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then
-          echo "Invalidating CloudFront distribution ${CLOUDFRONT_DISTRIBUTION_ID}..."
+        if [ -n "${CLOUDFRONT_DIST_ID:-}" ]; then
+          echo "Invalidating CloudFront distribution ${CLOUDFRONT_DIST_ID}..."
           aws cloudfront create-invalidation \
-            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --distribution-id "${CLOUDFRONT_DIST_ID}" \
             --paths "/*"
         else
-          echo "Skipping CloudFront invalidation; CLOUDFRONT_DISTRIBUTION_ID not set."
+          echo "Skipping CloudFront invalidation; CLOUDFRONT_DIST_ID not set."
         fi
+      - 'echo "CloudFront Lambda association is intentionally not modified by this pipeline."'
 
 artifacts:
   base-directory: api-center/dist

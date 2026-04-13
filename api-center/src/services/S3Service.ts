@@ -245,7 +245,7 @@ function normalizeSpecReviewStatus(value: string | undefined): SpecReviewStatus 
     case 'pending':
       return 'pending';
     default:
-      return 'approved';
+      return 'pending';
   }
 }
 

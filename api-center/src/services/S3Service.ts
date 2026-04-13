@@ -1,8 +1,6 @@
 import {
-  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
-  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -13,6 +11,7 @@ import yaml from 'js-yaml';
 export type SpecFileExtension = 'json' | 'yaml' | 'yml';
 export type VersionBumpType = 'major' | 'minor' | 'patch';
 export type SpecReviewStatus = 'pending' | 'approved' | 'rejected';
+const SPEC_REVIEW_STATUS_FIELD = 'x-api-center-status';
 
 interface ParsedSemanticVersion {
   prefix: string;
@@ -79,7 +78,7 @@ export interface DesignLibraryEntry {
 }
 
 const DEFAULT_SPECS_PREFIX = 'specs';
-const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'pending';
+const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'approved';
 const OPENAPI_FILE_PATTERN = /^(.+?)\/(.+?)\/openapi\.(json|yaml|yml)$/i;
 const VERSION_COLLATOR = new Intl.Collator(undefined, {
   numeric: true,
@@ -244,9 +243,32 @@ function normalizeSpecReviewStatus(value: string | undefined): SpecReviewStatus 
     case 'rejected':
       return 'rejected';
     case 'pending':
-    default:
       return 'pending';
+    default:
+      return 'approved';
   }
+}
+
+function extractStatusFromParsedSpec(parsedSpec: Record<string, unknown>): SpecReviewStatus {
+  const rawStatus = parsedSpec[SPEC_REVIEW_STATUS_FIELD];
+  return normalizeSpecReviewStatus(typeof rawStatus === 'string' ? rawStatus : undefined);
+}
+
+function serializeSpecWithStatus(
+  parsedSpec: Record<string, unknown>,
+  extension: SpecFileExtension,
+  status: SpecReviewStatus,
+): string {
+  const nextSpec = {
+    ...parsedSpec,
+    [SPEC_REVIEW_STATUS_FIELD]: status,
+  };
+
+  if (extension === 'json') {
+    return JSON.stringify(nextSpec, null, 2);
+  }
+
+  return normalizeSpecToYaml(nextSpec);
 }
 
 function compareVersionsDesc(left: string, right: string): number {
@@ -447,16 +469,18 @@ export async function listVersions(serviceName: string): Promise<OpenApiSpecFile
   const versionsWithStatus = await Promise.all(
     versions.map(async (version) => {
       try {
-        const headResponse = await getS3Client().send(
-          new HeadObjectCommand({
+        const response = await getS3Client().send(
+          new GetObjectCommand({
             Bucket: getBucketName(),
             Key: version.key,
           }),
         );
+        const rawText = await readResponseBodyAsText(response.Body);
+        const parsedSpec = parseOpenApiText(rawText, version.extension);
 
         return {
           ...version,
-          status: normalizeSpecReviewStatus(headResponse.Metadata?.status),
+          status: extractStatusFromParsedSpec(parsedSpec),
         };
       } catch {
         return version;
@@ -514,6 +538,11 @@ export async function uploadSpec({
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
   const validatedFile = await validateOpenApiFile(file);
+  const normalizedTextWithStatus = serializeSpecWithStatus(
+    validatedFile.parsedSpec,
+    validatedFile.extension,
+    DEFAULT_SPEC_REVIEW_STATUS,
+  );
   const key = `${getSpecsPrefix()}/${normalizedServiceName}/${normalizedVersion}/openapi.${validatedFile.extension}`;
   const client = getS3Client();
 
@@ -521,7 +550,7 @@ export async function uploadSpec({
     new PutObjectCommand({
       Bucket: getBucketName(),
       Key: key,
-      Body: validatedFile.normalizedText,
+      Body: normalizedTextWithStatus,
       ContentType: validatedFile.contentType,
       Metadata: {
         service: normalizedServiceName,
@@ -610,12 +639,17 @@ export async function saveEditedSpecVersion({
 
   const parsedSpec = parseOpenApiText(yamlText, 'yaml');
   const key = `${getSpecsPrefix()}/${normalizedServiceName}/${normalizedVersion}/openapi.yaml`;
+  const normalizedYamlWithStatus = serializeSpecWithStatus(
+    parsedSpec,
+    'yaml',
+    DEFAULT_SPEC_REVIEW_STATUS,
+  );
 
   await getS3Client().send(
     new PutObjectCommand({
       Bucket: getBucketName(),
       Key: key,
-      Body: normalizeSpecToYaml(parsedSpec),
+      Body: normalizedYamlWithStatus,
       ContentType: getContentType('yaml'),
       Metadata: {
         service: normalizedServiceName,
@@ -646,20 +680,22 @@ export async function updateSpecReviewStatus({
 }): Promise<OpenApiSpecFile> {
   const resolved = await resolveSpecVersion({ serviceName, version });
   const bucketName = getBucketName();
-  const existingHead = await getS3Client().send(
-    new HeadObjectCommand({
+  const existingObject = await getS3Client().send(
+    new GetObjectCommand({
       Bucket: bucketName,
       Key: resolved.key,
     }),
   );
+  const rawText = await readResponseBodyAsText(existingObject.Body);
+  const parsedSpec = parseOpenApiText(rawText, resolved.extension);
+  const nextBody = serializeSpecWithStatus(parsedSpec, resolved.extension, status);
 
   await getS3Client().send(
-    new CopyObjectCommand({
+    new PutObjectCommand({
       Bucket: bucketName,
       Key: resolved.key,
-      CopySource: `${bucketName}/${encodeURIComponentPath(resolved.key)}`,
-      MetadataDirective: 'REPLACE',
-      ContentType: existingHead.ContentType ?? resolved.contentType,
+      Body: nextBody,
+      ContentType: existingObject.ContentType ?? resolved.contentType,
       Metadata: {
         service: resolved.serviceName,
         version: resolved.version,

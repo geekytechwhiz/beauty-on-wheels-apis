@@ -2,11 +2,7 @@ import { EventBridgeClient } from '@aws-sdk/client-eventbridge';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
 import { TtlJsonCache } from '@api-hub/template';
-import {
-  applicabilityLookupCandidates,
-  expandApplicabilityTuples,
-  valueAppliesToContext,
-} from '../domain/applicability';
+import { valueAppliesToContext } from '../domain/applicability';
 import type { MetadataRegistryEvent } from '../domain/events';
 import {
   MetadataConflictError,
@@ -246,17 +242,9 @@ export class MetadataRegistryService {
       lastModifiedBy: input.createdBy,
     };
 
-    const tuples = expandApplicabilityTuples({
-      isGlobal: value.isGlobal,
-      applicableModules: value.applicableModules,
-      applicableCategories: value.applicableCategories,
-      applicableConditions: value.applicableConditions,
-      applicableCountries: value.applicableCountries,
-    });
-
+    // Applicability is stored at Metadata Value level as per design; no separate METADATA_APPL entity required.
     try {
       await this.repo.putMetadataValue(value);
-      await this.repo.writeApplRows(metadataTypeCode, input.metadataValueCode, tuples);
     } catch (err) {
       if (isConditionalFailure(err)) {
         throw new MetadataConflictError(
@@ -269,12 +257,6 @@ export class MetadataRegistryService {
     this.invalidateCaches();
     await this.emit({
       type: 'METADATA_VALUE_CREATED',
-      timestamp: ts,
-      metadataTypeCode,
-      metadataValue: value,
-    });
-    await this.emit({
-      type: 'METADATA_RELATION_UPDATED',
       timestamp: ts,
       metadataTypeCode,
       metadataValue: value,
@@ -299,44 +281,20 @@ export class MetadataRegistryService {
     const nextAttrs = input.valueAttributes ?? existing.valueAttributes;
     assertValueAttributesMatchSchema(nextAttrs, type.attributeSchema);
 
-    const merged: MetadataValue = {
-      ...existing,
-      ...input,
-      metadataTypeCode,
-      metadataValueCode,
-      valueAttributes: nextAttrs,
-      applicableModules: input.applicableModules ?? existing.applicableModules,
-      applicableCategories: input.applicableCategories ?? existing.applicableCategories,
-      applicableConditions: input.applicableConditions ?? existing.applicableConditions,
-      applicableCountries: input.applicableCountries ?? existing.applicableCountries,
-      isGlobal: input.isGlobal ?? existing.isGlobal,
-    };
-
-    const tuples = expandApplicabilityTuples({
-      isGlobal: merged.isGlobal,
-      applicableModules: merged.applicableModules,
-      applicableCategories: merged.applicableCategories,
-      applicableConditions: merged.applicableConditions,
-      applicableCountries: merged.applicableCountries,
-    });
-
-    const relationChanged = JSON.stringify(tuples) !==
-      JSON.stringify(
-        expandApplicabilityTuples({
-          isGlobal: existing.isGlobal,
-          applicableModules: existing.applicableModules,
-          applicableCategories: existing.applicableCategories,
-          applicableConditions: existing.applicableConditions,
-          applicableCountries: existing.applicableCountries,
-        }),
-      );
-
+    // Applicability is stored at Metadata Value level as per design; no separate METADATA_APPL entity required.
     const valueAttrsChanged =
       input.valueAttributes !== undefined &&
       JSON.stringify(input.valueAttributes) !== JSON.stringify(existing.valueAttributes);
 
+    const applicabilityChanged =
+      (input.applicableModules !== undefined && JSON.stringify(input.applicableModules) !== JSON.stringify(existing.applicableModules)) ||
+      (input.applicableCategories !== undefined && JSON.stringify(input.applicableCategories) !== JSON.stringify(existing.applicableCategories)) ||
+      (input.applicableConditions !== undefined && JSON.stringify(input.applicableConditions) !== JSON.stringify(existing.applicableConditions)) ||
+      (input.applicableCountries !== undefined && JSON.stringify(input.applicableCountries) !== JSON.stringify(existing.applicableCountries)) ||
+      (input.isGlobal !== undefined && input.isGlobal !== existing.isGlobal);
+
     const version =
-      relationChanged || valueAttrsChanged ? existing.version + 1 : existing.version;
+      applicabilityChanged || valueAttrsChanged ? existing.version + 1 : existing.version;
 
     const ts = nowIso();
     const patch: Partial<MetadataValue> = {
@@ -347,7 +305,6 @@ export class MetadataRegistryService {
     };
 
     const updated = await this.repo.updateMetadataValue(metadataTypeCode, metadataValueCode, patch);
-    await this.repo.replaceApplRows(metadataTypeCode, metadataValueCode, tuples);
 
     this.invalidateCaches();
     await this.emit({
@@ -356,14 +313,6 @@ export class MetadataRegistryService {
       metadataTypeCode,
       metadataValue: updated,
     });
-    if (relationChanged) {
-      await this.emit({
-        type: 'METADATA_RELATION_UPDATED',
-        timestamp: ts,
-        metadataTypeCode,
-        metadataValue: updated,
-      });
-    }
     return updated;
   }
 
@@ -411,35 +360,31 @@ export class MetadataRegistryService {
     return v;
   }
 
-  async listMetadataValuesByContext(
-    metadataTypeCode: string,
-    ctx: ApplicabilityContext,
-    options?: { includeInactive?: boolean },
-  ): Promise<MetadataValue[]> {
-    const all = await this.repo.listMetadataValues(metadataTypeCode);
-    return all.filter((v) => {
-      if (!options?.includeInactive && v.status !== 'ACTIVE') return false;
-      return valueAppliesToContext(v, ctx);
-    });
-  }
-
   async listMetadataValuesPaginated(
     metadataTypeCode: string,
     options?: {
       limit?: number;
       nextToken?: string;
       includeInactive?: boolean;
+      context?: ApplicabilityContext;
     },
   ): Promise<PaginatedResult<MetadataValue>> {
     const statusFilter = options?.includeInactive ? undefined : 'ACTIVE' as const;
-    return this.repo.listMetadataValuesPaginated(
+    const result = await this.repo.listMetadataValuesPaginated(
       metadataTypeCode,
       options?.limit,
       options?.nextToken,
       statusFilter,
     );
+
+    if (options?.context) {
+      result.items = result.items.filter((v) => valueAppliesToContext(v, options.context!));
+    }
+
+    return result;
   }
 
+  // Applicability is stored at Metadata Value level as per design; no separate METADATA_APPL entity required.
   async validateMetadataValue(
     metadataTypeCode: string,
     metadataValueCode: string,
@@ -464,21 +409,11 @@ export class MetadataRegistryService {
       throw e;
     }
 
-    for (const cand of applicabilityLookupCandidates(ctx)) {
-      const appl = await this.repo.getApplItem(
-        metadataTypeCode,
-        cand.module,
-        cand.category,
-        cand.condition,
-        cand.country,
-        metadataValueCode,
-      );
-      if (appl) {
-        return { valid: true };
-      }
+    if (!valueAppliesToContext(value, ctx)) {
+      return { valid: false, reason: 'APPLICABILITY_MISMATCH' };
     }
 
-    return { valid: false, reason: 'APPLICABILITY_MISMATCH' };
+    return { valid: true };
   }
 }
 

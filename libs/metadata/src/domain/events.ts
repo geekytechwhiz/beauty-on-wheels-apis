@@ -6,8 +6,7 @@ export type MetadataRegistryEventType =
   | 'METADATA_VALUE_CREATED'
   | 'METADATA_VALUE_UPDATED'
   | 'METADATA_VALUE_INACTIVATED'
-  | 'METADATA_SCHEMA_UPDATED'
-  | 'METADATA_RELATION_UPDATED';
+  | 'METADATA_SCHEMA_UPDATED';
 
 export interface MetadataRegistryEventBase {
   type: MetadataRegistryEventType;
@@ -23,8 +22,7 @@ export interface MetadataValueEvent extends MetadataRegistryEventBase {
   type:
     | 'METADATA_VALUE_CREATED'
     | 'METADATA_VALUE_UPDATED'
-    | 'METADATA_VALUE_INACTIVATED'
-    | 'METADATA_RELATION_UPDATED';
+    | 'METADATA_VALUE_INACTIVATED';
   metadataTypeCode: string;
   metadataValue?: MetadataValue;
   metadataValueCode?: string;

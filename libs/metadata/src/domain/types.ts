@@ -1,5 +1,3 @@
-import { GLOBAL_DIMENSION } from './constants';
-
 export type ValueDataType = 'Enum' | 'Numeric' | 'Boolean' | 'Text';
 
 export type RegistryStatus = 'ACTIVE' | 'INACTIVE';
@@ -39,10 +37,8 @@ export interface MetadataValue extends AuditFields {
 }
 
 export interface ApplicabilityContext {
-  module: string;
-  category: string;
-  condition: string;
-  country: string;
+  module?: string;
+  category?: string;
+  condition?: string;
+  country?: string;
 }
-
-export type GlobalDimension = typeof GLOBAL_DIMENSION;

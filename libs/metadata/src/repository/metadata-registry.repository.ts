@@ -1,43 +1,35 @@
 import {
-  BatchWriteCommand,
   GetCommand,
   PutCommand,
   QueryCommand,
   UpdateCommand,
-  type BatchWriteCommandOutput,
   type DynamoDBDocumentClient,
   type GetCommandOutput,
   type PutCommandOutput,
   type QueryCommandOutput,
   type UpdateCommandOutput,
 } from '@aws-sdk/lib-dynamodb';
-import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
 import { ENTITY_TYPE } from '../domain/constants';
 import type { MetadataType, MetadataValue } from '../domain/types';
 import {
   fromMetadataTypeItem,
   fromMetadataValueItem,
-  toApplItem,
   toMetadataTypeItem,
   toMetadataValueItem,
-  type MetadataApplItem,
 } from '../mappers/dynamodb.mapper';
 import {
   LSI_CREATED_AT,
   LSI_ENTITY_TYPE,
   LSI_STATUS,
   LSI_UPDATED_AT,
-  LSI_VALUE_CODE,
+  VALUE_SK_PREFIX,
   gsi1pkRegistryTypes,
-  gsi1pkTypeValues,
-  gsi1skMetadataValue,
   pkMetadataType,
-  skAppl,
   skTypeMetadata,
   skValue,
 } from './keys';
 
-const baseLogger = createLogger({ service: 'metadata-registry-repository' });
+// Applicability is stored at Metadata Value level as per design; no separate METADATA_APPL entity required.
 
 async function sendDoc<T>(
   client: DynamoDBDocumentClient,
@@ -46,7 +38,6 @@ async function sendDoc<T>(
   return (await (client as { send: (cmd: unknown) => Promise<unknown> }).send(command)) as T;
 }
 
-const BATCH_SIZE = 25;
 const DEFAULT_PAGE_SIZE = 50;
 
 export interface PaginatedResult<T> {
@@ -204,33 +195,35 @@ export class MetadataRegistryRepository {
     };
   }
 
+  // Removed redundant GSI. Base table supports required access pattern (query by metadataTypeCode).
   async listMetadataValuesPaginated(
     metadataTypeCode: string,
     limit: number = DEFAULT_PAGE_SIZE,
     nextToken?: string,
     statusFilter?: 'ACTIVE' | 'INACTIVE',
   ): Promise<PaginatedResult<MetadataValue>> {
-    const gsi1pk = gsi1pkTypeValues(metadataTypeCode);
+    const pk = pkMetadataType(metadataTypeCode);
 
-    const keyExpr = statusFilter
-      ? 'gsi1pk = :gpk AND begins_with(gsi1sk, :statusPrefix)'
-      : 'gsi1pk = :gpk';
+    const queryInput: Record<string, unknown> = {
+      TableName: this.tableName,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': pk,
+        ':skPrefix': VALUE_SK_PREFIX,
+      } as Record<string, unknown>,
+      Limit: limit,
+      ExclusiveStartKey: nextToken ? decodeToken(nextToken) : undefined,
+    };
 
-    const exprValues: Record<string, unknown> = { ':gpk': gsi1pk };
     if (statusFilter) {
-      exprValues[':statusPrefix'] = `${statusFilter}#`;
+      queryInput.FilterExpression = '#status = :statusVal';
+      queryInput.ExpressionAttributeNames = { '#status': 'status' };
+      (queryInput.ExpressionAttributeValues as Record<string, unknown>)[':statusVal'] = statusFilter;
     }
 
     const result = await sendDoc<QueryCommandOutput>(
       this.docClient,
-      new QueryCommand({
-        TableName: this.tableName,
-        IndexName: 'GSI1',
-        KeyConditionExpression: keyExpr,
-        ExpressionAttributeValues: exprValues,
-        Limit: limit,
-        ExclusiveStartKey: nextToken ? decodeToken(nextToken) : undefined,
-      }),
+      new QueryCommand(queryInput as any),
     );
     const items = (result.Items ?? []) as Record<string, unknown>[];
     return {
@@ -261,15 +254,15 @@ export class MetadataRegistryRepository {
   }
 
   async listMetadataValues(metadataTypeCode: string): Promise<MetadataValue[]> {
-    const gsi1pk = gsi1pkTypeValues(metadataTypeCode);
+    const pk = pkMetadataType(metadataTypeCode);
     const result = await sendDoc<QueryCommandOutput>(
       this.docClient,
       new QueryCommand({
         TableName: this.tableName,
-        IndexName: 'GSI1',
-        KeyConditionExpression: 'gsi1pk = :gpk',
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
         ExpressionAttributeValues: {
-          ':gpk': gsi1pk,
+          ':pk': pk,
+          ':skPrefix': VALUE_SK_PREFIX,
         },
       }),
     );
@@ -333,10 +326,6 @@ export class MetadataRegistryRepository {
     assign('lastModifiedBy', 'lastModifiedBy');
 
     if (patch.status) {
-      names['#gsi1sk'] = 'gsi1sk';
-      values[':gsi1sk'] = gsi1skMetadataValue(patch.status, metadataValueCode);
-      sets.push('#gsi1sk = :gsi1sk');
-
       names['#sk1'] = 'sk1';
       values[':sk1'] = patch.status;
       sets.push('#sk1 = :sk1');
@@ -355,109 +344,6 @@ export class MetadataRegistryRepository {
       }),
     );
     return fromMetadataValueItem(result.Attributes as Record<string, unknown>);
-  }
-
-  async getApplItem(
-    metadataTypeCode: string,
-    module: string,
-    category: string,
-    condition: string,
-    country: string,
-    metadataValueCode: string,
-  ): Promise<MetadataApplItem | null> {
-    const pk = pkMetadataType(metadataTypeCode);
-    const sk = skAppl(module, category, condition, country, metadataValueCode);
-    const result = await sendDoc<GetCommandOutput>(
-      this.docClient,
-      new GetCommand({
-        TableName: this.tableName,
-        Key: { pk, sk },
-      }),
-    );
-    const item = result.Item as Record<string, unknown> | undefined;
-    if (!item || item.entityType !== ENTITY_TYPE.METADATA_APPL) {
-      return null;
-    }
-    return item as unknown as MetadataApplItem;
-  }
-
-  async deleteAllApplForValue(metadataTypeCode: string, metadataValueCode: string): Promise<void> {
-    const pk = pkMetadataType(metadataTypeCode);
-    let lastKey: Record<string, unknown> | undefined;
-
-    do {
-      const result = await sendDoc<QueryCommandOutput>(
-        this.docClient,
-        new QueryCommand({
-          TableName: this.tableName,
-          IndexName: LSI_VALUE_CODE,
-          KeyConditionExpression: 'pk = :pk AND sk4 = :vc',
-          FilterExpression: 'entityType = :et',
-          ExpressionAttributeValues: {
-            ':pk': pk,
-            ':vc': metadataValueCode,
-            ':et': ENTITY_TYPE.METADATA_APPL,
-          },
-          ExclusiveStartKey: lastKey,
-        }),
-      );
-      const items = (result.Items ?? []) as Record<string, unknown>[];
-
-      for (let i = 0; i < items.length; i += BATCH_SIZE) {
-        const chunk = items.slice(i, i + BATCH_SIZE);
-        await sendDoc<BatchWriteCommandOutput>(
-          this.docClient,
-          new BatchWriteCommand({
-            RequestItems: {
-              [this.tableName]: chunk.map((it) => ({
-                DeleteRequest: {
-                  Key: { pk: it.pk, sk: it.sk },
-                },
-              })),
-            },
-          }),
-        );
-      }
-      lastKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
-    } while (lastKey);
-  }
-
-  async writeApplRows(
-    metadataTypeCode: string,
-    metadataValueCode: string,
-    tuples: Array<[string, string, string, string]>,
-  ): Promise<void> {
-    const rows = tuples.map((t) => toApplItem(metadataTypeCode, metadataValueCode, t));
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const chunk = rows.slice(i, i + BATCH_SIZE);
-      await sendDoc<BatchWriteCommandOutput>(
-        this.docClient,
-        new BatchWriteCommand({
-          RequestItems: {
-            [this.tableName]: chunk.map((row) => ({
-              PutRequest: {
-                Item: row as Record<string, unknown>,
-              },
-            })),
-          },
-        }),
-      );
-    }
-  }
-
-  async replaceApplRows(
-    metadataTypeCode: string,
-    metadataValueCode: string,
-    tuples: Array<[string, string, string, string]>,
-  ): Promise<void> {
-    const logger = createChildLogger(baseLogger, { metadataTypeCode, metadataValueCode });
-    try {
-      await this.deleteAllApplForValue(metadataTypeCode, metadataValueCode);
-      await this.writeApplRows(metadataTypeCode, metadataValueCode, tuples);
-    } catch (err) {
-      logger.error({ event: 'replaceApplRows_failed', err: serializeError(err) });
-      throw err;
-    }
   }
 
   async listMetadataValuesByStatus(

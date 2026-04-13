@@ -26,12 +26,22 @@ const handler = async (req: LambdaRequest) => {
   const metadataTypeCode = req.pathParameters!.metadataTypeCode;
   const query = (req as any).validatedQuery;
 
+  const hasContext = query.module || query.category || query.condition || query.country;
+
   const result = await getService().listMetadataValuesPaginated(
     metadataTypeCode,
     {
       limit: query.limit,
       nextToken: query.nextToken,
       includeInactive: query.includeInactive,
+      context: hasContext
+        ? {
+            module: query.module,
+            category: query.category,
+            condition: query.condition,
+            country: query.country,
+          }
+        : undefined,
     },
   );
 

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { GLOBAL_DIMENSION } from '../domain/constants';
 
 const contextSchema = z.object({
   module: z.string().min(1),
@@ -18,7 +17,7 @@ export const createMetadataTypeSchema = z.object({
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
   /** ACTIVE | INACTIVE — defaults to ACTIVE when omitted (future selection behavior). */
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
-  createdBy: z.string().optional(),
+  createdBy: z.string(),
 });
 
 export const updateMetadataTypeSchema = z.object({
@@ -29,7 +28,7 @@ export const updateMetadataTypeSchema = z.object({
   applicableModules: z.array(z.string()).optional(),
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  lastModifiedBy: z.string().optional(),
+  lastModifiedBy: z.string(),
 });
 
 export const createMetadataValueSchema = z.object({
@@ -73,10 +72,10 @@ const paginationSchema = z.object({
 export const listMetadataTypesQuerySchema = paginationSchema;
 
 export const listMetadataValuesQuerySchema = paginationSchema.extend({
-  module: z.string().optional().default(GLOBAL_DIMENSION),
-  category: z.string().optional().default(GLOBAL_DIMENSION),
-  condition: z.string().optional().default(GLOBAL_DIMENSION),
-  country: z.string().optional().default(GLOBAL_DIMENSION),
+  module: z.string().optional(),
+  category: z.string().optional(),
+  condition: z.string().optional(),
+  country: z.string().optional(),
 });
 
 export type CreateMetadataTypeInput = z.infer<typeof createMetadataTypeSchema>;

@@ -1,55 +1,22 @@
-import { GLOBAL_DIMENSION } from './constants';
 import type { ApplicabilityContext, MetadataValue } from './types';
 
 /**
- * Expands applicability dimensions into a Cartesian product of tuples for APPL# rows.
- * Empty arrays are treated as [GLOBAL] unless isGlobal forces a single GLOBAL tuple.
+ * Checks whether a dimension value is present in the value's dimension array.
+ * Only called when the caller explicitly provides the dimension.
  */
-export function expandApplicabilityTuples(input: {
-  isGlobal: boolean;
-  applicableModules: string[];
-  applicableCategories: string[];
-  applicableConditions: string[];
-  applicableCountries: string[];
-}): Array<[string, string, string, string]> {
-  if (input.isGlobal) {
-    return [
-      [
-        GLOBAL_DIMENSION,
-        GLOBAL_DIMENSION,
-        GLOBAL_DIMENSION,
-        GLOBAL_DIMENSION,
-      ],
-    ];
-  }
-
-  const M =
-    input.applicableModules.length > 0 ? input.applicableModules : [GLOBAL_DIMENSION];
-  const C =
-    input.applicableCategories.length > 0 ? input.applicableCategories : [GLOBAL_DIMENSION];
-  const Co =
-    input.applicableConditions.length > 0 ? input.applicableConditions : [GLOBAL_DIMENSION];
-  const Cu =
-    input.applicableCountries.length > 0 ? input.applicableCountries : [GLOBAL_DIMENSION];
-
-  const out: Array<[string, string, string, string]> = [];
-  for (const m of M) {
-    for (const c of C) {
-      for (const co of Co) {
-        for (const cu of Cu) {
-          out.push([m, c, co, cu]);
-        }
-      }
-    }
-  }
-  return out;
-}
-
 function dimAllows(requestValue: string, valueDim: string[]): boolean {
-  return valueDim.includes(GLOBAL_DIMENSION) || valueDim.includes(requestValue);
+  return valueDim.length === 0 || valueDim.includes(requestValue);
 }
 
-/** Used for list-by-context: coarse filter on VALUE entities. */
+/**
+ * Applicability is stored at Metadata Value level as per design;
+ * no separate METADATA_APPL entity required.
+ *
+ * Filtering follows an optional model:
+ *  - Only provided context dimensions are checked.
+ *  - Omitted dimensions are not filtered (skip, not "GLOBAL").
+ *  - isGlobal=true always passes regardless of context.
+ */
 export function valueAppliesToContext(
   value: Pick<
     MetadataValue,
@@ -68,23 +35,9 @@ export function valueAppliesToContext(
   if (value.isGlobal) {
     return true;
   }
-  return (
-    dimAllows(ctx.module, value.applicableModules) &&
-    dimAllows(ctx.category, value.applicableCategories) &&
-    dimAllows(ctx.condition, value.applicableConditions) &&
-    dimAllows(ctx.country, value.applicableCountries)
-  );
-}
-
-/** Priority-ordered SK candidates for APPL lookups (validateMetadataValue). */
-export function applicabilityLookupCandidates(
-  ctx: ApplicabilityContext,
-): ApplicabilityContext[] {
-  const { module, category, condition, country } = ctx;
-  return [
-    { module, category, condition, country },
-    { module, category, condition, country: GLOBAL_DIMENSION },
-    { module, category, condition: GLOBAL_DIMENSION, country },
-    { module, category: GLOBAL_DIMENSION, condition, country },
-  ];
+  if (ctx.module && !dimAllows(ctx.module, value.applicableModules)) return false;
+  if (ctx.category && !dimAllows(ctx.category, value.applicableCategories)) return false;
+  if (ctx.condition && !dimAllows(ctx.condition, value.applicableConditions)) return false;
+  if (ctx.country && !dimAllows(ctx.country, value.applicableCountries)) return false;
+  return true;
 }

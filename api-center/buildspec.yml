@@ -5,6 +5,8 @@ env:
     VITE_S3_BUCKET_NAME: dev-mvx-developer-hub
     VITE_S3_SPECS_PREFIX: specs
     VITE_S3_FIGMA_DESIGNS_KEY: figma/designs.json
+    # CloudFront distribution for the built Developer Hub (api-center)
+    VITE_CLOUDFRONT_URL: https://d28d5t5u0n3bd1.cloudfront.net
 
 phases:
   install:
@@ -32,6 +34,7 @@ phases:
   post_build:
     commands:
       - 'echo "Deploying api-center/dist/ to s3://${DEPLOY_BUCKET}"'
+      - 'echo "CloudFront app URL (VITE_CLOUDFRONT_URL): ${VITE_CLOUDFRONT_URL}"'
       - aws s3 sync api-center/dist/ "s3://${DEPLOY_BUCKET}" --delete --exclude "specs/*"
       - |
         if [ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then

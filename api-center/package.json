@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "pnpm build && vite preview",
     "typecheck": "tsc -b --noEmit",
-    "deploy": "pnpm build && aws s3 sync dist/ s3://api-hub-mib --delete --exclude \"specs/*\" --profile ci-user"
+    "deploy": "pnpm build && aws s3 sync dist/ s3://developer--hub-dev --delete --exclude \"specs/*\" --profile ci-user"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",

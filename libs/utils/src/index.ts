@@ -2,6 +2,7 @@ export * from './constants/constants';
 export { ddbClient, ddbDocClient } from './configs/db.config';
 export * from './helper/string.helpers';
 export * from './helper/object.helpers';
+export * from './helper/crypto.helpers';
 export * from './helper/http-header.helpers'; 
 export * from './helper/http-response.helpers';
 export * from './helper/message.helpers';

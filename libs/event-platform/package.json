@@ -1,0 +1,28 @@
+{
+  "name": "@api-hub/event-platform",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@api-hub/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "nx": {
+    "name": "event-platform"
+  },
+  "dependencies": {
+    "@api-hub/logger": "workspace:*",
+    "@api-hub/utils": "workspace:*",
+    "@aws-sdk/client-eventbridge": "^3.958.0",
+    "@aws-sdk/client-sqs": "^3.1001.0",
+    "tslib": "^2.3.0",
+    "zod": "^4.2.1"
+  }
+}

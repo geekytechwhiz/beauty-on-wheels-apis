@@ -77,6 +77,12 @@
     },
     {
       "path": "./libs/template"
+    },
+    {
+      "path": "./event-platform"
+    },
+    {
+      "path": "./libs/event-platform"
     }
   ]
 }

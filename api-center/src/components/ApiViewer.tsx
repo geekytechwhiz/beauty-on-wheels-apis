@@ -9,12 +9,10 @@ import {
   Typography,
 } from '@mui/material';
 import 'swagger-ui-react/swagger-ui.css';
+import { RedocPanel } from './RedocPanel';
 
 const SwaggerPanel = lazy(() =>
   import('./SwaggerPanel').then((m) => ({ default: m.SwaggerPanel })),
-);
-const RedocPanel = lazy(() =>
-  import('./RedocPanel').then((m) => ({ default: m.RedocPanel })),
 );
 
 export type ViewerKind = 'swagger' | 'redoc';

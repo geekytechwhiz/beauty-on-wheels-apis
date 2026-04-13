@@ -1,6 +1,8 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -10,6 +12,7 @@ import yaml from 'js-yaml';
 
 export type SpecFileExtension = 'json' | 'yaml' | 'yml';
 export type VersionBumpType = 'major' | 'minor' | 'patch';
+export type SpecReviewStatus = 'pending' | 'approved' | 'rejected';
 
 interface ParsedSemanticVersion {
   prefix: string;
@@ -24,6 +27,7 @@ export interface OpenApiSpecFile {
   key: string;
   extension: SpecFileExtension;
   contentType: string;
+  status: SpecReviewStatus;
   lastModified?: string;
   size?: number;
 }
@@ -75,6 +79,7 @@ export interface DesignLibraryEntry {
 }
 
 const DEFAULT_SPECS_PREFIX = 'specs';
+const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'pending';
 const OPENAPI_FILE_PATTERN = /^(.+?)\/(.+?)\/openapi\.(json|yaml|yml)$/i;
 const VERSION_COLLATOR = new Intl.Collator(undefined, {
   numeric: true,
@@ -226,9 +231,22 @@ function parseSpecFileKey(key: string, object?: _Object): OpenApiSpecFile | null
     key,
     extension,
     contentType: getContentType(extension),
+    status: DEFAULT_SPEC_REVIEW_STATUS,
     lastModified: object?.LastModified?.toISOString(),
     size: object?.Size,
   };
+}
+
+function normalizeSpecReviewStatus(value: string | undefined): SpecReviewStatus {
+  switch ((value ?? '').trim().toLowerCase()) {
+    case 'approved':
+      return 'approved';
+    case 'rejected':
+      return 'rejected';
+    case 'pending':
+    default:
+      return 'pending';
+  }
 }
 
 function compareVersionsDesc(left: string, right: string): number {
@@ -424,7 +442,29 @@ export async function listVersions(serviceName: string): Promise<OpenApiSpecFile
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const objects = await listAllSpecObjects(`${normalizedServiceName}/`);
   const catalog = buildCatalog(objects);
-  return catalog[0]?.versions ?? [];
+  const versions = catalog[0]?.versions ?? [];
+
+  const versionsWithStatus = await Promise.all(
+    versions.map(async (version) => {
+      try {
+        const headResponse = await getS3Client().send(
+          new HeadObjectCommand({
+            Bucket: getBucketName(),
+            Key: version.key,
+          }),
+        );
+
+        return {
+          ...version,
+          status: normalizeSpecReviewStatus(headResponse.Metadata?.status),
+        };
+      } catch {
+        return version;
+      }
+    }),
+  );
+
+  return versionsWithStatus;
 }
 
 export async function getLatestVersion(serviceName: string): Promise<string | null> {
@@ -486,6 +526,7 @@ export async function uploadSpec({
       Metadata: {
         service: normalizedServiceName,
         version: normalizedVersion,
+        status: DEFAULT_SPEC_REVIEW_STATUS,
       },
     }),
   );
@@ -496,6 +537,7 @@ export async function uploadSpec({
     key,
     extension: validatedFile.extension,
     contentType: validatedFile.contentType,
+    status: DEFAULT_SPEC_REVIEW_STATUS,
   };
 }
 
@@ -578,6 +620,7 @@ export async function saveEditedSpecVersion({
       Metadata: {
         service: normalizedServiceName,
         version: normalizedVersion,
+        status: DEFAULT_SPEC_REVIEW_STATUS,
       },
     }),
   );
@@ -588,6 +631,46 @@ export async function saveEditedSpecVersion({
     key,
     extension: 'yaml',
     contentType: getContentType('yaml'),
+    status: DEFAULT_SPEC_REVIEW_STATUS,
+  };
+}
+
+export async function updateSpecReviewStatus({
+  serviceName,
+  version,
+  status,
+}: {
+  serviceName: string;
+  version: string;
+  status: SpecReviewStatus;
+}): Promise<OpenApiSpecFile> {
+  const resolved = await resolveSpecVersion({ serviceName, version });
+  const bucketName = getBucketName();
+  const existingHead = await getS3Client().send(
+    new HeadObjectCommand({
+      Bucket: bucketName,
+      Key: resolved.key,
+    }),
+  );
+
+  await getS3Client().send(
+    new CopyObjectCommand({
+      Bucket: bucketName,
+      Key: resolved.key,
+      CopySource: `${bucketName}/${encodeURIComponentPath(resolved.key)}`,
+      MetadataDirective: 'REPLACE',
+      ContentType: existingHead.ContentType ?? resolved.contentType,
+      Metadata: {
+        service: resolved.serviceName,
+        version: resolved.version,
+        status,
+      },
+    }),
+  );
+
+  return {
+    ...resolved,
+    status,
   };
 }
 

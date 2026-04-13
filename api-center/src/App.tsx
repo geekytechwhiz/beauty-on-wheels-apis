@@ -31,6 +31,10 @@ import { SaveEditedSpecDialog } from './components/SaveEditedSpecDialog';
 import { UploadOpenApiSpec, type UploadOpenApiSpecValues } from './components/UploadOpenApiSpec';
 import { VersionSelector } from './components/VersionSelector';
 import {
+  validateOpenApiForEditor,
+  type OpenApiValidationIssue,
+} from './utils/openApiValidation';
+import {
   computeNextVersion,
   deleteSpecVersion,
   getS3ConfigSummary,
@@ -41,7 +45,9 @@ import {
   parseOpenApiText,
   saveEditedSpecVersion,
   // type ServiceCatalogEntry,
+  type SpecReviewStatus,
   type VersionBumpType,
+  updateSpecReviewStatus,
   uploadSpec,
 } from './services/S3Service';
 
@@ -55,6 +61,18 @@ interface ToastState {
   open: boolean;
   severity: AlertColor;
   message: string;
+}
+
+function getStatusChipColor(status: SpecReviewStatus): 'warning' | 'success' | 'error' {
+  switch (status) {
+    case 'approved':
+      return 'success';
+    case 'rejected':
+      return 'error';
+    case 'pending':
+    default:
+      return 'warning';
+  }
 }
 
 export interface ApiCenterAppProps {
@@ -80,6 +98,8 @@ export default function App({
   const [saveVersionBump, setSaveVersionBump] = useState<VersionBumpType>('patch');
   const [editorText, setEditorText] = useState('');
   const [editorDirty, setEditorDirty] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<SpecReviewStatus | null>(null);
+  const [validationIssues, setValidationIssues] = useState<OpenApiValidationIssue[]>([]);
   const [saveDialogError, setSaveDialogError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>({
     open: false,
@@ -239,6 +259,28 @@ export default function App({
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: updateSpecReviewStatus,
+    onSuccess: async (updated) => {
+      setPendingStatus(null);
+      await queryClient.invalidateQueries({
+        queryKey: ['s3-versions', updated.serviceName],
+      });
+      setToast({
+        open: true,
+        severity: 'success',
+        message: `${updated.serviceName} ${updated.version} marked as ${updated.status}.`,
+      });
+    },
+    onError: (error) => {
+      setToast({
+        open: true,
+        severity: 'error',
+        message: error instanceof Error ? error.message : 'Status update failed.',
+      });
+    },
+  });
+
   useEffect(() => {
     if (selectedService === null) {
       setSelectedVersion(null);
@@ -287,6 +329,25 @@ export default function App({
     setEditorText(editableSpecQuery.data.yamlText);
     setEditorDirty(false);
   }, [editableSpecQuery.data]);
+
+  useEffect(() => {
+    setPendingStatus(null);
+  }, [selectedService, selectedVersion]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      const issues = await validateOpenApiForEditor(editorText);
+      if (!isCancelled) {
+        setValidationIssues(issues);
+      }
+    }, 350);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [editorText]);
 
   const title =
     selectedService === null
@@ -363,6 +424,13 @@ export default function App({
     editorParseState.error === null
       ? 'Preview updates directly from the YAML you are editing.'
       : null;
+  const selectedVersionStatus: SpecReviewStatus | null = selectedVersionFile?.status ?? null;
+  const effectiveStatus = pendingStatus ?? selectedVersionStatus;
+  const hasPendingStatusChange =
+    pendingStatus !== null &&
+    selectedVersionStatus !== null &&
+    pendingStatus !== selectedVersionStatus;
+  const blockingValidationErrors = validationIssues.some((issue) => issue.severity === 'error');
 
   const handleUpload = (values: UploadOpenApiSpecValues) => {
     uploadMutation.mutate(values);
@@ -395,8 +463,39 @@ export default function App({
     setSaveDialogOpen(true);
   };
 
+  const handleSave = () => {
+    if (selectedService === null || selectedVersion === null) {
+      return;
+    }
+
+    if (editorDirty) {
+      if (blockingValidationErrors) {
+        setToast({
+          open: true,
+          severity: 'error',
+          message: 'Fix validation errors before publishing a new version.',
+        });
+        return;
+      }
+      handleOpenSaveDialog();
+      return;
+    }
+
+    if (hasPendingStatusChange && effectiveStatus) {
+      updateStatusMutation.mutate({
+        serviceName: selectedService,
+        version: selectedVersion,
+        status: effectiveStatus,
+      });
+    }
+  };
+
   const handleConfirmSave = () => {
     if (!selectedService || !nextEditedVersion) {
+      return;
+    }
+    if (blockingValidationErrors) {
+      setSaveDialogError('Publishing is blocked until all validation errors are resolved.');
       return;
     }
 
@@ -529,6 +628,44 @@ export default function App({
             spacing={1}
             alignItems={{ xs: 'stretch', sm: 'center' }}
           >
+            {selectedVersionStatus && (
+              <Chip
+                size="small"
+                color={getStatusChipColor(effectiveStatus ?? selectedVersionStatus)}
+                label={`Status: ${effectiveStatus ?? selectedVersionStatus}`}
+                sx={{ textTransform: 'capitalize' }}
+              />
+            )}
+            <Button
+              variant="outlined"
+              color="success"
+              disabled={
+                selectedService === null ||
+                selectedVersion === null ||
+                effectiveStatus === 'approved' ||
+                saveEditedSpecMutation.isPending
+              }
+              onClick={() => {
+                setPendingStatus('approved');
+              }}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              disabled={
+                selectedService === null ||
+                selectedVersion === null ||
+                effectiveStatus === 'rejected' ||
+                saveEditedSpecMutation.isPending
+              }
+              onClick={() => {
+                setPendingStatus('rejected');
+              }}
+            >
+              Reject
+            </Button>
             <ToggleButtonGroup
               exclusive
               size="small"
@@ -557,16 +694,18 @@ export default function App({
             />
             <Button
               variant="outlined"
-              onClick={handleOpenSaveDialog}
+              onClick={handleSave}
               disabled={
                 selectedService === null ||
                 selectedVersion === null ||
-                editorText.trim() === '' ||
-                !editorDirty ||
-                editableSpecQuery.isLoading
+                editableSpecQuery.isLoading ||
+                (!editorDirty && !hasPendingStatusChange) ||
+                (editorDirty && blockingValidationErrors) ||
+                updateStatusMutation.isPending ||
+                saveEditedSpecMutation.isPending
               }
             >
-              Save new version
+              {editorDirty ? 'Save new version' : 'Save status'}
             </Button>
           </Stack>
         </Stack>
@@ -577,6 +716,7 @@ export default function App({
               value={editorText}
               loading={editableSpecQuery.isLoading}
               dirty={editorDirty}
+              issues={validationIssues}
               error={
                 editableSpecQuery.error instanceof Error
                   ? editableSpecQuery.error.message
@@ -608,6 +748,7 @@ export default function App({
             value={editorText}
             loading={editableSpecQuery.isLoading}
             dirty={editorDirty}
+            issues={validationIssues}
             error={
               editableSpecQuery.error instanceof Error
                 ? editableSpecQuery.error.message
@@ -656,6 +797,11 @@ export default function App({
         allowMajorIncrement={majorVersionAdminEnabled}
         loading={saveEditedSpecMutation.isPending}
         error={saveDialogError}
+        publishBlockedReason={
+          blockingValidationErrors
+            ? 'Publishing is blocked until all validation errors are fixed.'
+            : null
+        }
         onClose={() => setSaveDialogOpen(false)}
         onConfirm={handleConfirmSave}
         onVersionBumpChange={setSaveVersionBump}

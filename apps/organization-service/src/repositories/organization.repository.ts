@@ -35,6 +35,19 @@ export class OrganizationRepository {
         delete sanitized[key];
       }
     });
+    const integ = sanitized.integration;
+    if (integ && typeof integ === 'object' && !Array.isArray(integ)) {
+      const i = { ...(integ as Record<string, unknown>) };
+      if (i.provider == null && i.providerId != null) {
+        i.provider = i.providerId;
+      }
+      delete i.providerId;
+      if (i.sourceSystem == null && i.integrationType != null) {
+        i.sourceSystem = i.integrationType;
+      }
+      delete i.integrationType;
+      sanitized.integration = i;
+    }
     return sanitized as unknown as Organization;
   }
 
@@ -379,7 +392,7 @@ export class OrganizationRepository {
     if (updates.integration !== undefined) {
       updateParts.push('integration = :integration');
       exprValues[':integration'] = updates.integration;
-      const provider = updates.integration?.providerId;
+      const provider = updates.integration?.provider;
       if (provider && updates.subdomain) {
         updateParts.push('gsi2sk = :gsi2sk');
         exprValues[':gsi2sk'] = `PROVIDER#${provider}#ORG#${organizationId}`;
@@ -1059,7 +1072,7 @@ export class OrganizationRepository {
     }
   }
 
-  async getOrganizationBySubdomain(subdomain: string, providerId?: string): Promise<Organization | null> {
+  async getOrganizationBySubdomain(subdomain: string, provider?: string): Promise<Organization | null> {
     const normalizedSubdomain = subdomain.trim().toLowerCase();
     if (!normalizedSubdomain) return null;
     try {
@@ -1067,9 +1080,9 @@ export class OrganizationRepository {
         ':gsi2pk': `LOOKUP#${normalizedSubdomain}`,
       };
       let keyConditionExpression = 'gsi2pk = :gsi2pk';
-      if (providerId) {
+      if (provider) {
         keyConditionExpression += ' AND begins_with(gsi2sk, :gsi2sk)';
-        exprValues[':gsi2sk'] = `PROVIDER#${providerId}#`;
+        exprValues[':gsi2sk'] = `PROVIDER#${provider}#`;
       }
       const response = await ddbDocClient.send(
         new QueryCommand({
@@ -1086,7 +1099,7 @@ export class OrganizationRepository {
       }
       return this.sanitizeOrganization(item);
     } catch (err) {
-      const logger = createChildLogger(baseLogger, { subdomain: normalizedSubdomain, providerId });
+      const logger = createChildLogger(baseLogger, { subdomain: normalizedSubdomain, provider });
       logger.error({ event: 'organization_get_by_subdomain_error', err: serializeError(err) });
       throw err;
     }

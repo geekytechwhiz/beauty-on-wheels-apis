@@ -7,9 +7,9 @@ const supportedVitalsSchema = z
 
 const integrationSchema = z
   .object({
-    providerId: z.string().optional(),
+    provider: z.string().optional(),
     providerName: z.string().optional(),
-    integrationType: z.enum(['HMS', 'FHIR', 'CUSTOM', 'MARKETPLACE']).optional(),
+    sourceSystem: z.enum(['HMS', 'FHIR', 'CUSTOM', 'MARKETPLACE']).optional(),
     externalHospitalId: z.string().optional(),
     apiBaseUrl: z.string().url().optional(),
     apiKey: z.string().optional(),
@@ -179,7 +179,7 @@ export const updateOrganizationSchema = z.object({
 
 export const getExternalTenantSchema = z.object({
   apiBaseUrl: z.string().url('apiBaseUrl must be a valid URL'),
-  providerId: z.string().optional(),
+  provider: z.string().optional(),
 });
 
 export const updateOrganizationMetadataSchema = z.object({

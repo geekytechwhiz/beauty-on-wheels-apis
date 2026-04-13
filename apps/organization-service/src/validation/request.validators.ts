@@ -120,6 +120,9 @@ export function validateMetadataTypeParam(req: any) {
 
 export function validateGetExternalTenant(req: any) {
   const body = req?.body ?? {};
+  if (body && typeof body === 'object' && body.provider == null && body.providerId != null) {
+    body.provider = body.providerId;
+  }
   const result = getExternalTenantSchema.safeParse(body);
   if (!result.success) {
     const first = result.error.issues[0];

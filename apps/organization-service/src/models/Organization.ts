@@ -74,9 +74,9 @@ export interface Organization {
   sourceSystem: string; // TruTech
 }
 export interface Integration {
-  providerId?: string; // TueTech
+  provider?: string; // e.g. TruTech provider id for GSI2
   providerName?: string; // provider name from the provider service
-  integrationType: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE'; // integration type from the provider service
+  sourceSystem?: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE'; // integration / source system from the provider service
   externalHospitalId?: string; // external hospital id from the provider service
   apiBaseUrl?: string; // provider API base URL (for HMS tenant resolution)
   apiKey?: string; // transient request field, persisted in Secrets Manager only

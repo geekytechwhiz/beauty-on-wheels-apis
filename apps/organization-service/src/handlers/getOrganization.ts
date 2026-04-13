@@ -176,7 +176,10 @@ const handler = async (req: LambdaRequest<Params>) => {
   }
 
   if (organization.integration && typeof organization.integration === 'object') {
-    transformed.integration = { ...(organization.integration as Record<string, unknown>) };
+    const orgInfo = transformed.organizationInfo as Record<string, unknown> | undefined;
+    if (orgInfo && typeof orgInfo === 'object') {
+      orgInfo.integration = { ...(organization.integration as Record<string, unknown>) };
+    }
   }
 
   if (!isRootOrg && organization.searchFields && typeof organization.searchFields === 'object') {

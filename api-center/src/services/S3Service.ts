@@ -118,6 +118,20 @@ function getFigmaDesignsKey(): string {
   return rawKey.replace(/^\/+/, '');
 }
 
+function getCloudFrontBaseUrl(): string | null {
+  const rawUrl = import.meta.env.VITE_CLOUDFRONT_URL?.trim();
+  if (!rawUrl) {
+    return null;
+  }
+
+  const normalized = rawUrl.replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized;
+}
+
 export function getS3ConfigSummary(): {
   bucketName: string;
   region: string;
@@ -131,8 +145,18 @@ export function getS3ConfigSummary(): {
 }
 
 function buildPublicObjectUrl(key: string): string {
+  const encodedKey = encodeURIComponentPath(key);
+  const cloudFrontBaseUrl = getCloudFrontBaseUrl();
+  if (cloudFrontBaseUrl) {
+    return `${cloudFrontBaseUrl}/${encodedKey}`;
+  }
+
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return `${window.location.origin}/${encodedKey}`;
+  }
+
   const { bucketName, region } = getS3ConfigSummary();
-  return `https://${bucketName}.s3.${region}.amazonaws.com/${encodeURIComponentPath(key)}`;
+  return `https://${bucketName}.s3.${region}.amazonaws.com/${encodedKey}`;
 }
 
 async function readResponseBodyAsText(body: unknown): Promise<string> {

@@ -25,12 +25,12 @@ export class TruTechClient {
   });
 
   /**
-   * @param config Optional per-tenant config. If omitted, uses global env (TRU_TECH_BASE_URL, TRU_TECH_API_KEY).
+   * @param config Per-tenant HMS config.
    */
-  constructor(config?: TruTechClientConfig) {
-    const baseUrl = config?.baseURL ?? getEnvConfig().TRU_TECH_BASE_URL;
-    const apiKey = config?.apiKey ?? getEnvConfig().TRU_TECH_API_KEY;
-    const timeoutMs = config?.timeoutMs ?? getEnvConfig().TRU_TECH_TIMEOUT_MS;
+  constructor(config: TruTechClientConfig) {
+    const baseUrl = config.baseURL;
+    const apiKey = config.apiKey;
+    const timeoutMs = config.timeoutMs ?? getEnvConfig().TRU_TECH_TIMEOUT_MS;
     this.client = axios.create({
       baseURL: baseUrl,
       timeout: timeoutMs,
@@ -338,24 +338,10 @@ export class TruTechClient {
 
 }
 
-let truTechClientInstance: TruTechClient | null = null;
-
 const tenantClientCache: Map<string, TruTechClient> = new Map();
 
 /**
- * Default TruTech client singleton using global env configuration.
- * Existing callers remain unchanged and use this instance.
- */
-export function getTruTechClient(): TruTechClient {
-  if (!truTechClientInstance) {
-    truTechClientInstance = new TruTechClient();
-  }
-  return truTechClientInstance;
-}
-
-/**
  * Tenant-aware TruTech client. Uses TENANT_HMS_CONFIG when set (JSON map of tenantId → { baseUrl, apiKey }).
- * Falls back to global TRU_TECH_BASE_URL and TRU_TECH_API_KEY when tenant is not in the map.
  * Clients are cached per tenantId.
  */
 export function getTruTechClientForTenant(tenantId: string): TruTechClient {

@@ -230,7 +230,7 @@ This document outlines the plan for implementing SSO integration that:
 | - | `userInfo.bio` | Default: "" (from config) |
 | - | `userRole` | Default: ["<doctor-role-id>"] (from config) |
 | - | `userType` | "STAFF" |
-| - | `organizationID` | From config (`defaultOrganizationID`) |
+| - | `organizationID` | From tenant context (`externalHospitalId`) |
 
 ### Patient Mapping (TruTech → Our System)
 
@@ -252,7 +252,7 @@ This document outlines the plan for implementing SSO integration that:
 | - | `userRole` | Default: ["<patient-role-id>"] (from config) |
 | - | `userType` | "USER" |
 | - | `invite` | "phone" |
-| - | `organizationID` | From config (`defaultOrganizationID`) |
+| - | `organizationID` | From tenant context (`externalHospitalId`) |
 
 ## Configuration File Structure
 
@@ -260,9 +260,6 @@ Create `src/config/sso-config.ts`:
 
 ```typescript
 export interface SSOConfig {
-  // Default organization ID for TruTech users
-  defaultOrganizationID: string;
-  
   // Default role IDs
   doctorRoleId: string;
   patientRoleId: string;
@@ -338,7 +335,7 @@ export interface SSOConfig {
 - [ ] Use `phone-processor` utility for phone number processing
 - [ ] Use `doctorRoleId` from config for `userRole` field
 - [ ] Use `doctor.specialty` from config (default: "general") for `userInfo.specialty` field
-- [ ] Use `defaultOrganizationID` from config for `organizationID` field
+- [ ] Use tenant context `externalHospitalId` for `organizationID` field
 
 ### Task 3: Create Patient Mapper Service
 - [ ] Create `src/services/patient.mapper.ts`
@@ -348,7 +345,7 @@ export interface SSOConfig {
 - [ ] Set name prefix based on gender
 - [ ] Use `phone-processor` utility for phone number processing
 - [ ] Use `patientRoleId` from config for `userRole` field
-- [ ] Use `defaultOrganizationID` from config for `organizationID` field
+- [ ] Use tenant context `externalHospitalId` for `organizationID` field
 - [ ] Validate that either email OR phone is provided (required field validation)
 - [ ] Throw error if both email and phone are missing
 
@@ -431,7 +428,7 @@ Body: {
 
 **Example:**
 ```bash
-curl --location 'https://qahms.zmtrutech.com/api/teleconsultation/todays-appointments' \
+curl --location 'https://<tenant-subdomain>.zmtrutech.com/api/teleconsultation/todays-appointments' \
 --header 'Authorization: Bearer <token>' \
 --header 'Content-Type: application/json' \
 --data '{

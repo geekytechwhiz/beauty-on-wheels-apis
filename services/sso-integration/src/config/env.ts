@@ -10,8 +10,6 @@ const envSchema = z.object({
   COGNITO_USER_POOL_ID: z.string().min(1, 'COGNITO_USER_POOL_ID is required'),
   COGNITO_CLIENT_ID: z.string().min(1, 'COGNITO_CLIENT_ID is required'),
 
-  TRU_TECH_BASE_URL: z.string().url('TRU_TECH_BASE_URL must be a valid URL'),
-  TRU_TECH_API_KEY: z.string().min(1, 'TRU_TECH_API_KEY is required'),
   TRU_TECH_TIMEOUT_MS: z.coerce.number().min(1000),
 
   // Schedule service configuration
@@ -31,6 +29,12 @@ const envSchema = z.object({
   USER_SERVICE_BASE_URL: z
     .string()
     .url('USER_SERVICE_BASE_URL must be a valid URL'),
+  ROLE_SERVICE_BASE_URL: z
+    .string()
+    .url('ROLE_SERVICE_BASE_URL must be a valid URL'),
+  ORGANIZATION_SERVICE_BASE_URL: z
+    .string()
+    .url('ORGANIZATION_SERVICE_BASE_URL must be a valid URL'),
 
   // Static service token used for internal service-to-service communication
   // (e.g. SSO → Schedule Service, User Service). This should be provisioned
@@ -52,15 +56,7 @@ const envSchema = z.object({
   APPOINTMENT_SYNC_CONCURRENCY_LIMIT: z.coerce.number().min(1).default(5),
   APPOINTMENT_SOURCE_TIMEZONE: z.string().min(1).default('Africa/Lusaka'),
 
-  DOCTOR_ROLE_ID: z.string().min(1, 'DOCTOR_ROLE_ID is required'),
-
-  PATIENT_ROLE_ID: z.string().min(1, 'PATIENT_ROLE_ID is required'),
-
-  SUBDOMAIN: z.string().min(1, 'SUBDOMAIN is required'),
   PROVIDER: z.string().min(1, 'PROVIDER is required'),
-  SSO_DEFAULT_ORGANIZATION_ID: z
-    .string()
-    .min(1, 'SSO_DEFAULT_ORGANIZATION_ID is required'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

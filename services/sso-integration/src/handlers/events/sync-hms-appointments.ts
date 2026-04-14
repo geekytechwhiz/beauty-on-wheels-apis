@@ -8,8 +8,10 @@ import {
 
 import { Appointment } from '../../types';
 import { AppointmentSyncService } from '../../services/appointment-sync.service';
-import { buildSSORequestContext } from '../../utils/context-builder.util';
+import { buildSSORequestContextFromTenant } from '../../utils/context-builder.util';
 import { emitMetric, MetricNames } from '../../utils/metrics.util';
+import { getEnvConfig } from '../../config/env';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const SQS_BATCH_SIZE = 10;
 
@@ -43,14 +45,13 @@ export async function handler(
   });
 
   try {
-    const context = buildSSORequestContext(
-      event as unknown as Parameters<typeof buildSSORequestContext>[0],
-      correlationId,
-    );
-    const appointmentSyncService = new AppointmentSyncService();
+    const env = getEnvConfig();
+    const tenants = await getExternalTenantsByProvider(env.PROVIDER);
+    if (!tenants.length) {
+      throw new Error(`No external tenants found for provider ${env.PROVIDER}`);
+    }
 
-    const validAppointments =
-      await appointmentSyncService.fetchAndValidateAppointments(context);
+    const appointmentSyncService = new AppointmentSyncService();
 
     const queueUrl = process.env.APPOINTMENT_SYNC_QUEUE_URL;
     if (!queueUrl) {
@@ -59,37 +60,68 @@ export async function handler(
 
     const sqsClient = new SQSClient({});
     let enqueued = 0;
+    let totalAppointments = 0;
+    let tenantFailures = 0;
 
-    for (let i = 0; i < validAppointments.length; i += SQS_BATCH_SIZE) {
-      const chunk = validAppointments.slice(i, i + SQS_BATCH_SIZE);
-      const entries = chunk.map((appointment: Appointment, idx: number) => ({
-        Id: String(i + idx),
-        MessageBody: JSON.stringify({
+    for (const tenant of tenants) {
+      try {
+        const context = buildSSORequestContextFromTenant(tenant, correlationId);
+        const validAppointments =
+          await appointmentSyncService.fetchAndValidateAppointments(context);
+        totalAppointments += validAppointments.length;
+
+        for (let i = 0; i < validAppointments.length; i += SQS_BATCH_SIZE) {
+          const chunk = validAppointments.slice(i, i + SQS_BATCH_SIZE);
+          const entries = chunk.map((appointment: Appointment, idx: number) => ({
+            Id: `${tenant.tenantId}-${i + idx}`,
+            MessageBody: JSON.stringify({
+              tenantId: context.tenantId,
+              appointment,
+              correlationId: context.correlationId,
+            }),
+          }));
+
+          await sqsClient.send(
+            new SendMessageBatchCommand({
+              QueueUrl: queueUrl,
+              Entries: entries,
+            }),
+          );
+          enqueued += entries.length;
+        }
+
+        await emitMetric(MetricNames.HMS_FETCH_SUCCESS, 1, 'Count', {
           tenantId: context.tenantId,
-          appointment,
-          correlationId: context.correlationId,
-        }),
-      }));
-
-      await sqsClient.send(
-        new SendMessageBatchCommand({
-          QueueUrl: queueUrl,
-          Entries: entries,
-        }),
-      );
-      enqueued += entries.length;
+        });
+      } catch (tenantError) {
+        tenantFailures += 1;
+        await emitMetric(MetricNames.HMS_FETCH_FAILURES, 1, 'Count', {
+          tenantId: tenant.tenantId || 'unknown',
+        });
+        logger.error({
+          event: 'tenant_sync_failed',
+          tenantId: tenant.tenantId,
+          provider: tenant.provider,
+          err: serializeError(tenantError as Error),
+        });
+      }
     }
 
-    await emitMetric(MetricNames.HMS_FETCH_SUCCESS, 1, 'Count', {
-      tenantId: context.tenantId,
-    });
+    if (tenantFailures === tenants.length) {
+      throw new Error(
+        `All tenant sync attempts failed for provider ${env.PROVIDER}`,
+      );
+    }
+
     logger.info({
       event: 'lambda_invocation_complete',
       handler: 'events/sync-hms-appointments',
       correlationId,
-      tenantId: context.tenantId,
+      provider: env.PROVIDER,
+      tenantCount: tenants.length,
+      tenantFailures,
       enqueued,
-      totalAppointments: validAppointments.length,
+      totalAppointments,
     });
   } catch (error) {
     await emitMetric(MetricNames.HMS_FETCH_FAILURES, 1, 'Count', {

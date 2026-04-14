@@ -38,7 +38,6 @@ import {
   computeNextVersion,
   deleteSpecVersion,
   getS3ConfigSummary,
-  getSpecUrl,
   loadEditableSpecDocument,
   listServices,
   listVersions,
@@ -133,17 +132,6 @@ export default function App({
     enabled: s3Config.error === null && selectedService !== null,
   });
 
-  const specUrlQuery = useQuery({
-    queryKey: ['s3-spec-url', selectedService, selectedVersion],
-    queryFn: () =>
-      getSpecUrl({
-        serviceName: selectedService ?? '',
-        version: selectedVersion ?? '',
-      }),
-    enabled:
-      s3Config.error === null && selectedService !== null && selectedVersion !== null,
-  });
-
   const editableSpecQuery = useQuery({
     queryKey: ['s3-editable-spec', selectedService, selectedVersion],
     queryFn: () =>
@@ -190,9 +178,6 @@ export default function App({
       await queryClient.invalidateQueries({
         queryKey: ['s3-versions', variables.serviceName],
       });
-      await queryClient.invalidateQueries({
-        queryKey: ['s3-spec-url', variables.serviceName, variables.version],
-      });
       setToast({
         open: true,
         severity: 'success',
@@ -238,9 +223,6 @@ export default function App({
       });
       await queryClient.invalidateQueries({
         queryKey: ['s3-editable-spec', savedFile.serviceName, savedFile.version],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['s3-spec-url', savedFile.serviceName, savedFile.version],
       });
       setToast({
         open: true,
@@ -361,7 +343,7 @@ export default function App({
   const viewerError =
     selectedService === null
       ? null
-      : ((versionsQuery.error as Error | null) ?? (specUrlQuery.error as Error | null));
+      : ((versionsQuery.error as Error | null) ?? (editableSpecQuery.error as Error | null));
   const viewerPlaceholder =
     selectedService === null
       ? MERGED_VIEW_PLACEHOLDER
@@ -399,8 +381,8 @@ export default function App({
     selectedService !== null &&
     selectedVersion !== null &&
     editorText.trim() !== '';
-  const previewSpec = canUseLivePreview ? editorParseState.parsedSpec ?? undefined : undefined;
-  const previewSpecUrl = previewSpec ? undefined : specUrlQuery.data;
+  const loadedSpec = editableSpecQuery.data?.parsedSpec;
+  const previewSpec = canUseLivePreview ? editorParseState.parsedSpec ?? undefined : loadedSpec;
   const activeViewerError =
     editorLayoutMode !== 'preview' && editorParseState.error
       ? new Error(editorParseState.error)
@@ -730,12 +712,9 @@ export default function App({
                 viewer={viewer}
                 onViewerChange={setViewer}
                 spec={previewSpec}
-                specUrl={previewSpecUrl}
                 loading={
                   selectedService !== null &&
-                  (versionsQuery.isLoading ||
-                    specUrlQuery.isLoading ||
-                    editableSpecQuery.isLoading)
+                  (versionsQuery.isLoading || editableSpecQuery.isLoading)
                 }
                 error={activeViewerError}
                 title={title}
@@ -761,8 +740,8 @@ export default function App({
           <ApiViewer
             viewer={viewer}
             onViewerChange={setViewer}
-            specUrl={specUrlQuery.data}
-            loading={selectedService !== null && (versionsQuery.isLoading || specUrlQuery.isLoading)}
+            spec={loadedSpec}
+            loading={selectedService !== null && (versionsQuery.isLoading || editableSpecQuery.isLoading)}
             error={viewerError}
             title={title}
             placeholder={viewerPlaceholder}

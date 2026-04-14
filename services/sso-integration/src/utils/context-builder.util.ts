@@ -21,6 +21,12 @@ export function buildSSORequestContext(
   const eventLike = event as {
     headers?: Record<string, string | undefined>;
     pathParameters?: { tenantId?: string; tenant?: string };
+    queryStringParameters?: {
+      tenantId?: string;
+      tenant?: string;
+      subdomain?: string;
+    };
+    body?: string | null;
   };
 
   const headers: Record<string, string | undefined> =
@@ -28,16 +34,56 @@ export function buildSSORequestContext(
       ? eventLike.headers
       : {};
 
-  // Prefer explicit tenantId from headers or path when provided.
+  const getHeaderValue = (
+    source: Record<string, string | undefined>,
+    headerName: string,
+  ): string | undefined => {
+    const directValue = source[headerName];
+    if (typeof directValue === 'string') {
+      return directValue;
+    }
+
+    const normalizedHeaderName = headerName.toLowerCase();
+    const matchedKey = Object.keys(source).find(
+      (key) => key.toLowerCase() === normalizedHeaderName,
+    );
+
+    return matchedKey ? source[matchedKey] : undefined;
+  };
+
+  let bodyTenant: string | undefined;
+  if (typeof eventLike?.body === 'string' && eventLike.body.trim().length > 0) {
+    try {
+      const parsedBody = JSON.parse(eventLike.body) as {
+        tenantId?: string;
+        tenant?: string;
+        subdomain?: string;
+      };
+      bodyTenant = parsedBody.tenantId || parsedBody.tenant || parsedBody.subdomain;
+    } catch {
+      bodyTenant = undefined;
+    }
+  }
+
+  // Prefer explicit tenantId from headers/path/query/body when provided.
   const headerTenant =
-    (headers['x-tenant-id'] as string | undefined) ||
-    (headers['X-Tenant-Id'] as string | undefined);
+    getHeaderValue(headers, 'x-tenant-id') ||
+    getHeaderValue(headers, 'x-tenantid') ||
+    getHeaderValue(headers, 'x-tenant') ||
+    getHeaderValue(headers, 'tenant-id') ||
+    getHeaderValue(headers, 'tenantid');
 
   const pathTenant =
     eventLike?.pathParameters?.tenantId ||
     eventLike?.pathParameters?.tenant;
 
-  const resolvedTenant = (headerTenant || pathTenant)?.trim() || '';
+  const queryTenant =
+    eventLike?.queryStringParameters?.tenantId ||
+    eventLike?.queryStringParameters?.tenant ||
+    eventLike?.queryStringParameters?.subdomain;
+
+  const resolvedTenant =
+    (headerTenant || pathTenant || queryTenant || bodyTenant)?.trim() || '';
 
   if (resolvedTenant.length > 0) {
     tenantId = resolvedTenant;
@@ -47,10 +93,7 @@ export function buildSSORequestContext(
     throw new Error('Tenant id is required in request headers or path');
   }
 
-  serviceToken =
-    (headers.authorization as string | undefined) ||
-    (headers.Authorization as string | undefined) ||
-    null;
+  serviceToken = getHeaderValue(headers, 'authorization') || null;
 
   const tenant = loadTenantDetails(tenantId);
   return {

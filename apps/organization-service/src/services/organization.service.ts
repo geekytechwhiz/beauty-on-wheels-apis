@@ -52,6 +52,7 @@ export class OrganizationService {
               organizationType: data.organizationType?.toLowerCase(),
             };
       const resolvedSubdomain = data.subdomain ?? extractSubdomainFromUrl(data.integration?.apiBaseUrl);
+      const resolvedProvider = (data.integration?.provider || 'TRU_TECH').toUpperCase();
       const integrationApiKey = data.integration?.apiKey?.trim();
       const generatedApiKeyRef = resolvedSubdomain ? `${resolvedSubdomain.toLowerCase()}apikey` : undefined;
       if (integrationApiKey && generatedApiKeyRef) {
@@ -60,6 +61,7 @@ export class OrganizationService {
       const sanitizedIntegration = data.integration
         ? {
             ...data.integration,
+            provider: resolvedProvider,
             apiKeyRef: generatedApiKeyRef ?? data.integration.apiKeyRef,
             apiKey: undefined,
           }
@@ -70,10 +72,10 @@ export class OrganizationService {
         sk: 'ORG_DETAILS',
         gsi1pk: 'ORG_LIST',
         gsi1sk: `ORG#${organizationId}`,
-        gsi2pk: resolvedSubdomain ? `LOOKUP#${resolvedSubdomain.toLowerCase()}` : undefined,
+        gsi2pk: resolvedSubdomain ? `PROVIDER#${resolvedProvider}` : undefined,
         gsi2sk:
-          resolvedSubdomain && data.integration?.provider
-            ? `PROVIDER#${data.integration.provider}#ORG#${organizationId}`
+          resolvedSubdomain
+            ? `LOOKUP#${resolvedSubdomain.toLowerCase()}#ORG#${organizationId}`
             : undefined,
         organizationId,
         createdAt: now,
@@ -214,14 +216,21 @@ export class OrganizationService {
       if (resolvedSubdomain && !updates.subdomain) {
         updates.subdomain = resolvedSubdomain;
       }
+      if (resolvedSubdomain && !updates.integration) {
+        updates.integration = {
+          provider: existing.integration?.provider || 'TRU_TECH',
+        };
+      }
       const updateIntegrationApiKey = updates.integration?.apiKey?.trim();
       const generatedApiKeyRef = resolvedSubdomain ? `${resolvedSubdomain.toLowerCase()}apikey` : undefined;
       if (updateIntegrationApiKey && generatedApiKeyRef) {
         await this.secretManagerService.addApiKey(generatedApiKeyRef, updateIntegrationApiKey);
       }
       if (updates.integration) {
+        const resolvedProvider = (updates.integration.provider || existing.integration?.provider || 'TRU_TECH').toUpperCase();
         updates.integration = {
           ...updates.integration,
+          provider: resolvedProvider,
           apiKeyRef: generatedApiKeyRef ?? updates.integration.apiKeyRef,
           apiKey: undefined,
         };
@@ -688,7 +697,10 @@ export class OrganizationService {
     }
   }
 
-  async getExternalTenantByApiBaseUrl(apiBaseUrl: string, provider?: string): Promise<{
+  private async mapExternalTenantRecord(
+    organization: Organization,
+    fallbackApiBaseUrl?: string,
+  ): Promise<{
     tenantId: string;
     organizationId: string;
     subdomain: string;
@@ -697,19 +709,9 @@ export class OrganizationService {
     sourceSystem?: string;
     apiKey?: string;
   }> {
-    const subdomain = extractSubdomainFromUrl(apiBaseUrl);
-    if (!subdomain) {
-      const err: any = new Error('Unable to extract subdomain from apiBaseUrl');
-      err.statusCode = 400;
-      err.code = 'INVALID_API_BASE_URL';
-      throw err;
-    }
-    const organization = await this.repository.getOrganizationBySubdomain(subdomain, provider);
-    if (!organization) {
-      throw new OrganizationNotFoundError(subdomain);
-    }
     const integration = organization.integration;
-    const resolvedApiBaseUrl = integration?.apiBaseUrl?.trim() || apiBaseUrl;
+    const resolvedApiBaseUrl = integration?.apiBaseUrl?.trim() || fallbackApiBaseUrl || '';
+    const resolvedSubdomain = organization.subdomain || integration?.subdomain || extractSubdomainFromUrl(resolvedApiBaseUrl) || '';
     let apiKey: string | undefined;
     const apiKeyRef = integration?.apiKeyRef?.trim();
     if (apiKeyRef) {
@@ -721,12 +723,47 @@ export class OrganizationService {
     return {
       tenantId: organization.organizationId,
       organizationId: organization.organizationId,
-      subdomain,
+      subdomain: resolvedSubdomain,
       apiBaseUrl: resolvedApiBaseUrl,
       provider: integration?.provider,
       sourceSystem: integration?.sourceSystem,
       apiKey,
     };
+  }
+
+  async getExternalTenants(input: {
+    provider: string;
+    apiBaseUrl?: string;
+  }): Promise<{
+    items: Array<{
+      tenantId: string;
+      organizationId: string;
+      subdomain: string;
+      apiBaseUrl: string;
+      provider?: string;
+      sourceSystem?: string;
+      apiKey?: string;
+    }>;
+  }> {
+    const provider = input.provider?.trim();
+    if (!provider) {
+      const err: any = new Error('provider is required');
+      err.statusCode = 400;
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+    const resolvedSubdomain = extractSubdomainFromUrl(input.apiBaseUrl);
+    if (resolvedSubdomain) {
+      const organization = await this.repository.getOrganizationBySubdomain(resolvedSubdomain, provider);
+      if (!organization) {
+        throw new OrganizationNotFoundError(resolvedSubdomain);
+      }
+      const item = await this.mapExternalTenantRecord(organization, input.apiBaseUrl);
+      return { items: [item] };
+    }
+    const organizations = await this.repository.getOrganizationsByProvider(provider);
+    const items = await Promise.all(organizations.map((organization) => this.mapExternalTenantRecord(organization)));
+    return { items };
   }
 
 

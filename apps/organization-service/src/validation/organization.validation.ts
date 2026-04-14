@@ -178,8 +178,8 @@ export const updateOrganizationSchema = z.object({
 });
 
 export const getExternalTenantSchema = z.object({
-  apiBaseUrl: z.string().url('apiBaseUrl must be a valid URL'),
-  provider: z.string().optional(),
+  provider: z.string().min(1, 'provider is required'),
+  apiBaseUrl: z.string().url('apiBaseUrl must be a valid URL').optional(),
 });
 
 export const updateOrganizationMetadataSchema = z.object({

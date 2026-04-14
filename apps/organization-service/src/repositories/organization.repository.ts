@@ -380,22 +380,23 @@ export class OrganizationRepository {
     if (updates.subdomain !== undefined) {
       updateParts.push('subdomain = :subdomain');
       exprValues[':subdomain'] = updates.subdomain;
-      if (updates.subdomain) {
-        updateParts.push('gsi2pk = :gsi2pk');
-        exprValues[':gsi2pk'] = `LOOKUP#${String(updates.subdomain).toLowerCase()}`;
-      } else {
-        updateParts.push('gsi2pk = :gsi2pk');
-        exprValues[':gsi2pk'] = null;
-      }
     }
 
     if (updates.integration !== undefined) {
       updateParts.push('integration = :integration');
       exprValues[':integration'] = updates.integration;
-      const provider = updates.integration?.provider;
-      if (provider && updates.subdomain) {
+      const provider = updates.integration?.provider?.toUpperCase();
+      const subdomain = updates.subdomain?.toLowerCase();
+      if (provider && subdomain) {
+        updateParts.push('gsi2pk = :gsi2pk');
+        exprValues[':gsi2pk'] = `PROVIDER#${provider}`;
         updateParts.push('gsi2sk = :gsi2sk');
-        exprValues[':gsi2sk'] = `PROVIDER#${provider}#ORG#${organizationId}`;
+        exprValues[':gsi2sk'] = `LOOKUP#${subdomain}#ORG#${organizationId}`;
+      } else if (updates.subdomain === undefined || !updates.subdomain) {
+        updateParts.push('gsi2pk = :gsi2pk');
+        updateParts.push('gsi2sk = :gsi2sk');
+        exprValues[':gsi2pk'] = null;
+        exprValues[':gsi2sk'] = null;
       }
     }
 
@@ -1076,19 +1077,16 @@ export class OrganizationRepository {
     const normalizedSubdomain = subdomain.trim().toLowerCase();
     if (!normalizedSubdomain) return null;
     try {
+      const resolvedProvider = (provider || 'TRU_TECH').toUpperCase();
       const exprValues: Record<string, unknown> = {
-        ':gsi2pk': `LOOKUP#${normalizedSubdomain}`,
+        ':gsi2pk': `PROVIDER#${resolvedProvider}`,
+        ':gsi2sk': `LOOKUP#${normalizedSubdomain}#`,
       };
-      let keyConditionExpression = 'gsi2pk = :gsi2pk';
-      if (provider) {
-        keyConditionExpression += ' AND begins_with(gsi2sk, :gsi2sk)';
-        exprValues[':gsi2sk'] = `PROVIDER#${provider}#`;
-      }
       const response = await ddbDocClient.send(
         new QueryCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           IndexName: 'GSI2',
-          KeyConditionExpression: keyConditionExpression,
+          KeyConditionExpression: 'gsi2pk = :gsi2pk AND begins_with(gsi2sk, :gsi2sk)',
           ExpressionAttributeValues: exprValues,
           Limit: 1,
         }),
@@ -1099,8 +1097,33 @@ export class OrganizationRepository {
       }
       return this.sanitizeOrganization(item);
     } catch (err) {
-      const logger = createChildLogger(baseLogger, { subdomain: normalizedSubdomain, provider });
+      const logger = createChildLogger(baseLogger, { subdomain: normalizedSubdomain, provider: resolvedProvider });
       logger.error({ event: 'organization_get_by_subdomain_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async getOrganizationsByProvider(provider: string): Promise<Organization[]> {
+    const resolvedProvider = provider.trim().toUpperCase();
+    if (!resolvedProvider) return [];
+    try {
+      const response = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          IndexName: 'GSI2',
+          KeyConditionExpression: 'gsi2pk = :gsi2pk',
+          ExpressionAttributeValues: {
+            ':gsi2pk': `PROVIDER#${resolvedProvider}`,
+          },
+        }),
+      );
+      return (response.Items ?? [])
+        .map((item) => item as Organization)
+        .filter((item) => item.deleted !== true)
+        .map((item) => this.sanitizeOrganization(item));
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { provider: resolvedProvider });
+      logger.error({ event: 'organization_get_by_provider_error', err: serializeError(err) });
       throw err;
     }
   }

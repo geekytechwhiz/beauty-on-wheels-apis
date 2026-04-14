@@ -29,7 +29,13 @@ export function mapHmsPatientToCreatePatientModel(
   roleIds: RoleIds,
 ): PatientCreationPayload {
   const { patient, organizationID, provider } = event.data;
-  const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
+  const subdomain =
+    event.data.externalIdentity?.subdomain?.trim() ||
+    event.tenantId?.trim() ||
+    '';
+  if (!subdomain) {
+    throw new Error('subdomain/tenantId is required in patient creation event');
+  }
   const tenant = loadTenantDetails(subdomain);
 
   const input: CreatePatientModelInput = {

@@ -3,7 +3,6 @@ version: 0.2
 env:
   variables:
     AWS_REGION: us-east-1
-    LAMBDA_FUNCTION_NAME: api-center-basic-auth
     S3_BUCKET: dev-mvx-developer-hub
     CLOUDFRONT_DIST_ID: ""
     VITE_S3_BUCKET_NAME: dev-mvx-developer-hub
@@ -26,28 +25,11 @@ phases:
           echo "AWS_REGION is required."
           exit 1
         fi
-        if [ -z "${LAMBDA_FUNCTION_NAME:-}" ]; then
-          echo "LAMBDA_FUNCTION_NAME is required."
-          exit 1
-        fi
         if [ -z "${S3_BUCKET:-}" ]; then
           echo "S3_BUCKET is required."
           exit 1
         fi
-      - 'echo "Deploying Lambda@Edge code in ${AWS_REGION}..."'
-      - 'cd api-center/lambda-edge/api-center-basic-auth && zip -r function.zip index.js && cd -'
-      - |
-        aws lambda update-function-code \
-          --region "${AWS_REGION}" \
-          --function-name "${LAMBDA_FUNCTION_NAME}" \
-          --zip-file "fileb://api-center/lambda-edge/api-center-basic-auth/function.zip"
-      - |
-        LAMBDA_VERSION="$(aws lambda publish-version \
-          --region "${AWS_REGION}" \
-          --function-name "${LAMBDA_FUNCTION_NAME}" \
-          --query 'Version' \
-          --output text)"
-        echo "Published Lambda version: ${LAMBDA_VERSION}"
+      - 'echo "Skipping Lambda@Edge update/publish in this pipeline run."'
       - 'echo "Installing api-center dependencies..."'
       - npm --prefix api-center install --include=dev
   build:

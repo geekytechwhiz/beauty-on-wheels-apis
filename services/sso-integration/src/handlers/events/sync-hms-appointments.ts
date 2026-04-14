@@ -61,36 +61,56 @@ export async function handler(
     const sqsClient = new SQSClient({});
     let enqueued = 0;
     let totalAppointments = 0;
+    let tenantFailures = 0;
 
     for (const tenant of tenants) {
-      const context = buildSSORequestContextFromTenant(tenant, correlationId);
-      const validAppointments =
-        await appointmentSyncService.fetchAndValidateAppointments(context);
-      totalAppointments += validAppointments.length;
+      try {
+        const context = buildSSORequestContextFromTenant(tenant, correlationId);
+        const validAppointments =
+          await appointmentSyncService.fetchAndValidateAppointments(context);
+        totalAppointments += validAppointments.length;
 
-      for (let i = 0; i < validAppointments.length; i += SQS_BATCH_SIZE) {
-        const chunk = validAppointments.slice(i, i + SQS_BATCH_SIZE);
-        const entries = chunk.map((appointment: Appointment, idx: number) => ({
-          Id: `${tenant.tenantId}-${i + idx}`,
-          MessageBody: JSON.stringify({
-            tenantId: context.tenantId,
-            appointment,
-            correlationId: context.correlationId,
-          }),
-        }));
+        for (let i = 0; i < validAppointments.length; i += SQS_BATCH_SIZE) {
+          const chunk = validAppointments.slice(i, i + SQS_BATCH_SIZE);
+          const entries = chunk.map((appointment: Appointment, idx: number) => ({
+            Id: `${tenant.tenantId}-${i + idx}`,
+            MessageBody: JSON.stringify({
+              tenantId: context.tenantId,
+              appointment,
+              correlationId: context.correlationId,
+            }),
+          }));
 
-        await sqsClient.send(
-          new SendMessageBatchCommand({
-            QueueUrl: queueUrl,
-            Entries: entries,
-          }),
-        );
-        enqueued += entries.length;
+          await sqsClient.send(
+            new SendMessageBatchCommand({
+              QueueUrl: queueUrl,
+              Entries: entries,
+            }),
+          );
+          enqueued += entries.length;
+        }
+
+        await emitMetric(MetricNames.HMS_FETCH_SUCCESS, 1, 'Count', {
+          tenantId: context.tenantId,
+        });
+      } catch (tenantError) {
+        tenantFailures += 1;
+        await emitMetric(MetricNames.HMS_FETCH_FAILURES, 1, 'Count', {
+          tenantId: tenant.tenantId || 'unknown',
+        });
+        logger.error({
+          event: 'tenant_sync_failed',
+          tenantId: tenant.tenantId,
+          provider: tenant.provider,
+          err: serializeError(tenantError as Error),
+        });
       }
+    }
 
-      await emitMetric(MetricNames.HMS_FETCH_SUCCESS, 1, 'Count', {
-        tenantId: context.tenantId,
-      });
+    if (tenantFailures === tenants.length) {
+      throw new Error(
+        `All tenant sync attempts failed for provider ${env.PROVIDER}`,
+      );
     }
 
     logger.info({
@@ -99,6 +119,7 @@ export async function handler(
       correlationId,
       provider: env.PROVIDER,
       tenantCount: tenants.length,
+      tenantFailures,
       enqueued,
       totalAppointments,
     });

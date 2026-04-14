@@ -3,15 +3,17 @@ import { SourceSystem } from "../types/common/context.types";
 import { PatientCreationEvent } from "../types/events";
 import { PatientCreationPayload } from "../types/user-creation.type";
 import { PHONE_CODE } from "../utils/constants";
+import { RoleIds } from "./user-creation.mapper";
 
 export function mapPatientEventToCreateUserPayload(
-  event: PatientCreationEvent
+  event: PatientCreationEvent,
+  roleIds: RoleIds,
 ): PatientCreationPayload {
   const { patient, organizationID, provider, externalId } = event.data;
   const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
   const tenant = loadTenantDetails(subdomain);
-  if (!tenant.patientRoleId || !tenant.provider) {
-    throw new Error('PATIENT_ROLE_ID and PROVIDER are required');
+  if (!roleIds.patientRoleId || !tenant.provider) {
+    throw new Error('Patient role and provider are required');
   }
   const name = (patient.name ?? "").toString().trim();
   const gender = patient.gender ?? "";
@@ -52,7 +54,7 @@ export function mapPatientEventToCreateUserPayload(
       },
       friendNFamily: { },
     },
-    userRole: [tenant.patientRoleId],
+    userRole: [roleIds.patientRoleId],
     userType: "USER",
     organizationID: organizationID ?? tenant.organizationId,
     externalIdentity: {

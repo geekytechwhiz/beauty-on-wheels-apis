@@ -5,13 +5,6 @@ import { z } from 'zod';
 // -----------------------------------------------------------------------------
 
 const ssoConfigSchema = z.object({
-  // Default organization ID for TruTech users
-  defaultOrganizationID: z.string().min(1, 'defaultOrganizationID is required'),
-  
-  // Default role IDs
-  doctorRoleId: z.string().min(1, 'doctorRoleId is required'),
-  patientRoleId: z.string().min(1, 'patientRoleId is required'),
-  
   // Default doctor values
   doctor: z.object({
     specialty: z.string().default('general'),
@@ -133,9 +126,6 @@ export function loadSSOConfig(): SSOConfig {
 
   // Build config from environment variables (only required ones) with hardcoded defaults
   const configData = {
-    defaultOrganizationID: process.env.SSO_DEFAULT_ORGANIZATION_ID || 'mm1usge33d4f9b61',
-    doctorRoleId: process.env.SSO_DOCTOR_ROLE_ID || 'bc892d14-1e37-48cc-966b-02b795b2fb11',
-    patientRoleId: process.env.SSO_PATIENT_ROLE_ID || '5acc5353-0d87-4100-9bc5-c87a43c1196c',
     doctor: {
       specialty: process.env.SSO_DOCTOR_SPECIALTY || defaults.doctor.specialty,
       namePrefix: process.env.SSO_DOCTOR_NAME_PREFIX || defaults.doctor.namePrefix,

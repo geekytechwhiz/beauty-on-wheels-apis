@@ -274,7 +274,7 @@ export class PatientEventPublisher {
           emergencyContact: null,
           medicalHistory: null,
         },
-        externalIdentity: buildExternalIdentity(String(patient.id)),
+        externalIdentity: buildExternalIdentity(String(patient.id), context),
         ...(hasDoctorId ? { doctorId } : {}),
         organizationID,
         provider,

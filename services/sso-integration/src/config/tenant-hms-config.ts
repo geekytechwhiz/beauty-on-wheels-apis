@@ -1,4 +1,5 @@
 import { getEnvConfig } from './env';
+import { getCachedExternalTenantByTenantId } from '../services/external-tenant.service';
 
 export interface TenantHmsConfig {
   baseUrl: string;
@@ -37,17 +38,23 @@ function parseTenantHmsConfig(): Record<string, TenantHmsConfig> {
 
 /**
  * Returns HMS (TruTech) configuration for the given tenant.
- * If TENANT_HMS_CONFIG is set and contains the tenant, returns that config.
- * Otherwise returns the default global TRU_TECH_* env config.
+ * Prefers Organization Service tenant cache; then TENANT_HMS_CONFIG.
+ * Throws when tenant-specific config is unavailable.
  */
 export function getTenantHmsConfig(tenantId: string): TenantHmsConfig {
+  const env = getEnvConfig();
+  const cachedTenant = getCachedExternalTenantByTenantId(env.PROVIDER, tenantId);
+  if (cachedTenant) {
+    return {
+      baseUrl: cachedTenant.apiBaseUrl,
+      apiKey: cachedTenant.apiKey,
+      timeoutMs: env.TRU_TECH_TIMEOUT_MS,
+    };
+  }
+
   const map = parseTenantHmsConfig();
   const tenantConfig = map[tenantId];
   if (tenantConfig) return tenantConfig;
-  const env = getEnvConfig();
-  return {
-    baseUrl: env.TRU_TECH_BASE_URL,
-    apiKey: env.TRU_TECH_API_KEY,
-    timeoutMs: env.TRU_TECH_TIMEOUT_MS,
-  };
+
+  throw new Error(`HMS config not found for tenant: ${tenantId}`);
 }

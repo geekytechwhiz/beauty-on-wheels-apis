@@ -14,6 +14,7 @@ import { SSOError } from '../types/errors/sso-error';
 import { TruTechVerifyContext } from '../types/external/trutech.types';
 import { ROLE } from '../utils/constants';
 import { getEnvConfig } from '../config/env';
+import { getTruTechClientForTenant } from '../clients/tru-tech.clients';
 export class LaunchService extends BaseService {
    
 
@@ -138,7 +139,7 @@ export class LaunchService extends BaseService {
   }
 
   private async verifyLaunchToken(launchToken: string, ctx: SSORequestContext) {
-    const response = await this.truTechClient.verifyLaunchToken(
+    const response = await getTruTechClientForTenant(ctx.tenantId).verifyLaunchToken(
       launchToken,
       ctx.correlationId,
     );
@@ -187,7 +188,7 @@ export class LaunchService extends BaseService {
     doctorId: number,
     ctx: SSORequestContext,
   ): Promise<TruTechAppointmentsResponse> {
-    const response = await this.truTechClient.getTodaysAppointments(
+    const response = await getTruTechClientForTenant(ctx.tenantId).getTodaysAppointments(
       doctorId,
       ctx.correlationId,
     );
@@ -201,6 +202,11 @@ export class LaunchService extends BaseService {
     doctorInfo: TruTechVerifyContext,
     ctx: SSORequestContext,
   ): Promise<number> {
+    const organizationId = ctx.integration.externalHospitalId;
+    if (!organizationId) {
+      throw new Error('Organization ID is required in request context');
+    }
+
     const uniquePatients = new Map<number, Patient>();
 
     for (const appointment of appointments || []) {
@@ -214,8 +220,8 @@ export class LaunchService extends BaseService {
     const events = Array.from(uniquePatients.values()).map((patient) =>
       this.patientEventPublisher.createPatientCreationEvent(
         patient,
-        this.config.defaultOrganizationID,
-        'TruTech', 
+        organizationId,
+        ctx.integration.providerId,
         ctx,
         doctor?.id?.toString() ?? '', // Use internal doctor ID, not external TruTech ID
       ),

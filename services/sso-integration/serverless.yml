@@ -31,8 +31,6 @@ provider:
     COGNITO_USER_POOL_ID: ${self:custom.stageUrls.${self:provider.stage}.COGNITO_USER_POOL_ID}
     COGNITO_CLIENT_ID: ${self:custom.stageUrls.${self:provider.stage}.COGNITO_CLIENT_ID}
     COGNITO_SSO_COMMON_PASSWORD: Comm@n12
-    DOCTOR_ROLE_ID: ${self:custom.stageUrls.${self:provider.stage}.DOCTOR_ROLE_ID}
-    PATIENT_ROLE_ID: ${self:custom.stageUrls.${self:provider.stage}.PATIENT_ROLE_ID}
     INTERNAL_SERVICE_TOKEN: ${self:custom.stageUrls.${self:provider.stage}.INTERNAL_SERVICE_TOKEN}
     PROVIDER: TRU_TECH
 
@@ -183,8 +181,6 @@ custom:
       SECRET_MANAGER_NAME: 'DEV_DEMO_SECRETMANAGER'
       COGNITO_USER_POOL_ID: 'us-east-1_AK1HTxdlX'
       COGNITO_CLIENT_ID: '6v68r2stt9b4rgr3u8348bslsi'
-      DOCTOR_ROLE_ID: '04a9f451-a93b-4889-85c3-877b443df639'
-      PATIENT_ROLE_ID: '0a1beb2b-1934-4a28-9176-12d5716a488e'
       INTERNAL_SERVICE_TOKEN: 'b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1'
       USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
       ORGANIZATION_SERVICE_BASE_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
@@ -197,8 +193,6 @@ custom:
       SECRET_MANAGER_NAME: 'STG_DEMO_SECRETMANAGER'
       COGNITO_USER_POOL_ID: 'us-east-1_wttVwD9Ax'
       COGNITO_CLIENT_ID: '51dhgth4oijapf4m1gv51p09tp'
-      DOCTOR_ROLE_ID: '8ebed8e0-6011-4eff-9c1d-1cceb451225a'
-      PATIENT_ROLE_ID: '94734512-2b90-41a9-a310-ee8db9c599e0'
       INTERNAL_SERVICE_TOKEN: 'b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1'
       USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
       ORGANIZATION_SERVICE_BASE_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
@@ -211,8 +205,6 @@ custom:
       SECRET_MANAGER_NAME: 'PRD_DEMO_SECRETMANAGER'
       COGNITO_USER_POOL_ID: 'us-east-1_0uZJvIS5R'
       COGNITO_CLIENT_ID: '1a5qc2h57l6gjk5719gb9cecfi'
-      DOCTOR_ROLE_ID: '04a9f451-a93b-4889-85c3-877b443df639'
-      PATIENT_ROLE_ID: '0a1beb2b-1934-4a28-9176-12d5716a488e'
       INTERNAL_SERVICE_TOKEN: 'b7c3f2e6d91a4c7e8f0b2d5a6c9e3f417d8a0b5c2e4f6a1d9c7e3b8f2a4d6c1'
       USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
       ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'

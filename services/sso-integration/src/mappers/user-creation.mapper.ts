@@ -15,11 +15,19 @@ import { buildExternalIdentity } from '../utils/context-builder.util';
 import { getOrganizationId, loadTenantDetails } from '../utils/helper';
 import { processPhoneNumber } from '../utils/phone-processor';
 
+export type RoleIds = {
+  doctorRoleId: string;
+  patientRoleId: string;
+};
+
 /**
  * Maps a patient creation event (HMS) to a create-user payload for a patient.
  * Uses CreatePatientModel; output is compatible with createUserSchema.
  */
-export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): PatientCreationPayload {
+export function mapHmsPatientToCreatePatientModel(
+  event: PatientCreationEvent,
+  roleIds: RoleIds,
+): PatientCreationPayload {
   const { patient, organizationID, provider } = event.data;
   const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
   const tenant = loadTenantDetails(subdomain);
@@ -40,7 +48,7 @@ export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): 
       provider: provider || tenant.provider,
       sourceSystem: SourceSystem.HMS,
     },
-    patientRoleId: tenant.patientRoleId,
+    patientRoleId: roleIds.patientRoleId,
   };
 
   return createPatientModel(input);
@@ -53,6 +61,7 @@ export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): 
 export function mapHmsDoctorToCreateDoctorModel(
   appointment: Appointment,
   context: SSORequestContext,
+  roleIds: RoleIds,
 ): DoctorCreationPayload {
   const config = getSSOConfig();
   const subdomain = context.integration?.subdomain ?? '';
@@ -102,7 +111,7 @@ export function mapHmsDoctorToCreateDoctorModel(
       externalHospitalId: context.integration?.externalHospitalId,
       sourceSystem: SourceSystem.HMS,
     },
-    doctorRoleId: tenant.doctorRoleId,
+    doctorRoleId: roleIds.doctorRoleId,
     namePrefix: config.doctor.namePrefix,
     workingHours,
     slotDurationInMinutes: config.doctor.slotDurationInMinutes,
@@ -119,6 +128,7 @@ export function mapHmsDoctorToCreateDoctorModel(
 export function mapHmsAppointmentPatientToCreatePatientModel(
   appointment: Appointment,
   context: SSORequestContext,
+  roleIds: RoleIds,
 ): PatientCreationPayload {
   const config = getSSOConfig();
   const subdomain = context.integration?.subdomain ?? '';
@@ -143,7 +153,7 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
       patient.id?.toString(),
       context,
     ),
-    patientRoleId: tenant.patientRoleId,
+    patientRoleId: roleIds.patientRoleId,
   };
 
   return createPatientModel(input);

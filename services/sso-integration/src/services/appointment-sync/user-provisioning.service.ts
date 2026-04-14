@@ -13,6 +13,7 @@ import {
 } from '../../mappers/user-creation.mapper';
 import { CreatedUserInfo } from '../../types/user/user.types';
 import { UserExistenceValidator } from '../../validators/user-existence.validator';
+import { getOrganizationRoleIds } from '../organization-role.service';
 
 function mapUserToCreatedUserInfo(
   user: User,
@@ -121,9 +122,16 @@ export class UserProvisioningService {
       doctorEmail,
     });
 
+    const organizationId = context.integration.externalHospitalId;
+    if (!organizationId) {
+      throw new Error('organizationId is required in request context');
+    }
+    const roleIds = await getOrganizationRoleIds(organizationId, context);
+
     const doctorRequestPayload = mapHmsDoctorToCreateDoctorModel(
       appointment,
       context,
+      roleIds,
     );
 
     try {
@@ -241,9 +249,15 @@ export class UserProvisioningService {
       event: 'patient_not_found_creating',
       patientExternalId: externalUserId,
     });
+    const organizationId = context.integration.externalHospitalId;
+    if (!organizationId) {
+      throw new Error('organizationId is required in request context');
+    }
+    const roleIds = await getOrganizationRoleIds(organizationId, context);
     const patientRequestPayload = mapHmsAppointmentPatientToCreatePatientModel(
       appointment,
       context,
+      roleIds,
     );
     const createdUser = await this.ssoUserServiceClient.createPatient(
       patientRequestPayload,

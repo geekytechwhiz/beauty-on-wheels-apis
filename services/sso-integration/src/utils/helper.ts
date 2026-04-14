@@ -10,8 +10,6 @@ export const makePrefixFromGender = (gender: string): string => {
 export type TenantDetails = {
   organizationId: string;
   subdomain: string;
-  doctorRoleId: string;
-  patientRoleId: string;
   provider: string;
 }
 export const loadTenantDetails = (subdomain: string): TenantDetails => {
@@ -28,8 +26,6 @@ export const loadTenantDetails = (subdomain: string): TenantDetails => {
   const tenantDetails={
     organizationId: cachedTenant.organizationId,
     subdomain: subdomain,
-    doctorRoleId: envConfig.DOCTOR_ROLE_ID,
-    patientRoleId: envConfig.PATIENT_ROLE_ID,
     provider: cachedTenant.provider,
     
   } 

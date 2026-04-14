@@ -61,6 +61,7 @@ export function buildSSORequestContext(
     integration: {
       providerId: tenant.provider,
       subdomain: tenantId,
+      externalHospitalId: tenant.organizationId,
     },
     sourceSystem: SourceSystem.HMS,
   };
@@ -84,6 +85,7 @@ export function buildSSORequestContextFromSQS(
     integration: {
       providerId: tenant.provider,
       subdomain: tenantId,
+      externalHospitalId: tenant.organizationId,
     },
     sourceSystem: SourceSystem.HMS,
   };
@@ -147,6 +149,7 @@ export function buildSSORequestContextFromAppointmentMessage(
     integration: {
       providerId: tenant.provider,
       subdomain: tenantId,
+      externalHospitalId: tenant.organizationId,
     },
     sourceSystem: SourceSystem.HMS,
   };

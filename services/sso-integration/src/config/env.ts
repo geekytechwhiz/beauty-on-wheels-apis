@@ -29,6 +29,9 @@ const envSchema = z.object({
   USER_SERVICE_BASE_URL: z
     .string()
     .url('USER_SERVICE_BASE_URL must be a valid URL'),
+  ROLE_SERVICE_BASE_URL: z
+    .string()
+    .url('ROLE_SERVICE_BASE_URL must be a valid URL'),
   ORGANIZATION_SERVICE_BASE_URL: z
     .string()
     .url('ORGANIZATION_SERVICE_BASE_URL must be a valid URL'),
@@ -52,10 +55,6 @@ const envSchema = z.object({
     .default(10000),
   APPOINTMENT_SYNC_CONCURRENCY_LIMIT: z.coerce.number().min(1).default(5),
   APPOINTMENT_SOURCE_TIMEZONE: z.string().min(1).default('Africa/Lusaka'),
-
-  DOCTOR_ROLE_ID: z.string().min(1, 'DOCTOR_ROLE_ID is required'),
-
-  PATIENT_ROLE_ID: z.string().min(1, 'PATIENT_ROLE_ID is required'),
 
   PROVIDER: z.string().min(1, 'PROVIDER is required'),
 });

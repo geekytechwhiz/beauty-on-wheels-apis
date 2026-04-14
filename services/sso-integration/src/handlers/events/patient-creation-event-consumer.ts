@@ -19,6 +19,7 @@ import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util'
 import { PatientCreationEvent } from '../../types/events';
 import { UserExistenceValidator } from '../../validators/user-existence.validator';
 import { CognitoService } from '../../services/cognito.service';
+import { getOrganizationRoleIds } from '../../services/organization-role.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -150,8 +151,7 @@ async function processPatientCreationEvent(
     requestContext,
   );
 
-  const resolvedOrganizationId =
-    organizationID || requestContext.integration.externalHospitalId;
+  const resolvedOrganizationId = organizationID;
   if (!resolvedOrganizationId) {
     throw new Error('organizationID is required for patient creation flow');
   }
@@ -184,7 +184,8 @@ async function processPatientCreationEvent(
    * Map event → createUser payload (CreatePatientModel)
    */
   if (!patientUserId) {
-    const patientPayload = mapHmsPatientToCreatePatientModel(event);
+    const roleIds = await getOrganizationRoleIds(resolvedOrganizationId, requestContext);
+    const patientPayload = mapHmsPatientToCreatePatientModel(event, roleIds);
 
     logger.info({
       event: 'patient_creation_event_mapped_payload',

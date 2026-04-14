@@ -144,6 +144,10 @@ export function getS3ConfigSummary(): {
   };
 }
 
+function getPublicReadBaseUrl(): string | null {
+  return getCloudFrontBaseUrl();
+}
+
 function buildPublicObjectUrl(key: string): string {
   const encodedKey = encodeURIComponentPath(key);
   const cloudFrontBaseUrl = getCloudFrontBaseUrl();
@@ -185,6 +189,97 @@ function encodeURIComponentPath(path: string): string {
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
+}
+
+async function fetchPublicText(url: string): Promise<string> {
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json, application/yaml, text/yaml, text/plain, application/xml, text/xml',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to load ${url}. Received ${response.status} ${response.statusText}.`);
+  }
+
+  return response.text();
+}
+
+function getElementChildrenByName(parent: Element, name: string): Element[] {
+  return Array.from(parent.children).filter((child) => child.localName === name);
+}
+
+function getFirstChildText(parent: Element | Document, name: string): string | null {
+  const allElements = parent instanceof Document ? Array.from(parent.documentElement.children) : Array.from(parent.children);
+  const match = allElements.find((child) => child.localName === name);
+  return match?.textContent?.trim() ?? null;
+}
+
+function parsePublicListXml(xmlText: string): {
+  objects: _Object[];
+  nextContinuationToken?: string;
+} {
+  const parser = new DOMParser();
+  const document = parser.parseFromString(xmlText, 'application/xml');
+  const parserError = document.querySelector('parsererror');
+  if (parserError) {
+    throw new Error('Unable to parse the CloudFront listing response.');
+  }
+
+  const root = document.documentElement;
+  if (root.localName === 'Error') {
+    const code = getFirstChildText(root, 'Code') ?? 'UnknownError';
+    const message = getFirstChildText(root, 'Message') ?? 'CloudFront listing failed.';
+    throw new Error(`${code}: ${message}`);
+  }
+
+  const objects = getElementChildrenByName(root, 'Contents').map((_content): _Object => {
+    const key = getFirstChildText(_content, 'Key') ?? undefined;
+    const lastModified = getFirstChildText(_content, 'LastModified');
+    const sizeText = getFirstChildText(_content, 'Size');
+    const size = sizeText ? Number.parseInt(sizeText, 10) : undefined;
+
+    return {
+      Key: key,
+      LastModified: lastModified ? new Date(lastModified) : undefined,
+      Size: Number.isFinite(size) ? size : undefined,
+    };
+  });
+
+  const nextContinuationToken = getFirstChildText(root, 'NextContinuationToken') ?? undefined;
+
+  return { objects, nextContinuationToken };
+}
+
+async function listAllSpecObjectsViaCloudFront(prefix?: string): Promise<_Object[]> {
+  const baseUrl = getPublicReadBaseUrl();
+  if (!baseUrl) {
+    throw new Error('CloudFront URL is not configured.');
+  }
+
+  const objects: _Object[] = [];
+  let continuationToken: string | undefined;
+  const effectivePrefix = prefix ? `${getSpecsPrefix()}/${prefix}` : `${getSpecsPrefix()}/`;
+
+  do {
+    const listUrl = new URL(`${baseUrl}/`);
+    listUrl.searchParams.set('list-type', '2');
+    listUrl.searchParams.set('prefix', effectivePrefix);
+    if (continuationToken) {
+      listUrl.searchParams.set('continuation-token', continuationToken);
+    }
+
+    const xmlText = await fetchPublicText(listUrl.toString());
+    const parsed = parsePublicListXml(xmlText);
+    objects.push(...parsed.objects);
+    continuationToken = parsed.nextContinuationToken;
+  } while (continuationToken);
+
+  return objects;
+}
+
+async function loadPublicSpecText(key: string): Promise<string> {
+  return fetchPublicText(buildPublicObjectUrl(key));
 }
 
 export function createS3Client(): S3Client {
@@ -454,6 +549,10 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
 }
 
 async function listAllSpecObjects(prefix?: string): Promise<_Object[]> {
+  if (getPublicReadBaseUrl()) {
+    return listAllSpecObjectsViaCloudFront(prefix);
+  }
+
   const client = getS3Client();
   const bucketName = getBucketName();
   const objects: _Object[] = [];
@@ -493,13 +592,17 @@ export async function listVersions(serviceName: string): Promise<OpenApiSpecFile
   const versionsWithStatus = await Promise.all(
     versions.map(async (version) => {
       try {
-        const response = await getS3Client().send(
-          new GetObjectCommand({
-            Bucket: getBucketName(),
-            Key: version.key,
-          }),
-        );
-        const rawText = await readResponseBodyAsText(response.Body);
+        const rawText = getPublicReadBaseUrl()
+          ? await loadPublicSpecText(version.key)
+          : await (async () => {
+              const response = await getS3Client().send(
+                new GetObjectCommand({
+                  Bucket: getBucketName(),
+                  Key: version.key,
+                }),
+              );
+              return readResponseBodyAsText(response.Body);
+            })();
         const parsedSpec = parseOpenApiText(rawText, version.extension);
 
         return {
@@ -629,14 +732,17 @@ export async function loadEditableSpecDocument({
   version: string;
 }): Promise<EditableSpecDocument> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const response = await getS3Client().send(
-    new GetObjectCommand({
-      Bucket: getBucketName(),
-      Key: resolved.key,
-    }),
-  );
-
-  const rawText = await readResponseBodyAsText(response.Body);
+  const rawText = getPublicReadBaseUrl()
+    ? await loadPublicSpecText(resolved.key)
+    : await (async () => {
+        const response = await getS3Client().send(
+          new GetObjectCommand({
+            Bucket: getBucketName(),
+            Key: resolved.key,
+          }),
+        );
+        return readResponseBodyAsText(response.Body);
+      })();
   const parsedSpec = parseOpenApiText(rawText, resolved.extension);
 
   return {
@@ -753,14 +859,17 @@ export async function deleteSpecVersion(input: DeleteSpecVersionInput): Promise<
 
 export async function loadDesignLibraryEntries(): Promise<DesignLibraryEntry[]> {
   try {
-    const response = await getS3Client().send(
-      new GetObjectCommand({
-        Bucket: getBucketName(),
-        Key: getFigmaDesignsKey(),
-      }),
-    );
-
-    const rawText = await readResponseBodyAsText(response.Body);
+    const rawText = getPublicReadBaseUrl()
+      ? await loadPublicSpecText(getFigmaDesignsKey())
+      : await (async () => {
+          const response = await getS3Client().send(
+            new GetObjectCommand({
+              Bucket: getBucketName(),
+              Key: getFigmaDesignsKey(),
+            }),
+          );
+          return readResponseBodyAsText(response.Body);
+        })();
     const parsed = JSON.parse(rawText) as unknown;
 
     if (!Array.isArray(parsed)) {

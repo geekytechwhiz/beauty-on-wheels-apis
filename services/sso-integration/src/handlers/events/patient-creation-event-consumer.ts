@@ -20,6 +20,8 @@ import { PatientCreationEvent } from '../../types/events';
 import { UserExistenceValidator } from '../../validators/user-existence.validator';
 import { CognitoService } from '../../services/cognito.service';
 import { getOrganizationRoleIds } from '../../services/organization-role.service';
+import { getEnvConfig } from '../../config/env';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -42,6 +44,9 @@ export async function handler(
     event: 'patient_creation_consumer_start',
     recordCount: event.Records.length,
   });
+
+  const env = getEnvConfig();
+  await getExternalTenantsByProvider(env.PROVIDER);
 
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 

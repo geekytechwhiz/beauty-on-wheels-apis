@@ -1,7 +1,6 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
-  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   type _Object,
@@ -79,6 +78,7 @@ export interface DesignLibraryEntry {
 
 const DEFAULT_SPECS_PREFIX = 'specs';
 const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'approved';
+const DEFAULT_CLOUDFRONT_PUBLIC_URL = 'https://d28d5t5u0n3bd1.cloudfront.net';
 const OPENAPI_FILE_PATTERN = /^(.+?)\/(.+?)\/openapi\.(json|yaml|yml)$/i;
 const VERSION_COLLATOR = new Intl.Collator(undefined, {
   numeric: true,
@@ -120,16 +120,8 @@ function getFigmaDesignsKey(): string {
 
 function getCloudFrontBaseUrl(): string | null {
   const rawUrl = import.meta.env.VITE_CLOUDFRONT_URL?.trim();
-  if (!rawUrl) {
-    return null;
-  }
-
-  const normalized = rawUrl.replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
-  if (!normalized) {
-    return null;
-  }
-
-  return normalized;
+  const normalized = (rawUrl || DEFAULT_CLOUDFRONT_PUBLIC_URL).replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
+  return normalized || null;
 }
 
 export function getS3ConfigSummary(): {
@@ -155,12 +147,7 @@ function buildPublicObjectUrl(key: string): string {
     return `${cloudFrontBaseUrl}/${encodedKey}`;
   }
 
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return `${window.location.origin}/${encodedKey}`;
-  }
-
-  const { bucketName, region } = getS3ConfigSummary();
-  return `https://${bucketName}.s3.${region}.amazonaws.com/${encodedKey}`;
+  throw new Error('CloudFront URL is not configured.');
 }
 
 async function readResponseBodyAsText(body: unknown): Promise<string> {
@@ -549,33 +536,7 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
 }
 
 async function listAllSpecObjects(prefix?: string): Promise<_Object[]> {
-  if (getPublicReadBaseUrl()) {
-    return listAllSpecObjectsViaCloudFront(prefix);
-  }
-
-  const client = getS3Client();
-  const bucketName = getBucketName();
-  const objects: _Object[] = [];
-  let continuationToken: string | undefined;
-  const effectivePrefix = prefix ? `${getSpecsPrefix()}/${prefix}` : `${getSpecsPrefix()}/`;
-
-  do {
-    const response = await client.send(
-      new ListObjectsV2Command({
-        Bucket: bucketName,
-        Prefix: effectivePrefix,
-        ContinuationToken: continuationToken,
-      }),
-    );
-
-    if (response.Contents) {
-      objects.push(...response.Contents);
-    }
-
-    continuationToken = response.NextContinuationToken;
-  } while (continuationToken);
-
-  return objects;
+  return listAllSpecObjectsViaCloudFront(prefix);
 }
 
 export async function listServices(): Promise<ServiceCatalogEntry[]> {
@@ -592,17 +553,7 @@ export async function listVersions(serviceName: string): Promise<OpenApiSpecFile
   const versionsWithStatus = await Promise.all(
     versions.map(async (version) => {
       try {
-        const rawText = getPublicReadBaseUrl()
-          ? await loadPublicSpecText(version.key)
-          : await (async () => {
-              const response = await getS3Client().send(
-                new GetObjectCommand({
-                  Bucket: getBucketName(),
-                  Key: version.key,
-                }),
-              );
-              return readResponseBodyAsText(response.Body);
-            })();
+        const rawText = await loadPublicSpecText(version.key);
         const parsedSpec = parseOpenApiText(rawText, version.extension);
 
         return {
@@ -732,17 +683,7 @@ export async function loadEditableSpecDocument({
   version: string;
 }): Promise<EditableSpecDocument> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const rawText = getPublicReadBaseUrl()
-    ? await loadPublicSpecText(resolved.key)
-    : await (async () => {
-        const response = await getS3Client().send(
-          new GetObjectCommand({
-            Bucket: getBucketName(),
-            Key: resolved.key,
-          }),
-        );
-        return readResponseBodyAsText(response.Body);
-      })();
+  const rawText = await loadPublicSpecText(resolved.key);
   const parsedSpec = parseOpenApiText(rawText, resolved.extension);
 
   return {
@@ -859,17 +800,7 @@ export async function deleteSpecVersion(input: DeleteSpecVersionInput): Promise<
 
 export async function loadDesignLibraryEntries(): Promise<DesignLibraryEntry[]> {
   try {
-    const rawText = getPublicReadBaseUrl()
-      ? await loadPublicSpecText(getFigmaDesignsKey())
-      : await (async () => {
-          const response = await getS3Client().send(
-            new GetObjectCommand({
-              Bucket: getBucketName(),
-              Key: getFigmaDesignsKey(),
-            }),
-          );
-          return readResponseBodyAsText(response.Body);
-        })();
+    const rawText = await loadPublicSpecText(getFigmaDesignsKey());
     const parsed = JSON.parse(rawText) as unknown;
 
     if (!Array.isArray(parsed)) {

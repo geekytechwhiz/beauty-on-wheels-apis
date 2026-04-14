@@ -12,6 +12,8 @@ import { ApiResponse } from '@api-hub/utils'
     import { SSORequestContext } from '../types/common/context.types'
 import { SSOError } from '../types/errors/sso-error'
 import { buildSSORequestContext } from '../utils/context-builder.util'
+import { getEnvConfig } from '../config/env'
+import { getExternalTenantsByProvider } from '../services/external-tenant.service'
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -36,6 +38,8 @@ export abstract class BaseController {
     const requestLogger = createChildLogger(this.logger, {
       correlationId
     })
+    const env = getEnvConfig()
+    await getExternalTenantsByProvider(env.PROVIDER)
     const context = buildSSORequestContext(event, correlationId) 
 
     const startTime = Date.now()

@@ -692,6 +692,10 @@ export class OrganizationService {
     tenantId: string;
     organizationId: string;
     subdomain: string;
+    apiBaseUrl: string;
+    provider?: string;
+    sourceSystem?: string;
+    apiKey?: string;
   }> {
     const subdomain = extractSubdomainFromUrl(apiBaseUrl);
     if (!subdomain) {
@@ -704,10 +708,24 @@ export class OrganizationService {
     if (!organization) {
       throw new OrganizationNotFoundError(subdomain);
     }
+    const integration = organization.integration;
+    const resolvedApiBaseUrl = integration?.apiBaseUrl?.trim() || apiBaseUrl;
+    let apiKey: string | undefined;
+    const apiKeyRef = integration?.apiKeyRef?.trim();
+    if (apiKeyRef) {
+      const secret = await this.secretManagerService.fetchApiKey(apiKeyRef).catch(() => null);
+      if (secret) {
+        apiKey = secret;
+      }
+    }
     return {
       tenantId: organization.organizationId,
       organizationId: organization.organizationId,
       subdomain,
+      apiBaseUrl: resolvedApiBaseUrl,
+      provider: integration?.provider,
+      sourceSystem: integration?.sourceSystem,
+      apiKey,
     };
   }
 

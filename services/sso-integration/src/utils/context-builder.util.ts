@@ -90,7 +90,7 @@ export function buildSSORequestContext(
   }
 
   if (!tenantId) {
-    throw new Error('Tenant id is required in request headers or path');
+    throw new Error('Tenant id is required in request headers, path, query, or body');
   }
 
   serviceToken = getHeaderValue(headers, 'authorization') || null;

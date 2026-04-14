@@ -721,7 +721,7 @@ export class OrganizationService {
       }
     }
     return {
-      tenantId: organization.organizationId,
+      tenantId: resolvedSubdomain,
       organizationId: organization.organizationId,
       subdomain: resolvedSubdomain,
       apiBaseUrl: resolvedApiBaseUrl,

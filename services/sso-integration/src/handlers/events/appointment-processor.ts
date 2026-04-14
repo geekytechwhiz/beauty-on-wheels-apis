@@ -11,6 +11,8 @@ import { AppointmentSyncService } from '../../services/appointment-sync.service'
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 import { publishDoctorProvision } from '../../services/appointment-sync/doctor-provision-queue.service';
 import { Appointment } from '../../types';
+import { getEnvConfig } from '../../config/env';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -45,6 +47,8 @@ export async function handler(
 
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
   const appointmentSyncService = new AppointmentSyncService();
+  const env = getEnvConfig();
+  await getExternalTenantsByProvider(env.PROVIDER);
 
   for (const record of event.Records) {
     const recordId = record.messageId;

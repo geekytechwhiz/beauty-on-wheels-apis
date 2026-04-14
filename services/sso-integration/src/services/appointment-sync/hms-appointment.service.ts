@@ -32,7 +32,6 @@ type TruTechClient = {
 
 export class HmsAppointmentService {
   constructor(
-    private readonly truTechClient: TruTechClient,
     private readonly truTechAdapter: TruTechAdapter,
     private readonly logger: any,
   ) {
@@ -40,13 +39,13 @@ export class HmsAppointmentService {
   }
 
   /**
-   * @param tenantId Optional. When provided, uses per-tenant HMS config (getTruTechClientForTenant).
+   * @param tenantId Required tenant id for tenant-aware HMS config.
    */
   async getAppointmentsForDoctorsInRange(
     startDate: string,
     endDate: string,
     correlationId: string,
-    tenantId?: string,
+    tenantId: string,
   ): Promise<Appointment[]> {
     const logger = createChildLogger(this.logger, {
       correlationId,
@@ -60,9 +59,10 @@ export class HmsAppointmentService {
       'hms_get_appointments_for_doctors_in_range',
     );
 
-    const client = tenantId
-      ? getTruTechClientForTenant(tenantId)
-      : this.truTechClient;
+    if (!tenantId || tenantId.trim().length === 0) {
+      throw new Error('tenantId is required for HMS appointments fetch');
+    }
+    const client = getTruTechClientForTenant(tenantId);
 
     logger.info({
       event: 'hms_get_appointments_for_doctors_in_range_start',
@@ -191,8 +191,12 @@ export class HmsAppointmentService {
   async getTodaysAppointments(
     doctorId: number,
     correlationId: string,
+    tenantId: string,
   ): Promise<Appointment[]> {
-    const response = await this.truTechClient.getTodaysAppointments(
+    if (!tenantId || tenantId.trim().length === 0) {
+      throw new Error('tenantId is required for HMS todays appointments');
+    }
+    const response = await getTruTechClientForTenant(tenantId).getTodaysAppointments(
       doctorId,
       correlationId,
     );
@@ -203,6 +207,7 @@ export class HmsAppointmentService {
     patientId: number,
     doctorId: number,
     correlationId: string,
+    tenantId: string,
   ): Promise<PatientEMRSummary> {
     const logger = createChildLogger(this.logger, {
       correlationId,
@@ -223,7 +228,7 @@ export class HmsAppointmentService {
       }
 
       const truTechPatientEMRResponse =
-        await this.truTechClient.getPatientEMRSummary(patientId, correlationId);
+        await getTruTechClientForTenant(tenantId).getPatientEMRSummary(patientId, correlationId);
 
       timer.end();
 

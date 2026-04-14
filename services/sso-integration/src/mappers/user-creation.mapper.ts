@@ -20,7 +20,7 @@ import { processPhoneNumber } from '../utils/phone-processor';
  * Uses CreatePatientModel; output is compatible with createUserSchema.
  */
 export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): PatientCreationPayload {
-  const { patient, organizationID,  } = event.data;
+  const { patient, organizationID, provider } = event.data;
   const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
   const tenant = loadTenantDetails(subdomain);
 
@@ -34,7 +34,12 @@ export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): 
     gender: patient.gender ?? undefined,
     dateOfBirth: patient.dob ?? undefined,
     organizationID: organizationID ?? tenant.organizationId,
-    externalIdentity: buildExternalIdentity(patient.id?.toString()),
+    externalIdentity: {
+      externalUserId: patient.id?.toString() ?? '',
+      subdomain,
+      provider: provider || tenant.provider,
+      sourceSystem: SourceSystem.HMS,
+    },
     patientRoleId: tenant.patientRoleId,
   };
 
@@ -88,7 +93,8 @@ export function mapHmsDoctorToCreateDoctorModel(
     department: doctor.department ?? undefined,
     specialty: config.doctor.specialty,
     licenseNumber: config.doctor.licenseNumber,
-    organizationID: config.defaultOrganizationID,
+    organizationID:
+      context.integration?.externalHospitalId || tenant.organizationId,
     externalIdentity: {
       provider: context.integration?.providerId ?? tenant.provider,
       externalId: String(doctor.id),
@@ -119,6 +125,7 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
   const tenant = loadTenantDetails(subdomain);
   const patient = appointment.patient;
   const organizationID =
+    context.integration?.externalHospitalId ||
     getOrganizationId(context.integration.subdomain) ||
     tenant.organizationId;
 
@@ -132,7 +139,10 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
     gender: patient.gender ?? undefined,
     dateOfBirth: undefined,
     organizationID,
-    externalIdentity: buildExternalIdentity(patient.id?.toString() ),
+    externalIdentity: buildExternalIdentity(
+      patient.id?.toString(),
+      context,
+    ),
     patientRoleId: tenant.patientRoleId,
   };
 

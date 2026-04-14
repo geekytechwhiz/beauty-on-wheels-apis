@@ -1,5 +1,6 @@
 import { createLogger } from "@api-hub/logger";
 import { getEnvConfig } from "../config/env"; 
+import { getCachedExternalTenantByTenantId } from "../services/external-tenant.service";
 
 export const makePrefixFromGender = (gender: string): string => {
   const prefixes: Record<string, string> = { male: "Mr", female: "Ms" };
@@ -15,12 +16,21 @@ export type TenantDetails = {
 }
 export const loadTenantDetails = (subdomain: string): TenantDetails => {
   const envConfig= getEnvConfig();
+  const cachedTenant = getCachedExternalTenantByTenantId(
+    envConfig.PROVIDER,
+    subdomain,
+  );
+  if (!cachedTenant) {
+    throw new Error(
+      `External tenant not found for provider=${envConfig.PROVIDER}, tenantId=${subdomain}`,
+    );
+  }
   const tenantDetails={
-    organizationId: envConfig.SSO_DEFAULT_ORGANIZATION_ID,
+    organizationId: cachedTenant.organizationId,
     subdomain: subdomain,
     doctorRoleId: envConfig.DOCTOR_ROLE_ID,
     patientRoleId: envConfig.PATIENT_ROLE_ID,
-    provider: envConfig.PROVIDER,
+    provider: cachedTenant.provider,
     
   } 
   return tenantDetails;

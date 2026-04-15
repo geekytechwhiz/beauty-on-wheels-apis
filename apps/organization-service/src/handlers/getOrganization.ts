@@ -1,4 +1,5 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { SecretManagerService } from '@api-hub/service-clients';
 import { OrganizationService } from '../services/organization.service';
 import { UserRepository } from '../repositories/user.repository';
 import { getMobileScreens } from '../utils/lambda.utils';
@@ -7,6 +8,7 @@ import { validateOrganizationIdParam } from '../validation/request.validators';
 
 const organizationService = new OrganizationService();
 const userRepository = new UserRepository();
+const secretManagerService = new SecretManagerService();
 
 const buildAdminAddress = (user?: Record<string, unknown>) => {
   if (!user) return undefined;
@@ -173,6 +175,21 @@ const handler = async (req: LambdaRequest<Params>) => {
     if (organization.organizationSize) orgInfo.organizationSize = organization.organizationSize;
     if (organization.phoneCode) orgInfo.phoneCode = organization.phoneCode;
     transformed.organizationInfo = orgInfo;
+  }
+
+  if (organization.integration && typeof organization.integration === 'object') {
+    const orgInfo = transformed.organizationInfo as Record<string, unknown> | undefined;
+    if (orgInfo && typeof orgInfo === 'object') {
+      const integration = { ...(organization.integration as Record<string, unknown>) };
+      const apiKeyRef = typeof integration.apiKeyRef === 'string' ? integration.apiKeyRef.trim() : '';
+      if (apiKeyRef) {
+        const apiKey = await secretManagerService.fetchApiKey(apiKeyRef).catch(() => null);
+        if (apiKey) {
+          integration.apiKey = apiKey;
+        }
+      }
+      orgInfo.integration = integration;
+    }
   }
 
   if (!isRootOrg && organization.searchFields && typeof organization.searchFields === 'object') {

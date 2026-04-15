@@ -112,11 +112,21 @@ export class TruTechAdapter {
       appt.visit?.created_at ?? '',
     );
     const formattedDob = this.formatDobForUserCreation(appt.patient?.dob);
-
+    this.logger.info({
+      event: 'trutech_appointment_time_conversion',
+      appointmentId: appt.appointment_id,
+      sourceTimezone: this.appointmentSourceTimezone,
+      inputStartTime: appt.start_time,
+      convertedStartTimeUtc: startTimeUtc,
+      inputEndTime: appt.end_time,
+      convertedEndTimeUtc: endTimeUtc,
+      inputVisitCreatedAt: appt.visit?.created_at ?? null,
+      convertedVisitCreatedAtUtc: visitCreatedAtUtc,
+    });
     return {
       appointmentId: appt.appointment_id,
-      startTime: startTimeUtc ?? null,
-      endTime: endTimeUtc ?? null,
+      startTime: startTimeUtc,
+      endTime: endTimeUtc,
       status: appt.status as AppointmentStatus,
       notes: appt.notes ?? '',
 
@@ -219,10 +229,28 @@ export class TruTechAdapter {
    * and convert to UTC ISO for downstream processing.
    */
   private convertSourceLocalToUtcIso(dateTime: string) {
-      return DateTime.fromISO(dateTime, {
+    const rawDateTime = (dateTime ?? '').trim();
+    if (!rawDateTime) return null;
+    const sourceLocalDateTime = rawDateTime.replace(/(?:Z|[+-]\d{2}:\d{2})$/i, '');
+    const parsed = DateTime.fromISO(sourceLocalDateTime, {
       zone: this.appointmentSourceTimezone,
-      }).toUTC().toISO();
-    }
+      setZone: true,
+    });
+
+    const converted = parsed.isValid ? parsed.toUTC().toISO() : null;
+
+    this.logger.debug({
+      event: 'trutech_datetime_convert_attempt',
+      sourceTimezone: this.appointmentSourceTimezone,
+      inputDateTime: rawDateTime,
+      sourceLocalDateTime,
+      convertedDateTimeUtc: converted,
+      parseIsValid: parsed.isValid,
+      parseError: parsed.invalidExplanation ?? parsed.invalidReason ?? null,
+    });
+
+    return converted;
+  }
 
   /**
    * TruTech sends DOB in YYYY-MM-DD. Convert to DD-MM-YYYY before user creation.

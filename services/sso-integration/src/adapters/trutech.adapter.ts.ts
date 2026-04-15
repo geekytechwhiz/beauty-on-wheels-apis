@@ -229,15 +229,24 @@ export class TruTechAdapter {
    * and convert to UTC ISO for downstream processing.
    */
   private convertSourceLocalToUtcIso(dateTime: string) {
-    const converted = DateTime.fromISO(dateTime, {
+    const rawDateTime = (dateTime ?? '').trim();
+    if (!rawDateTime) return null;
+    const sourceLocalDateTime = rawDateTime.replace(/(?:Z|[+-]\d{2}:\d{2})$/i, '');
+    const parsed = DateTime.fromISO(sourceLocalDateTime, {
       zone: this.appointmentSourceTimezone,
-    }).toUTC().toISO();
+      setZone: true,
+    });
+
+    const converted = parsed.isValid ? parsed.toUTC().toISO() : null;
 
     this.logger.debug({
       event: 'trutech_datetime_convert_attempt',
       sourceTimezone: this.appointmentSourceTimezone,
-      inputDateTime: dateTime,
+      inputDateTime: rawDateTime,
+      sourceLocalDateTime,
       convertedDateTimeUtc: converted,
+      parseIsValid: parsed.isValid,
+      parseError: parsed.invalidExplanation ?? parsed.invalidReason ?? null,
     });
 
     return converted;

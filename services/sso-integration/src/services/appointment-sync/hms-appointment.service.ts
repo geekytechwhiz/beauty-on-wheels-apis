@@ -158,6 +158,19 @@ export class HmsAppointmentService {
         startDate,
         endDate,
       });
+      logger.info({
+        event: 'hms_appointment_time_mapping_sample',
+        sample: mappedAppointments.slice(0, 3).map((mapped, index) => {
+          const raw = (response.appointments?.[index] as any) || {};
+          return {
+            appointmentId: mapped.appointmentId,
+            sourceStartTime: raw.start_time ?? null,
+            mappedStartTimeUtc: mapped.startTime,
+            sourceEndTime: raw.end_time ?? null,
+            mappedEndTimeUtc: mapped.endTime,
+          };
+        }),
+      });
 
       return mappedAppointments;
     } catch (error) {

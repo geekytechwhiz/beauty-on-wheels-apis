@@ -13,6 +13,8 @@ import {
   hasNonEmptyTrimmed,
   isValidReconciliationDateField,
 } from '../../utils/cancellation-reconciliation-validation.util';
+import { getEnvConfig } from '../../config/env';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -59,6 +61,8 @@ export async function handler(
   });
 
   const appointmentSyncService = getAppointmentSyncService();
+  const env = getEnvConfig();
+  await getExternalTenantsByProvider(env.PROVIDER);
 
   logger.info({
     event: 'reconciliation_worker_batch_start',

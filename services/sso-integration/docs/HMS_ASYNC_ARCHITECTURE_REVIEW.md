@@ -23,7 +23,7 @@ Both sync entry points call the same core: `AppointmentSyncService.syncAppointme
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ 1. ENTRY (syncHmsAppointments or appointmentSync)                                 │
-│    - Build context (tenantId = SUBDOMAIN.TRU_TECH, single tenant)                  │
+│    - Build context from tenant payload/list (multi-tenant)                          │
 │    - Date range: today → today+SYNC_LOOKAHEAD_DAYS (default 1)                     │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                         │
@@ -151,7 +151,7 @@ Both sync entry points call the same core: `AppointmentSyncService.syncAppointme
 | 2 | **In-memory pending appointments** | `AppointmentSyncService.pendingAppointments: PendingAppointment[]` | Pending list lives only in the Lambda instance that ran the sync. When PatientCreationEventConsumer runs, it instantiates a **new** AppointmentSyncService with an **empty** list, so `reprocessPendingAppointmentsForPatient` always finds zero pending → **reprocess never runs**. |
 | 3 | **Synchronous doctor provisioning** | Entire sync blocks on getOrCreateDoctor before any appointment is processed | Adds latency and single point of failure; not shardable per doctor |
 | 4 | **Long chain of synchronous schedule calls** | getAvailableServices → recommendServices → createServiceSchedule → updateServiceStatus | 4 sequential HTTP calls per appointment; any failure fails the whole appointment |
-| 5 | **No tenant/hospital dimension** | Context is fixed SUBDOMAIN.TRU_TECH; TruTech client sends `doctor_ids: []` | Single logical tenant; REGISTERED_HMS_DOCTOR_IDS exists but is not used in sync flow; 500 hospitals cannot be represented |
+| 5 | **Tenant/hospital dimension required** | Context must be tenant-driven; TruTech client must resolve config per tenant | Without tenant-driven context, 500 hospitals cannot be represented |
 | 6 | **HTTP sync timeout (120s)** | appointmentSync Lambda | With many appointments, 120s can be exceeded before completion |
 | 7 | **Sync timeout (900s)** | syncHmsAppointments | 15 min may still be insufficient for very large batches with no checkpointing |
 | 8 | **No idempotency key for patient events** | PatientCreationEvent.eventId = `${provider}-${patient.id}-${Date.now()}` | Same patient can produce many events; duplicate processing mitigated only by findUserByExternalId in consumer |
@@ -170,7 +170,7 @@ Both sync entry points call the same core: `AppointmentSyncService.syncAppointme
 
 ### 3.1 Scalability
 
-- **Single-tenant design:** One context (SUBDOMAIN.TRU_TECH), one HMS API, no partitioning by hospital/tenant. To support 500+ hospitals, either the sync must run 500+ times (e.g. one invocation per tenant) or the system must be refactored to tenant-aware queues and workers.
+- **Multi-tenant requirement:** Context should be tenant-driven with per-tenant HMS config and queue messages partitioned by tenant/hospital.
 - **Volume:** 10k appointments/day ≈ 7/min steady; burst sync can create 100s of appointments in one run. Current design processes them in one Lambda with 5 concurrent workers and many sequential HTTP calls → high latency and timeout risk.
 - **Burst syncs:** If multiple tenants or cron + manual triggers run together, shared downstream services (User, Schedule, Cognito) and single SQS queue can become hotspots.
 

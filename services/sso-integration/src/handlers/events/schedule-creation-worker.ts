@@ -18,6 +18,7 @@ import type {
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 import { emitMetric, MetricNames } from '../../utils/metrics.util';
 import { normalizeScheduleEventPayload } from '../../utils/normalize-schedule-event-payload.util';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -47,6 +48,7 @@ export async function handler(
   const scheduleClient = getScheduleServiceClient();
   const appointmentMapper = getAppointmentMapper();
   const env = getEnvConfig();
+  await getExternalTenantsByProvider(env.PROVIDER);
   const scheduleCreationService = new ScheduleCreationService(
     scheduleClient,
     appointmentMapper,

@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   type _Object,
@@ -136,10 +137,6 @@ export function getS3ConfigSummary(): {
   };
 }
 
-function getPublicReadBaseUrl(): string | null {
-  return getCloudFrontBaseUrl();
-}
-
 function buildPublicObjectUrl(key: string): string {
   const encodedKey = encodeURIComponentPath(key);
   const cloudFrontBaseUrl = getCloudFrontBaseUrl();
@@ -192,81 +189,19 @@ async function fetchPublicText(url: string): Promise<string> {
   return response.text();
 }
 
-function getElementChildrenByName(parent: Element, name: string): Element[] {
-  return Array.from(parent.children).filter((child) => child.localName === name);
-}
-
-function getFirstChildText(parent: Element | Document, name: string): string | null {
-  const allElements = parent instanceof Document ? Array.from(parent.documentElement.children) : Array.from(parent.children);
-  const match = allElements.find((child) => child.localName === name);
-  return match?.textContent?.trim() ?? null;
-}
-
-function parsePublicListXml(xmlText: string): {
-  objects: _Object[];
-  nextContinuationToken?: string;
-} {
-  const parser = new DOMParser();
-  const document = parser.parseFromString(xmlText, 'application/xml');
-  const parserError = document.querySelector('parsererror');
-  if (parserError) {
-    throw new Error('Unable to parse the CloudFront listing response.');
-  }
-
-  const root = document.documentElement;
-  if (root.localName === 'Error') {
-    const code = getFirstChildText(root, 'Code') ?? 'UnknownError';
-    const message = getFirstChildText(root, 'Message') ?? 'CloudFront listing failed.';
-    throw new Error(`${code}: ${message}`);
-  }
-
-  const objects = getElementChildrenByName(root, 'Contents').map((_content): _Object => {
-    const key = getFirstChildText(_content, 'Key') ?? undefined;
-    const lastModified = getFirstChildText(_content, 'LastModified');
-    const sizeText = getFirstChildText(_content, 'Size');
-    const size = sizeText ? Number.parseInt(sizeText, 10) : undefined;
-
-    return {
-      Key: key,
-      LastModified: lastModified ? new Date(lastModified) : undefined,
-      Size: Number.isFinite(size) ? size : undefined,
-    };
-  });
-
-  const nextContinuationToken = getFirstChildText(root, 'NextContinuationToken') ?? undefined;
-
-  return { objects, nextContinuationToken };
-}
-
-async function listAllSpecObjectsViaCloudFront(prefix?: string): Promise<_Object[]> {
-  const baseUrl = getPublicReadBaseUrl();
-  if (!baseUrl) {
-    throw new Error('CloudFront URL is not configured.');
-  }
-
-  const objects: _Object[] = [];
-  let continuationToken: string | undefined;
-  const effectivePrefix = prefix ? `${getSpecsPrefix()}/${prefix}` : `${getSpecsPrefix()}/`;
-
-  do {
-    const listUrl = new URL(`${baseUrl}/`);
-    listUrl.searchParams.set('list-type', '2');
-    listUrl.searchParams.set('prefix', effectivePrefix);
-    if (continuationToken) {
-      listUrl.searchParams.set('continuation-token', continuationToken);
-    }
-
-    const xmlText = await fetchPublicText(listUrl.toString());
-    const parsed = parsePublicListXml(xmlText);
-    objects.push(...parsed.objects);
-    continuationToken = parsed.nextContinuationToken;
-  } while (continuationToken);
-
-  return objects;
-}
-
 async function loadPublicSpecText(key: string): Promise<string> {
   return fetchPublicText(buildPublicObjectUrl(key));
+}
+
+async function loadS3SpecText(key: string): Promise<string> {
+  const response = await getS3Client().send(
+    new GetObjectCommand({
+      Bucket: getBucketName(),
+      Key: key,
+    }),
+  );
+
+  return readResponseBodyAsText(response.Body);
 }
 
 export function createS3Client(): S3Client {
@@ -536,7 +471,24 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
 }
 
 async function listAllSpecObjects(prefix?: string): Promise<_Object[]> {
-  return listAllSpecObjectsViaCloudFront(prefix);
+  const objects: _Object[] = [];
+  let continuationToken: string | undefined;
+  const effectivePrefix = prefix ? `${getSpecsPrefix()}/${prefix}` : `${getSpecsPrefix()}/`;
+
+  do {
+    const response = await getS3Client().send(
+      new ListObjectsV2Command({
+        Bucket: getBucketName(),
+        Prefix: effectivePrefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    objects.push(...(response.Contents ?? []));
+    continuationToken = response.NextContinuationToken;
+  } while (continuationToken);
+
+  return objects;
 }
 
 export async function listServices(): Promise<ServiceCatalogEntry[]> {
@@ -553,7 +505,7 @@ export async function listVersions(serviceName: string): Promise<OpenApiSpecFile
   const versionsWithStatus = await Promise.all(
     versions.map(async (version) => {
       try {
-        const rawText = await loadPublicSpecText(version.key);
+        const rawText = await loadS3SpecText(version.key);
         const parsedSpec = parseOpenApiText(rawText, version.extension);
 
         return {
@@ -668,11 +620,7 @@ export async function getSpecUrl({
   version: string;
 }): Promise<string> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const command = new GetObjectCommand({
-    Bucket: getBucketName(),
-    Key: resolved.key,
-  });
-  return buildPublicObjectUrl(command.input.Key ?? resolved.key);
+  return buildPublicObjectUrl(resolved.key);
 }
 
 export async function loadEditableSpecDocument({
@@ -683,7 +631,7 @@ export async function loadEditableSpecDocument({
   version: string;
 }): Promise<EditableSpecDocument> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const rawText = await loadPublicSpecText(resolved.key);
+  const rawText = await loadS3SpecText(resolved.key);
   const parsedSpec = parseOpenApiText(rawText, resolved.extension);
 
   return {

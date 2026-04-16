@@ -1,17 +1,16 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { createChildLogger, createLogger } from '@api-hub/logger';
 import { UserService } from '../services/user.service';
 import { assignUserRole } from '../services/role.service';
 import { UserRepository } from '../repositories/user.repository';
 import { getOrganization } from '../services/organization.service';
-import { PackageRepository } from '../repositories/package.repositrory';
-import { RoleRepository } from '../repositories/role.repository';
+import { publishUserCreatedEvent } from '../events/UserCreated';
 import { validateCreateUser } from '../validation/request.validators';
 import { ExternalIdentity } from '../models';
 
 const userService = new UserService();
 const userRepository = new UserRepository();
-const packagRepository = new PackageRepository();
-const roleRepository = new RoleRepository();
+const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
 function throwOrgError(message: string, code: string) {
   const err: any = new Error(message);
@@ -33,13 +32,15 @@ const handler = async (
   },
 ) => {
   const data = req.validatedCreateUser!;
-  console.log("Create User request body ", data);
   const { userInfo, userRole, userType, organizationID, userID, externalIdentity } = data;
   const authHeader = req.context.authHeader;
   const correlationId = req.context.correlationId;
   const body = req.body ?? {};
+  const handlerStart = Date.now();
+  const log = createChildLogger(baseLogger, { correlationId, organizationID, invitedBy: userID });
 
   if (organizationID) {
+    const orgValidationStart = Date.now();
     const org = await getOrganization(organizationID, authHeader, {
       minimal: true,
     });
@@ -50,6 +51,10 @@ const handler = async (
     if (['on_hold', 'disabled', 'not_exist'].includes(status)) {
       throwOrgError('Organization is not available', 'ORGANIZATION_NOT_AVAILABLE');
     }
+    log.info({
+      event: 'createUser_org_validation_timing',
+      durationMs: Date.now() - orgValidationStart,
+    });
   }
 
   const roleIds = Array.isArray(userRole)
@@ -109,6 +114,7 @@ const handler = async (
   let definedRoleCode: string | undefined;
 
   if (roleIds.length > 0) {
+    const roleLookupStart = Date.now();
     const rolePermissions = await userRepository
       .getRolePermissions(roleIds[0], organizationID)
       .catch(() => []);
@@ -118,49 +124,19 @@ const handler = async (
         rolePermissions[0];
       definedRoleCode = exactRoleMatch?.definedRoleCode;
       userData.roleName = exactRoleMatch?.roleName || definedRoleCode || '';
-
-      const hasExistingFeatures =
-        Array.isArray((exactRoleMatch as any)?.features) &&
-        (exactRoleMatch as any).features.length > 0;
-
-      if (definedRoleCode === 'ADMIN' && !hasExistingFeatures) {
-        const orgFeatures = await packagRepository
-          .getOrgFeatures(organizationID, authHeader)
-          .catch(() => []);
-        if (orgFeatures && orgFeatures.length > 0) {
-          const { roleId, roleName, roleDescription, roleType } = exactRoleMatch as any;
-          await roleRepository
-            .saveRoles(
-              organizationID,
-              roleId,
-              roleName,
-              roleDescription,
-              roleType,
-              orgFeatures,
-              authHeader,
-            )
-            .catch(() => {});
-        }
-      }
     }
+    log.info({
+      event: 'createUser_role_lookup_timing',
+      durationMs: Date.now() - roleLookupStart,
+    });
   }
 
   if (definedRoleCode !== undefined && definedRoleCode !== null) {
     userData.definedRoleCode = String(definedRoleCode);
   }
 
-  if (roleIds.length > 0) {
-    const rolePermissions = await userRepository
-      .getRolePermissions(roleIds[0], organizationID)
-      .catch(() => []);
-    if (rolePermissions && rolePermissions.length > 0) {
-      const exactRoleMatch =
-        rolePermissions.find((item: any) => item.SK === `ROLE#${roleIds[0]}`) ||
-        rolePermissions[0];
-      userData.roleName = exactRoleMatch?.roleName || '';
-    }
-  }
-
+  const serviceCallStart = Date.now();
+  userData.__skipOrganizationValidation = true;
   const result = await userService.createUser(
     userData,
     userData.roleName,
@@ -171,9 +147,40 @@ const handler = async (
     body?.userInfo?.friendNFamily,
     body?.userInfo?.assignDoctor,
   );
+  log.info({
+    event: 'createUser_core_create_timing',
+    userId: result.userID,
+    durationMs: Date.now() - serviceCallStart,
+  });
+
+  const userCreatedEventStart = Date.now();
+  try {
+    await publishUserCreatedEvent({
+      eventName: 'UserCreated.v1',
+      correlationId: correlationId ?? '',
+      userId: result.userID,
+      email: userInfo?.contact?.email ?? '',
+      name: userInfo?.name ?? userData.fullName ?? '',
+    });
+    log.info({
+      event: 'createUser_user_created_event_published',
+      userId: result.userID,
+      durationMs: Date.now() - userCreatedEventStart,
+    });
+  } catch (err: any) {
+    log.warn({
+      event: 'createUser_user_created_event_failed',
+      userId: result.userID,
+      durationMs: Date.now() - userCreatedEventStart,
+      error: err?.message || String(err),
+    });
+  }
 
   if (roleIds.length > 0) {
-    await assignUserRole(
+    const roleAssignmentStart = Date.now();
+    const syncRoleAssignmentEnabled =
+      String((globalThis as any)?.process?.env?.CREATE_USER_SYNC_ROLE_ASSIGNMENT || '').toLowerCase() === 'true';
+    const assignRolePromise = assignUserRole(
       roleIds[0],
       organizationID,
       result.userID,
@@ -182,8 +189,36 @@ const handler = async (
       userInfo.contact.phone ?? '',
       userInfo.profilePic,
       authHeader,
-    ).catch(() => {});
+    )
+      .then(() => {
+        log.info({
+          event: 'createUser_assignUserRole_success',
+          userId: result.userID,
+          mode: syncRoleAssignmentEnabled ? 'sync' : 'async',
+          durationMs: Date.now() - roleAssignmentStart,
+        });
+      })
+      .catch(() => {
+        log.warn({
+          event: 'createUser_assignUserRole_failed',
+          userId: result.userID,
+          mode: syncRoleAssignmentEnabled ? 'sync' : 'async',
+          durationMs: Date.now() - roleAssignmentStart,
+        });
+      });
+
+    if (syncRoleAssignmentEnabled) {
+      await assignRolePromise;
+    } else {
+      void assignRolePromise;
+    }
   }
+
+  log.info({
+    event: 'createUser_handler_total_timing',
+    userId: result.userID,
+    durationMs: Date.now() - handlerStart,
+  });
 
   return { invitedUser: result.userID };
 };

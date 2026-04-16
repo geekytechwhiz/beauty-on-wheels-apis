@@ -253,4 +253,6 @@ export interface CreateUserHandlerModel {
    * External organization identifier (e.g. HMS tenant/org id such as "org-nairobi").
    */
   organizationExternalId?: string;
+  /** Handler already validated org; skip service re-validation for latency. */
+  skipOrganizationValidation?: boolean;
 }

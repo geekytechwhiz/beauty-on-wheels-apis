@@ -35,6 +35,7 @@ import {
   type OpenApiValidationIssue,
 } from './utils/openApiValidation';
 import {
+  canWriteToS3FromBrowser,
   computeNextVersion,
   deleteSpecVersion,
   getS3ConfigSummary,
@@ -105,6 +106,7 @@ export default function App({
     severity: 'success',
     message: '',
   });
+  const browserS3WriteEnabled = canWriteToS3FromBrowser();
 
   const s3Config = useMemo(() => {
     try {
@@ -359,6 +361,8 @@ export default function App({
   const s3Tooltip = s3Config.config
     ? `${s3Config.config.bucketName} · ${s3Config.config.region}`
     : s3Config.error?.message ?? 'Missing S3 configuration';
+  const writeAccessMessage =
+    'This deployment reads specs through CloudFront. Browser-side S3 writes are disabled because the bucket is private.';
   const editorParseState = useMemo(() => {
     if (!editorText.trim()) {
       return { parsedSpec: null, error: null };
@@ -532,22 +536,25 @@ export default function App({
               sx={{ mr: 1, fontWeight: 700 }}
             />
           </Tooltip>
-          <Tooltip title="Upload an OpenAPI spec to S3">
-            <IconButton
-              color="inherit"
-              aria-label="upload spec"
-              onClick={() => setUploadOpen(true)}
-            >
-              <AddIcon />
-            </IconButton>
+          <Tooltip title={browserS3WriteEnabled ? 'Upload an OpenAPI spec to S3' : writeAccessMessage}>
+            <span>
+              <IconButton
+                color="inherit"
+                aria-label="upload spec"
+                onClick={() => setUploadOpen(true)}
+                disabled={!browserS3WriteEnabled}
+              >
+                <AddIcon />
+              </IconButton>
+            </span>
           </Tooltip>
-          <Tooltip title="Delete the selected version from API Center">
+          <Tooltip title={browserS3WriteEnabled ? 'Delete the selected version from API Center' : writeAccessMessage}>
             <span>
               <IconButton
                 color="inherit"
                 aria-label="delete selected version"
                 onClick={() => setDeleteOpen(true)}
-                disabled={selectedService === null || selectedVersion === null}
+                disabled={!browserS3WriteEnabled || selectedService === null || selectedVersion === null}
               >
                 <DeleteOutlineIcon />
               </IconButton>
@@ -622,6 +629,7 @@ export default function App({
               variant="outlined"
               color="success"
               disabled={
+                !browserS3WriteEnabled ||
                 selectedService === null ||
                 selectedVersion === null ||
                 effectiveStatus === 'approved' ||
@@ -637,6 +645,7 @@ export default function App({
               variant="outlined"
               color="error"
               disabled={
+                !browserS3WriteEnabled ||
                 selectedService === null ||
                 selectedVersion === null ||
                 effectiveStatus === 'rejected' ||
@@ -678,6 +687,7 @@ export default function App({
               variant="outlined"
               onClick={handleSave}
               disabled={
+                !browserS3WriteEnabled ||
                 selectedService === null ||
                 selectedVersion === null ||
                 editableSpecQuery.isLoading ||
@@ -691,6 +701,13 @@ export default function App({
             </Button>
           </Stack>
         </Stack>
+
+        {!browserS3WriteEnabled && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Read-only mode is enabled for this deployment. Specs are loaded through CloudFront, while upload, delete,
+            and approval actions stay disabled because the S3 bucket is private.
+          </Alert>
+        )}
 
         {editorLayoutMode === 'split' ? (
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 2 }}>

@@ -1,10 +1,7 @@
 import {
   DeleteObjectCommand,
-  GetObjectCommand,
-  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
-  type _Object,
 } from '@aws-sdk/client-s3';
 import yaml from 'js-yaml';
 
@@ -77,7 +74,13 @@ export interface DesignLibraryEntry {
   updatedAt?: string;
 }
 
+interface PublicCatalogIndex {
+  generatedAt: string;
+  services: ServiceCatalogEntry[];
+}
+
 const DEFAULT_SPECS_PREFIX = 'specs';
+const DEFAULT_PUBLIC_CATALOG_KEY = `${DEFAULT_SPECS_PREFIX}/index.json`;
 const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'approved';
 const DEFAULT_CLOUDFRONT_PUBLIC_URL = 'https://d28d5t5u0n3bd1.cloudfront.net';
 const OPENAPI_FILE_PATTERN = /^(.+?)\/(.+?)\/openapi\.(json|yaml|yml)$/i;
@@ -119,6 +122,15 @@ function getFigmaDesignsKey(): string {
   return rawKey.replace(/^\/+/, '');
 }
 
+function getPublicCatalogKey(): string {
+  const rawKey = import.meta.env.VITE_S3_SPECS_INDEX_KEY?.trim();
+  if (!rawKey) {
+    return DEFAULT_PUBLIC_CATALOG_KEY;
+  }
+
+  return rawKey.replace(/^\/+/, '');
+}
+
 function getCloudFrontBaseUrl(): string | null {
   const rawUrl = import.meta.env.VITE_CLOUDFRONT_URL?.trim();
   const normalized = (rawUrl || DEFAULT_CLOUDFRONT_PUBLIC_URL).replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
@@ -137,6 +149,12 @@ export function getS3ConfigSummary(): {
   };
 }
 
+export function canWriteToS3FromBrowser(): boolean {
+  const accessKeyId = import.meta.env.VITE_AWS_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY?.trim();
+  return Boolean(accessKeyId && secretAccessKey);
+}
+
 function buildPublicObjectUrl(key: string): string {
   const encodedKey = encodeURIComponentPath(key);
   const cloudFrontBaseUrl = getCloudFrontBaseUrl();
@@ -147,27 +165,6 @@ function buildPublicObjectUrl(key: string): string {
   throw new Error('CloudFront URL is not configured.');
 }
 
-async function readResponseBodyAsText(body: unknown): Promise<string> {
-  if (
-    body &&
-    typeof body === 'object' &&
-    'transformToString' in body &&
-    typeof (body as { transformToString?: unknown }).transformToString === 'function'
-  ) {
-    return (body as { transformToString: () => Promise<string> }).transformToString();
-  }
-
-  if (body instanceof Blob) {
-    return body.text();
-  }
-
-  if (body instanceof Uint8Array) {
-    return new TextDecoder().decode(body);
-  }
-
-  throw new Error('Unable to read the S3 object body as text.');
-}
-
 function encodeURIComponentPath(path: string): string {
   return path
     .split('/')
@@ -175,8 +172,14 @@ function encodeURIComponentPath(path: string): string {
     .join('/');
 }
 
-async function fetchPublicText(url: string): Promise<string> {
-  const response = await fetch(url, {
+function withCacheBust(url: string): string {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}ts=${Date.now()}`;
+}
+
+async function fetchPublicText(url: string, options?: { cacheBust?: boolean }): Promise<string> {
+  const response = await fetch(options?.cacheBust ? withCacheBust(url) : url, {
+    cache: 'no-store',
     headers: {
       Accept: 'application/json, application/yaml, text/yaml, text/plain, application/xml, text/xml',
     },
@@ -189,22 +192,17 @@ async function fetchPublicText(url: string): Promise<string> {
   return response.text();
 }
 
-async function loadPublicSpecText(key: string): Promise<string> {
-  return fetchPublicText(buildPublicObjectUrl(key));
-}
-
-async function loadS3SpecText(key: string): Promise<string> {
-  const response = await getS3Client().send(
-    new GetObjectCommand({
-      Bucket: getBucketName(),
-      Key: key,
-    }),
-  );
-
-  return readResponseBodyAsText(response.Body);
+async function loadPublicSpecText(key: string, options?: { cacheBust?: boolean }): Promise<string> {
+  return fetchPublicText(buildPublicObjectUrl(key), options);
 }
 
 export function createS3Client(): S3Client {
+  if (!canWriteToS3FromBrowser()) {
+    throw new Error(
+      'Browser S3 write access is not configured. This deployment is read-only and serves specs through CloudFront.',
+    );
+  }
+
   return new S3Client({
     region: getEnv('VITE_AWS_REGION'),
     credentials: {
@@ -251,7 +249,14 @@ function getObjectKeyWithoutPrefix(key: string): string | null {
   return key.slice(prefix.length);
 }
 
-function parseSpecFileKey(key: string, object?: _Object): OpenApiSpecFile | null {
+function parseSpecFileKey(
+  key: string,
+  options?: {
+    lastModified?: string;
+    size?: number;
+    status?: SpecReviewStatus;
+  },
+): OpenApiSpecFile | null {
   const relativeKey = getObjectKeyWithoutPrefix(key);
   if (!relativeKey) {
     return null;
@@ -271,9 +276,9 @@ function parseSpecFileKey(key: string, object?: _Object): OpenApiSpecFile | null
     key,
     extension,
     contentType: getContentType(extension),
-    status: DEFAULT_SPEC_REVIEW_STATUS,
-    lastModified: object?.LastModified?.toISOString(),
-    size: object?.Size,
+    status: options?.status ?? DEFAULT_SPEC_REVIEW_STATUS,
+    lastModified: options?.lastModified,
+    size: options?.size,
   };
 }
 
@@ -288,11 +293,6 @@ function normalizeSpecReviewStatus(value: string | undefined): SpecReviewStatus 
     default:
       return 'pending';
   }
-}
-
-function extractStatusFromParsedSpec(parsedSpec: Record<string, unknown>): SpecReviewStatus {
-  const rawStatus = parsedSpec[SPEC_REVIEW_STATUS_FIELD];
-  return normalizeSpecReviewStatus(typeof rawStatus === 'string' ? rawStatus : undefined);
 }
 
 function serializeSpecWithStatus(
@@ -419,41 +419,39 @@ export function getNextVersionForService(
   return computeNextVersion(service?.latestVersion ?? null, bumpType);
 }
 
-function buildCatalog(objects: _Object[]): ServiceCatalogEntry[] {
-  const grouped = new Map<string, OpenApiSpecFile[]>();
+function normalizeCatalog(services: ServiceCatalogEntry[]): ServiceCatalogEntry[] {
+  return services
+    .map((service) => {
+      const grouped = new Map<string, OpenApiSpecFile>();
 
-  for (const object of objects) {
-    if (!object.Key) {
-      continue;
-    }
+      for (const version of service.versions) {
+        const normalized = parseSpecFileKey(version.key, {
+          lastModified: version.lastModified,
+          size: version.size,
+          status: version.status,
+        });
+        if (!normalized) {
+          continue;
+        }
 
-    const parsed = parseSpecFileKey(object.Key, object);
-    if (!parsed) {
-      continue;
-    }
+        const current = grouped.get(normalized.version);
+        grouped.set(
+          normalized.version,
+          current ? pickPreferredFile(current, normalized) : normalized,
+        );
+      }
 
-    const existing = grouped.get(parsed.serviceName) ?? [];
-    const duplicateIndex = existing.findIndex((item) => item.version === parsed.version);
-    if (duplicateIndex >= 0) {
-      existing[duplicateIndex] = pickPreferredFile(existing[duplicateIndex], parsed);
-    } else {
-      existing.push(parsed);
-    }
-    grouped.set(parsed.serviceName, existing);
-  }
-
-  return Array.from(grouped.entries())
-    .map(([name, versions]) => {
-      const sortedVersions = [...versions].sort((left, right) =>
+      const versions = Array.from(grouped.values()).sort((left, right) =>
         compareVersionsDesc(left.version, right.version),
       );
 
       return {
-        name,
-        latestVersion: sortedVersions[0]?.version ?? '',
-        versions: sortedVersions,
+        name: service.name,
+        latestVersion: versions[0]?.version ?? '',
+        versions,
       };
     })
+    .filter((service) => service.versions.length > 0)
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -470,55 +468,183 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
   return candidateModified >= currentModified ? candidate : current;
 }
 
-async function listAllSpecObjects(prefix?: string): Promise<_Object[]> {
-  const objects: _Object[] = [];
-  let continuationToken: string | undefined;
-  const effectivePrefix = prefix ? `${getSpecsPrefix()}/${prefix}` : `${getSpecsPrefix()}/`;
+function createEmptyCatalogIndex(): PublicCatalogIndex {
+  return {
+    generatedAt: new Date().toISOString(),
+    services: [],
+  };
+}
 
-  do {
-    const response = await getS3Client().send(
-      new ListObjectsV2Command({
-        Bucket: getBucketName(),
-        Prefix: effectivePrefix,
-        ContinuationToken: continuationToken,
-      }),
-    );
+function isMissingPublicFileError(error: unknown): boolean {
+  return error instanceof Error && /NoSuchKey|not found|404/i.test(error.message);
+}
 
-    objects.push(...(response.Contents ?? []));
-    continuationToken = response.NextContinuationToken;
-  } while (continuationToken);
+function parseCatalogIndex(rawValue: unknown): PublicCatalogIndex {
+  const rawServices = Array.isArray(rawValue)
+    ? rawValue
+    : rawValue &&
+        typeof rawValue === 'object' &&
+        'services' in rawValue &&
+        Array.isArray((rawValue as { services?: unknown }).services)
+      ? (rawValue as { services: unknown[] }).services
+      : null;
 
-  return objects;
+  if (rawServices === null) {
+    throw new Error('Spec catalog index must be a JSON array or an object with a services array.');
+  }
+
+  const services = rawServices.flatMap((service): ServiceCatalogEntry[] => {
+    if (!service || typeof service !== 'object' || Array.isArray(service)) {
+      return [];
+    }
+
+    const rawName = 'name' in service ? service.name : undefined;
+    const rawVersions = 'versions' in service ? service.versions : undefined;
+    if (typeof rawName !== 'string' || !Array.isArray(rawVersions)) {
+      return [];
+    }
+
+    const versions = rawVersions.flatMap((version): OpenApiSpecFile[] => {
+      if (!version || typeof version !== 'object' || Array.isArray(version)) {
+        return [];
+      }
+
+      const rawKey = 'key' in version ? version.key : undefined;
+      if (typeof rawKey !== 'string') {
+        return [];
+      }
+
+      const parsed = parseSpecFileKey(rawKey, {
+        status:
+          typeof version.status === 'string'
+            ? normalizeSpecReviewStatus(version.status)
+            : DEFAULT_SPEC_REVIEW_STATUS,
+        lastModified:
+          'lastModified' in version && typeof version.lastModified === 'string'
+            ? version.lastModified
+            : undefined,
+        size: 'size' in version && typeof version.size === 'number' ? version.size : undefined,
+      });
+
+      return parsed ? [parsed] : [];
+    });
+
+    return [
+      {
+        name: rawName,
+        latestVersion:
+          typeof service.latestVersion === 'string'
+            ? service.latestVersion
+            : versions[0]?.version ?? '',
+        versions,
+      },
+    ];
+  });
+
+  const generatedAt =
+    rawValue &&
+    typeof rawValue === 'object' &&
+    'generatedAt' in rawValue &&
+    typeof rawValue.generatedAt === 'string'
+      ? rawValue.generatedAt
+      : new Date().toISOString();
+
+  return {
+    generatedAt,
+    services: normalizeCatalog(services),
+  };
+}
+
+async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<PublicCatalogIndex> {
+  try {
+    const rawText = await loadPublicSpecText(getPublicCatalogKey(), { cacheBust: true });
+    const parsed = JSON.parse(rawText) as unknown;
+    return parseCatalogIndex(parsed);
+  } catch (error) {
+    if (options?.allowMissing && isMissingPublicFileError(error)) {
+      return createEmptyCatalogIndex();
+    }
+
+    if (isMissingPublicFileError(error)) {
+      throw new Error(
+        `Unable to load the public API catalog index from CloudFront at ${getPublicCatalogKey()}. Generate the index and make sure CloudFront can serve it.`,
+      );
+    }
+
+    throw error;
+  }
+}
+
+async function saveCatalogIndex(index: PublicCatalogIndex): Promise<void> {
+  const normalizedIndex: PublicCatalogIndex = {
+    generatedAt: new Date().toISOString(),
+    services: normalizeCatalog(index.services),
+  };
+
+  await getS3Client().send(
+    new PutObjectCommand({
+      Bucket: getBucketName(),
+      Key: getPublicCatalogKey(),
+      Body: JSON.stringify(normalizedIndex, null, 2),
+      ContentType: 'application/json',
+      CacheControl: 'no-cache, no-store, must-revalidate',
+    }),
+  );
+}
+
+function upsertCatalogEntry(index: PublicCatalogIndex, entry: OpenApiSpecFile): PublicCatalogIndex {
+  const existingService = index.services.find((service) => service.name === entry.serviceName) ?? null;
+  const otherServices = index.services.filter((service) => service.name !== entry.serviceName);
+  const nextVersions = [
+    ...(existingService?.versions.filter((version) => version.version !== entry.version) ?? []),
+    entry,
+  ];
+
+  return {
+    generatedAt: new Date().toISOString(),
+    services: normalizeCatalog([
+      ...otherServices,
+      {
+        name: entry.serviceName,
+        latestVersion: entry.version,
+        versions: nextVersions,
+      },
+    ]),
+  };
+}
+
+function removeCatalogEntry(
+  index: PublicCatalogIndex,
+  entry: Pick<OpenApiSpecFile, 'serviceName' | 'version'>,
+): PublicCatalogIndex {
+  const remainingServices = index.services
+    .map((service) => {
+      if (service.name !== entry.serviceName) {
+        return service;
+      }
+
+      return {
+        ...service,
+        versions: service.versions.filter((version) => version.version !== entry.version),
+      };
+    })
+    .filter((service) => service.versions.length > 0);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    services: normalizeCatalog(remainingServices),
+  };
 }
 
 export async function listServices(): Promise<ServiceCatalogEntry[]> {
-  const objects = await listAllSpecObjects();
-  return buildCatalog(objects);
+  const catalog = await loadCatalogIndex();
+  return catalog.services;
 }
 
 export async function listVersions(serviceName: string): Promise<OpenApiSpecFile[]> {
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
-  const objects = await listAllSpecObjects(`${normalizedServiceName}/`);
-  const catalog = buildCatalog(objects);
-  const versions = catalog[0]?.versions ?? [];
-
-  const versionsWithStatus = await Promise.all(
-    versions.map(async (version) => {
-      try {
-        const rawText = await loadS3SpecText(version.key);
-        const parsedSpec = parseOpenApiText(rawText, version.extension);
-
-        return {
-          ...version,
-          status: extractStatusFromParsedSpec(parsedSpec),
-        };
-      } catch {
-        return version;
-      }
-    }),
-  );
-
-  return versionsWithStatus;
+  const catalog = await loadCatalogIndex();
+  return catalog.services.find((service) => service.name === normalizedServiceName)?.versions ?? [];
 }
 
 export async function getLatestVersion(serviceName: string): Promise<string | null> {
@@ -590,7 +716,7 @@ export async function uploadSpec({
     }),
   );
 
-  return {
+  const uploadedFile: OpenApiSpecFile = {
     serviceName: normalizedServiceName,
     version: normalizedVersion,
     key,
@@ -598,14 +724,22 @@ export async function uploadSpec({
     contentType: validatedFile.contentType,
     status: DEFAULT_SPEC_REVIEW_STATUS,
   };
+
+  const catalog = await loadCatalogIndex({ allowMissing: true });
+  await saveCatalogIndex(upsertCatalogEntry(catalog, uploadedFile));
+
+  return uploadedFile;
 }
 
 async function resolveSpecVersion({
   serviceName,
   version,
 }: DeleteSpecVersionInput): Promise<OpenApiSpecFile> {
-  const versions = await listVersions(serviceName);
-  const resolved = versions.find((item) => item.version === version);
+  const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
+  const normalizedVersion = normalizeSegment(version, 'Version');
+  const catalog = await loadCatalogIndex();
+  const service = catalog.services.find((item) => item.name === normalizedServiceName);
+  const resolved = service?.versions.find((item) => item.version === normalizedVersion);
   if (!resolved) {
     throw new Error(`No OpenAPI spec found for ${serviceName} ${version}.`);
   }
@@ -631,7 +765,7 @@ export async function loadEditableSpecDocument({
   version: string;
 }): Promise<EditableSpecDocument> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const rawText = await loadS3SpecText(resolved.key);
+  const rawText = await loadPublicSpecText(resolved.key, { cacheBust: true });
   const parsedSpec = parseOpenApiText(rawText, resolved.extension);
 
   return {
@@ -678,7 +812,7 @@ export async function saveEditedSpecVersion({
     }),
   );
 
-  return {
+  const savedFile: OpenApiSpecFile = {
     serviceName: normalizedServiceName,
     version: normalizedVersion,
     key,
@@ -686,6 +820,11 @@ export async function saveEditedSpecVersion({
     contentType: getContentType('yaml'),
     status: DEFAULT_SPEC_REVIEW_STATUS,
   };
+
+  const catalog = await loadCatalogIndex({ allowMissing: true });
+  await saveCatalogIndex(upsertCatalogEntry(catalog, savedFile));
+
+  return savedFile;
 }
 
 export async function updateSpecReviewStatus({
@@ -698,23 +837,16 @@ export async function updateSpecReviewStatus({
   status: SpecReviewStatus;
 }): Promise<OpenApiSpecFile> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const bucketName = getBucketName();
-  const existingObject = await getS3Client().send(
-    new GetObjectCommand({
-      Bucket: bucketName,
-      Key: resolved.key,
-    }),
-  );
-  const rawText = await readResponseBodyAsText(existingObject.Body);
+  const rawText = await loadPublicSpecText(resolved.key, { cacheBust: true });
   const parsedSpec = parseOpenApiText(rawText, resolved.extension);
   const nextBody = serializeSpecWithStatus(parsedSpec, resolved.extension, status);
 
   await getS3Client().send(
     new PutObjectCommand({
-      Bucket: bucketName,
+      Bucket: getBucketName(),
       Key: resolved.key,
       Body: nextBody,
-      ContentType: existingObject.ContentType ?? resolved.contentType,
+      ContentType: resolved.contentType,
       Metadata: {
         service: resolved.serviceName,
         version: resolved.version,
@@ -723,10 +855,15 @@ export async function updateSpecReviewStatus({
     }),
   );
 
-  return {
+  const updatedFile: OpenApiSpecFile = {
     ...resolved,
     status,
   };
+
+  const catalog = await loadCatalogIndex({ allowMissing: true });
+  await saveCatalogIndex(upsertCatalogEntry(catalog, updatedFile));
+
+  return updatedFile;
 }
 
 export async function deleteSpecVersion(input: DeleteSpecVersionInput): Promise<void> {
@@ -744,6 +881,9 @@ export async function deleteSpecVersion(input: DeleteSpecVersionInput): Promise<
       Key: resolved.key,
     }),
   );
+
+  const catalog = await loadCatalogIndex({ allowMissing: true });
+  await saveCatalogIndex(removeCatalogEntry(catalog, resolved));
 }
 
 export async function loadDesignLibraryEntries(): Promise<DesignLibraryEntry[]> {

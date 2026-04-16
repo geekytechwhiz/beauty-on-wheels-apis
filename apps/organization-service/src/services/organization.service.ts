@@ -216,11 +216,6 @@ export class OrganizationService {
       if (resolvedSubdomain && !updates.subdomain) {
         updates.subdomain = resolvedSubdomain;
       }
-      if (resolvedSubdomain && !updates.integration) {
-        updates.integration = {
-          provider: existing.integration?.provider || 'TRU_TECH',
-        };
-      }
       const updateIntegrationApiKey = updates.integration?.apiKey?.trim();
       const generatedApiKeyRef = resolvedSubdomain ? `${resolvedSubdomain.toLowerCase()}apikey` : undefined;
       if (updateIntegrationApiKey && generatedApiKeyRef) {
@@ -229,9 +224,10 @@ export class OrganizationService {
       if (updates.integration) {
         const resolvedProvider = (updates.integration.provider || existing.integration?.provider || 'TRU_TECH').toUpperCase();
         updates.integration = {
+          ...(existing.integration || {}),
           ...updates.integration,
           provider: resolvedProvider,
-          apiKeyRef: generatedApiKeyRef ?? updates.integration.apiKeyRef,
+          apiKeyRef: generatedApiKeyRef ?? updates.integration.apiKeyRef ?? existing.integration?.apiKeyRef,
           apiKey: undefined,
         };
       }

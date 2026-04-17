@@ -154,27 +154,31 @@ const handler = async (
   });
 
   const userCreatedEventStart = Date.now();
-  try {
-    await publishUserCreatedEvent({
-      eventName: 'UserCreated.v1',
-      correlationId: correlationId ?? '',
-      userId: result.userID,
-      email: userInfo?.contact?.email ?? '',
-      name: userInfo?.name ?? userData.fullName ?? '',
+  const publishUserCreatedPromise = publishUserCreatedEvent({
+    eventName: 'UserCreated.v1',
+    correlationId: correlationId ?? '',
+    userId: result.userID,
+    email: userInfo?.contact?.email ?? '',
+    name: userInfo?.name ?? userData.fullName ?? '',
+  })
+    .then(() => {
+      log.info({
+        event: 'createUser_user_created_event_published',
+        userId: result.userID,
+        mode: 'async',
+        durationMs: Date.now() - userCreatedEventStart,
+      });
+    })
+    .catch((err: any) => {
+      log.warn({
+        event: 'createUser_user_created_event_failed',
+        userId: result.userID,
+        mode: 'async',
+        durationMs: Date.now() - userCreatedEventStart,
+        error: err?.message || String(err),
+      });
     });
-    log.info({
-      event: 'createUser_user_created_event_published',
-      userId: result.userID,
-      durationMs: Date.now() - userCreatedEventStart,
-    });
-  } catch (err: any) {
-    log.warn({
-      event: 'createUser_user_created_event_failed',
-      userId: result.userID,
-      durationMs: Date.now() - userCreatedEventStart,
-      error: err?.message || String(err),
-    });
-  }
+  void publishUserCreatedPromise;
 
   if (roleIds.length > 0) {
     const roleAssignmentStart = Date.now();

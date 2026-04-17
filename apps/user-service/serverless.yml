@@ -228,6 +228,11 @@ custom:
     stg: info
     prd: warn
 
+  createUserProvisionedConcurrency:
+    dev: 1
+    stg: 2
+    prd: 3
+
   # Cognito User Pool IDs per stage (used for searchFnF and other Cognito lookups)
   cognitoUserPoolId:
     dev: us-east-1_AK1HTxdlX
@@ -308,7 +313,7 @@ functions:
             resultTtlInSeconds: 0
   createUser:
     handler: src/handlers/createUser.main
-    
+    provisionedConcurrency: ${self:custom.createUserProvisionedConcurrency.${self:provider.stage}, 1}
     memorySize: 256
     events:
       - http:

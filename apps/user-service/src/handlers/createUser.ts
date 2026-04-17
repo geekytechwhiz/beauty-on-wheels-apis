@@ -11,6 +11,7 @@ import { ExternalIdentity } from '../models';
 const userService = new UserService();
 const userRepository = new UserRepository();
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
+const DEFAULT_ROLE_LOOKUP_TIMEOUT_MS = 250;
 
 // function throwOrgError(message: string, code: string) {
 //   const err: any = new Error(message);
@@ -128,6 +129,8 @@ const handler = async (
     log.info({
       event: 'createUser_role_lookup_timing',
       durationMs: Date.now() - roleLookupStart,
+      timedOut: rolePermissionsOrTimeout === 'TIMEOUT',
+      timeoutMs: roleLookupTimeoutMs,
     });
   }
 

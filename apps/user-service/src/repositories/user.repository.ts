@@ -1098,10 +1098,10 @@ export class UserRepository {
 
       const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       if (result.Items && result.Items.length > 0) {
-        console.log(
-          'getRolePermissions result (PK/SK):',
-          JSON.stringify(result.Items, null, 2),
-        );
+        // console.log(
+        //   'getRolePermissions result (PK/SK):',
+        //   JSON.stringify(result.Items, null, 2),
+        // );
         logger.info({ event: 'getRolePermissions_success', roleId });
         return result.Items;
       }

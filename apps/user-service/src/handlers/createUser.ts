@@ -39,23 +39,23 @@ const handler = async (
   const handlerStart = Date.now();
   const log = createChildLogger(baseLogger, { correlationId, organizationID, invitedBy: userID });
 
-  if (organizationID) {
-    const orgValidationStart = Date.now();
-    const org = await getOrganization(organizationID, authHeader, {
-      minimal: true,
-    });
-    if (!org) {
-      throwOrgError('Organization does not exist', 'ORGANIZATION_NOT_FOUND');
-    }
-    const status = org?.status ? String(org?.status).toLowerCase() : '';
-    if (['on_hold', 'disabled', 'not_exist'].includes(status)) {
-      throwOrgError('Organization is not available', 'ORGANIZATION_NOT_AVAILABLE');
-    }
-    log.info({
-      event: 'createUser_org_validation_timing',
-      durationMs: Date.now() - orgValidationStart,
-    });
-  }
+  // if (organizationID) {
+  //   const orgValidationStart = Date.now();
+  //   const org = await getOrganization(organizationID, authHeader, {
+  //     minimal: true,
+  //   });
+  //   if (!org) {
+  //     throwOrgError('Organization does not exist', 'ORGANIZATION_NOT_FOUND');
+  //   }
+  //   const status = org?.status ? String(org?.status).toLowerCase() : '';
+  //   if (['on_hold', 'disabled', 'not_exist'].includes(status)) {
+  //     throwOrgError('Organization is not available', 'ORGANIZATION_NOT_AVAILABLE');
+  //   }
+  //   log.info({
+  //     event: 'createUser_org_validation_timing',
+  //     durationMs: Date.now() - orgValidationStart,
+  //   });
+  // }
 
   const roleIds = Array.isArray(userRole)
     ? userRole.map((roleId: string) => String(roleId))

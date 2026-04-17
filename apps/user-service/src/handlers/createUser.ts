@@ -12,12 +12,12 @@ const userService = new UserService();
 const userRepository = new UserRepository();
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
-function throwOrgError(message: string, code: string) {
-  const err: any = new Error(message);
-  err.statusCode = 400;
-  err.code = code;
-  throw err;
-}
+// function throwOrgError(message: string, code: string) {
+//   const err: any = new Error(message);
+//   err.statusCode = 400;
+//   err.code = code;
+//   throw err;
+// }
 
 const handler = async (
   req: LambdaRequest<any> & {

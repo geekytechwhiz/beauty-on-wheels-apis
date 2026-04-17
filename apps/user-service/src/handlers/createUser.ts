@@ -3,7 +3,7 @@ import { createChildLogger, createLogger } from '@api-hub/logger';
 import { UserService } from '../services/user.service';
 import { assignUserRole } from '../services/role.service';
 import { UserRepository } from '../repositories/user.repository';
-import { getOrganization } from '../services/organization.service';
+//import { getOrganization } from '../services/organization.service';
 import { publishUserCreatedEvent } from '../events/UserCreated';
 import { validateCreateUser } from '../validation/request.validators';
 import { ExternalIdentity } from '../models';

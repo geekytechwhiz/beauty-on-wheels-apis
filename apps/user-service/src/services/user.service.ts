@@ -78,22 +78,25 @@ export class UserService {
     try {
       if (!organizationID) throw new Error('organizationID is required');
       data.organizationID = organizationID;
-      let orgDetails: any = null;
-      if (!(data as any).__skipOrganizationValidation) {
-        const orgValidationStart = Date.now();
-        orgDetails = await getOrganizationViaApi(data?.organizationID || '', authHeader);
-        if (!orgDetails) {
-          throw new Error('Organization does not exist');
-        }
-        if (orgDetails.status && ['on_hold', 'disabled', 'not_exist'].includes(String(orgDetails.status).toLowerCase())) {
-          throw new Error('Organization is not available');
-        }
-        stepDuration('organization_validation', orgValidationStart);
-      } else {
-        const orgFetchStart = Date.now();
-        orgDetails = await getOrganizationViaApi(data?.organizationID || '', authHeader, { minimal: true });
-        stepDuration('organization_fetch_minimal_for_notifications', orgFetchStart, { skippedValidation: true });
+      const orgFetchStart = Date.now();
+      const fetchedOrgDetails = await this.organizationRepository.getOrganizationFromDB(data?.organizationID || '');
+      if (!fetchedOrgDetails) {
+        throw new Error('Organization does not exist');
       }
+      const orgDetails: any = fetchedOrgDetails;
+      const orgStatus = String(
+        orgDetails.status ??
+          orgDetails.lsi_status ??
+          orgDetails.organizationInfo?.status ??
+          '',
+      ).toLowerCase();
+      if (['on_hold', 'disabled', 'not_exist'].includes(orgStatus)) {
+        throw new Error('Organization is not available');
+      }
+      stepDuration('organization_validation', orgFetchStart, {
+        source: 'db',
+        found: true,
+      });
 
  
       // Normalize legacy aliases

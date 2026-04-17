@@ -45,7 +45,6 @@ export const withLambdaHandler =
     let request: any;
 
     try {
-      console.log('event in withLambdaHandler', event); 
 
       /**
        * Build request context

@@ -3,7 +3,6 @@ import { createChildLogger, createLogger } from '@api-hub/logger';
 import { UserService } from '../services/user.service';
 import { assignUserRole } from '../services/role.service';
 import { UserRepository } from '../repositories/user.repository';
-//import { getOrganization } from '../services/organization.service';
 import { publishUserCreatedEvent } from '../events/UserCreated';
 import { validateCreateUser } from '../validation/request.validators';
 import { ExternalIdentity } from '../models';
@@ -11,13 +10,6 @@ import { ExternalIdentity } from '../models';
 const userService = new UserService();
 const userRepository = new UserRepository();
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
-
-// function throwOrgError(message: string, code: string) {
-//   const err: any = new Error(message);
-//   err.statusCode = 400;
-//   err.code = code;
-//   throw err;
-// }
 
 const handler = async (
   req: LambdaRequest<any> & {
@@ -38,24 +30,6 @@ const handler = async (
   const body = req.body ?? {};
   const handlerStart = Date.now();
   const log = createChildLogger(baseLogger, { correlationId, organizationID, invitedBy: userID });
-
-  // if (organizationID) {
-  //   const orgValidationStart = Date.now();
-  //   const org = await getOrganization(organizationID, authHeader, {
-  //     minimal: true,
-  //   });
-  //   if (!org) {
-  //     throwOrgError('Organization does not exist', 'ORGANIZATION_NOT_FOUND');
-  //   }
-  //   const status = org?.status ? String(org?.status).toLowerCase() : '';
-  //   if (['on_hold', 'disabled', 'not_exist'].includes(status)) {
-  //     throwOrgError('Organization is not available', 'ORGANIZATION_NOT_AVAILABLE');
-  //   }
-  //   log.info({
-  //     event: 'createUser_org_validation_timing',
-  //     durationMs: Date.now() - orgValidationStart,
-  //   });
-  // }
 
   const roleIds = Array.isArray(userRole)
     ? userRole.map((roleId: string) => String(roleId))

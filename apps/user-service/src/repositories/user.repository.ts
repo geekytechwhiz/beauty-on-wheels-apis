@@ -1076,20 +1076,17 @@ export class UserRepository {
     try {
       const params = {
         TableName: ROLES_TABLE,
-        KeyConditionExpression: '#PK = :PK AND #SK = :SK',
-        ExpressionAttributeNames: {
-          '#PK': 'PK',
-          '#SK': 'SK',
-        },
-        ExpressionAttributeValues: {
-          ':PK': `ORG#${organizationId}`,
-          ':SK': `ROLE#${roleId}`,
+        Key: {
+          PK: `ORG#${organizationId}`,
+          SK: `ROLE#${roleId}`,
         },
       };
-      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
-      if (result.Items && result.Items.length > 0) {
+      const result = await sendDoc<GetCommandOutput>(docClient,
+        new GetCommand(params),
+      );
+      if (result.Item) {
         logger.info({ event: 'getRolePermissions_success', roleId });
-        return result.Items;
+        return [result.Item];
       }
       return [];
     } catch (err) {

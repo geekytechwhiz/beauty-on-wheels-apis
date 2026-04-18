@@ -3,16 +3,13 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string | undefined;
-  readonly VITE_AWS_REGION: string | undefined;
-  readonly VITE_AWS_ACCESS_KEY_ID: string | undefined;
-  readonly VITE_AWS_SECRET_ACCESS_KEY: string | undefined;
-  readonly VITE_S3_BUCKET_NAME: string | undefined;
-  readonly VITE_S3_SPECS_PREFIX: string | undefined;
-  readonly VITE_S3_SPECS_INDEX_KEY: string | undefined;
+  /** When `true` in dev, Vite exposes `POST /__api-center/specs/*` to write into `public/specs/`. */
+  readonly VITE_ENABLE_LOCAL_SPEC_API: string | undefined;
+  /** Default `specs` — must match `scripts/generate-spec-index.mjs` and deployed static path. */
+  readonly VITE_SPECS_PREFIX: string | undefined;
+  /** Default `specs/index.json` under `public/`. */
+  readonly VITE_SPECS_INDEX_KEY: string | undefined;
   readonly VITE_STORYBOOK_URL: string | undefined;
-  readonly VITE_S3_FIGMA_DESIGNS_KEY: string | undefined;
-  /** Public URL of the CloudFront distribution serving this app (set in CI, e.g. buildspec). */
-  readonly VITE_CLOUDFRONT_URL: string | undefined;
 }
 
 interface ImportMeta {

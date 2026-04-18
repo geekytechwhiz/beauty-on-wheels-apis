@@ -35,21 +35,20 @@ import {
   type OpenApiValidationIssue,
 } from './utils/openApiValidation';
 import {
-  canWriteToS3FromBrowser,
+  canWriteSpecsLocally,
   computeNextVersion,
   deleteSpecVersion,
-  getS3ConfigSummary,
+  getCatalogSummary,
   loadEditableSpecDocument,
   listServices,
   listVersions,
   parseOpenApiText,
   saveEditedSpecVersion,
-  // type ServiceCatalogEntry,
   type SpecReviewStatus,
   type VersionBumpType,
   updateSpecReviewStatus,
   uploadSpec,
-} from './services/S3Service';
+} from './services/specCatalogService';
 
 const DRAWER_WIDTH = 280;
 const MERGED_VIEW_PLACEHOLDER =
@@ -106,42 +105,29 @@ export default function App({
     severity: 'success',
     message: '',
   });
-  const browserS3WriteEnabled = canWriteToS3FromBrowser();
+  const localSpecWriteEnabled = canWriteSpecsLocally();
 
-  const s3Config = useMemo(() => {
-    try {
-      return { config: getS3ConfigSummary(), error: null };
-    } catch (error) {
-      return {
-        config: null,
-        error:
-          error instanceof Error
-            ? error
-            : new Error('Unable to resolve the required S3 configuration.'),
-      };
-    }
-  }, []);
+  const catalogSummary = useMemo(() => getCatalogSummary(), []);
 
   const servicesQuery = useQuery({
-    queryKey: ['s3-services'],
+    queryKey: ['spec-catalog-services'],
     queryFn: listServices,
-    enabled: s3Config.error === null,
   });
 
   const versionsQuery = useQuery({
-    queryKey: ['s3-versions', selectedService],
+    queryKey: ['spec-catalog-versions', selectedService],
     queryFn: () => listVersions(selectedService ?? ''),
-    enabled: s3Config.error === null && selectedService !== null,
+    enabled: selectedService !== null,
   });
 
   const editableSpecQuery = useQuery({
-    queryKey: ['s3-editable-spec', selectedService, selectedVersion],
+    queryKey: ['spec-catalog-editable', selectedService, selectedVersion],
     queryFn: () =>
       loadEditableSpecDocument({
         serviceName: selectedService ?? '',
         version: selectedVersion ?? '',
       }),
-    enabled: s3Config.error === null && selectedService !== null && selectedVersion !== null,
+    enabled: selectedService !== null && selectedVersion !== null,
   });
 
   const uploadMutation = useMutation({
@@ -150,14 +136,14 @@ export default function App({
       setUploadOpen(false);
       setSelectedService(uploadedFile.serviceName);
       setSelectedVersion(uploadedFile.version);
-      await queryClient.invalidateQueries({ queryKey: ['s3-services'] });
+      await queryClient.invalidateQueries({ queryKey: ['spec-catalog-services'] });
       await queryClient.invalidateQueries({
-        queryKey: ['s3-versions', uploadedFile.serviceName],
+        queryKey: ['spec-catalog-versions', uploadedFile.serviceName],
       });
       setToast({
         open: true,
         severity: 'success',
-        message: `Uploaded ${uploadedFile.serviceName} ${uploadedFile.version} to S3.`,
+        message: `Uploaded ${uploadedFile.serviceName} ${uploadedFile.version}.`,
       });
     },
     onError: (error) => {
@@ -176,9 +162,9 @@ export default function App({
       if (selectedService === variables.serviceName && selectedVersion === variables.version) {
         setSelectedVersion(null);
       }
-      await queryClient.invalidateQueries({ queryKey: ['s3-services'] });
+      await queryClient.invalidateQueries({ queryKey: ['spec-catalog-services'] });
       await queryClient.invalidateQueries({
-        queryKey: ['s3-versions', variables.serviceName],
+        queryKey: ['spec-catalog-versions', variables.serviceName],
       });
       setToast({
         open: true,
@@ -219,12 +205,12 @@ export default function App({
       setSaveDialogError(null);
       setEditorDirty(false);
       setSelectedVersion(savedFile.version);
-      await queryClient.invalidateQueries({ queryKey: ['s3-services'] });
+      await queryClient.invalidateQueries({ queryKey: ['spec-catalog-services'] });
       await queryClient.invalidateQueries({
-        queryKey: ['s3-versions', savedFile.serviceName],
+        queryKey: ['spec-catalog-versions', savedFile.serviceName],
       });
       await queryClient.invalidateQueries({
-        queryKey: ['s3-editable-spec', savedFile.serviceName, savedFile.version],
+        queryKey: ['spec-catalog-editable', savedFile.serviceName, savedFile.version],
       });
       setToast({
         open: true,
@@ -248,7 +234,13 @@ export default function App({
     onSuccess: async (updated) => {
       setPendingStatus(null);
       await queryClient.invalidateQueries({
-        queryKey: ['s3-versions', updated.serviceName],
+        queryKey: ['spec-catalog-services'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['spec-catalog-versions', updated.serviceName],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['spec-catalog-editable', updated.serviceName, updated.version],
       });
       setToast({
         open: true,
@@ -352,17 +344,14 @@ export default function App({
       : !versionsQuery.isLoading && (versionsQuery.data?.length ?? 0) === 0
         ? `No versions found for ${selectedService}.`
         : undefined;
-  const s3ChipLabel =
-    s3Config.error || servicesQuery.isError
-        ? 'S3 error'
-        : servicesQuery.isLoading || s3Config.config === null
-          ? 'S3 loading'
-        : `${servicesQuery.data?.length ?? 0} services`;
-  const s3Tooltip = s3Config.config
-    ? `${s3Config.config.bucketName} · ${s3Config.config.region}`
-    : s3Config.error?.message ?? 'Missing S3 configuration';
+  const catalogChipLabel = servicesQuery.isError
+    ? 'Catalog error'
+    : servicesQuery.isLoading
+      ? 'Catalog loading'
+      : `${servicesQuery.data?.length ?? 0} services`;
+  const catalogTooltip = `Static catalog · public/${catalogSummary.specsPrefix}/ · ${catalogSummary.indexKey}`;
   const writeAccessMessage =
-    'This deployment reads specs through CloudFront. Browser-side S3 writes are disabled because the bucket is private.';
+    'Editing specs in the browser is only available in local dev with VITE_ENABLE_LOCAL_SPEC_API=true. Production serves files from the built site.';
   const editorParseState = useMemo(() => {
     if (!editorText.trim()) {
       return { parsedSpec: null, error: null };
@@ -522,39 +511,35 @@ export default function App({
               API Center
             </Typography>
           </Stack>
-          <Tooltip title={s3Tooltip}>
+          <Tooltip title={catalogTooltip}>
             <Chip
               size="small"
-              label={s3ChipLabel}
+              label={catalogChipLabel}
               color={
-                servicesQuery.isLoading
-                  ? 'default'
-                  : servicesQuery.isError || s3Config.error
-                    ? 'error'
-                    : 'success'
+                servicesQuery.isLoading ? 'default' : servicesQuery.isError ? 'error' : 'success'
               }
               sx={{ mr: 1, fontWeight: 700 }}
             />
           </Tooltip>
-          <Tooltip title={browserS3WriteEnabled ? 'Upload an OpenAPI spec to S3' : writeAccessMessage}>
+          <Tooltip title={localSpecWriteEnabled ? 'Upload an OpenAPI spec (writes to public/specs in dev)' : writeAccessMessage}>
             <span>
               <IconButton
                 color="inherit"
                 aria-label="upload spec"
                 onClick={() => setUploadOpen(true)}
-                disabled={!browserS3WriteEnabled}
+                disabled={!localSpecWriteEnabled}
               >
                 <AddIcon />
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title={browserS3WriteEnabled ? 'Delete the selected version from API Center' : writeAccessMessage}>
+          <Tooltip title={localSpecWriteEnabled ? 'Delete the selected version from API Center' : writeAccessMessage}>
             <span>
               <IconButton
                 color="inherit"
                 aria-label="delete selected version"
                 onClick={() => setDeleteOpen(true)}
-                disabled={!browserS3WriteEnabled || selectedService === null || selectedVersion === null}
+                disabled={!localSpecWriteEnabled || selectedService === null || selectedVersion === null}
               >
                 <DeleteOutlineIcon />
               </IconButton>
@@ -629,7 +614,7 @@ export default function App({
               variant="outlined"
               color="success"
               disabled={
-                !browserS3WriteEnabled ||
+                !localSpecWriteEnabled ||
                 selectedService === null ||
                 selectedVersion === null ||
                 effectiveStatus === 'approved' ||
@@ -645,7 +630,7 @@ export default function App({
               variant="outlined"
               color="error"
               disabled={
-                !browserS3WriteEnabled ||
+                !localSpecWriteEnabled ||
                 selectedService === null ||
                 selectedVersion === null ||
                 effectiveStatus === 'rejected' ||
@@ -687,7 +672,7 @@ export default function App({
               variant="outlined"
               onClick={handleSave}
               disabled={
-                !browserS3WriteEnabled ||
+                !localSpecWriteEnabled ||
                 selectedService === null ||
                 selectedVersion === null ||
                 editableSpecQuery.isLoading ||
@@ -702,10 +687,10 @@ export default function App({
           </Stack>
         </Stack>
 
-        {!browserS3WriteEnabled && (
+        {!localSpecWriteEnabled && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Read-only mode is enabled for this deployment. Specs are loaded through CloudFront, while upload, delete,
-            and approval actions stay disabled because the S3 bucket is private.
+            Read-only mode: specs are served as static files from the build. Enable local spec writes in dev
+            (VITE_ENABLE_LOCAL_SPEC_API=true) to upload, delete, or change review status from the UI.
           </Alert>
         )}
 

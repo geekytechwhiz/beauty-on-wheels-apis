@@ -13,7 +13,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { loadDesignLibraryEntries } from '../services/S3Service';
+import { loadDesignLibraryEntries } from '../services/specCatalogService';
 
 export function DesignLibraryPage() {
   const designsQuery = useQuery({
@@ -36,7 +36,7 @@ export function DesignLibraryPage() {
   if ((designsQuery.data?.length ?? 0) === 0) {
     return (
       <Alert severity="info">
-        No Figma designs were found. Upload `figma/designs.json` to your S3 bucket to populate the Design Library.
+        No Figma designs were found. Add entries to `public/figma/designs.json` in the repo to populate the Design Library.
       </Alert>
     );
   }

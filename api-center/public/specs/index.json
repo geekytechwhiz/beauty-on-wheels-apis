@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-04-18T15:38:46.680Z",
+  "services": [
+    {
+      "name": "user-service",
+      "latestVersion": "v1.0.0",
+      "versions": [
+        {
+          "serviceName": "user-service",
+          "version": "v1.0.0",
+          "key": "specs/user-service/v1.0.0/openapi.json",
+          "extension": "json",
+          "contentType": "application/json",
+          "status": "approved",
+          "lastModified": "2026-04-18T15:38:46.680Z",
+          "size": 48763
+        }
+      ]
+    }
+  ]
+}

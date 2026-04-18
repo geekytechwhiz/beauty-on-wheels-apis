@@ -21,7 +21,7 @@ import {
   getNextVersionForService,
   type ServiceCatalogEntry,
   type VersionBumpType,
-} from '../services/S3Service';
+} from '../services/specCatalogService';
 
 export interface UploadOpenApiSpecValues {
   serviceName: string;

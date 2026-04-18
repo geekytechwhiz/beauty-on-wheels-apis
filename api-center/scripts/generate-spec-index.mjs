@@ -1,112 +1,18 @@
-import {
-  GetObjectCommand,
-  ListObjectsV2Command,
-  S3Client,
-} from '@aws-sdk/client-s3';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import yaml from 'js-yaml';
 
-const bucket = requiredEnv('S3_BUCKET');
-const region = process.env.AWS_REGION?.trim() || process.env.AWS_DEFAULT_REGION?.trim() || 'us-east-1';
-const specsPrefix = normalizePrefix(process.env.VITE_S3_SPECS_PREFIX?.trim() || 'specs');
-const indexKey = normalizeKey(process.env.VITE_S3_SPECS_INDEX_KEY?.trim() || `${specsPrefix}/index.json`);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const statusField = 'x-api-center-status';
-const filePattern = new RegExp(`^${escapeRegExp(specsPrefix)}\\/([^/]+)\\/([^/]+)\\/openapi\\.(json|yaml|yml)$`, 'i');
-const client = new S3Client({ region });
 
-async function main() {
-  const objects = await listAllSpecObjects();
-  const versions = await Promise.all(
-    objects.map(async (object) => {
-      if (!object.Key) {
-        return null;
-      }
-
-      const match = object.Key.match(filePattern);
-      if (!match) {
-        return null;
-      }
-
-      const [, serviceName, version, extension] = match;
-      const contentType = extension.toLowerCase() === 'json' ? 'application/json' : 'application/yaml';
-      const status = await loadSpecStatus(object.Key, extension.toLowerCase());
-
-      return {
-        serviceName,
-        version,
-        key: object.Key,
-        extension: extension.toLowerCase(),
-        contentType,
-        status,
-        lastModified: object.LastModified?.toISOString(),
-        size: object.Size,
-      };
-    }),
-  );
-
-  const index = {
-    generatedAt: new Date().toISOString(),
-    services: buildCatalog(versions.filter(Boolean)),
-  };
-
-  process.stdout.write(`${JSON.stringify(index, null, 2)}\n`);
+function normalizePrefix(value) {
+  return (value || 'specs').replace(/^\/+|\/+$/g, '');
 }
 
-async function listAllSpecObjects() {
-  const objects = [];
-  let continuationToken;
-
-  do {
-    const response = await client.send(
-      new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: `${specsPrefix}/`,
-        ContinuationToken: continuationToken,
-      }),
-    );
-
-    objects.push(...(response.Contents || []));
-    continuationToken = response.NextContinuationToken;
-  } while (continuationToken);
-
-  return objects;
-}
-
-async function loadSpecStatus(key, extension) {
-  try {
-    const response = await client.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: key,
-      }),
-    );
-    const body = await readResponseBodyAsText(response.Body);
-    const parsed = extension === 'json' ? JSON.parse(body) : parseYamlStatus(body);
-    return normalizeStatus(parsed?.[statusField]);
-  } catch {
-    return 'approved';
-  }
-}
-
-async function readResponseBodyAsText(body) {
-  if (
-    body &&
-    typeof body === 'object' &&
-    'transformToString' in body &&
-    typeof body.transformToString === 'function'
-  ) {
-    return body.transformToString();
-  }
-
-  if (body instanceof Uint8Array) {
-    return new TextDecoder().decode(body);
-  }
-
-  throw new Error('Unable to read S3 response body.');
-}
-
-function parseYamlStatus(body) {
-  const statusPattern = new RegExp(`^${escapeRegExp(statusField)}\\s*:\\s*("?)([^"\\n]+)\\1\\s*$`, 'm');
-  const match = body.match(statusPattern);
-  return match ? { [statusField]: match[2].trim() } : {};
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function normalizeStatus(value) {
@@ -122,48 +28,25 @@ function normalizeStatus(value) {
   }
 }
 
-function buildCatalog(versions) {
-  const grouped = new Map();
-
-  for (const version of versions) {
-    const currentVersions = grouped.get(version.serviceName) || [];
-    const duplicateIndex = currentVersions.findIndex((item) => item.version === version.version);
-
-    if (duplicateIndex >= 0) {
-      currentVersions[duplicateIndex] = pickPreferredFile(currentVersions[duplicateIndex], version);
-    } else {
-      currentVersions.push(version);
-    }
-
-    grouped.set(version.serviceName, currentVersions);
-  }
-
-  return Array.from(grouped.entries())
-    .map(([name, serviceVersions]) => {
-      const sortedVersions = [...serviceVersions].sort((left, right) =>
-        compareVersionsDesc(left.version, right.version),
+function loadSpecStatus(filePath, extension) {
+  try {
+    const body = fs.readFileSync(filePath, 'utf8');
+    if (extension === 'json') {
+      const parsed = JSON.parse(body);
+      return normalizeStatus(
+        parsed && typeof parsed === 'object' && parsed !== null && statusField in parsed
+          ? parsed[statusField]
+          : undefined,
       );
-
-      return {
-        name,
-        latestVersion: sortedVersions[0]?.version || '',
-        versions: sortedVersions,
-      };
-    })
-    .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function pickPreferredFile(current, candidate) {
-  if (current.extension === 'json' && candidate.extension !== 'json') {
-    return current;
+    }
+    const parsed = yaml.load(body);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && statusField in parsed) {
+      return normalizeStatus(parsed[statusField]);
+    }
+    return 'approved';
+  } catch {
+    return 'approved';
   }
-  if (candidate.extension === 'json' && current.extension !== 'json') {
-    return candidate;
-  }
-
-  const currentModified = current.lastModified ? Date.parse(current.lastModified) : 0;
-  const candidateModified = candidate.lastModified ? Date.parse(candidate.lastModified) : 0;
-  return candidateModified >= currentModified ? candidate : current;
 }
 
 function compareVersionsDesc(left, right) {
@@ -200,24 +83,143 @@ function parseSemanticVersion(version) {
   };
 }
 
-function normalizePrefix(value) {
-  return value.replace(/^\/+|\/+$/g, '');
-}
-
-function normalizeKey(value) {
-  return value.replace(/^\/+/, '');
-}
-
-function requiredEnv(name) {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is required.`);
+function pickPreferredFile(current, candidate) {
+  if (current.extension === 'json' && candidate.extension !== 'json') {
+    return current;
   }
-  return value;
+  if (candidate.extension === 'json' && current.extension !== 'json') {
+    return candidate;
+  }
+
+  const currentModified = current.lastModified ? Date.parse(current.lastModified) : 0;
+  const candidateModified = candidate.lastModified ? Date.parse(candidate.lastModified) : 0;
+  return candidateModified >= currentModified ? candidate : current;
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function buildCatalog(versions) {
+  const grouped = new Map();
+
+  for (const version of versions) {
+    const currentVersions = grouped.get(version.serviceName) || [];
+    const duplicateIndex = currentVersions.findIndex((item) => item.version === version.version);
+
+    if (duplicateIndex >= 0) {
+      currentVersions[duplicateIndex] = pickPreferredFile(currentVersions[duplicateIndex], version);
+    } else {
+      currentVersions.push(version);
+    }
+
+    grouped.set(version.serviceName, currentVersions);
+  }
+
+  return Array.from(grouped.entries())
+    .map(([name, serviceVersions]) => {
+      const sortedVersions = [...serviceVersions].sort((left, right) =>
+        compareVersionsDesc(left.version, right.version),
+      );
+
+      return {
+        name,
+        latestVersion: sortedVersions[0]?.version || '',
+        versions: sortedVersions,
+      };
+    })
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/**
+ * Recursively collect file paths under dir (sync).
+ * @param {string} dir
+ * @returns {string[]}
+ */
+function walkFiles(dir) {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...walkFiles(full));
+    } else if (entry.isFile()) {
+      files.push(full);
+    }
+  }
+  return files;
+}
+
+/**
+ * @param {{ rootDir?: string; specsPrefix?: string }} [options]
+ * @returns {{ generatedAt: string; services: ReturnType<typeof buildCatalog> }}
+ */
+export function buildSpecIndexFromFilesystem(options = {}) {
+  const rootDir = options.rootDir ?? process.cwd();
+  const specsPrefix = normalizePrefix(options.specsPrefix ?? process.env.VITE_SPECS_PREFIX);
+  const specsAbs = path.join(rootDir, 'public', specsPrefix);
+  const filePattern = new RegExp(
+    `^${escapeRegExp(specsPrefix)}\\/([^/]+)\\/([^/]+)\\/openapi\\.(json|yaml|yml)$`,
+    'i',
+  );
+
+  const allFiles = walkFiles(specsAbs);
+  const versions = [];
+
+  for (const absPath of allFiles) {
+    const relFromPublic = path.relative(path.join(rootDir, 'public'), absPath).split(path.sep).join('/');
+    if (relFromPublic === `${specsPrefix}/index.json` || relFromPublic.endsWith('/index.json')) {
+      continue;
+    }
+
+    const match = relFromPublic.match(filePattern);
+    if (!match) {
+      continue;
+    }
+
+    const [, serviceName, version, extension] = match;
+    const stat = fs.statSync(absPath);
+    const contentType = extension.toLowerCase() === 'json' ? 'application/json' : 'application/yaml';
+    const status = loadSpecStatus(absPath, extension.toLowerCase());
+
+    versions.push({
+      serviceName,
+      version,
+      key: relFromPublic,
+      extension: extension.toLowerCase(),
+      contentType,
+      status,
+      lastModified: stat.mtime.toISOString(),
+      size: stat.size,
+    });
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    services: buildCatalog(versions.filter(Boolean)),
+  };
+}
+
+/**
+ * Writes public/{specsPrefix}/index.json under rootDir.
+ * @param {{ rootDir?: string; specsPrefix?: string }} [options]
+ */
+export function writeSpecIndexFile(options = {}) {
+  const rootDir = options.rootDir ?? process.cwd();
+  const specsPrefix = normalizePrefix(options.specsPrefix ?? process.env.VITE_SPECS_PREFIX);
+  const specsAbs = path.join(rootDir, 'public', specsPrefix);
+  if (!fs.existsSync(specsAbs)) {
+    fs.mkdirSync(specsAbs, { recursive: true });
+  }
+
+  const index = buildSpecIndexFromFilesystem({ rootDir, specsPrefix });
+  const indexPath = path.join(specsAbs, 'index.json');
+  fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`, 'utf8');
+  return indexPath;
+}
+
+async function main() {
+  const out = writeSpecIndexFile();
+  process.stdout.write(`${out}\n`);
 }
 
 main().catch((error) => {

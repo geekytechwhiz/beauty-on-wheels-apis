@@ -5,12 +5,6 @@ env:
     AWS_REGION: us-east-1
     S3_BUCKET: dev-mvx-developer-hub
     CLOUDFRONT_DIST_ID: "EWGY1JYSRFKJQ"
-    VITE_S3_BUCKET_NAME: dev-mvx-developer-hub
-    VITE_S3_SPECS_PREFIX: specs
-    VITE_S3_SPECS_INDEX_KEY: specs/index.json
-    VITE_S3_FIGMA_DESIGNS_KEY: figma/designs.json
-    # CloudFront distribution for the built Developer Hub (api-center)
-    VITE_CLOUDFRONT_URL: https://d28d5t5u0n3bd1.cloudfront.net
 
 phases:
   install:
@@ -40,15 +34,8 @@ phases:
       - npm --prefix api-center run build
   post_build:
     commands:
-      - 'echo "Deploying api-center/dist/ to s3://${S3_BUCKET}"'
-      - 'echo "CloudFront app URL (VITE_CLOUDFRONT_URL): ${VITE_CLOUDFRONT_URL}"'
-      - aws s3 sync api-center/dist/ "s3://${S3_BUCKET}" --delete --exclude "index.html" --exclude "specs/*"
-      - |
-          echo "Generating public spec catalog index..."
-          npm --prefix api-center run generate:spec-index > /tmp/api-center-spec-index.json
-          aws s3 cp /tmp/api-center-spec-index.json "s3://${S3_BUCKET}/${VITE_S3_SPECS_INDEX_KEY}" \
-            --cache-control "no-cache, no-store, must-revalidate" \
-            --content-type "application/json"
+      - 'echo "Deploying api-center/dist/ to s3://${S3_BUCKET} (includes static specs under dist/specs/)"'
+      - aws s3 sync api-center/dist/ "s3://${S3_BUCKET}" --delete
       - |
           if [ -f api-center/dist/index.html ]; then
             echo "Uploading index.html with no-cache headers..."

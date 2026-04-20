@@ -1065,6 +1065,17 @@ resources:
           - Key: ManagedBy
             Value: serverless
 
+    # Explicit invoke permission for EventBridge rules on the user-service bus.
+    # Uses bus-scoped wildcard SourceArn to avoid coupling to generated rule name.
+    UserRoleAssignmentRequestedInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName:
+          Ref: UserRoleAssignmentRequestedLambdaFunction
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/user-service-bus-${self:provider.stage}/*
+
     # SNS Topic for User Notification Events
     UserEventsTopic:
       Type: AWS::SNS::Topic

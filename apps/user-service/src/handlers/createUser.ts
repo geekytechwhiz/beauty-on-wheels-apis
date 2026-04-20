@@ -1,7 +1,6 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/logger';
 import { UserService } from '../services/user.service';
-import { assignUserRole } from '../services/role.service';
 import { UserRepository } from '../repositories/user.repository';
 import { publishUserCreatedEvent } from '../events/UserCreated';
 import { validateCreateUser } from '../validation/request.validators';
@@ -146,8 +145,12 @@ const handler = async (
     eventName: 'UserCreated.v1',
     correlationId: correlationId ?? '',
     userId: result.userID,
+    organizationID,
+    roleId: roleIds[0] ?? '',
     email: userInfo?.contact?.email ?? '',
+    phone: userInfo?.contact?.phone ?? '',
     name: userInfo?.name ?? userData.fullName ?? '',
+    profilePic: userInfo?.profilePic ?? '',
   })
     .then(() => {
       log.info({
@@ -167,45 +170,6 @@ const handler = async (
       });
     });
   void publishUserCreatedPromise;
-
-  if (roleIds.length > 0) {
-    const roleAssignmentStart = Date.now();
-    const syncRoleAssignmentEnabled =
-      String(process.env.CREATE_USER_SYNC_ROLE_ASSIGNMENT ?? 'true').toLowerCase() !== 'false';
-    const assignRolePromise = assignUserRole(
-      roleIds[0],
-      organizationID,
-      result.userID,
-      userInfo.name,
-      userInfo.contact.email ?? '',
-      userInfo.contact.phone ?? '',
-      userInfo.profilePic,
-      authHeader,
-    )
-      .then(() => {
-        log.info({
-          event: 'createUser_assignUserRole_success',
-          userId: result.userID,
-          mode: syncRoleAssignmentEnabled ? 'sync' : 'async',
-          durationMs: Date.now() - roleAssignmentStart,
-        });
-      })
-      .catch((err: any) => {
-        log.warn({
-          event: 'createUser_assignUserRole_failed',
-          userId: result.userID,
-          mode: syncRoleAssignmentEnabled ? 'sync' : 'async',
-          durationMs: Date.now() - roleAssignmentStart,
-          error: err?.message || String(err),
-        });
-      });
-
-    if (syncRoleAssignmentEnabled) {
-      await assignRolePromise;
-    } else {
-      void assignRolePromise;
-    }
-  }
 
   log.info({
     event: 'createUser_handler_total_timing',

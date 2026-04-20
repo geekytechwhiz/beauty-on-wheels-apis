@@ -893,6 +893,19 @@ functions:
     timeout: 30
     memorySize: 256
 
+  userCreatedRoleAssignment:
+    handler: src/handlers/events/userCreatedRoleAssignment.main
+    timeout: 30
+    memorySize: 256
+    events:
+      - eventBridge:
+          eventBus: ${self:provider.environment.EVENT_BUS}
+          pattern:
+            source:
+              - user-service
+            detail-type:
+              - UserCreated.v1
+
   userProfileStreamHandler:
     handler: src/handlers/stream/userProfileStreamHandler.main
     timeout: 30

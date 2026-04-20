@@ -171,7 +171,7 @@ const handler = async (
   if (roleIds.length > 0) {
     const roleAssignmentStart = Date.now();
     const syncRoleAssignmentEnabled =
-      String((globalThis as any)?.process?.env?.CREATE_USER_SYNC_ROLE_ASSIGNMENT || '').toLowerCase() === 'true';
+      String(process.env.CREATE_USER_SYNC_ROLE_ASSIGNMENT ?? 'true').toLowerCase() !== 'false';
     const assignRolePromise = assignUserRole(
       roleIds[0],
       organizationID,
@@ -190,12 +190,13 @@ const handler = async (
           durationMs: Date.now() - roleAssignmentStart,
         });
       })
-      .catch(() => {
+      .catch((err: any) => {
         log.warn({
           event: 'createUser_assignUserRole_failed',
           userId: result.userID,
           mode: syncRoleAssignmentEnabled ? 'sync' : 'async',
           durationMs: Date.now() - roleAssignmentStart,
+          error: err?.message || String(err),
         });
       });
 

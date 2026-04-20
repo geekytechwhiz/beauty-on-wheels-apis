@@ -1065,8 +1065,6 @@ resources:
           - Key: ManagedBy
             Value: serverless
 
-    # Explicit invoke permission for EventBridge rules on the user-service bus.
-    # Uses bus-scoped wildcard SourceArn to avoid coupling to generated rule name.
     UserRoleAssignmentRequestedInvokePermission:
       Type: AWS::Lambda::Permission
       Properties:

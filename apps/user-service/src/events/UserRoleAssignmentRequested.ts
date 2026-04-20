@@ -20,7 +20,7 @@ export async function publishUserRoleAssignmentRequestedEvent(event: unknown): P
     message: 'Publishing UserRoleAssignmentRequested.v1',
   });
 
-  await client.send(
+  const result = await client.send(
     new PutEventsCommand({
       Entries: [
         {
@@ -32,4 +32,22 @@ export async function publishUserRoleAssignmentRequestedEvent(event: unknown): P
       ],
     }),
   );
+
+  const failedCount = result.FailedEntryCount ?? 0;
+  if (failedCount > 0) {
+    logger.error({
+      event: 'publish_user_role_assignment_requested_failed',
+      message: 'EventBridge PutEvents failed for one or more entries',
+      failedEntryCount: failedCount,
+      entries: result.Entries,
+      eventBus: EVENT_BUS,
+    });
+    throw new Error('EventBridge PutEvents returned failed entries');
+  }
+
+  logger.info({
+    event: 'publish_user_role_assignment_requested_success',
+    message: 'UserRoleAssignmentRequested.v1 published successfully',
+    eventBus: EVENT_BUS,
+  });
 }

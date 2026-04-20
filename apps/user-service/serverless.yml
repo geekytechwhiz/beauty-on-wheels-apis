@@ -3,6 +3,7 @@ service: user-service
 frameworkVersion: '3.x'
 
 plugins:
+  - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
@@ -228,10 +229,9 @@ custom:
     stg: info
     prd: warn
 
-  createUserProvisionedConcurrency:
-    dev: 1
-    stg: 2
-    prd: 3
+  # serverless-plugin-warmup: declare default warmer (see functions.createUser.warmup.default)
+  warmup:
+    default: {}
 
   # Cognito User Pool IDs per stage (used for searchFnF and other Cognito lookups)
   cognitoUserPoolId:
@@ -313,7 +313,9 @@ functions:
             resultTtlInSeconds: 0
   createUser:
     handler: src/handlers/createUser.main
-    provisionedConcurrency: ${self:custom.createUserProvisionedConcurrency.${self:provider.stage}, 1}
+    warmup:
+      default:
+        enabled: true
     memorySize: 256
     events:
       - http:

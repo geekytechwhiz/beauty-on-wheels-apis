@@ -1,5 +1,8 @@
 service: user-service
 
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
 frameworkVersion: '3.x'
 
 plugins:
@@ -189,7 +192,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node20
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
@@ -207,6 +210,7 @@ custom:
       - '.tsx'
       - '.js'
       - '.jsx'
+      - '.mjs'
       - '.json'
   autoswagger:
     title: User Service API

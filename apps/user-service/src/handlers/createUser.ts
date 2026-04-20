@@ -17,6 +17,8 @@ const handler = async (
       userInfo: any;
       userRole: any;
       userType: any;
+      roleName?: string;
+      definedRoleCode?: string;
       organizationID: string;
       userID: string;
       externalIdentity: ExternalIdentity;
@@ -24,7 +26,7 @@ const handler = async (
   },
 ) => {
   const data = req.validatedCreateUser!;
-  const { userInfo, userRole, userType, organizationID, userID, externalIdentity } = data;
+  const { userInfo, userRole, userType, roleName, definedRoleCode: requestDefinedRoleCode, organizationID, userID, externalIdentity } = data;
   const authHeader = req.context.authHeader;
   const correlationId = req.context.correlationId;
   const body = req.body ?? {};
@@ -85,24 +87,36 @@ const handler = async (
 
   const isEmail = userInfo.contact.email && userInfo.contact.email.includes('@');
   userData.srcRegisEntity = isEmail ? 'email' : 'phone_number';
-  let definedRoleCode: string | undefined;
+  let definedRoleCode: string | undefined = requestDefinedRoleCode;
+  userData.roleName = roleName;
 
-  if (roleIds.length > 0) {
-    const roleLookupStart = Date.now();
-    const rolePermissions = await userRepository
-      .getRolePermissions(roleIds[0], organizationID)
-      .catch(() => []);
-    if (rolePermissions && rolePermissions.length > 0) {
-      const exactRoleMatch =
-        rolePermissions.find((item: any) => item.SK === `ROLE#${roleIds[0]}`) ||
-        rolePermissions[0];
-      definedRoleCode = exactRoleMatch?.definedRoleCode;
-      userData.roleName = exactRoleMatch?.roleName || definedRoleCode || '';
+  const hasRoleNameInRequest = userData.roleName !== undefined && userData.roleName !== null;
+  const hasDefinedRoleCodeInRequest = definedRoleCode !== undefined && definedRoleCode !== null;
+
+  if (hasRoleNameInRequest && hasDefinedRoleCodeInRequest) {
+    console.log('createUser: skipping role lookup in DB because roleName and definedRoleCode are provided in request');
+  } else {
+    if (roleIds.length > 0) {
+      const roleLookupStart = Date.now();
+      const rolePermissions = await userRepository
+        .getRolePermissions(roleIds[0], organizationID)
+        .catch(() => []);
+      if (rolePermissions && rolePermissions.length > 0) {
+        const exactRoleMatch =
+          rolePermissions.find((item: any) => item.SK === `ROLE#${roleIds[0]}`) ||
+          rolePermissions[0];
+        if (!hasDefinedRoleCodeInRequest) {
+          definedRoleCode = exactRoleMatch?.definedRoleCode;
+        }
+        if (!hasRoleNameInRequest) {
+          userData.roleName = exactRoleMatch?.roleName || definedRoleCode || '';
+        }
+      }
+      log.info({
+        event: 'createUser_role_lookup_timing',
+        durationMs: Date.now() - roleLookupStart
+      });
     }
-    log.info({
-      event: 'createUser_role_lookup_timing',
-      durationMs: Date.now() - roleLookupStart
-    });
   }
 
   if (definedRoleCode !== undefined && definedRoleCode !== null) {

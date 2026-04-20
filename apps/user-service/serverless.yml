@@ -1065,6 +1065,18 @@ resources:
           - Key: ManagedBy
             Value: serverless
 
+    UserServiceBusPutEventsPolicy:
+      Type: AWS::Events::EventBusPolicy
+      Properties:
+        EventBusName: !Ref UserServiceBus
+        StatementId: ${self:provider.stage}-AllowLambdasToPutEvents
+        Action: events:PutEvents
+        Principal: '*'
+        Condition:
+          Type: StringLike
+          Key: aws:SourceArn
+          Value: arn:aws:iam::${aws:accountId}:role/*
+
     UserRoleAssignmentRequestedInvokePermission:
       Type: AWS::Lambda::Permission
       Properties:

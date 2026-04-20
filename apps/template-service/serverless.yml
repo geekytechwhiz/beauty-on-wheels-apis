@@ -89,7 +89,7 @@ custom:
     dev: debug
     stg: info
     prd: warn
-  templateBucketName: mvx-${self:provider.stage}-templates-library-mib
+  templateBucketName: mvx-${self:provider.stage}-templates-library
   esbuild:
     bundle: true
     minify: false

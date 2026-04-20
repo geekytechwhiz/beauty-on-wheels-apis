@@ -79,6 +79,7 @@ export const deviceListSchema = z.object({
   organizationID: z.string().optional(),
   organizationId: z.string().optional(), // Support both cases
   patientUserId: z.string().optional(), // For recommend action
+  category: z.string().optional(),
   searchValue: z.string().optional(),
   deviceId: z.string().optional(),
   deviceType: z.string().optional(),

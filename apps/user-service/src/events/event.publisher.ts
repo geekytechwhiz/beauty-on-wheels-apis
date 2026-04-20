@@ -1,4 +1,5 @@
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { randomUUID } from 'crypto';
 import { EventEnvelope } from './event.types'; 
@@ -7,7 +8,23 @@ const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const topicArn = process.env.USER_EVENTS_TOPIC_ARN;
 const region = process.env.DEFAULT_REGION || process.env.DP_REGION || 'us-east-1';
 
-const sns = new SNSClient({ region });
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+const snsConnectionTimeoutMs = parsePositiveInt(process.env.SNS_CONNECTION_TIMEOUT_MS, 5_000);
+const snsSocketTimeoutMs = parsePositiveInt(process.env.SNS_SOCKET_TIMEOUT_MS, 30_000);
+const snsMaxAttempts = parsePositiveInt(process.env.SNS_MAX_ATTEMPTS, 5);
+
+const sns = new SNSClient({
+  region,
+  maxAttempts: snsMaxAttempts,
+  requestHandler: new NodeHttpHandler({
+    connectionTimeout: snsConnectionTimeoutMs,
+    socketTimeout: snsSocketTimeoutMs,
+  }),
+});
 
 function isNonProdRelaxed(): boolean {
   const stage = process.env.STAGE || process.env.SERVERLESS_STAGE || process.env.NODE_ENV;

@@ -4,12 +4,12 @@ export const userCreatedEventSchema = z.object({
   eventName: z.literal('UserCreated.v1'),
   correlationId: z.string(),
   userId: z.string(),
-  organizationID: z.string().optional(),
-  roleId: z.string().optional(),
+  // organizationID: z.string().optional(),
+  // roleId: z.string().optional(),
   email: z.union([z.email(), z.literal('')]),
-  phone: z.string().optional(),
+  // phone: z.string().optional(),
   name: z.string(),
-  profilePic: z.string().optional(),
+  // profilePic: z.string().optional(),
 });
 
 export const userProfileUpdatedEventSchema = z.object({

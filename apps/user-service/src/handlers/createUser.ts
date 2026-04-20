@@ -170,7 +170,14 @@ const handler = async (
 
   if (roleIds.length > 0) {
     const roleAssignmentEventStart = Date.now();
-    const publishRoleAssignmentRequestedPromise = publishUserRoleAssignmentRequestedEvent({
+    // TESTING ONLY: await EventBridge publish so we can verify delivery behavior in logs.
+    console.log('[TEST][createUser] Publishing UserRoleAssignmentRequested.v1', {
+      correlationId: correlationId ?? '',
+      organizationID,
+      roleId: roleIds[0],
+      userId: result.userID,
+    });
+    await publishUserRoleAssignmentRequestedEvent({
       eventName: 'UserRoleAssignmentRequested.v1',
       correlationId: correlationId ?? '',
       organizationID,
@@ -183,23 +190,31 @@ const handler = async (
       authHeader: authHeader ?? '',
     })
       .then(() => {
+        console.log('[TEST][createUser] Published UserRoleAssignmentRequested.v1 successfully', {
+          userId: result.userID,
+          durationMs: Date.now() - roleAssignmentEventStart,
+        });
         log.info({
           event: 'createUser_role_assignment_event_published',
           userId: result.userID,
-          mode: 'async',
+          mode: 'sync',
           durationMs: Date.now() - roleAssignmentEventStart,
         });
       })
       .catch((err: any) => {
+        console.log('[TEST][createUser] Failed to publish UserRoleAssignmentRequested.v1', {
+          userId: result.userID,
+          durationMs: Date.now() - roleAssignmentEventStart,
+          error: err?.message || String(err),
+        });
         log.warn({
           event: 'createUser_role_assignment_event_failed',
           userId: result.userID,
-          mode: 'async',
+          mode: 'sync',
           durationMs: Date.now() - roleAssignmentEventStart,
           error: err?.message || String(err),
         });
       });
-    void publishRoleAssignmentRequestedPromise;
   }
 
   log.info({

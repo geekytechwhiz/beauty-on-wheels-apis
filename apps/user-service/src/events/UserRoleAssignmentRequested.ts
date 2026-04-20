@@ -19,8 +19,17 @@ export async function publishUserRoleAssignmentRequestedEvent(event: unknown): P
     event: 'publishing_user_role_assignment_requested',
     message: 'Publishing UserRoleAssignmentRequested.v1',
   });
+  console.log('[TEST][eventBridge] PutEvents start', {
+    eventBus: EVENT_BUS,
+    detailType: 'UserRoleAssignmentRequested.v1',
+    source: 'user-service',
+    correlationId: parsed.correlationId,
+    userId: parsed.userId,
+    roleId: parsed.roleId,
+    organizationID: parsed.organizationID,
+  });
 
-  await client.send(
+  const putEventsResult = await client.send(
     new PutEventsCommand({
       Entries: [
         {
@@ -32,4 +41,8 @@ export async function publishUserRoleAssignmentRequestedEvent(event: unknown): P
       ],
     }),
   );
+  console.log('[TEST][eventBridge] PutEvents result', {
+    failedEntryCount: putEventsResult.FailedEntryCount ?? 0,
+    entries: putEventsResult.Entries,
+  });
 }

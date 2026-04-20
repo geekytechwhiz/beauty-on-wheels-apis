@@ -1,9 +1,9 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/logger';
 import { UserService } from '../services/user.service';
-import { assignUserRole } from '../services/role.service';
 import { UserRepository } from '../repositories/user.repository';
 import { publishUserCreatedEvent } from '../events/UserCreated';
+import { publishUserRoleAssignmentRequestedEvent } from '../events/UserRoleAssignmentRequested';
 import { validateCreateUser } from '../validation/request.validators';
 import { ExternalIdentity } from '../models';
 
@@ -146,12 +146,8 @@ const handler = async (
     eventName: 'UserCreated.v1',
     correlationId: correlationId ?? '',
     userId: result.userID,
-    // organizationID,
-    // roleId: roleIds[0] ?? '',
     email: userInfo?.contact?.email ?? '',
-    // phone: userInfo?.contact?.phone ?? '',
-    name: userInfo?.name ?? userData.fullName ?? '',
-    // profilePic: userInfo?.profilePic ?? '',
+    name: userInfo?.name ?? userData.fullName ?? ''
   })
     .then(() => {
       log.info({
@@ -173,42 +169,37 @@ const handler = async (
   void publishUserCreatedPromise;
 
   if (roleIds.length > 0) {
-    const roleAssignmentStart = Date.now();
-    const syncRoleAssignmentEnabled =
-      String(process.env.CREATE_USER_SYNC_ROLE_ASSIGNMENT ?? 'true').toLowerCase() !== 'false';
-    const assignRolePromise = assignUserRole(
-      roleIds[0],
+    const roleAssignmentEventStart = Date.now();
+    const publishRoleAssignmentRequestedPromise = publishUserRoleAssignmentRequestedEvent({
+      eventName: 'UserRoleAssignmentRequested.v1',
+      correlationId: correlationId ?? '',
       organizationID,
-      result.userID,
-      userInfo.name,
-      userInfo.contact.email ?? '',
-      userInfo.contact.phone ?? '',
-      userInfo.profilePic,
-      authHeader,
-    )
+      roleId: roleIds[0],
+      userId: result.userID,
+      name: userInfo?.name ?? userData.fullName ?? '',
+      email: userInfo?.contact?.email ?? '',
+      phone: userInfo?.contact?.phone ?? '',
+      profilePic: userInfo?.profilePic ?? '',
+      authHeader: authHeader ?? '',
+    })
       .then(() => {
         log.info({
-          event: 'createUser_assignUserRole_success',
+          event: 'createUser_role_assignment_event_published',
           userId: result.userID,
-          mode: syncRoleAssignmentEnabled ? 'sync' : 'async',
-          durationMs: Date.now() - roleAssignmentStart,
+          mode: 'async',
+          durationMs: Date.now() - roleAssignmentEventStart,
         });
       })
       .catch((err: any) => {
         log.warn({
-          event: 'createUser_assignUserRole_failed',
+          event: 'createUser_role_assignment_event_failed',
           userId: result.userID,
-          mode: syncRoleAssignmentEnabled ? 'sync' : 'async',
-          durationMs: Date.now() - roleAssignmentStart,
+          mode: 'async',
+          durationMs: Date.now() - roleAssignmentEventStart,
           error: err?.message || String(err),
         });
       });
-
-    if (syncRoleAssignmentEnabled) {
-      await assignRolePromise;
-    } else {
-      void assignRolePromise;
-    }
+    void publishRoleAssignmentRequestedPromise;
   }
 
   log.info({

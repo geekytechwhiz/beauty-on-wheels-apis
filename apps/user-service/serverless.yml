@@ -929,6 +929,18 @@ functions:
       - sns:
           arn: ${self:provider.environment.USER_EVENTS_TOPIC_ARN}
 
+  userRoleAssignmentRequested:
+    handler: src/handlers/userRoleAssignmentRequested.handler
+    timeout: 30
+    memorySize: 256
+    events:
+      - eventBridge:
+          eventBus: ${self:provider.environment.EVENT_BUS}
+          pattern:
+            source:
+              - user-service
+            detail-type:
+              - UserRoleAssignmentRequested.v1
    
 
 resources:

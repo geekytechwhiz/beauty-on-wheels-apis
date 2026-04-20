@@ -894,7 +894,7 @@ functions:
     memorySize: 256
 
   userCreatedRoleAssignment:
-    handler: src/handlers/events/userCreatedRoleAssignment.main
+    handler: src/events/UserCreated.userCreatedRoleAssignment
     timeout: 30
     memorySize: 256
     events:
@@ -1050,19 +1050,6 @@ resources:
           - ReportBatchItemFailures
         Enabled: true
 
-    # This is the EventBridge Event Bus
-    UserServiceBus:
-      Type: AWS::Events::EventBus
-      Properties:
-        Name: user-service-bus-${self:provider.stage}
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
-
     # SNS Topic for User Notification Events
     UserEventsTopic:
       Type: AWS::SNS::Topic
@@ -1103,7 +1090,7 @@ resources:
 
     UserServiceBusName:
       Description: Name of the User Service Event Bus
-      Value: !Ref UserServiceBus
+      Value: ${self:provider.environment.EVENT_BUS}
       Export:
         Name: ${self:provider.stage}-${self:service}-EventBusName
 

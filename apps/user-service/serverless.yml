@@ -935,7 +935,10 @@ functions:
     memorySize: 256
     events:
       - eventBridge:
-          eventBus: ${self:provider.environment.EVENT_BUS}
+          eventBus:
+            Fn::GetAtt:
+              - UserServiceBus
+              - Arn
           pattern:
             source:
               - user-service

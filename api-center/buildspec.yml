@@ -3,22 +3,39 @@ version: 0.2
 env:
   variables:
     NODE_ENV: production
+    AWS_REGION: ap-south-1
+    KEEP_LAST_N: 2
+    DRY_RUN: true   # 🔒 IMPORTANT: Start with true
 
 phases:
   install:
     runtime-versions:
       nodejs: 20
     commands:
-      - 'echo "Using Node $(node --version)"'
-      - 'echo "Using npm $(npm --version)"'
+      - echo "Using Node $(node --version)"
+      - echo "Using npm $(npm --version)"
+
   pre_build:
     commands:
-      - 'echo "Installing api-center dependencies..."'
+      - echo "Installing api-center dependencies..."
       - npm --prefix api-center install --include=dev
+
+      # 👇 Install cleanup script deps (adjust path if needed)
+      - echo "Installing cleanup tool dependencies..."
+      - npm install @aws-sdk/client-lambda
+
   build:
     commands:
-      - 'echo "Building frontend (api-center)..."'
+      - echo "Building frontend (api-center)..."
       - npm --prefix api-center run build
+
+  post_build:
+    commands:
+      - echo "Starting Lambda version cleanup..." 
+      # 👇 Run your cleanup script
+      - node ../tools/lambda/lambda-version-cleanup.ts
+      
+      - echo "Lambda cleanup completed"
 
 artifacts:
   base-directory: api-center/dist

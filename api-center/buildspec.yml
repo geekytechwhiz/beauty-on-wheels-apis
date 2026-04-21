@@ -5,7 +5,7 @@ env:
     NODE_ENV: production
     AWS_REGION: ap-south-1
     KEEP_LAST_N: 2
-    DRY_RUN: true   # 🔒 IMPORTANT: Start with true
+    DRY_RUN: false   # 🔒 IMPORTANT: Start with true
 
 phases:
   install:

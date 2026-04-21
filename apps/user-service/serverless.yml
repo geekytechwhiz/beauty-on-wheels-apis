@@ -1065,6 +1065,15 @@ resources:
           - Key: ManagedBy
             Value: serverless
 
+    UserRoleAssignmentRequestedInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt UserRoleAssignmentRequestedLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/user-service-bus-${self:provider.stage}/user-service-${self:provider.stage}-userRoleAssignmentRequested-rule-1
+
     # SNS Topic for User Notification Events
     UserEventsTopic:
       Type: AWS::SNS::Topic

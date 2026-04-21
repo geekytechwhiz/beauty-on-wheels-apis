@@ -1,35 +1,34 @@
-/** HTTP-oriented fields for compatibility with @api-hub/utils handleError / withLambdaHandler. */
-export class MetadataNotFoundError extends Error {
-  readonly statusCode = 404 as const;
-  readonly code = 'RESOURCE_NOT_FOUND';
+import { BaseError } from '@api-hub/utils';
 
-  constructor(readonly resource: string, readonly id: string) {
-    super(`${resource} not found: ${id}`);
-    this.name = 'MetadataNotFoundError';
-  }
-}
-
-export class MetadataConflictError extends Error {
-  readonly statusCode = 409 as const;
-  readonly code = 'CONFLICT';
-
-  constructor(message: string) {
-    super(message);
-    this.name = 'MetadataConflictError';
-  }
-}
-
-export class MetadataValidationError extends Error {
-  readonly statusCode = 400 as const;
-  readonly code = 'VALIDATION_ERROR';
-  readonly details: Array<{ field?: string; message: string }>;
-
+export class MetadataRegistryError extends BaseError {
   constructor(
     message: string,
-    details?: Array<{ field?: string; message: string }>,
+    statusCode: number,
+    code: string,
+    details?: { field?: string; message: string }[],
   ) {
-    super(message);
-    this.name = 'MetadataValidationError';
-    this.details = details ?? [{ message }];
+    super(message, statusCode, code, details);
+    this.name = 'MetadataRegistryError';
+  }
+}
+
+export class ValidationError extends MetadataRegistryError {
+  constructor(message: string, details?: { field?: string; message: string }[]) {
+    super(message, 400, 'VALIDATION_ERROR', details);
+    this.name = 'ValidationError';
+  }
+}
+
+export class NotFoundError extends MetadataRegistryError {
+  constructor(message: string, code = 'NOT_FOUND') {
+    super(message, 404, code);
+    this.name = 'NotFoundError';
+  }
+}
+
+export class ConflictError extends MetadataRegistryError {
+  constructor(message: string, code = 'CONFLICT') {
+    super(message, 409, code);
+    this.name = 'ConflictError';
   }
 }

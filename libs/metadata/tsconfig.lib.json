@@ -1,8 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": "../..",
-    "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "composite": true,
@@ -10,12 +8,10 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
+    "rootDir": "src",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    { "path": "../logger/tsconfig.lib.json" },
-    { "path": "../utils/tsconfig.lib.json" },
-    { "path": "../template/tsconfig.lib.json" }
-  ]
+  "exclude": ["src/**/*.spec.ts"],
+  "references": [{ "path": "../logger/tsconfig.lib.json" }, { "path": "../utils/tsconfig.lib.json" }]
 }

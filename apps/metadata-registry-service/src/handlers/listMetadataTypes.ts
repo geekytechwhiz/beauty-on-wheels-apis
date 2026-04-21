@@ -1,35 +1,16 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
-import {
-  listMetadataTypesQuerySchema,
-  MetadataValidationError,
-} from '@api-hub/metadata';
-import { getService } from '../utils/service-factory';
+import { STATUS } from '@api-hub/metadata';
+import { withLambdaHandler } from '@api-hub/utils';
+import { listTypes } from '../services/metadataService';
 
-const validate = (req: LambdaRequest) => {
-  const result = listMetadataTypesQuerySchema.safeParse(req.params);
-  if (!result.success) {
-    throw new MetadataValidationError(
-      'Invalid query parameters',
-      result.error.issues.map((i) => ({
-        field: i.path.join('.'),
-        message: i.message,
-      })),
-    );
-  }
-  (req as any).validatedQuery = result.data;
-};
-
-const handler = async (req: LambdaRequest) => {
-  const query = (req as any).validatedQuery;
-  const result = await getService().listMetadataTypesPaginated({
-    limit: query.limit,
-    nextToken: query.nextToken,
-    includeInactive: query.includeInactive,
-  });
-  return {
-    items: result.items,
-    nextToken: result.nextToken,
-  };
-};
-
-export const main = withLambdaHandler(handler, { validator: validate });
+export const main = withLambdaHandler(
+  async (req: { params?: Record<string, string | undefined> }) => {
+    const q = req.params ?? {};
+    const status = q.status === STATUS.ACTIVE || q.status === STATUS.INACTIVE ? q.status : undefined;
+    return listTypes({
+      status,
+      module: q.module,
+      valueDataType: q.valueDataType ?? q.datatype,
+    });
+  },
+  { useCreated: false },
+);

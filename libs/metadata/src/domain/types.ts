@@ -1,44 +1,122 @@
-export type ValueDataType = 'Enum' | 'Numeric' | 'Boolean' | 'Text';
+import type { STATUS } from './constants';
 
-export type RegistryStatus = 'ACTIVE' | 'INACTIVE';
+export type Status = (typeof STATUS)[keyof typeof STATUS];
 
-export interface AuditFields {
+/** Allowed values for metadata type value semantics (requirement). */
+export const VALUE_DATA_TYPES = ['Enum', 'Numeric', 'Boolean', 'Text'] as const;
+export type ValueDataType = (typeof VALUE_DATA_TYPES)[number];
+
+/** Applicability stored on VALUE and used for in-memory search filtering. */
+export interface Applicability {
+  module: string[];
+  category: string[];
+  condition: string[];
+  country: string[];
+  language?: string[];
+}
+
+/**
+ * Request body for create / update metadata type.
+ *
+ * **Create:** `metadataTypeCode`, `displayName` (≤100), `valueDataType`, `multiSelectAllowed`,
+ * `applicableModules` (≥1), and `status` (ACTIVE|INACTIVE) are required. `description` and
+ * `attributeSchema` are optional. `metadataTypeCode` is immutable after publish (new code = new type).
+ *
+ * **Update:** Partial fields allowed; omitted fields keep existing values where applicable.
+ */
+export interface MetadataTypeInput {
+  metadataTypeCode: string;
+  displayName?: string;
+  description?: string;
+  valueDataType?: ValueDataType | string;
+  multiSelectAllowed?: boolean;
+  applicableModules?: string[];
+  /**
+   * Type-level definition of which structured fields are allowed on values (`value.attributes`).
+   * Persisted as `SCHEMA#vN` only for MetricCode and QuestionCode; governs validation of value attributes.
+   */
+  attributeSchema?: Record<string, unknown>;
+  status?: Status;
+  /** Optional; stored on record; defaults to actor or `system`. */
+  createdBy?: string;
+  lastModifiedBy?: string;
+}
+
+/** Persisted metadata type (versioned entity). System fields align with product definition (version, audit timestamps). */
+export interface MetadataTypeRecord {
+  metadataTypeCode: string;
+  version: number;
+  displayName: string;
+  description?: string;
+  valueDataType: ValueDataType | string;
+  multiSelectAllowed: boolean;
+  applicableModules: string[];
+  attributeSchema?: Record<string, unknown>;
+  status: Status;
+  createdAt: string;
+  lastModifiedAt: string;
+  /** User id; may be absent on legacy reads. */
+  createdBy?: string;
+  /** User id; may be absent on legacy reads. */
+  lastModifiedBy?: string;
+}
+
+export interface MetadataValueInput {
+  valueCode: string;
+  label: string;
+  /** Optional documentation; max length enforced in validation. */
+  description?: string;
+  sortOrder?: number;
+  status?: Status;
+  /** Required on create (Requirements §6). */
+  isGlobal?: boolean;
+  /** Structured ValueAttributes; MetricCode / QuestionCode validated per type rules. */
+  attributes?: Record<string, unknown>;
+  applicability: Applicability;
+  /** Optional; overrides Lambda user id for audit fields when provided. */
+  createdBy?: string;
+}
+
+export interface MetadataValueRecord {
+  metadataTypeCode: string;
+  valueCode: string;
+  version: number;
+  label: string;
+  description?: string;
+  sortOrder: number;
+  status: Status;
+  isGlobal: boolean;
+  attributes: Record<string, unknown>;
+  applicability: Applicability;
+  /** DynamoDB APPL rows written for this version (for delta updates). */
+  applSkKeys: string[];
   createdAt: string;
   lastModifiedAt: string;
   createdBy?: string;
   lastModifiedBy?: string;
 }
 
-export interface MetadataType extends AuditFields {
-  metadataTypeCode: string;
-  displayName: string;
-  description?: string;
-  valueDataType: ValueDataType;
-  multiSelectAllowed: boolean;
-  applicableModules: string[];
-  attributeSchema?: Record<string, unknown>;
-  status: RegistryStatus;
-  version: number;
+export interface AuditRecord {
+  auditId: string;
+  entity: 'METADATA_TYPE' | 'METADATA_VALUE';
+  operation: string;
+  actor?: string;
+  timestamp: string;
+  before?: unknown;
+  after?: unknown;
 }
 
-export interface MetadataValue extends AuditFields {
-  metadataTypeCode: string;
-  metadataValueCode: string;
+export interface ValueSearchFilter {
+  module?: string[];
+  category?: string[];
+  condition?: string[];
+  country?: string[];
+  language?: string[];
+  status?: Status | string;
+}
+
+/** Single option row for applicability filter dropdowns (reference datasets). */
+export interface ApplicabilityOption {
+  code: string;
   label: string;
-  description?: string;
-  status: RegistryStatus;
-  isGlobal: boolean;
-  applicableModules: string[];
-  applicableCategories: string[];
-  applicableConditions: string[];
-  applicableCountries: string[];
-  valueAttributes: Record<string, unknown>;
-  version: number;
-}
-
-export interface ApplicabilityContext {
-  module?: string;
-  category?: string;
-  condition?: string;
-  country?: string;
 }

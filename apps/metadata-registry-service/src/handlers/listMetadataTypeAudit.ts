@@ -1,6 +1,6 @@
-import { STATUS, ValidationError } from '@api-hub/metadata';
+import { ValidationError } from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
-import { flattenMetadataValueForApi, listValues } from '../services/metadataService';
+import { listTypeAudit } from '../services/metadataService';
 
 export const main = withLambdaHandler(
   async (req: { params?: Record<string, string>; pathParameters?: Record<string, string> }) => {
@@ -8,11 +8,7 @@ export const main = withLambdaHandler(
     if (!metadataTypeCode) {
       throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
     }
-    const statusParam = req.params?.status;
-    const status =
-      statusParam === STATUS.ACTIVE || statusParam === STATUS.INACTIVE ? statusParam : undefined;
-    const rows = await listValues(metadataTypeCode, status);
-    return rows.map(flattenMetadataValueForApi);
+    return listTypeAudit(metadataTypeCode);
   },
   { useCreated: false },
 );

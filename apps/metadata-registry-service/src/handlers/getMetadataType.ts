@@ -1,16 +1,18 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
-import { MetadataValidationError } from '@api-hub/metadata';
-import { getService } from '../utils/service-factory';
+import { NotFoundError } from '@api-hub/metadata';
+import { withLambdaHandler } from '@api-hub/utils';
+import { getType } from '../services/metadataService';
 
-const validate = (req: LambdaRequest) => {
-  if (!req.pathParameters?.metadataTypeCode) {
-    throw new MetadataValidationError('metadataTypeCode path parameter is required');
-  }
-};
-
-const handler = async (req: LambdaRequest) => {
-  const metadataTypeCode = req.pathParameters!.metadataTypeCode;
-  return getService().getMetadataType(metadataTypeCode);
-};
-
-export const main = withLambdaHandler(handler, { validator: validate });
+export const main = withLambdaHandler(
+  async (req: { params?: Record<string, string>; pathParameters?: { metadataTypeCode?: string } }) => {
+    const code = req.params?.metadataTypeCode ?? req.pathParameters?.metadataTypeCode;
+    if (!code) {
+      throw new NotFoundError('metadataTypeCode is required');
+    }
+    const t = await getType(code);
+    if (!t) {
+      throw new NotFoundError(`Metadata type ${code} not found`);
+    }
+    return t;
+  },
+  { useCreated: false },
+);

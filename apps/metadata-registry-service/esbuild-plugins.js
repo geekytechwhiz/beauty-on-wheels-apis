@@ -7,7 +7,6 @@ module.exports = [
     setup(build) {
       const projectRoot = __dirname;
       const workspaceRoot = resolve(projectRoot, '../..');
-
       const workspacePackages = {
         '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),

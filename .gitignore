@@ -59,6 +59,7 @@ services/sso-integration/.env
 
 # Serverless build artifacts
 **/.serverless/
+apps/metadata-registry-service/.env
 
 # Ad-hoc zip exports (e.g. local packaging); not for Git — triggers GitHub file-size / push protection
 apps/template-service.zip

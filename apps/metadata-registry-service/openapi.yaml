@@ -1,406 +1,270 @@
 openapi: 3.0.3
 info:
-  title: Metadata Registry Service API
+  title: Metadata Registry Service API (draft)
   description: |
-    Centralized metadata type and value registry. List metadata values supports **optional**
-    applicability filters (`module`, `category`, `condition`, `country`): only provided query
-    parameters are applied; omitted dimensions are not filtered.
-
-    Success and error bodies follow the shared `@api-hub/utils` envelope (`success`, `statusCode`,
-    `message`, `data`, `error`, `meta`). Send `Authorization: Bearer <JWT>` when available so
-    `createdBy` / `lastModifiedBy` can be derived from the token (handlers may still validate
-    body fields per current Zod schemas).
-
-    API Gateway often prefixes paths with the deployment stage (e.g. `/dev/metadata-types`).
-    Set the **server** URL below to match your environment.
-  version: 1.0.0
-
+    Draft specification generated for review. TODO — align with official OpenAPI when published.
+    List metadata types uses partition `METADATA_REGISTRY#CATALOG` with SK prefix `METADATA_TYPE#` (no GSI).
+  version: 0.1.0
 servers:
-  - url: https://api.example.com/v1
-    description: Replace with your API Gateway base URL (include stage prefix if used)
-
-tags:
-  - name: Health
-    description: Health check
-  - name: MetadataTypes
-    description: Metadata type definitions
-  - name: MetadataValues
-    description: Metadata values and optional context filters
+  - url: https://api.example.com/{stage}
+    variables:
+      stage:
+        default: dev
 
 paths:
   /health:
     get:
-      tags: [Health]
       summary: Health check
-      operationId: health
       responses:
         '200':
-          description: Service is reachable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthResponse'
-
+          description: OK
   /metadata-types:
-    get:
-      tags: [MetadataTypes]
-      summary: List metadata types (paginated)
-      operationId: listMetadataTypes
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/NextToken'
-        - $ref: '#/components/parameters/IncludeInactive'
-      responses:
-        '200':
-          description: Paginated metadata types
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ListMetadataTypesResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
     post:
-      tags: [MetadataTypes]
-      summary: Create metadata type
-      operationId: createMetadataType
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateMetadataTypeRequest'
-      responses:
-        '201':
-          description: Metadata type created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MetadataTypeCreatedResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
-  /metadata-types/{metadataTypeCode}:
-    parameters:
-      - $ref: '#/components/parameters/MetadataTypeCode'
-    get:
-      tags: [MetadataTypes]
-      summary: Get metadata type by code
-      operationId: getMetadataType
-      responses:
-        '200':
-          description: Metadata type
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MetadataTypeResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    put:
-      tags: [MetadataTypes]
-      summary: Update metadata type
-      operationId: updateMetadataType
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateMetadataTypeRequest'
-      responses:
-        '200':
-          description: Updated metadata type
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MetadataTypeResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /metadata-types/{metadataTypeCode}/inactivate:
-    patch:
-      tags: [MetadataTypes]
-      summary: Inactivate metadata type
-      operationId: inactivateMetadataType
-      parameters:
-        - $ref: '#/components/parameters/MetadataTypeCode'
-      responses:
-        '200':
-          description: Inactivated metadata type
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MetadataTypeResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /metadata-types/{metadataTypeCode}/values:
-    parameters:
-      - $ref: '#/components/parameters/MetadataTypeCode'
-    get:
-      tags: [MetadataValues]
-      summary: List metadata values (paginated, optional applicability filters)
-      operationId: listMetadataValues
+      summary: Create or update metadata type
       description: |
-        Optional query `module`, `category`, `condition`, `country` filter values in memory.
-        If **none** of these are provided, no applicability filtering is applied.
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/NextToken'
-        - $ref: '#/components/parameters/IncludeInactive'
-        - name: module
-          in: query
-          schema:
-            type: string
-        - name: category
-          in: query
-          schema:
-            type: string
-        - name: condition
-          in: query
-          schema:
-            type: string
-        - name: country
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Paginated metadata values
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ListMetadataValuesResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-    post:
-      tags: [MetadataValues]
-      summary: Create metadata value
-      operationId: createMetadataValue
+        Upsert by `metadataTypeCode`. The request body schema reflects **first-time creation** (required fields).
+        Subsequent updates to an existing type may omit fields; the service merges with the stored type.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateMetadataValueRequest'
+              $ref: '#/components/schemas/MetadataTypeCreateInput'
       responses:
-        '201':
-          description: Metadata value created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MetadataValueCreatedResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
-  /metadata-types/{metadataTypeCode}/values/{metadataValueCode}:
-    parameters:
-      - $ref: '#/components/parameters/MetadataTypeCode'
-      - $ref: '#/components/parameters/MetadataValueCode'
+        '200':
+          description: Upsert result
     get:
-      tags: [MetadataValues]
-      summary: Get metadata value
-      operationId: getMetadataValue
+      summary: List metadata types (catalog partition + in-memory filters)
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [ACTIVE, INACTIVE] }
+        - in: query
+          name: module
+          schema: { type: string }
+        - in: query
+          name: valueDataType
+          schema: { type: string }
+        - in: query
+          name: datatype
+          schema: { type: string }
+          description: Deprecated; use valueDataType (same filter)
       responses:
         '200':
-          description: Metadata value
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MetadataValueResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+          description: List of types
+  /metadata-types/{metadataTypeCode}:
+    get:
+      summary: Get latest metadata type
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
+      responses:
+        '200':
+          description: Type
         '404':
-          $ref: '#/components/responses/NotFound'
-    put:
-      tags: [MetadataValues]
-      summary: Update metadata value
-      operationId: updateMetadataValue
+          description: Not found
+  /metadata-types/{metadataTypeCode}/status:
+    patch:
+      summary: Activate / inactivate type (new version)
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateMetadataValueRequest'
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
       responses:
         '200':
-          description: Updated metadata value
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MetadataValueResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/inactivate:
-    patch:
-      tags: [MetadataValues]
-      summary: Inactivate metadata value
-      operationId: inactivateMetadataValue
+          description: Updated type
+  /metadata-types/{metadataTypeCode}/values:
+    post:
+      summary: Create or update metadata value
       parameters:
-        - $ref: '#/components/parameters/MetadataTypeCode'
-        - $ref: '#/components/parameters/MetadataValueCode'
+        - $ref: '#/components/parameters/metadataTypeCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetadataValueInput'
       responses:
         '200':
-          description: Inactivated metadata value
+          description: Upsert result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MetadataValueResponse'
+                $ref: '#/components/schemas/MetadataValueRecord'
+    get:
+      summary: List values (latest; optional status filter, default ACTIVE)
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
+        - in: query
+          name: status
+          schema: { type: string, enum: [ACTIVE, INACTIVE] }
+      responses:
+        '200':
+          description: Values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MetadataValueRecord'
+  /metadata-types/{metadataTypeCode}/values/search:
+    post:
+      summary: Filter values (OR within field, AND across fields; globals always included)
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValueSearchFilter'
+      responses:
+        '200':
+          description: Filtered values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MetadataValueRecord'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Invalid filter
+  /metadata-types/{metadataTypeCode}/values/{metadataValueCode}:
+    get:
+      summary: Get latest metadata value
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
+        - $ref: '#/components/parameters/metadataValueCode'
+      responses:
+        '200':
+          description: Value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataValueRecord'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found
+  /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/status:
+    patch:
+      summary: Activate / inactivate value (new version)
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
+        - $ref: '#/components/parameters/metadataValueCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+      responses:
+        '200':
+          description: Updated value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataValueRecord'
+  /metadata-types/{metadataTypeCode}/audit:
+    get:
+      summary: Audit trail for metadata type
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
+      responses:
+        '200':
+          description: Audit entries
+  /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/audit:
+    get:
+      summary: Audit trail for metadata value
+      parameters:
+        - $ref: '#/components/parameters/metadataTypeCode'
+        - $ref: '#/components/parameters/metadataValueCode'
+      responses:
+        '200':
+          description: Audit entries
 
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Optional; used to populate audit fields (e.g. createdBy, lastModifiedBy) when present
-
   parameters:
-    MetadataTypeCode:
+    metadataTypeCode:
       name: metadataTypeCode
       in: path
       required: true
       schema:
         type: string
-        minLength: 1
-    MetadataValueCode:
+        pattern: '^[A-Z][A-Za-z0-9]*$'
+    metadataValueCode:
       name: metadataValueCode
       in: path
       required: true
       schema:
         type: string
-        minLength: 1
-    Limit:
-      name: limit
-      in: query
-      description: Page size (1–100, default 50)
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 50
-    NextToken:
-      name: nextToken
-      in: query
-      description: Opaque pagination token from a previous response
-      schema:
-        type: string
-    IncludeInactive:
-      name: includeInactive
-      in: query
-      description: When true, include INACTIVE records
-      schema:
-        type: boolean
-        default: false
-
-  responses:
-    BadRequest:
-      description: Validation or bad input
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ApiErrorResponse'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ApiErrorResponse'
-    Conflict:
-      description: Conflict (e.g. duplicate code)
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ApiErrorResponse'
-
+        pattern: '^[A-Z0-9]+(_[A-Z0-9]+)*$'
   schemas:
-    Message:
+    Applicability:
       type: object
-      required: [title, description, severity]
+      required: [module, category, condition, country]
       properties:
-        title:
-          type: string
-        description:
-          type: string
-        severity:
-          type: string
-          enum: [SUCCESS, INFO, WARNING, ERROR]
-
-    Meta:
-      type: object
-      required: [requestId, timestamp, version]
-      properties:
-        requestId:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        version:
-          type: string
-          enum: [v1]
-
-    ErrorBody:
-      type: object
-      properties:
-        code:
-          type: string
-        details:
+        module:
           type: array
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-              message:
-                type: string
-
-    ApiErrorResponse:
+          items: { type: string }
+        category:
+          type: array
+          items: { type: string }
+        condition:
+          type: array
+          items: { type: string }
+        country:
+          type: array
+          items: { type: string }
+        language:
+          type: array
+          items: { type: string }
+    MetadataTypeInput:
       type: object
-      required: [success, statusCode, message, data, error, meta]
+      description: |
+        Upsert body for POST /metadata-types. **First create** requires: `metadataTypeCode`, `displayName` (max 100),
+        `valueDataType`, `multiSelectAllowed`, `applicableModules` (min 1), `status` (ACTIVE|INACTIVE).
+        `description` and `attributeSchema` are optional. **Updates** may send a partial body; see `MetadataTypeCreateInput`
+        for the strict create contract. Version and audit timestamps are system-owned on the stored record.
+      required: [metadataTypeCode]
       properties:
-        success:
-          type: boolean
-          example: false
-        statusCode:
-          type: integer
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
+        metadataTypeCode:
+          type: string
+          description: Unique across registry; immutable after publish
+        displayName:
+          type: string
+          maxLength: 100
+        description: { type: string }
+        valueDataType:
+          type: string
+          enum: [Enum, Numeric, Boolean, Text]
+        multiSelectAllowed: { type: boolean }
+        applicableModules:
+          type: array
+          items: { type: string }
+          minItems: 1
+          description: One or more platform module tokens
+        attributeSchema:
           type: object
-          nullable: true
-          description: Always null on error responses
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    ValueDataType:
-      type: string
-      enum: [Enum, Numeric, Boolean, Text]
-
-    RegistryStatus:
-      type: string
-      enum: [ACTIVE, INACTIVE]
-
-    MetadataType:
+          additionalProperties: true
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+    MetadataTypeCreateInput:
       type: object
+      description: Strict shape for **creating** a metadata type (enforced by the API on first insert).
       required:
         - metadataTypeCode
         - displayName
@@ -408,415 +272,171 @@ components:
         - multiSelectAllowed
         - applicableModules
         - status
-        - version
-        - createdAt
-        - lastModifiedAt
       properties:
         metadataTypeCode:
           type: string
+          description: Unique across registry; immutable after publish
         displayName:
           type: string
-        description:
-          type: string
+          maxLength: 100
+        description: { type: string }
         valueDataType:
-          $ref: '#/components/schemas/ValueDataType'
-        multiSelectAllowed:
-          type: boolean
+          type: string
+          enum: [Enum, Numeric, Boolean, Text]
+        multiSelectAllowed: { type: boolean }
         applicableModules:
           type: array
-          items:
-            type: string
+          items: { type: string }
+          minItems: 1
         attributeSchema:
           type: object
           additionalProperties: true
         status:
-          $ref: '#/components/schemas/RegistryStatus'
-        version:
-          type: integer
-        createdAt:
           type: string
-          format: date-time
-        lastModifiedAt:
+          enum: [ACTIVE, INACTIVE]
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+    MetadataValueInput:
+      type: object
+      description: |
+        Upsert body for POST /metadata-types/{metadataTypeCode}/values.
+        `valueCode` is immutable after the value is first published (create a new value for a new code).
+        On **create**, `isGlobal` is required. On update, omitted fields keep existing values.
+        **Aliases** (same semantics): `metadataValueCode` → `valueCode`; `valueAttributes` → `attributes`;
+        flat `applicableModules` / `applicableCategories` / `applicableConditions` / `applicableCountries`
+        → `applicability` when `applicability` is omitted.
+      required: [label]
+      properties:
+        valueCode:
           type: string
-          format: date-time
+          description: MetadataValueCode; immutable after publish
+        metadataValueCode:
+          type: string
+          description: Alias for `valueCode` (use one or the other)
+        label:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+        sortOrder: { type: integer }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        isGlobal:
+          type: boolean
+          description: Required on create
+        attributes:
+          type: object
+          additionalProperties: true
+          description: ValueAttributes; must match parent type AttributeSchema when defined
+        valueAttributes:
+          type: object
+          additionalProperties: true
+          description: Alias for `attributes`
+        applicableModules:
+          type: array
+          items: { type: string }
+        applicableCategories:
+          type: array
+          items: { type: string }
+        applicableConditions:
+          type: array
+          items: { type: string }
+        applicableCountries:
+          type: array
+          items: { type: string }
+        applicableLanguages:
+          type: array
+          items: { type: string }
+          description: Maps to applicability.language; token lists are normalized to uppercase
+        applicability:
+          $ref: '#/components/schemas/Applicability'
         createdBy:
           type: string
-        lastModifiedBy:
-          type: string
-
-    MetadataValue:
+          description: Optional override for audit actor when not using API user context
+    MetadataValueRecord:
       type: object
+      description: |
+        Stored shape uses nested `applicability` and `attributes`. GET/POST/list/search/patch responses add the same Figma
+        field names as the request (`metadataValueCode`, `valueAttributes`, `applicable*` arrays) for UI parity.
       required:
         - metadataTypeCode
-        - metadataValueCode
+        - valueCode
+        - version
         - label
+        - sortOrder
         - status
         - isGlobal
-        - applicableModules
-        - applicableCategories
-        - applicableConditions
-        - applicableCountries
-        - valueAttributes
-        - version
+        - attributes
+        - applicability
+        - applSkKeys
         - createdAt
         - lastModifiedAt
       properties:
-        metadataTypeCode:
-          type: string
+        metadataTypeCode: { type: string }
+        valueCode: { type: string }
         metadataValueCode:
           type: string
-        label:
-          type: string
-        description:
-          type: string
-        status:
-          $ref: '#/components/schemas/RegistryStatus'
-        isGlobal:
-          type: boolean
-        applicableModules:
-          type: array
-          items:
-            type: string
-        applicableCategories:
-          type: array
-          items:
-            type: string
-        applicableConditions:
-          type: array
-          items:
-            type: string
-        applicableCountries:
-          type: array
-          items:
-            type: string
+          description: Same as valueCode (response alias)
         valueAttributes:
           type: object
           additionalProperties: true
-        version:
-          type: integer
-        createdAt:
-          type: string
-          format: date-time
-        lastModifiedAt:
-          type: string
-          format: date-time
-        createdBy:
-          type: string
-        lastModifiedBy:
-          type: string
-
-    PaginatedMetadataTypes:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/MetadataType'
-        nextToken:
-          type: string
-          description: Present when more pages exist
-
-    PaginatedMetadataValues:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/MetadataValue'
-        nextToken:
-          type: string
-
-    CreateMetadataTypeRequest:
-      type: object
-      required:
-        - metadataTypeCode
-        - displayName
-        - valueDataType
-        - multiSelectAllowed
-        - createdBy
-      properties:
-        metadataTypeCode:
-          type: string
-          minLength: 1
-          maxLength: 256
-        displayName:
-          type: string
-          minLength: 1
-        description:
-          type: string
-        valueDataType:
-          $ref: '#/components/schemas/ValueDataType'
-        multiSelectAllowed:
-          type: boolean
+          description: Same as attributes (response alias)
         applicableModules:
           type: array
-          items:
-            type: string
-          default: []
-        attributeSchema:
-          type: object
-          additionalProperties: true
-        status:
-          $ref: '#/components/schemas/RegistryStatus'
-          default: ACTIVE
-
-    UpdateMetadataTypeRequest:
-      type: object
-      required:
-        - lastModifiedBy
-      properties:
-        displayName:
-          type: string
-          minLength: 1
-        description:
-          type: string
-        valueDataType:
-          $ref: '#/components/schemas/ValueDataType'
-        multiSelectAllowed:
-          type: boolean
-        applicableModules:
-          type: array
-          items:
-            type: string
-        attributeSchema:
-          type: object
-          additionalProperties: true
-        status:
-          $ref: '#/components/schemas/RegistryStatus'
-        lastModifiedBy:
-          type: string
-
-    CreateMetadataValueRequest:
-      type: object
-      required:
-        - metadataValueCode
-        - label
-        - isGlobal
-      properties:
-        metadataValueCode:
-          type: string
-          minLength: 1
-          maxLength: 256
-        label:
-          type: string
-          minLength: 1
-        description:
-          type: string
-        isGlobal:
-          type: boolean
-        applicableModules:
-          type: array
-          items:
-            type: string
-          default: []
+          items: { type: string }
         applicableCategories:
           type: array
-          items:
-            type: string
-          default: []
+          items: { type: string }
         applicableConditions:
           type: array
-          items:
-            type: string
-          default: []
+          items: { type: string }
         applicableCountries:
           type: array
-          items:
-            type: string
-          default: []
-        valueAttributes:
-          type: object
-          additionalProperties: true
-          default: {}
-        createdBy:
-          type: string
-
-    UpdateMetadataValueRequest:
-      type: object
-      properties:
-        label:
-          type: string
-          minLength: 1
-        description:
-          type: string
-        isGlobal:
-          type: boolean
-        applicableModules:
+          items: { type: string }
+        applicableLanguages:
           type: array
-          items:
-            type: string
-        applicableCategories:
-          type: array
-          items:
-            type: string
-        applicableConditions:
-          type: array
-          items:
-            type: string
-        applicableCountries:
-          type: array
-          items:
-            type: string
-        valueAttributes:
-          type: object
-          additionalProperties: true
-        status:
-          $ref: '#/components/schemas/RegistryStatus'
-        lastModifiedBy:
-          type: string
-
-    HealthPayload:
-      type: object
-      required: [status, service, timestamp]
-      properties:
+          items: { type: string }
+        version: { type: integer }
+        label: { type: string, maxLength: 150 }
+        description: { type: string, maxLength: 2000 }
+        sortOrder: { type: integer }
         status:
           type: string
-          example: ok
-        service:
+          enum: [ACTIVE, INACTIVE]
+        isGlobal: { type: boolean }
+        attributes:
+          type: object
+          additionalProperties: true
+        applicability:
+          $ref: '#/components/schemas/Applicability'
+        applSkKeys:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastModifiedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+    ValueSearchFilter:
+      type: object
+      properties:
+        module:
+          type: array
+          items: { type: string }
+        category:
+          type: array
+          items: { type: string }
+        condition:
+          type: array
+          items: { type: string }
+        country:
+          type: array
+          items: { type: string }
+        language:
+          type: array
+          items: { type: string }
+        status:
           type: string
-          example: metadata-registry-service
-        timestamp:
-          type: string
-          format: date-time
-
-    HealthResponse:
-      type: object
-      required: [success, statusCode, message, data, error, meta]
-      properties:
-        success:
-          type: boolean
-          example: true
-        statusCode:
-          type: integer
-          example: 200
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
-          $ref: '#/components/schemas/HealthPayload'
-        error:
-          type: object
-          nullable: true
-          description: Always null on success
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    MetadataTypeResponse:
-      type: object
-      required: [success, statusCode, message, data, error, meta]
-      properties:
-        success:
-          type: boolean
-          example: true
-        statusCode:
-          type: integer
-          example: 200
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
-          $ref: '#/components/schemas/MetadataType'
-        error:
-          type: object
-          nullable: true
-          description: Always null on success
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    MetadataTypeCreatedResponse:
-      type: object
-      required: [success, statusCode, message, data, error, meta]
-      properties:
-        success:
-          type: boolean
-          example: true
-        statusCode:
-          type: integer
-          example: 201
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
-          $ref: '#/components/schemas/MetadataType'
-        error:
-          type: object
-          nullable: true
-          description: Always null on success
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    ListMetadataTypesResponse:
-      type: object
-      required: [success, statusCode, message, data, error, meta]
-      properties:
-        success:
-          type: boolean
-        statusCode:
-          type: integer
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
-          $ref: '#/components/schemas/PaginatedMetadataTypes'
-        error:
-          type: object
-          nullable: true
-          description: Always null on success
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    ListMetadataValuesResponse:
-      type: object
-      required: [success, statusCode, message, data, error, meta]
-      properties:
-        success:
-          type: boolean
-        statusCode:
-          type: integer
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
-          $ref: '#/components/schemas/PaginatedMetadataValues'
-        error:
-          type: object
-          nullable: true
-          description: Always null on success
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    MetadataValueResponse:
-      type: object
-      required: [success, statusCode, message, data, error, meta]
-      properties:
-        success:
-          type: boolean
-        statusCode:
-          type: integer
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
-          $ref: '#/components/schemas/MetadataValue'
-        error:
-          type: object
-          nullable: true
-          description: Always null on success
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    MetadataValueCreatedResponse:
-      type: object
-      required: [success, statusCode, message, data, error, meta]
-      properties:
-        success:
-          type: boolean
-        statusCode:
-          type: integer
-          example: 201
-        message:
-          $ref: '#/components/schemas/Message'
-        data:
-          $ref: '#/components/schemas/MetadataValue'
-        error:
-          type: object
-          nullable: true
-          description: Always null on success
-        meta:
-          $ref: '#/components/schemas/Meta'
+          enum: [ACTIVE, INACTIVE]

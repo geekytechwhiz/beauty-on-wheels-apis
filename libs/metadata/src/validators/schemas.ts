@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const metadataTypeCodeRegex = /^[A-Z][A-Za-z0-9]*$/;
+const metadataValueCodeRegex = /^[A-Z0-9]+(_[A-Z0-9]+)*$/;
+
 const contextSchema = z.object({
   module: z.string().min(1),
   category: z.string().min(1),
@@ -7,54 +10,41 @@ const contextSchema = z.object({
   country: z.string().min(1),
 });
 
+/** Create metadata type — required fields match product definition (displayName max 100, status ACTIVE|INACTIVE). */
 export const createMetadataTypeSchema = z.object({
-  metadataTypeCode: z.string().min(1).max(256),
-  displayName: z.string().min(1),
+  metadataTypeCode: z.string().regex(metadataTypeCodeRegex, 'Invalid metadataTypeCode'),
+  displayName: z.string().min(1).max(100),
   description: z.string().optional(),
   valueDataType: z.enum(['Enum', 'Numeric', 'Boolean', 'Text']),
   multiSelectAllowed: z.boolean(),
-  applicableModules: z.array(z.string()).default([]),
+  applicableModules: z.array(z.string()).min(1),
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
-  /** ACTIVE | INACTIVE — defaults to ACTIVE when omitted (future selection behavior). */
-  status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
-  createdBy: z.string(),
-});
-
-export const updateMetadataTypeSchema = z.object({
-  displayName: z.string().min(1).optional(),
-  description: z.string().optional(),
-  valueDataType: z.enum(['Enum', 'Numeric', 'Boolean', 'Text']).optional(),
-  multiSelectAllowed: z.boolean().optional(),
-  applicableModules: z.array(z.string()).optional(),
-  attributeSchema: z.record(z.string(), z.unknown()).optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  lastModifiedBy: z.string(),
-});
-
-export const createMetadataValueSchema = z.object({
-  metadataValueCode: z.string().min(1).max(256),
-  label: z.string().min(1),
-  description: z.string().optional(),
-  isGlobal: z.boolean(),
-  applicableModules: z.array(z.string()).default([]),
-  applicableCategories: z.array(z.string()).default([]),
-  applicableConditions: z.array(z.string()).default([]),
-  applicableCountries: z.array(z.string()).default([]),
-  valueAttributes: z.record(z.string(), z.unknown()).default({}),
+  status: z.enum(['ACTIVE', 'INACTIVE']),
   createdBy: z.string().optional(),
+  lastModifiedBy: z.string().optional(),
 });
 
-export const updateMetadataValueSchema = z.object({
-  label: z.string().min(1).optional(),
-  description: z.string().optional(),
-  isGlobal: z.boolean().optional(),
-  applicableModules: z.array(z.string()).optional(),
-  applicableCategories: z.array(z.string()).optional(),
-  applicableConditions: z.array(z.string()).optional(),
-  applicableCountries: z.array(z.string()).optional(),
-  valueAttributes: z.record(z.string(), z.unknown()).optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+export const patchMetadataStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'INACTIVE']),
   lastModifiedBy: z.string().optional(),
+});
+
+/** Aligns with POST /metadata-types/{metadataTypeCode}/values body (MetadataValueInput). */
+export const createMetadataValueSchema = z.object({
+  valueCode: z.string().regex(metadataValueCodeRegex, 'Invalid valueCode'),
+  label: z.string().min(1).max(150),
+  description: z.string().max(2000).optional(),
+  sortOrder: z.number().int().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  isGlobal: z.boolean(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
+  applicability: z.object({
+    module: z.array(z.string()),
+    category: z.array(z.string()),
+    condition: z.array(z.string()),
+    country: z.array(z.string()),
+    language: z.array(z.string()).optional(),
+  }),
 });
 
 export const validateMetadataValueBodySchema = z.object({
@@ -78,9 +68,41 @@ export const listMetadataValuesQuerySchema = paginationSchema.extend({
   country: z.string().optional(),
 });
 
+/** POST body: which applicability dimension to collect distinct values for. */
+export const applicabilityContextFilterBodySchema = z.object({
+  dimension: z.enum(['module', 'category', 'condition', 'country'], {
+    message: 'dimension must be module, category, condition, or country',
+  }),
+  includeInactive: z.boolean().optional().default(false),
+});
+
+export const listMetadataAuditQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  nextToken: z.string().optional(),
+});
+
+export const listMetadataTypeAuditParamsSchema = z.object({
+  metadataTypeCode: z.string().regex(metadataTypeCodeRegex, 'Invalid metadataTypeCode'),
+});
+
+export const listMetadataValueAuditParamsSchema = z.object({
+  metadataTypeCode: z.string().regex(metadataTypeCodeRegex, 'Invalid metadataTypeCode'),
+  metadataValueCode: z.string().regex(metadataValueCodeRegex, 'Invalid metadataValueCode'),
+});
+
+/** Path params for routes under /metadata-types/{metadataTypeCode}/… */
+export const metadataTypePathParamsSchema = listMetadataTypeAuditParamsSchema;
+
+/** Path params for routes under …/values/{metadataValueCode}/… */
+export const metadataValuePathParamsSchema = listMetadataValueAuditParamsSchema;
+
 export type CreateMetadataTypeInput = z.infer<typeof createMetadataTypeSchema>;
-export type UpdateMetadataTypeInput = z.infer<typeof updateMetadataTypeSchema>;
 export type CreateMetadataValueInput = z.infer<typeof createMetadataValueSchema>;
-export type UpdateMetadataValueInput = z.infer<typeof updateMetadataValueSchema>;
 export type ListMetadataTypesQuery = z.infer<typeof listMetadataTypesQuerySchema>;
 export type ListMetadataValuesQuery = z.infer<typeof listMetadataValuesQuerySchema>;
+export type ListMetadataAuditQuery = z.infer<typeof listMetadataAuditQuerySchema>;
+export type ListMetadataTypeAuditParams = z.infer<typeof listMetadataTypeAuditParamsSchema>;
+export type ListMetadataValueAuditParams = z.infer<typeof listMetadataValueAuditParamsSchema>;
+export type MetadataTypePathParams = z.infer<typeof metadataTypePathParamsSchema>;
+export type MetadataValuePathParams = z.infer<typeof metadataValuePathParamsSchema>;
+export type ApplicabilityContextFilterBody = z.infer<typeof applicabilityContextFilterBodySchema>;

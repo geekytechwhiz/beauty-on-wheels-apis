@@ -1,20 +1,21 @@
+# Metadata Registry — single-table DynamoDB, prefix queries only (no GSI).
+# TODO: Confirm with OpenAPI spec — base path / authorizer / deployment wiring.
 service: metadata-registry-service
 
 frameworkVersion: '3'
 
 plugins:
-  - serverless-esbuild
   - serverless-dotenv-plugin
-  - serverless-auto-swagger
+  - serverless-esbuild
   - serverless-offline
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
-    name: ${self:provider.stage}-mvx-metadata-registry-service-bucket
+    name: ${self:custom.deploymentBucket.${self:provider.stage}}
     serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
@@ -27,12 +28,13 @@ provider:
 
   environment:
     REGION: ${self:provider.region}
-    DEFAULT_REGION: ${self:provider.region}
     METADATA_REGISTRY_TABLE: MetadataRegistry-${self:provider.stage}
-    EVENT_BUS: ${self:provider.stage}-metadata-registry-bus
-    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    # Optional: METADATA_REGISTRY_PK_ATTR + METADATA_REGISTRY_SK_ATTR (both set) override auto-discovery.
+    # If unset, the Lambda resolves key names via DescribeTable (matches DevOps-created tables).
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
 
   tags:
     Service: ${self:service}
@@ -44,25 +46,17 @@ provider:
       Action:
         - dynamodb:GetItem
         - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
         - dynamodb:Query
         - dynamodb:BatchGetItem
         - dynamodb:BatchWriteItem
+        - dynamodb:TransactWriteItems
         - dynamodb:DescribeTable
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/MetadataRegistry-${self:provider.stage}
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/MetadataRegistry-${self:provider.stage}/index/*
-
     - Effect: Allow
       Action:
         - xray:PutTraceSegments
         - xray:PutTelemetryRecords
-      Resource: '*'
-
-    - Effect: Allow
-      Action:
-        - events:PutEvents
       Resource: '*'
 
 package:
@@ -76,11 +70,15 @@ custom:
     dev: debug
     stg: info
     prd: warn
+  deploymentBucket:
+    dev: dev-mvx-metadata-registry-bucket
+    stg: nvstg-mvx-metadata-registry-bucket
+    prd: nvprd-mvx-metadata-registry-bucket
   esbuild:
     bundle: true
     minify: false
     sourcemap: true
-    target: node22
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
@@ -95,127 +93,109 @@ custom:
       - '.jsx'
       - '.json'
     loader:
-      '.json': 'json'
-
-  autoswagger:
-    title: Metadata Registry Service API
-    description: Centralized metadata type and value registry with applicability filtering
-    version: 1.0.0
-    apiType: http
-    basePath: /${self:provider.stage}
-    schemes:
-      - https
-      - http
-    generateSwaggerOnDeploy: true
-    useStage: true
-    swaggerPath: swagger
-    excludeStages:
-      - prd
-    tags:
-      - name: Health
-        description: Health check endpoints
-      - name: MetadataTypes
-        description: Metadata type definitions
-      - name: MetadataValues
-        description: Metadata value operations with applicability filtering
+      '.json': json
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
 
 functions:
   health:
     handler: src/handlers/health.main
     events:
       - http:
-          path: /health
+          path: health
           method: get
-          cors: true
+          cors: ${self:custom.cors}
 
-  createMetadataType:
-    handler: src/handlers/createMetadataType.main
+  postMetadataType:
+    handler: src/handlers/postMetadataType.main
     events:
       - http:
-          path: /metadata-types
+          path: metadata-types
           method: post
-          cors: true
+          cors: ${self:custom.cors}
 
-  updateMetadataType:
-    handler: src/handlers/updateMetadataType.main
+  patchMetadataTypeStatus:
+    handler: src/handlers/patchMetadataTypeStatus.main
     events:
       - http:
-          path: /metadata-types/{metadataTypeCode}
-          method: put
-          cors: true
-
-  inactivateMetadataType:
-    handler: src/handlers/inactivateMetadataType.main
-    events:
-      - http:
-          path: /metadata-types/{metadataTypeCode}/inactivate
+          path: metadata-types/{metadataTypeCode}/status
           method: patch
-          cors: true
+          cors: ${self:custom.cors}
 
   getMetadataType:
     handler: src/handlers/getMetadataType.main
     events:
       - http:
-          path: /metadata-types/{metadataTypeCode}
+          path: metadata-types/{metadataTypeCode}
           method: get
-          cors: true
+          cors: ${self:custom.cors}
 
   listMetadataTypes:
     handler: src/handlers/listMetadataTypes.main
     events:
       - http:
-          path: /metadata-types
+          path: metadata-types
           method: get
-          cors: true
+          cors: ${self:custom.cors}
 
-  createMetadataValue:
-    handler: src/handlers/createMetadataValue.main
+  postMetadataValue:
+    handler: src/handlers/postMetadataValue.main
     events:
       - http:
-          path: /metadata-types/{metadataTypeCode}/values
+          path: metadata-types/{metadataTypeCode}/values
           method: post
-          cors: true
+          cors: ${self:custom.cors}
 
-  updateMetadataValue:
-    handler: src/handlers/updateMetadataValue.main
+  patchMetadataValueStatus:
+    handler: src/handlers/patchMetadataValueStatus.main
     events:
       - http:
-          path: /metadata-types/{metadataTypeCode}/values/{metadataValueCode}
-          method: put
-          cors: true
-
-  inactivateMetadataValue:
-    handler: src/handlers/inactivateMetadataValue.main
-    events:
-      - http:
-          path: /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/inactivate
+          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}/status
           method: patch
-          cors: true
+          cors: ${self:custom.cors}
 
   getMetadataValue:
     handler: src/handlers/getMetadataValue.main
     events:
       - http:
-          path: /metadata-types/{metadataTypeCode}/values/{metadataValueCode}
+          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}
           method: get
-          cors: true
+          cors: ${self:custom.cors}
 
   listMetadataValues:
     handler: src/handlers/listMetadataValues.main
     events:
       - http:
-          path: /metadata-types/{metadataTypeCode}/values
+          path: metadata-types/{metadataTypeCode}/values
           method: get
-          cors: true
+          cors: ${self:custom.cors}
 
-resources:
-  Resources:
-    MetadataRegistryEventBus:
-      Type: AWS::Events::EventBus
-      Properties:
-        Name: ${self:provider.stage}-metadata-registry-bus
+  searchMetadataValues:
+    handler: src/handlers/searchMetadataValues.main
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/values/search
+          method: post
+          cors: ${self:custom.cors}
 
-    MetadataRegistryEventsDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: metadata-registry-events-dlq-${self:provider.stage}
+  listMetadataTypeAudit:
+    handler: src/handlers/listMetadataTypeAudit.main
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/audit
+          method: get
+          cors: ${self:custom.cors}
+
+  listMetadataValueAudit:
+    handler: src/handlers/listMetadataValueAudit.main
+    events:
+      - http:
+          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}/audit
+          method: get
+          cors: ${self:custom.cors}

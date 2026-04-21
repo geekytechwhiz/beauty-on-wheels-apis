@@ -141,10 +141,8 @@ const handler = async (
     durationMs: Date.now() - serviceCallStart,
   });
 
-  const eventPromises: Promise<void>[] = [];
-
   const userCreatedEventStart = Date.now();
-  const publishUserCreatedPromise = publishUserCreatedEvent({
+  publishUserCreatedEvent({
     eventName: 'UserCreated.v1',
     correlationId: correlationId ?? '',
     userId: result.userID,
@@ -168,23 +166,10 @@ const handler = async (
         error: err?.message || String(err),
       });
     });
-  eventPromises.push(publishUserCreatedPromise);
 
   if (roleIds.length > 0) {
     const roleAssignmentEventStart = Date.now();
-    console.log('createUser role assignment event payload', {
-      eventName: 'UserRoleAssignmentRequested.v1',
-      correlationId: correlationId ?? '',
-      organizationID,
-      roleId: roleIds[0],
-      userId: result.userID,
-      name: userInfo?.name ?? userData.fullName ?? '',
-      email: userInfo?.contact?.email ?? '',
-      phone: userInfo?.contact?.phone ?? '',
-      profilePic: userInfo?.profilePic ?? '',
-      authHeader: authHeader ?? '',
-    });
-    const publishRoleAssignmentRequestedPromise = publishUserRoleAssignmentRequestedEvent({
+    publishUserRoleAssignmentRequestedEvent({
       eventName: 'UserRoleAssignmentRequested.v1',
       correlationId: correlationId ?? '',
       organizationID,
@@ -213,9 +198,11 @@ const handler = async (
           error: err?.message || String(err),
         });
       });
-    eventPromises.push(publishRoleAssignmentRequestedPromise);
   }
-  await Promise.allSettled(eventPromises);
+
+  if (req.context.lambdaContext) {
+    req.context.lambdaContext.callbackWaitsForEmptyEventLoop = false;
+  }
 
   log.info({
     event: 'createUser_handler_total_timing',

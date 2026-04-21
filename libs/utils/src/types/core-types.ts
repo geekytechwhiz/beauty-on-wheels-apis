@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, Context } from 'aws-lambda'; 
+import { APIGatewayProxyEvent } from 'aws-lambda'; 
 
 export type Severity = 'SUCCESS' | 'INFO' | 'WARNING' | 'ERROR';
 
@@ -64,8 +64,6 @@ export interface RequestContext {
   logger: any;
   authHeader?: string;
   userContext?: UserContext;
-  /** Set on API Gateway–invoked handlers; use for callbackWaitsForEmptyEventLoop, etc. */
-  lambdaContext?: Context;
 }
 export interface UserContext {
   userId?: string;

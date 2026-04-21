@@ -68,7 +68,6 @@ export const withLambdaHandler =
         logger,
         correlationId,
         awsRequestId,
-        lambdaContext: context,
       };
 
       /**

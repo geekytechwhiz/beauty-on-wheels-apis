@@ -144,68 +144,72 @@ const handler = async (
     durationMs: Date.now() - serviceCallStart,
   });
 
-  const userCreatedEventStart = Date.now();
-  publishUserCreatedEvent({
-    eventName: 'UserCreated.v1',
-    correlationId: correlationId ?? '',
-    userId: result.userID,
-    email: userInfo?.contact?.email ?? '',
-    name: userInfo?.name ?? userData.fullName ?? ''
-  })
-    .then(() => {
-      log.info({
-        event: 'createUser_user_created_event_published',
-        userId: result.userID,
-        mode: 'async',
-        durationMs: Date.now() - userCreatedEventStart,
-      });
-    })
-    .catch((err: any) => {
-      log.warn({
-        event: 'createUser_user_created_event_failed',
-        userId: result.userID,
-        mode: 'async',
-        durationMs: Date.now() - userCreatedEventStart,
-        error: err?.message || String(err),
-      });
-    });
+  const eventPromises: Promise<void>[] = [];
 
-  if (roleIds.length > 0) {
-    const roleAssignmentEventStart = Date.now();
-    publishUserRoleAssignmentRequestedEvent({
-      eventName: 'UserRoleAssignmentRequested.v1',
+  const userCreatedEventStart = Date.now();
+  eventPromises.push(
+    publishUserCreatedEvent({
+      eventName: 'UserCreated.v1',
       correlationId: correlationId ?? '',
-      organizationID,
-      roleId: roleIds[0],
       userId: result.userID,
-      name: userInfo?.name ?? userData.fullName ?? '',
       email: userInfo?.contact?.email ?? '',
-      phone: userInfo?.contact?.phone ?? '',
-      profilePic: userInfo?.profilePic ?? '',
-      authHeader: authHeader ?? '',
+      name: userInfo?.name ?? userData.fullName ?? '',
     })
       .then(() => {
         log.info({
-          event: 'createUser_role_assignment_event_published',
+          event: 'createUser_user_created_event_published',
           userId: result.userID,
           mode: 'async',
-          durationMs: Date.now() - roleAssignmentEventStart,
+          durationMs: Date.now() - userCreatedEventStart,
         });
       })
       .catch((err: any) => {
         log.warn({
-          event: 'createUser_role_assignment_event_failed',
+          event: 'createUser_user_created_event_failed',
           userId: result.userID,
           mode: 'async',
-          durationMs: Date.now() - roleAssignmentEventStart,
+          durationMs: Date.now() - userCreatedEventStart,
           error: err?.message || String(err),
         });
-      });
+      }),
+  );
+
+  if (roleIds.length > 0) {
+    const roleAssignmentEventStart = Date.now();
+    eventPromises.push(
+      publishUserRoleAssignmentRequestedEvent({
+        eventName: 'UserRoleAssignmentRequested.v1',
+        correlationId: correlationId ?? '',
+        organizationID,
+        roleId: roleIds[0],
+        userId: result.userID,
+        name: userInfo?.name ?? userData.fullName ?? '',
+        email: userInfo?.contact?.email ?? '',
+        phone: userInfo?.contact?.phone ?? '',
+        profilePic: userInfo?.profilePic ?? '',
+        authHeader: authHeader ?? '',
+      })
+        .then(() => {
+          log.info({
+            event: 'createUser_role_assignment_event_published',
+            userId: result.userID,
+            mode: 'async',
+            durationMs: Date.now() - roleAssignmentEventStart,
+          });
+        })
+        .catch((err: any) => {
+          log.warn({
+            event: 'createUser_role_assignment_event_failed',
+            userId: result.userID,
+            mode: 'async',
+            durationMs: Date.now() - roleAssignmentEventStart,
+            error: err?.message || String(err),
+          });
+        }),
+    );
   }
 
-  if (req.context.lambdaContext) {
-    req.context.lambdaContext.callbackWaitsForEmptyEventLoop = false;
-  }
+  await Promise.allSettled(eventPromises);
 
   log.info({
     event: 'createUser_handler_total_timing',

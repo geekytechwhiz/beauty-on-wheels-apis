@@ -351,7 +351,7 @@ export default function App({
       : `${servicesQuery.data?.length ?? 0} services`;
   const catalogTooltip = `Static catalog · public/${catalogSummary.specsPrefix}/ · ${catalogSummary.indexKey}`;
   const writeAccessMessage =
-    'Editing specs in the browser is only available in local dev with VITE_ENABLE_LOCAL_SPEC_API=true. Production serves files from the built site.';
+    'Editing specs in the browser is only available when the local spec API is running.';
   const editorParseState = useMemo(() => {
     if (!editorText.trim()) {
       return { parsedSpec: null, error: null };
@@ -690,7 +690,7 @@ export default function App({
         {!localSpecWriteEnabled && (
           <Alert severity="info" sx={{ mb: 2 }}>
             Read-only mode: specs are served as static files from the build. Enable local spec writes in dev
-            (VITE_ENABLE_LOCAL_SPEC_API=true) to upload, delete, or change review status from the UI.
+            to upload, delete, or change review status from the UI.
           </Alert>
         )}
 

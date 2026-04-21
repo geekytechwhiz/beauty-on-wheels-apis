@@ -9,12 +9,12 @@ import { localSpecApiPlugin } from './vite-plugins/local-spec-api';
  * When `VITE_API_BASE_URL` is set (see `.env.development`), the app calls the API directly.
  * The `/api` proxy is only used when the app falls back to base `/api` (local Express aggregator).
  *
- * Set `VITE_ENABLE_LOCAL_SPEC_API=true` in `.env.development` to allow the dev server to
- * write uploaded specs into `public/specs/` (see `vite-plugins/local-spec-api.ts`).
+ * Local spec API is enabled for dev and preview by default.
+ * Specs are stored on disk at `API_CENTER_SPECS_DIR` (defaults to `api-center/specs-store`).
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const localSpecApiEnabled = env.VITE_ENABLE_LOCAL_SPEC_API === 'true';
+  const localSpecApiEnabled = true;
 
   return {
     plugins: [

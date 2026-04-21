@@ -76,7 +76,6 @@ interface PublicCatalogIndex {
 }
 
 const DEFAULT_SPECS_PREFIX = 'specs';
-const DEFAULT_PUBLIC_CATALOG_KEY = `${DEFAULT_SPECS_PREFIX}/index.json`;
 const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'approved';
 const OPENAPI_FILE_PATTERN = /^(.+?)\/(.+?)\/openapi\.(json|yaml|yml)$/i;
 const VERSION_COLLATOR = new Intl.Collator(undefined, {
@@ -95,15 +94,7 @@ function getSpecsPrefix(): string {
   return rawPrefix.replace(/^\/+|\/+$/g, '');
 }
 
-function getPublicCatalogKey(): string {
-  const rawKey = import.meta.env.VITE_SPECS_INDEX_KEY?.trim();
-  if (!rawKey) {
-    return DEFAULT_PUBLIC_CATALOG_KEY;
-  }
-  return rawKey.replace(/^\/+/, '');
-}
-
-/** Base URL for static assets (specs, figma JSON) served with the SPA. */
+/** Base URL for static assets (figma JSON) served with the SPA. */
 function publicAssetUrl(relativePath: string): string {
   const base = import.meta.env.BASE_URL.endsWith('/')
     ? import.meta.env.BASE_URL
@@ -120,17 +111,14 @@ export function getCatalogSummary(): {
   const specsPrefix = getSpecsPrefix();
   return {
     specsPrefix,
-    indexKey: getPublicCatalogKey(),
+    indexKey: `${LOCAL_SPEC_API}/catalog`,
     localWriteEnabled: canWriteSpecsLocally(),
   };
 }
 
 /** Dev server local API for writing into `public/specs` (see vite plugin). */
 export function canWriteSpecsLocally(): boolean {
-  return (
-    import.meta.env.DEV === true &&
-    import.meta.env.VITE_ENABLE_LOCAL_SPEC_API === 'true'
-  );
+  return true;
 }
 
 function withCacheBust(url: string): string {
@@ -151,10 +139,6 @@ async function fetchPublicText(url: string, options?: { cacheBust?: boolean }): 
   }
 
   return response.text();
-}
-
-async function loadPublicSpecText(key: string, options?: { cacheBust?: boolean }): Promise<string> {
-  return fetchPublicText(publicAssetUrl(key), options);
 }
 
 function normalizeSegment(value: string, label: string): string {
@@ -403,17 +387,6 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
   return candidateModified >= currentModified ? candidate : current;
 }
 
-function createEmptyCatalogIndex(): PublicCatalogIndex {
-  return {
-    generatedAt: new Date().toISOString(),
-    services: [],
-  };
-}
-
-function isMissingPublicFileError(error: unknown): boolean {
-  return error instanceof Error && /not found|404/i.test(error.message);
-}
-
 function parseCatalogIndex(rawValue: unknown): PublicCatalogIndex {
   const rawServices = Array.isArray(rawValue)
     ? rawValue
@@ -492,20 +465,17 @@ function parseCatalogIndex(rawValue: unknown): PublicCatalogIndex {
 
 async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<PublicCatalogIndex> {
   try {
-    const rawText = await fetchPublicText(publicAssetUrl(getPublicCatalogKey()), { cacheBust: true });
-    const parsed = JSON.parse(rawText) as unknown;
+    const parsed = await localApiJson<unknown>('/catalog', {
+      method: 'GET',
+    });
     return parseCatalogIndex(parsed);
   } catch (error) {
-    if (options?.allowMissing && isMissingPublicFileError(error)) {
-      return createEmptyCatalogIndex();
+    if (options?.allowMissing) {
+      return {
+        generatedAt: new Date().toISOString(),
+        services: [],
+      };
     }
-
-    if (isMissingPublicFileError(error)) {
-      throw new Error(
-        `Unable to load the API catalog index at ${getPublicCatalogKey()}. Run the spec index generator (build) or add specs under public/${getSpecsPrefix()}/.`,
-      );
-    }
-
     throw error;
   }
 }
@@ -532,7 +502,13 @@ async function localApiJson<T>(path: string, init: RequestInit): Promise<T> {
   if (!text) {
     return undefined as T;
   }
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `Expected JSON from ${LOCAL_SPEC_API}${path}, but received non-JSON content.`,
+    );
+  }
 }
 
 function utf8FileToBase64(text: string): string {
@@ -595,7 +571,7 @@ export async function uploadSpec({
   file,
 }: UploadSpecInput): Promise<OpenApiSpecFile> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Upload is only available in local dev with VITE_ENABLE_LOCAL_SPEC_API=true.');
+    throw new Error('Upload is only available when the local spec API is reachable.');
   }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
@@ -636,7 +612,9 @@ export async function getSpecUrl({
   version: string;
 }): Promise<string> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  return publicAssetUrl(resolved.key);
+  return `${LOCAL_SPEC_API}/document?serviceName=${encodeURIComponent(
+    resolved.serviceName,
+  )}&version=${encodeURIComponent(resolved.version)}`;
 }
 
 export async function loadEditableSpecDocument({
@@ -647,8 +625,15 @@ export async function loadEditableSpecDocument({
   version: string;
 }): Promise<EditableSpecDocument> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const rawText = await loadPublicSpecText(resolved.key, { cacheBust: true });
-  const parsedSpec = parseOpenApiText(rawText, resolved.extension);
+  const response = await localApiJson<{ extension: SpecFileExtension; text: string }>(
+    `/document?serviceName=${encodeURIComponent(resolved.serviceName)}&version=${encodeURIComponent(
+      resolved.version,
+    )}`,
+    {
+      method: 'GET',
+    },
+  );
+  const parsedSpec = parseOpenApiText(response.text, response.extension);
 
   return {
     serviceName: resolved.serviceName,
@@ -665,7 +650,7 @@ export async function saveEditedSpecVersion({
   yamlText,
 }: SaveEditedSpecInput): Promise<OpenApiSpecFile> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Saving is only available in local dev with VITE_ENABLE_LOCAL_SPEC_API=true.');
+    throw new Error('Saving is only available when the local spec API is reachable.');
   }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
@@ -697,7 +682,7 @@ export async function updateSpecReviewStatus({
   status: SpecReviewStatus;
 }): Promise<OpenApiSpecFile> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Status updates are only available in local dev with VITE_ENABLE_LOCAL_SPEC_API=true.');
+    throw new Error('Status updates are only available when the local spec API is reachable.');
   }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
@@ -714,7 +699,7 @@ export async function updateSpecReviewStatus({
 
 export async function deleteSpecVersion(input: DeleteSpecVersionInput): Promise<void> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Delete is only available in local dev with VITE_ENABLE_LOCAL_SPEC_API=true.');
+    throw new Error('Delete is only available when the local spec API is reachable.');
   }
   const normalizedServiceName = normalizeSegment(input.serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(input.version, 'Version');

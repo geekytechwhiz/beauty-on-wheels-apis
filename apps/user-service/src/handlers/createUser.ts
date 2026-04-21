@@ -141,6 +141,8 @@ const handler = async (
     durationMs: Date.now() - serviceCallStart,
   });
 
+  const eventPromises: Promise<void>[] = [];
+
   const userCreatedEventStart = Date.now();
   const publishUserCreatedPromise = publishUserCreatedEvent({
     eventName: 'UserCreated.v1',
@@ -166,7 +168,7 @@ const handler = async (
         error: err?.message || String(err),
       });
     });
-  void publishUserCreatedPromise;
+  eventPromises.push(publishUserCreatedPromise);
 
   if (roleIds.length > 0) {
     const roleAssignmentEventStart = Date.now();
@@ -199,8 +201,9 @@ const handler = async (
           error: err?.message || String(err),
         });
       });
-    void publishRoleAssignmentRequestedPromise;
+    eventPromises.push(publishRoleAssignmentRequestedPromise);
   }
+  await Promise.allSettled(eventPromises);
 
   log.info({
     event: 'createUser_handler_total_timing',

@@ -83,6 +83,12 @@
     },
     {
       "path": "./apps/alert-service"
+    },
+    {
+      "path": "./libs/alert-repository"
+    },
+    {
+      "path": "./libs/alert-integration"
     }
   ]
 }

@@ -77,6 +77,12 @@
     },
     {
       "path": "./libs/template"
+    },
+    {
+      "path": "./apps/alert-service-e2e"
+    },
+    {
+      "path": "./apps/alert-service"
     }
   ]
 }

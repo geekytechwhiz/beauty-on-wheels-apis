@@ -9,7 +9,7 @@
    
   const LambdaClientInstance = require("@aws-sdk/client-lambda");
   const { LambdaClient, ListFunctionsCommand, ListVersionsByFunctionCommand, DeleteFunctionCommand, ListAliasesCommand } = LambdaClientInstance;
-  const client = new LambdaClient({ region: "ap-south-1" });
+  const client = new LambdaClient({ region: "us-east-1" });
   
   const KEEP_LAST_N = 2;
   

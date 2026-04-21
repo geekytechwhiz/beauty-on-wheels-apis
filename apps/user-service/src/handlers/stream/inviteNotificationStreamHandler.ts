@@ -4,7 +4,7 @@ import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
 import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID, PORTAL_LINK } from '../../utils/constants';
 import { sendEmail } from '../../services/notification.delivery';
-import { getOrganization } from '../../services/organization.service';
+import { getOrganizationFromDynamo } from '../../services/organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -101,7 +101,7 @@ async function processRecord(
 
   if (organizationID) {
     try {
-      const org = await getOrganization(organizationID);
+      const org = await getOrganizationFromDynamo(organizationID);
       console.log("ORG RESPONSE : ",org)
       if (org && typeof org === 'object') {
         const orgData = org as any;

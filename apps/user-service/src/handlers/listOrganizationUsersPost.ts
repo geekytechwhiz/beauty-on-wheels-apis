@@ -12,7 +12,7 @@ const handler = async (req: LambdaRequest<any> & { validatedListOrganizationUser
   const { organizationID, limit, type } = req.validatedListOrganizationUsersPost!;
   const pk = `ORG#${organizationID}`;
 
-  let queryParams: any = {
+  const queryParams: any = {
     TableName: USER_TABLE_NAME,
     ExpressionAttributeValues: { ':pk': pk },
   };

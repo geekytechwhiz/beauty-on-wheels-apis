@@ -6,13 +6,38 @@ import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { deviceListSchema } from '../validation/device.validation';
-import { getAuthorizerUserId } from '../utils/helpers';
+import { getAuthorizerOrganizationId, getAuthorizerUserId } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
 const globalDeviceRepository = new GlobalDeviceRepository();
 const orgDeviceRepository = new OrgDeviceRepository();
 const recommendationRepository = new RecommendationRepository();
+
+const normalizeFilterValue = (value?: string): string => (value || '').trim().toUpperCase();
+
+const applyListFilters = (devices: any[], category?: string, searchValue?: string): any[] => {
+  let filteredDevices = devices;
+  const normalizedCategory = normalizeFilterValue(category);
+  const normalizedSearchValue = (searchValue || '').trim().toLowerCase();
+
+  if (normalizedCategory && normalizedCategory !== 'ALL') {
+    filteredDevices = filteredDevices.filter(
+      (device) => normalizeFilterValue(device.category) === normalizedCategory,
+    );
+  }
+
+  if (normalizedSearchValue && normalizedSearchValue !== 'all') {
+    filteredDevices = filteredDevices.filter((device) => {
+      const searchableFields = [device.displayName, device.name, device.deviceId, device.category];
+      return searchableFields.some((field) =>
+        String(field || '').toLowerCase().includes(normalizedSearchValue),
+      );
+    });
+  }
+
+  return filteredDevices;
+};
 
 export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
@@ -41,12 +66,17 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     }
 
     // Handle both organizationID and organizationId for flexibility
-    const organizationID = requestData.organizationID || requestData.organizationId;
-    const { action, searchValue, deviceId, deviceType, userId, countryCode, patientUserId } = requestData;
+    const organizationID =
+      requestData.organizationID ||
+      requestData.organizationId ||
+      getAuthorizerOrganizationId(event);
+    const { action, category, searchValue, deviceId, deviceType, userId, countryCode, patientUserId } = requestData;
     
     logger.info({ 
       event: 'deviceList_parsed_params', 
       action, 
+      category,
+      searchValue,
       organizationID,
       hasOrganizationId: !!requestData.organizationId,
       hasOrganizationID: !!requestData.organizationID
@@ -84,7 +114,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
 
     // Scenario 2: Return devices for organization (ROOT or specific org)
     if (action?.toLowerCase() === 'organization' && organizationID) {
-      logger.info({ event: 'deviceList_organization', organizationID, searchValue });
+      logger.info({ event: 'deviceList_organization', organizationID, category, searchValue });
       
       // Get all devices from DynamoDB
       let allDevices = await globalDeviceRepository.getDevicesByOrganization(organizationID);
@@ -98,6 +128,9 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
           d.countriesSupported && d.countriesSupported.includes(countryCode)
         );
       }
+
+      // Apply category/search filters
+      allDevices = applyListFilters(allDevices, category, searchValue);
       
       // Map devices to the requested response format
       const deviceList = allDevices.map((device: any) => ({
@@ -128,14 +161,15 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
 
     // Scenario 3: Return devices for a specific organization (patient action)
     if (action?.toLowerCase() === 'patient' && organizationID) {
-      logger.info({ event: 'deviceList_patient', organizationID });
+      logger.info({ event: 'deviceList_patient', organizationID, category, searchValue });
       
       // Get organization-specific devices from DynamoDB
       const orgDevices = await orgDeviceRepository.getOrgDevices(organizationID);
       logger.info({ event: 'deviceList_patient_raw_count', count: orgDevices.length });
       
       // Filter enabled devices
-      const enabledDevices = orgDevices.filter((d) => d.enabled === true);
+      let enabledDevices = orgDevices.filter((d) => d.enabled === true);
+      enabledDevices = applyListFilters(enabledDevices, category, searchValue);
       logger.info({ event: 'deviceList_patient_enabled_count', count: enabledDevices.length });
       
       // Map devices to the requested response format

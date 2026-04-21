@@ -1,9 +1,9 @@
-import { APIGatewayProxyResult, APIGatewayProxyEvent } from 'aws-lambda';
+import { logHttpRequest, serializeError, type Logger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
-import { serializeError, logHttpRequest, type Logger } from '@api-hub/logger';
-import { PATHS } from '../constants/paths';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ERROR_CODES } from '../constants/errorCodes';
 import { HTTP_METHODS } from '../constants/httpMethods';
+import { PATHS } from '../constants/paths';
 import {
   DeviceNotFoundError,
   DeviceNotInOrganizationError,
@@ -122,7 +122,7 @@ export async function handleHandlerError(
           : statusCode === 400
             ? ApiResponse.badRequest(messageKey, { requestId: correlationId, event }, { code })
             : statusCode === 409
-              ? ApiResponse.conflict(messageKey, { requestId: correlationId, event }, { code })
+              ? ApiResponse.conflict({ title: messageKey, description: messageKey, severity: 'ERROR' }, { requestId: correlationId, event }, { code })
               : ApiResponse.internalServerError(messageKey, { requestId: correlationId, event }, { code });
       return response;
     }

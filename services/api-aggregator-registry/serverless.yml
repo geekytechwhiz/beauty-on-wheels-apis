@@ -1,0 +1,79 @@
+service: api-aggregator-registry
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-esbuild
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  httpApi:
+    cors: true
+  environment:
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+    CACHE_TTL_SECONDS: ${env:CACHE_TTL_SECONDS, '60'}
+    GITHUB_RAW_URL: ${env:GITHUB_RAW_URL, ''}
+
+package:
+  individually: true
+  patterns:
+    - 'config/**'
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    packagerOptions:
+      cwd: ../..
+    resolveExtensions:
+      - '.ts'
+      - '.js'
+      - '.json'
+    loader:
+      '.json': 'json'
+
+functions:
+  health:
+    handler: src/handler.health
+    events:
+      - httpApi:
+          path: /health
+          method: get
+  listServices:
+    handler: src/handler.getServices
+    events:
+      - httpApi:
+          path: /services
+          method: get
+  registerService:
+    handler: src/handler.postService
+    events:
+      - httpApi:
+          path: /services
+          method: post
+  mergedSpecs:
+    handler: src/handler.getSpecs
+    events:
+      - httpApi:
+          path: /specs
+          method: get
+  serviceSpecs:
+    handler: src/handler.getServiceSpec
+    events:
+      - httpApi:
+          path: /specs/{service}
+          method: get

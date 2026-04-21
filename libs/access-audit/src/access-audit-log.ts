@@ -8,7 +8,9 @@ import type { AccessAuditPayload, AccessAuditStorage } from './types';
 let storage: AccessAuditStorage | null = null;
 
 const noopStorage: AccessAuditStorage = {
-  async write(_payload: AccessAuditPayload) {},
+  async write(_payload: AccessAuditPayload): Promise<void> {
+    return;
+  },
 };
 
 /**

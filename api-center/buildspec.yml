@@ -1,0 +1,67 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: us-east-1
+    S3_BUCKET: dev-mvx-developer-hub
+    CLOUDFRONT_DIST_ID: "EWGY1JYSRFKJQ"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - 'echo "Using Node $(node --version)"'
+      - 'echo "Using npm $(npm --version)"'
+  pre_build:
+    commands:
+      - |
+        if [ -z "${AWS_REGION:-}" ]; then
+          echo "AWS_REGION is required."
+          exit 1
+        fi
+        if [ -z "${S3_BUCKET:-}" ]; then
+          echo "S3_BUCKET is required."
+          exit 1
+        fi
+      - 'echo "Skipping Lambda@Edge update/publish in this pipeline run."'
+      - 'echo "Installing api-center dependencies..."'
+      - npm --prefix api-center install --include=dev
+  build:
+    commands:
+      - export NODE_ENV=production
+      - 'echo "Building frontend (api-center)..."'
+      - npm --prefix api-center run build
+  post_build:
+    commands:
+      - 'echo "Deploying api-center/dist/ to s3://${S3_BUCKET} (includes static specs under dist/specs/)"'
+      - aws s3 sync api-center/dist/ "s3://${S3_BUCKET}" --delete
+      - |
+          if [ -f api-center/dist/index.html ]; then
+            echo "Uploading index.html with no-cache headers..."
+            aws s3 cp api-center/dist/index.html "s3://${S3_BUCKET}/index.html" \
+              --cache-control "no-cache, no-store, must-revalidate" \
+              --content-type "text/html"
+          else
+            echo "Missing api-center/dist/index.html"
+            exit 1
+          fi
+      - |
+        if [ -n "${CLOUDFRONT_DIST_ID:-}" ]; then
+          echo "Invalidating CloudFront distribution ${CLOUDFRONT_DIST_ID}..."
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DIST_ID}" \
+            --paths "/*"
+        else
+          echo "Skipping CloudFront invalidation; CLOUDFRONT_DIST_ID not set."
+        fi
+      - 'echo "CloudFront Lambda association is intentionally not modified by this pipeline."'
+
+artifacts:
+  base-directory: api-center/dist
+  files:
+    - '**/*'
+
+cache:
+  paths:
+    - /root/.npm/**/*

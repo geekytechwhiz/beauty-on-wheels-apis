@@ -33,7 +33,17 @@
       "@api-hub/scope-mapping": ["libs/scope-mapping/src/index.ts"],
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
       "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
-      "@api-hub/service-clients": ["libs/service-clients/src/index.ts"]
+      "@api-hub/service-clients": ["libs/service-clients/src/index.ts"],
+      "@api-hub/template": ["libs/template/src/index.ts"],
+      "@api-hub/template/*": ["libs/template/src/*"],
+      "@api-hub/rule-engine": ["libs/rule-engine/src/index.ts"],
+      "@api-hub/care-plan": ["libs/template/src/care-plan/index.ts"],
+      "@api-hub/template-core": ["libs/template/src/index.ts"],
+      "@api-hub/template-dto": ["libs/template/src/api/request.schemas.ts"],
+      "@api-hub/template-rules": ["libs/rule-engine/src/index.ts"],
+      "@api-hub/template-executor": ["libs/template/src/application/index.ts"],
+      "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
+      "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"]
     }
   }
 }

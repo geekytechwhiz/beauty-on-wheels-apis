@@ -12,14 +12,23 @@ import {
 import { successResponse } from './response.middleware';
 import { handleError } from './error.middleware';
 import { Message } from '../types/core-types';
+import { ApiResponse } from '../helper/http-response.helpers';
 
 const baseLogger = createLogger({
   service: 'api-service',
   redactPII: true,
 });
 
-interface LambdaHandlerOptions {
+export interface LambdaHandlerOptions {
   validator?: (request: any) => void | Promise<void>;
+  /**
+   * CDN message key (e.g. MODULE.MESSAGE_CODE) for success responses.
+   * When set, uses ApiResponse.ok/created with `{ requestId, event }` for i18n.
+   * When omitted, uses {@link successResponse} with a generic Message.
+   */
+  successMessageKey?: string;
+  /** When true, success uses HTTP 201 with {@link ApiResponse.created}. */
+  useCreated?: boolean;
 }
 
 export const withLambdaHandler =
@@ -84,14 +93,26 @@ export const withLambdaHandler =
 
       const duration = Date.now() - startTime;
 
+      const successStatus = options.useCreated ? 201 : 200;
+
       logHttpRequest(
         logger,
         method,
         path,
-        200,
+        successStatus,
         duration,
         correlationId
       );
+
+      const responseOptions = { requestId: correlationId, event };
+
+      if (options.successMessageKey) {
+        const messageKey = options.successMessageKey as unknown as Message;
+        if (options.useCreated) {
+          return ApiResponse.created(result, messageKey, responseOptions);
+        }
+        return ApiResponse.ok(result, messageKey, responseOptions);
+      }
 
       const successMessage: Message = {
         title: 'SUCCESS',

@@ -94,7 +94,10 @@ const handler = async (
   const hasDefinedRoleCodeInRequest = definedRoleCode !== undefined && definedRoleCode !== null;
 
   if (hasRoleNameInRequest && hasDefinedRoleCodeInRequest) {
-    console.log('createUser: skipping role lookup in DB because roleName and definedRoleCode are provided in request');
+    log.info({
+      event: 'createUser_role_lookup_skipped',
+      reason: 'roleName_and_definedRoleCode_in_request',
+    });
   } else {
     if (roleIds.length > 0) {
       const roleLookupStart = Date.now();

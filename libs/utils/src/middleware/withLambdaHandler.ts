@@ -28,6 +28,18 @@ export const withLambdaHandler =
     options: LambdaHandlerOptions = {}
   ) =>
   async (event: APIGatewayProxyEvent, context: Context) => {
+    /** Immediate response for serverless-plugin-warmup (non-HTTP payload) */
+    if (
+      event &&
+      typeof event === 'object' &&
+      (event as { source?: string }).source === 'serverless-plugin-warmup'
+    ) {
+      console.log('WarmUP - Lambda is warm!');
+      return {
+        statusCode: 200,
+        body: JSON.stringify('Lambda is warm!'),
+      };
+    }
 
     const startTime = Date.now();
 
@@ -45,7 +57,6 @@ export const withLambdaHandler =
     let request: any;
 
     try {
-      console.log('event in withLambdaHandler', event); 
 
       /**
        * Build request context

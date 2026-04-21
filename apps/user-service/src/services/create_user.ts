@@ -49,6 +49,7 @@ export class CreateUserService {
       externalUserId,
       subdomain,
       organizationExternalId,
+      skipOrganizationValidation,
     } = input;
 
     const invitedBy = userID;
@@ -63,18 +64,33 @@ export class CreateUserService {
       correlationId,
       organizationID,
     });
+    const stepDuration = (stepName: string, startTime: number, meta: Record<string, unknown> = {}) => {
+      log.info({
+        event: "create_user_step_timing",
+        step: stepName,
+        durationMs: Date.now() - startTime,
+        ...meta,
+      });
+    };
 
     log.info({ event: "createUser_start" });
 
     try {
-      await UserValidationService.validateOrganization(
-        organizationID,
-        authHeader,
-      );
+      let orgDetails: any = null;
+      if (!skipOrganizationValidation) {
+        const orgValidationStart = Date.now();
+        await UserValidationService.validateOrganization(
+          organizationID,
+          authHeader,
+        );
+        stepDuration("organization_validation", orgValidationStart);
+      }
 
-      const orgDetails = await getOrganization(organizationID, authHeader, {
+      const orgFetchStart = Date.now();
+      orgDetails = await getOrganization(organizationID, authHeader, {
         minimal: true,
       });
+      stepDuration("organization_fetch_minimal", orgFetchStart, { skippedValidation: !!skipOrganizationValidation });
       if (!orgDetails) {
         const err: any = new Error("Organization does not exist");
         err.statusCode = 400;
@@ -107,6 +123,7 @@ export class CreateUserService {
       const userData = buildUserData(userInfo, userType, userRole);
       userData.userID = newUserId;
 
+      const cognitoCreateStart = Date.now();
       await this.cognitoUserService.createUser(
         {
           email: userData.emailAddress,
@@ -127,6 +144,7 @@ export class CreateUserService {
         },
         log
       );
+      stepDuration("cognito_create_user", cognitoCreateStart);
 
       let user: UserRequestModel;
 
@@ -173,26 +191,36 @@ export class CreateUserService {
           : {}),
       };
 
+      const dbCreateUserStart = Date.now();
       await this.repository.createUser(userForDb);
+      stepDuration("db_create_user", dbCreateUserStart);
 
+      const dbAssignOrgStart = Date.now();
       await this.repository.assignUserToOrganization(userForDb);
+      stepDuration("db_assign_user_to_org", dbAssignOrgStart);
 
-      await handleFriendFamilyLink(
-        userForDb,
-        friendNFamily,
-        organizationID,
-        authHeader,
-        log
-      );
+      const postCreateTasks = async () => {
+        const postCreateStart = Date.now();
+        const fnfStart = Date.now();
+        await handleFriendFamilyLink(
+          userForDb,
+          friendNFamily,
+          organizationID,
+          authHeader,
+          log
+        );
+        stepDuration("post_create_friend_family", fnfStart);
 
-      await handleDoctorAssignment(
-        userForDb,
-        assignDoctor,
-        organizationID,
-        log
-      );
+        const doctorStart = Date.now();
+        await handleDoctorAssignment(
+          userForDb,
+          assignDoctor,
+          organizationID,
+          log
+        );
+        stepDuration("post_create_doctor_assignment", doctorStart);
 
-      try {
+        try {
         const userTypeUpperNotify = String(userForDb.userType || "").toUpperCase();
         const isStaff = userTypeUpperNotify === "STAFF";
         const template = isStaff ? "WELCOME_STAFF" : "WELCOME_USER";
@@ -326,13 +354,29 @@ export class CreateUserService {
             correlationId,
           });
         }
-      } catch (notifyErr) {
-        log.warn({
-          event: "createUser_notification_failed",
-          err: serializeError(notifyErr),
-          userId: userForDb.userID,
-          message:
-            "notifyUser threw; check USER_EVENTS_TOPIC_ARN and SNS permissions",
+        } catch (notifyErr) {
+          log.warn({
+            event: "createUser_notification_failed",
+            err: serializeError(notifyErr),
+            userId: userForDb.userID,
+            message:
+              "notifyUser threw; check USER_EVENTS_TOPIC_ARN and SNS permissions",
+          });
+        }
+        stepDuration("post_create_total", postCreateStart);
+      };
+
+      const syncPostCreateTasks =
+        String(process.env.CREATE_USER_SYNC_POST_CREATE_TASKS || "").toLowerCase() === "true";
+      if (syncPostCreateTasks) {
+        await postCreateTasks();
+      } else {
+        void postCreateTasks().catch((postCreateErr) => {
+          log.warn({
+            event: "create_user_post_create_async_failed",
+            userId: userForDb.userID,
+            err: serializeError(postCreateErr),
+          });
         });
       }
 

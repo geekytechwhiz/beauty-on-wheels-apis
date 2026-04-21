@@ -33,7 +33,7 @@ phases:
     commands:
       - echo "Starting Lambda version cleanup..." 
       # 👇 Run your cleanup script
-      - node ../tools/lambda/lambda-version-cleanup.ts
+      - node ./scripts/lambda-version.cleanup.js
       
       - echo "Lambda cleanup completed"
 

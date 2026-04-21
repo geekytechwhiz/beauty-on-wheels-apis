@@ -172,6 +172,18 @@ const handler = async (
 
   if (roleIds.length > 0) {
     const roleAssignmentEventStart = Date.now();
+    console.log('createUser role assignment event payload', {
+      eventName: 'UserRoleAssignmentRequested.v1',
+      correlationId: correlationId ?? '',
+      organizationID,
+      roleId: roleIds[0],
+      userId: result.userID,
+      name: userInfo?.name ?? userData.fullName ?? '',
+      email: userInfo?.contact?.email ?? '',
+      phone: userInfo?.contact?.phone ?? '',
+      profilePic: userInfo?.profilePic ?? '',
+      authHeader: authHeader ?? '',
+    });
     const publishRoleAssignmentRequestedPromise = publishUserRoleAssignmentRequestedEvent({
       eventName: 'UserRoleAssignmentRequested.v1',
       correlationId: correlationId ?? '',

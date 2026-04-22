@@ -1,7 +1,6 @@
 import { ValidationError } from '@api-hub/metadata';
-import { STATUS } from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
-import { flattenMetadataValueForApi, patchValueStatus } from '../services/metadataService';
+import { flattenMetadataValueForApi, parsePatchStatusBody, patchValueStatus } from '../services/metadataService';
 
 function p(req: { params?: Record<string, string>; pathParameters?: Record<string, string> }) {
   return {
@@ -23,14 +22,7 @@ export const main = withLambdaHandler(
         { field: 'path', message: 'Required' },
       ]);
     }
-    const raw = req.body?.status;
-    const status =
-      raw === undefined || raw === null
-        ? undefined
-        : (String(raw).trim().toUpperCase() as typeof STATUS.ACTIVE | typeof STATUS.INACTIVE);
-    if (status !== STATUS.ACTIVE && status !== STATUS.INACTIVE) {
-      throw new ValidationError('status must be ACTIVE or INACTIVE', [{ field: 'status', message: 'Invalid' }]);
-    }
+    const status = parsePatchStatusBody(req.body?.status);
     const record = await patchValueStatus(metadataTypeCode, valueCode, status, req.context?.userContext?.userId);
     return flattenMetadataValueForApi(record);
   },

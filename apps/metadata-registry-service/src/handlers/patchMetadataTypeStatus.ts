@@ -1,7 +1,6 @@
 import { ValidationError } from '@api-hub/metadata';
-import { STATUS } from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
-import { patchTypeStatus } from '../services/metadataService';
+import { parsePatchStatusBody, patchTypeStatus } from '../services/metadataService';
 
 export const main = withLambdaHandler(
   async (req: {
@@ -14,10 +13,7 @@ export const main = withLambdaHandler(
     if (!code) {
       throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
     }
-    const status = req.body?.status;
-    if (status !== STATUS.ACTIVE && status !== STATUS.INACTIVE) {
-      throw new ValidationError('status must be ACTIVE or INACTIVE', [{ field: 'status', message: 'Invalid' }]);
-    }
+    const status = parsePatchStatusBody(req.body?.status);
     return patchTypeStatus(code, status, req.context?.userContext?.userId);
   },
   { useCreated: false },

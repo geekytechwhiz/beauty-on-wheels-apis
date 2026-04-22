@@ -1,5 +1,5 @@
 import { STATUS, validateMetadataTypeInput, type MetadataTypeInput } from '@api-hub/metadata';
-import { normalizeMetadataTypeInput } from './metadataService';
+import { normalizeMetadataTypeInput, parsePatchStatusBody } from './metadataService';
 
 describe('normalizeMetadataTypeInput', () => {
   const base = {
@@ -47,5 +47,24 @@ describe('normalizeMetadataTypeInput', () => {
       status: 'ACTIVE',
     } as MetadataTypeInput & Record<string, unknown>);
     expect(normalized.applicableModules).toEqual(['CARE_PLAN', 'OKR']);
+  });
+});
+
+describe('parsePatchStatusBody', () => {
+  it('accepts Active and Inactive display casing for PATCH status', () => {
+    expect(parsePatchStatusBody('Active')).toBe(STATUS.ACTIVE);
+    expect(parsePatchStatusBody('Inactive')).toBe(STATUS.INACTIVE);
+  });
+
+  it('accepts all-uppercase and lowercase', () => {
+    expect(parsePatchStatusBody('ACTIVE')).toBe(STATUS.ACTIVE);
+    expect(parsePatchStatusBody('INACTIVE')).toBe(STATUS.INACTIVE);
+    expect(parsePatchStatusBody('active')).toBe(STATUS.ACTIVE);
+  });
+
+  it('rejects undefined, null, and unknown values', () => {
+    expect(() => parsePatchStatusBody(undefined)).toThrow();
+    expect(() => parsePatchStatusBody(null)).toThrow();
+    expect(() => parsePatchStatusBody('Unknown')).toThrow();
   });
 });

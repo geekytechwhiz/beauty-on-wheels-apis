@@ -11,6 +11,7 @@ import type {
 } from '@api-hub/metadata';
 import {
   STATUS,
+  ValidationError,
   applicabilityKeysPresentInBody,
   mapFlatAndNestedToApplicability,
 } from '@api-hub/metadata';
@@ -45,6 +46,23 @@ function normalizeMetadataValueStatus(raw: unknown): Status | undefined {
   const upper = String(raw).trim().toUpperCase();
   if (upper === STATUS.ACTIVE || upper === STATUS.INACTIVE) return upper;
   return undefined;
+}
+
+const PATCH_STATUS_INVALID =
+  'status must be Active or Inactive (other common casings are accepted)';
+
+/**
+ * `PATCH` body `{ status }` for type/value activate endpoints. Trims and uppercases; rejects missing or unknown values.
+ */
+export function parsePatchStatusBody(raw: unknown): Status {
+  if (raw === undefined || raw === null) {
+    throw new ValidationError(PATCH_STATUS_INVALID, [{ field: 'status', message: 'Invalid' }]);
+  }
+  const status = String(raw).trim().toUpperCase() as Status;
+  if (status !== STATUS.ACTIVE && status !== STATUS.INACTIVE) {
+    throw new ValidationError(PATCH_STATUS_INVALID, [{ field: 'status', message: 'Invalid' }]);
+  }
+  return status;
 }
 
 /**

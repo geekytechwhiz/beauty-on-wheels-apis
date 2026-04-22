@@ -72,12 +72,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [status]
-              properties:
-                status:
-                  type: string
-                  enum: [ACTIVE, INACTIVE]
+              $ref: '#/components/schemas/PatchStatusRequest'
       responses:
         '200':
           description: Updated type
@@ -162,12 +157,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [status]
-              properties:
-                status:
-                  type: string
-                  enum: [ACTIVE, INACTIVE]
+              $ref: '#/components/schemas/PatchStatusRequest'
       responses:
         '200':
           description: Updated value
@@ -210,6 +200,17 @@ components:
         type: string
         pattern: '^[A-Z0-9]+(_[A-Z0-9]+)*$'
   schemas:
+    PatchStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: |
+            Preferred values are `Active` and `Inactive` (UI / Figma). The service trims and
+            case-normalizes; `ACTIVE` / `INACTIVE` and other casings are also accepted. Stored and
+            response values remain uppercase `ACTIVE` or `INACTIVE`.
+          enum: [Active, Inactive, ACTIVE, INACTIVE, active, inactive]
     Applicability:
       type: object
       required: [module, category, condition, country]

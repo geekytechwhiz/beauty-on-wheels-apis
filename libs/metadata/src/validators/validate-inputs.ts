@@ -2,6 +2,7 @@ import {
   VALUE_DATA_TYPES,
   type Applicability,
   type MetadataTypeInput,
+  type MetadataTypeRecord,
   type MetadataValueInput,
   type ValueDataType,
 } from '../domain/types';
@@ -10,7 +11,9 @@ import { ValidationError } from '../domain/errors';
 import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from './code-patterns';
 import { validateMetricCodeAttributes } from './metric-code.schema';
 import { validateQuestionCodeAttributes } from './question-code.schema';
-import { validateMetadataValueApplicabilityRules } from '../utils/metadata-value-request';
+import {
+  validateMetadataValueApplicabilityRules,
+} from '../utils/metadata-value-request';
 
 const DISPLAY_NAME_MAX = 100;
 const METADATA_VALUE_LABEL_MAX = 150;
@@ -96,17 +99,58 @@ export function validateApplicability(a: Applicability): void {
   assertEnumTokenArray(a.language, 'applicability.language');
 }
 
+/** For non-global values, require certain applicability lists per metadata type configuration. */
+export function validateMetadataValueConditionalApplicability(
+  typeRecord: MetadataTypeRecord,
+  isGlobal: boolean,
+  applicability: Applicability,
+): void {
+  if (isGlobal) {
+    return;
+  }
+  const cfg = typeRecord.valueApplicabilityConfig;
+  if (!cfg) {
+    return;
+  }
+  if (cfg.moduleScoped && !(applicability.module?.length)) {
+    throw new ValidationError('applicableModules is required for this metadata type', [
+      { field: 'applicableModules', message: 'Required' },
+    ]);
+  }
+  if (cfg.categoryDependent && !(applicability.category?.length)) {
+    throw new ValidationError('applicableCategories is required for this metadata type', [
+      { field: 'applicableCategories', message: 'Required' },
+    ]);
+  }
+  if (cfg.conditionDependent && !(applicability.condition?.length)) {
+    throw new ValidationError('applicableConditions is required for this metadata type', [
+      { field: 'applicableConditions', message: 'Required' },
+    ]);
+  }
+  if (cfg.countryDependent && !(applicability.country?.length)) {
+    throw new ValidationError('applicableCountries is required for this metadata type', [
+      { field: 'applicableCountries', message: 'Required' },
+    ]);
+  }
+}
+
 export function validateMetadataValueInput(
   input: MetadataValueInput,
   opts: {
-    valueDataType?: string;
-    metadataTypeCode: string;
-    mode?: 'create' | 'update';
-    /** Required for update (merged with stored record); may be omitted when `input.isGlobal` is set on create. */
-    mergedIsGlobal?: boolean;
+    metadataType: MetadataTypeRecord;
+    mode: 'create' | 'update';
+    /** Create / merged snapshot; required for update when body omits `isGlobal`. */
+    mergedIsGlobal: boolean;
+    /** On update, must match the stored code (immutability). */
+    expectedValueCode?: string;
   },
 ): void {
   assertMetadataValueCode(input.valueCode);
+  if (opts.expectedValueCode !== undefined && input.valueCode !== opts.expectedValueCode) {
+    throw new ValidationError('metadataValueCode (valueCode) cannot be changed', [
+      { field: 'valueCode', message: 'Immutable' },
+    ]);
+  }
   if (!input.label?.trim()) {
     throw new ValidationError('label is required', [{ field: 'label', message: 'Required' }]);
   }
@@ -120,20 +164,26 @@ export function validateMetadataValueInput(
       { field: 'description', message: `Max ${METADATA_VALUE_DESCRIPTION_MAX} characters` },
     ]);
   }
-  const mode = opts.mode ?? 'update';
-  if (mode === 'create' && input.isGlobal === undefined) {
+  if (input.status === undefined || input.status === null) {
+    throw new ValidationError('status is required', [{ field: 'status', message: 'Required' }]);
+  }
+  if (input.status !== STATUS.ACTIVE && input.status !== STATUS.INACTIVE) {
+    throw new ValidationError('status must be ACTIVE or INACTIVE', [{ field: 'status', message: 'Invalid' }]);
+  }
+  if (input.sortOrder !== undefined && (!Number.isInteger(input.sortOrder) || input.sortOrder < 0)) {
+    throw new ValidationError('sortOrder must be a non-negative integer', [{ field: 'sortOrder', message: 'Invalid' }]);
+  }
+  if (opts.mode === 'create' && input.isGlobal === undefined) {
     throw new ValidationError('isGlobal is required on create', [{ field: 'isGlobal', message: 'Required boolean' }]);
   }
   if (input.isGlobal !== undefined && typeof input.isGlobal !== 'boolean') {
     throw new ValidationError('isGlobal must be a boolean', [{ field: 'isGlobal', message: 'Invalid' }]);
   }
-  const effectiveGlobal = opts.mergedIsGlobal ?? input.isGlobal;
-  if (effectiveGlobal === undefined) {
-    throw new ValidationError('isGlobal is required for validation', [{ field: 'isGlobal', message: 'Required' }]);
-  }
+  const effectiveGlobal = opts.mergedIsGlobal;
   validateApplicability(input.applicability);
   validateMetadataValueApplicabilityRules(effectiveGlobal, input.applicability);
-  const { metadataTypeCode } = opts;
+  validateMetadataValueConditionalApplicability(opts.metadataType, effectiveGlobal, input.applicability);
+  const { metadataTypeCode } = opts.metadataType;
   if (metadataTypeCode === 'MetricCode') {
     validateMetricCodeAttributes(input.attributes ?? {});
   } else if (metadataTypeCode === 'QuestionCode') {

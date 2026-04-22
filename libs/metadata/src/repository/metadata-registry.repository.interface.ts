@@ -23,7 +23,12 @@ export interface IMetadataRegistryRepository {
   listMetadataTypes(filter: ListTypesFilter): Promise<MetadataTypeRecord[]>;
 
   createMetadataValue(metadataTypeCode: string, input: MetadataValueInput, actor?: string): Promise<MetadataValueRecord>;
-  updateMetadataValue(metadataTypeCode: string, input: MetadataValueInput, actor?: string): Promise<MetadataValueRecord>;
+  updateMetadataValue(
+    metadataTypeCode: string,
+    input: MetadataValueInput,
+    actor: string | undefined,
+    existing: MetadataValueRecord,
+  ): Promise<MetadataValueRecord>;
   patchMetadataValueStatus(metadataTypeCode: string, valueCode: string, status: Status, actor?: string): Promise<MetadataValueRecord>;
   getMetadataValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null>;
   listMetadataValues(metadataTypeCode: string, status?: Status): Promise<MetadataValueRecord[]>;

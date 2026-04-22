@@ -23,7 +23,11 @@ export const main = withLambdaHandler(
         { field: 'path', message: 'Required' },
       ]);
     }
-    const status = req.body?.status;
+    const raw = req.body?.status;
+    const status =
+      raw === undefined || raw === null
+        ? undefined
+        : (String(raw).trim().toUpperCase() as typeof STATUS.ACTIVE | typeof STATUS.INACTIVE);
     if (status !== STATUS.ACTIVE && status !== STATUS.INACTIVE) {
       throw new ValidationError('status must be ACTIVE or INACTIVE', [{ field: 'status', message: 'Invalid' }]);
     }

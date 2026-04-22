@@ -1,5 +1,4 @@
 export * from './domain/constants';
-export * from './domain/applicability-dimension';
 export * from './domain/types';
 export * from './domain/errors';
 export * from './domain/keys';

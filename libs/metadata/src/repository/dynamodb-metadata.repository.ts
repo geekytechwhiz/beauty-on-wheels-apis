@@ -26,7 +26,6 @@ import type {
   ValueSearchFilter,
 } from '../domain/types';
 import { ConflictError, NotFoundError, ValidationError } from '../domain/errors';
-import { collectApplicabilityDimensionIndexKeys } from '../domain/applicability-dimension';
 import {
   auditTypePartitionKey,
   auditTypePrefix,
@@ -43,11 +42,7 @@ import {
   valueLatestSk,
   valueSk,
 } from '../domain/keys';
-import {
-  isApplicabilityRestricting,
-  isMetadataTypeBreakingChange,
-  isMetadataValueStructureBreaking,
-} from '../domain/diff';
+import { isMetadataTypeBreakingChange } from '../domain/diff';
 import { matchesSearchFilter, sortValuesForSearch } from '../domain/search-filter';
 import type { IMetadataRegistryRepository, ListTypesFilter } from './metadata-registry.repository.interface';
 import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from '../validators/code-patterns';
@@ -150,6 +145,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       valueDataType: input.valueDataType as MetadataTypeRecord['valueDataType'],
       multiSelectAllowed: input.multiSelectAllowed!,
       applicableModules: input.applicableModules!,
+      valueApplicabilityConfig: input.valueApplicabilityConfig,
       attributeSchema,
       status,
       createdAt: now,
@@ -213,6 +209,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       displayName: existing.displayName,
       description: existing.description,
       applicableModules: existing.applicableModules,
+      valueApplicabilityConfig: existing.valueApplicabilityConfig,
       valueDataType: existing.valueDataType,
       multiSelectAllowed: existing.multiSelectAllowed,
       attributeSchema: existing.attributeSchema,
@@ -452,8 +449,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
     }
     validateMetadataValueInput(input, {
-      valueDataType: type.valueDataType,
-      metadataTypeCode,
+      metadataType: type,
       mode: 'create',
       mergedIsGlobal: input.isGlobal!,
     });
@@ -466,7 +462,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
 
     const now = new Date().toISOString();
     const version = 1;
-    const status = input.status ?? STATUS.ACTIVE;
+    const status = input.status as Status;
     const record: MetadataValueRecord = {
       metadataTypeCode,
       valueCode: input.valueCode,
@@ -514,123 +510,48 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     ]);
 
     await this.writeApplRows(pk, applKeys, metadataTypeCode, input.valueCode);
-    await this.upsertApplicabilityDimensionIndex(input.applicability);
     return record;
   }
 
-  async updateMetadataValue(metadataTypeCode: string, input: MetadataValueInput, actor?: string): Promise<MetadataValueRecord> {
+  async updateMetadataValue(
+    metadataTypeCode: string,
+    input: MetadataValueInput,
+    actor: string | undefined,
+    existing: MetadataValueRecord,
+  ): Promise<MetadataValueRecord> {
     const type = await this.getMetadataType(metadataTypeCode);
     if (!type) {
       throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
     }
 
-    const pk = typePartitionKey(metadataTypeCode);
-    const existing = await this.getMetadataValue(metadataTypeCode, input.valueCode);
-    if (!existing) {
-      throw new NotFoundError(`Value ${input.valueCode} not found`);
-    }
-
+    const mergedIsGlobal = input.isGlobal ?? existing.isGlobal;
     validateMetadataValueInput(input, {
-      valueDataType: type.valueDataType,
-      metadataTypeCode,
+      metadataType: type,
       mode: 'update',
-      mergedIsGlobal: input.isGlobal ?? existing.isGlobal,
+      mergedIsGlobal,
+      expectedValueCode: existing.valueCode,
     });
 
-    const isGlobalBreaking = existing.isGlobal !== (input.isGlobal ?? existing.isGlobal);
-    const attrsBreaking = isMetadataValueStructureBreaking(
-      metadataTypeCode,
-      existing.attributes,
-      input.attributes ?? existing.attributes,
-    );
-    const applicabilityChanged =
-      JSON.stringify(existing.applicability) !== JSON.stringify(input.applicability);
-    const applicabilityRestricting =
-      applicabilityChanged && isApplicabilityRestricting(existing.applicability, input.applicability);
-    /** Status changes are breaking (future selection); must not reuse same version as in-place edit. */
-    const statusChanged = input.status !== undefined && input.status !== existing.status;
-    const needsNewVersion =
-      isGlobalBreaking || attrsBreaking || applicabilityRestricting || statusChanged;
-    const now = new Date().toISOString();
-
-    if (!needsNewVersion && !applicabilityChanged) {
-      const record: MetadataValueRecord = {
-        ...existing,
-        ...input,
-        description: input.description !== undefined ? input.description : existing.description,
-        attributes: input.attributes ?? existing.attributes,
-        applicability: input.applicability,
-        lastModifiedAt: now,
-        lastModifiedBy: actor,
-      };
-      const valueItem = this.marshalValue(record, pk, valueSk(input.valueCode, existing.version));
-      await this.sendTx([
-        { Put: { TableName: this.tableName, Item: valueItem } },
-        {
-          Put: {
-            TableName: this.tableName,
-            Item: this.buildAuditItem(auditValuePartitionKey(input.valueCode), {
-              entity: 'METADATA_VALUE',
-              operation: 'UPDATE',
-              metadataTypeCode,
-              valueCode: input.valueCode,
-              before: existing,
-              after: record,
-              actor,
-              timestamp: now,
-            }),
-          },
-        },
-      ]);
-      await this.upsertApplicabilityDimensionIndex(record.applicability);
-      return record;
-    }
-
-    if (!needsNewVersion && applicabilityChanged && !applicabilityRestricting) {
-      const record: MetadataValueRecord = {
-        ...existing,
-        ...input,
-        description: input.description !== undefined ? input.description : existing.description,
-        attributes: input.attributes ?? existing.attributes,
-        applicability: input.applicability,
-        applSkKeys: existing.isGlobal ? [] : buildApplSortKeys(input.valueCode, input.applicability),
-        lastModifiedAt: now,
-        lastModifiedBy: actor,
-      };
-      const valueItem = this.marshalValue(record, pk, valueSk(input.valueCode, existing.version));
-      await this.sendTx([
-        { Put: { TableName: this.tableName, Item: valueItem } },
-        {
-          Put: {
-            TableName: this.tableName,
-            Item: this.buildAuditItem(auditValuePartitionKey(input.valueCode), {
-              entity: 'METADATA_VALUE',
-              operation: 'UPDATE_APPLICABILITY',
-              metadataTypeCode,
-              valueCode: input.valueCode,
-              before: existing,
-              after: record,
-              actor,
-              timestamp: now,
-            }),
-          },
-        },
-      ]);
-      await this.syncApplRows(pk, existing.applSkKeys, record.applSkKeys, metadataTypeCode, input.valueCode);
-      await this.upsertApplicabilityDimensionIndex(record.applicability);
-      return record;
-    }
-
+    const pk = typePartitionKey(metadataTypeCode);
     const newVersion = existing.version + 1;
+    const now = new Date().toISOString();
+    const status = input.status as Status;
+    const isGlobal = mergedIsGlobal;
+    const attributes = input.attributes !== undefined ? input.attributes : existing.attributes;
+    const description = input.description !== undefined ? input.description : existing.description;
+    const sortOrder = input.sortOrder !== undefined ? input.sortOrder : existing.sortOrder;
+
     const record: MetadataValueRecord = {
       ...existing,
-      ...input,
       version: newVersion,
-      description: input.description !== undefined ? input.description : existing.description,
-      attributes: input.attributes ?? {},
+      label: input.label,
+      description,
+      sortOrder: sortOrder ?? 0,
+      status,
+      isGlobal,
+      attributes: attributes ?? {},
       applicability: input.applicability,
-      isGlobal: input.isGlobal ?? existing.isGlobal,
-      applSkKeys: (input.isGlobal ?? existing.isGlobal) ? [] : buildApplSortKeys(input.valueCode, input.applicability),
+      applSkKeys: isGlobal ? [] : buildApplSortKeys(input.valueCode, input.applicability),
       lastModifiedAt: now,
       lastModifiedBy: actor,
     };
@@ -664,7 +585,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     ]);
 
     await this.syncApplRows(pk, existing.applSkKeys, record.applSkKeys, metadataTypeCode, input.valueCode);
-    await this.upsertApplicabilityDimensionIndex(record.applicability);
     return record;
   }
 
@@ -800,27 +720,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       .filter((r) => r.entityType === 'AUDIT')
       .map((r) => this.unmarshalAudit(r))
       .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-  }
-
-  /**
-   * Aggregated dropdown index: PK `APPL_DIMENSION#<SEGMENT>`, SK = token. Idempotent Put per pair.
-   */
-  private async upsertApplicabilityDimensionIndex(a: Applicability): Promise<void> {
-    const keys = collectApplicabilityDimensionIndexKeys(a);
-    if (keys.length === 0) {
-      return;
-    }
-    for (const part of chunk(keys, BATCH_WRITE_SIZE)) {
-      const requests = part.map(({ pk, sk }) => ({
-        PutRequest: {
-          Item: {
-            ...this.key(pk, sk),
-            entityType: ENTITY_TYPE.APPL_DIMENSION,
-          },
-        },
-      }));
-      await this.doc.send(new BatchWriteCommand({ RequestItems: { [this.tableName]: requests } }));
-    }
   }
 
   // --- helpers ---
@@ -1021,6 +920,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       lastModifiedAt: r.lastModifiedAt,
       createdBy: r.createdBy,
       lastModifiedBy: r.lastModifiedBy,
+      ...(r.valueApplicabilityConfig ? { valueApplicabilityConfig: r.valueApplicabilityConfig } : {}),
     };
   }
 
@@ -1045,6 +945,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       valueDataType,
       multiSelectAllowed,
       applicableModules,
+      valueApplicabilityConfig: typeItem.valueApplicabilityConfig as MetadataTypeRecord['valueApplicabilityConfig'],
       attributeSchema: schemaItem
         ? ((schemaItem.attributeSchema ?? schemaItem.schema) as Record<string, unknown>)
         : undefined,

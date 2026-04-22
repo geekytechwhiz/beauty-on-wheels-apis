@@ -65,6 +65,7 @@ function onlyDisplayNameOrDescriptionChanged(before: MetadataTypeInput, after: M
     valueDataType: before.valueDataType,
     multiSelectAllowed: before.multiSelectAllowed,
     applicableModules: before.applicableModules,
+    valueApplicabilityConfig: before.valueApplicabilityConfig,
     attributeSchema: before.attributeSchema,
     status: before.status,
   };
@@ -73,6 +74,7 @@ function onlyDisplayNameOrDescriptionChanged(before: MetadataTypeInput, after: M
     valueDataType: after.valueDataType,
     multiSelectAllowed: after.multiSelectAllowed,
     applicableModules: after.applicableModules,
+    valueApplicabilityConfig: after.valueApplicabilityConfig,
     attributeSchema: after.attributeSchema,
     status: after.status,
   };

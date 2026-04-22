@@ -29,23 +29,34 @@ export const patchMetadataStatusSchema = z.object({
   lastModifiedBy: z.string().optional(),
 });
 
-/** Aligns with POST /metadata-types/{metadataTypeCode}/values body (MetadataValueInput). */
-export const createMetadataValueSchema = z.object({
-  valueCode: z.string().regex(metadataValueCodeRegex, 'Invalid valueCode'),
-  label: z.string().min(1).max(150),
-  description: z.string().max(2000).optional(),
-  sortOrder: z.number().int().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  isGlobal: z.boolean(),
-  attributes: z.record(z.string(), z.unknown()).optional(),
-  applicability: z.object({
-    module: z.array(z.string()),
-    category: z.array(z.string()),
-    condition: z.array(z.string()),
-    country: z.array(z.string()),
-    language: z.array(z.string()).optional(),
-  }),
+const applicabilityObjectSchema = z.object({
+  module: z.array(z.string()),
+  category: z.array(z.string()),
+  condition: z.array(z.string()),
+  country: z.array(z.string()),
+  language: z.array(z.string()).optional(),
 });
+
+/** Aligns with POST /metadata-types/{metadataTypeCode}/values body (MetadataValueInput). */
+export const createMetadataValueSchema = z
+  .object({
+    valueCode: z.string().regex(metadataValueCodeRegex, 'Invalid valueCode').optional(),
+    metadataValueCode: z.string().regex(metadataValueCodeRegex, 'Invalid metadataValueCode').optional(),
+    label: z.string().min(1).max(150),
+    description: z.string().max(2000).optional(),
+    sortOrder: z.number().int().min(0).optional(),
+    status: z.enum(['ACTIVE', 'INACTIVE']),
+    isGlobal: z.boolean(),
+    attributes: z.record(z.string(), z.unknown()).optional(),
+    valueAttributes: z.record(z.string(), z.unknown()).optional(),
+    applicability: applicabilityObjectSchema.optional(),
+    applicableModules: z.array(z.string()).optional(),
+    applicableCategories: z.array(z.string()).optional(),
+    applicableConditions: z.array(z.string()).optional(),
+    applicableCountries: z.array(z.string()).optional(),
+    applicableLanguages: z.array(z.string()).optional(),
+  })
+  .refine((b) => !!(b.valueCode || b.metadataValueCode), { message: 'valueCode or metadataValueCode is required' });
 
 export const validateMetadataValueBodySchema = z.object({
   metadataTypeCode: z.string().min(1),

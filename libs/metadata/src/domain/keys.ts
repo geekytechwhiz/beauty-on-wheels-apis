@@ -83,13 +83,6 @@ export function buildApplSortKeys(valueCode: string, applicability: import('./ty
   return [...new Set(keys)];
 }
 
-/** Aggregated applicability dropdown index: `PK = APPL_DIMENSION#<SEGMENT>`, `SK = <token>`. */
-export const APPL_DIMENSION_PK_PREFIX = 'APPL_DIMENSION#' as const;
-
-export function applDimensionPartitionKey(dimensionSegment: string): string {
-  return `${APPL_DIMENSION_PK_PREFIX}${dimensionSegment}`;
-}
-
 export function extractValueCodeFromApplSk(sk: string): string | null {
   const parts = sk.split('#');
   const vIdx = parts.indexOf('VALUE');

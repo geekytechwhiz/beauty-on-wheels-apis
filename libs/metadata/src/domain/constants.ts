@@ -21,8 +21,6 @@ export const ENTITY_TYPE = {
   METADATA_TYPE: 'METADATA_TYPE',
   METADATA_VALUE: 'METADATA_VALUE',
   CATALOG_ENTRY: 'CATALOG_ENTRY',
-  /** Aggregated dropdown index row: PK `APPL_DIMENSION#<SEGMENT>`, SK token. */
-  APPL_DIMENSION: 'APPL_DIMENSION',
 } as const;
 
 /**

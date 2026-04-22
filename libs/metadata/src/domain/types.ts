@@ -24,6 +24,17 @@ export interface Applicability {
  *
  * **Update:** Partial fields allowed; omitted fields keep existing values where applicable.
  */
+/**
+ * When set on a metadata type, value-level applicability lists are required (when `isGlobal` is false)
+ * for the corresponding dimension.
+ */
+export interface ValueApplicabilityConfig {
+  moduleScoped?: boolean;
+  categoryDependent?: boolean;
+  conditionDependent?: boolean;
+  countryDependent?: boolean;
+}
+
 export interface MetadataTypeInput {
   metadataTypeCode: string;
   displayName?: string;
@@ -31,6 +42,11 @@ export interface MetadataTypeInput {
   valueDataType?: ValueDataType | string;
   multiSelectAllowed?: boolean;
   applicableModules?: string[];
+  /**
+   * When true for a dimension, that applicability list is required on non-global metadata values.
+   * Persisted on the type item as `valueApplicabilityConfig`.
+   */
+  valueApplicabilityConfig?: ValueApplicabilityConfig;
   /**
    * Type-level definition of which structured fields are allowed on values (`value.attributes`).
    * Persisted as `SCHEMA#vN` only for MetricCode and QuestionCode; governs validation of value attributes.
@@ -51,6 +67,7 @@ export interface MetadataTypeRecord {
   valueDataType: ValueDataType | string;
   multiSelectAllowed: boolean;
   applicableModules: string[];
+  valueApplicabilityConfig?: ValueApplicabilityConfig;
   attributeSchema?: Record<string, unknown>;
   status: Status;
   createdAt: string;
@@ -62,13 +79,15 @@ export interface MetadataTypeRecord {
 }
 
 export interface MetadataValueInput {
+  /** Immutable after first write; API alias `metadataValueCode`. */
   valueCode: string;
   label: string;
   /** Optional documentation; max length enforced in validation. */
   description?: string;
   sortOrder?: number;
+  /** Validators require ACTIVE | INACTIVE on every write. */
   status?: Status;
-  /** Required on create (Requirements §6). */
+  /** Required on create; optional on update (keeps existing). */
   isGlobal?: boolean;
   /** Structured ValueAttributes; MetricCode / QuestionCode validated per type rules. */
   attributes?: Record<string, unknown>;

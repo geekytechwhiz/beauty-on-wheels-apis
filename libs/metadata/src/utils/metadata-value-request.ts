@@ -14,6 +14,25 @@ function hasOwn(o: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(o, key);
 }
 
+const APPLICABILITY_BODY_KEYS = [
+  'applicability',
+  'applicableModules',
+  'applicableCategories',
+  'applicableConditions',
+  'applicableCountries',
+  'applicableLanguages',
+] as const;
+
+/** True if the request explicitly sets applicability (nested or flat Figma fields). */
+export function applicabilityKeysPresentInBody(body: Record<string, unknown>): boolean {
+  for (const k of APPLICABILITY_BODY_KEYS) {
+    if (hasOwn(body, k)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Trim, uppercase, dedupe (first occurrence wins order), drop empties.
  */
@@ -84,32 +103,20 @@ export function mapFlatAndNestedToApplicability(
   return out;
 }
 
-function hasAnyApplicabilityToken(a: Applicability): boolean {
-  const dims: (keyof Applicability)[] = ['module', 'category', 'condition', 'country'];
-  for (const d of dims) {
-    if ((a[d] ?? []).length > 0) {
-      return true;
-    }
-  }
-  return (a.language ?? []).length > 0;
-}
+const VALUE_SCOPE_DIMS: (keyof Applicability)[] = ['module', 'category', 'condition', 'country'];
 
 /**
- * Requirements: global → no scoped tokens; non-global → at least one dimension has a token.
+ * Global rule: if `isGlobal` is true, applicability lists may be empty. If `isGlobal` is false, at least one of
+ * module / category / condition / country must have a value (language alone does not satisfy scope).
  */
 export function validateMetadataValueApplicabilityRules(isGlobal: boolean, applicability: Applicability): void {
-  const any = hasAnyApplicabilityToken(applicability);
   if (isGlobal) {
-    if (any) {
-      throw new ValidationError('When isGlobal is true, applicableModules, applicableCategories, applicableConditions, applicableCountries, and applicableLanguages must be empty or omitted', [
-        { field: 'applicability', message: 'Must be empty when isGlobal is true' },
-      ]);
-    }
     return;
   }
-  if (!any) {
-    throw new ValidationError('When isGlobal is false, at least one applicability list must contain a value', [
-      { field: 'applicability', message: 'At least one of module, category, condition, country, or language is required' },
+  const anyScope = VALUE_SCOPE_DIMS.some((d) => (applicability[d] ?? []).length > 0);
+  if (!anyScope) {
+    throw new ValidationError('When isGlobal is false, at least one of module, category, condition, or country must be set', [
+      { field: 'applicability', message: 'At least one scope dimension is required' },
     ]);
   }
 }

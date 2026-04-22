@@ -76,8 +76,8 @@ describe('validateMetadataValueApplicabilityRules', () => {
     ).not.toThrow();
   });
 
-  it('rejects global with tokens', () => {
-    expect(() => validateMetadataValueApplicabilityRules(true, scoped)).toThrow(ValidationError);
+  it('allows global with applicability tokens (global rule only constrains when isGlobal is false)', () => {
+    expect(() => validateMetadataValueApplicabilityRules(true, scoped)).not.toThrow();
   });
 
   it('requires non-global to have at least one token', () => {

@@ -1,5 +1,6 @@
 import { createLogger } from '@api-hub/logger';
 import type {
+  Applicability,
   AuditRecord,
   MetadataTypeInput,
   MetadataTypeRecord,
@@ -8,7 +9,11 @@ import type {
   Status,
   ValueSearchFilter,
 } from '@api-hub/metadata';
-import { STATUS, mapFlatAndNestedToApplicability } from '@api-hub/metadata';
+import {
+  STATUS,
+  applicabilityKeysPresentInBody,
+  mapFlatAndNestedToApplicability,
+} from '@api-hub/metadata';
 import { getMetadataRepository } from '../repositories/dynamodb';
 
 const log = createLogger({
@@ -32,6 +37,14 @@ function normalizeMetadataTypeStatus(raw: unknown): Status | undefined {
   const upper = String(raw).trim().toUpperCase();
   if (upper === STATUS.ACTIVE || upper === STATUS.INACTIVE) return upper;
   return raw as Status;
+}
+
+/** Coerce request status to `ACTIVE` | `INACTIVE` (uppercase). */
+function normalizeMetadataValueStatus(raw: unknown): Status | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const upper = String(raw).trim().toUpperCase();
+  if (upper === STATUS.ACTIVE || upper === STATUS.INACTIVE) return upper;
+  return undefined;
 }
 
 /**
@@ -79,6 +92,7 @@ export function normalizeMetadataTypeInput(
     valueDataType,
     multiSelectAllowed: body.multiSelectAllowed,
     applicableModules,
+    valueApplicabilityConfig: body.valueApplicabilityConfig,
     attributeSchema: body.attributeSchema,
     status,
     createdBy: body.createdBy,
@@ -90,30 +104,46 @@ export function normalizeMetadataTypeInput(
  * Maps alternate request shapes to {@link MetadataValueInput}:
  * `metadataValueCode` → `valueCode`, `valueAttributes` → `attributes`,
  * flat Figma fields → nested `applicability` (tokens normalized: trim, uppercase, deduped).
+ *
+ * When `existing` is set (update path), fields omitted in the request keep the stored value; applicability
+ * is only replaced when the body explicitly includes `applicability` or any `applicable*` flat key.
  */
 export function normalizeMetadataValueInput(
   body: MetadataValueInput & Record<string, unknown>,
+  existing?: MetadataValueRecord | null,
 ): MetadataValueInput {
   const raw = body as Record<string, unknown>;
   const valueCode =
-    (body.valueCode as string | undefined) ?? (body.metadataValueCode as string | undefined) ?? '';
+    (body.valueCode as string | undefined) ?? (body.metadataValueCode as string | undefined) ?? existing?.valueCode ?? '';
 
   const attributes =
     body.attributes !== undefined
       ? body.attributes
       : body.valueAttributes !== undefined
         ? (body.valueAttributes as Record<string, unknown>)
-        : undefined;
+        : existing
+          ? existing.attributes
+          : undefined;
 
-  const applicability = mapFlatAndNestedToApplicability(raw, body.applicability);
+  const useExistingApplic = existing && !applicabilityKeysPresentInBody(raw);
+  const applicability = useExistingApplic
+    ? existing.applicability
+    : mapFlatAndNestedToApplicability(raw, body.applicability as Applicability | undefined);
+
+  const resolvedStatus = normalizeMetadataValueStatus(body.status) ?? existing?.status;
+
+  const label =
+    body.label !== undefined && body.label !== null && String(body.label).trim() !== ''
+      ? String(body.label)
+      : (existing?.label ?? '');
 
   const result: MetadataValueInput = {
     valueCode,
-    label: body.label,
-    description: body.description,
-    sortOrder: body.sortOrder,
-    status: body.status,
-    isGlobal: body.isGlobal,
+    label,
+    description: body.description !== undefined ? body.description : existing?.description,
+    sortOrder: body.sortOrder !== undefined ? body.sortOrder : existing?.sortOrder,
+    status: resolvedStatus,
+    isGlobal: body.isGlobal !== undefined ? body.isGlobal : existing?.isGlobal,
     attributes,
     applicability,
     createdBy: body.createdBy,
@@ -183,19 +213,24 @@ export async function listTypes(filters: {
   return (await getMetadataRepository()).listMetadataTypes(filters);
 }
 
-/** POST /metadata-types/{code}/values — create or update value. */
+/**
+ * POST /metadata-types/{code}/values — create or update value (each write appends a new version).
+ * Pass `preloaded` when the caller has already loaded the current value (avoids an extra read).
+ */
 export async function upsertMetadataValue(
   metadataTypeCode: string,
   body: MetadataValueInput,
   userId?: string,
+  preloaded?: MetadataValueRecord | null,
 ): Promise<MetadataValueRecord> {
   const repo = await getMetadataRepository();
   const actor = body.createdBy ?? actorFromContext(userId);
-  const existing = await repo.getMetadataValue(metadataTypeCode, body.valueCode);
+  const existing =
+    preloaded !== undefined ? preloaded : await repo.getMetadataValue(metadataTypeCode, body.valueCode);
   if (!existing) {
     return repo.createMetadataValue(metadataTypeCode, body, actor);
   }
-  return repo.updateMetadataValue(metadataTypeCode, body, actor);
+  return repo.updateMetadataValue(metadataTypeCode, body, actor, existing);
 }
 
 export async function patchValueStatus(

@@ -183,6 +183,79 @@ paths:
         '200':
           description: Audit entries
 
+  /metadata/relations:
+    post:
+      summary: Create a relation between two metadata values (forward direction only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMetadataRelationInput'
+      responses:
+        '201':
+          description: Relation created
+    get:
+      summary: List relations from a source value
+      parameters:
+        - in: query
+          name: fromType
+          required: true
+          schema: { type: string }
+        - in: query
+          name: fromValue
+          required: true
+          schema: { type: string }
+        - in: query
+          name: relationType
+          schema:
+            type: string
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+        - in: query
+          name: toType
+          schema: { type: string }
+      responses:
+        '200':
+          description: Wrapper object with `relations` array (see standard ApiResponse `data`)
+
+  /metadata/values/related:
+    get:
+      summary: List related target values (minimal shape) for a source value
+      parameters:
+        - in: query
+          name: fromType
+          required: true
+          schema: { type: string }
+        - in: query
+          name: fromValue
+          required: true
+          schema: { type: string }
+        - in: query
+          name: relationType
+          schema:
+            type: string
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+        - in: query
+          name: toType
+          schema: { type: string }
+      responses:
+        '200':
+          description: Wrapper object with `values` array
+
+  /metadata/relations/{id}:
+    patch:
+      summary: Inactivate a relation (soft delete; audit row appended)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            description: Opaque id returned by create / list (encodes PK/SK)
+      responses:
+        '200':
+          description: Inactivated relation record
+
 components:
   parameters:
     metadataTypeCode:
@@ -441,3 +514,42 @@ components:
         status:
           type: string
           enum: [ACTIVE, INACTIVE]
+
+    RelationType:
+      type: string
+      enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+    CreateMetadataRelationInput:
+      type: object
+      required:
+        - relationType
+        - fromMetadataTypeCode
+        - fromMetadataValueCode
+        - toMetadataTypeCode
+        - toMetadataValueCode
+      properties:
+        relationType:
+          $ref: '#/components/schemas/RelationType'
+        fromMetadataTypeCode: { type: string }
+        fromMetadataValueCode: { type: string }
+        toMetadataTypeCode: { type: string }
+        toMetadataValueCode: { type: string }
+        createdBy: { type: string, description: Optional audit actor override }
+    MetadataRelationRecord:
+      type: object
+      properties:
+        id: { type: string }
+        relationType: { $ref: '#/components/schemas/RelationType' }
+        fromMetadataTypeCode: { type: string }
+        fromMetadataValueCode: { type: string }
+        toMetadataTypeCode: { type: string }
+        toMetadataValueCode: { type: string }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+    RelatedValueRef:
+      type: object
+      properties:
+        metadataTypeCode: { type: string }
+        metadataValueCode: { type: string }

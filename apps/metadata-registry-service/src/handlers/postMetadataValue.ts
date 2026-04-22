@@ -20,9 +20,10 @@ const APPLICABILITY_KEYS = [
 ] as const;
 
 /**
- * Enforces a full request body on every POST (create and update):
- * `metadataTypeCode` and `valueCode`/`metadataValueCode` are required, plus
- * `label`, `isGlobal`, `status`, and all four `applicable*` array fields.
+ * Enforces required fields on every POST (create and update):
+ * `metadataTypeCode` and `valueCode`/`metadataValueCode`, `label`, `isGlobal`, `status`.
+ * `applicableModules` / `applicableCategories` / `applicableConditions` / `applicableCountries`
+ * are optional; when present they must be arrays (empty arrays allowed).
  */
 function assertPostMetadataValueRequiredBody(body: Record<string, unknown>): void {
   const details: { field: string; message: string }[] = [];
@@ -54,9 +55,7 @@ function assertPostMetadataValueRequiredBody(body: Record<string, unknown>): voi
   }
 
   for (const k of APPLICABILITY_KEYS) {
-    if (!has(k)) {
-      details.push({ field: k, message: 'Required' });
-    } else if (!Array.isArray(body[k])) {
+    if (has(k) && !Array.isArray(body[k])) {
       details.push({ field: k, message: 'Must be an array' });
     }
   }

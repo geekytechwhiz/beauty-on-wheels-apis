@@ -199,3 +199,35 @@ functions:
           path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}/audit
           method: get
           cors: ${self:custom.cors}
+
+  postMetadataRelation:
+    handler: src/handlers/postRelation.main
+    events:
+      - http:
+          path: metadata/relations
+          method: post
+          cors: ${self:custom.cors}
+
+  getMetadataRelations:
+    handler: src/handlers/getRelations.main
+    events:
+      - http:
+          path: metadata/relations
+          method: get
+          cors: ${self:custom.cors}
+
+  getMetadataRelatedValues:
+    handler: src/handlers/getRelatedValues.main
+    events:
+      - http:
+          path: metadata/values/related
+          method: get
+          cors: ${self:custom.cors}
+
+  patchMetadataRelation:
+    handler: src/handlers/patchRelation.main
+    events:
+      - http:
+          path: metadata/relations/{id}
+          method: patch
+          cors: ${self:custom.cors}

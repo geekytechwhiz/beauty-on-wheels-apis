@@ -162,16 +162,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       attributeSchema,
     );
 
-    const catalogEntry = {
-      ...this.key(catalogPartitionKey(), catalogSortKey(input.metadataTypeCode)),
-      entityType: ENTITY_TYPE.CATALOG_ENTRY,
-      metadataTypeCode: input.metadataTypeCode,
-      status,
-      applicableModules: input.applicableModules,
-      valueDataType: input.valueDataType,
-      lastModifiedAt: now,
-    };
-
     const auditItem = this.buildAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
       entity: 'METADATA_TYPE',
       operation: 'CREATE',
@@ -184,7 +174,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
 
     const transactItems = [
       { Put: { TableName: this.tableName, Item: typeItem } },
-      { Put: { TableName: this.tableName, Item: catalogEntry } },
       { Put: { TableName: this.tableName, Item: auditItem } },
     ];
     if (schemaItem) {

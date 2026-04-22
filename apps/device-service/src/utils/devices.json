@@ -830,7 +830,7 @@
           "companyIdentifier": 1138,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/BeurerLogo.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/fora.png",
           "devices": [
             {
               "name": "FORA D40",
@@ -1781,7 +1781,7 @@
           "companyIdentifier": 1138,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/fora.png",
           "devices": [
             {
               "name": "FORA D40",
@@ -2088,7 +2088,7 @@
           "companyIdentifier": 1138,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/fora.png",
           "devices": [
             {
               "name": "TNG ADVANCE",

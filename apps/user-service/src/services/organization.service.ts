@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { createLogger, createChildLogger } from '@api-hub/logger';
+import { OrganizationRepository } from '../repositories/organization.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -20,6 +21,37 @@ export interface GetOrganizationOptions {
  * Use for service-to-service checks (e.g. create user validation) so organization remains source of truth.
  * Optional authHeader is forwarded for downstream authorization.
  */
+
+/**
+ * Fetches organization details directly from DynamoDB (organization-table).
+ * Use this in stream/event handlers that have no auth token available.
+ * Requires the Lambda IAM role to have read access to the organization table
+ * and ORGANIZATION_TABLE env var to be set.
+ */
+export async function getOrganizationFromDynamo(
+  organizationId: string,
+): Promise<OrganizationApiPayload | null> {
+  const logger = createChildLogger(baseLogger, { organizationId });
+  logger.info({ event: 'getOrganizationFromDynamo_start', organizationId });
+  try {
+    const repo = new OrganizationRepository();
+    const item = await repo.getOrganizationFromDB(organizationId);
+    if (!item) {
+      logger.warn({ event: 'getOrganizationFromDynamo_not_found', organizationId });
+      return null;
+    }
+    logger.info({ event: 'getOrganizationFromDynamo_success', organizationId });
+    return item as OrganizationApiPayload;
+  } catch (err) {
+    logger.error({
+      event: 'getOrganizationFromDynamo_error',
+      organizationId,
+      err: err instanceof Error ? { message: err.message, name: err.name } : err,
+    });
+    return null;
+  }
+}
+
 export async function getOrganization(
   organizationId: string,
   authHeader?: string,

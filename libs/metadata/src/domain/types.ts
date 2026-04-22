@@ -117,12 +117,21 @@ export interface MetadataValueRecord {
 
 export interface AuditRecord {
   auditId: string;
+  /** Same as `auditId` for value delta events when present. */
+  eventId?: string;
   entity: 'METADATA_TYPE' | 'METADATA_VALUE';
-  operation: string;
+  /** Type audits and legacy value snapshots. Value delta audits set `action`. */
+  operation?: string;
+  action?: 'CREATE' | 'UPDATE' | 'UPDATE_BREAKING' | 'STATUS' | string;
   actor?: string;
+  changedBy?: string;
   timestamp: string;
+  /** Type / legacy value full snapshot. */
   before?: unknown;
   after?: unknown;
+  /** Metadata value event log: only fields that changed. */
+  oldValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
 }
 
 export interface ValueSearchFilter {

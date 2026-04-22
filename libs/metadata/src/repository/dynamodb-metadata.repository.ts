@@ -43,6 +43,12 @@ import {
   valueSk,
 } from '../domain/keys';
 import { isMetadataTypeBreakingChange } from '../domain/diff';
+import { getMetadataTypeDelta, typeCreateAuditNewValue } from '../domain/type-audit-delta';
+import {
+  getMetadataValueDelta,
+  resolveValueUpdateAction,
+  valueCreateAuditNewValue,
+} from '../domain/value-audit-delta';
 import { matchesSearchFilter, sortValuesForSearch } from '../domain/search-filter';
 import type { IMetadataRegistryRepository, ListTypesFilter } from './metadata-registry.repository.interface';
 import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from '../validators/code-patterns';
@@ -162,14 +168,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       attributeSchema,
     );
 
-    const auditItem = this.buildAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
-      entity: 'METADATA_TYPE',
-      operation: 'CREATE',
-      metadataTypeCode: input.metadataTypeCode,
-      before: undefined,
-      after: record,
-      actor,
+    const auditItem = this.buildMetadataTypeAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
+      action: 'CREATE',
+      changedBy: actor,
       timestamp: now,
+      oldValue: {},
+      newValue: typeCreateAuditNewValue(record),
     });
 
     const transactItems = [
@@ -252,14 +256,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
         {
           Put: {
             TableName: this.tableName,
-            Item: this.buildAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
-              entity: 'METADATA_TYPE',
-              operation: 'UPDATE',
-              metadataTypeCode: input.metadataTypeCode,
-              before: existing,
-              after: record,
-              actor,
+            Item: this.buildMetadataTypeAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
+              action: 'UPDATE',
+              changedBy: actor,
               timestamp: now,
+              ...getMetadataTypeDelta(existing, record),
             }),
           },
         },
@@ -308,14 +309,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       {
         Put: {
           TableName: this.tableName,
-          Item: this.buildAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
-            entity: 'METADATA_TYPE',
-            operation: 'UPDATE_BREAKING',
-            metadataTypeCode: input.metadataTypeCode,
-            before: existing,
-            after: record,
-            actor,
+          Item: this.buildMetadataTypeAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
+            action: 'UPDATE',
+            changedBy: actor,
             timestamp: now,
+            ...getMetadataTypeDelta(existing, record),
           }),
         },
       },
@@ -368,14 +366,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       {
         Put: {
           TableName: this.tableName,
-          Item: this.buildAuditItem(auditTypePartitionKey(metadataTypeCode), {
-            entity: 'METADATA_TYPE',
-            operation: 'STATUS',
-            metadataTypeCode,
-            before: existing,
-            after: record,
-            actor,
+          Item: this.buildMetadataTypeAuditItem(auditTypePartitionKey(metadataTypeCode), {
+            action: 'UPDATE',
+            changedBy: actor,
             timestamp: now,
+            ...getMetadataTypeDelta(existing, record),
           }),
         },
       },
@@ -481,15 +476,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       latestVersion: version,
     };
 
-    const auditItem = this.buildAuditItem(auditValuePartitionKey(input.valueCode), {
-      entity: 'METADATA_VALUE',
-      operation: 'CREATE',
-      metadataTypeCode,
-      valueCode: input.valueCode,
-      before: undefined,
-      after: record,
-      actor,
+    const auditItem = this.buildMetadataValueAuditItem(auditValuePartitionKey(input.valueCode), {
+      action: 'CREATE',
+      changedBy: actor,
       timestamp: now,
+      oldValue: {},
+      newValue: valueCreateAuditNewValue(record),
     });
 
     await this.sendTx([
@@ -559,15 +551,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       {
         Put: {
           TableName: this.tableName,
-          Item: this.buildAuditItem(auditValuePartitionKey(input.valueCode), {
-            entity: 'METADATA_VALUE',
-            operation: 'UPDATE',
-            metadataTypeCode,
-            valueCode: input.valueCode,
-            before: existing,
-            after: record,
-            actor,
+          Item: this.buildMetadataValueAuditItem(auditValuePartitionKey(input.valueCode), {
+            action: resolveValueUpdateAction(metadataTypeCode, existing, record),
+            changedBy: actor,
             timestamp: now,
+            ...getMetadataValueDelta(existing, record),
           }),
         },
       },
@@ -608,15 +596,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       {
         Put: {
           TableName: this.tableName,
-          Item: this.buildAuditItem(auditValuePartitionKey(valueCode), {
-            entity: 'METADATA_VALUE',
-            operation: 'STATUS',
-            metadataTypeCode,
-            valueCode,
-            before: existing,
-            after: record,
-            actor,
+          Item: this.buildMetadataValueAuditItem(auditValuePartitionKey(valueCode), {
+            action: 'UPDATE',
+            changedBy: actor,
             timestamp: now,
+            ...getMetadataValueDelta(existing, record),
           }),
         },
       },
@@ -992,36 +976,97 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     };
   }
 
-  private buildAuditItem(
+  /**
+   * Type audit event log: delta only. PK `AUDIT#METADATA_TYPE#<metadataTypeCode>`, SK `TIMESTAMP#<iso>#<ulid>`.
+   */
+  private buildMetadataTypeAuditItem(
     auditPk: string,
-    payload: {
-      entity: 'METADATA_TYPE' | 'METADATA_VALUE';
-      operation: string;
-      metadataTypeCode: string;
-      valueCode?: string;
-      before: unknown;
-      after: unknown;
-      actor?: string;
+    params: {
+      action: 'CREATE' | 'UPDATE';
+      changedBy?: string;
       timestamp: string;
+      oldValue: Record<string, unknown>;
+      newValue: Record<string, unknown>;
     },
   ): Record<string, unknown> {
     const id = ulid();
-    const sk = `TIMESTAMP#${payload.timestamp}#${id}`;
+    const sk = `TIMESTAMP#${params.timestamp}#${id}`;
     return {
       ...this.key(auditPk, sk),
       entityType: 'AUDIT',
+      entity: 'METADATA_TYPE',
       auditId: id,
-      ...payload,
+      eventId: id,
+      action: params.action,
+      changedBy: params.changedBy,
+      timestamp: params.timestamp,
+      oldValue: params.oldValue,
+      newValue: params.newValue,
+    };
+  }
+
+  /**
+   * Value audit event log: delta only (`oldValue` / `newValue`), no full snapshots.
+   * PK `AUDIT#METADATA_VALUE#<valueCode>`, SK `TIMESTAMP#<iso>#<ulid>`.
+   */
+  private buildMetadataValueAuditItem(
+    auditPk: string,
+    params: {
+      action: 'CREATE' | 'UPDATE' | 'UPDATE_BREAKING' | 'UPDATE' | 'STATUS';
+      changedBy?: string;
+      timestamp: string;
+      oldValue: Record<string, unknown>;
+      newValue: Record<string, unknown>;
+    },
+  ): Record<string, unknown> {
+    const id = ulid();
+    const sk = `TIMESTAMP#${params.timestamp}#${id}`;
+    return {
+      ...this.key(auditPk, sk),
+      entityType: 'AUDIT',
+      entity: 'METADATA_VALUE',
+      auditId: id,
+      eventId: id,
+      action: params.action,
+      changedBy: params.changedBy,
+      timestamp: params.timestamp,
+      oldValue: params.oldValue,
+      newValue: params.newValue,
     };
   }
 
   private unmarshalAudit(item: Record<string, unknown>): AuditRecord {
+    const auditId = item.auditId as string;
+    const entity = item.entity as 'METADATA_TYPE' | 'METADATA_VALUE';
+    const timestamp = item.timestamp as string;
+    if (
+      (entity === 'METADATA_VALUE' || entity === 'METADATA_TYPE') &&
+      (Object.prototype.hasOwnProperty.call(item, 'oldValue') ||
+        Object.prototype.hasOwnProperty.call(item, 'newValue'))
+    ) {
+      const act = (item.action as string) ?? (item.operation as string) ?? 'UNKNOWN';
+      const by = (item.changedBy as string) ?? (item.actor as string);
+      return {
+        auditId,
+        eventId: (item.eventId as string) ?? auditId,
+        entity,
+        action: act,
+        operation: act,
+        changedBy: by,
+        actor: by,
+        timestamp,
+        oldValue: (item.oldValue as Record<string, unknown>) ?? {},
+        newValue: (item.newValue as Record<string, unknown>) ?? {},
+      };
+    }
     return {
-      auditId: item.auditId as string,
-      entity: item.entity as 'METADATA_TYPE' | 'METADATA_VALUE',
-      operation: item.operation as string,
+      auditId,
+      entity,
+      operation: (item.operation as string) ?? (item.action as string),
+      action: item.action as string | undefined,
       actor: item.actor as string | undefined,
-      timestamp: item.timestamp as string,
+      changedBy: item.changedBy as string | undefined,
+      timestamp,
       before: item.before,
       after: item.after,
     };

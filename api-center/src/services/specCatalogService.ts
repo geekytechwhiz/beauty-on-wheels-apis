@@ -1,16 +1,9 @@
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  ListObjectsV2Command,
-  PutObjectCommand,
-  S3Client,
-  type _Object,
-} from '@aws-sdk/client-s3';
 import yaml from 'js-yaml';
 
 export type SpecFileExtension = 'json' | 'yaml' | 'yml';
 export type VersionBumpType = 'major' | 'minor' | 'patch';
 export type SpecReviewStatus = 'pending' | 'approved' | 'rejected';
+
 const SPEC_REVIEW_STATUS_FIELD = 'x-api-center-status';
 
 interface ParsedSemanticVersion {
@@ -77,6 +70,11 @@ export interface DesignLibraryEntry {
   updatedAt?: string;
 }
 
+interface PublicCatalogIndex {
+  generatedAt: string;
+  services: ServiceCatalogEntry[];
+}
+
 const DEFAULT_SPECS_PREFIX = 'specs';
 const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'approved';
 const OPENAPI_FILE_PATTERN = /^(.+?)\/(.+?)\/openapi\.(json|yaml|yml)$/i;
@@ -86,98 +84,61 @@ const VERSION_COLLATOR = new Intl.Collator(undefined, {
 });
 const SEMVER_PATTERN = /^(v?)(\d+)(?:\.(\d+))?(?:\.(\d+))?$/i;
 
-let cachedClient: S3Client | null = null;
-
-function getEnv(name: keyof ImportMetaEnv): string {
-  const value = import.meta.env[name]?.trim();
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-function getBucketName(): string {
-  return getEnv('VITE_S3_BUCKET_NAME');
-}
+const LOCAL_SPEC_API = '/__api-center/specs';
 
 function getSpecsPrefix(): string {
-  const rawPrefix = import.meta.env.VITE_S3_SPECS_PREFIX?.trim();
+  const rawPrefix = import.meta.env.VITE_SPECS_PREFIX?.trim();
   if (!rawPrefix) {
     return DEFAULT_SPECS_PREFIX;
   }
-
   return rawPrefix.replace(/^\/+|\/+$/g, '');
 }
 
-function getFigmaDesignsKey(): string {
-  const rawKey = import.meta.env.VITE_S3_FIGMA_DESIGNS_KEY?.trim();
-  if (!rawKey) {
-    return 'figma/designs.json';
-  }
-
-  return rawKey.replace(/^\/+/, '');
+/** Base URL for static assets (figma JSON) served with the SPA. */
+function publicAssetUrl(relativePath: string): string {
+  const base = import.meta.env.BASE_URL.endsWith('/')
+    ? import.meta.env.BASE_URL
+    : `${import.meta.env.BASE_URL}/`;
+  const trimmed = relativePath.replace(/^\/+/, '');
+  return `${base}${trimmed}`;
 }
 
-export function getS3ConfigSummary(): {
-  bucketName: string;
-  region: string;
+export function getCatalogSummary(): {
   specsPrefix: string;
+  indexKey: string;
+  localWriteEnabled: boolean;
 } {
+  const specsPrefix = getSpecsPrefix();
   return {
-    bucketName: getBucketName(),
-    region: getEnv('VITE_AWS_REGION'),
-    specsPrefix: getSpecsPrefix(),
+    specsPrefix,
+    indexKey: `${LOCAL_SPEC_API}/catalog`,
+    localWriteEnabled: canWriteSpecsLocally(),
   };
 }
 
-function buildPublicObjectUrl(key: string): string {
-  const { bucketName, region } = getS3ConfigSummary();
-  return `https://${bucketName}.s3.${region}.amazonaws.com/${encodeURIComponentPath(key)}`;
+/** Dev server local API for writing into `public/specs` (see vite plugin). */
+export function canWriteSpecsLocally(): boolean {
+  return true;
 }
 
-async function readResponseBodyAsText(body: unknown): Promise<string> {
-  if (
-    body &&
-    typeof body === 'object' &&
-    'transformToString' in body &&
-    typeof (body as { transformToString?: unknown }).transformToString === 'function'
-  ) {
-    return (body as { transformToString: () => Promise<string> }).transformToString();
-  }
-
-  if (body instanceof Blob) {
-    return body.text();
-  }
-
-  if (body instanceof Uint8Array) {
-    return new TextDecoder().decode(body);
-  }
-
-  throw new Error('Unable to read the S3 object body as text.');
+function withCacheBust(url: string): string {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}ts=${Date.now()}`;
 }
 
-function encodeURIComponentPath(path: string): string {
-  return path
-    .split('/')
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-}
-
-export function createS3Client(): S3Client {
-  return new S3Client({
-    region: getEnv('VITE_AWS_REGION'),
-    credentials: {
-      accessKeyId: getEnv('VITE_AWS_ACCESS_KEY_ID'),
-      secretAccessKey: getEnv('VITE_AWS_SECRET_ACCESS_KEY'),
+async function fetchPublicText(url: string, options?: { cacheBust?: boolean }): Promise<string> {
+  const response = await fetch(options?.cacheBust ? withCacheBust(url) : url, {
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json, application/yaml, text/yaml, text/plain, application/xml, text/xml',
     },
   });
-}
 
-function getS3Client(): S3Client {
-  if (cachedClient === null) {
-    cachedClient = createS3Client();
+  if (!response.ok) {
+    throw new Error(`Unable to load ${url}. Received ${response.status} ${response.statusText}.`);
   }
-  return cachedClient;
+
+  return response.text();
 }
 
 function normalizeSegment(value: string, label: string): string {
@@ -206,11 +167,17 @@ function getObjectKeyWithoutPrefix(key: string): string | null {
   if (!key.startsWith(prefix)) {
     return null;
   }
-
   return key.slice(prefix.length);
 }
 
-function parseSpecFileKey(key: string, object?: _Object): OpenApiSpecFile | null {
+function parseSpecFileKey(
+  key: string,
+  options?: {
+    lastModified?: string;
+    size?: number;
+    status?: SpecReviewStatus;
+  },
+): OpenApiSpecFile | null {
   const relativeKey = getObjectKeyWithoutPrefix(key);
   if (!relativeKey) {
     return null;
@@ -230,9 +197,9 @@ function parseSpecFileKey(key: string, object?: _Object): OpenApiSpecFile | null
     key,
     extension,
     contentType: getContentType(extension),
-    status: DEFAULT_SPEC_REVIEW_STATUS,
-    lastModified: object?.LastModified?.toISOString(),
-    size: object?.Size,
+    status: options?.status ?? DEFAULT_SPEC_REVIEW_STATUS,
+    lastModified: options?.lastModified,
+    size: options?.size,
   };
 }
 
@@ -249,12 +216,7 @@ function normalizeSpecReviewStatus(value: string | undefined): SpecReviewStatus 
   }
 }
 
-function extractStatusFromParsedSpec(parsedSpec: Record<string, unknown>): SpecReviewStatus {
-  const rawStatus = parsedSpec[SPEC_REVIEW_STATUS_FIELD];
-  return normalizeSpecReviewStatus(typeof rawStatus === 'string' ? rawStatus : undefined);
-}
-
-function serializeSpecWithStatus(
+export function serializeSpecWithStatus(
   parsedSpec: Record<string, unknown>,
   extension: SpecFileExtension,
   status: SpecReviewStatus,
@@ -324,9 +286,7 @@ export function parseOpenApiText(
   return parsedSpec as Record<string, unknown>;
 }
 
-export function normalizeSpecToYaml(
-  parsedSpec: Record<string, unknown>,
-): string {
+export function normalizeSpecToYaml(parsedSpec: Record<string, unknown>): string {
   return yaml.dump(parsedSpec, {
     noRefs: true,
     lineWidth: 120,
@@ -378,41 +338,39 @@ export function getNextVersionForService(
   return computeNextVersion(service?.latestVersion ?? null, bumpType);
 }
 
-function buildCatalog(objects: _Object[]): ServiceCatalogEntry[] {
-  const grouped = new Map<string, OpenApiSpecFile[]>();
+function normalizeCatalog(services: ServiceCatalogEntry[]): ServiceCatalogEntry[] {
+  return services
+    .map((service) => {
+      const grouped = new Map<string, OpenApiSpecFile>();
 
-  for (const object of objects) {
-    if (!object.Key) {
-      continue;
-    }
+      for (const version of service.versions) {
+        const normalized = parseSpecFileKey(version.key, {
+          lastModified: version.lastModified,
+          size: version.size,
+          status: version.status,
+        });
+        if (!normalized) {
+          continue;
+        }
 
-    const parsed = parseSpecFileKey(object.Key, object);
-    if (!parsed) {
-      continue;
-    }
+        const current = grouped.get(normalized.version);
+        grouped.set(
+          normalized.version,
+          current ? pickPreferredFile(current, normalized) : normalized,
+        );
+      }
 
-    const existing = grouped.get(parsed.serviceName) ?? [];
-    const duplicateIndex = existing.findIndex((item) => item.version === parsed.version);
-    if (duplicateIndex >= 0) {
-      existing[duplicateIndex] = pickPreferredFile(existing[duplicateIndex], parsed);
-    } else {
-      existing.push(parsed);
-    }
-    grouped.set(parsed.serviceName, existing);
-  }
-
-  return Array.from(grouped.entries())
-    .map(([name, versions]) => {
-      const sortedVersions = [...versions].sort((left, right) =>
+      const versions = Array.from(grouped.values()).sort((left, right) =>
         compareVersionsDesc(left.version, right.version),
       );
 
       return {
-        name,
-        latestVersion: sortedVersions[0]?.version ?? '',
-        versions: sortedVersions,
+        name: service.name,
+        latestVersion: versions[0]?.version ?? '',
+        versions,
       };
     })
+    .filter((service) => service.versions.length > 0)
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -429,66 +387,143 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
   return candidateModified >= currentModified ? candidate : current;
 }
 
-async function listAllSpecObjects(prefix?: string): Promise<_Object[]> {
-  const client = getS3Client();
-  const bucketName = getBucketName();
-  const objects: _Object[] = [];
-  let continuationToken: string | undefined;
-  const effectivePrefix = prefix ? `${getSpecsPrefix()}/${prefix}` : `${getSpecsPrefix()}/`;
+function parseCatalogIndex(rawValue: unknown): PublicCatalogIndex {
+  const rawServices = Array.isArray(rawValue)
+    ? rawValue
+    : rawValue &&
+        typeof rawValue === 'object' &&
+        'services' in rawValue &&
+        Array.isArray((rawValue as { services?: unknown }).services)
+      ? (rawValue as { services: unknown[] }).services
+      : null;
 
-  do {
-    const response = await client.send(
-      new ListObjectsV2Command({
-        Bucket: bucketName,
-        Prefix: effectivePrefix,
-        ContinuationToken: continuationToken,
-      }),
-    );
+  if (rawServices === null) {
+    throw new Error('Spec catalog index must be a JSON array or an object with a services array.');
+  }
 
-    if (response.Contents) {
-      objects.push(...response.Contents);
+  const services = rawServices.flatMap((service): ServiceCatalogEntry[] => {
+    if (!service || typeof service !== 'object' || Array.isArray(service)) {
+      return [];
     }
 
-    continuationToken = response.NextContinuationToken;
-  } while (continuationToken);
+    const rawName = 'name' in service ? service.name : undefined;
+    const rawVersions = 'versions' in service ? service.versions : undefined;
+    if (typeof rawName !== 'string' || !Array.isArray(rawVersions)) {
+      return [];
+    }
 
-  return objects;
+    const versions = rawVersions.flatMap((version): OpenApiSpecFile[] => {
+      if (!version || typeof version !== 'object' || Array.isArray(version)) {
+        return [];
+      }
+
+      const rawKey = 'key' in version ? version.key : undefined;
+      if (typeof rawKey !== 'string') {
+        return [];
+      }
+
+      const parsed = parseSpecFileKey(rawKey, {
+        status:
+          typeof version.status === 'string'
+            ? normalizeSpecReviewStatus(version.status)
+            : DEFAULT_SPEC_REVIEW_STATUS,
+        lastModified:
+          'lastModified' in version && typeof version.lastModified === 'string'
+            ? version.lastModified
+            : undefined,
+        size: 'size' in version && typeof version.size === 'number' ? version.size : undefined,
+      });
+
+      return parsed ? [parsed] : [];
+    });
+
+    return [
+      {
+        name: rawName,
+        latestVersion:
+          typeof service.latestVersion === 'string'
+            ? service.latestVersion
+            : versions[0]?.version ?? '',
+        versions,
+      },
+    ];
+  });
+
+  const generatedAt =
+    rawValue &&
+    typeof rawValue === 'object' &&
+    'generatedAt' in rawValue &&
+    typeof rawValue.generatedAt === 'string'
+      ? rawValue.generatedAt
+      : new Date().toISOString();
+
+  return {
+    generatedAt,
+    services: normalizeCatalog(services),
+  };
+}
+
+async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<PublicCatalogIndex> {
+  try {
+    const parsed = await localApiJson<unknown>('/catalog', {
+      method: 'GET',
+    });
+    return parseCatalogIndex(parsed);
+  } catch (error) {
+    if (options?.allowMissing) {
+      return {
+        generatedAt: new Date().toISOString(),
+        services: [],
+      };
+    }
+    throw error;
+  }
+}
+
+async function localApiJson<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(`${LOCAL_SPEC_API}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...init.headers,
+    },
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    let message = text || `${response.status} ${response.statusText}`;
+    try {
+      const j = JSON.parse(text) as { error?: string; message?: string };
+      message = j.error ?? j.message ?? message;
+    } catch {
+      // keep text
+    }
+    throw new Error(message);
+  }
+  if (!text) {
+    return undefined as T;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `Expected JSON from ${LOCAL_SPEC_API}${path}, but received non-JSON content.`,
+    );
+  }
+}
+
+function utf8FileToBase64(text: string): string {
+  return btoa(unescape(encodeURIComponent(text)));
 }
 
 export async function listServices(): Promise<ServiceCatalogEntry[]> {
-  const objects = await listAllSpecObjects();
-  return buildCatalog(objects);
+  const catalog = await loadCatalogIndex();
+  return catalog.services;
 }
 
 export async function listVersions(serviceName: string): Promise<OpenApiSpecFile[]> {
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
-  const objects = await listAllSpecObjects(`${normalizedServiceName}/`);
-  const catalog = buildCatalog(objects);
-  const versions = catalog[0]?.versions ?? [];
-
-  const versionsWithStatus = await Promise.all(
-    versions.map(async (version) => {
-      try {
-        const response = await getS3Client().send(
-          new GetObjectCommand({
-            Bucket: getBucketName(),
-            Key: version.key,
-          }),
-        );
-        const rawText = await readResponseBodyAsText(response.Body);
-        const parsedSpec = parseOpenApiText(rawText, version.extension);
-
-        return {
-          ...version,
-          status: extractStatusFromParsedSpec(parsedSpec),
-        };
-      } catch {
-        return version;
-      }
-    }),
-  );
-
-  return versionsWithStatus;
+  const catalog = await loadCatalogIndex();
+  return catalog.services.find((service) => service.name === normalizedServiceName)?.versions ?? [];
 }
 
 export async function getLatestVersion(serviceName: string): Promise<string | null> {
@@ -535,47 +570,34 @@ export async function uploadSpec({
   version,
   file,
 }: UploadSpecInput): Promise<OpenApiSpecFile> {
+  if (!canWriteSpecsLocally()) {
+    throw new Error('Upload is only available when the local spec API is reachable.');
+  }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
   const validatedFile = await validateOpenApiFile(file);
-  const normalizedTextWithStatus = serializeSpecWithStatus(
-    validatedFile.parsedSpec,
-    validatedFile.extension,
-    DEFAULT_SPEC_REVIEW_STATUS,
-  );
-  const key = `${getSpecsPrefix()}/${normalizedServiceName}/${normalizedVersion}/openapi.${validatedFile.extension}`;
-  const client = getS3Client();
+  const contentBase64 = utf8FileToBase64(validatedFile.normalizedText);
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: getBucketName(),
-      Key: key,
-      Body: normalizedTextWithStatus,
-      ContentType: validatedFile.contentType,
-      Metadata: {
-        service: normalizedServiceName,
-        version: normalizedVersion,
-        status: DEFAULT_SPEC_REVIEW_STATUS,
-      },
+  return localApiJson<OpenApiSpecFile>('/upload', {
+    method: 'POST',
+    body: JSON.stringify({
+      serviceName: normalizedServiceName,
+      version: normalizedVersion,
+      fileName: file.name,
+      contentBase64,
     }),
-  );
-
-  return {
-    serviceName: normalizedServiceName,
-    version: normalizedVersion,
-    key,
-    extension: validatedFile.extension,
-    contentType: validatedFile.contentType,
-    status: DEFAULT_SPEC_REVIEW_STATUS,
-  };
+  });
 }
 
 async function resolveSpecVersion({
   serviceName,
   version,
 }: DeleteSpecVersionInput): Promise<OpenApiSpecFile> {
-  const versions = await listVersions(serviceName);
-  const resolved = versions.find((item) => item.version === version);
+  const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
+  const normalizedVersion = normalizeSegment(version, 'Version');
+  const catalog = await loadCatalogIndex();
+  const service = catalog.services.find((item) => item.name === normalizedServiceName);
+  const resolved = service?.versions.find((item) => item.version === normalizedVersion);
   if (!resolved) {
     throw new Error(`No OpenAPI spec found for ${serviceName} ${version}.`);
   }
@@ -590,11 +612,9 @@ export async function getSpecUrl({
   version: string;
 }): Promise<string> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const command = new GetObjectCommand({
-    Bucket: getBucketName(),
-    Key: resolved.key,
-  });
-  return buildPublicObjectUrl(command.input.Key ?? resolved.key);
+  return `${LOCAL_SPEC_API}/document?serviceName=${encodeURIComponent(
+    resolved.serviceName,
+  )}&version=${encodeURIComponent(resolved.version)}`;
 }
 
 export async function loadEditableSpecDocument({
@@ -605,15 +625,15 @@ export async function loadEditableSpecDocument({
   version: string;
 }): Promise<EditableSpecDocument> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const response = await getS3Client().send(
-    new GetObjectCommand({
-      Bucket: getBucketName(),
-      Key: resolved.key,
-    }),
+  const response = await localApiJson<{ extension: SpecFileExtension; text: string }>(
+    `/document?serviceName=${encodeURIComponent(resolved.serviceName)}&version=${encodeURIComponent(
+      resolved.version,
+    )}`,
+    {
+      method: 'GET',
+    },
   );
-
-  const rawText = await readResponseBodyAsText(response.Body);
-  const parsedSpec = parseOpenApiText(rawText, resolved.extension);
+  const parsedSpec = parseOpenApiText(response.text, response.extension);
 
   return {
     serviceName: resolved.serviceName,
@@ -629,6 +649,9 @@ export async function saveEditedSpecVersion({
   version,
   yamlText,
 }: SaveEditedSpecInput): Promise<OpenApiSpecFile> {
+  if (!canWriteSpecsLocally()) {
+    throw new Error('Saving is only available when the local spec API is reachable.');
+  }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
   const existingVersions = await listVersions(normalizedServiceName);
@@ -637,36 +660,16 @@ export async function saveEditedSpecVersion({
     throw new Error(`Version ${normalizedVersion} already exists for ${normalizedServiceName}.`);
   }
 
-  const parsedSpec = parseOpenApiText(yamlText, 'yaml');
-  const key = `${getSpecsPrefix()}/${normalizedServiceName}/${normalizedVersion}/openapi.yaml`;
-  const normalizedYamlWithStatus = serializeSpecWithStatus(
-    parsedSpec,
-    'yaml',
-    DEFAULT_SPEC_REVIEW_STATUS,
-  );
+  parseOpenApiText(yamlText, 'yaml');
 
-  await getS3Client().send(
-    new PutObjectCommand({
-      Bucket: getBucketName(),
-      Key: key,
-      Body: normalizedYamlWithStatus,
-      ContentType: getContentType('yaml'),
-      Metadata: {
-        service: normalizedServiceName,
-        version: normalizedVersion,
-        status: DEFAULT_SPEC_REVIEW_STATUS,
-      },
+  return localApiJson<OpenApiSpecFile>('/save-edited', {
+    method: 'POST',
+    body: JSON.stringify({
+      serviceName: normalizedServiceName,
+      version: normalizedVersion,
+      yamlText,
     }),
-  );
-
-  return {
-    serviceName: normalizedServiceName,
-    version: normalizedVersion,
-    key,
-    extension: 'yaml',
-    contentType: getContentType('yaml'),
-    status: DEFAULT_SPEC_REVIEW_STATUS,
-  };
+  });
 }
 
 export async function updateSpecReviewStatus({
@@ -678,65 +681,42 @@ export async function updateSpecReviewStatus({
   version: string;
   status: SpecReviewStatus;
 }): Promise<OpenApiSpecFile> {
-  const resolved = await resolveSpecVersion({ serviceName, version });
-  const bucketName = getBucketName();
-  const existingObject = await getS3Client().send(
-    new GetObjectCommand({
-      Bucket: bucketName,
-      Key: resolved.key,
-    }),
-  );
-  const rawText = await readResponseBodyAsText(existingObject.Body);
-  const parsedSpec = parseOpenApiText(rawText, resolved.extension);
-  const nextBody = serializeSpecWithStatus(parsedSpec, resolved.extension, status);
+  if (!canWriteSpecsLocally()) {
+    throw new Error('Status updates are only available when the local spec API is reachable.');
+  }
+  const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
+  const normalizedVersion = normalizeSegment(version, 'Version');
 
-  await getS3Client().send(
-    new PutObjectCommand({
-      Bucket: bucketName,
-      Key: resolved.key,
-      Body: nextBody,
-      ContentType: existingObject.ContentType ?? resolved.contentType,
-      Metadata: {
-        service: resolved.serviceName,
-        version: resolved.version,
-        status,
-      },
+  return localApiJson<OpenApiSpecFile>('/status', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      serviceName: normalizedServiceName,
+      version: normalizedVersion,
+      status,
     }),
-  );
-
-  return {
-    ...resolved,
-    status,
-  };
+  });
 }
 
 export async function deleteSpecVersion(input: DeleteSpecVersionInput): Promise<void> {
-  const resolved =
-    input.key !== undefined
-      ? {
-          ...(await resolveSpecVersion(input)),
-          key: input.key,
-        }
-      : await resolveSpecVersion(input);
+  if (!canWriteSpecsLocally()) {
+    throw new Error('Delete is only available when the local spec API is reachable.');
+  }
+  const normalizedServiceName = normalizeSegment(input.serviceName, 'Service name');
+  const normalizedVersion = normalizeSegment(input.version, 'Version');
 
-  await getS3Client().send(
-    new DeleteObjectCommand({
-      Bucket: getBucketName(),
-      Key: resolved.key,
+  await localApiJson('/delete', {
+    method: 'POST',
+    body: JSON.stringify({
+      serviceName: normalizedServiceName,
+      version: normalizedVersion,
+      key: input.key,
     }),
-  );
+  });
 }
 
 export async function loadDesignLibraryEntries(): Promise<DesignLibraryEntry[]> {
   try {
-    const response = await getS3Client().send(
-      new GetObjectCommand({
-        Bucket: getBucketName(),
-        Key: getFigmaDesignsKey(),
-      }),
-    );
-
-    const rawText = await readResponseBodyAsText(response.Body);
+    const rawText = await fetchPublicText(publicAssetUrl('figma/designs.json'));
     const parsed = JSON.parse(rawText) as unknown;
 
     if (!Array.isArray(parsed)) {
@@ -756,12 +736,11 @@ export async function loadDesignLibraryEntries(): Promise<DesignLibraryEntry[]> 
         name: String(entry.name),
         description: String(entry.description),
         figmaUrl: String(entry.figmaUrl),
-        updatedAt: 'updatedAt' in entry && typeof entry.updatedAt === 'string'
-          ? entry.updatedAt
-          : undefined,
+        updatedAt:
+          'updatedAt' in entry && typeof entry.updatedAt === 'string' ? entry.updatedAt : undefined,
       }));
   } catch (error) {
-    if (error instanceof Error && /NoSuchKey|not found|404/i.test(error.message)) {
+    if (error instanceof Error && /not found|404/i.test(error.message)) {
       return [];
     }
     throw error;

@@ -35,6 +35,19 @@ export class OrganizationRepository {
         delete sanitized[key];
       }
     });
+    const integ = sanitized.integration;
+    if (integ && typeof integ === 'object' && !Array.isArray(integ)) {
+      const i = { ...(integ as Record<string, unknown>) };
+      if (i.provider == null && i.providerId != null) {
+        i.provider = i.providerId;
+      }
+      delete i.providerId;
+      if (i.sourceSystem == null && i.integrationType != null) {
+        i.sourceSystem = i.integrationType;
+      }
+      delete i.integrationType;
+      sanitized.integration = i;
+    }
     return sanitized as unknown as Organization;
   }
 
@@ -362,6 +375,29 @@ export class OrganizationRepository {
       updateParts.push('#size = :size');
       exprNames['#size'] = 'size';
       exprValues[':size'] = updates.size;
+    }
+
+    if (updates.subdomain !== undefined) {
+      updateParts.push('subdomain = :subdomain');
+      exprValues[':subdomain'] = updates.subdomain;
+    }
+
+    if (updates.integration !== undefined) {
+      updateParts.push('integration = :integration');
+      exprValues[':integration'] = updates.integration;
+      const provider = updates.integration?.provider?.toUpperCase();
+      const subdomain = updates.subdomain?.toLowerCase();
+      if (provider && subdomain) {
+        updateParts.push('gsi2pk = :gsi2pk');
+        exprValues[':gsi2pk'] = `PROVIDER#${provider}`;
+        updateParts.push('gsi2sk = :gsi2sk');
+        exprValues[':gsi2sk'] = `LOOKUP#${subdomain}#ORG#${organizationId}`;
+      } else if (updates.subdomain === undefined || !updates.subdomain) {
+        updateParts.push('gsi2pk = :gsi2pk');
+        updateParts.push('gsi2sk = :gsi2sk');
+        exprValues[':gsi2pk'] = null;
+        exprValues[':gsi2sk'] = null;
+      }
     }
 
     try {
@@ -1033,6 +1069,61 @@ export class OrganizationRepository {
     } catch (err) {
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.error({ event: 'organization_files_list_error', err: serializeError(err), message: 'Failed to list organization files' });
+      throw err;
+    }
+  }
+
+  async getOrganizationBySubdomain(subdomain: string, provider?: string): Promise<Organization | null> {
+    const normalizedSubdomain = subdomain.trim().toLowerCase();
+    if (!normalizedSubdomain) return null;
+    try {
+      const resolvedProvider = (provider || 'TRU_TECH').toUpperCase();
+      const exprValues: Record<string, unknown> = {
+        ':gsi2pk': `PROVIDER#${resolvedProvider}`,
+        ':gsi2sk': `LOOKUP#${normalizedSubdomain}#`,
+      };
+      const response = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          IndexName: 'GSI2',
+          KeyConditionExpression: 'gsi2pk = :gsi2pk AND begins_with(gsi2sk, :gsi2sk)',
+          ExpressionAttributeValues: exprValues,
+          Limit: 1,
+        }),
+      );
+      const item = (response.Items?.[0] as Organization | undefined) ?? null;
+      if (!item || item.deleted === true) {
+        return null;
+      }
+      return this.sanitizeOrganization(item);
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { subdomain: normalizedSubdomain, provider: resolvedProvider });
+      logger.error({ event: 'organization_get_by_subdomain_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async getOrganizationsByProvider(provider: string): Promise<Organization[]> {
+    const resolvedProvider = provider.trim().toUpperCase();
+    if (!resolvedProvider) return [];
+    try {
+      const response = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          IndexName: 'GSI2',
+          KeyConditionExpression: 'gsi2pk = :gsi2pk',
+          ExpressionAttributeValues: {
+            ':gsi2pk': `PROVIDER#${resolvedProvider}`,
+          },
+        }),
+      );
+      return (response.Items ?? [])
+        .map((item) => item as Organization)
+        .filter((item) => item.deleted !== true)
+        .map((item) => this.sanitizeOrganization(item));
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { provider: resolvedProvider });
+      logger.error({ event: 'organization_get_by_provider_error', err: serializeError(err) });
       throw err;
     }
   }

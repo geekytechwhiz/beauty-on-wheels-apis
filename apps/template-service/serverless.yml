@@ -10,7 +10,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   # Must match the CodePipeline / CloudFormation stack name (see buildspec STACK_NAME + suffix).
@@ -89,7 +89,7 @@ custom:
     dev: debug
     stg: info
     prd: warn
-  templateBucketName: mvx-${self:provider.stage}-templates-library-mib
+  templateBucketName: mvx-${self:provider.stage}-templates-library
   esbuild:
     bundle: true
     minify: false

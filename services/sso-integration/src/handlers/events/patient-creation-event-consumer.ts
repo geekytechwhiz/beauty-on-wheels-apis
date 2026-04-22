@@ -8,7 +8,6 @@ import {
 import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 
 import { getSSOUserServiceClient } from '../../clients/user-service.client';
-import { getSSOConfig } from '../../config/sso-config';
 import { publishPendingReprocess } from '../../services/appointment-sync/pending-reprocess-queue.service';
 
 import {
@@ -20,6 +19,9 @@ import { buildSSORequestContextFromSQS } from '../../utils/context-builder.util'
 import { PatientCreationEvent } from '../../types/events';
 import { UserExistenceValidator } from '../../validators/user-existence.validator';
 import { CognitoService } from '../../services/cognito.service';
+import { getOrganizationRoleIds } from '../../services/organization-role.service';
+import { getEnvConfig } from '../../config/env';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -42,6 +44,9 @@ export async function handler(
     event: 'patient_creation_consumer_start',
     recordCount: event.Records.length,
   });
+
+  const env = getEnvConfig();
+  await getExternalTenantsByProvider(env.PROVIDER);
 
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
@@ -86,7 +91,6 @@ async function processPatientCreationEvent(
 ): Promise<void> {
 
   const userServiceClient = getSSOUserServiceClient();
-  const config = getSSOConfig();
 
   let event: PatientCreationEvent;
   const userExistenceValidator = new UserExistenceValidator(
@@ -152,7 +156,10 @@ async function processPatientCreationEvent(
     requestContext,
   );
 
-  const resolvedOrganizationId = organizationID || config.defaultOrganizationID;
+  const resolvedOrganizationId = organizationID;
+  if (!resolvedOrganizationId) {
+    throw new Error('organizationID is required for patient creation flow');
+  }
   let patientUserId: string | undefined;
   let usedExistingPatient = false;
 
@@ -182,7 +189,8 @@ async function processPatientCreationEvent(
    * Map event → createUser payload (CreatePatientModel)
    */
   if (!patientUserId) {
-    const patientPayload = mapHmsPatientToCreatePatientModel(event);
+    const roleIds = await getOrganizationRoleIds(resolvedOrganizationId, requestContext);
+    const patientPayload = mapHmsPatientToCreatePatientModel(event, roleIds);
 
     logger.info({
       event: 'patient_creation_event_mapped_payload',
@@ -248,25 +256,6 @@ async function processPatientCreationEvent(
       userId: patientUserId,
     });
   }
-//   {
-//     "organizationId": "mm3208au877eaa2d",
-//     "sender": {
-//         "userType": "STAFF",
-//         "userId": "01KJC8S5RZDG19EGT3XM5Y7XG3",
-//         "profileImage": "d2zvxvbt9m8l3w.cloudfront.net/profile-picture/01KJC8S5RZDG19EGT3XM5Y7XG3/1772177136053",
-//         "presenceStatus": "ONLINE",
-//         "name": "doc cardio",
-//         "email": "doc.paper.c@yopmail.com"
-//     },
-//     "receiver": {
-//         "userId": "01KKGXREYGDRZCCY6AP6YKZQGC",
-//         "name": "Sanjose",
-//         "email": "sanjo.paper@yopmail.com",
-//         "profileImage": "",
-//         "userType": "MOBILE",
-//         "presenceStatus": "OFFLINE"
-//     }
-// }
   /**
    * Assign doctor if provided (AssignDoctorModel; sender ≠ receiver enforced)
    */

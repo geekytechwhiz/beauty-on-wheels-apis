@@ -67,17 +67,36 @@ export class UserService {
     }
     const logger = createChildLogger(baseLogger, { correlationId, userId: data.userID, organizationID, invitedBy });
     logger.info({ event: 'service_createUser_start' });
+    const stepDuration = (stepName: string, startTime: number, meta: Record<string, unknown> = {}) => {
+      logger.info({
+        event: 'service_createUser_step_timing',
+        step: stepName,
+        durationMs: Date.now() - startTime,
+        ...meta,
+      });
+    };
     try {
       if (!organizationID) throw new Error('organizationID is required');
       data.organizationID = organizationID;
-      // data.organizationID = "ml7pvhod5db23be4";
-      const orgDetails = await getOrganizationViaApi(data?.organizationID || '', authHeader);
-      if (!orgDetails) {
+      const orgFetchStart = Date.now();
+      const fetchedOrgDetails = await this.organizationRepository.getOrganizationFromDB(data?.organizationID || '');
+      if (!fetchedOrgDetails) {
         throw new Error('Organization does not exist');
       }
-      if (orgDetails.status && ['on_hold', 'disabled', 'not_exist'].includes(String(orgDetails.status).toLowerCase())) {
+      const orgDetails: any = fetchedOrgDetails;
+      const orgStatus = String(
+        orgDetails.status ??
+          orgDetails.lsi_status ??
+          orgDetails.organizationInfo?.status ??
+          '',
+      ).toLowerCase();
+      if (['on_hold', 'disabled', 'not_exist'].includes(orgStatus)) {
         throw new Error('Organization is not available');
       }
+      stepDuration('organization_validation', orgFetchStart, {
+        source: 'db',
+        found: true,
+      });
 
  
       // Normalize legacy aliases
@@ -152,23 +171,25 @@ export class UserService {
 
       if (normalizedEmail || normalizedPhone) {
         try {
+          const cognitoTotalStart = Date.now();
           const cognitoService = new CognitoService(
             process.env.DEFAULT_AWS_REGION || 'us-east-1',
             process.env.COGNITO_USER_POOL_ID || ''
           );
-
-          if (normalizedEmail) {
-            const existsEmail = await cognitoService.userExistsIdentifier(normalizedEmail);
-            if (existsEmail) {
-              throw new UserAlreadyExistsError(normalizedEmail);
-            }
+          const cognitoExistenceStart = Date.now();
+          const [existsEmail, existsPhone] = await Promise.all([
+            normalizedEmail ? cognitoService.userExistsIdentifier(normalizedEmail) : Promise.resolve(false),
+            normalizedPhone ? cognitoService.userExistsIdentifier(normalizedPhone) : Promise.resolve(false),
+          ]);
+          stepDuration('cognito_existence_checks', cognitoExistenceStart, {
+            checkedEmail: !!normalizedEmail,
+            checkedPhone: !!normalizedPhone,
+          });
+          if (existsEmail) {
+            throw new UserAlreadyExistsError(normalizedEmail);
           }
-
-          if (normalizedPhone) {
-            const existsPhone = await cognitoService.userExistsIdentifier(normalizedPhone);
-            if (existsPhone) {
-              throw new UserAlreadyExistsError(normalizedPhone);
-            }
+          if (existsPhone) {
+            throw new UserAlreadyExistsError(normalizedPhone);
           }
 
           const explicitUsername = (data as any).username && String((data as any).username).trim() !== '' 
@@ -202,6 +223,7 @@ export class UserService {
               subdomain: externalIdentity.subdomain,
             });
           }
+          const cognitoCreateStart = Date.now();
           await cognitoService.createUser(
             username,
             {
@@ -217,6 +239,8 @@ export class UserService {
               },
             },
           );
+          stepDuration('cognito_create_user', cognitoCreateStart);
+          stepDuration('cognito_total', cognitoTotalStart);
           logger.info({
             event: 'service_createUser_cognito_payload',
             correlationId,
@@ -273,8 +297,10 @@ export class UserService {
       const definedRoleCode = (data as any).definedRoleCode;
       logger.info({ event: 'service_createUser_definedRoleCode_check', definedRoleCode, hasDefinedRoleCode: definedRoleCode !== undefined });
       
+      const { __skipOrganizationValidation, ...sanitizedData } = data as any;
+      void __skipOrganizationValidation;
       const user: User = {
-        ...data,
+        ...sanitizedData,
         phoneNumber: phoneNumberForDB,
         emailAddress: normalizedEmail || data.emailAddress || '',
         createdDate: data.createdDate ?? now,
@@ -299,95 +325,106 @@ export class UserService {
       
       logger.info({ event: 'service_createUser_user_object', hasDefinedRoleCode: (user as any).definedRoleCode !== undefined, definedRoleCode: (user as any).definedRoleCode });
 
+      const dbCreateUserStart = Date.now();
       await this.repository.createUser(user);
+      stepDuration('db_create_user', dbCreateUserStart);
 
       // Add user-organization mapping (future multi-org support)
+      const dbAssignOrgStart = Date.now();
       await this.repository.assignUserToOrganization(user);
+      stepDuration('db_assign_user_to_org', dbAssignOrgStart);
 
-      if (friendNFamily && Object.keys(friendNFamily).length > 0 && organizationID) {
-        const fullNameRaw = String((friendNFamily as any).name || '').trim();
-        const fnfEmail = String((friendNFamily as any).email || '').trim();
-        const fnfPhoneCode = String((friendNFamily as any).phoneCode || '').trim();
-        const fnfPhone = String((friendNFamily as any).phone || '').trim();
-        const fullPhoneNumber = fnfPhoneCode ? `${fnfPhoneCode}${fnfPhone}` : fnfPhone;
-        const friendNFamilyFullName = fullNameRaw || 'F&F Member';
-        const relationRaw = String((friendNFamily as any).relation || 'family').toLowerCase();
-        const relation = relationRaw === 'friend' ? 'FRIEND' : 'FAMILY';
-        const relationship = relation === 'FAMILY' ? (relationRaw !== 'friend' ? String((friendNFamily as any).relation || '').trim() : '') : '';
-        const userName = (user.fullName ?? `${(user as any).firstName ?? ''} ${(user as any).lastName ?? ''}`.trim()) || user.userID;
-        try {
-          const searchResult = await friendFamilyService.searchFnf(
-            organizationID,
-            user.userID,
-            {
-              email: fnfEmail || undefined,
-              phone: fullPhoneNumber || undefined,
-              fullName: friendNFamilyFullName,
-              invite: fnfEmail ? 'email' : 'phone',
-              relation,
-              relationship,
-              emergencyContact: true,
-            },
-            authHeader,
-          );
-          const memberId = searchResult?.invitedUser;
-          if (searchResult?.success && memberId) {
-            await friendFamilyService.addMember(
+      const postCreateTasks = async () => {
+        const postCreateStart = Date.now();
+        if (friendNFamily && Object.keys(friendNFamily).length > 0 && organizationID) {
+          const fnfStart = Date.now();
+          const fullNameRaw = String((friendNFamily as any).name || '').trim();
+          const fnfEmail = String((friendNFamily as any).email || '').trim();
+          const fnfPhoneCode = String((friendNFamily as any).phoneCode || '').trim();
+          const fnfPhone = String((friendNFamily as any).phone || '').trim();
+          const fullPhoneNumber = fnfPhoneCode ? `${fnfPhoneCode}${fnfPhone}` : fnfPhone;
+          const friendNFamilyFullName = fullNameRaw || 'F&F Member';
+          const relationRaw = String((friendNFamily as any).relation || 'family').toLowerCase();
+          const relation = relationRaw === 'friend' ? 'FRIEND' : 'FAMILY';
+          const relationship = relation === 'FAMILY' ? (relationRaw !== 'friend' ? String((friendNFamily as any).relation || '').trim() : '') : '';
+          const userName = (user.fullName ?? `${(user as any).firstName ?? ''} ${(user as any).lastName ?? ''}`.trim()) || user.userID;
+          try {
+            const searchResult = await friendFamilyService.searchFnf(
               organizationID,
+              user.userID,
               {
-                userId: user.userID,
-                memberId,
-                userName,
-                memberName: friendNFamilyFullName,
+                email: fnfEmail || undefined,
+                phone: fullPhoneNumber || undefined,
+                fullName: friendNFamilyFullName,
+                invite: fnfEmail ? 'email' : 'phone',
                 relation,
                 relationship,
                 emergencyContact: true,
-                manageHealth: false,
               },
               authHeader,
             );
-            logger.info({ event: 'service_createUser_friend_family_linked', memberId, userId: user.userID });
-          } else {
-            logger.warn({ event: 'service_createUser_friend_family_not_found', message: 'F&F user not found; invite separately or add via add-member after invite' });
-          }
-        } catch (err) {
-          logger.warn({ event: 'service_createUser_friend_family_failed', err: serializeError(err) });
-        }
-      }
-
-      if (assignDoctor && Object.keys(assignDoctor).length > 0 && organizationID) {
-        const doctorId =
-          (assignDoctor as any).doctorId ||
-          (assignDoctor as any).doctorID ||
-          (assignDoctor as any).userId ||
-          (assignDoctor as any).userID;
-        if (doctorId) {
-          try {
-            const doctor = await this.repository.getUser(doctorId, organizationID);
-            if (!doctor) {
-              logger.warn({ event: 'service_createUser_doctor_not_found', doctorId, organizationID });
+            const memberId = searchResult?.invitedUser;
+            if (searchResult?.success && memberId) {
+              await friendFamilyService.addMember(
+                organizationID,
+                {
+                  userId: user.userID,
+                  memberId,
+                  userName,
+                  memberName: friendNFamilyFullName,
+                  relation,
+                  relationship,
+                  emergencyContact: true,
+                  manageHealth: false,
+                },
+                authHeader,
+              );
+              logger.info({ event: 'service_createUser_friend_family_linked', memberId, userId: user.userID });
             } else {
-              const doctorFullName = doctor.namePrefix && String(doctor.namePrefix).toLowerCase().includes('dr')
-                ? `${doctor.namePrefix} ${doctor.fullName || doctor.firstName || ''}`.trim()
-                : (doctor.fullName || doctor.firstName || '');
-              await this.repository.saveDoctorPatientLink(doctorId, user.userID, organizationID);
-              await this.repository.updatePatientReporter(user.userID, organizationID, {
-                reporterId: doctorId,
-                reporterName: doctorFullName,
-                reporterProfilePic: (doctor as any).profilePic,
-                reporterEmail: (doctor as any).emailAddress,
-              });
-              logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
+              logger.warn({ event: 'service_createUser_friend_family_not_found', message: 'F&F user not found; invite separately or add via add-member after invite' });
             }
           } catch (err) {
-            logger.warn({ event: 'service_createUser_doctor_link_error', err: serializeError(err) });
+            logger.warn({ event: 'service_createUser_friend_family_failed', err: serializeError(err) });
+          } finally {
+            stepDuration('post_create_friend_family', fnfStart);
           }
-        } else {
-          logger.warn({ event: 'service_createUser_doctor_missing_id' });
         }
-      }
 
-      try {
+        if (assignDoctor && Object.keys(assignDoctor).length > 0 && organizationID) {
+          const doctorStart = Date.now();
+          const doctorId =
+            (assignDoctor as any).doctorId ||
+            (assignDoctor as any).doctorID ||
+            (assignDoctor as any).userId ||
+            (assignDoctor as any).userID;
+          if (doctorId) {
+            try {
+              const doctor = await this.repository.getUser(doctorId, organizationID);
+              if (!doctor) {
+                logger.warn({ event: 'service_createUser_doctor_not_found', doctorId, organizationID });
+              } else {
+                const doctorFullName = doctor.namePrefix && String(doctor.namePrefix).toLowerCase().includes('dr')
+                  ? `${doctor.namePrefix} ${doctor.fullName || doctor.firstName || ''}`.trim()
+                  : (doctor.fullName || doctor.firstName || '');
+                await this.repository.saveDoctorPatientLink(doctorId, user.userID, organizationID);
+                await this.repository.updatePatientReporter(user.userID, organizationID, {
+                  reporterId: doctorId,
+                  reporterName: doctorFullName,
+                  reporterProfilePic: (doctor as any).profilePic,
+                  reporterEmail: (doctor as any).emailAddress,
+                });
+                logger.info({ event: 'service_createUser_doctor_linked', doctorId, userId: user.userID });
+              }
+            } catch (err) {
+              logger.warn({ event: 'service_createUser_doctor_link_error', err: serializeError(err) });
+            }
+          } else {
+            logger.warn({ event: 'service_createUser_doctor_missing_id' });
+          }
+          stepDuration('post_create_doctor_assignment', doctorStart);
+        }
+
+        try {
         const userTypeUpper = String(user.userType || '').toUpperCase();
         const isStaff = userTypeUpper === 'STAFF';
         const template = isStaff ? 'WELCOME_STAFF' : 'WELCOME_USER';
@@ -559,13 +596,29 @@ export class UserService {
             message: 'notifyUser completed successfully',
           });
         }
-      } catch (notifyErr) {
-        logger.warn({
-          event: 'service_createUser_notification_failed',
-          condition: 'notify_error',
-          err: serializeError(notifyErr),
-          userId: user.userID,
-          message: 'notifyUser threw; check USER_EVENTS_TOPIC_ARN and SNS permissions',
+        } catch (notifyErr) {
+          logger.warn({
+            event: 'service_createUser_notification_failed',
+            condition: 'notify_error',
+            err: serializeError(notifyErr),
+            userId: user.userID,
+            message: 'notifyUser threw; check USER_EVENTS_TOPIC_ARN and SNS permissions',
+          });
+        }
+        stepDuration('post_create_total', postCreateStart);
+      };
+
+      const syncPostCreateTasks =
+        String(process.env.CREATE_USER_SYNC_POST_CREATE_TASKS || '').toLowerCase() === 'true';
+      if (syncPostCreateTasks) {
+        await postCreateTasks();
+      } else {
+        void postCreateTasks().catch((postCreateErr) => {
+          logger.warn({
+            event: 'service_createUser_post_create_async_failed',
+            userId: user.userID,
+            err: serializeError(postCreateErr),
+          });
         });
       }
 

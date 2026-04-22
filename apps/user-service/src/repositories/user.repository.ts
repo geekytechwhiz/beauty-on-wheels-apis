@@ -1073,86 +1073,23 @@ export class UserRepository {
   ): Promise<any[]> {
     const logger = createChildLogger(baseLogger, { roleId, organizationId });
     const ROLES_TABLE = process.env.ROLES_TABLE;
-    if (!ROLES_TABLE) {
-      logger.warn({
-        event: 'getRolePermissions_missing_roles_table',
-        message: 'ROLES_TABLE env var is not set',
-      });
-      return [];
-    }
     try {
       const params = {
         TableName: ROLES_TABLE,
-        KeyConditionExpression: '#PK = :PK AND begins_with(#SK, :SK)',
-        ExpressionAttributeNames: {
-          '#PK': 'PK',
-          '#SK': 'SK',
-        },
-        ExpressionAttributeValues: {
-          ':PK': `ORG#${organizationId}`,
-          ':SK': `ROLE#${roleId}`,
+        Key: {
+          PK: `ORG#${organizationId}`,
+          SK: `ROLE#${roleId}`,
         },
       };
-
-      console.log('getRolePermissions query params:', params);
-
-      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
-      if (result.Items && result.Items.length > 0) {
-        console.log(
-          'getRolePermissions result (PK/SK):',
-          JSON.stringify(result.Items, null, 2),
-        );
+      const result = await sendDoc<GetCommandOutput>(docClient,
+        new GetCommand(params),
+      );
+      if (result.Item) {
         logger.info({ event: 'getRolePermissions_success', roleId });
-        return result.Items;
+        return [result.Item];
       }
       return [];
     } catch (err) {
-      const name = (err as { name?: string })?.name;
-      const message = (err as { message?: string })?.message || '';
-      // Some environments use lowercase keys (pk/sk) instead of (PK/SK). Retry if DynamoDB complains.
-      if (
-        name === 'ValidationException' &&
-        (message.includes('PK') ||
-          message.includes('SK') ||
-          message.includes('key schema'))
-      ) {
-        try {
-          const fallbackParams = {
-            TableName: ROLES_TABLE,
-            KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :sk)',
-            ExpressionAttributeNames: {
-              '#pk': 'pk',
-              '#sk': 'sk',
-            },
-            ExpressionAttributeValues: {
-              ':pk': `ORG#${organizationId}`,
-              ':sk': `ROLE#${roleId}`,
-            },
-          };
-          const fallbackResult = await sendDoc<QueryCommandOutput>(docClient,
-            new QueryCommand(fallbackParams),
-          );
-          if (fallbackResult.Items && fallbackResult.Items.length > 0) {
-            console.log(
-              'getRolePermissions result (pk/sk fallback):',
-              JSON.stringify(fallbackResult.Items, null, 2),
-            );
-            logger.info({
-              event: 'getRolePermissions_success_fallback_pk_sk',
-              roleId,
-            });
-            return fallbackResult.Items;
-          }
-          return [];
-        } catch (fallbackErr) {
-          logger.error({
-            event: 'getRolePermissions_error_fallback_pk_sk',
-            err: serializeError(fallbackErr),
-          });
-          return [];
-        }
-      }
-
       logger.error({
         event: 'getRolePermissions_error',
         err: serializeError(err),

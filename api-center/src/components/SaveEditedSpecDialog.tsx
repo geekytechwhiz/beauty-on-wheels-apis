@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import type { VersionBumpType } from '../services/S3Service';
+import type { VersionBumpType } from '../services/specCatalogService';
 
 export interface SaveEditedSpecDialogProps {
   open: boolean;

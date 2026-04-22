@@ -68,7 +68,6 @@ export class AppointmentSyncService extends BaseService {
     this.concurrencyLimit = env.APPOINTMENT_SYNC_CONCURRENCY_LIMIT;
 
     this.hmsAppointmentService = new HmsAppointmentService(
-      (this as any).truTechClient,
       (this as any).truTechAdapter,
       this.logger,
     );

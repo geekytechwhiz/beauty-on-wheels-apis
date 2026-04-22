@@ -8,7 +8,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import type { OpenApiSpecFile, SpecReviewStatus } from '../services/S3Service';
+import type { OpenApiSpecFile, SpecReviewStatus } from '../services/specCatalogService';
 
 export interface VersionSelectorProps {
   serviceName: string | null;

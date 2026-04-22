@@ -17,7 +17,7 @@ import { alpha } from '@mui/material/styles';
 import {
   formatServiceSecondaryText,
   type ServiceCatalogEntry,
-} from '../services/S3Service';
+} from '../services/specCatalogService';
 
 export interface ApiCatalogProps {
   services: ServiceCatalogEntry[];

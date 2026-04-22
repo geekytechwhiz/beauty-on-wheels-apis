@@ -9,12 +9,11 @@
     "build": "tsc -b && vite build",
     "preview": "pnpm build && vite preview",
     "typecheck": "tsc -b --noEmit",
-    "deploy": "pnpm build && aws s3 sync dist/ s3://developer--hub-dev --delete --exclude \"specs/*\" --profile ci-user"
+    "generate:spec-index": "node ./scripts/generate-spec-index.mjs",
+    "deploy": "pnpm build"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
-    "@aws-sdk/client-s3": "^3.971.0",
-    "@aws-sdk/s3-request-presigner": "^3.1027.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@monaco-editor/react": "^4.7.0",

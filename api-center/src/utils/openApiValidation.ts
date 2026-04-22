@@ -1,4 +1,4 @@
-import { parseOpenApiText } from '../services/S3Service';
+import { parseOpenApiText } from '../services/specCatalogService';
 
 export type OpenApiIssueSeverity = 'error' | 'warning';
 
@@ -51,7 +51,7 @@ function extractLocation(pathParts: string[]): {
   let endpointPath = 'Unknown path';
   let method = 'N/A';
   let responseStatus = 'N/A';
-  let field = pathParts[pathParts.length - 1] ?? 'unknown';
+  const field = pathParts[pathParts.length - 1] ?? 'unknown';
 
   if (pathsIndex >= 0 && pathParts[pathsIndex + 1]) {
     endpointPath = pathParts[pathsIndex + 1];

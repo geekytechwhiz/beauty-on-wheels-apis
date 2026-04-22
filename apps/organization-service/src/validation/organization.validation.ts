@@ -5,7 +5,22 @@ const supportedVitalsSchema = z
   .or(z.array(z.record(z.string(), z.unknown())))
   .optional();
 
-export const createOrganizationSchema = z.object({
+const integrationSchema = z
+  .object({
+    provider: z.string().optional(),
+    providerName: z.string().optional(),
+    sourceSystem: z.enum(['HMS', 'FHIR', 'CUSTOM', 'MARKETPLACE']).optional(),
+    externalHospitalId: z.string().optional(),
+    apiBaseUrl: z.string().url().optional(),
+    apiKey: z.string().optional(),
+    apiKeyRef: z.string().optional(),
+    subdomain: z.string().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })
+  .optional();
+
+export const createOrganizationSchema = z
+  .object({
   organizationId: z.string().optional(),
   parentOrgId: z.string().optional(),
   createdAt: z.number().optional(),
@@ -66,7 +81,36 @@ export const createOrganizationSchema = z.object({
   description: z.string().optional(),
   industry: z.string().optional(),
   size: z.enum(['SMALL', 'MEDIUM', 'LARGE']).optional(),
-  
+  integration: integrationSchema,
+  subdomain: z.string().optional(),
+})
+.superRefine((data, ctx) => {
+  const organizationType = data.organizationType?.toUpperCase();
+  if (organizationType !== 'HMS') return;
+
+  if (!data.website?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['website'],
+      message: 'website is required when organizationType is HMS',
+    });
+  }
+
+  if (!data.integration?.apiBaseUrl?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['integration', 'apiBaseUrl'],
+      message: 'integration.apiBaseUrl is required when organizationType is HMS',
+    });
+  }
+
+  if (!data.integration?.apiKey?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['integration', 'apiKey'],
+      message: 'integration.apiKey is required when organizationType is HMS',
+    });
+  }
 });
 
 export const updateOrganizationSchema = z.object({
@@ -129,6 +173,13 @@ export const updateOrganizationSchema = z.object({
   description: z.string().optional(),
   industry: z.string().optional(),
   size: z.enum(['SMALL', 'MEDIUM', 'LARGE']).optional(),
+  integration: integrationSchema,
+  subdomain: z.string().optional(),
+});
+
+export const getExternalTenantSchema = z.object({
+  provider: z.string().min(1, 'provider is required'),
+  apiBaseUrl: z.string().url('apiBaseUrl must be a valid URL').optional(),
 });
 
 export const updateOrganizationMetadataSchema = z.object({

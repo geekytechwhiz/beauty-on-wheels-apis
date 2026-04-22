@@ -44,3 +44,15 @@ export function organizationUpdatesSk(timestamp: number): string {
 
 /** Organization count partition key (pk = ORG_COUNT for count-by-type items) */
 export const ORGANIZATION_COUNT_PK = 'ORG_COUNT';
+
+export function extractSubdomainFromUrl(urlValue?: string): string | undefined {
+  if (!urlValue) return undefined;
+  try {
+    const hostname = new URL(urlValue).hostname.toLowerCase();
+    const [subdomain] = hostname.split('.');
+    const normalized = subdomain?.trim();
+    return normalized || undefined;
+  } catch {
+    return undefined;
+  }
+}

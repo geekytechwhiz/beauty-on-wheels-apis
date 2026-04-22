@@ -15,13 +15,27 @@ import { buildExternalIdentity } from '../utils/context-builder.util';
 import { getOrganizationId, loadTenantDetails } from '../utils/helper';
 import { processPhoneNumber } from '../utils/phone-processor';
 
+export type RoleIds = {
+  doctorRoleId: string;
+  patientRoleId: string;
+};
+
 /**
  * Maps a patient creation event (HMS) to a create-user payload for a patient.
  * Uses CreatePatientModel; output is compatible with createUserSchema.
  */
-export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): PatientCreationPayload {
-  const { patient, organizationID,  } = event.data;
-  const subdomain = (event.data as { subdomain?: string }).subdomain ?? '';
+export function mapHmsPatientToCreatePatientModel(
+  event: PatientCreationEvent,
+  roleIds: RoleIds,
+): PatientCreationPayload {
+  const { patient, organizationID, provider } = event.data;
+  const subdomain =
+    event.data.externalIdentity?.subdomain?.trim() ||
+    event.tenantId?.trim() ||
+    '';
+  if (!subdomain) {
+    throw new Error('subdomain/tenantId is required in patient creation event');
+  }
   const tenant = loadTenantDetails(subdomain);
 
   const input: CreatePatientModelInput = {
@@ -34,8 +48,13 @@ export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): 
     gender: patient.gender ?? undefined,
     dateOfBirth: patient.dob ?? undefined,
     organizationID: organizationID ?? tenant.organizationId,
-    externalIdentity: buildExternalIdentity(patient.id?.toString()),
-    patientRoleId: tenant.patientRoleId,
+    externalIdentity: {
+      externalUserId: patient.id?.toString() ?? '',
+      subdomain,
+      provider: provider || tenant.provider,
+      sourceSystem: SourceSystem.HMS,
+    },
+    patientRoleId: roleIds.patientRoleId,
   };
 
   return createPatientModel(input);
@@ -48,6 +67,7 @@ export function mapHmsPatientToCreatePatientModel(event: PatientCreationEvent): 
 export function mapHmsDoctorToCreateDoctorModel(
   appointment: Appointment,
   context: SSORequestContext,
+  roleIds: RoleIds,
 ): DoctorCreationPayload {
   const config = getSSOConfig();
   const subdomain = context.integration?.subdomain ?? '';
@@ -88,7 +108,8 @@ export function mapHmsDoctorToCreateDoctorModel(
     department: doctor.department ?? undefined,
     specialty: config.doctor.specialty,
     licenseNumber: config.doctor.licenseNumber,
-    organizationID: config.defaultOrganizationID,
+    organizationID:
+      context.integration?.externalHospitalId || tenant.organizationId,
     externalIdentity: {
       provider: context.integration?.providerId ?? tenant.provider,
       externalId: String(doctor.id),
@@ -96,7 +117,7 @@ export function mapHmsDoctorToCreateDoctorModel(
       externalHospitalId: context.integration?.externalHospitalId,
       sourceSystem: SourceSystem.HMS,
     },
-    doctorRoleId: tenant.doctorRoleId,
+    doctorRoleId: roleIds.doctorRoleId,
     namePrefix: config.doctor.namePrefix,
     workingHours,
     slotDurationInMinutes: config.doctor.slotDurationInMinutes,
@@ -113,12 +134,14 @@ export function mapHmsDoctorToCreateDoctorModel(
 export function mapHmsAppointmentPatientToCreatePatientModel(
   appointment: Appointment,
   context: SSORequestContext,
+  roleIds: RoleIds,
 ): PatientCreationPayload {
   const config = getSSOConfig();
   const subdomain = context.integration?.subdomain ?? '';
   const tenant = loadTenantDetails(subdomain);
   const patient = appointment.patient;
   const organizationID =
+    context.integration?.externalHospitalId ||
     getOrganizationId(context.integration.subdomain) ||
     tenant.organizationId;
 
@@ -132,8 +155,11 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
     gender: patient.gender ?? undefined,
     dateOfBirth: undefined,
     organizationID,
-    externalIdentity: buildExternalIdentity(patient.id?.toString() ),
-    patientRoleId: tenant.patientRoleId,
+    externalIdentity: buildExternalIdentity(
+      patient.id?.toString(),
+      context,
+    ),
+    patientRoleId: roleIds.patientRoleId,
   };
 
   return createPatientModel(input);

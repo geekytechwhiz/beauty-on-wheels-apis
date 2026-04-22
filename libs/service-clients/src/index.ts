@@ -9,3 +9,4 @@ export { RelationshipServiceClient } from "./lib/services/relationship-service-c
 export { RoleServiceClient } from "./lib/services/role-service-client";
 export { CognitoUserService } from "./lib/services/cognito-user.service-client";
 export { NotificationBase } from "./lib/services/notification.base";
+export { SecretManagerService } from "./lib/services/secret-manager.service";

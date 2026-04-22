@@ -4,7 +4,7 @@ import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
 import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID, PORTAL_LINK } from '../../utils/constants';
 import { sendEmail } from '../../services/notification.delivery';
-import { getOrganization } from '../../services/organization.service';
+import { getOrganizationFromDynamo } from '../../services/organization.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -92,35 +92,44 @@ async function processRecord(
   const phoneCode = (newItem.phoneCode || '') as string;
   const organizationID = (newItem.organizationID || '') as string;
   const firstName = (newItem.firstName || '') as string;
-  let organizationName = (newItem.organizationName || '') as string;
-  let organizationAddress = (newItem.organizationAddress || '') as string;
-  // ORG_INFO is rendered into templates as a string (e.g., name + address block)
-  let organizationInfo: string = typeof newItem.organizationInfo === 'string'
-    ? newItem.organizationInfo
-    : '';
 
-  // If organization name/address are not present on the user item, fetch them from Organization service
-  if (organizationID && (!organizationName || !organizationAddress)) {
+  // organizationName / organizationAddress / organizationInfo are NOT stored on the
+  // user-table item — they must always be fetched from the Organization service.
+  let organizationName = '';
+  let organizationAddress = '';
+  let organizationInfo = '';
+
+  if (organizationID) {
     try {
-      const org = await getOrganization(organizationID);
+      const org = await getOrganizationFromDynamo(organizationID);
+      console.log("ORG RESPONSE : ",org)
       if (org && typeof org === 'object') {
-        const orgInfo: any = (org as any).organizationInfo || {};
+        const orgData = org as any;
+        const orgInfo: any = orgData.organizationInfo || {};
 
         if (!organizationName) {
           organizationName =
             orgInfo.organizationName ||
             orgInfo.name ||
-            (org as any).name ||
+            orgData.name ||
             organizationName;
         }
 
-        if (!organizationAddress && orgInfo.address && typeof orgInfo.address === 'object') {
-          const addr = orgInfo.address as any;
-          organizationAddress =
-            addr.address ||
-            [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
+        if (!organizationAddress) {
+          // Try nested organizationInfo.address object first
+          if (orgInfo.address && typeof orgInfo.address === 'object') {
+            const addr = orgInfo.address as any;
+            organizationAddress = [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
               .filter(Boolean)
               .join(', ');
+          }
+
+          // Fall back to top-level org fields (address, city, state, country, postalCode)
+          if (!organizationAddress) {
+            organizationAddress = [orgData.address, orgData.city, orgData.state, orgData.country, orgData.postalCode]
+              .filter(Boolean)
+              .join(', ');
+          }
         }
 
         if (!organizationInfo) {
@@ -128,16 +137,10 @@ async function processRecord(
           if (organizationName) {
             parts.push(organizationName);
           }
-          if (orgInfo.address && typeof orgInfo.address === 'object') {
-            const addr = orgInfo.address as any;
-            const addrStr = [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
-              .filter(Boolean)
-              .join(', ');
-            if (addrStr) {
-              parts.push(addrStr);
-            }
+          if (organizationAddress) {
+            parts.push(organizationAddress);
           }
-          organizationInfo = parts.join('<br>') || organizationName || '';
+          organizationInfo = parts.join('<br>');
         }
       }
     } catch (err) {

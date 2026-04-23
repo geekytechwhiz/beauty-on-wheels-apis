@@ -198,6 +198,7 @@ custom:
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
+      - fhir-tool
     keepNames: true
     # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
     concurrency: 8

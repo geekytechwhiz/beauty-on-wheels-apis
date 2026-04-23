@@ -11,6 +11,7 @@ import {
 
 import { successResponse } from './response.middleware';
 import { handleError } from './error.middleware';
+import { Message } from '../types/core-types';
 
 const baseLogger = createLogger({
   service: 'api-service',

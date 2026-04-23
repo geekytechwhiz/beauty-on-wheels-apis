@@ -1,0 +1,25 @@
+{
+  "name": "alert-integration",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/alert-integration/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:alert-service"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "dependsOn": ["^build"],
+      "options": {
+        "outputPath": "dist/libs/alert-integration",
+        "main": "libs/alert-integration/src/index.ts",
+        "tsConfig": "libs/alert-integration/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/alert-integration/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

@@ -19,4 +19,8 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: 'test-output/jest/coverage',
+  moduleNameMapper: {
+    '^@api-hub/alert-integration$': '<rootDir>/../../libs/alert-integration/src/index.ts',
+    '^@api-hub/alert-repository$': '<rootDir>/../../libs/alert-repository/src/index.ts',
+  },
 };

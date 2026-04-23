@@ -1,0 +1,46 @@
+version: 0.2
+
+env:
+  variables:
+    STAGE: 'prd'
+    DEPLOYMENT_BUCKET: 'prd-mvx-alert-service-bucket'
+    STACK_NAME: 'prd-alert-service'
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - npm install -g serverless@3 --force
+      - npm install --legacy-peer-deps
+
+  build:
+    commands:
+      - cd apps/alert-service
+      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
+      - |
+        if [ -f .serverless/cloudformation-template-update-stack.json ]; then
+          TEMPLATE=".serverless/cloudformation-template-update-stack.json"
+        elif [ -f .serverless/cloudformation-template-create-stack.json ]; then
+          TEMPLATE=".serverless/cloudformation-template-create-stack.json"
+        else
+          echo "ERROR: No CloudFormation template found in .serverless"
+          exit 1
+        fi
+        aws cloudformation package \
+          --template-file "$TEMPLATE" \
+          --s3-bucket "$DEPLOYMENT_BUCKET" \
+          --output-template-file packaged.yaml \
+          --force-upload
+      - |
+        grep 'S3Key:' packaged.yaml | awk '{print $2}' \
+          | while read key; do
+              name=$(basename "$key")
+              aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+            done
+
+artifacts:
+  files:
+    - apps/alert-service/packaged.yaml
+  discard-paths: no

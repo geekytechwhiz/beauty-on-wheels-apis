@@ -64,7 +64,14 @@ provider:
     SEARCH_FNF_LAMBDA: ${self:provider.stage}_global_friend_family_search
     ADD_FRIEND_N_FAMILY_LAMBDA: ${self:provider.stage}_global_friend_family_add_member
     USER_LINK_LAMBDA: ${self:provider.stage}_global_link_unlink_service
-
+    # Alert service integration (requires alert-service stack deployed first for Fn::ImportValue)
+    ALERT_INGEST_QUEUE_URL:
+      Fn::ImportValue: ${self:provider.stage}-alert-service-IngestQueueUrl
+    ALERT_EVENT_BUS_NAME:
+      Fn::ImportValue: ${self:provider.stage}-alert-service-EventBusName
+    ALERT_EVENT_BUS_ARN:
+      Fn::ImportValue: ${self:provider.stage}-alert-service-EventBusArn
+    ALERT_SERVICE_API_URL: ${env:ALERT_SERVICE_API_URL, ''}
 
   tags:
     Service: ${self:service}
@@ -127,12 +134,21 @@ provider:
         - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}
         - arn:aws:sqs:${self:provider.region}:${aws:accountId}:user-reminders-queue-${self:provider.stage}-dlq
 
-    # EventBridge
+    # EventBridge (user-service bus + alert-service bus for cross-domain events)
     - Effect: Allow
       Action:
         - events:PutEvents
       Resource:
         - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/user-service-bus-${self:provider.stage}
+        - Fn::ImportValue: ${self:provider.stage}-alert-service-EventBusArn
+
+    # Alert service async intake (SQS) — e.g. emit AlertTriggerEvent-shaped payloads from Lambdas
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - Fn::ImportValue: ${self:provider.stage}-alert-service-IngestQueueArn
 
     # SNS (for notification events)
     - Effect: Allow

@@ -1,0 +1,113 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Alert Service API",
+    "version": "1.0.0",
+    "description": "Alerts: HTTP APIs + SQS ingest. See docs/services/alert-service for DynamoDB access patterns."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/alerts": {
+      "post": {
+        "summary": "Create alert (idempotent on inputEventId)",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": ["patientId", "organizationId", "inputEventId", "inputType", "priority"],
+              "properties": {
+                "patientId": { "type": "string" },
+                "organizationId": { "type": "string" },
+                "inputEventId": { "type": "string" },
+                "inputType": { "type": "string" },
+                "priority": { "type": "integer" },
+                "alertPolicyTemplateVersionId": { "type": "string" },
+                "groupingKey": { "type": "string" },
+                "title": { "type": "string" },
+                "detail": { "type": "string" },
+                "triggerTimestamp": { "type": "string", "format": "date-time" }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": { "description": "Created" },
+          "200": { "description": "Duplicate event (idempotent replay)" }
+        }
+      }
+    },
+    "/alerts/{alertId}": {
+      "get": {
+        "summary": "Get alert by id",
+        "parameters": [
+          { "name": "alertId", "in": "path", "required": true, "type": "string" }
+        ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "patch": {
+        "summary": "Update assignment / state / SLA flag",
+        "parameters": [
+          { "name": "alertId", "in": "path", "required": true, "type": "string" },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "alertState": {
+                  "type": "string",
+                  "enum": ["OPEN", "ACK", "IN_PROGRESS", "CLOSED", "ESCALATED"]
+                },
+                "assignedToUserId": { "type": "string" },
+                "slaBreachIndicator": { "type": "boolean" }
+              }
+            }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/patients/{patientId}/alerts": {
+      "get": {
+        "summary": "List alerts for patient (GSI1)",
+        "parameters": [
+          { "name": "patientId", "in": "path", "required": true, "type": "string" },
+          { "name": "openOnly", "in": "query", "type": "boolean" },
+          { "name": "inputType", "in": "query", "type": "string" },
+          { "name": "limit", "in": "query", "type": "integer" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/organizations/{organizationId}/alerts": {
+      "get": {
+        "summary": "Org work queue (GSI2)",
+        "parameters": [
+          { "name": "organizationId", "in": "path", "required": true, "type": "string" },
+          { "name": "state", "in": "query", "type": "string" },
+          { "name": "unassignedOnly", "in": "query", "type": "boolean" },
+          { "name": "limit", "in": "query", "type": "integer" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/users/{userId}/alerts": {
+      "get": {
+        "summary": "User queue (GSI3)",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "type": "string" },
+          { "name": "state", "in": "query", "type": "string" },
+          { "name": "limit", "in": "query", "type": "integer" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}

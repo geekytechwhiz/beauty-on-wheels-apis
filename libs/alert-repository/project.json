@@ -1,0 +1,24 @@
+{
+  "name": "alert-repository",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/alert-repository/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:alert-service"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/libs/alert-repository",
+        "main": "libs/alert-repository/src/index.ts",
+        "tsConfig": "libs/alert-repository/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/alert-repository/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

@@ -17,10 +17,7 @@
           "jestConfig": "apps/alert-service-e2e/jest.config.cts",
           "passWithNoTests": true
         },
-        "dependsOn": [
-          "alert-service:build",
-          "alert-service:serve"
-        ]
+        "dependsOn": ["alert-service:build"]
       }
     }
   }

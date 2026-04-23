@@ -1,7 +1,7 @@
-import { alertRepository } from './alert-repository';
+import { AlertRepository } from './alert.repository';
 
-describe('alertRepository', () => {
-  it('should work', () => {
-    expect(alertRepository()).toEqual('alert-repository');
+describe('AlertRepository', () => {
+  it('exports constructible repository', () => {
+    expect(new AlertRepository()).toBeInstanceOf(AlertRepository);
   });
 });

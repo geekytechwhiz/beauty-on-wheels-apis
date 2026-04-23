@@ -2,11 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "module": "nodenext",
     "types": ["node"],
-    "rootDir": "src",
-    "moduleResolution": "nodenext",
-    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo"
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "rootDir": "src"
   },
   "include": ["src/**/*.ts"],
   "exclude": [
@@ -19,5 +21,11 @@
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"
+  ],
+  "references": [
+    { "path": "../../libs/utils" },
+    { "path": "../../libs/logger/tsconfig.lib.json" },
+    { "path": "../../libs/alert-repository/tsconfig.lib.json" },
+    { "path": "../../libs/alert-integration/tsconfig.lib.json" }
   ]
 }

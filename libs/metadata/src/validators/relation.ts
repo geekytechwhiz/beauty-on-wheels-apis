@@ -16,7 +16,11 @@ export const RELATION_TYPE_ALLOWED_PAIRS: Record<RelationType, { from: string; t
     { from: 'Country', to: 'State' },
     { from: 'Category', to: 'Condition' },
   ],
-  VALID_IN: [{ from: 'Currency', to: 'Country' }],
+  /** Either direction, depending on product: query `from=Country` to list currencies, or `from=Currency` to list countries. */
+  VALID_IN: [
+    { from: 'Currency', to: 'Country' },
+    { from: 'Country', to: 'Currency' },
+  ],
   SUPPORTED_BY: [{ from: 'Device', to: 'Vital' }],
   BELONGS_TO_CATEGORY: [{ from: 'Condition', to: 'Category' }],
 };

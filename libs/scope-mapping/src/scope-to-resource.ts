@@ -7,8 +7,8 @@ import type { FhirAction } from './types';
 
 /** SMART scope patterns: context/resourceType.action or wildcards (e.g. patient/*.read). */
 const SCOPE_PATTERNS = [
-  /^patient\/([^.]+)\.(read|write|\*)$/i,
-  /^user\/([^.]+)\.(read|write|\*)$/i,
+  /^patient\/([^.]+)\.(read|write|search|\*)$/i,
+  /^user\/([^.]+)\.(read|write|search|\*)$/i,
   /^launch(\/patient)?$/i,
   /^fhirUser$/i,
   /^offline_access$/i,
@@ -36,13 +36,13 @@ function scopeToResourceAction(scope: string): Array<[string, FhirAction]> {
     if (!resource || !action) continue;
     if (action === '*') {
       return [
-        [resource.toUpperCase(), 'read'],
-        [resource.toUpperCase(), 'write'],
-        [resource.toUpperCase(), 'search'],
+        [resource.toLowerCase(), 'read'],
+        [resource.toLowerCase(), 'write'],
+        [resource.toLowerCase(), 'search'],
       ];
     }
     const a: FhirAction = action === 'read' || action === 'write' || action === 'search' ? action : 'read';
-    return [[resource.toUpperCase(), a]];
+    return [[resource.toLowerCase(), a]];
   }
   return [];
 }
@@ -56,10 +56,10 @@ function buildAllowedSet(scopes: string[]): Set<string> {
   for (const scope of scopes) {
     const pairs = scopeToResourceAction(scope);
     for (const [resourceType, action] of pairs) {
-      set.add(`${resourceType}:${action}`);
+      set.add(`${resourceType.toLowerCase()}:${action}`);
       if (resourceType === '*') {
         ['Patient', 'Observation', 'Device', 'Encounter', 'Condition'].forEach((r) => {
-          set.add(`${r}:${action}`);
+          set.add(`${r.toLowerCase()}:${action}`);
         });
       }
     }
@@ -77,7 +77,7 @@ export function isScopeAllowed(
   action: FhirAction
 ): boolean {
   if (!scopes?.length) return false;
-  const normalizedResource = resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
+  const normalizedResource = resourceType.toLowerCase();
   const allowed = buildAllowedSet(scopes);
   return (
     allowed.has(`${normalizedResource}:${action}`) ||

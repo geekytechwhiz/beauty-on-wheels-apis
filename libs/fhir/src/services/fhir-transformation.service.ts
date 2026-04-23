@@ -1,4 +1,4 @@
-import { MappingResolver } from '../resolver/mapping.resolver';
+import { MappingResolver } from '../fhir/resolver/mapping.resolver';
 import {
   defaultMappingRegistry,
   ResourceMappingConfig

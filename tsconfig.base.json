@@ -43,7 +43,9 @@
       "@api-hub/template-rules": ["libs/rule-engine/src/index.ts"],
       "@api-hub/template-executor": ["libs/template/src/application/index.ts"],
       "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
-      "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"]
+      "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"],
+      "@api-hub/middleware": ["libs/middleware/src/index.ts"],
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"]
     }
   }
 }

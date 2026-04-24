@@ -1,8 +1,11 @@
-import { APIGatewayProxyEvent } from "aws-lambda";
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
+import { APIGatewayProxyHandler, APIGatewayProxyEvent, Context } from 'aws-lambda';
 
-export const health = async (event: APIGatewayProxyEvent) => {
+const healthImpl: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent, _context?: Context) => {
   return {
     statusCode: 200,
     body: JSON.stringify({ message: 'OK' }),
   };
 };
+
+export const handler = withStandardApiGatewayPipeline('device.health', healthImpl, { serviceName: 'device-service' });

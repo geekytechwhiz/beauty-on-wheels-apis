@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
@@ -7,7 +8,7 @@ import { deviceSearchSchema } from '../validation/device.validation';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceSearchService = new DeviceSearchService();
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceSearchImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -114,3 +115,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     }, { requestId: correlationId, event }, { code: 'SEARCH_FAILED' });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.search', deviceSearchImpl, { serviceName: 'device-service' });

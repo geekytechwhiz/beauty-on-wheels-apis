@@ -18,3 +18,6 @@ export type BaseEvent<T = unknown> = {
   idempotencyKey: string;
   payload: T;
 };
+
+/** Canonical wire envelope — alias of {@link BaseEvent} for publishers/consumers. */
+export type EventEnvelope<T = unknown> = BaseEvent<T>;

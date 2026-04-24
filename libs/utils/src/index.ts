@@ -7,7 +7,6 @@ export * from './helper/http-header.helpers';
 export * from './helper/http-response.helpers';
 export * from './helper/message.helpers';
 export * from './helper/jwt.helpers'; 
-export * from './middleware/withLambdaHandler';
 export * from './middleware/request-context.middleware';
 export * from './middleware/response.middleware';
 export * from './middleware/error.middleware';

@@ -98,6 +98,8 @@
     }
   },
   "dependencies": {
+    "@api-hub/event-platform": "workspace:*",
+    "@api-hub/middleware": "workspace:*",
     "@aws-sdk/client-dynamodb": "^3.958.0",
     "@aws-sdk/client-sns": "^3.958.0",
     "@aws-sdk/client-eventbridge": "^3.958.0",

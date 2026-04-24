@@ -1,5 +1,10 @@
-import { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { buildRequestContext } from './request-context.middleware';
+import { createStandardLambdaHttpMiddlewares } from './standard-lambda-middleware';
+import { runMiddlewares } from './middlewareEngine';
+import type { Handler, Middleware } from './types';
+import type { PayloadSchemaRegistry } from './event-schema/validate';
+import type { RequestBuildEvent } from './types';
 
 import {
   createLogger,
@@ -10,8 +15,7 @@ import {
 } from '@api-hub/logger';
 
 import { successResponse } from './response.middleware';
-import { handleError } from './error.middleware';
-import { ApiResponse, type Message } from '@api-hub/utils';
+import { ApiResponse, handleError, type Message } from '@api-hub/utils';
 
 const baseLogger = createLogger({
   service: 'api-service',
@@ -19,6 +23,20 @@ const baseLogger = createLogger({
 });
 
 export interface LambdaHandlerOptions {
+  /**
+   * X-Ray / Powertools `serviceName` and tracer singleton key (e.g. `user-service`).
+   * Defaults to `api-service` when omitted.
+   */
+  serviceName?: string;
+  /**
+   * Name used by the standard `performance` middleware (metrics / logs), e.g. `user.get`.
+   * Defaults to `apigateway` when omitted.
+   */
+  operation?: string;
+  /**
+   * Optional per-`eventType` payload schemas; HTTP handlers typically leave this empty.
+   */
+  payloadSchemas?: PayloadSchemaRegistry;
   validator?: (request: any) => void | Promise<void>;
   /**
    * CDN message key (e.g. MODULE.MESSAGE_CODE) for success responses.
@@ -30,25 +48,11 @@ export interface LambdaHandlerOptions {
   useCreated?: boolean;
 }
 
-export const withLambdaHandler =
-  <TRequest = any, TResult = any>(
-    handler: (request: TRequest) => Promise<TResult>,
-    options: LambdaHandlerOptions = {}
-  ) =>
-  async (event: APIGatewayProxyEvent, context: Context) => {
-    /** Immediate response for serverless-plugin-warmup (non-HTTP payload) */
-    if (
-      event &&
-      typeof event === 'object' &&
-      (event as { source?: string }).source === 'serverless-plugin-warmup'
-    ) {
-      console.log('WarmUP - Lambda is warm!');
-      return {
-        statusCode: 200,
-        body: JSON.stringify('Lambda is warm!'),
-      };
-    }
-
+function buildWithLambdaHandlerInner<TRequest, TResult>(
+  handler: (request: TRequest) => Promise<TResult>,
+  options: LambdaHandlerOptions,
+): Handler<APIGatewayProxyEvent, APIGatewayProxyResult, Context> {
+  return async (event, context) => {
     const startTime = Date.now();
 
     const correlationId = extractCorrelationId(event) || context.awsRequestId;
@@ -62,33 +66,22 @@ export const withLambdaHandler =
     const method = event.httpMethod ?? 'GET';
     const path = event.path ?? 'unknown';
 
-    let request: any;
+    let request: TRequest = undefined as TRequest;
 
     try {
-      console.log('event in withLambdaHandler', event);
+      request = buildRequestContext(event as unknown as RequestBuildEvent) as TRequest;
 
-      /**
-       * Build request context
-       */
-      request = buildRequestContext(event);
-
-      request.context = {
-        ...(request.context ?? {}),
+      (request as { context?: Record<string, unknown> }).context = {
+        ...((request as { context?: Record<string, unknown> }).context ?? {}),
         logger,
         correlationId,
         awsRequestId,
       };
 
-      /**
-       * Validation middleware
-       */
       if (options.validator) {
         await options.validator(request);
       }
 
-      /**
-       * Business logic handler
-       */
       const result = await handler(request);
 
       const duration = Date.now() - startTime;
@@ -101,7 +94,7 @@ export const withLambdaHandler =
         path,
         successStatus,
         duration,
-        correlationId
+        correlationId,
       );
 
       const responseOptions = { requestId: correlationId, event };
@@ -120,35 +113,62 @@ export const withLambdaHandler =
         severity: 'SUCCESS',
       };
 
-      /**
-       * Response middleware
-       */
-      return successResponse(
-        result,
-        successMessage,
-        { correlationId }
-      );
-
-    } catch (error: any) {
-
+      return successResponse(result, successMessage, { correlationId });
+    } catch (error: unknown) {
+      const err = error as { statusCode?: number };
       const duration = Date.now() - startTime;
 
       logHttpRequest(
         logger,
         method,
         path,
-        error?.statusCode ?? 500,
+        err?.statusCode ?? 500,
         duration,
-        correlationId
+        correlationId,
       );
 
-      /**
-       * Error middleware
-       */
-      return handleError(error, {
+      return handleError(error as Parameters<typeof handleError>[0], {
         correlationId,
         logger,
         event,
       });
     }
+  };
+}
+
+/**
+ * API Gateway (Lambda) handler with the standard cross-service middleware order:
+ * `error` → `context` → `logger` → `tracer` → `schema` → `performance`, then request build + your handler.
+ */
+export const withLambdaHandler =
+  <TRequest = any, TResult = any>(
+    handler: (request: TRequest) => Promise<TResult>,
+    options: LambdaHandlerOptions = {},
+  ) =>
+  async (event: APIGatewayProxyEvent, context: Context) => {
+    if (
+      event &&
+      typeof event === 'object' &&
+      (event as { source?: string }).source === 'serverless-plugin-warmup'
+    ) {
+      console.log('WarmUP - Lambda is warm!');
+      return {
+        statusCode: 200,
+        body: JSON.stringify('Lambda is warm!'),
+      };
+    }
+
+    const inner = buildWithLambdaHandlerInner(handler, options);
+    const operation = options.operation ?? 'apigateway';
+    const serviceName =
+      options.serviceName ?? process.env.POWERTOOLS_SERVICE_NAME ?? 'api-service';
+    const stack = createStandardLambdaHttpMiddlewares<APIGatewayProxyResult, Context>({
+      serviceName,
+      operation,
+      payloadSchemas: options.payloadSchemas,
+    });
+    return runMiddlewares<APIGatewayProxyEvent, APIGatewayProxyResult, Context>(
+      stack as unknown as Array<Middleware<APIGatewayProxyEvent, APIGatewayProxyResult, Context>>,
+      inner,
+    )(event, context);
   };

@@ -6,6 +6,14 @@ import { InMemoryIdempotencyStore } from '../../core/idempotency/in-memory-idemp
 import type { BaseEvent } from '../../core/event-envelope/base-event';
 import { EventConsumer } from './event-consumer';
 
+jest.mock('@api-hub/observability', () => ({
+  recordConsumerDeadLetter: jest.fn(),
+  recordConsumerDuplicateEvent: jest.fn(),
+  recordConsumerEventProcessed: jest.fn(),
+  recordConsumerFailure: jest.fn(),
+  recordConsumerRetry: jest.fn(),
+}));
+
 function makeEvent(overrides: Partial<BaseEvent<{ x: number }>> = {}): BaseEvent<{ x: number }> {
   return {
     eventId: 'e1',

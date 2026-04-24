@@ -151,10 +151,11 @@ export class OrganizationService {
         {
           eventId: randomUUID(),
           eventType: 'OrganizationCreated.v1',
-          occurredAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
           source: 'organization-service',
           correlationId,
-          data: {
+          payload: {
             organizationId,
             name: organization.name,
             email: organization.email,
@@ -260,10 +261,11 @@ export class OrganizationService {
         {
           eventId: randomUUID(),
           eventType: 'OrganizationUpdated.v1',
-          occurredAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
           source: 'organization-service',
           correlationId,
-          data: {
+          payload: {
             organizationId,
             updatedFields,
             modifiedDate: updated.modifiedDate,
@@ -299,10 +301,11 @@ export class OrganizationService {
         {
           eventId: randomUUID(),
           eventType: 'OrganizationDeleted.v1',
-          occurredAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
           source: 'organization-service',
           correlationId,
-          data: {
+          payload: {
             organizationId,
             deletedAt: Date.now(),
           },
@@ -336,10 +339,11 @@ export class OrganizationService {
         {
           eventId: randomUUID(),
           eventType: 'OrganizationUserAssigned.v1',
-          occurredAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
           source: 'organization-service',
           correlationId,
-          data: {
+          payload: {
             organizationId,
             userId,
             assignedAt: new Date().toISOString(),
@@ -375,10 +379,11 @@ export class OrganizationService {
         {
           eventId: randomUUID(),
           eventType: 'OrganizationUserRemoved.v1',
-          occurredAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
           source: 'organization-service',
           correlationId,
-          data: {
+          payload: {
             organizationId,
             userId,
             removedAt: new Date().toISOString(),
@@ -790,10 +795,11 @@ export class OrganizationService {
         {
           eventId: randomUUID(),
           eventType: 'OrganizationMetadataUpdated.v1',
-          occurredAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
           source: 'organization-service',
           correlationId,
-          data: {
+          payload: {
             organizationId,
             metadata,
             updatedAt: updated.updatedAt,
@@ -881,10 +887,11 @@ export class OrganizationService {
         {
           eventId: randomUUID(),
           eventType: 'OrganizationFileUploaded.v1',
-          occurredAt: now,
+          timestamp: now,
+          version: '1.0.0',
           source: 'organization-service',
           correlationId,
-          data: {
+          payload: {
             organizationId,
             fileId,
             fileName,

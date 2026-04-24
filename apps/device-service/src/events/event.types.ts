@@ -1,12 +1,4 @@
-/** Envelope for SNS notification events (published to user-service topic for shared consumer). */
-export interface NotificationEnvelope<T = unknown> {
-  eventId: string;
-  eventType: string;
-  occurredAt: string;
-  source: string;
-  correlationId?: string;
-  data: T;
-}
+export type { EventEnvelope } from '@api-hub/event-platform';
 
 export interface DeviceErrorNotificationRequestedData {
   userId?: string;

@@ -1,5 +1,5 @@
 import { createLogger, createChildLogger } from '@api-hub/logger';
-import { publishNotificationEvent } from '../events/sns.publisher';
+import { publishNotificationEvent } from '../events/notification-sns.publisher';
 import type {
   DeviceErrorNotificationRequestedData,
   RecommendationNotificationRequestedData,

@@ -25,7 +25,8 @@
       "@api-hub/scope-mapping": ["libs/scope-mapping/src/index.ts"],
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
       "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
-      "@api-hub/service-clients": ["dist/libs/service-clients"]
+      "@api-hub/service-clients": ["dist/libs/service-clients"],
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],
@@ -35,10 +36,16 @@
       "path": "../../libs/service-clients/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/utils"
+      "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
       "path": "../../libs/logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/event-platform/tsconfig.lib.json"
     }
   ]
 }

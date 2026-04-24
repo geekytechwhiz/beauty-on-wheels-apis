@@ -1,6 +1,8 @@
 import { decodeJwtPayload } from '@api-hub/utils';
 
-export const buildRequestContext = (event: any) => {
+import type { RequestBuildEvent } from './types';
+
+export const buildRequestContext = (event: RequestBuildEvent) => {
   const authHeader =
     event.headers?.Authorization || event.headers?.authorization;
 
@@ -36,7 +38,7 @@ export const buildRequestContext = (event: any) => {
    *   3. Nested data  → { data: { userID, organizationID, userId, organizationId } }
    *                     (common pattern when invoking via a lambda-invoker utility)
    */
-  const directPayload = event.data ?? event; // unwrap { data: {...} } wrapper if present
+  const directPayload = (event.data ?? event) as RequestBuildEvent;
 
   const resolvedUserId =
     directPayload.userId ||

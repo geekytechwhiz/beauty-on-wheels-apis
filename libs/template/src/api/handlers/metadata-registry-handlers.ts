@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import type { CreateMetadataDefinitionUseCase } from '../../application/use-cases/create-metadata-definition.use-case';
 import type { DeleteMetadataDefinitionUseCase } from '../../application/use-cases/delete-metadata-definition.use-case';
 import type { GetMetadataDefinitionUseCase } from '../../application/use-cases/get-metadata-definition.use-case';

@@ -1,32 +1,18 @@
-// middlewareEngine.ts
-
-export type Middleware<TEvent = any, TResult = any> = (params: {
-    event: TEvent;
-    context: any;
-    next: () => Promise<TResult>;
-  }) => Promise<TResult>;
-  
-  export const runMiddlewares = async <TEvent, TResult>(
-    middlewares: Middleware<TEvent, TResult>[],
-    handler: (event: TEvent, context: any) => Promise<TResult>
-  ) => {
-    return async (event: TEvent, context: any): Promise<TResult> => {
-      let index = -1;
-  
-      const runner = async (): Promise<TResult> => {
-        index++;
-  
-        if (index < middlewares.length) {
-          return middlewares[index]({
-            event,
-            context,
-            next: runner,
-          });
-        }
-  
-        return handler(event, context);
-      };
-  
-      return runner();
-    };
-  };
+/**
+ * Re-exports the generic middleware engine. Omits `BaseEvent` / `BaseContext` here because
+ * `core/event-envelope` defines its own `BaseEvent` type for the wire format.
+ */
+export {
+  runMiddlewares,
+  type ConditionalMiddleware,
+  type ExecutionContext,
+  type Handler,
+  type Middleware,
+  type MiddlewareEngineOptions,
+  type MiddlewareError,
+  type MiddlewareGroup,
+  type MiddlewareHooks,
+  type MiddlewareParams,
+  type MiddlewarePipelineEvent,
+  type MiddlewareResult,
+} from '@api-hub/middleware';

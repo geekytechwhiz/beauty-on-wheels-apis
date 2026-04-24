@@ -1328,14 +1328,17 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       await this.repository.deleteUser(userId, organizationId);
 
+      const eventId = randomUUID();
       await publishEvent(
         {
-          eventId: randomUUID(),
+          eventId,
           eventType: 'UserDeleted.v1',
-          occurredAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
           source: 'user-service',
           correlationId,
-          data: {
+          idempotencyKey: eventId,
+          payload: {
             userId,
           },
         },
@@ -1596,14 +1599,17 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       await this.repository.createUserFile(userFile);
 
+      const fileEventId = randomUUID();
       await publishEvent(
         {
-          eventId: randomUUID(),
+          eventId: fileEventId,
           eventType: 'UserFileUploaded.v1',
-          occurredAt: now,
+          timestamp: now,
+          version: '1.0.0',
           source: 'user-service',
           correlationId,
-          data: {
+          idempotencyKey: fileEventId,
+          payload: {
             userId,
             fileId,
             fileName,

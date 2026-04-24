@@ -18,10 +18,13 @@
       "path": "../logger/tsconfig.lib.json"
     },
     {
+      "path": "../rule-engine/tsconfig.lib.json"
+    },
+    {
       "path": "../utils/tsconfig.lib.json"
     },
     {
-      "path": "../rule-engine/tsconfig.lib.json"
+      "path": "../middleware/tsconfig.lib.json"
     }
   ]
 }

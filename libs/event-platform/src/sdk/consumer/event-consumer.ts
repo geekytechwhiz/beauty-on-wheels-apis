@@ -1,3 +1,10 @@
+import {
+  recordConsumerDeadLetter,
+  recordConsumerDuplicateEvent,
+  recordConsumerEventProcessed,
+  recordConsumerFailure,
+  recordConsumerRetry,
+} from '@api-hub/observability';
 import type { DlqConfig } from '../../core/dlq/dlq-config';
 import { outcomeWhenExhausted } from '../../core/dlq/delivery-decision';
 import type { BaseEvent } from '../../core/event-envelope/base-event';
@@ -63,6 +70,7 @@ export class EventConsumer {
         error,
         correlationId: handleOptions?.correlationId,
       });
+      recordConsumerFailure();
       throw error;
     }
 
@@ -79,6 +87,7 @@ export class EventConsumer {
         eventId: ctx.eventId,
         eventType: ctx.eventType,
       });
+      recordConsumerFailure(ctx.eventType);
       throw error;
     }
 
@@ -95,6 +104,7 @@ export class EventConsumer {
         eventId: ctx.eventId,
         eventType: ctx.eventType,
       });
+      recordConsumerFailure(ctx.eventType);
       throw error;
     }
 
@@ -104,16 +114,23 @@ export class EventConsumer {
     const idempotencyKey = parsed.idempotencyKey;
 
     if (await this.deps.idempotencyStore.exists(idempotencyKey)) {
+      recordConsumerDuplicateEvent(traceCtx.eventType);
       return { outcome: 'duplicate', idempotencyKey };
     }
 
     const dlq = this.deps.dlq ?? { enabled: false };
 
+    const userRetry = this.deps.retry;
+    const retryOptions: RetryOptions = {
+      ...userRetry,
+      onBeforeRetry: (info) => {
+        userRetry.onBeforeRetry?.(info);
+        recordConsumerRetry(traceCtx.eventType);
+      },
+    };
+
     try {
-      await retry(
-        () => handler(parsed as BaseEvent<T>),
-        this.deps.retry,
-      );
+      await retry(() => handler(parsed as BaseEvent<T>), retryOptions);
     } catch (error) {
       trace?.onEventFailed({
         stage: 'handler',
@@ -123,12 +140,14 @@ export class EventConsumer {
         eventType: traceCtx.eventType,
       });
       if (outcomeWhenExhausted(dlq) === 'dead_letter_candidate') {
+        recordConsumerDeadLetter(traceCtx.eventType);
         return {
           outcome: 'dead_letter_candidate',
           idempotencyKey,
           error,
         };
       }
+      recordConsumerFailure(traceCtx.eventType);
       throw error;
     }
 
@@ -137,6 +156,7 @@ export class EventConsumer {
     });
 
     trace?.onEventProcessed(traceCtx);
+    recordConsumerEventProcessed(traceCtx.eventType);
 
     return { outcome: 'processed' };
   }

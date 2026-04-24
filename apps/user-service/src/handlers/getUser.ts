@@ -1,4 +1,5 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { validateUserOrganizationRequest } from '../validation/request.validators';

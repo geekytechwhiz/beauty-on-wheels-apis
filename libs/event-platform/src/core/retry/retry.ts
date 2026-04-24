@@ -18,6 +18,16 @@ export type RetryOptions = {
   isRetryable?: (error: unknown) => boolean;
   /** If set, receives a message when a failed attempt will be retried. */
   logger?: RetryLogger;
+  /** Invoked when a failed attempt will be retried, after the optional log, before the backoff sleep. */
+  onBeforeRetry?: (info: RetryOnBeforeRetryInfo) => void;
+};
+
+export type RetryOnBeforeRetryInfo = {
+  /** 1-based attempt that just failed. */
+  failedAttempt: number;
+  maxAttempts: number;
+  waitMs: number;
+  error: unknown;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -74,7 +84,7 @@ function delayAfterFailure(
  * Waits between failures according to `strategy` and `delayMs`.
  */
 export async function retry<T>(fn: () => Promise<T>, options: RetryOptions): Promise<T> {
-  const { maxAttempts, isRetryable = defaultIsRetryable, logger } = options;
+  const { maxAttempts, isRetryable = defaultIsRetryable, logger, onBeforeRetry } = options;
   if (maxAttempts < 1) {
     throw new RangeError('retry: maxAttempts must be at least 1');
   }
@@ -100,6 +110,7 @@ export async function retry<T>(fn: () => Promise<T>, options: RetryOptions): Pro
             ? { name: error.name, message: error.message }
             : { value: String(error) },
       });
+      onBeforeRetry?.({ failedAttempt: attempt, maxAttempts, waitMs, error });
       await sleep(waitMs);
     }
   }

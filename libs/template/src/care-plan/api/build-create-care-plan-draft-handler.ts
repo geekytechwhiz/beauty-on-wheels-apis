@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import { ensureHttpError } from '../../api/http-error.mapper';
 import type { CreateCarePlanDraftUseCase } from '../create-care-plan-draft.use-case';
 import { validateCreateCarePlanDraft } from './create-care-plan-draft.validators';

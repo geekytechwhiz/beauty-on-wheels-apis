@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import { TemplateNotFoundError } from '../../shared';
 import type { GetTemplateUseCase } from '../../application';
 import { ensureHttpError } from '../http-error.mapper';

@@ -7,7 +7,4 @@ export * from './tracing/index';
 export * from './versioning/index';
 export * from './middlewareEngine/middlewareEngine';
 export * from './middlewareEngine/contextMiddleware';
-export * from './middlewareEngine/loggerMiddleware';
-export * from './middlewareEngine/idempotencyMiddleware';
-export * from './middlewareEngine/idempotencyStore';
-export * from './middlewareEngine/idempotencyStore';
+export * from './middlewareEngine/schemaValidationMiddleware';

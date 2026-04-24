@@ -81,14 +81,17 @@ export async function notifyUser(payload: {
   });
 
   try {
+    const eventId = randomUUID();
     await publishEvent(
       {
-        eventId: randomUUID(),
+        eventId,
         eventType: 'UserCreatedNotificationRequested',
-        occurredAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
         source: payload.source || 'user-service',
         correlationId: payload.correlationId,
-        data,
+        idempotencyKey: eventId,
+        payload: data,
       },
       payload.correlationId,
     );

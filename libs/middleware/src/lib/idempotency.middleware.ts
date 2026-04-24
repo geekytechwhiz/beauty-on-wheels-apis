@@ -1,51 +1,43 @@
-// idempotencyMiddleware.ts
-
 import { logger } from '@api-hub/observability';
 
-export const idempotencyMiddleware = ({
-  getKey,
-  store,
-}: {
-  getKey: (event: any) => string;
-  store: {
-    get: (key: string) => Promise<any>;
-    set: (key: string, value: any) => Promise<void>;
-  };
-}) => {
-  return async ({ event, next }: any) => {
-    const key = getKey(event);
+import type { BaseEvent, Middleware } from './types';
 
-    // Check existing
-    const existing = await store.get(key);
+/**
+ * Observes idempotency-related context for logs only. Does **not** block duplicates,
+ * cache results, or persist processing state — that belongs in domain / use cases /
+ * `event-platform` consumers.
+ *
+ * Place after `loggerMiddleware` so correlation flows from ALS.
+ */
+export function idempotencyMiddleware<
+  TEvent extends BaseEvent,
+  TResult,
+  TContext = unknown,
+>(options: {
+  /** Shown in structured logs; domain code should use the same key for real idempotency. */
+  getIdempotencyKey: (event: TEvent) => string;
+  /**
+   * When the domain (or a prior step) can signal duplicate, we log it. No return-value
+   * short-circuiting — handlers still run unless domain logic exits early inside them.
+   */
+  isDuplicate?: (event: TEvent) => boolean | Promise<boolean>;
+}): Middleware<TEvent, TResult, TContext> {
+  const { getIdempotencyKey, isDuplicate } = options;
 
-    if (existing) {
-      logger.info({
-        event: 'idempotency_hit',
-        idempotencyKey: key,
-      });
+  return async ({ event, next }) => {
+    const idempotencyKey = getIdempotencyKey(event as TEvent);
 
-      return existing;
+    let duplicate: boolean | undefined;
+    if (isDuplicate) {
+      duplicate = await isDuplicate(event as TEvent);
     }
 
-    try {
-      const result = await next();
+    logger.info({
+      event: 'idempotency_context',
+      idempotencyKey,
+      ...(duplicate !== undefined ? { duplicate } : {}),
+    });
 
-      await store.set(key, result);
-
-      logger.info({
-        event: 'idempotency_stored',
-        idempotencyKey: key,
-      });
-
-      return result;
-    } catch (error) {
-      logger.error({
-        event: 'idempotency_failed',
-        idempotencyKey: key,
-        error,
-      });
-
-      throw error;
-    }
+    return next();
   };
-};
+}

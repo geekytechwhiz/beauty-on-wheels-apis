@@ -32,6 +32,15 @@ describe('buildPublishEnvelope', () => {
     );
   });
 
+  it('defaults version to 1.0.0 when omitted', () => {
+    const event = buildPublishEnvelope({
+      eventType: 'X',
+      source: 's',
+      payload: {},
+    });
+    expect(event.version).toBe('1.0.0');
+  });
+
   it('is stable idempotency for identical publish inputs', () => {
     const input = {
       eventType: 'X',
@@ -48,8 +57,10 @@ describe('buildPublishEnvelope', () => {
 describe('EventPublisher', () => {
   it('delegates to the adapter with the built envelope', async () => {
     const publish = jest.fn().mockResolvedValue(undefined);
+    const log = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
     const publisher = new EventPublisher({
       adapter: { publish },
+      logger: log,
     });
 
     const input = {
@@ -75,5 +86,6 @@ describe('EventPublisher', () => {
         payload: input.payload,
       }),
     );
+    expect(log.info).toHaveBeenCalled();
   });
 });

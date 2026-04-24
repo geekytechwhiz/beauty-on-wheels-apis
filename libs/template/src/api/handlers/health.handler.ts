@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 
 export function buildHealthHandler() {
   return withLambdaHandler(async () => ({ status: 'ok' as const }), {

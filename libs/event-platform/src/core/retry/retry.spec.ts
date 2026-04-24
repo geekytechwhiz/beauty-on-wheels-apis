@@ -66,6 +66,26 @@ describe('retry', () => {
     ).rejects.toBe(err);
     expect(calls).toBe(1);
   });
+
+  it('invokes onBeforeRetry when backing off for another attempt', async () => {
+    const onBeforeRetry = jest.fn();
+    let calls = 0;
+    await retry(
+      async () => {
+        calls += 1;
+        if (calls < 2) {
+          throw new Error('transient');
+        }
+        return 'ok';
+      },
+      { maxAttempts: 3, strategy: 'fixed', delayMs: 1, onBeforeRetry },
+    );
+    expect(calls).toBe(2);
+    expect(onBeforeRetry).toHaveBeenCalledTimes(1);
+    expect(onBeforeRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ failedAttempt: 1, maxAttempts: 3, waitMs: 1 }),
+    );
+  });
 });
 
 describe('defaultIsRetryable', () => {

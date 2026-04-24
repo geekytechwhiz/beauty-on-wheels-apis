@@ -1,4 +1,4 @@
-export type { BaseEvent, EventMetadata } from './base-event';
+export type { BaseEvent, EventEnvelope, EventMetadata } from './base-event';
 export {
   EventSerializationError,
   serializeBaseEvent,

@@ -1,4 +1,5 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { V2UserListService } from '../services/v2-user-list.service';
 import { validateV2UserList } from '../validation/request.validators';
 import type { V2UserListInput } from '../validation/v2-user-list.validation';

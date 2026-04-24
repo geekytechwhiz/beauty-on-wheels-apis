@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -83,7 +84,7 @@ function extractDevicesFromJson(data: DeviceJson): Array<{
   return devices;
 }
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceGlobalRegisterImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -127,3 +128,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.internalServerError('DEVICE.GLOBAL_REGISTRATION_FAILED', { requestId: correlationId, event }, { code: 'REGISTRATION_FAILED' });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.globalRegister', deviceGlobalRegisterImpl, { serviceName: 'device-service' });

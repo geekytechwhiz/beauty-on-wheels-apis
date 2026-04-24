@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { ApiResponse } from '@api-hub/utils';
 import { RecommendationService } from '../services/recommendationService';
@@ -14,7 +15,7 @@ import { ERROR_CODES } from '../constants/errorCodes';
 
 const recommendationService = new RecommendationService();
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const ctx = createHandlerContext(event, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
@@ -81,3 +82,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.recommendationRemove', deviceRecommendationRemoveImpl, { serviceName: 'device-service' });

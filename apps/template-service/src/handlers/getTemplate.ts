@@ -5,36 +5,28 @@
 
 // handler.ts
 
-import { runMiddlewares } from '@api-hub/event-platform';
-import { contextMiddleware } from '@api-hub/event-platform';
-import { loggerMiddleware } from '@api-hub/middleware';
-import { idempotencyMiddleware } from '@api-hub/middleware';
-import { idempotencyStore } from '@api-hub/event-platform';
+import {
+  createStandardLambdaHttpMiddlewares,
+  runMiddlewares,
+} from '@api-hub/middleware';
 import { logger } from '@api-hub/logger';
 
-const middlewares = [
-  contextMiddleware(),
-  loggerMiddleware(),
-  idempotencyMiddleware({
-    getKey: (event) => event.id,
-    store: idempotencyStore,
-  }),
-];
+const middlewares = createStandardLambdaHttpMiddlewares({
+  serviceName: 'template-service',
+  operation: 'template.get',
+  payloadSchemas: {},
+});
 
-const businessHandler = async (event: any) => {
+const businessHandler = async (event: Record<string, unknown>) => {
   logger.info({
     message: 'Processing business logic',
     eventId: event.id,
   });
 
-  // simulate work
   return {
     success: true,
     processedAt: new Date().toISOString(),
   };
 };
 
-export const handler = runMiddlewares(
-  middlewares,
-  businessHandler
-);
+export const handler = runMiddlewares(middlewares, businessHandler);

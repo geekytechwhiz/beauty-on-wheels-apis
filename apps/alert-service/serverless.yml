@@ -32,23 +32,21 @@ provider:
     STAGE: ${self:provider.stage}
     NODE_ENV: ${self:provider.stage}
     SERVICE_NAME: ${self:service}
-    ALERT_TABLE: !Ref AlertDynamoTable
-    ALERT_INGEST_QUEUE_URL: !Ref AlertIngestQueue
-    ALERT_PROCESSING_DLQ_URL: !Ref AlertProcessingDLQ
-    # After this many receives on the intake queue, failed messages go to Processing DLQ (not Intake DLQ).
-    ALERT_FORWARD_TO_PROCESSING_DLQ_AFTER_RECEIVES: ${env:ALERT_FORWARD_TO_PROCESSING_DLQ_AFTER_RECEIVES, '5'}
-    ALERT_EVENT_BUS_NAME: !Ref AlertServiceEventBus
-    ALERT_EVENT_BUS_ARN: !GetAtt AlertServiceEventBus.Arn
+    # Table must exist before deploy; name from custom.alertDynamoTableName.
+    ALERT_TABLE: ${self:custom.alertDynamoTableName}
+    # Optional async ingest (SQS): add ALERT_INGEST_QUEUE_URL, ALERT_PROCESSING_DLQ_URL,
+    # ALERT_FORWARD_TO_PROCESSING_DLQ_AFTER_RECEIVES when queues are defined in resources.
+    # Optional EventBridge: add ALERT_EVENT_BUS_NAME, ALERT_EVENT_BUS_ARN when AWS::Events::EventBus is in resources.
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
-    # Same base URLs as sso-integration `custom.stageUrls` (optional; use env to override per deploy).
+    # Same base URLs as sso-integration `custom.stageUrls`.
     # Patient/org existence checks call user-service `GET .../user/organization/{org}/{userId}` and
     # organization-service `GET .../organization/{organizationId}`.
-    USER_SERVICE_BASE_URL: ${env:USER_SERVICE_BASE_URL, self:custom.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
-    ORGANIZATION_SERVICE_BASE_URL: ${env:ORGANIZATION_SERVICE_BASE_URL, self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
-    USER_SERVICE_TIMEOUT_MS: ${env:USER_SERVICE_TIMEOUT_MS, '8000'}
-    ORGANIZATION_SERVICE_TIMEOUT_MS: ${env:ORGANIZATION_SERVICE_TIMEOUT_MS, '8000'}
+    USER_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
+    ORGANIZATION_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
+    USER_SERVICE_TIMEOUT_MS: '8000'
+    ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
 
   tags:
     Service: ${self:service}
@@ -75,31 +73,10 @@ provider:
         - dynamodb:TransactWriteItems
         - dynamodb:DescribeTable
       Resource:
-        - !GetAtt AlertDynamoTable.Arn
-        - !Sub '${AlertDynamoTable.Arn}/index/*'
-    - Effect: Allow
-      Action:
-        - sqs:ReceiveMessage
-        - sqs:DeleteMessage
-        - sqs:GetQueueAttributes
-        - sqs:ChangeMessageVisibility
-        - sqs:GetQueueUrl
-      Resource:
-        - !GetAtt AlertIngestQueue.Arn
-        - !GetAtt AlertIngestDLQ.Arn
-        - !GetAtt AlertProcessingDLQ.Arn
-    - Effect: Allow
-      Action:
-        - sqs:SendMessage
-        - sqs:GetQueueAttributes
-      Resource:
-        - !GetAtt AlertIngestQueue.Arn
-        - !GetAtt AlertProcessingDLQ.Arn
-    - Effect: Allow
-      Action:
-        - events:PutEvents
-      Resource:
-        - !GetAtt AlertServiceEventBus.Arn
+        - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:custom.alertDynamoTableName}'
+        - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:custom.alertDynamoTableName}/index/*'
+    # Optional: grant sqs:ReceiveMessage/DeleteMessage/SendMessage on ingest + DLQs when SQS is enabled.
+    # Optional: grant events:PutEvents on custom bus ARN when EventBridge is enabled.
     - Effect: Allow
       Action:
         - xray:PutTraceSegments
@@ -113,6 +90,7 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  alertDynamoTableName: alert-service-${self:provider.stage}
   # Per-stage API bases (aligned with services/sso-integration/serverless.yml custom.stageUrls)
   stageUrls:
     dev:
@@ -151,7 +129,7 @@ custom:
 
   autoswagger:
     title: Alert Service API
-    description: Patient-centric alerts, org queue, user queue, idempotent create, async SQS ingest (direct)
+    description: Patient-centric alerts, org queue, user queue, idempotent create (HTTP); optional SQS ingest via comments in serverless.yml
     version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
@@ -224,232 +202,15 @@ functions:
           method: patch
           cors: true
 
-  # Ingest queue → validate payload / idempotency / Dynamo (same path as HTTP POST /alerts)
-  processAlertProcessing:
-    handler: src/handlers/sqs/processAlertProcessing.main
-    timeout: 60
-    events:
-      - sqs:
-          arn: !GetAtt AlertIngestQueue.Arn
-          batchSize: 10
-          functionResponseType: ReportBatchItemFailures
-
-  replayIntakeFromDlq:
-    handler: src/handlers/sqs/replayIntakeFromDlq.main
-    timeout: 60
-    reservedConcurrency: 2
-    events:
-      - sqs:
-          arn: !GetAtt AlertIngestDLQ.Arn
-          batchSize: 5
-          functionResponseType: ReportBatchItemFailures
-
-  replayProcessingFromDlq:
-    handler: src/handlers/sqs/replayProcessingFromDlq.main
-    timeout: 60
-    reservedConcurrency: 2
-    events:
-      - sqs:
-          arn: !GetAtt AlertProcessingDLQ.Arn
-          batchSize: 5
-          functionResponseType: ReportBatchItemFailures
-
-resources:
-  Resources:
-    AlertDynamoTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: alert-service-${self:provider.stage}
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        AttributeDefinitions:
-          - AttributeName: pk
-            AttributeType: S
-          - AttributeName: sk
-            AttributeType: S
-          - AttributeName: gsi1pk
-            AttributeType: S
-          - AttributeName: gsi1sk
-            AttributeType: S
-          - AttributeName: gsi2pk
-            AttributeType: S
-          - AttributeName: gsi2sk
-            AttributeType: S
-          - AttributeName: gsi3pk
-            AttributeType: S
-          - AttributeName: gsi3sk
-            AttributeType: S
-        KeySchema:
-          - AttributeName: pk
-            KeyType: HASH
-          - AttributeName: sk
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: GSI1
-            KeySchema:
-              - AttributeName: gsi1pk
-                KeyType: HASH
-              - AttributeName: gsi1sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-          - IndexName: GSI2
-            KeySchema:
-              - AttributeName: gsi2pk
-                KeyType: HASH
-              - AttributeName: gsi2sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-          - IndexName: GSI3
-            KeySchema:
-              - AttributeName: gsi3pk
-                KeyType: HASH
-              - AttributeName: gsi3sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-    AlertIngestDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: alert-service-ingest-dlq-${self:provider.stage}
-        VisibilityTimeout: 360
-        MessageRetentionPeriod: 1209600
-        SqsManagedSseEnabled: true
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
-
-    # Application-level DLQ: processing Lambda forwards poison / exhausted retries here; replay sends back to ingest.
-    AlertProcessingDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: alert-service-processing-dlq-${self:provider.stage}
-        VisibilityTimeout: 360
-        MessageRetentionPeriod: 1209600
-        SqsManagedSseEnabled: true
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
-
-    AlertIngestQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: alert-service-ingest-${self:provider.stage}
-        VisibilityTimeout: 360
-        ReceiveMessageWaitTimeSeconds: 20
-        MessageRetentionPeriod: 1209600
-        SqsManagedSseEnabled: true
-        RedrivePolicy:
-          deadLetterTargetArn: !GetAtt AlertIngestDLQ.Arn
-          maxReceiveCount: 5
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
-
-    # Allow user-service (and other same-account Lambdas) to publish alert payloads to intake
-    AlertIngestQueuePolicy:
-      Type: AWS::SQS::QueuePolicy
-      Properties:
-        Queues:
-          - !Ref AlertIngestQueue
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            - Sid: AllowUserServiceLambdaSendMessage
-              Effect: Allow
-              Principal:
-                AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
-              Action:
-                - sqs:SendMessage
-                - sqs:GetQueueAttributes
-              Resource: !GetAtt AlertIngestQueue.Arn
-              Condition:
-                ArnLike:
-                  aws:PrincipalArn: !Sub 'arn:aws:sts::${AWS::AccountId}:assumed-role/user-service-${self:provider.stage}-*/*'
-            - Sid: AllowSsoIntegrationLambdaSendMessage
-              Effect: Allow
-              Principal:
-                AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
-              Action:
-                - sqs:SendMessage
-                - sqs:GetQueueAttributes
-              Resource: !GetAtt AlertIngestQueue.Arn
-              Condition:
-                ArnLike:
-                  aws:PrincipalArn: !Sub 'arn:aws:sts::${AWS::AccountId}:assumed-role/sso-integration-${self:provider.stage}-*/*'
-
-    AlertServiceEventBus:
-      Type: AWS::Events::EventBus
-      Properties:
-        Name: alert-service-bus-${self:provider.stage}
-        Tags:
-          - Key: Service
-            Value: ${self:service}
-          - Key: Stage
-            Value: ${self:provider.stage}
-          - Key: ManagedBy
-            Value: serverless
-
-  Outputs:
-    AlertIngestQueueUrl:
-      Description: URL of the alert intake SQS queue (async producers)
-      Value: !Ref AlertIngestQueue
-      Export:
-        Name: ${self:provider.stage}-alert-service-IngestQueueUrl
-    AlertIngestQueueArn:
-      Description: ARN of the alert intake SQS queue
-      Value: !GetAtt AlertIngestQueue.Arn
-      Export:
-        Name: ${self:provider.stage}-alert-service-IngestQueueArn
-
-    AlertServiceEventBusArn:
-      Description: ARN of the alert service custom event bus
-      Value: !GetAtt AlertServiceEventBus.Arn
-      Export:
-        Name: ${self:provider.stage}-alert-service-EventBusArn
-    AlertServiceEventBusName:
-      Description: Name of the alert service custom event bus
-      Value: !Ref AlertServiceEventBus
-      Export:
-        Name: ${self:provider.stage}-alert-service-EventBusName
-
-    AlertDynamoTableName:
-      Description: Name of the main alert DynamoDB table
-      Value: !Ref AlertDynamoTable
-      Export:
-        Name: ${self:provider.stage}-alert-service-AlertDynamoTableName
-    AlertDynamoTableArn:
-      Description: ARN of the main alert DynamoDB table
-      Value: !GetAtt AlertDynamoTable.Arn
-      Export:
-        Name: ${self:provider.stage}-alert-service-AlertDynamoTableArn
-    AlertIngestDLQArn:
-      Description: ARN of the alert intake dead-letter queue
-      Value: !GetAtt AlertIngestDLQ.Arn
-      Export:
-        Name: ${self:provider.stage}-alert-service-IngestDLQArn
-    AlertProcessingDLQUrl:
-      Description: URL of the alert processing dead-letter queue
-      Value: !Ref AlertProcessingDLQ
-      Export:
-        Name: ${self:provider.stage}-alert-service-ProcessingDLQUrl
-    AlertProcessingDLQArn:
-      Description: ARN of the alert processing dead-letter queue
-      Value: !GetAtt AlertProcessingDLQ.Arn
-      Export:
-        Name: ${self:provider.stage}-alert-service-ProcessingDLQArn
+  # --- Optional SQS (disabled): ingest queue, intake + processing DLQs, replay Lambdas, queue policy, outputs ---
+  # processAlertProcessing: handler src/handlers/sqs/processAlertProcessing.main; sqs: AlertIngestQueue; batch 10; ReportBatchItemFailures
+  # replayIntakeFromDlq: handler src/handlers/sqs/replayIntakeFromDlq.main; sqs: AlertIngestDLQ
+  # replayProcessingFromDlq: handler src/handlers/sqs/replayProcessingFromDlq.main; sqs: AlertProcessingDLQ
+  # Env: ALERT_INGEST_QUEUE_URL, ALERT_PROCESSING_DLQ_URL, ALERT_FORWARD_TO_PROCESSING_DLQ_AFTER_RECEIVES
+  # Resources: AlertIngestDLQ, AlertProcessingDLQ, AlertIngestQueue (redrive to ingest DLQ), AlertIngestQueuePolicy
+  #
+  # --- Optional EventBridge (disabled): custom bus + exports for cross-stack consumers ---
+  # Resources.AlertServiceEventBus: Type AWS::Events::EventBus, Name alert-service-bus-${stage}
+  # provider.environment: ALERT_EVENT_BUS_NAME: !Ref AlertServiceEventBus, ALERT_EVENT_BUS_ARN: !GetAtt AlertServiceEventBus.Arn
+  # iamRoleStatements: events:PutEvents on !GetAtt AlertServiceEventBus.Arn
+  # Outputs: Export ${stage}-alert-service-EventBusArn, ${stage}-alert-service-EventBusName

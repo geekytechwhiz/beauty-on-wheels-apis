@@ -104,6 +104,9 @@ export class AlertRepository {
     return record;
   }
 
+  /**
+   * List queries (GSI1–GSI3): attributes follow LIST_SUMMARY INCLUDE in alert-service serverless.yml (no detail / alertPolicyTemplateVersionId); full item from getAlertById.
+   */
   async queryPatientAlerts(
     patientId: string,
     opts: { openOnly?: boolean; inputType?: string; limit?: number },

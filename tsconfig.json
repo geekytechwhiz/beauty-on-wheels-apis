@@ -83,6 +83,12 @@
     },
     {
       "path": "./libs/event-platform"
+    },
+    {
+      "path": "./libs/middleware"
+    },
+    {
+      "path": "./libs/observability"
     }
   ]
 }

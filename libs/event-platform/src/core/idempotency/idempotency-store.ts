@@ -1,12 +1,34 @@
-/**
- * Optional TTL for store implementations that support time-bounded keys
- * (for example DynamoDB TTL); ignored by stores that do not implement expiry.
- */
-export type IdempotencySaveOptions = {
-  ttlSeconds?: number;
-};
+// idempotencyStore.ts
 
-export interface IdempotencyStore {
-  exists(key: string): Promise<boolean>;
-  save(key: string, options?: IdempotencySaveOptions): Promise<void>;
-}
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+
+const client = new DynamoDBClient({});
+
+export const idempotencyStore = {
+  get: async (key: string) => {
+    const res = await client.send(
+      new GetItemCommand({
+        TableName: process.env.TABLE_NAME!,
+        Key: {
+          pk: { S: `IDEMP#${key}` },
+        },
+      })
+    );
+
+    return res.Item ? JSON.parse(res.Item.data.S!) : null;
+  },
+
+  set: async (key: string, value: any) => {
+    await client.send(
+      new PutItemCommand({
+        TableName: process.env.TABLE_NAME!,
+        Item: {
+          pk: { S: `IDEMP#${key}` },
+          data: { S: JSON.stringify(value) },
+          ttl: { N: `${Math.floor(Date.now() / 1000) + 3600}` },
+        },
+      })
+    );
+  },
+};

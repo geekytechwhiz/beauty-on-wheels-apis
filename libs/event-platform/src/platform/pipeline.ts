@@ -1,6 +1,8 @@
-// packages/platform/src/pipeline.ts
-
-import { Middleware } from "./types";
+export type Middleware = (
+  event: any,
+  context: any,
+  next: () => Promise<any>
+) => Promise<any>;
 
 export const createPipeline = (
   middlewares: Middleware[],

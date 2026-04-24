@@ -1,6 +1,6 @@
 # Alert Service
 
-Deployable app under `apps/alert-service`: HTTP APIs for alert lifecycle plus **SQS-driven ingest** for async producers (aligned with `services/sso-integration` queue patterns and `apps/user-service` Serverless layout).
+Deployable app under `apps/alert-service`: HTTP APIs for alert lifecycle (Serverless layout aligned with `services/sso-integration` and `apps/user-service`).
 
 ## Documentation
 
@@ -13,7 +13,6 @@ Deployable app under `apps/alert-service`: HTTP APIs for alert lifecycle plus **
 
 - **REST**: create/list/get/patch alerts (patient timeline, org queue, user queue).
 - **Idempotency**: `inputEventId` maps to `EVENT#<id>` + `ALERT` row; duplicate creates return the existing alert.
-- **Async**: `processAlertIngest` Lambda consumes `alert-service-ingest-<stage>` (same payload shape as `POST /alerts` body).
 
 ## External services (optional)
 
@@ -30,7 +29,7 @@ Mirrors `sso-integration` style env wiring:
 
 ## Source layout
 
-**App** (`apps/alert-service`): Lambda handlers only (HTTP + SQS); Serverless config and CI buildspecs.
+**App** (`apps/alert-service`): Lambda handlers only (HTTP); Serverless config and CI buildspecs.
 
 **Libraries**:
 
@@ -40,8 +39,7 @@ Mirrors `sso-integration` style env wiring:
 ```
 apps/alert-service/
 ├── src/
-│   ├── handlers/          # API + health
-│   └── handlers/sqs/      # SQS ingest
+│   └── handlers/          # API + health
 ├── serverless.yml
 ├── swagger.json
 └── buildspec.yml

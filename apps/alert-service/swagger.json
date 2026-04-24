@@ -3,7 +3,7 @@
   "info": {
     "title": "Alert Service API",
     "version": "1.0.0",
-    "description": "Alerts: HTTP APIs + SQS ingest. See docs/services/alert-service for DynamoDB access patterns."
+    "description": "Alerts: HTTP APIs only. See docs/services/alert-service for DynamoDB access patterns."
   },
   "paths": {
     "/health": {

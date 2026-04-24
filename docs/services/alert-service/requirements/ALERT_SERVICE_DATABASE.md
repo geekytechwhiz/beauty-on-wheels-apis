@@ -45,7 +45,3 @@ Aligned with the design doc (lifecycle, assignment, queues, SLA):
 | `GET /organizations/{id}/alerts` | `Query` **GSI2** `begins_with` on `gsi2sk` with `state` (default `OPEN`); `unassignedOnly` filtered in app. |
 | `GET /users/{id}/alerts` | `Query` **GSI3** (assigned alerts only). |
 | `PATCH /alerts/{id}` | `UpdateItem` on `ALERT#` / `META`; updates `gsi2sk`; sets or **removes** `gsi3*` on assign/unassign. |
-
-## SQS ingest
-
-Messages to `alert-service-ingest-<stage>` should contain the same JSON body as `POST /alerts`. The Lambda handler in `apps/alert-service` delegates to `AlertService` in `libs/alert-integration`, which calls `AlertRepository` (idempotent).

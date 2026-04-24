@@ -1,6 +1,6 @@
 service: alert-service
 
-# Serverless 3.x JSON schema may lag new runtimes; AWS still accepts them (same pattern as user-service).
+# Serverless 3.x JSON schema may lag new runtimes; AWS still accepts them.
 configValidationMode: warn
 frameworkVersion: '3.x'
 
@@ -21,12 +21,6 @@ provider:
   memorySize: 512
   timeout: 30
 
-  # tracing:
-  #   lambda: true
-  #   apiGateway: true
-
-  # logRetentionInDays: 14
-
   environment:
     REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
@@ -34,15 +28,10 @@ provider:
     SERVICE_NAME: ${self:service}
     # Table must exist before deploy; name from custom.alertDynamoTableName.
     ALERT_TABLE: ${self:custom.alertDynamoTableName}
-    # Optional async ingest (SQS): add ALERT_INGEST_QUEUE_URL, ALERT_PROCESSING_DLQ_URL,
-    # ALERT_FORWARD_TO_PROCESSING_DLQ_AFTER_RECEIVES when queues are defined in resources.
-    # Optional EventBridge: add ALERT_EVENT_BUS_NAME, ALERT_EVENT_BUS_ARN when AWS::Events::EventBus is in resources.
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
-    # Same base URLs as sso-integration `custom.stageUrls`.
-    # Patient/org existence checks call user-service `GET .../user/organization/{org}/{userId}` and
-    # organization-service `GET .../organization/{organizationId}`.
+    # Same base URLs as services/sso-integration `custom.stageUrls`.
     USER_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
     ORGANIZATION_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
     USER_SERVICE_TIMEOUT_MS: '8000'
@@ -54,7 +43,6 @@ provider:
     ManagedBy: serverless
 
   iamRoleStatements:
-    # CloudWatch Logs (explicit; matches sso-integration pattern; Lambdas also get basic execution via AWS)
     - Effect: Allow
       Action:
         - logs:CreateLogGroup
@@ -75,13 +63,6 @@ provider:
       Resource:
         - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:custom.alertDynamoTableName}'
         - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:custom.alertDynamoTableName}/index/*'
-    # Optional: grant sqs:ReceiveMessage/DeleteMessage/SendMessage on ingest + DLQs when SQS is enabled.
-    # Optional: grant events:PutEvents on custom bus ARN when EventBridge is enabled.
-    - Effect: Allow
-      Action:
-        - xray:PutTraceSegments
-        - xray:PutTelemetryRecords
-      Resource: '*'
 
 package:
   individually: true
@@ -91,6 +72,14 @@ package:
 
 custom:
   alertDynamoTableName: alert-service-${self:provider.stage}
+
+  dotenv:
+    logging: false
+
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
   # Per-stage API bases (aligned with services/sso-integration/serverless.yml custom.stageUrls)
   stageUrls:
     dev:
@@ -102,10 +91,12 @@ custom:
     prd:
       USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
       ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
+
   logLevel:
     dev: debug
     stg: info
     prd: warn
+
   esbuild:
     bundle: true
     minify: false
@@ -129,7 +120,7 @@ custom:
 
   autoswagger:
     title: Alert Service API
-    description: Patient-centric alerts, org queue, user queue, idempotent create (HTTP); optional SQS ingest via comments in serverless.yml
+    description: Patient-centric alerts, org queue, user queue, idempotent create (HTTP APIs only)
     version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
@@ -145,6 +136,7 @@ custom:
     excludeStages:
       - prd
 
+# HTTP + CORS pattern aligned with services/sso-integration (no API Gateway TOKEN authorizer; auth in Lambda if needed).
 functions:
   health:
     handler: src/handlers/http/health.main
@@ -160,7 +152,14 @@ functions:
       - http:
           path: /alerts
           method: post
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
 
   getAlert:
     handler: src/handlers/http/getAlert.main
@@ -168,7 +167,14 @@ functions:
       - http:
           path: /alerts/{alertId}
           method: get
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
 
   listPatientAlerts:
     handler: src/handlers/http/listPatientAlerts.main
@@ -176,7 +182,14 @@ functions:
       - http:
           path: /patients/{patientId}/alerts
           method: get
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
 
   listOrgAlerts:
     handler: src/handlers/http/listOrgAlerts.main
@@ -184,7 +197,14 @@ functions:
       - http:
           path: /organizations/{organizationId}/alerts
           method: get
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
 
   listUserAlerts:
     handler: src/handlers/http/listUserAlerts.main
@@ -192,7 +212,14 @@ functions:
       - http:
           path: /users/{userId}/alerts
           method: get
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
 
   patchAlert:
     handler: src/handlers/http/patchAlert.main
@@ -200,17 +227,11 @@ functions:
       - http:
           path: /alerts/{alertId}
           method: patch
-          cors: true
-
-  # --- Optional SQS (disabled): ingest queue, intake + processing DLQs, replay Lambdas, queue policy, outputs ---
-  # processAlertProcessing: handler src/handlers/sqs/processAlertProcessing.main; sqs: AlertIngestQueue; batch 10; ReportBatchItemFailures
-  # replayIntakeFromDlq: handler src/handlers/sqs/replayIntakeFromDlq.main; sqs: AlertIngestDLQ
-  # replayProcessingFromDlq: handler src/handlers/sqs/replayProcessingFromDlq.main; sqs: AlertProcessingDLQ
-  # Env: ALERT_INGEST_QUEUE_URL, ALERT_PROCESSING_DLQ_URL, ALERT_FORWARD_TO_PROCESSING_DLQ_AFTER_RECEIVES
-  # Resources: AlertIngestDLQ, AlertProcessingDLQ, AlertIngestQueue (redrive to ingest DLQ), AlertIngestQueuePolicy
-  #
-  # --- Optional EventBridge (disabled): custom bus + exports for cross-stack consumers ---
-  # Resources.AlertServiceEventBus: Type AWS::Events::EventBus, Name alert-service-bus-${stage}
-  # provider.environment: ALERT_EVENT_BUS_NAME: !Ref AlertServiceEventBus, ALERT_EVENT_BUS_ARN: !GetAtt AlertServiceEventBus.Arn
-  # iamRoleStatements: events:PutEvents on !GetAtt AlertServiceEventBus.Arn
-  # Outputs: Export ${stage}-alert-service-EventBusArn, ${stage}-alert-service-EventBusName
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false

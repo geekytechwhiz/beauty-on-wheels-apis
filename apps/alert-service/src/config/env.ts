@@ -7,7 +7,6 @@ const envSchema = z.object({
   NODE_ENV: z.string().optional(),
   STAGE: z.string().optional(),
   ALERT_TABLE: z.string().optional(),
-  ALERT_INGEST_QUEUE_URL: z.string().optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
 });
 
@@ -21,7 +20,6 @@ export function getAlertAppEnv(): AlertAppEnv {
     NODE_ENV: process.env.NODE_ENV,
     STAGE: process.env.STAGE,
     ALERT_TABLE: process.env.ALERT_TABLE,
-    ALERT_INGEST_QUEUE_URL: process.env.ALERT_INGEST_QUEUE_URL,
     LOG_LEVEL: process.env.LOG_LEVEL,
   });
   return cached;

@@ -1,5 +1,6 @@
 import { Logger as PowertoolsLogger } from '@aws-lambda-powertools/logger';
 import { getLoggerContext, type LoggerContext } from './context.js';
+import { requireServiceName } from '../service-name.js';
 import { redactPII, serializeError } from './utils.js';
 
 export interface LoggerOptions {
@@ -39,8 +40,7 @@ const createPowertoolsBaseLogger = (options?: LoggerOptions): PowertoolsLogger =
     serviceName:
       options?.serviceName ||
       (typeof options?.service === 'string' ? options.service : undefined) ||
-      process.env.POWERTOOLS_SERVICE_NAME ||
-      'unknown-service',
+      requireServiceName(),
     logLevel: parseLogLevel(options?.logLevel),
   });
 
@@ -124,20 +124,44 @@ export class Logger {
     this.powertools[level](message, payload);
   }
 
-  info(entry: LogEntry): void {
-    this.log('info', entry);
+  info(message: string, metadata?: LogEntry): void;
+  info(entry: LogEntry): void;
+  info(a: string | LogEntry, b?: LogEntry): void {
+    if (typeof a === 'string') {
+      this.log('info', { ...(b ?? {}), message: a });
+    } else {
+      this.log('info', a);
+    }
   }
 
-  warn(entry: LogEntry): void {
-    this.log('warn', entry);
+  warn(message: string, metadata?: LogEntry): void;
+  warn(entry: LogEntry): void;
+  warn(a: string | LogEntry, b?: LogEntry): void {
+    if (typeof a === 'string') {
+      this.log('warn', { ...(b ?? {}), message: a });
+    } else {
+      this.log('warn', a);
+    }
   }
 
-  error(entry: LogEntry): void {
-    this.log('error', entry);
+  error(message: string, metadata?: LogEntry): void;
+  error(entry: LogEntry): void;
+  error(a: string | LogEntry, b?: LogEntry): void {
+    if (typeof a === 'string') {
+      this.log('error', { ...(b ?? {}), message: a });
+    } else {
+      this.log('error', a);
+    }
   }
 
-  debug(entry: LogEntry): void {
-    this.log('debug', entry);
+  debug(message: string, metadata?: LogEntry): void;
+  debug(entry: LogEntry): void;
+  debug(a: string | LogEntry, b?: LogEntry): void {
+    if (typeof a === 'string') {
+      this.log('debug', { ...(b ?? {}), message: a });
+    } else {
+      this.log('debug', a);
+    }
   }
 }
 

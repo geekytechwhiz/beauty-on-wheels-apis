@@ -6,5 +6,3 @@ export * from './schema/index';
 export * from './tracing/index';
 export * from './versioning/index';
 export * from './middlewareEngine/middlewareEngine';
-export * from './middlewareEngine/contextMiddleware';
-export * from './middlewareEngine/schemaValidationMiddleware';

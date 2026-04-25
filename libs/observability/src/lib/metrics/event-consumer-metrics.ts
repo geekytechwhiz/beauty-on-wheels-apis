@@ -1,5 +1,6 @@
 import { MetricUnit, Metrics } from '@aws-lambda-powertools/metrics';
 
+import { requireServiceName } from '../service-name.js';
 import { logger } from '../logger/logger.js';
 
 let metricsInstance: Metrics | undefined;
@@ -8,7 +9,7 @@ function getMetrics(): Metrics {
   if (!metricsInstance) {
     metricsInstance = new Metrics({
       namespace: process.env.POWERTOOLS_METRICS_NAMESPACE ?? 'ApiHub',
-      serviceName: process.env.POWERTOOLS_SERVICE_NAME ?? 'event-consumer',
+      serviceName: requireServiceName(),
     });
   }
   return metricsInstance;
@@ -26,7 +27,10 @@ function safePublish(fn: (m: Metrics) => void): void {
     fn(m);
     m.publishStoredMetrics();
   } catch (error) {
-    logger.warn({ event: 'event_consumer_metrics_publish_failed', error });
+    logger.warn('Failed to publish event consumer metrics', {
+      event: 'event_consumer_metrics_publish_failed',
+      err: error,
+    });
   }
 }
 

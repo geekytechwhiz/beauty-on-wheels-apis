@@ -1,5 +1,6 @@
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 
+import { requireServiceName } from '../service-name.js';
 import { logger } from '../logger/logger.js';
 
 let metricsInstance: Metrics | undefined;
@@ -8,7 +9,7 @@ function getMetrics(): Metrics {
   if (!metricsInstance) {
     metricsInstance = new Metrics({
       namespace: process.env.POWERTOOLS_METRICS_NAMESPACE ?? 'ApiHub',
-      serviceName: process.env.POWERTOOLS_SERVICE_NAME ?? 'middleware',
+      serviceName: requireServiceName(),
     });
   }
   return metricsInstance;
@@ -32,10 +33,10 @@ export function publishMiddlewarePipelineMetrics(options: {
     m.addMetric('Failure', MetricUnit.Count, options.outcome === 'failure' ? 1 : 0);
     m.publishStoredMetrics();
   } catch (error) {
-    logger.warn({
+    logger.warn('Failed to publish middleware pipeline metrics', {
       event: 'middleware_metrics_publish_failed',
       operation: options.operation,
-      error,
+      err: error,
     });
   }
 }

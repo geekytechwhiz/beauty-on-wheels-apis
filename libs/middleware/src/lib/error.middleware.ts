@@ -1,4 +1,4 @@
-import { getLoggerContext, logger } from '@api-hub/observability';
+import { logger } from '@api-hub/observability';
 
 import type { Middleware, MiddlewarePipelineEvent } from './types';
 
@@ -25,10 +25,9 @@ function snapshotEventPayload(value: unknown): unknown {
 }
 
 /**
- * Catches all errors from `next()`, logs a structured record, then **re-throws**
- * (errors are never swallowed).
- * Uses `getLoggerContext()` and falls back to `event.__context` for `correlationId` / `awsRequestId`
- * and includes `eventPayload`. Place **outermost** in the standard stack so the catch wraps the chain.
+ * Catches all errors from `next()`, logs, then re-throws. Placed **first** in the array so
+ * this middleware wraps the entire inner chain. Because the outer `catch` may run outside
+ * AsyncLocalStorage, we merge `event.__context` for correlation and trace fields.
  */
 export function errorMiddleware<
   TResult = unknown,
@@ -38,23 +37,21 @@ export function errorMiddleware<
     try {
       return await next();
     } catch (error) {
-      const fromAls = getLoggerContext();
-      let fromEventContext: { correlationId?: string; awsRequestId?: string } | undefined;
-      if (event && typeof event === 'object' && (event as { __context?: unknown }).__context) {
-        const c = (event as { __context: { correlationId?: string; awsRequestId?: string } }).__context;
-        if (c && typeof c === 'object') {
-          fromEventContext = c;
-        }
-      }
-      const correlationId = fromAls.correlationId ?? fromEventContext?.correlationId;
-      const awsRequestId = fromAls.awsRequestId ?? fromEventContext?.awsRequestId;
+      const raw = (event as MiddlewarePipelineEvent).__context;
+      const bridge =
+        raw && typeof raw === 'object'
+          ? {
+              correlationId: raw.correlationId,
+              awsRequestId: raw.awsRequestId,
+              traceId: raw.traceId,
+            }
+          : undefined;
 
-      logger.error({
+      logger.error('Unhandled error in middleware pipeline', {
         event: 'unhandled_middleware_error',
-        correlationId,
-        awsRequestId,
         eventPayload: snapshotEventPayload(event),
         err: error,
+        ...bridge,
       });
 
       throw error;

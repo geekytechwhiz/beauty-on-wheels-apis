@@ -6,7 +6,8 @@ import type { Middleware } from './types';
  * Measures `next()` duration, logs structured timing, and emits Powertools EMF metrics
  * (`Latency`, `Success`, `Failure` counts) — no domain logic.
  *
- * Metrics namespace / service follow `POWERTOOLS_METRICS_NAMESPACE` and `POWERTOOLS_SERVICE_NAME`
+ * Metrics namespace follows `POWERTOOLS_METRICS_NAMESPACE`; service name follows `SERVICE_NAME`
+ * (see `requireServiceName` in `@api-hub/observability`).
  * (see `publishMiddlewarePipelineMetrics` in `@api-hub/observability`).
  */
 export function performanceMiddleware<
@@ -20,8 +21,8 @@ export function performanceMiddleware<
       const result = await next();
       const durationMs = Date.now() - startedAt;
 
-      logger.info({
-        event: 'middleware_performance',
+      logger.info('Middleware pipeline timing', {
+        logType: 'middleware_performance',
         operation,
         durationMs,
         outcome: 'success',
@@ -37,7 +38,7 @@ export function performanceMiddleware<
     } catch (error) {
       const durationMs = Date.now() - startedAt;
 
-      logger.info({
+      logger.info('Middleware pipeline timing', {
         event: 'middleware_performance',
         operation,
         durationMs,

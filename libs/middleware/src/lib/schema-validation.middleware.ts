@@ -1,26 +1,29 @@
-import type { Middleware } from './types';
-import type { EventWithPayload } from './event-schema/validate';
-import { validatePayloadByEventType, type PayloadSchemaRegistry } from './event-schema/validate';
+import type { z } from 'zod';
+
+import { EventSchemaError } from './event-schema/event-schema-error';
+import type { Middleware, MiddlewarePipelineEvent } from './types';
 
 /**
- * Validates `event.payload` using `validatePayloadByEventType` and a
- * per-`eventType` Zod registry. On failure, throws `EventSchemaError` (wraps `ZodError`).
- *
- * Merges the validated payload onto the same `event` object so downstream
- * handlers receive parsed/normalized `payload` without re-validating.
+ * **HTTP API only:** validates the full Lambda `event` (e.g. `APIGatewayProxyEvent`) when
+ * a Zod schema is provided. Omitted or absent `schema` → no-op.
+ * Domain `eventType` + `payload` validation for platform events lives in `@api-hub/event-platform`.
  */
 export function schemaValidationMiddleware<
   TResult = unknown,
   TContext = unknown,
 >(options: {
-  payloadSchemas: PayloadSchemaRegistry;
-}): Middleware<EventWithPayload, TResult, TContext> {
-  const { payloadSchemas } = options;
+  schema?: z.ZodType<unknown>;
+}): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
+  const { schema } = options;
+  if (schema === undefined) {
+    return async ({ next }) => next();
+  }
 
   return async ({ event, next }) => {
-    const e = event as EventWithPayload;
-    const validated = validatePayloadByEventType(e, payloadSchemas);
-    Object.assign(e, validated);
+    const r = schema.safeParse(event);
+    if (!r.success) {
+      throw new EventSchemaError('API request event failed schema validation', r.error);
+    }
     return next();
   };
 }

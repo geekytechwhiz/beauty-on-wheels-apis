@@ -168,15 +168,22 @@ export function buildStandardEventContext(
   lambdaContext: unknown
 ): Pick<
   ExecutionContext,
-  'correlationId' | 'awsRequestId' | 'source' | 'eventType'
+  'correlationId' | 'awsRequestId' | 'source' | 'eventType' | 'traceId'
 > {
   const { source, eventType } = transportSourceAndType(event);
+  const traceFromEnv = process.env._X_AMZN_TRACE_ID;
+  const traceId =
+    typeof traceFromEnv === 'string' && traceFromEnv.length > 0
+      ? traceFromEnv
+      : undefined;
 
   return {
     correlationId: resolveCorrelationId(event),
     awsRequestId: awsRequestIdFromLambdaContext(lambdaContext),
     source,
     eventType,
+    
+    traceId,
   };
 }
 

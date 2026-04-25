@@ -1,9 +1,18 @@
 import type { Context as LambdaContext } from 'aws-lambda';
 
 type LoggerLike = {
-  info: (entry: Record<string, unknown>) => void;
-  warn: (entry: Record<string, unknown>) => void;
-  error: (entry: Record<string, unknown>) => void;
+  info: (
+    a: string | Record<string, unknown>,
+    b?: Record<string, unknown>
+  ) => void;
+  warn: (
+    a: string | Record<string, unknown>,
+    b?: Record<string, unknown>
+  ) => void;
+  error: (
+    a: string | Record<string, unknown>,
+    b?: Record<string, unknown>
+  ) => void;
 };
 
 const REDACTED_KEYS = new Set([
@@ -118,9 +127,8 @@ export interface HttpLogData {
 }
 
 export const logHttpRequest = (logger: LoggerLike, data: HttpLogData): void => {
-  const payload: Record<string, unknown> = {
+  const metadata: Record<string, unknown> = {
     event: data.event ?? 'http_request',
-    message: 'HTTP request completed',
     correlationId: data.correlationId,
     awsRequestId: data.awsRequestId,
     duration: data.duration,
@@ -132,16 +140,16 @@ export const logHttpRequest = (logger: LoggerLike, data: HttpLogData): void => {
   };
 
   if (data.statusCode >= 500) {
-    logger.error(payload);
+    logger.error('HTTP request completed', metadata);
     return;
   }
 
   if (data.statusCode >= 400) {
-    logger.warn(payload);
+    logger.warn('HTTP request completed', metadata);
     return;
   }
 
-  logger.info(payload);
+  logger.info('HTTP request completed', metadata);
 };
 
 export interface PerformanceTimer {
@@ -155,9 +163,8 @@ export const createPerformanceTimer = (
   const start = Date.now();
   return {
     end: (): void => {
-      logger.info({
+      logger.info('Performance timer completed', {
         event: 'performance_timer',
-        message: 'Performance timer completed',
         operation,
         duration: Date.now() - start,
       });

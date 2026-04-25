@@ -3,11 +3,11 @@ import { withLoggerContext, type LoggerContext } from '@api-hub/observability';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
 
 /**
- * Maps `event.__context` (set by upstream context middleware) to {@link LoggerContext}.
- * Read-only: does not mutate `event` or the shared logger.
+ * Binds `event.__context` into observability AsyncLocalStorage. Does not set reserved logger keys;
+ * `service` is supplied by the Powertools logger from `SERVICE_NAME`, not from middleware.
  */
 function loggerContextFromEvent(
-  event: MiddlewarePipelineEvent
+  event: MiddlewarePipelineEvent,
 ): LoggerContext {
   const raw = event.__context;
   if (raw == null || typeof raw !== 'object') {
@@ -16,15 +16,6 @@ function loggerContextFromEvent(
   return { ...raw } as LoggerContext;
 }
 
-/**
- * Binds `event.__context` into observability’s AsyncLocalStorage via {@link withLoggerContext}.
- * Downstream `logger` calls from `@api-hub/observability` pick up `correlationId` and other fields
- * through the observability store (see `getLoggerContext` in `@api-hub/observability`) —
- * no per-call `correlationId` is required.
- *
- * Wraps the **entire** remainder of the chain (`next()`) in the same context, including async work.
- * Run **after** middleware that attaches `event.__context` (e.g. `contextMiddleware`).
- */
 export function loggerMiddleware<
   TResult = unknown,
   TContext = unknown,

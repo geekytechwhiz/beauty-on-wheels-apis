@@ -1,10 +1,10 @@
+import type { z } from 'zod';
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+
 import { buildRequestContext } from './request-context.middleware';
 import { createStandardLambdaHttpMiddlewares } from './standard-lambda-middleware';
 import { runMiddlewares } from './middlewareEngine';
-import type { Handler, Middleware } from './types';
-import type { PayloadSchemaRegistry } from './event-schema/validate';
-import type { RequestBuildEvent } from './types';
+import type { Handler, Middleware, RequestBuildEvent } from './types';
 
 import {
   createLogger,
@@ -34,9 +34,9 @@ export interface LambdaHandlerOptions {
    */
   operation?: string;
   /**
-   * Optional per-`eventType` payload schemas; HTTP handlers typically leave this empty.
+   * Optional Zod schema for the raw API Gateway / Lambda `event` (use {@link createApiHandler} for new code).
    */
-  payloadSchemas?: PayloadSchemaRegistry;
+  schema?: z.ZodType<unknown>;
   validator?: (request: any) => void | Promise<void>;
   /**
    * CDN message key (e.g. MODULE.MESSAGE_CODE) for success responses.
@@ -160,12 +160,10 @@ export const withLambdaHandler =
 
     const inner = buildWithLambdaHandlerInner(handler, options);
     const operation = options.operation ?? 'apigateway';
-    const serviceName =
-      options.serviceName ?? process.env.POWERTOOLS_SERVICE_NAME ?? 'api-service';
     const stack = createStandardLambdaHttpMiddlewares<APIGatewayProxyResult, Context>({
-      serviceName,
+      serviceName: options.serviceName,
       operation,
-      payloadSchemas: options.payloadSchemas,
+      schema: options.schema,
     });
     return runMiddlewares<APIGatewayProxyEvent, APIGatewayProxyResult, Context>(
       stack as unknown as Array<Middleware<APIGatewayProxyEvent, APIGatewayProxyResult, Context>>,

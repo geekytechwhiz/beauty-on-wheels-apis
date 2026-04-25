@@ -121,6 +121,13 @@ export interface ExecutionContext {
   correlationId?: string;
   /** AWS Lambda `context.awsRequestId` or equivalent. */
   awsRequestId?: string;
+  /** AWS X-Ray / Lambda environment trace id (root segment id). */
+  traceId?: string;
+  /**
+   * Handler / route operation name (e.g. `template.get`). Injected by
+   * `invocationContextMiddleware` — not a domain event type.
+   */
+  operation?: string;
   /** EventBridge `source`, SQS `eventSource`, or logical producer (e.g. `aws:apigateway`). */
   source?: string;
   /** EventBridge `detail-type`, SQS channel hint, or `METHOD path` for HTTP. */

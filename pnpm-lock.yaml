@@ -377,6 +377,9 @@ importers:
       '@api-hub/middleware':
         specifier: workspace:*
         version: link:../../libs/middleware
+      '@api-hub/observability':
+        specifier: workspace:*
+        version: link:../../libs/observability
       '@aws-sdk/client-dynamodb':
         specifier: ^3.958.0
         version: 3.958.0

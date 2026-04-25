@@ -37,8 +37,7 @@ export interface LoggerContext {
  * Log entry interface
  */
 export interface LogEntry {
-  event?: string;
-  message?: string;
+  event?: string; 
   err?: unknown;
   error?: {
     name: string;

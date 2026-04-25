@@ -26,7 +26,8 @@ export type PayloadSchemaRegistry = Partial<Record<string, z.ZodType<unknown>>>;
 
 /**
  * Applies the schema registered for `event.eventType` to `event.payload` when present.
- * Unknown `eventType` entries or missing `eventType` skip validation.
+ * Missing or empty `eventType` skips validation. When `eventType` is set, a registered schema
+ * is required (strict mode).
  */
 export function validatePayloadByEventType(
   event: EventWithPayload,
@@ -37,7 +38,7 @@ export function validatePayloadByEventType(
   }
   const schema = registry[event.eventType];
   if (schema === undefined) {
-    return event;
+    throw new Error(`Schema not registered for eventType "${event.eventType}"`);
   }
   const r = schema.safeParse(event.payload);
   if (!r.success) {

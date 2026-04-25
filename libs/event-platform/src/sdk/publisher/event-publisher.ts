@@ -1,4 +1,5 @@
 import { createLogger, type Logger } from '@api-hub/logger';
+import { getLoggerContext } from '@api-hub/observability';
 import { validatePayloadByEventType, type PayloadSchemaRegistry } from '../../core/schema/validate';
 import { buildPublishEnvelope } from './build-publish-envelope';
 import type { EventPublishAdapter } from './event-publish-adapter';
@@ -31,7 +32,10 @@ export class EventPublisher {
   }
 
   async publish<T>(input: PublishInput<T>): Promise<void> {
-    const event = buildPublishEnvelope(input);
+    const event = buildPublishEnvelope({
+      ...input,
+      correlationId: input.correlationId ?? getLoggerContext().correlationId,
+    });
 
     if (this.deps.payloadSchemas && Object.keys(this.deps.payloadSchemas).length > 0) {
       try {

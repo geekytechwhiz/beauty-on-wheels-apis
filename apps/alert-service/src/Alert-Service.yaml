@@ -3,10 +3,10 @@ info:
   title: Alert Service API
   version: 1.0.0
   description: >
-    Operational REST API for the Alert Service. Alerts are created from **SQS** (`AlertTriggerEvent`)
-    or via **POST /v1/alerts** for authorized callers (e.g. care ops UI). Policy definitions live
-    outside this service. List endpoints support filters and search; **workflow** (including priority change)
-    and **assignment** use unified endpoints with `alertIds` (one or many).
+    Operational REST API for the Alert Service. Alerts are created via **POST /v1/alerts** for authorized
+    callers (e.g. care ops UI). Policy definitions live outside this service. List endpoints support filters
+    and search; **workflow** (including priority change) and **assignment** use unified endpoints with
+    `alertIds` (one or many).
 
     **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header).
     No optional tracing header is required; correlation may appear in responses (`ProblemDetails.correlationId`, `SuccessResponse.requestId`).
@@ -24,9 +24,6 @@ tags:
       Create (POST /v1/alerts), list, detail, unified workflow (POST /v1/alerts/workflow) including priority
       (`SET_PRIORITY` action), assignment (POST /v1/alerts/assignment) with alertIds,
       notes, and activity timeline.
-  - name: Async intake (reference)
-    description: >
-      Message body shape for SQS producers — not an HTTP endpoint.
 
 components:
   securitySchemes:
@@ -257,83 +254,13 @@ components:
         **SET_PRIORITY** changes **P0–P3** without a state transition (same endpoint as lifecycle actions).
       enum: [START_WORK, WAIT, RESUME, RESOLVE, DISMISS, SET_PRIORITY]
 
-    # --- SQS / producer contract (reference; not HTTP) ---
-    AlertTriggerEvent:
-      type: object
-      description: >
-        Payload placed on SQS by upstream services. Fully populated policy snapshot
-        (priority, groupingKey, triggerSummary, SLA inputs, evidence) is resolved upstream;
-        the intake processor validates, dedupes, and creates ALERT / GROUP / ACTIVITY records.
-      required:
-        - inputEventId
-        - inputType
-        - sourceType
-        - orgId
-        - patientId
-        - triggerTimestamp
-        - evidencePayload
-      properties:
-        inputEventId:
-          type: string
-          format: uuid
-          description: Unique event ID from upstream — idempotency / dedup key.
-        inputType:
-          $ref: '#/components/schemas/InputType'
-        sourceType:
-          $ref: '#/components/schemas/SourceType'
-        orgId:
-          type: string
-          format: uuid
-        patientId:
-          type: string
-          format: uuid
-        carePlanInstanceId:
-          type: string
-          format: uuid
-          description: Required when the input is tied to an active patient care plan.
-        packageAssignmentId:
-          type: string
-          format: uuid
-        triggerTimestamp:
-          type: string
-          format: date-time
-          description: When the condition occurred (not receipt time).
-        appliesToType:
-          $ref: '#/components/schemas/AppliesToType'
-        linkedEntityCode:
-          type: string
-          example: BP_SYSTOLIC
-        severityHint:
-          $ref: '#/components/schemas/SeverityHint'
-        priorityHint:
-          $ref: '#/components/schemas/Priority'
-        alertPolicyTemplateVersionId:
-          type: string
-          format: uuid
-        thresholdTemplateVersionId:
-          type: string
-          format: uuid
-        groupingKey:
-          type: string
-          example: PAT-009871|BP_SYSTOLIC|CRITICAL|OPEN
-        triggerSummaryTemplateCode:
-          type: string
-        triggerSummaryParams:
-          type: object
-          additionalProperties: true
-        evidencePayload:
-          type: object
-          description: Structured evidence; shape depends on inputType.
-          additionalProperties: true
-
     CreateAlertRequest:
       type: object
       description: >
-        Creates an alert record in the same way as async intake: server assigns `alertId`,
-        writes `ALERT_CREATED` activity, applies grouping/SLA rules, and projects to list GSIs.
-        **Organization** is taken from the JWT (not repeated in body). Use **`sourceType`: `USER_INTERFACE`**
-        for UI or manual API creation; other values match upstream system actors.
-        Optionally repeat **`inputEventId`** for idempotent creates (same semantics as SQS).
+        Creates an alert record: server assigns `alertId`, writes `ALERT_CREATED` activity, applies
+        grouping/SLA rules, and projects to list GSIs. **Organization** is taken from the JWT (not repeated
+        in body). Use **`sourceType`: `USER_INTERFACE`** for UI or manual API creation; other values match
+        upstream system actors. Optionally supply **`inputEventId`** for idempotent creates.
       required:
         - inputType
         - sourceType
@@ -887,10 +814,9 @@ paths:
       operationId: createAlert
       summary: Create an alert
       description: >
-        Adds a new alert for the organization in the JWT scope. Equivalent to processing a valid
-        `AlertTriggerEvent` through intake: new `alertId`, initial state typically `UNASSIGNED`,
-        grouping/SLA applied, `ALERT_CREATED` activity recorded. Requires permission to create alerts.
-        Prefer **`sourceType`: `USER_INTERFACE`** when the origin is this API or the care UI.
+        Adds a new alert for the organization in the JWT scope: new `alertId`, initial state typically
+        `UNASSIGNED`, grouping/SLA applied, `ALERT_CREATED` activity recorded. Requires permission to create
+        alerts. Prefer **`sourceType`: `USER_INTERFACE`** when the origin is this API or the care UI.
       tags: [Alert instances]
       requestBody:
         required: true

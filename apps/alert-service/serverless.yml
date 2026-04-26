@@ -15,8 +15,9 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+  # Shared with user-service until alert deployment bucket exists.
   deploymentBucket:
-    name: ${self:provider.stage}-mvx-alert-service-bucket
+    name: ${self:provider.stage}-mvx-user-service-bucket
     serverSideEncryption: AES256
   memorySize: 512
   timeout: 30

@@ -15,6 +15,8 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+  # Matches buildspec STACK_NAME: dev-alert-service, stg-alert-service, prd-alert-service
+  stackName: ${self:provider.stage}-alert-service
   # Shared with user-service until alert deployment bucket exists.
   deploymentBucket:
     name: ${self:provider.stage}-mvx-user-service-bucket

@@ -4,7 +4,8 @@ env:
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-user-service-bucket'
-    STACK_NAME: 'dev-alert-service'
+    # New dev stack: CloudFormation name ${STACK_NAME}-serverless-stack (old stack dev-alert-service-serverless-stack unchanged).
+    STACK_NAME: 'dev-mvx-alert-service'
 
 phases:
   install:

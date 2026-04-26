@@ -3,8 +3,8 @@ version: 0.2
 env:
   variables:
     STAGE: 'dev'
-    DEPLOYMENT_BUCKET: 'dev-mvx-alert-service-bucket'
-    DEPLOYMENT_BUCKET_REGION: 'us-east-1'
+    # Shared user-service deployment bucket; Lambda zips go under alert-service/<stage>/cf-package/ (see --s3-prefix).
+    DEPLOYMENT_BUCKET: 'dev-mvx-user-service-bucket'
     STACK_NAME: 'dev-alert-service'
 
 phases:
@@ -19,13 +19,6 @@ phases:
     commands:
       - cd apps/alert-service
       - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
-      - |
-        if aws s3api head-bucket --bucket "$DEPLOYMENT_BUCKET" 2>/dev/null; then
-          echo "Deployment bucket already exists: s3://$DEPLOYMENT_BUCKET"
-        else
-          echo "Creating deployment bucket: s3://$DEPLOYMENT_BUCKET ($DEPLOYMENT_BUCKET_REGION)"
-          aws s3 mb "s3://$DEPLOYMENT_BUCKET" --region "$DEPLOYMENT_BUCKET_REGION"
-        fi
       - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
       # select create vs update template, then package → packaged.yaml + S3 uploads
@@ -42,9 +35,10 @@ phases:
         aws cloudformation package \
           --template-file "$TEMPLATE" \
           --s3-bucket "$DEPLOYMENT_BUCKET" \
+          --s3-prefix "alert-service/${STAGE}/cf-package" \
           --output-template-file packaged.yaml \
           --force-upload
-
+   #===================================================testing================================================#
       - echo "📦 Lambda code URIs from packaged template (logicalId → full S3 path):"
       - |
         python3 <<'PY'
@@ -79,7 +73,6 @@ phases:
                 if m_res:
                     current_resource = m_res.group(1)
                     lambda_resource = None
-                    depth_resource = len(raw) - len(raw.lstrip())
                     pending_bucket = None
                     continue
 
@@ -116,7 +109,7 @@ phases:
                     continue
 
         PY
-
+      #===================================================testing================================================#
       # Health-only testing: `cloudformation package` uploads Lambda zips; extra grep/s3 cp loops disabled.
       # - echo "🔍 S3Key entries in packaged.yaml:"
       # - grep 'S3Key:' packaged.yaml | awk '{print $2}'

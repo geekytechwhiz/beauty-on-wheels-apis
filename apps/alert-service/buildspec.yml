@@ -4,6 +4,7 @@ env:
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-alert-service-bucket'
+    DEPLOYMENT_BUCKET_REGION: 'us-east-1'
     STACK_NAME: 'dev-alert-service'
 
 phases:
@@ -18,6 +19,13 @@ phases:
     commands:
       - cd apps/alert-service
       - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+      - |
+        if aws s3api head-bucket --bucket "$DEPLOYMENT_BUCKET" 2>/dev/null; then
+          echo "Deployment bucket already exists: s3://$DEPLOYMENT_BUCKET"
+        else
+          echo "Creating deployment bucket: s3://$DEPLOYMENT_BUCKET ($DEPLOYMENT_BUCKET_REGION)"
+          aws s3 mb "s3://$DEPLOYMENT_BUCKET" --region "$DEPLOYMENT_BUCKET_REGION"
+        fi
       - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
       # select create vs update template, then package → packaged.yaml + S3 uploads
@@ -37,33 +45,106 @@ phases:
           --output-template-file packaged.yaml \
           --force-upload
 
-      - echo "🔍 S3Key entries in packaged.yaml:"
-      - grep 'S3Key:' packaged.yaml | awk '{print $2}'
-
-      - echo "🔑 Verifying each baked-in key exists:"
+      - echo "📦 Lambda code URIs from packaged template (logicalId → full S3 path):"
       - |
-        grep 'S3Key:' packaged.yaml | awk '{print $2}' \
-          | while read key; do
-              printf " → %-80s " "$key"
-              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
-                echo "FOUND"
-              else
-                echo "MISSING!"
-              fi
-            done
+        python3 <<'PY'
+        import os
+        import re
 
-      - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
-      - |
-        grep 'S3Key:' packaged.yaml \
-          | awk '{print $2}' \
-          | while read key; do
-              name=$(basename "$key")
-              echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
-              aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
-            done
+        path = "packaged.yaml"
+        bucket_env = os.environ.get("DEPLOYMENT_BUCKET", "").strip()
 
-      - echo "➤ Verifying upload…"
-      - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | head -1 | awk '{print $2}'))/" --recursive
+        def strip_val(s: str) -> str:
+            s = s.split("#", 1)[0].strip()
+            if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+                s = s[1:-1]
+            return s
+
+        # Track current resource (2-space YAML key under Resources) and whether it is a Lambda.
+        current_resource = None
+        lambda_resource = None
+        pending_bucket = None
+        in_resources = False
+
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                raw = line.rstrip("\n")
+                if not in_resources:
+                    if raw.rstrip() == "Resources:":
+                        in_resources = True
+                    continue
+
+                # Top-level resource key: exactly two spaces + Name:
+                m_res = re.match(r"^  ([A-Za-z0-9]+):\s*$", raw)
+                if m_res:
+                    current_resource = m_res.group(1)
+                    lambda_resource = None
+                    depth_resource = len(raw) - len(raw.lstrip())
+                    pending_bucket = None
+                    continue
+
+                if current_resource is None:
+                    continue
+
+                stripped = raw.strip()
+                if stripped.startswith("Type:"):
+                    type_val = stripped.split(":", 1)[1].strip()
+                    if type_val in (
+                        "AWS::Lambda::Function",
+                        "AWS::Serverless::Function",
+                    ):
+                        lambda_resource = current_resource
+                    continue
+
+                if lambda_resource is None:
+                    continue
+
+                if stripped.startswith("S3Bucket:"):
+                    val = strip_val(raw.split(":", 1)[1])
+                    if val.startswith("!") or val.startswith("${"):
+                        pending_bucket = None  # use env bucket
+                    else:
+                        pending_bucket = val
+                    continue
+
+                if stripped.startswith("S3Key:"):
+                    key = strip_val(raw.split(":", 1)[1])
+                    bucket = pending_bucket or bucket_env
+                    if bucket and key:
+                        print(f"  {lambda_resource}: s3://{bucket}/{key}")
+                    pending_bucket = None
+                    continue
+
+        PY
+
+      # Health-only testing: `cloudformation package` uploads Lambda zips; extra grep/s3 cp loops disabled.
+      # - echo "🔍 S3Key entries in packaged.yaml:"
+      # - grep 'S3Key:' packaged.yaml | awk '{print $2}'
+      #
+      # - echo "🔑 Verifying each baked-in key exists:"
+      # - |
+      #   grep 'S3Key:' packaged.yaml | awk '{print $2}' \
+      #     | while read key; do
+      #         printf " → %-80s " "$key"
+      #         if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
+      #           echo "FOUND"
+      #         else
+      #           echo "MISSING!"
+      #         fi
+      #       done
+      #
+      # - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
+      # - |
+      #   grep 'S3Key:' packaged.yaml \
+      #     | awk '{print $2}' \
+      #     | while read key; do
+      #         name=$(basename "$key")
+      #         echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
+      #         aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+      #       done
+      #
+      # - echo "➤ Verifying upload…"
+      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | head -1 | awk '{print $2}'))/" --recursive
 
   post_build:
     commands:

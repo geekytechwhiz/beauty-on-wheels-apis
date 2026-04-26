@@ -146,92 +146,93 @@ functions:
           method: get
           cors: true
 
-  createAlert:
-    handler: src/handlers/http/createAlert.main
-    events:
-      - http:
-          path: /alerts
-          method: post
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-
-  getAlert:
-    handler: src/handlers/http/getAlert.main
-    events:
-      - http:
-          path: /alerts/{alertId}
-          method: get
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-
-  listPatientAlerts:
-    handler: src/handlers/http/listPatientAlerts.main
-    events:
-      - http:
-          path: /patients/{patientId}/alerts
-          method: get
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-
-  listOrgAlerts:
-    handler: src/handlers/http/listOrgAlerts.main
-    events:
-      - http:
-          path: /organizations/{organizationId}/alerts
-          method: get
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-
-  listUserAlerts:
-    handler: src/handlers/http/listUserAlerts.main
-    events:
-      - http:
-          path: /users/{userId}/alerts
-          method: get
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
-
-  patchAlert:
-    handler: src/handlers/http/patchAlert.main
-    events:
-      - http:
-          path: /alerts/{alertId}
-          method: patch
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
+  # --- Remaining HTTP APIs commented for health-only pipeline testing; uncomment when ready ---
+  # createAlert:
+  #   handler: src/handlers/http/createAlert.main
+  #   events:
+  #     - http:
+  #         path: /alerts
+  #         method: post
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #
+  # getAlert:
+  #   handler: src/handlers/http/getAlert.main
+  #   events:
+  #     - http:
+  #         path: /alerts/{alertId}
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #
+  # listPatientAlerts:
+  #   handler: src/handlers/http/listPatientAlerts.main
+  #   events:
+  #     - http:
+  #         path: /patients/{patientId}/alerts
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #
+  # listOrgAlerts:
+  #   handler: src/handlers/http/listOrgAlerts.main
+  #   events:
+  #     - http:
+  #         path: /organizations/{organizationId}/alerts
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #
+  # listUserAlerts:
+  #   handler: src/handlers/http/listUserAlerts.main
+  #   events:
+  #     - http:
+  #         path: /users/{userId}/alerts
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #
+  # patchAlert:
+  #   handler: src/handlers/http/patchAlert.main
+  #   events:
+  #     - http:
+  #         path: /alerts/{alertId}
+  #         method: patch
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false

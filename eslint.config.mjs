@@ -14,7 +14,11 @@ export default [
         'error',
         {
           enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+          allow: [
+            '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
+            // Workspace packages: resolver can miss tags on inferred graph nodes; keep explicit allow.
+            '@api-hub/event-platform',
+          ],
           depConstraints: [
             {
               sourceTag: 'type:app',

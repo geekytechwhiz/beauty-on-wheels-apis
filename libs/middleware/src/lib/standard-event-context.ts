@@ -2,6 +2,7 @@ import { extractAwsRequestId, extractCorrelationId } from '@api-hub/logger';
 import type { Context } from 'aws-lambda';
 
 import type { ExecutionContext, MiddlewarePipelineEvent } from './types';
+import { randomUUID } from 'node:crypto';
 
 const awsRequestIdFromLambdaContext = (lambdaContext: unknown): string =>
   extractAwsRequestId(lambdaContext as Context);
@@ -88,15 +89,16 @@ function correlationIdFromEventBridgeLike(event: unknown): string | undefined {
  * which may generate a fallback string when absent.
  */
 export function resolveCorrelationId(event: unknown): string {
-  return (
-    correlationIdFromSqsEvent(event) ??
-    correlationIdFromEventBridgeLike(event) ??
-    extractCorrelationId(
-      event as Parameters<typeof extractCorrelationId>[0]
-    )
-  );
-}
+  const id =
+  extractCorrelationId(event as Parameters<typeof extractCorrelationId>[0]) ??
+  correlationIdFromSqsEvent(event) ??
+  correlationIdFromEventBridgeLike(event);
 
+return isValid(id) ? id : randomUUID();
+}
+function isValid(id?: string): id is string {
+  return typeof id === 'string' && id.length > 5;
+}
 /**
  * `source` and `eventType` hints by transport (EventBridge, SQS, API Gateway / HTTP).
  */

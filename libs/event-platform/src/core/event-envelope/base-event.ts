@@ -4,6 +4,10 @@
 export type EventMetadata = {
   correlationId?: string;
 };
+export type EventMeta = {
+  retryCount: number;
+  publishedAt: string;
+};
 
 /**
  * Canonical wire shape for platform events (see docs/prompt/event-platform/step1.md).
@@ -17,6 +21,7 @@ export type BaseEvent<T = unknown> = {
   correlationId?: string;
   idempotencyKey: string;
   payload: T;
+  meta?: EventMeta;
 };
 
 /** Canonical wire envelope — alias of {@link BaseEvent} for publishers/consumers. */

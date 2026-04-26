@@ -5,16 +5,13 @@ import type { DlqConfig } from './dlq-config';
  * (retry path inside {@link retry}) vs retries are exhausted.
  */
 export function classifyAfterHandlerFailure(params: {
-  /** 1-based index of the attempt that failed. */
-  failedAttemptNumber: number;
+  retryCount: number;
   maxAttempts: number;
 }): 'retry' | 'exhausted' {
-  if (params.failedAttemptNumber < params.maxAttempts) {
-    return 'retry';
-  }
-  return 'exhausted';
+  return params.retryCount < params.maxAttempts
+    ? 'retry'
+    : 'exhausted';
 }
-
 /**
  * When retries are exhausted, choose between surfacing a DLQ candidate (for observability /
  * custom handling) vs propagating failure as a normal throw.
@@ -27,16 +24,32 @@ export function outcomeWhenExhausted(dlq: DlqConfig): 'dead_letter_candidate' | 
  * Combines retry exhaustion with DLQ awareness (decision-only; no I/O).
  */
 export function decideDeliveryDisposition(params: {
-  failedAttemptNumber: number;
+  retryCount: number;
   maxAttempts: number;
   dlq: DlqConfig;
+  error?: unknown;
 }): 'retry' | 'dead_letter_candidate' | 'propagate_error' {
-  const phase = classifyAfterHandlerFailure({
-    failedAttemptNumber: params.failedAttemptNumber,
-    maxAttempts: params.maxAttempts,
-  });
-  if (phase === 'retry') {
+
+  if (params.retryCount < params.maxAttempts) {
     return 'retry';
   }
-  return outcomeWhenExhausted(params.dlq);
+
+  // optional: non-retryable error
+  if (params.error && isNonRetryableError(params.error)) {
+    return 'propagate_error';
+  }
+
+  return params.dlq.enabled
+    ? 'dead_letter_candidate'
+    : 'propagate_error';
+}
+
+function isNonRetryableError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (
+      error.name === 'ValidationError' ||
+      error.name === 'SchemaValidationError'
+    )
+  );
 }

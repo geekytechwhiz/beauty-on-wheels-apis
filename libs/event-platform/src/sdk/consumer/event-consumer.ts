@@ -5,35 +5,39 @@ import {
   recordConsumerFailure,
   recordConsumerRetry,
 } from '@api-hub/observability';
+
+import { decideDeliveryDisposition } from '../../core/dlq/delivery-decision';
 import type { DlqConfig } from '../../core/dlq/dlq-config';
-import { outcomeWhenExhausted } from '../../core/dlq/delivery-decision';
 import type { BaseEvent } from '../../core/event-envelope/base-event';
-import type { IdempotencyStore } from '../../core/idempotency/idempotency-store';
+
 import { retry, type RetryOptions } from '../../core/retry/retry';
+
 import type { PayloadSchemaRegistry } from '../../core/schema/validate';
 import { validatePayloadByEventType } from '../../core/schema/validate';
+
 import type { EventTracingHooks } from '../../core/tracing/event-tracing-hooks';
 import { traceContextFromEvent } from '../../core/tracing/trace-context';
+
 import type { VersionCheckConfig } from '../../core/versioning/version-compatibility';
 import { assertVersionCompatible } from '../../core/versioning/version-compatibility';
+
 import { parseInboundEvent } from './parse-inbound-event';
 
+import type { IdempotencyStrategy } from '../../core/idempotency/idempotency-strategy';
+
 export type EventConsumerDeps = {
-  idempotencyStore: IdempotencyStore;
+  idempotencyStrategy: IdempotencyStrategy;
+
   retry: RetryOptions;
-  idempotencyTtlSeconds?: number;
-  /** When set, exhausted handler retries can surface as `dead_letter_candidate` (routing stays external). */
   dlq?: DlqConfig;
-  /** Per-`eventType` Zod schemas for `payload`; applied after parse, before idempotency. */
+
   payloadSchemas?: PayloadSchemaRegistry;
-  /** When set, `event.version` must be compatible with `supportedVersion` for the given strategy. */
   versionCheck?: VersionCheckConfig;
-  /** Logging hooks backed by `@api-hub/logger` (use `createEventTracingHooks`). */
+
   tracing?: EventTracingHooks;
 };
 
 export type HandleOptions = {
-  /** Overrides `event.correlationId` for tracing context when set (e.g. SQS attribute). */
   correlationId?: string;
 };
 
@@ -49,11 +53,6 @@ export type HandleResult =
 export class EventConsumer {
   constructor(private readonly deps: EventConsumerDeps) {}
 
-  /**
-   * 1. Parse → 2. Structural validate (parse) → 3. Version check (optional) →
-   * 4. Schema validate (optional) → 5. Tracing received → 6. Idempotency check →
-   * 7–8. Retry-wrapped handler → 9. Persist idempotency key → tracing processed.
-   */
   async handle<T>(
     event: unknown,
     handler: (event: BaseEvent<T>) => Promise<void>,
@@ -62,8 +61,18 @@ export class EventConsumer {
     const trace = this.deps.tracing;
     let parsed: BaseEvent;
 
+    // -------------------------------
+    // 1. Parse
+    // -------------------------------
     try {
       parsed = parseInboundEvent(event);
+      // ensure meta exists
+      if (!parsed.meta) {
+        parsed.meta = {
+          retryCount: 0,
+          publishedAt: parsed.timestamp,
+        };
+      }
     } catch (error) {
       trace?.onEventFailed({
         stage: 'parse',
@@ -74,6 +83,9 @@ export class EventConsumer {
       throw error;
     }
 
+    // -------------------------------
+    // 2. Version check
+    // -------------------------------
     try {
       if (this.deps.versionCheck !== undefined) {
         assertVersionCompatible(parsed.version, this.deps.versionCheck);
@@ -91,6 +103,9 @@ export class EventConsumer {
       throw error;
     }
 
+    // -------------------------------
+    // 3. Schema validation
+    // -------------------------------
     try {
       if (this.deps.payloadSchemas !== undefined) {
         parsed = validatePayloadByEventType(parsed, this.deps.payloadSchemas);
@@ -108,19 +123,51 @@ export class EventConsumer {
       throw error;
     }
 
-    const traceCtx = traceContextFromEvent(parsed, handleOptions?.correlationId);
+    // -------------------------------
+    // 4. Tracing context
+    // -------------------------------
+    const traceCtx = traceContextFromEvent(
+      parsed,
+      handleOptions?.correlationId,
+    );
     trace?.onEventReceived(traceCtx);
+
+    const context = {
+      eventId: traceCtx.eventId,
+      eventType: traceCtx.eventType,
+    };
 
     const idempotencyKey = parsed.idempotencyKey;
 
-    if (await this.deps.idempotencyStore.exists(idempotencyKey)) {
+    // -------------------------------
+    // 5. Idempotency BEFORE
+    // -------------------------------
+    let decision;
+
+    try {
+      decision = await this.deps.idempotencyStrategy.before(context);
+    } catch (error) {
+      recordConsumerFailure(traceCtx.eventType);
+      throw error;
+    }
+
+    if (decision === 'DUPLICATE') {
       recordConsumerDuplicateEvent(traceCtx.eventType);
       return { outcome: 'duplicate', idempotencyKey };
     }
 
+    if (decision === 'RETRY') {
+      recordConsumerRetry(traceCtx.eventType, parsed.meta?.retryCount ?? 0);
+      throw new Error('RETRY_EVENT');
+    }
+
+    // -------------------------------
+    // 6. Retry config
+    // -------------------------------
     const dlq = this.deps.dlq ?? { enabled: false };
 
     const userRetry = this.deps.retry;
+
     const retryOptions: RetryOptions = {
       ...userRetry,
       onBeforeRetry: (info) => {
@@ -129,32 +176,80 @@ export class EventConsumer {
       },
     };
 
+    // -------------------------------
+    // 7. Execute handler
+    // -------------------------------
     try {
-      await retry(() => handler(parsed as BaseEvent<T>), retryOptions);
-    } catch (error) {
-      trace?.onEventFailed({
-        stage: 'handler',
-        error,
-        correlationId: traceCtx.correlationId,
-        eventId: traceCtx.eventId,
-        eventType: traceCtx.eventType,
+      await retry(async () => {
+        // 🔥 increment retry count
+        parsed.meta!.retryCount += 1;
+
+        return handler(parsed as BaseEvent<T>);
+      }, retryOptions, {
+        currentRetryCount: parsed.meta?.retryCount ?? 0,
       });
-      if (outcomeWhenExhausted(dlq) === 'dead_letter_candidate') {
-        recordConsumerDeadLetter(traceCtx.eventType);
-        return {
-          outcome: 'dead_letter_candidate',
-          idempotencyKey,
-          error,
-        };
-      }
-      recordConsumerFailure(traceCtx.eventType);
-      throw error;
+    } catch (error) {
+      // 🔥 Idempotency error hook
+       // -------------------------------
+// DLQ + Retry disposition
+// -------------------------------
+const retryCount = parsed.meta?.retryCount ?? 0;
+
+const disposition = decideDeliveryDisposition({
+  retryCount,
+  maxAttempts: this.deps.retry.maxAttempts,
+  dlq,
+  error,
+});
+
+if (disposition === 'dead_letter_candidate') {
+  trace?.onEventFailed({
+    stage: 'handler_dead_letter',
+    error,
+    correlationId: traceCtx.correlationId,
+    eventId: traceCtx.eventId,
+    eventType: traceCtx.eventType,
+  });
+
+  recordConsumerDeadLetter(traceCtx.eventType, {
+    retryCount,
+    error: error instanceof Error ? error.message : String(error),
+  });
+
+  return {
+    outcome: 'dead_letter_candidate',
+    idempotencyKey,
+    error,
+  };
+}
+
+if (disposition === 'propagate_error') {
+  recordConsumerFailure(traceCtx.eventType, {
+    retryCount,
+  });
+  throw error;
+}
+
+// retry case → should never reach here (retry handled inside retry())
+throw error;
     }
 
-    await this.deps.idempotencyStore.save(idempotencyKey, {
-      ttlSeconds: this.deps.idempotencyTtlSeconds,
-    });
+    // -------------------------------
+    // 8. AFTER SUCCESS
+    // -------------------------------
+    try {
+      await this.deps.idempotencyStrategy.afterSuccess(context);
+    } catch (error) {
+      // do not fail main flow
+      console.error('Idempotency afterSuccess failed', {
+        eventId: context.eventId,
+        error,
+      });
+    }
 
+    // -------------------------------
+    // 9. Success
+    // -------------------------------
     trace?.onEventProcessed(traceCtx);
     recordConsumerEventProcessed(traceCtx.eventType);
 

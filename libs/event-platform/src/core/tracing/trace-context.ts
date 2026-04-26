@@ -18,7 +18,7 @@ export function traceContextFromEvent(
   };
 }
 
-export type TraceFailureStage = 'parse' | 'version' | 'schema' | 'handler';
+export type TraceFailureStage = 'parse' | 'version' | 'schema' | 'handler' | 'delivery_disposition' | 'retry'| 'handler_dead_letter';
 
 export type TraceFailureContext = {
   stage: TraceFailureStage;

@@ -15,6 +15,7 @@ export function contextMiddleware<
     context,
     next,
   }: MiddlewareParams<MiddlewarePipelineEvent, TResult, TContext>) => {
+    
     applyStandardEventContext(event, context);
     return next();
   };

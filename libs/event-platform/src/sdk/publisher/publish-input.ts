@@ -14,4 +14,8 @@ export type PublishInput<T = unknown> = {
   timestamp?: string;
   /** Defaults to a deterministic key from {@link generateIdempotencyKey} over envelope fields. */
   idempotencyKey?: string;
+  metadata?: {
+    retryCount?: number;
+    publishedAt?: string;
+  }; 
 };

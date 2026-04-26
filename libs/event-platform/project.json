@@ -1,0 +1,7 @@
+{
+  "name": "event-platform",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/event-platform/src",
+  "projectType": "library",
+  "tags": ["type:lib", "allowed-for-app", "scope:events"]
+}

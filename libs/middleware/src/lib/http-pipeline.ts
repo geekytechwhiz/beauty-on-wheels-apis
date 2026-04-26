@@ -10,7 +10,7 @@ import { schemaValidationMiddleware } from './schema-validation.middleware';
 import { getTracerForService } from './tracer-singleton';
 import { tracerMiddleware } from './tracer.middleware';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
-
+// import { consumeEvent } from '@api-hub/event-platform';
 /**
  * API Gateway / HTTP execution stack: error → context → invocation → logger →
  * tracer → (optional) HTTP request schema → performance → handler.
@@ -21,13 +21,11 @@ export function buildApiExecutionPipeline<
   TContext = unknown,
 >(options: {
   operation: string;
-  /** Optional Zod schema for the **full** Lambda / API Gateway `event` object. */
   schema?: z.ZodType<unknown>;
-}): Array<Middleware<MiddlewarePipelineEvent, TResult, TContext>> {
-  const service = requireServiceName();
-  const tracer = getTracerForService(service);
+}) {
+  const tracer = getTracerForService(requireServiceName());
+
   return [
-    errorMiddleware(),
     contextMiddleware(),
     invocationContextMiddleware({ operation: options.operation }),
     loggerMiddleware(),
@@ -37,6 +35,7 @@ export function buildApiExecutionPipeline<
     }),
     schemaValidationMiddleware({ schema: options.schema }),
     performanceMiddleware(options.operation),
+    errorMiddleware(),
   ];
 }
 
@@ -52,7 +51,6 @@ export function buildEventExecutionPipeline<
   const service = requireServiceName();
   const tracer = getTracerForService(service);
   return [
-    errorMiddleware(),
     contextMiddleware(),
     invocationContextMiddleware({ operation: options.operation }),
     loggerMiddleware(),
@@ -61,5 +59,8 @@ export function buildEventExecutionPipeline<
       operation: options.operation,
     }),
     performanceMiddleware(options.operation),
+    errorMiddleware(),
   ];
 }
+
+ 

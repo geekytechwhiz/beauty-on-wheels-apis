@@ -55,29 +55,32 @@ export function recordConsumerDuplicateEvent(eventType?: string): void {
 /**
  * Handler or pipeline failed and the error will be rethrown (not routed as DLQ candidate by consumer).
  */
-export function recordConsumerFailure(eventType?: string): void {
+export function recordConsumerFailure(eventType?: string, error?: unknown): void {
   safePublish((m) => {
     addEventTypeDimension(m, eventType);
     m.addMetric('ProcessingFailures', MetricUnit.Count, 1);
+    m.addDimension('Error', error instanceof Error ? error.name : 'unknown');
   });
 }
 
 /**
  * Consumer classified the outcome as a dead-letter candidate (DLQ policy is still external).
  */
-export function recordConsumerDeadLetter(eventType?: string): void {
+export function recordConsumerDeliveryDisposition(eventType?: string, disposition?: string): void {
   safePublish((m) => {
     addEventTypeDimension(m, eventType);
-    m.addMetric('DlqCount', MetricUnit.Count, 1);
+    m.addMetric('DeliveryDisposition', MetricUnit.Count, 1);
+    m.addDimension('DeliveryDisposition', disposition ?? 'unknown');
   });
 }
 
 /**
  * A handler attempt failed and a retry was scheduled (before backoff). One increment per retry, not per message.
  */
-export function recordConsumerRetry(eventType?: string): void {
+export function recordConsumerRetry(eventType?: string, retryCount?: number): void {
   safePublish((m) => {
     addEventTypeDimension(m, eventType);
     m.addMetric('Retries', MetricUnit.Count, 1);
+    m.addMetric('RetryCount', MetricUnit.Count, retryCount ?? 0);
   });
 }

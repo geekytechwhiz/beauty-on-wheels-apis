@@ -3,7 +3,6 @@ export * from './lib/standard-event-context';
 export * from './lib/middlewareEngine';
 export * from './lib/http-pipeline';
 export * from './lib/create-api-handler';
-export * from './lib/create-event-handler';
 export * from './lib/withLambdaHandler';
 export * from './lib/request-context.middleware';
 export * from './lib/response.middleware';

@@ -121,8 +121,6 @@ custom:
 
   autoswagger:
     title: Alert Service API
-    description: Patient-centric alerts, org queue, user queue, idempotent create (HTTP APIs only)
-    version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
     schemes:
@@ -135,6 +133,7 @@ custom:
     useStage: true
     swaggerPath: swagger
     excludeStages:
+      - production
       - prd
 
 # HTTP + CORS pattern aligned with services/sso-integration (no API Gateway TOKEN authorizer; auth in Lambda if needed).

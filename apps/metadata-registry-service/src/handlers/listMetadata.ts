@@ -112,9 +112,6 @@ export const main = withLambdaHandler(async (req: ListMetadataRequest) => {
     if (!metadataTypeCode) {
       throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
     }
-    if (!metadataTypeCode) {
-      throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
-    }
 
     const effectiveStatus = parseValueListStatus(q);
     const filter = buildValueListApplicabilityFilter(q, effectiveStatus);

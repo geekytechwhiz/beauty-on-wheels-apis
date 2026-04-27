@@ -146,10 +146,11 @@ export const deviceRecommendationAddSchema = z.object({
   organizationId: z.string().optional(), // Support both cases
 });
 
-// Remove device recommendation schema (POST /devices/recommendations/remove)
+// Remove device recommendations schema (POST /devices/recommendations/remove)
 export const deviceRecommendationRemoveSchema = z.object({
   patientUserId: z.string().min(1),
-  deviceId: z.string().min(1),
+  doctorName: z.string().min(1).optional(),
+  devices: z.array(z.object({ deviceId: z.string().min(1) })).min(1),
 });
 
 // Global device registration schema (POST /devices/global/register)

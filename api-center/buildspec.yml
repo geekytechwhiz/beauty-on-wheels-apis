@@ -64,12 +64,10 @@ phases:
         fi
 
       # -----------------------------
-      # 📦 PACKAGE LAMBDA
+      # 📦 PACKAGE LAMBDA (source: api-center/edge-auth)
       # -----------------------------
-      - ls -la edge-auth
-      - cd edge-auth
-      - zip -r function.zip . >/dev/null
-      - cd ..
+      - ls -la api-center/edge-auth
+      - (cd api-center/edge-auth && zip -r function.zip . >/dev/null)
 
       # -----------------------------
       # 🚀 DEPLOY LAMBDA
@@ -79,7 +77,7 @@ phases:
           echo "Updating Lambda..."
           aws lambda update-function-code \
             --function-name $LAMBDA_NAME \
-            --zip-file fileb://edge-auth/function.zip \
+            --zip-file fileb://api-center/edge-auth/function.zip \
             --region $AWS_REGION
         else
           echo "Creating Lambda..."
@@ -88,7 +86,7 @@ phases:
             --runtime nodejs18.x \
             --handler index.handler \
             --role arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME \
-            --zip-file fileb://edge-auth/function.zip \
+            --zip-file fileb://api-center/edge-auth/function.zip \
             --region $AWS_REGION
         fi
 

@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     NODE_ENV: production
-    AWS_REGION: us-east-1   
+    AWS_REGION: us-east-1
     KEEP_LAST_N: 2
     DRY_RUN: false
 
@@ -48,10 +48,9 @@ phases:
       - zip -r function.zip . >/dev/null
       - cd ..
 
-      # Get Account ID dynamically
       - export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-      # Check if Lambda exists
+      # Create or update Lambda
       - |
         if aws lambda get-function --function-name $LAMBDA_NAME --region $AWS_REGION >/dev/null 2>&1; then
           echo "Updating existing Lambda..."
@@ -70,29 +69,32 @@ phases:
             --region $AWS_REGION
         fi
 
-      # Publish version (MANDATORY for Lambda@Edge)
+      # Publish version (MANDATORY)
       - echo "Publishing Lambda version..."
-      - export VERSION=$(aws lambda publish-version \
+      - |
+        VERSION=$(aws lambda publish-version \
           --function-name $LAMBDA_NAME \
           --region $AWS_REGION \
           --query 'Version' \
           --output text)
-
-      - echo "Lambda version: $VERSION"
+        echo "Lambda version: $VERSION"
 
       # -----------------------------
       # 🌍 UPDATE CLOUDFRONT
       # -----------------------------
       - echo "Updating CloudFront distribution..."
 
-      - aws cloudfront get-distribution-config \
+      - |
+        aws cloudfront get-distribution-config \
           --id $DISTRIBUTION_ID > cf.json
 
       - export ETAG=$(jq -r '.ETag' cf.json)
 
       - jq '.DistributionConfig' cf.json > dist-config.json
 
-      - export LAMBDA_ARN="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$LAMBDA_NAME:$VERSION"
+      - |
+        LAMBDA_ARN="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$LAMBDA_NAME:$VERSION"
+        echo "Lambda ARN: $LAMBDA_ARN"
 
       - |
         jq "
@@ -105,7 +107,8 @@ phases:
         }
         " dist-config.json > updated-config.json
 
-      - aws cloudfront update-distribution \
+      - |
+        aws cloudfront update-distribution \
           --id $DISTRIBUTION_ID \
           --if-match $ETAG \
           --distribution-config file://updated-config.json
@@ -117,7 +120,8 @@ phases:
       # -----------------------------
       - echo "Invalidating CloudFront cache..."
 
-      - aws cloudfront create-invalidation \
+      - |
+        aws cloudfront create-invalidation \
           --distribution-id $DISTRIBUTION_ID \
           --paths "/*"
 

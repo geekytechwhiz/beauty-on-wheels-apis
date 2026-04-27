@@ -1,17 +1,22 @@
-export {
-  validateFhirResource,
-  type ValidationSuccess,
-  type ValidationFailure,
-  type ValidationResult,
-  type OperationOutcome,
-  type OperationOutcomeIssue,
-  type FhirVersion,
-} from './validators/validateFhirResource';
-export {
-  canonicalToFhirPatient,
-  type FhirPatient,
-} from './mappers/canonicalToFhirPatient';
-export {
-  canonicalToFhirObservation,
-  type FhirObservation,
-} from './mappers/canonicalToFhirObservation';
+export * from './adapters/fhir.adapter.interface';
+export * from './adapters/canonical-to-fhir/patient.fhir.adapter';
+export * from './registry/adapter.registry';
+export * from './services/fhir-transformation.service';
+// export * from './validator/fhir.validator';
+// export * from './registry/mapping.registry';
+// export * from './resolver/mapping.resolver';
+// export * from './mapper/generic-fhir.mapper';
+// export * from './gateway/fhir-gateway.middleware';
+// export * from './controllers/patient.controller';
+// export * from './capability/capability.service';
+export * from './consent/consent.guard';
+// export * from './search/fhir-search.parser';
+export * from './middleware/withLambdaHandler';
+export * from './middleware/request-context.middleware';
+export * from './middleware/error.middleware';
+export * from './middleware/response.middleware';
+export * from './fhir/operationOutcome';
+export * from './fhir/request-to-canonical';
+export * from './fhir/validator';
+export * from './types/core-types';
+export * from './types/fhir.types';

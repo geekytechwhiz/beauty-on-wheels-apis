@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     NODE_ENV: production
-    AWS_REGION: us-east-1   # ✅ unified region
+    AWS_REGION: us-east-1   
     KEEP_LAST_N: 2
     DRY_RUN: false
 

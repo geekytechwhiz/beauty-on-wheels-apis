@@ -95,7 +95,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MetadataValueRecord'
+                $ref: '#/components/schemas/MetadataValueResponse'
     get:
       summary: List values (latest; optional status filter, default ACTIVE)
       parameters:
@@ -111,7 +111,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/MetadataValueRecord'
+                  $ref: '#/components/schemas/MetadataValueResponse'
   /metadata-types/{metadataTypeCode}/values/search:
     post:
       summary: Filter values (OR within field, AND across fields; globals always included)
@@ -130,7 +130,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/MetadataValueRecord'
+                  $ref: '#/components/schemas/MetadataValueResponse'
         '400':
           description: Invalid filter
   /metadata-types/{metadataTypeCode}/values/{metadataValueCode}:
@@ -145,7 +145,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MetadataValueRecord'
+                $ref: '#/components/schemas/MetadataValueResponse'
         '404':
           description: Not found
   /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/status:
@@ -166,7 +166,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MetadataValueRecord'
+                $ref: '#/components/schemas/MetadataValueResponse'
   /metadata-types/{metadataTypeCode}/audit:
     get:
       summary: Audit trail for metadata type
@@ -378,9 +378,9 @@ components:
         Upsert body for POST /metadata-types/{metadataTypeCode}/values.
         `valueCode` is immutable after the value is first published (create a new value for a new code).
         On **create**, `isGlobal` is required. On update, omitted fields keep existing values.
-        **Aliases** (same semantics): `metadataValueCode` → `valueCode`; `valueAttributes` → `attributes`;
-        flat `applicableModules` / `applicableCategories` / `applicableConditions` / `applicableCountries`
-        → `applicability` when `applicability` is omitted.
+        **Request aliases** (same semantics): `metadataValueCode` ↔ `valueCode`; `valueAttributes` ↔ `attributes`;
+        flat `applicable*` arrays ↔ nested `applicability` when the nested object is omitted.
+        **Responses** use a single shape: `metadataValueCode`, `valueAttributes`, and flat `applicable*` only.
       required: [label]
       properties:
         valueCode:
@@ -432,11 +432,69 @@ components:
         createdBy:
           type: string
           description: Optional override for audit actor when not using API user context
+    MetadataValueResponse:
+      type: object
+      description: |
+        Value resource as returned by GET / list / search / POST / PATCH. Flat applicability only (`applicable*` arrays);
+        `metadataValueCode` and `valueAttributes` (no `valueCode`, `attributes`, or nested `applicability`).
+      required:
+        - metadataTypeCode
+        - metadataValueCode
+        - version
+        - label
+        - sortOrder
+        - status
+        - isGlobal
+        - valueAttributes
+        - applicableModules
+        - applicableCategories
+        - applicableConditions
+        - applicableCountries
+        - applicableLanguages
+        - applSkKeys
+        - createdAt
+        - lastModifiedAt
+      properties:
+        metadataTypeCode: { type: string }
+        metadataValueCode: { type: string }
+        version: { type: integer }
+        label: { type: string, maxLength: 150 }
+        description: { type: string, maxLength: 2000 }
+        sortOrder: { type: integer }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        isGlobal: { type: boolean }
+        valueAttributes:
+          type: object
+          additionalProperties: true
+        applicableModules:
+          type: array
+          items: { type: string }
+        applicableCategories:
+          type: array
+          items: { type: string }
+        applicableConditions:
+          type: array
+          items: { type: string }
+        applicableCountries:
+          type: array
+          items: { type: string }
+        applicableLanguages:
+          type: array
+          items: { type: string }
+        applSkKeys:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastModifiedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
     MetadataValueRecord:
       type: object
       description: |
-        Stored shape uses nested `applicability` and `attributes`. GET/POST/list/search/patch responses add the same Figma
-        field names as the request (`metadataValueCode`, `valueAttributes`, `applicable*` arrays) for UI parity.
+        Persistence / domain shape (nested `applicability`, `valueCode`, `attributes`). HTTP value responses
+        use schema `MetadataValueResponse` (flat `applicable*` and `metadataValueCode` / `valueAttributes` only).
       required:
         - metadataTypeCode
         - valueCode
@@ -453,28 +511,6 @@ components:
       properties:
         metadataTypeCode: { type: string }
         valueCode: { type: string }
-        metadataValueCode:
-          type: string
-          description: Same as valueCode (response alias)
-        valueAttributes:
-          type: object
-          additionalProperties: true
-          description: Same as attributes (response alias)
-        applicableModules:
-          type: array
-          items: { type: string }
-        applicableCategories:
-          type: array
-          items: { type: string }
-        applicableConditions:
-          type: array
-          items: { type: string }
-        applicableCountries:
-          type: array
-          items: { type: string }
-        applicableLanguages:
-          type: array
-          items: { type: string }
         version: { type: integer }
         label: { type: string, maxLength: 150 }
         description: { type: string, maxLength: 2000 }

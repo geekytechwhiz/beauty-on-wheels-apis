@@ -176,8 +176,11 @@ export function normalizeMetadataValueInput(
   return result;
 }
 
-/** API response shape aligned with Figma (flat applicability + aliases), plus canonical nested fields. */
-export type MetadataValueApiModel = MetadataValueRecord & {
+/**
+ * Public API response for value resources (GET / list / search / POST / PATCH): flat `applicable*` lists,
+ * `metadataValueCode` and `valueAttributes` only — no `valueCode`, nested `applicability`, or duplicate `attributes`.
+ */
+export type MetadataValueApiModel = Omit<MetadataValueRecord, 'valueCode' | 'applicability' | 'attributes'> & {
   metadataValueCode: string;
   valueAttributes: Record<string, unknown>;
   applicableModules: string[];
@@ -188,15 +191,16 @@ export type MetadataValueApiModel = MetadataValueRecord & {
 };
 
 export function flattenMetadataValueForApi(record: MetadataValueRecord): MetadataValueApiModel {
+  const { valueCode, applicability, attributes, ...rest } = record;
   return {
-    ...record,
-    metadataValueCode: record.valueCode,
-    valueAttributes: record.attributes,
-    applicableModules: record.applicability.module,
-    applicableCategories: record.applicability.category,
-    applicableConditions: record.applicability.condition,
-    applicableCountries: record.applicability.country,
-    applicableLanguages: record.applicability.language ?? [],
+    ...rest,
+    metadataValueCode: valueCode,
+    valueAttributes: attributes,
+    applicableModules: applicability.module,
+    applicableCategories: applicability.category,
+    applicableConditions: applicability.condition,
+    applicableCountries: applicability.country,
+    applicableLanguages: applicability.language ?? [],
   };
 }
 

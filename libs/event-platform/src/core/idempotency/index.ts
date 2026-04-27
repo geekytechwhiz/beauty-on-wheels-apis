@@ -1,4 +1,6 @@
-export type { IdempotencySaveOptions, IdempotencyStore } from './idempotency-store';
-export { idempotencyStore } from './idempotency-store';
 export { generateIdempotencyKey } from './generate-idempotency-key';
-export { InMemoryIdempotencyStore } from './in-memory-idempotency-store';
+export { DomainIdempotencyStrategy } from './domain-idempotency.strategy';
+export { StoreIdempotencyStrategy, type IdempotencyStore } from './store-idempotency.strategy';
+export { createIdempotencyStrategy } from './idempotency-factory';
+export type { IdempotencyContext, IdempotencyResult } from './types';
+export type { IdempotencyStrategy } from './idempotency-strategy';

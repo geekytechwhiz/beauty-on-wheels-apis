@@ -3,7 +3,7 @@
 import {
   type BaseEvent,
   type EventMetadata,
-} from 'src/core/event-envelope/base-event';
+} from '../core/event-envelope/base-event';
 import { EventConsumer } from '../sdk/consumer/event-consumer';
 import type {
   EventConsumerDeps,
@@ -15,6 +15,14 @@ type StreamOrSqsRecord = {
   eventID?: string;
   sequenceNumber?: string;
 };
+
+function eventMetadataFromBaseEvent<T>(event: BaseEvent<T>): EventMetadata {
+  return {
+    correlationId: event.correlationId,
+    retryCount: event.meta?.retryCount,
+    publishedAt: event.meta?.publishedAt,
+  };
+}
 
 function itemIdentifierFromRecord(record: unknown): string {
   if (record !== null && typeof record === 'object') {
@@ -61,7 +69,7 @@ export function consumeEvent<TPayload = unknown>(
           const result = await consumer.handle<TPayload>(
             record,
             async (event: BaseEvent<TPayload>) =>
-              handler(event.payload, { correlationId: event.correlationId })
+              handler(event.payload, eventMetadataFromBaseEvent(event))
           );
 
           // 🔥 Duplicate → treat as success (DO NOT retry)
@@ -91,7 +99,7 @@ export function consumeEvent<TPayload = unknown>(
     // 🔥 2. Single Event (EventBridge / direct)
     // -------------------------------
     const result = await consumer.handle<TPayload>(rawEvent, async (event) =>
-      handler(event.payload, { correlationId: event.correlationId })
+      handler(event.payload, eventMetadataFromBaseEvent(event))
     );
     // duplicate → treated as success
     return result;

@@ -1,9 +1,14 @@
 /**
- * Cross-cutting metadata often carried alongside an event (extend as needed).
+ * Cross-cutting metadata passed to async handlers (with {@link consumeEvent} / {@link createEventHandler}).
  */
 export type EventMetadata = {
   correlationId?: string;
+  retryCount?: number;
+  publishedAt?: string;
 };
+
+/** @alias {@link EventMetadata} — used by older consumer call sites. */
+export type EventHandlerMeta = EventMetadata;
 export type EventMeta = {
   retryCount: number;
   publishedAt: string;

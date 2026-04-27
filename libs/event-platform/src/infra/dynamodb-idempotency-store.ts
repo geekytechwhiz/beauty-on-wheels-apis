@@ -7,7 +7,7 @@ import {
     UpdateItemCommand,
   } from '@aws-sdk/client-dynamodb';
   
-  import type { IdempotencyStore } from '../core/idempotency/idempotency-store';
+  import type { IdempotencyStore } from '../core/idempotency/store-idempotency.strategy';
   
   const client = new DynamoDBClient({});
   

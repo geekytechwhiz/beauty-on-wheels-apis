@@ -18,6 +18,7 @@ export function buildPublishEnvelope<T>(input: PublishInput<T>): BaseEvent<T> {
       version,
       source: input.source,
       payload: input.payload,
+      eventId: randomUUID() as string,
     });
 
   return {

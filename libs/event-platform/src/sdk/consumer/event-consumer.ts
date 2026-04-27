@@ -25,6 +25,14 @@ import { parseInboundEvent } from './parse-inbound-event';
 
 import type { IdempotencyStrategy } from '../../core/idempotency/idempotency-strategy';
 
+/** Barrel exports can narrow optional arity; runtime accepts these full signatures. */
+const emitRetry = recordConsumerRetry as (eventType?: string, retryCount?: number) => void;
+const emitDeadLetter = recordConsumerDeadLetter as (
+  eventType?: string,
+  context?: { retryCount?: number; error?: string },
+) => void;
+const emitFailure = recordConsumerFailure as (eventType?: string, error?: unknown) => void;
+
 export type EventConsumerDeps = {
   idempotencyStrategy: IdempotencyStrategy;
 
@@ -35,6 +43,12 @@ export type EventConsumerDeps = {
   versionCheck?: VersionCheckConfig;
 
   tracing?: EventTracingHooks;
+
+  /**
+   * When the inbound value is not a {@link BaseEvent} after transport normalization
+   * (legacy SQS body, EventBridge detail, etc.), build a canonical envelope from the raw record.
+   */
+  mapRawToBaseEvent?: (raw: unknown) => BaseEvent;
 };
 
 export type HandleOptions = {
@@ -65,7 +79,9 @@ export class EventConsumer {
     // 1. Parse
     // -------------------------------
     try {
-      parsed = parseInboundEvent(event);
+      parsed = parseInboundEvent(event, {
+        mapRawToBaseEvent: this.deps.mapRawToBaseEvent,
+      });
       // ensure meta exists
       if (!parsed.meta) {
         parsed.meta = {
@@ -157,7 +173,7 @@ export class EventConsumer {
     }
 
     if (decision === 'RETRY') {
-      recordConsumerRetry(traceCtx.eventType, parsed.meta?.retryCount ?? 0);
+      emitRetry(traceCtx.eventType, parsed.meta?.retryCount ?? 0);
       throw new Error('RETRY_EVENT');
     }
 
@@ -172,7 +188,7 @@ export class EventConsumer {
       ...userRetry,
       onBeforeRetry: (info) => {
         userRetry.onBeforeRetry?.(info);
-        recordConsumerRetry(traceCtx.eventType);
+        emitRetry(traceCtx.eventType);
       },
     };
 
@@ -211,7 +227,7 @@ if (disposition === 'dead_letter_candidate') {
     eventType: traceCtx.eventType,
   });
 
-  recordConsumerDeadLetter(traceCtx.eventType, {
+  emitDeadLetter(traceCtx.eventType, {
     retryCount,
     error: error instanceof Error ? error.message : String(error),
   });
@@ -224,7 +240,7 @@ if (disposition === 'dead_letter_candidate') {
 }
 
 if (disposition === 'propagate_error') {
-  recordConsumerFailure(traceCtx.eventType, {
+  emitFailure(traceCtx.eventType, {
     retryCount,
   });
   throw error;

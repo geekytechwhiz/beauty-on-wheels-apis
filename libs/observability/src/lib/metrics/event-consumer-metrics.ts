@@ -84,3 +84,11 @@ export function recordConsumerRetry(eventType?: string, retryCount?: number): vo
     m.addMetric('RetryCount', MetricUnit.Count, retryCount ?? 0);
   });
 }
+
+/** @deprecated Use {@link recordConsumerDeliveryDisposition}; kept for `EventConsumer` call sites. */
+export function recordConsumerDeadLetter(
+  eventType?: string,
+  _context?: { retryCount?: number; error?: string },
+): void {
+  recordConsumerDeliveryDisposition(eventType, 'dead_letter_candidate');
+}

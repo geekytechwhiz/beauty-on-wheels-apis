@@ -56,7 +56,7 @@
   "sourceEmail": "do-not-reply@myvitalrx.com",
   "WebUrl": "https://stg-deeplink.myvitalrx.com/download-stg.html",
   "PortalLink": "https://usstg-console.myvitalrx.com/en/login",
-  "smsAPIUrl": "https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev/send-sms",
+  "smsAPIUrl": "https://s3oiui4taf.execute-api.ap-south-1.amazonaws.com/dev/v1/send-sms",
   "IosApns": "APNS",
   "userTableStream": "2024-02-16T09:53:32.234", 
   "CommonUserStreamArn": "arn:aws:dynamodb:us-east-1:542476693486:table/prd_global_common_user_data/stream/2025-10-31T09:29:03.948",

@@ -11,6 +11,8 @@ import { UserProvisioningService } from '../../services/appointment-sync/user-pr
 import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 import { DoctorProvisionMessage } from '../../types/events/doctor-provision-message.types';
+import { getEnvConfig } from '../../config/env';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -33,6 +35,8 @@ export async function handler(
 
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
   const userServiceClient = getSSOUserServiceClient();
+  const env = getEnvConfig();
+  await getExternalTenantsByProvider(env.PROVIDER);
   const userProvisioningService = new UserProvisioningService(
     userServiceClient,
     logger,

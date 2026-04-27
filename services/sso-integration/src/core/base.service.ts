@@ -1,7 +1,6 @@
 import { createChildLogger, createLogger } from '@api-hub/logger';
 import { getUserServiceClient } from '@api-hub/service-clients';
 import { getTruTechAdapter } from '../adapters/trutech.adapter.ts';
-import { getTruTechClient } from '../clients/tru-tech.clients.js';
 import { getSSOUserServiceClient } from '../clients/user-service.client';
 import { getSSOConfig } from '../config/sso-config';
 import { CognitoService } from '../services/cognito.service';
@@ -32,7 +31,7 @@ export class BaseService {
     this.truTechAdapter = getTruTechAdapter();
     this.userServiceClient = getUserServiceClient();
     this.ssoUserServiceClient = getSSOUserServiceClient();  
-    this.truTechClient = getTruTechClient();
+    this.truTechClient = null;
     this.cognitoService = new CognitoService();
     this.patientEventPublisher = getPatientEventPublisher();
     this.config = getSSOConfig();

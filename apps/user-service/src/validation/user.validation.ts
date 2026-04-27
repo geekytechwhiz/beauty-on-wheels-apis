@@ -117,6 +117,8 @@ export const createUserSchema = z.object({
   }),
   userRole: z.array(z.string()),
   userType: z.string(),
+  roleName: z.string().optional(),
+  definedRoleCode: z.string().optional(),
   organizationID: z.string(),
   externalIdentity: z.object({}).passthrough().optional(),
 }).superRefine((data, ctx) => {

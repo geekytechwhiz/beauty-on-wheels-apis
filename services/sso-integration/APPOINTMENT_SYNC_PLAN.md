@@ -303,7 +303,7 @@ This document outlines the comprehensive plan for implementing the appointment s
   start_time: "2026-02-25T10:00:00.000000Z",
   end_time: "2026-02-25T10:15:00.000000Z",
   doctor: { id: 4, name: "Dr. Name", ... },
-  patient: { id: 9, name: "Patient Name", organizationId: "org123", ... },
+  patient: { id: 9, name: "Patient Name", organizationId: "<organization-id>", ... },
   consultation_type: { id: 1, name: "Online" }
 }
 
@@ -321,15 +321,15 @@ This document outlines the comprehensive plan for implementing the appointment s
     {
       userId: "doctor-user-id",
       userType: "STAFF",
-      organizationID: "org123"
+      organizationID: "<organization-id>"
     },
     {
       userId: "patient-user-id",
       userType: "USER",
-      organizationID: "org123"
+      organizationID: "<organization-id>"
     }
   ],
-  organizationID: "org123",
+  organizationID: "<organization-id>",
   externalAppointmentId: "64",
   meta: {
     externalAppointmentId: "64",

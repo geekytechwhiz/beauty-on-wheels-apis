@@ -1,20 +1,4 @@
-/**
- * API Aggregator + Registry — HTTP API (Serverless).
- *
- * Service **names** for the sidebar come from `src/utils/services.json` (bundled at build time),
- * not from GET /services. The registry Lambda still serves health, specs, and POST /services.
- *
- * Endpoints (relative to `VITE_API_BASE_URL`, no trailing slash):
- * - GET  /health
- * - POST /services
- * - GET  /specs
- * - GET  /specs/{service}  (?version= optional)
- *
- * Local: omit `VITE_API_BASE_URL` to use Vite proxy `/api` → http://localhost:4000
- * Deployed: set `VITE_API_BASE_URL` or run `pnpm dev:registry`.
- */
-
-import servicesJson from './utils/services.json';
+ import servicesJson from './utils/services.json';
 
 export interface ServiceVersionRecord {
   url: string;

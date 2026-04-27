@@ -10,6 +10,8 @@ import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { getScheduleServiceClient } from '../../clients/schedule-service.client';
 import { PendingReprocessMessage } from '../../types/events/pending-reprocess-message.types';
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
+import { getEnvConfig } from '../../config/env';
+import { getExternalTenantsByProvider } from '../../services/external-tenant.service';
 
 const baseLogger = createLogger({
   service: 'sso-integration',
@@ -31,6 +33,8 @@ export async function handler(
   });
 
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
+  const env = getEnvConfig();
+  await getExternalTenantsByProvider(env.PROVIDER);
 
   if (process.env.BYPASS_PENDING_APPOINTMENT === 'true') {
     for (const record of event.Records) {

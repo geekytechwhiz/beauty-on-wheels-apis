@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent } from "aws-lambda"; 
+import { APIGatewayProxyEvent } from 'aws-lambda'; 
 
 export type Severity = 'SUCCESS' | 'INFO' | 'WARNING' | 'ERROR';
 

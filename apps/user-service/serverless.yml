@@ -1,8 +1,12 @@
 service: user-service
 
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
 frameworkVersion: '3.x'
 
 plugins:
+  - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
@@ -10,7 +14,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -188,12 +192,13 @@ custom:
     bundle: true
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node20
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
+      - fhir-tool
     keepNames: true
     # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
     concurrency: 8
@@ -206,6 +211,7 @@ custom:
       - '.tsx'
       - '.js'
       - '.jsx'
+      - '.mjs'
       - '.json'
   autoswagger:
     title: User Service API
@@ -227,6 +233,10 @@ custom:
     dev: debug
     stg: info
     prd: warn
+
+  # serverless-plugin-warmup: declare default warmer (see functions.createUser.warmup.default)
+  warmup:
+    default: {}
 
   # Cognito User Pool IDs per stage (used for searchFnF and other Cognito lookups)
   cognitoUserPoolId:
@@ -306,9 +316,20 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+  # fhirMetadata:
+  #   handler: src/handlers/fhirMetadata.main
+  #   events:
+  #     - http:
+  #         path: fhir/metadata
+  #         method: get
+  #         cors:
+  #           origin: ${self:custom.cors.origin}
+  #           headers: ${self:custom.cors.headers}
   createUser:
     handler: src/handlers/createUser.main
-    
+    warmup:
+      default:
+        enabled: true
     memorySize: 256
     events:
       - http:
@@ -918,6 +939,21 @@ functions:
       - sns:
           arn: ${self:provider.environment.USER_EVENTS_TOPIC_ARN}
 
+  userRoleAssignmentRequested:
+    handler: src/handlers/userRoleAssignmentRequested.handler
+    timeout: 30
+    memorySize: 256
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - UserServiceBus
+              - Arn
+          pattern:
+            source:
+              - user-service
+            detail-type:
+              - UserRoleAssignmentRequested.v1
    
 
 resources:
@@ -1038,6 +1074,15 @@ resources:
             Value: ${self:provider.stage}
           - Key: ManagedBy
             Value: serverless
+
+    UserRoleAssignmentRequestedInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt UserRoleAssignmentRequestedLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/user-service-bus-${self:provider.stage}/user-service-${self:provider.stage}-userRoleAssignmentRequested-rule-1
 
     # SNS Topic for User Notification Events
     UserEventsTopic:

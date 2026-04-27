@@ -3,6 +3,8 @@ export interface Organization {
   sk: string;
   gsi1pk?: string;
   gsi1sk?: string;
+  gsi2pk?: string;
+  gsi2sk?: string;
   organizationId: string;
   createdAt?: number;
   createdBy?: string;
@@ -62,6 +64,7 @@ export interface Organization {
   organizationInfo?: unknown;
   searchFields?: unknown;
   website?: string;
+  subdomain?: string;
   taxId?: string;
   registrationNumber?: string;
   description?: string;
@@ -71,10 +74,13 @@ export interface Organization {
   sourceSystem: string; // TruTech
 }
 export interface Integration {
-  providerId: string; // TueTech
+  provider?: string; // e.g. TruTech provider id for GSI2
   providerName?: string; // provider name from the provider service
-  integrationType: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE'; // integration type from the provider service
+  sourceSystem?: 'HMS' | 'FHIR' | 'CUSTOM' | 'MARKETPLACE'; // integration / source system from the provider service
   externalHospitalId?: string; // external hospital id from the provider service
+  apiBaseUrl?: string; // provider API base URL (for HMS tenant resolution)
+  apiKey?: string; // transient request field, persisted in Secrets Manager only
+  apiKeyRef?: string; // secrets manager reference for provider API key
   subdomain?: string; // subdomain from the provider service
   metadata?: Record<string, unknown>; // metadata from the provider service
 }

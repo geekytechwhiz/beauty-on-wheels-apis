@@ -25,7 +25,7 @@ function sendError(res: ServerResponse, status: number, message: string): void {
 }
 
 export function localSpecApiPlugin(options: { enabled: boolean; specsPrefix?: string }): Plugin {
-  const specsPrefix = (options.specsPrefix || 'specs').replace(/^\/+|\/+$/g, '');
+  const specsPrefix = (options.specsPrefix || 'specs-store').replace(/^\/+|\/+$/g, '');
   const specsDir = process.env.API_CENTER_SPECS_DIR;
 
   let store: LocalSpecStore | null = null;

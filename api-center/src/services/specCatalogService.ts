@@ -75,7 +75,7 @@ interface PublicCatalogIndex {
   services: ServiceCatalogEntry[];
 }
 
-const DEFAULT_SPECS_PREFIX = 'specs';
+const DEFAULT_SPECS_PREFIX = 'specs-store';
 const DEFAULT_SPEC_REVIEW_STATUS: SpecReviewStatus = 'approved';
 const OPENAPI_FILE_PATTERN = /^(.+?)\/(.+?)\/openapi\.(json|yaml|yml)$/i;
 const VERSION_COLLATOR = new Intl.Collator(undefined, {
@@ -84,6 +84,7 @@ const VERSION_COLLATOR = new Intl.Collator(undefined, {
 });
 const SEMVER_PATTERN = /^(v?)(\d+)(?:\.(\d+))?(?:\.(\d+))?$/i;
 
+/** Dev/preview-only JSON API mount (not the same path as static `public/{specsPrefix}/`). */
 const LOCAL_SPEC_API = '/__api-center/specs';
 
 function getSpecsPrefix(): string {
@@ -116,7 +117,7 @@ export function getCatalogSummary(): {
   };
 }
 
-/** Dev server local API for writing into `public/specs` (see vite plugin). */
+/** Dev server local API for writing into `public/specs-store` (see vite plugin). */
 export function canWriteSpecsLocally(): boolean {
   return true;
 }
@@ -388,6 +389,7 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
 }
 
 function parseCatalogIndex(rawValue: unknown): PublicCatalogIndex {
+  console.log('rawValue', JSON.stringify(rawValue, null, 2));
   const rawServices = Array.isArray(rawValue)
     ? rawValue
     : rawValue &&
@@ -469,14 +471,21 @@ async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<P
       method: 'GET',
     });
     return parseCatalogIndex(parsed);
-  } catch (error) {
-    if (options?.allowMissing) {
-      return {
-        generatedAt: new Date().toISOString(),
-        services: [],
-      };
+  } catch {
+    try {
+      const text = await fetchPublicText(publicAssetUrl(`${getSpecsPrefix()}/index.json`));
+      return parseCatalogIndex(JSON.parse(text) as unknown);
+    } catch {
+      if (options?.allowMissing) {
+        return {
+          generatedAt: new Date().toISOString(),
+          services: [],
+        };
+      }
+      throw new Error(
+        `Unable to load the spec catalog. Tried ${LOCAL_SPEC_API}/catalog and static ${getSpecsPrefix()}/index.json.`,
+      );
     }
-    throw error;
   }
 }
 
@@ -612,9 +621,7 @@ export async function getSpecUrl({
   version: string;
 }): Promise<string> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  return `${LOCAL_SPEC_API}/document?serviceName=${encodeURIComponent(
-    resolved.serviceName,
-  )}&version=${encodeURIComponent(resolved.version)}`;
+  return publicAssetUrl(resolved.key);
 }
 
 export async function loadEditableSpecDocument({
@@ -625,15 +632,21 @@ export async function loadEditableSpecDocument({
   version: string;
 }): Promise<EditableSpecDocument> {
   const resolved = await resolveSpecVersion({ serviceName, version });
-  const response = await localApiJson<{ extension: SpecFileExtension; text: string }>(
-    `/document?serviceName=${encodeURIComponent(resolved.serviceName)}&version=${encodeURIComponent(
-      resolved.version,
-    )}`,
-    {
-      method: 'GET',
-    },
-  );
-  const parsedSpec = parseOpenApiText(response.text, response.extension);
+  let text: string;
+  try {
+    const response = await localApiJson<{ extension: SpecFileExtension; text: string }>(
+      `/document?serviceName=${encodeURIComponent(resolved.serviceName)}&version=${encodeURIComponent(
+        resolved.version,
+      )}`,
+      {
+        method: 'GET',
+      },
+    );
+    text = response.text;
+  } catch {
+    text = await fetchPublicText(publicAssetUrl(resolved.key));
+  }
+  const parsedSpec = parseOpenApiText(text, resolved.extension);
 
   return {
     serviceName: resolved.serviceName,

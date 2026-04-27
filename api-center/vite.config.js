@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { localSpecApiPlugin } from './vite-plugins/local-spec-api';
+import { mergeSpecsStorePlugin } from './vite-plugins/merge-specs-store';
 /**
  * NOTE: Vite resolves `vite.config.js` before `vite.config.ts`. Do not add a duplicate
  * `vite.config.js` — it will shadow this file and break proxy/env behavior.
@@ -17,6 +18,9 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [
             react(),
+            mergeSpecsStorePlugin({
+                specsPrefix: env.VITE_SPECS_PREFIX,
+            }),
             localSpecApiPlugin({
                 enabled: localSpecApiEnabled,
                 specsPrefix: env.VITE_SPECS_PREFIX,

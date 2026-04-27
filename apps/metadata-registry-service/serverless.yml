@@ -120,11 +120,11 @@ functions:
           method: post
           cors: ${self:custom.cors}
 
-  patchMetadataTypeStatus:
-    handler: src/handlers/patchMetadataTypeStatus.main
+  patchMetadataStatus:
+    handler: src/handlers/patchMetadataStatus.main
     events:
       - http:
-          path: metadata-types/{metadataTypeCode}/status
+          path: metadata/{entityType}/status
           method: patch
           cors: ${self:custom.cors}
 
@@ -142,14 +142,6 @@ functions:
       - http:
           path: metadata/{entityType}/list
           method: get
-          cors: ${self:custom.cors}
-
-  patchMetadataValueStatus:
-    handler: src/handlers/patchMetadataValueStatus.main
-    events:
-      - http:
-          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}/status
-          method: patch
           cors: ${self:custom.cors}
 
   listMetadataTypeAudit:

@@ -20,39 +20,39 @@ paths:
       responses:
         '200':
           description: OK
-  /metadata-types/{metadataTypeCode}/status:
+  /metadata/{entityType}/status:
     patch:
-      summary: Activate / inactivate type (new version)
+      summary: Activate / inactivate type or value (new version)
+      description: |
+        `entityType=type`: body must include `metadataTypeCode` and `status` (`PatchMetadataTypeStatusRequest`).
+        `entityType=value`: body must include `metadataTypeCode`, `status`, and `metadataValueCode` or `valueCode` (`PatchMetadataValueStatusRequest`).
       parameters:
-        - $ref: '#/components/parameters/metadataTypeCode'
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [type, value]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchStatusRequest'
+              oneOf:
+                - $ref: '#/components/schemas/PatchMetadataTypeStatusRequest'
+                - $ref: '#/components/schemas/PatchMetadataValueStatusRequest'
       responses:
         '200':
-          description: Updated type
-  /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/status:
-    patch:
-      summary: Activate / inactivate value (new version)
-      parameters:
-        - $ref: '#/components/parameters/metadataTypeCode'
-        - $ref: '#/components/parameters/metadataValueCode'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchStatusRequest'
-      responses:
-        '200':
-          description: Updated value
+          description: |
+            When `entityType` is `type`, the full updated metadata type record. When `entityType` is `value`, `MetadataValueResponse`.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MetadataValueResponse'
+                oneOf:
+                  - type: object
+                    description: Updated metadata type record
+                    additionalProperties: true
+                  - $ref: '#/components/schemas/MetadataValueResponse'
   /metadata-types/{metadataTypeCode}/audit:
     get:
       summary: Audit trail for metadata type
@@ -300,6 +300,38 @@ components:
             case-normalizes; `ACTIVE` / `INACTIVE` and other casings are also accepted. Stored and
             response values remain uppercase `ACTIVE` or `INACTIVE`.
           enum: [Active, Inactive, ACTIVE, INACTIVE, active, inactive]
+    PatchMetadataTypeStatusRequest:
+      allOf:
+        - type: object
+          required: [metadataTypeCode]
+          properties:
+            metadataTypeCode:
+              type: string
+              description: Identifies the metadata type to update; not mutable via this endpoint
+        - $ref: '#/components/schemas/PatchStatusRequest'
+    PatchMetadataValueStatusRequest:
+      oneOf:
+        - allOf:
+            - type: object
+              required: [metadataTypeCode, metadataValueCode]
+              properties:
+                metadataTypeCode:
+                  type: string
+                  description: Parent type; required for every value status change
+                metadataValueCode:
+                  type: string
+            - $ref: '#/components/schemas/PatchStatusRequest'
+        - allOf:
+            - type: object
+              required: [metadataTypeCode, valueCode]
+              properties:
+                metadataTypeCode:
+                  type: string
+                  description: Parent type; required for every value status change
+                valueCode:
+                  type: string
+                  description: Alias for `metadataValueCode`
+            - $ref: '#/components/schemas/PatchStatusRequest'
     Applicability:
       type: object
       required: [module, category, condition, country]

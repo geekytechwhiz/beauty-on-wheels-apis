@@ -32,9 +32,9 @@ phases:
 
   post_build:
     commands:
-      - echo "Starting Lambda version cleanup..."
-      - node ./scripts/lambda-version.cleanup.js
-      - echo "Lambda cleanup completed"
+      # - echo "Starting Lambda version cleanup..."
+      # - node ./scripts/lambda-version.cleanup.js
+      # - echo "Lambda cleanup completed"
 
       # -----------------------------
       # 🚀 LAMBDA@EDGE DEPLOY

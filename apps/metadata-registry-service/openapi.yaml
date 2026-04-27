@@ -3,7 +3,9 @@ info:
   title: Metadata Registry Service API (draft)
   description: |
     Draft specification generated for review. TODO — align with official OpenAPI when published.
-    List metadata types uses partition `METADATA_REGISTRY#CATALOG` with SK prefix `METADATA_TYPE#` (no GSI).
+    List metadata types unions legacy catalog rows (`METADATA_REGISTRY#CATALOG` / `METADATA_TYPE#…`), any existing
+    `METADATA_TYPES` / `TYPE#…` index rows (read-only for old data), and type entities under `METADATA_TYPE#<code>`
+    (scan). The service does not write new `METADATA_TYPES` catalog items.
   version: 0.1.0
 servers:
   - url: https://api.example.com/{stage}
@@ -34,7 +36,7 @@ paths:
         '200':
           description: Upsert result
     get:
-      summary: List metadata types (catalog partition + in-memory filters)
+      summary: List metadata types (legacy / index / partition scan + in-memory filters)
       parameters:
         - in: query
           name: status

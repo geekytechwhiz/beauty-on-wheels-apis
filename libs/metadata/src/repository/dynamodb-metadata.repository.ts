@@ -3,6 +3,7 @@ import {
   BatchWriteCommand,
   GetCommand,
   QueryCommand,
+  ScanCommand,
   TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { monotonicFactory } from 'ulid';
@@ -32,7 +33,6 @@ import {
   auditValuePartitionKey,
   buildApplSortKeys,
   catalogPartitionKey,
-  catalogSortKey,
   extractValueCodeFromApplSk,
   LEGACY_TYPE_ENTITY_SK_V1,
   schemaSk,
@@ -42,7 +42,6 @@ import {
   valueLatestSk,
   valueSk,
 } from '../domain/keys';
-import { isMetadataTypeBreakingChange } from '../domain/diff';
 import { getMetadataTypeDelta, typeCreateAuditNewValue } from '../domain/type-audit-delta';
 import {
   getMetadataValueDelta,
@@ -197,8 +196,8 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
 
     const pk = typePartitionKey(input.metadataTypeCode);
     const currentVersion = (await this.resolveLatestTypeVersion(pk)) ?? existing.version;
-    const beforeInput: MetadataTypeInput = {
-      metadataTypeCode: existing.metadataTypeCode,
+
+    const merged: MetadataTypeInput = {
       displayName: existing.displayName,
       description: existing.description,
       applicableModules: existing.applicableModules,
@@ -207,71 +206,13 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       multiSelectAllowed: existing.multiSelectAllowed,
       attributeSchema: existing.attributeSchema,
       status: existing.status,
-    };
-
-    const merged: MetadataTypeInput = {
-      ...beforeInput,
       ...input,
       metadataTypeCode: input.metadataTypeCode,
     };
 
-    const breaking = isMetadataTypeBreakingChange(beforeInput, merged);
     const now = new Date().toISOString();
 
-    if (!breaking) {
-      const record: MetadataTypeRecord = {
-        ...existing,
-        ...merged,
-        version: currentVersion,
-        lastModifiedAt: now,
-        lastModifiedBy: merged.lastModifiedBy ?? actor,
-      };
-      const typeItem = this.marshalType(record, pk, typeEntitySk(currentVersion));
-      const schemaItem =
-        merged.attributeSchema !== undefined
-          ? this.metadataSchemaPutItem(
-              input.metadataTypeCode,
-              pk,
-              currentVersion,
-              merged.attributeSchema,
-            )
-          : null;
-
-      const transact = [
-        { Put: { TableName: this.tableName, Item: typeItem } },
-        {
-          Put: {
-            TableName: this.tableName,
-            Item: {
-              ...this.key(catalogPartitionKey(), catalogSortKey(input.metadataTypeCode)),
-              entityType: ENTITY_TYPE.CATALOG_ENTRY,
-              metadataTypeCode: input.metadataTypeCode,
-              status: record.status,
-              applicableModules: record.applicableModules,
-              valueDataType: record.valueDataType,
-              lastModifiedAt: now,
-            },
-          },
-        },
-        {
-          Put: {
-            TableName: this.tableName,
-            Item: this.buildMetadataTypeAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
-              action: 'UPDATE',
-              changedBy: actor,
-              timestamp: now,
-              ...getMetadataTypeDelta(existing, record),
-            }),
-          },
-        },
-      ];
-      if (schemaItem) {
-        transact.splice(1, 0, { Put: { TableName: this.tableName, Item: schemaItem } });
-      }
-      await this.sendTx(transact);
-      return record;
-    }
-
+    /** Every update is a new immutable row `TYPE#METADATA#vN` / `SCHEMA#vN` — never overwrite an existing version. */
     const newVersion = currentVersion + 1;
     const record: MetadataTypeRecord = {
       ...existing,
@@ -292,20 +233,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     await this.sendTx([
       { Put: { TableName: this.tableName, Item: typeItem } },
       ...(schemaItem ? [{ Put: { TableName: this.tableName, Item: schemaItem } }] : []),
-      {
-        Put: {
-          TableName: this.tableName,
-          Item: {
-            ...this.key(catalogPartitionKey(), catalogSortKey(input.metadataTypeCode)),
-            entityType: ENTITY_TYPE.CATALOG_ENTRY,
-            metadataTypeCode: input.metadataTypeCode,
-            status: record.status,
-            applicableModules: record.applicableModules,
-            valueDataType: record.valueDataType,
-            lastModifiedAt: now,
-          },
-        },
-      },
       {
         Put: {
           TableName: this.tableName,
@@ -352,20 +279,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       {
         Put: {
           TableName: this.tableName,
-          Item: {
-            ...this.key(catalogPartitionKey(), catalogSortKey(metadataTypeCode)),
-            entityType: ENTITY_TYPE.CATALOG_ENTRY,
-            metadataTypeCode,
-            status,
-            applicableModules: record.applicableModules,
-            valueDataType: record.valueDataType,
-            lastModifiedAt: now,
-          },
-        },
-      },
-      {
-        Put: {
-          TableName: this.tableName,
           Item: this.buildMetadataTypeAuditItem(auditTypePartitionKey(metadataTypeCode), {
             action: 'UPDATE',
             changedBy: actor,
@@ -399,13 +312,14 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async listMetadataTypes(filter: ListTypesFilter): Promise<MetadataTypeRecord[]> {
-    const rows = await this.queryAll(catalogPartitionKey(), 'TYPE#');
+    const indexRows = await this.queryAll(catalogPartitionKey(), 'TYPE#');
     const legacyRows = await this.queryAll(LEGACY_CATALOG_PK, LEGACY_CATALOG_SK_PREFIX);
-    const codes = [...rows, ...legacyRows]
+    const fromIndexAndLegacy = [...indexRows, ...legacyRows]
       .filter((r) => r.entityType === ENTITY_TYPE.CATALOG_ENTRY)
       .map((r) => r.metadataTypeCode as string)
       .filter(Boolean);
-    const uniqueCodes = [...new Set(codes)];
+    const fromPartitions = await this.discoverMetadataTypeCodesOnPartitions();
+    const uniqueCodes = [...new Set([...fromIndexAndLegacy, ...fromPartitions])];
 
     const results: MetadataTypeRecord[] = [];
     for (const code of uniqueCodes) {
@@ -793,6 +707,46 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       }
     } while (startKey);
     return out;
+  }
+
+  /**
+   * Collects `metadataTypeCode` values from `METADATA_TYPE#<code>` partitions by scanning for type-entity
+   * rows only (`TYPE#METADATA#v*` and legacy `TYPE#METADATA`). Used for listing when catalog
+   * items under `METADATA_TYPES` / `TYPE#<code>` are not written.
+   */
+  private async discoverMetadataTypeCodesOnPartitions(): Promise<string[]> {
+    const pkPrefix = typePartitionKey('');
+    const typeEntitySkPrefix = 'TYPE#METADATA#';
+    const codes = new Set<string>();
+    let startKey: Record<string, unknown> | undefined;
+    do {
+      try {
+        const res = (await this.doc.send(
+          new ScanCommand({
+            TableName: this.tableName,
+            FilterExpression: 'begins_with(#pk, :p) AND (begins_with(#sk, :t) OR #sk = :leg)',
+            ExpressionAttributeNames: { '#pk': this.pkAttr, '#sk': this.skAttr },
+            ExpressionAttributeValues: {
+              ':p': pkPrefix,
+              ':t': typeEntitySkPrefix,
+              ':leg': LEGACY_TYPE_ENTITY_SK_V1,
+            },
+            ProjectionExpression: '#pk',
+            ExclusiveStartKey: startKey,
+          }),
+        )) as { Items?: Record<string, unknown>[]; LastEvaluatedKey?: Record<string, unknown> };
+        for (const it of res.Items ?? []) {
+          const pk = it[this.pkAttr] as string;
+          if (typeof pk === 'string' && pk.startsWith(pkPrefix) && pk.length > pkPrefix.length) {
+            codes.add(pk.slice(pkPrefix.length));
+          }
+        }
+        startKey = res.LastEvaluatedKey;
+      } catch (e: unknown) {
+        this.rethrowDynamo('Scan', e);
+      }
+    } while (startKey);
+    return [...codes];
   }
 
   private async batchLoadValues(pk: string, valueCodes: string[]): Promise<MetadataValueRecord[]> {

@@ -3,9 +3,8 @@ version: 0.2
 env:
   variables:
     STAGE: 'dev'
-    DEPLOYMENT_BUCKET: 'dev-mvx-user-service-bucket'
-    # New dev stack: CloudFormation name ${STACK_NAME}-serverless-stack (old stack dev-alert-service-serverless-stack unchanged).
-    STACK_NAME: 'dev-mvx-alert-service'
+    DEPLOYMENT_BUCKET: 'dev-mvx-alert-service-bucket'
+    STACK_NAME: 'dev-alert-service'
 
 phases:
   install:
@@ -33,12 +32,11 @@ phases:
           exit 1
         fi
 
-      # 3) push code & rewrite (prefix isolates alert artifacts in shared user-service bucket)
+      # 3) push code & rewrite
       - |
         aws cloudformation package \
           --template-file "$TEMPLATE" \
           --s3-bucket "$DEPLOYMENT_BUCKET" \
-          --s3-prefix "alert-service/${STAGE}/cf-package" \
           --output-template-file packaged.yaml \
           --force-upload
 
@@ -61,7 +59,7 @@ phases:
 
       # 6) debug: list entire directory
       # - echo "📦 Full directory on S3:"
-      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/alert-service/$STAGE/cf-package/" --recursive
+      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/serverless/alert-service/$STAGE/" --recursive
 
       - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
       - |

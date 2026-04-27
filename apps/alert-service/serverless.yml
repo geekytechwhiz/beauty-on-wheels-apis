@@ -1,10 +1,12 @@
 service: alert-service
 
-# Serverless 3.x JSON schema may lag new runtimes; AWS still accepts them.
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
 configValidationMode: warn
+
 frameworkVersion: '3.x'
 
 plugins:
+  - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
@@ -15,15 +17,18 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  # Matches buildspec STACK_NAME: dev-alert-service, stg-alert-service, prd-alert-service
-  stackName: ${self:provider.stage}-alert-service
-  # Shared with user-service until alert deployment bucket exists.
   deploymentBucket:
-    name: ${self:provider.stage}-mvx-user-service-bucket
+    name: ${self:provider.stage}-mvx-alert-service-bucket
     serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+  
   environment:
     REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
@@ -48,13 +53,6 @@ provider:
   iamRoleStatements:
     - Effect: Allow
       Action:
-        - logs:CreateLogGroup
-        - logs:CreateLogStream
-        - logs:PutLogEvents
-      Resource: '*'
-
-    - Effect: Allow
-      Action:
         - dynamodb:GetItem
         - dynamodb:PutItem
         - dynamodb:UpdateItem
@@ -64,8 +62,15 @@ provider:
         - dynamodb:TransactWriteItems
         - dynamodb:DescribeTable
       Resource:
-        - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:custom.alertDynamoTableName}'
-        - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:custom.alertDynamoTableName}/index/*'
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}/index/*
+
+    # X-Ray
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
 
 package:
   individually: true
@@ -75,6 +80,62 @@ package:
 
 custom:
   alertDynamoTableName: alert-service-${self:provider.stage}
+
+  # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
+  sourcemapsByStage:
+    dev: true
+    stg: false
+    prd: false
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
+    concurrency: 8
+    zipConcurrency: 8
+    # Resolve NX workspace dependencies (@api-hub/* packages)
+    plugins: esbuild-plugins.js
+    # Ensure proper module resolution
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.mjs'
+      - '.json'
+
+  autoswagger:
+    title: Alert Service API
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+  # serverless-plugin-warmup: declare default warmer (attach per-function `warmup` when needed)
+  warmup:
+    default: {}
 
   dotenv:
     logging: false
@@ -94,49 +155,6 @@ custom:
     prd:
       USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
       ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
-
-  logLevel:
-    dev: debug
-    stg: info
-    prd: warn
-
-  esbuild:
-    bundle: true
-    minify: false
-    sourcemap: true
-    target: node22
-    platform: node
-    format: cjs
-    tsconfig: ../../tsconfig.base.json
-    external:
-      - aws-sdk
-    keepNames: true
-    concurrency: 8
-    zipConcurrency: 8
-    plugins: esbuild-plugins.js
-    resolveExtensions:
-      - '.ts'
-      - '.tsx'
-      - '.js'
-      - '.jsx'
-      - '.json'
-
-  autoswagger:
-    title: Alert Service API
-    apiType: http
-    basePath: /${self:provider.stage}
-    schemes:
-      - https
-      - http
-    host: ${self:custom.apiHost, ''}
-    generateSwaggerOnDeploy: true
-    swaggerFiles:
-      - swagger.json
-    useStage: true
-    swaggerPath: swagger
-    excludeStages:
-      - production
-      - prd
 
 # HTTP + CORS pattern aligned with services/sso-integration (no API Gateway TOKEN authorizer; auth in Lambda if needed).
 functions:

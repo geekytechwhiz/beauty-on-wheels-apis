@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+/// <reference types="jest" />
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -47,7 +47,7 @@ describe('assertMetadataTypeActiveForValueMutation', () => {
 
 /**
  * Read paths must not require ACTIVE parent type: values remain readable when the type is inactive.
- * Contract: the guard is only invoked from value create/update/patch in the repository.
+ * Contract: the repository stays a data layer; the inactive-type guard is enforced in the app service before writes.
  */
 describe('read paths vs inactive type (contract)', () => {
   const repoSrc = readFileSync(
@@ -55,9 +55,8 @@ describe('read paths vs inactive type (contract)', () => {
     'utf8',
   );
 
-  it('assertMetadataTypeActiveForValueMutation appears exactly on create, update, and patch value status', () => {
-    const matches = repoSrc.match(/assertMetadataTypeActiveForValueMutation\(/g) ?? [];
-    expect(matches).toHaveLength(3);
+  it('repository does not embed assertMetadataTypeActiveForValueMutation', () => {
+    expect(repoSrc).not.toContain('assertMetadataTypeActiveForValueMutation');
   });
 
   it('getMetadataValue and listMetadataValues do not use the guard (read under inactive type still works)', () => {

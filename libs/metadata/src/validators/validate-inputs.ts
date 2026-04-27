@@ -5,6 +5,7 @@ import {
   type MetadataTypeRecord,
   type MetadataValueInput,
   type ValueDataType,
+  type ValueSearchFilter,
 } from '../domain/types';
 import { STATUS } from '../domain/constants';
 import { ValidationError } from '../domain/errors';
@@ -189,4 +190,16 @@ export function validateMetadataValueInput(
   } else if (metadataTypeCode === 'QuestionCode') {
     validateQuestionCodeAttributes(input.attributes ?? {});
   }
+}
+
+/** Applicability-style search filter tokens and status; call before `searchMetadataValues` on the repository. */
+export function validateValueSearchFilter(filter: ValueSearchFilter): void {
+  if (filter.status && filter.status !== STATUS.ACTIVE && filter.status !== STATUS.INACTIVE) {
+    throw new ValidationError('Invalid status filter', [{ field: 'status', message: 'Must be ACTIVE or INACTIVE' }]);
+  }
+  assertEnumTokenArray(filter.module, 'module');
+  assertEnumTokenArray(filter.category, 'category');
+  assertEnumTokenArray(filter.condition, 'condition');
+  assertEnumTokenArray(filter.country, 'country');
+  assertEnumTokenArray(filter.language, 'language');
 }

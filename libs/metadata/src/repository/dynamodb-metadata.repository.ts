@@ -26,7 +26,7 @@ import type {
   Status,
   ValueSearchFilter,
 } from '../domain/types';
-import { assertMetadataTypeActiveForValueMutation, ConflictError, NotFoundError, ValidationError } from '../domain/errors';
+import { ConflictError, NotFoundError } from '../domain/errors';
 import {
   auditTypePartitionKey,
   auditTypePrefix,
@@ -50,11 +50,6 @@ import {
 } from '../domain/value-audit-delta';
 import { matchesSearchFilter, sortValuesForSearch } from '../domain/search-filter';
 import type { IMetadataRegistryRepository, ListTypesFilter } from './metadata-registry.repository.interface';
-import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from '../validators/code-patterns';
-import {
-  validateMetadataTypeInput,
-  validateMetadataValueInput,
-} from '../validators/validate-inputs';
 
 const ulid = monotonicFactory();
 
@@ -126,9 +121,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async createMetadataType(input: MetadataTypeInput, actor?: string): Promise<MetadataTypeRecord> {
-    validateMetadataTypeInput(input, false);
-    assertMetadataTypeCode(input.metadataTypeCode);
-
     const pk = typePartitionKey(input.metadataTypeCode);
     const existing = await this.getItem(pk, typeEntitySk(1));
     const existingLegacyV1 = existing ? null : await this.getItem(pk, LEGACY_TYPE_ENTITY_SK_V1);
@@ -189,7 +181,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async updateMetadataType(input: MetadataTypeInput, actor?: string): Promise<MetadataTypeRecord> {
-    validateMetadataTypeInput(input, true);
     const existing = await this.getMetadataType(input.metadataTypeCode);
     if (!existing) {
       throw new NotFoundError(`Metadata type ${input.metadataTypeCode} not found`);
@@ -251,7 +242,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async patchMetadataTypeStatus(metadataTypeCode: string, status: Status, actor?: string): Promise<MetadataTypeRecord> {
-    assertMetadataTypeCode(metadataTypeCode);
     const existing = await this.getMetadataType(metadataTypeCode);
     if (!existing) {
       throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
@@ -294,7 +284,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async getMetadataType(metadataTypeCode: string): Promise<MetadataTypeRecord | null> {
-    assertMetadataTypeCode(metadataTypeCode);
     const pk = typePartitionKey(metadataTypeCode);
     const v = await this.resolveLatestTypeVersion(pk);
     if (v === null) {
@@ -343,17 +332,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async createMetadataValue(metadataTypeCode: string, input: MetadataValueInput, actor?: string): Promise<MetadataValueRecord> {
-    const type = await this.getMetadataType(metadataTypeCode);
-    if (!type) {
-      throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
-    }
-    assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
-    validateMetadataValueInput(input, {
-      metadataType: type,
-      mode: 'create',
-      mergedIsGlobal: input.isGlobal!,
-    });
-
     const pk = typePartitionKey(metadataTypeCode);
     const latest = await this.getItem(pk, valueLatestSk(input.valueCode));
     if (latest) {
@@ -416,19 +394,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     actor: string | undefined,
     existing: MetadataValueRecord,
   ): Promise<MetadataValueRecord> {
-    const type = await this.getMetadataType(metadataTypeCode);
-    if (!type) {
-      throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
-    }
-    assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
-
     const mergedIsGlobal = input.isGlobal ?? existing.isGlobal;
-    validateMetadataValueInput(input, {
-      metadataType: type,
-      mode: 'update',
-      mergedIsGlobal,
-      expectedValueCode: existing.valueCode,
-    });
 
     const pk = typePartitionKey(metadataTypeCode);
     const newVersion = existing.version + 1;
@@ -483,16 +449,13 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async patchMetadataValueStatus(metadataTypeCode: string, valueCode: string, status: Status, actor?: string): Promise<MetadataValueRecord> {
-    assertMetadataValueCode(valueCode);
     const existing = await this.getMetadataValue(metadataTypeCode, valueCode);
     if (!existing) {
       throw new NotFoundError(`Value ${valueCode} not found`);
     }
-    const type = await this.getMetadataType(metadataTypeCode);
-    if (!type) {
+    if (!(await this.getMetadataType(metadataTypeCode))) {
       throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
     }
-    assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
 
     const pk = typePartitionKey(metadataTypeCode);
     const newVersion = existing.version + 1;
@@ -533,7 +496,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async getMetadataValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null> {
-    assertMetadataValueCode(valueCode);
     const pk = typePartitionKey(metadataTypeCode);
     const latest = await this.getItem(pk, valueLatestSk(valueCode));
     if (!latest || latest.entityType !== 'VALUE_LATEST') {
@@ -548,7 +510,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async listMetadataValues(metadataTypeCode: string, statusFilter?: Status | null): Promise<MetadataValueRecord[]> {
-    assertMetadataTypeCode(metadataTypeCode);
     const pk = typePartitionKey(metadataTypeCode);
     const rows = await this.queryAll(pk, 'VALUE_LATEST#');
     const codes = rows
@@ -566,9 +527,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async searchMetadataValues(metadataTypeCode: string, filter: ValueSearchFilter): Promise<MetadataValueRecord[]> {
-    assertMetadataTypeCode(metadataTypeCode);
-    this.validateSearchFilter(filter);
-
     const pk = typePartitionKey(metadataTypeCode);
     const applRows = await this.queryAll(pk, 'APPL#');
     const fromAppl = new Set<string>();
@@ -596,7 +554,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]> {
-    assertMetadataTypeCode(metadataTypeCode);
     const rows = await this.queryAll(auditTypePartitionKey(metadataTypeCode), 'TIMESTAMP#');
     const legacyPk = typePartitionKey(metadataTypeCode);
     const legacyPrefix = `${auditTypePrefix(metadataTypeCode)}#`;
@@ -609,7 +566,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async listValueAudit(metadataTypeCode: string, valueCode: string): Promise<AuditRecord[]> {
-    assertMetadataValueCode(valueCode);
     const rows = await this.queryAll(auditValuePartitionKey(valueCode), 'TIMESTAMP#');
     const legacyPk = typePartitionKey(metadataTypeCode);
     const legacyPrefix = `${auditValuePartitionKey(valueCode)}#`;
@@ -622,17 +578,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   // --- helpers ---
-
-  private validateSearchFilter(filter: ValueSearchFilter): void {
-    if (filter.status && filter.status !== STATUS.ACTIVE && filter.status !== STATUS.INACTIVE) {
-      throw new ValidationError('Invalid status filter', [{ field: 'status', message: 'Must be ACTIVE or INACTIVE' }]);
-    }
-    assertEnumTokenArray(filter.module, 'module');
-    assertEnumTokenArray(filter.category, 'category');
-    assertEnumTokenArray(filter.condition, 'condition');
-    assertEnumTokenArray(filter.country, 'country');
-    assertEnumTokenArray(filter.language, 'language');
-  }
 
   /**
    * Persisted `SCHEMA#vN` rows only for MetricCode and QuestionCode; payload field `attributeSchema` per access pattern.

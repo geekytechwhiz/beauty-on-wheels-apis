@@ -3,7 +3,27 @@ import { BaseError } from '@api-hub/utils';
 import { STATUS } from './constants';
 import type { MetadataTypeRecord } from './types';
 
-export class MetadataRegistryError extends BaseError {
+/** Stable public shape for HTTP mapping and tests (subclasses inherit this via {@link MetadataRegistryError}). */
+export interface MetadataHttpErrorShape {
+  statusCode: number;
+  code: string;
+  message: string;
+  details?: { field?: string; message: string }[];
+}
+
+export class MetadataRegistryError extends BaseError implements MetadataHttpErrorShape {
+  /** Re-declared so subclasses see {@link BaseError} fields when utils types resolve loosely. */
+  declare readonly statusCode: number;
+  declare readonly code: string;
+  declare message: string;
+  declare readonly details:
+    | {
+        code?: string;
+        field?: string;
+        message: string;
+      }[]
+    | undefined;
+
   constructor(
     message: string,
     statusCode: number,

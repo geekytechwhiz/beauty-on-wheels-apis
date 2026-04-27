@@ -11,9 +11,16 @@ import type {
 } from '@api-hub/metadata';
 import {
   STATUS,
+  NotFoundError,
   ValidationError,
   applicabilityKeysPresentInBody,
+  assertMetadataTypeActiveForValueMutation,
+  assertMetadataTypeCode,
+  assertMetadataValueCode,
   mapFlatAndNestedToApplicability,
+  validateMetadataTypeInput,
+  validateMetadataValueInput,
+  validateValueSearchFilter,
 } from '@api-hub/metadata';
 import { getMetadataRepository } from '../repositories/dynamodb';
 
@@ -208,10 +215,13 @@ export function flattenMetadataValueForApi(record: MetadataValueRecord): Metadat
 export async function upsertMetadataType(body: MetadataTypeInput, userId?: string): Promise<MetadataTypeRecord> {
   const repo = await getMetadataRepository();
   const actor = actorFromContext(userId);
+  assertMetadataTypeCode(body.metadataTypeCode);
   const existing = await repo.getMetadataType(body.metadataTypeCode);
   if (!existing) {
+    validateMetadataTypeInput(body, false);
     return repo.createMetadataType(body, actor);
   }
+  validateMetadataTypeInput(body, true);
   return repo.updateMetadataType(body, actor);
 }
 
@@ -220,6 +230,7 @@ export async function patchTypeStatus(
   status: Status,
   userId?: string,
 ): Promise<MetadataTypeRecord> {
+  assertMetadataTypeCode(metadataTypeCode);
   return (await getMetadataRepository()).patchMetadataTypeStatus(metadataTypeCode, status, actorFromContext(userId));
 }
 
@@ -278,6 +289,7 @@ export function parseListEntityStatusMode(q: Record<string, string | undefined>)
 }
 
 export async function getType(metadataTypeCode: string): Promise<MetadataTypeRecord | null> {
+  assertMetadataTypeCode(metadataTypeCode);
   return (await getMetadataRepository()).getMetadataType(metadataTypeCode);
 }
 
@@ -301,11 +313,30 @@ export async function upsertMetadataValue(
 ): Promise<MetadataValueRecord> {
   const repo = await getMetadataRepository();
   const actor = body.createdBy ?? actorFromContext(userId);
+  assertMetadataTypeCode(metadataTypeCode);
+  assertMetadataValueCode(body.valueCode);
   const existing =
     preloaded !== undefined ? preloaded : await repo.getMetadataValue(metadataTypeCode, body.valueCode);
+  const type = await repo.getMetadataType(metadataTypeCode);
+  if (!type) {
+    throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
+  }
+  assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
   if (!existing) {
+    validateMetadataValueInput(body, {
+      metadataType: type,
+      mode: 'create',
+      mergedIsGlobal: body.isGlobal!,
+    });
     return repo.createMetadataValue(metadataTypeCode, body, actor);
   }
+  const mergedIsGlobal = body.isGlobal ?? existing.isGlobal;
+  validateMetadataValueInput(body, {
+    metadataType: type,
+    mode: 'update',
+    mergedIsGlobal,
+    expectedValueCode: existing.valueCode,
+  });
   return repo.updateMetadataValue(metadataTypeCode, body, actor, existing);
 }
 
@@ -315,15 +346,23 @@ export async function patchValueStatus(
   status: Status,
   userId?: string,
 ): Promise<MetadataValueRecord> {
-  return (await getMetadataRepository()).patchMetadataValueStatus(
-    metadataTypeCode,
-    valueCode,
-    status,
-    actorFromContext(userId),
-  );
+  const repo = await getMetadataRepository();
+  assertMetadataValueCode(valueCode);
+  const existing = await repo.getMetadataValue(metadataTypeCode, valueCode);
+  if (!existing) {
+    throw new NotFoundError(`Value ${valueCode} not found`);
+  }
+  assertMetadataTypeCode(metadataTypeCode);
+  const type = await repo.getMetadataType(metadataTypeCode);
+  if (!type) {
+    throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
+  }
+  assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
+  return repo.patchMetadataValueStatus(metadataTypeCode, valueCode, status, actorFromContext(userId));
 }
 
 export async function getValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null> {
+  assertMetadataValueCode(valueCode);
   return (await getMetadataRepository()).getMetadataValue(metadataTypeCode, valueCode);
 }
 
@@ -334,15 +373,29 @@ export async function listValues(
   metadataTypeCode: string,
   statusOrAll?: Status | null,
 ): Promise<MetadataValueRecord[]> {
+  assertMetadataTypeCode(metadataTypeCode);
   return (await getMetadataRepository()).listMetadataValues(metadataTypeCode, statusOrAll);
 }
 
 export async function listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]> {
+  assertMetadataTypeCode(metadataTypeCode);
   return (await getMetadataRepository()).listTypeAudit(metadataTypeCode);
 }
 
 export async function listValueAudit(metadataTypeCode: string, valueCode: string): Promise<AuditRecord[]> {
+  assertMetadataTypeCode(metadataTypeCode);
+  assertMetadataValueCode(valueCode);
   return (await getMetadataRepository()).listValueAudit(metadataTypeCode, valueCode);
+}
+
+/** Repository search with filter validation; prefer this over calling the repository directly. */
+export async function searchMetadataValues(
+  metadataTypeCode: string,
+  filter: ValueSearchFilter,
+): Promise<MetadataValueRecord[]> {
+  assertMetadataTypeCode(metadataTypeCode);
+  validateValueSearchFilter(filter);
+  return (await getMetadataRepository()).searchMetadataValues(metadataTypeCode, filter);
 }
 
 export { STATUS, type Status, type ValueSearchFilter };

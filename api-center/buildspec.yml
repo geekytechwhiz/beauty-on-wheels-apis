@@ -15,7 +15,7 @@ phases:
       - echo "Using Node $(node --version)"
       - echo "Using npm $(npm --version)"
       - echo "Installing jq..."
-      - yum install -y jq
+      - apt-get update && apt-get install -y jq
 
   pre_build:
     commands:

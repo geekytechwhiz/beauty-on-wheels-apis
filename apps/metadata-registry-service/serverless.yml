@@ -112,11 +112,11 @@ functions:
           method: get
           cors: ${self:custom.cors}
 
-  postMetadataType:
-    handler: src/handlers/postMetadataType.main
+  postMetadata:
+    handler: src/handlers/postMetadata.main
     events:
       - http:
-          path: metadata-types
+          path: metadata/{entityType}
           method: post
           cors: ${self:custom.cors}
 
@@ -128,28 +128,20 @@ functions:
           method: patch
           cors: ${self:custom.cors}
 
-  getMetadataType:
-    handler: src/handlers/getMetadataType.main
+  getMetadata:
+    handler: src/handlers/getMetadata.main
     events:
       - http:
-          path: metadata-types/{metadataTypeCode}
+          path: metadata/{entityType}
           method: get
           cors: ${self:custom.cors}
 
-  listMetadataTypes:
-    handler: src/handlers/listMetadataTypes.main
+  listMetadata:
+    handler: src/handlers/listMetadata.main
     events:
       - http:
-          path: metadata-types
+          path: metadata/{entityType}/list
           method: get
-          cors: ${self:custom.cors}
-
-  postMetadataValue:
-    handler: src/handlers/postMetadataValue.main
-    events:
-      - http:
-          path: metadata-types/{metadataTypeCode}/values
-          method: post
           cors: ${self:custom.cors}
 
   patchMetadataValueStatus:
@@ -158,22 +150,6 @@ functions:
       - http:
           path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}/status
           method: patch
-          cors: ${self:custom.cors}
-
-  getMetadataValue:
-    handler: src/handlers/getMetadataValue.main
-    events:
-      - http:
-          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}
-          method: get
-          cors: ${self:custom.cors}
-
-  listMetadataValues:
-    handler: src/handlers/listMetadataValues.main
-    events:
-      - http:
-          path: metadata-types/{metadataTypeCode}/values
-          method: get
           cors: ${self:custom.cors}
 
   searchMetadataValues:

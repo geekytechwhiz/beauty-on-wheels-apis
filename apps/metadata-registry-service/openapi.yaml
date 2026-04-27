@@ -34,27 +34,6 @@ paths:
       responses:
         '200':
           description: Updated type
-  /metadata-types/{metadataTypeCode}/values/search:
-    post:
-      summary: Filter values (OR within field, AND across fields; globals always included)
-      parameters:
-        - $ref: '#/components/parameters/metadataTypeCode'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValueSearchFilter'
-      responses:
-        '200':
-          description: Filtered values
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/MetadataValueResponse'
-        '400':
-          description: Invalid filter
   /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/status:
     patch:
       summary: Activate / inactivate value (new version)
@@ -159,8 +138,10 @@ paths:
     get:
       summary: List metadata types or values for a type
       description: |
-        `entityType=type`: same filters as legacy list (module, valueDataType, status / include-inactive). `entityType=value`:
-        `metadataTypeCode` query param required; status filters apply; list is not further filtered by category/condition/country in this API.
+        `entityType=type`: `module`, `valueDataType` / `datatype`, and list status mode (`include-inactive` / `status`).
+        `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
+        filters: `applicableModules`, `applicableCategories`, `applicableConditions`, `applicableCountries` (comma-separated
+        tokens, OR within a field, AND across fields; `isGlobal` values always included). The `search` query param is not supported.
       parameters:
         - name: entityType
           in: path
@@ -175,21 +156,45 @@ paths:
           schema: { type: string }
         - in: query
           name: status
-          schema: { type: string, enum: [ACTIVE, INACTIVE] }
+          description: >-
+            When entityType is value, optional; default ACTIVE. INACTIVE lists inactive values only.
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - INACTIVE
         - in: query
           name: include-inactive
+          description: Used when `entityType=type` only.
           schema: { type: string }
         - in: query
           name: includeInactive
+          description: Used when `entityType=type` only.
           schema: { type: string }
         - in: query
           name: module
+          description: Used when `entityType=type` only.
           schema: { type: string }
         - in: query
           name: valueDataType
+          description: Used when `entityType=type` only.
           schema: { type: string }
         - in: query
           name: datatype
+          description: Used when `entityType=type` only.
+          schema: { type: string }
+        - in: query
+          name: applicableModules
+          description: When `entityType=value`; comma-separated enum tokens (e.g. `RPM` or `RPM,OP`).
+          schema: { type: string }
+        - in: query
+          name: applicableCategories
+          schema: { type: string }
+        - in: query
+          name: applicableConditions
+          schema: { type: string }
+        - in: query
+          name: applicableCountries
           schema: { type: string }
       responses:
         '200':

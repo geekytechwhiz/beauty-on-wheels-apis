@@ -152,14 +152,6 @@ functions:
           method: patch
           cors: ${self:custom.cors}
 
-  searchMetadataValues:
-    handler: src/handlers/searchMetadataValues.main
-    events:
-      - http:
-          path: metadata-types/{metadataTypeCode}/values/search
-          method: post
-          cors: ${self:custom.cors}
-
   listMetadataTypeAudit:
     handler: src/handlers/listMetadataTypeAudit.main
     events:

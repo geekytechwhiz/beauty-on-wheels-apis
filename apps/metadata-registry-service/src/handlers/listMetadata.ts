@@ -1,4 +1,12 @@
-import { STATUS, ValidationError } from '@api-hub/metadata';
+import {
+  STATUS,
+  ValidationError,
+  assertEnumTokenArray,
+  matchesSearchFilter,
+  sortValuesForSearch,
+  type Status,
+  type ValueSearchFilter,
+} from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
 import { flattenMetadataValueForApi, listTypes, listValues, parseListEntityStatusMode } from '../services/metadataService';
 
@@ -11,11 +19,69 @@ function resolveEntityType(req: ListMetadataRequest): string {
   return String(req.params?.entityType ?? req.pathParameters?.entityType ?? '').trim();
 }
 
+/** Comma-separated or single query values → tokens (e.g. `RPM` or `RPM,OP`). */
+function queryTokens(raw: string | undefined): string[] | undefined {
+  if (raw === undefined || String(raw).trim() === '') {
+    return undefined;
+  }
+  const parts = String(raw)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length ? parts : undefined;
+}
+
 /**
- * `listTypes` / `listValues` only support the filter shapes exposed on the service layer.
- * Type list: status (via `parseListEntityStatusMode` + `include-inactive`), `module`, `valueDataType` / `datatype`.
- * Value list: `metadataTypeCode` in query, same status mode; additional dimensions are not in the list API.
+ * Value list: default ACTIVE; optional INACTIVE. No free-text `search` param.
  */
+function parseValueListStatus(q: Record<string, string | undefined>): Status {
+  const raw = q.status;
+  if (raw === undefined || String(raw).trim() === '') {
+    return STATUS.ACTIVE;
+  }
+  const s = String(raw).trim().toUpperCase();
+  if (s === STATUS.ACTIVE || s === STATUS.INACTIVE) {
+    return s;
+  }
+  throw new ValidationError('status must be ACTIVE or INACTIVE', [{ field: 'status', message: 'Invalid' }]);
+}
+
+function buildValueListApplicabilityFilter(
+  q: Record<string, string | undefined>,
+  effectiveStatus: Status,
+): ValueSearchFilter {
+  if (q.search !== undefined && String(q.search).trim() !== '') {
+    throw new ValidationError('search is not supported; use structured applicability query params', [
+      { field: 'search', message: 'Not supported' },
+    ]);
+  }
+
+  const filter: ValueSearchFilter = { status: effectiveStatus };
+
+  const modules = queryTokens(q.applicableModules);
+  if (modules?.length) {
+    assertEnumTokenArray(modules, 'applicableModules');
+    filter.module = modules;
+  }
+  const categories = queryTokens(q.applicableCategories);
+  if (categories?.length) {
+    assertEnumTokenArray(categories, 'applicableCategories');
+    filter.category = categories;
+  }
+  const conditions = queryTokens(q.applicableConditions);
+  if (conditions?.length) {
+    assertEnumTokenArray(conditions, 'applicableConditions');
+    filter.condition = conditions;
+  }
+  const countries = queryTokens(q.applicableCountries);
+  if (countries?.length) {
+    assertEnumTokenArray(countries, 'applicableCountries');
+    filter.country = countries;
+  }
+
+  return filter;
+}
+
 export const main = withLambdaHandler(async (req: ListMetadataRequest) => {
   const entityType = resolveEntityType(req);
   if (!entityType) {
@@ -46,10 +112,13 @@ export const main = withLambdaHandler(async (req: ListMetadataRequest) => {
     if (!metadataTypeCode) {
       throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
     }
-    const mode = parseListEntityStatusMode(q);
-    const statusOrAll = mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
-    const rows = await listValues(metadataTypeCode, statusOrAll);
-    return rows.map(flattenMetadataValueForApi);
+
+    const effectiveStatus = parseValueListStatus(q);
+    const filter = buildValueListApplicabilityFilter(q, effectiveStatus);
+
+    const rows = await listValues(metadataTypeCode, effectiveStatus);
+    const matched = rows.filter((v) => matchesSearchFilter(v, filter, effectiveStatus));
+    return sortValuesForSearch(matched).map(flattenMetadataValueForApi);
   }
 
   throw new ValidationError('entityType must be "type" or "value"', [

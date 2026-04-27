@@ -144,19 +144,11 @@ functions:
           method: get
           cors: ${self:custom.cors}
 
-  listMetadataTypeAudit:
-    handler: src/handlers/listMetadataTypeAudit.main
+  listMetadataAudit:
+    handler: src/handlers/listMetadataAudit.main
     events:
       - http:
-          path: metadata-types/{metadataTypeCode}/audit
-          method: get
-          cors: ${self:custom.cors}
-
-  listMetadataValueAudit:
-    handler: src/handlers/listMetadataValueAudit.main
-    events:
-      - http:
-          path: metadata-types/{metadataTypeCode}/values/{metadataValueCode}/audit
+          path: metadata/{entityType}/audit
           method: get
           cors: ${self:custom.cors}
 

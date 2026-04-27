@@ -53,23 +53,37 @@ paths:
                     description: Updated metadata type record
                     additionalProperties: true
                   - $ref: '#/components/schemas/MetadataValueResponse'
-  /metadata-types/{metadataTypeCode}/audit:
+  /metadata/{entityType}/audit:
     get:
-      summary: Audit trail for metadata type
+      summary: Audit trail for a metadata type or value
+      description: |
+        `entityType=type`: query `metadataTypeCode` (required). `entityType=value`: query `metadataTypeCode` and
+        `metadataValueCode` (or `valueCode` alias) required.
       parameters:
-        - $ref: '#/components/parameters/metadataTypeCode'
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [type, value]
+        - in: query
+          name: metadataTypeCode
+          required: true
+          description: Always required. Identifies the parent type.
+          schema: { type: string }
+        - in: query
+          name: metadataValueCode
+          required: false
+          description: Required when `entityType=value`. Identifies the value within the type.
+          schema: { type: string }
+        - in: query
+          name: valueCode
+          required: false
+          description: Alias for `metadataValueCode` when `entityType=value`.
+          schema: { type: string }
       responses:
         '200':
-          description: Audit entries
-  /metadata-types/{metadataTypeCode}/values/{metadataValueCode}/audit:
-    get:
-      summary: Audit trail for metadata value
-      parameters:
-        - $ref: '#/components/parameters/metadataTypeCode'
-        - $ref: '#/components/parameters/metadataValueCode'
-      responses:
-        '200':
-          description: Audit entries
+          description: List of audit records
 
   /metadata/{entityType}:
     get:

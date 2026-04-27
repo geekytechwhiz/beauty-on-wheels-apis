@@ -79,12 +79,20 @@ package:
     - '!**/*.spec.ts'
 
 custom:
-  commonAuthorizer:
-    name: common_authorizer
-    type: token
-    identitySource: method.request.header.Authorization
-    arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-    resultTtlInSeconds: 0
+  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event)
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - X-Request-Id
+      - X-Requested-With
+      - Sec-Ch-Ua
+      - Sec-Ch-Ua-Mobile
+      - Sec-Ch-Ua-Platform
 
   alertDynamoTableName: alert-service-${self:provider.stage}
 
@@ -163,7 +171,7 @@ custom:
       USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
       ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
 
-# REST + CORS; business routes use shared Lambda token authorizer ${self:custom.commonAuthorizer}.
+# REST + CORS; secured routes: cors block first, then shared token authorizer (same as user-service).
 functions:
   health:
     handler: src/handlers/http/health.main
@@ -177,17 +185,17 @@ functions:
     handler: src/handlers/http/createAlert.main
     events:
       - http:
-          path: /alerts
+          path: alerts
           method: post
-          authorizer: ${self:custom.commonAuthorizer}
           cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Correlation-Id
-              - X-Request-Id
-            allowCredentials: false
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   # --- Other HTTP APIs: uncomment when ready ---
   # getAlert:

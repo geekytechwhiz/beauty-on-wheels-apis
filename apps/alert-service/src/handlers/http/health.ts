@@ -7,7 +7,6 @@ const logger = createLogger({ service: 'alert-service', redactPII: false });
 interface HealthResponse {
   status: 'healthy' | 'unhealthy';
   service: string;
-  version: string;
   timestamp: string;
   requestId?: string;
   region?: string;
@@ -30,7 +29,6 @@ export async function main(
   const response: HealthResponse = {
     status: 'healthy',
     service: 'alert-service',
-    version: process.env.npm_package_version || '1.0.0',
     timestamp: new Date().toISOString(),
     requestId: awsRequestId || correlationId,
     region: process.env.AWS_REGION,

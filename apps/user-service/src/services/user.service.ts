@@ -613,7 +613,7 @@ export class UserService {
       if (syncPostCreateTasks) {
         await postCreateTasks();
       } else {
-        void postCreateTasks().catch((postCreateErr) => {
+        await postCreateTasks().catch((postCreateErr) => {
           logger.warn({
             event: 'service_createUser_post_create_async_failed',
             userId: user.userID,

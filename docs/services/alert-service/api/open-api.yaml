@@ -266,9 +266,8 @@ components:
       properties:
         inputEventId:
           type: string
-          format: uuid
           description: >
-            Optional idempotency key; if omitted, generated. If supplied and already processed, return existing alert.
+            Optional idempotency key (any non-empty string). If supplied and already processed for this org, return existing alert.
         inputType:
           $ref: '#/components/schemas/InputType'
         sourceType:
@@ -314,7 +313,11 @@ components:
           additionalProperties: true
         evidencePayload:
           type: object
-          description: Structured evidence; shape depends on inputType.
+          description: >
+            Required non-empty object. Shape is validated per `inputType` (e.g. THRESHOLD_BREACH: `metricCode` / `reading` / `metric`;
+            MISSED_READING: `deviceId` / `readingType` / `window`; MISSING_DEVICE: `deviceId` / `deviceType`; SYMPTOM_RISK_TRIGGER:
+            `symptomCode` / `symptom` / `riskScore`; ENGAGEMENT_TRIGGER: `engagementType` / `channel` / `context`).
+          minProperties: 1
           additionalProperties: true
 
     AlertSummary:
@@ -822,8 +825,21 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateAlertRequest'
             examples:
+              thresholdBreach:
+                summary: Monitoring / threshold breach (policy id + evidence)
+                value:
+                  inputEventId: evt-test-001
+                  inputType: THRESHOLD_BREACH
+                  sourceType: MONITORING_SERVICE
+                  patientId: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                  triggerTimestamp: '2026-04-27T12:00:00.000Z'
+                  priority: P2
+                  alertPolicyTemplateVersionId: aptv-0001
+                  evidencePayload:
+                    metricCode: HR
+                    reading: 110
               uiManual:
-                summary: Manual create from UI
+                summary: Manual create from UI (engagement)
                 value:
                   inputType: ENGAGEMENT_TRIGGER
                   sourceType: USER_INTERFACE
@@ -832,8 +848,8 @@ paths:
                   priority: P1
                   triggerSummary: Patient follow-up required
                   evidencePayload:
-                    source: USER_INTERFACE
-                    inputType: ENGAGEMENT_TRIGGER
+                    engagementType: FOLLOW_UP
+                    channel: IN_APP
       responses:
         '201':
           description: Alert created.
@@ -858,6 +874,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponseAlertDetail'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /v1/alerts/workflow:
     post:

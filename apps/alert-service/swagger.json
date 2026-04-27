@@ -14,6 +14,82 @@
     }
   },
   "security": [{ "bearerAuth": [] }],
+  "definitions": {
+    "CreateAlertRequest": {
+      "type": "object",
+      "description": "Create-alert payload. Aligns with `createAlertRequestSchema` (Zod) in the service; org is resolved from the JWT, not the body.",
+      "required": [
+        "inputType",
+        "sourceType",
+        "patientId",
+        "triggerTimestamp",
+        "evidencePayload"
+      ],
+      "properties": {
+        "inputEventId": {
+          "type": "string",
+          "description": "Optional; used for idempotency / de-dupe"
+        },
+        "inputType": {
+          "type": "string",
+          "enum": [
+            "THRESHOLD_BREACH",
+            "MISSED_READING",
+            "MISSING_DEVICE",
+            "SYMPTOM_RISK_TRIGGER",
+            "ENGAGEMENT_TRIGGER"
+          ]
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "MONITORING_SERVICE",
+            "DEVICE_MONITORING",
+            "DEVICE_WORKFLOW",
+            "SYMPTOM_ENGINE",
+            "ENGAGEMENT_SERVICE",
+            "USER_INTERFACE"
+          ]
+        },
+        "patientId": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "packageAssignmentId": { "type": "string" },
+        "triggerTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 date-time"
+        },
+        "appliesToType": {
+          "type": "string",
+          "enum": ["VITAL_SIGN", "DEVICE", "SYMPTOM", "ENGAGEMENT"]
+        },
+        "linkedEntityCode": { "type": "string" },
+        "severityHint": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2", "P3"]
+        },
+        "alertPolicyTemplateVersionId": { "type": "string" },
+        "thresholdTemplateVersionId": { "type": "string" },
+        "groupingKey": { "type": "string" },
+        "triggerSummary": { "type": "string" },
+        "triggerSummaryTemplateCode": { "type": "string" },
+        "triggerSummaryParams": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "evidencePayload": {
+          "type": "object",
+          "description": "Non-empty object; required keys depend on inputType (e.g. THRESHOLD_BREACH: metricCode/reading/metric, ENGAGEMENT_TRIGGER: engagementType/channel/context, etc.).",
+          "minProperties": 1,
+          "additionalProperties": true
+        }
+      }
+    }
+  },
   "paths": {
     "/health": {
       "get": {
@@ -25,31 +101,20 @@
     "/alerts": {
       "post": {
         "summary": "Create alert (idempotent on inputEventId)",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
         "parameters": [
           {
-            "name": "body",
             "in": "body",
-            "schema": {
-              "type": "object",
-              "required": ["patientId", "organizationId", "inputEventId", "inputType", "priority"],
-              "properties": {
-                "patientId": { "type": "string" },
-                "organizationId": { "type": "string" },
-                "inputEventId": { "type": "string" },
-                "inputType": { "type": "string" },
-                "priority": { "type": "integer" },
-                "alertPolicyTemplateVersionId": { "type": "string" },
-                "groupingKey": { "type": "string" },
-                "title": { "type": "string" },
-                "detail": { "type": "string" },
-                "triggerTimestamp": { "type": "string", "format": "date-time" }
-              }
-            }
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateAlertRequest" }
           }
         ],
         "responses": {
           "201": { "description": "Created" },
-          "200": { "description": "Duplicate event (idempotent replay)" }
+          "200": { "description": "Duplicate event (idempotent replay)" },
+          "422": { "description": "Validation or business rule error" }
         }
       }
     },

@@ -1,5 +1,11 @@
 import { STATUS, validateMetadataTypeInput, type MetadataTypeInput } from '@api-hub/metadata';
-import { normalizeMetadataTypeInput, parsePatchStatusBody } from './metadataService';
+import {
+  normalizeMetadataTypeInput,
+  parseGetEntityStatusMode,
+  parseListEntityStatusMode,
+  parsePatchStatusBody,
+  parseQueryIncludeInactive,
+} from './metadataService';
 
 describe('normalizeMetadataTypeInput', () => {
   const base = {
@@ -66,5 +72,39 @@ describe('parsePatchStatusBody', () => {
     expect(() => parsePatchStatusBody(undefined)).toThrow();
     expect(() => parsePatchStatusBody(null)).toThrow();
     expect(() => parsePatchStatusBody('Unknown')).toThrow();
+  });
+});
+
+describe('parseQueryIncludeInactive', () => {
+  it('recognizes include-inactive and includeInactive', () => {
+    expect(parseQueryIncludeInactive({ 'include-inactive': 'true' })).toBe(true);
+    expect(parseQueryIncludeInactive({ includeInactive: '1' })).toBe(true);
+    expect(parseQueryIncludeInactive({})).toBe(false);
+  });
+});
+
+describe('parseGetEntityStatusMode', () => {
+  it('defaults to active-only when no query', () => {
+    expect(parseGetEntityStatusMode({})).toBe('active');
+  });
+
+  it('treats ALL, both, and include-inactive as any-status', () => {
+    expect(parseGetEntityStatusMode({ status: 'ALL' })).toBe('all');
+    expect(parseGetEntityStatusMode({ status: 'both' })).toBe('all');
+    expect(parseGetEntityStatusMode({ 'include-inactive': 'true' })).toBe('all');
+    expect(parseGetEntityStatusMode({ includeInactive: '1' })).toBe('all');
+    expect(parseGetEntityStatusMode({ includeInactive: 'yes' })).toBe('all');
+  });
+
+  it('include-inactive takes precedence over status=ACTIVE', () => {
+    expect(parseGetEntityStatusMode({ status: 'ACTIVE', 'include-inactive': 'true' })).toBe('all');
+  });
+});
+
+describe('parseListEntityStatusMode', () => {
+  it('defaults to active; INACTIVE for inactive-only; all when include-inactive', () => {
+    expect(parseListEntityStatusMode({})).toBe('active');
+    expect(parseListEntityStatusMode({ status: 'INACTIVE' })).toBe('inactive');
+    expect(parseListEntityStatusMode({ 'include-inactive': 'true' })).toBe('all');
   });
 });

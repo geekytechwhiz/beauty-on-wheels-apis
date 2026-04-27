@@ -223,6 +223,60 @@ export async function patchTypeStatus(
   return (await getMetadataRepository()).patchMetadataTypeStatus(metadataTypeCode, status, actorFromContext(userId));
 }
 
+/**
+ * `include-inactive` or `includeInactive` (query) — when true, admin/history: no active-only filter on list/get.
+ */
+export function parseQueryIncludeInactive(q: Record<string, string | undefined>): boolean {
+  const raw = q['include-inactive'] ?? q.includeInactive;
+  if (raw === undefined || raw === '') {
+    return false;
+  }
+  const s = String(raw).trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'yes';
+}
+
+/**
+ * GET single type/value: how to apply `status` on the latest entity.
+ * - `active` — default; 404 unless entity is ACTIVE
+ * - `inactive` — 404 unless entity is INACTIVE (`status=INACTIVE` only)
+ * - `all` — return if present (any status); `include-inactive=true` / `includeInactive=true`, or `status=ALL` / `BOTH`
+ */
+export type GetEntityByStatusMode = 'active' | 'inactive' | 'all';
+
+export function parseGetEntityStatusMode(q: Record<string, string | undefined>): GetEntityByStatusMode {
+  if (parseQueryIncludeInactive(q)) {
+    return 'all';
+  }
+  const status = q.status;
+  if (status === undefined || String(status).trim() === '') {
+    return 'active';
+  }
+  const s = String(status).trim().toUpperCase();
+  if (s === 'ALL' || s === 'BOTH') {
+    return 'all';
+  }
+  if (s === STATUS.INACTIVE) {
+    return 'inactive';
+  }
+  if (s === STATUS.ACTIVE) {
+    return 'active';
+  }
+  return 'active';
+}
+
+/** GET list: default ACTIVE only; `status=INACTIVE` for inactive only; `include-inactive` for all (admin). */
+export type ListEntityStatusMode = 'active' | 'inactive' | 'all';
+
+export function parseListEntityStatusMode(q: Record<string, string | undefined>): ListEntityStatusMode {
+  if (parseQueryIncludeInactive(q)) {
+    return 'all';
+  }
+  if (q.status === STATUS.INACTIVE) {
+    return 'inactive';
+  }
+  return 'active';
+}
+
 export async function getType(metadataTypeCode: string): Promise<MetadataTypeRecord | null> {
   return (await getMetadataRepository()).getMetadataType(metadataTypeCode);
 }
@@ -273,8 +327,14 @@ export async function getValue(metadataTypeCode: string, valueCode: string): Pro
   return (await getMetadataRepository()).getMetadataValue(metadataTypeCode, valueCode);
 }
 
-export async function listValues(metadataTypeCode: string, status?: Status): Promise<MetadataValueRecord[]> {
-  return (await getMetadataRepository()).listMetadataValues(metadataTypeCode, status);
+/**
+ * @param statusOrAll - `null` = list all statuses (use with `include-inactive`); omitted/ACTIVE = ACTIVE only; `INACTIVE` = inactive only
+ */
+export async function listValues(
+  metadataTypeCode: string,
+  statusOrAll?: Status | null,
+): Promise<MetadataValueRecord[]> {
+  return (await getMetadataRepository()).listMetadataValues(metadataTypeCode, statusOrAll);
 }
 
 export async function listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]> {

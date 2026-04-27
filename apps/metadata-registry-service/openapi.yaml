@@ -40,7 +40,18 @@ paths:
       parameters:
         - in: query
           name: status
+          description: |
+            Default ACTIVE only. `INACTIVE` lists inactive types only. `include-inactive` / `includeInactive` lists
+            all statuses (admin/history) and takes precedence.
           schema: { type: string, enum: [ACTIVE, INACTIVE] }
+        - in: query
+          name: include-inactive
+          description: If `true`, `1`, or `yes`, list ACTIVE and INACTIVE types. Alias `includeInactive`.
+          schema: { type: string }
+        - in: query
+          name: includeInactive
+          description: CamelCase alias for `include-inactive`.
+          schema: { type: string }
         - in: query
           name: module
           schema: { type: string }
@@ -59,6 +70,20 @@ paths:
       summary: Get latest metadata type
       parameters:
         - $ref: '#/components/parameters/metadataTypeCode'
+        - in: query
+          name: status
+          description: |
+            Default ACTIVE-only (404 if latest type is not ACTIVE). `INACTIVE` returns only if the type is INACTIVE.
+            `ALL` or `BOTH` (case-insensitive) returns the type if it exists (any status). Same as `includeInactive=true`.
+          schema: { type: string, enum: [ACTIVE, INACTIVE, ALL, BOTH] }
+        - in: query
+          name: include-inactive
+          description: If `true`, `1`, or `yes`, same as `status=ALL` (return when present, any status). Alias `includeInactive`.
+          schema: { type: string }
+        - in: query
+          name: includeInactive
+          description: CamelCase alias for `include-inactive`.
+          schema: { type: string }
       responses:
         '200':
           description: Type
@@ -102,7 +127,18 @@ paths:
         - $ref: '#/components/parameters/metadataTypeCode'
         - in: query
           name: status
+          description: |
+            Default ACTIVE only. `INACTIVE` lists inactive values only. `include-inactive` / `includeInactive` lists
+            all statuses (admin/history) and takes precedence.
           schema: { type: string, enum: [ACTIVE, INACTIVE] }
+        - in: query
+          name: include-inactive
+          description: If `true`, `1`, or `yes`, list ACTIVE and INACTIVE values. Alias `includeInactive`.
+          schema: { type: string }
+        - in: query
+          name: includeInactive
+          description: CamelCase alias for `include-inactive`.
+          schema: { type: string }
       responses:
         '200':
           description: Values
@@ -139,6 +175,20 @@ paths:
       parameters:
         - $ref: '#/components/parameters/metadataTypeCode'
         - $ref: '#/components/parameters/metadataValueCode'
+        - in: query
+          name: status
+          description: |
+            Default ACTIVE-only (404 if latest value is not ACTIVE). `INACTIVE` only when the value is INACTIVE.
+            `ALL` or `BOTH` (case-insensitive) if the value exists (any status). Same as `includeInactive=true`.
+          schema: { type: string, enum: [ACTIVE, INACTIVE, ALL, BOTH] }
+        - in: query
+          name: include-inactive
+          description: If `true`, `1`, or `yes`, same as `status=ALL` (return when present, any status). Alias `includeInactive`.
+          schema: { type: string }
+        - in: query
+          name: includeInactive
+          description: CamelCase alias for `include-inactive`.
+          schema: { type: string }
       responses:
         '200':
           description: Value

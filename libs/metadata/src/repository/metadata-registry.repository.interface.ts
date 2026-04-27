@@ -31,7 +31,8 @@ export interface IMetadataRegistryRepository {
   ): Promise<MetadataValueRecord>;
   patchMetadataValueStatus(metadataTypeCode: string, valueCode: string, status: Status, actor?: string): Promise<MetadataValueRecord>;
   getMetadataValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null>;
-  listMetadataValues(metadataTypeCode: string, status?: Status): Promise<MetadataValueRecord[]>;
+  /** `null` = no status filter (all values). Omitted/undefined = ACTIVE only. */
+  listMetadataValues(metadataTypeCode: string, status?: Status | null): Promise<MetadataValueRecord[]>;
   searchMetadataValues(metadataTypeCode: string, filter: ValueSearchFilter): Promise<MetadataValueRecord[]>;
 
   listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]>;

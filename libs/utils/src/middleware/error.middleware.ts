@@ -41,6 +41,9 @@ const ERROR_TITLES: Record<string, string> = {
 
   // ── Other ────────────────────────────────────────────────────────────────────
   EMAIL_OR_PHONE_REQUIRED:            'Email or phone number required',
+
+  // ── Metadata registry ────────────────────────────────────────────────────────
+  METADATA_TYPE_INACTIVE:              'Metadata type is inactive',
 };
 
 /**

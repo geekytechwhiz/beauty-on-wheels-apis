@@ -26,7 +26,7 @@ import type {
   Status,
   ValueSearchFilter,
 } from '../domain/types';
-import { ConflictError, NotFoundError, ValidationError } from '../domain/errors';
+import { assertMetadataTypeActiveForValueMutation, ConflictError, NotFoundError, ValidationError } from '../domain/errors';
 import {
   auditTypePartitionKey,
   auditTypePrefix,
@@ -87,6 +87,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return { [this.pkAttr]: pk, [this.skAttr]: sk };
   }
 
+  /** Blocks value writes that would create a new version when the type’s latest version is not ACTIVE. */
   private rethrowDynamo(op: string, e: unknown): never {
     if (!e || typeof e !== 'object') {
       throw e;
@@ -346,6 +347,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     if (!type) {
       throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
     }
+    assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
     validateMetadataValueInput(input, {
       metadataType: type,
       mode: 'create',
@@ -418,6 +420,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     if (!type) {
       throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
     }
+    assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
 
     const mergedIsGlobal = input.isGlobal ?? existing.isGlobal;
     validateMetadataValueInput(input, {
@@ -485,6 +488,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     if (!existing) {
       throw new NotFoundError(`Value ${valueCode} not found`);
     }
+    const type = await this.getMetadataType(metadataTypeCode);
+    if (!type) {
+      throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
+    }
+    assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
+
     const pk = typePartitionKey(metadataTypeCode);
     const newVersion = existing.version + 1;
     const now = new Date().toISOString();
@@ -538,7 +547,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return this.unmarshalValue(valueItem);
   }
 
-  async listMetadataValues(metadataTypeCode: string, statusFilter?: Status): Promise<MetadataValueRecord[]> {
+  async listMetadataValues(metadataTypeCode: string, statusFilter?: Status | null): Promise<MetadataValueRecord[]> {
     assertMetadataTypeCode(metadataTypeCode);
     const pk = typePartitionKey(metadataTypeCode);
     const rows = await this.queryAll(pk, 'VALUE_LATEST#');
@@ -548,6 +557,9 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       .filter(Boolean);
 
     const values = await this.batchLoadValues(pk, codes);
+    if (statusFilter === null) {
+      return values;
+    }
     const defaultStatus = STATUS.ACTIVE;
     const effective = statusFilter ?? defaultStatus;
     return values.filter((v) => v.status === effective);

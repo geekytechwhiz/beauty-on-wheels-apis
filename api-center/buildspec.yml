@@ -44,9 +44,9 @@ phases:
       - export LAMBDA_NAME=cf-basic-auth
       - export DISTRIBUTION_ID=E2IR80EP36T2RA
 
-      - cd edge-auth
+      - cd api-center/edge-auth
       - zip -r function.zip . >/dev/null
-      - cd ..
+      - cd ../..
 
       - export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
@@ -56,7 +56,7 @@ phases:
           echo "Updating existing Lambda..."
           aws lambda update-function-code \
             --function-name $LAMBDA_NAME \
-            --zip-file fileb://edge-auth/function.zip \
+            --zip-file fileb://api-center/edge-auth/function.zip \
             --region $AWS_REGION
         else
           echo "Creating new Lambda..."
@@ -65,7 +65,7 @@ phases:
             --runtime nodejs18.x \
             --handler index.handler \
             --role arn:aws:iam::$ACCOUNT_ID:role/lambda-edge-execution-role \
-            --zip-file fileb://edge-auth/function.zip \
+            --zip-file fileb://api-center/edge-auth/function.zip \
             --region $AWS_REGION
         fi
 

@@ -521,7 +521,7 @@ export default function App({
               sx={{ mr: 1, fontWeight: 700 }}
             />
           </Tooltip>
-          <Tooltip title={localSpecWriteEnabled ? 'Upload an OpenAPI spec (writes to public/specs in dev)' : writeAccessMessage}>
+          <Tooltip title={localSpecWriteEnabled ? 'Upload an OpenAPI spec (writes to public/specs-store in dev)' : writeAccessMessage}>
             <span>
               <IconButton
                 color="inherit"

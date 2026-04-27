@@ -198,6 +198,7 @@ custom:
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
+      - fhir-tool
     keepNames: true
     # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
     concurrency: 8
@@ -315,6 +316,15 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+  # fhirMetadata:
+  #   handler: src/handlers/fhirMetadata.main
+  #   events:
+  #     - http:
+  #         path: fhir/metadata
+  #         method: get
+  #         cors:
+  #           origin: ${self:custom.cors.origin}
+  #           headers: ${self:custom.cors.headers}
   createUser:
     handler: src/handlers/createUser.main
     warmup:

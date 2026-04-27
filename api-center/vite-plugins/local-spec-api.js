@@ -16,7 +16,7 @@ function sendError(res, status, message) {
     sendJson(res, status, { error: message });
 }
 export function localSpecApiPlugin(options) {
-    const specsPrefix = (options.specsPrefix || 'specs').replace(/^\/+|\/+$/g, '');
+    const specsPrefix = (options.specsPrefix || 'specs-store').replace(/^\/+|\/+$/g, '');
     const specsDir = process.env.API_CENTER_SPECS_DIR;
     let store = null;
     function ensureStore(rootDir) {

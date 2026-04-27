@@ -172,7 +172,7 @@ export class LocalSpecStore {
       options.specsDir && options.specsDir.trim()
         ? path.resolve(this.rootDir, options.specsDir.trim())
         : path.resolve(this.rootDir, 'specs-store');
-    this.prefix = (options.prefix ?? 'specs').replace(/^\/+|\/+$/g, '');
+    this.prefix = (options.prefix ?? 'specs-store').replace(/^\/+|\/+$/g, '');
     fs.mkdirSync(this.specsDir, { recursive: true });
     this.rebuildIndex();
   }

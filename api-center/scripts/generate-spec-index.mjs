@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import yaml from 'js-yaml';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const statusField = 'x-api-center-status';
 
 function normalizePrefix(value) {
-  return (value || 'specs').replace(/^\/+|\/+$/g, '');
+  return (value || 'specs-store').replace(/^\/+|\/+$/g, '');
 }
 
 function escapeRegExp(value) {
@@ -222,7 +222,13 @@ async function main() {
   process.stdout.write(`${out}\n`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isMain =
+  Boolean(process.argv[1]) &&
+  pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

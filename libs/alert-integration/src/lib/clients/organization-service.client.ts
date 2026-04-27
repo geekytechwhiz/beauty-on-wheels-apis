@@ -1,3 +1,7 @@
+/**
+ * Upstream HTTP client for `AlertService` only — not for controllers.
+ * @see `apps/alert-service/docs/http-api-implementation-guide.md` §3
+ */
 import axios from 'axios';
 
 function trimTrailingSlash(url: string): string {
@@ -27,13 +31,15 @@ export async function validateOrganizationContext(organizationId: string, authHe
     validateStatus: () => true,
   });
   if (res.status === 404) {
-    const e = new Error('Organization not found');
-    (e as Error & { statusCode?: number }).statusCode = 404;
+    const e = new Error('Organization not found') as Error & { statusCode: number; code: string };
+    e.statusCode = 404;
+    e.code = 'ORG_NOT_FOUND';
     throw e;
   }
   if (res.status >= 400) {
-    const e = new Error('Organization service validation failed');
-    (e as Error & { statusCode?: number }).statusCode = 502;
+    const e = new Error('Organization service validation failed') as Error & { statusCode: number; code: string };
+    e.statusCode = 502;
+    e.code = 'ORG_SERVICE_UPSTREAM';
     throw e;
   }
 }

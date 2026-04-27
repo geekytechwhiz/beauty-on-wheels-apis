@@ -79,6 +79,13 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  commonAuthorizer:
+    name: common_authorizer
+    type: token
+    identitySource: method.request.header.Authorization
+    arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+    resultTtlInSeconds: 0
+
   alertDynamoTableName: alert-service-${self:provider.stage}
 
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
@@ -156,7 +163,7 @@ custom:
       USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
       ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
 
-# HTTP + CORS pattern aligned with services/sso-integration (no API Gateway TOKEN authorizer; auth in Lambda if needed).
+# REST + CORS; business routes use shared Lambda token authorizer ${self:custom.commonAuthorizer}.
 functions:
   health:
     handler: src/handlers/http/health.main
@@ -166,22 +173,23 @@ functions:
           method: get
           cors: true
 
-  # --- Remaining HTTP APIs commented for health-only pipeline testing; uncomment when ready ---
-  # createAlert:
-  #   handler: src/handlers/http/createAlert.main
-  #   events:
-  #     - http:
-  #         path: /alerts
-  #         method: post
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #
+  createAlert:
+    handler: src/handlers/http/createAlert.main
+    events:
+      - http:
+          path: /alerts
+          method: post
+          authorizer: ${self:custom.commonAuthorizer}
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Correlation-Id
+              - X-Request-Id
+            allowCredentials: false
+
+  # --- Other HTTP APIs: uncomment when ready ---
   # getAlert:
   #   handler: src/handlers/http/getAlert.main
   #   events:

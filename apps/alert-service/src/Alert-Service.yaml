@@ -3,13 +3,13 @@ info:
   title: Alert Service API
   version: 1.0.0
   description: >
-    Operational REST API for the Alert Service. Alerts are created via **POST /v1/alerts** for authorized
+    Operational REST API for the Alert Service. Alerts are created via **POST /alerts** for authorized
     callers (e.g. care ops UI). Policy definitions live outside this service. List endpoints support filters
     and search; **workflow** (including priority change) and **assignment** use unified endpoints with
     `alertIds` (one or many).
 
     **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header).
-    No optional tracing header is required; correlation may appear in responses (`ProblemDetails.correlationId`, `SuccessResponse.requestId`).
+    **Responses:** HTTP APIs use the platform JSON envelope (`success`, `data`, `message`, `error`, `meta`) per internal standards; correlation appears in `meta.requestId` where applicable.
 
 servers:
   - url: https://api.example.com
@@ -21,8 +21,8 @@ security:
 tags:
   - name: Alert instances
     description: >
-      Create (POST /v1/alerts), list, detail, unified workflow (POST /v1/alerts/workflow) including priority
-      (`SET_PRIORITY` action), assignment (POST /v1/alerts/assignment) with alertIds,
+      Create (POST /alerts), list, detail, unified workflow (POST /alerts/workflow) including priority
+      (`SET_PRIORITY` action), assignment (POST /alerts/assignment) with alertIds,
       notes, and activity timeline.
 
 components:
@@ -253,6 +253,72 @@ components:
         State transitions: **START_WORK**, **WAIT**, **RESUME**, **RESOLVE**, **DISMISS** follow the alert state machine.
         **SET_PRIORITY** changes **P0–P3** without a state transition (same endpoint as lifecycle actions).
       enum: [START_WORK, WAIT, RESUME, RESOLVE, DISMISS, SET_PRIORITY]
+
+    AlertTriggerEvent:
+      type: object
+      description: >
+        SQS (and async integration) message body. Same persistence path as `POST /alerts` after mapping to
+        the internal intake model. `inputEventId` is the idempotency key. `orgId` is required and must
+        match the producing tenant. Producer authentication is enforced via IAM/queue policy (out of band).
+      required:
+        - inputEventId
+        - inputType
+        - sourceType
+        - orgId
+        - patientId
+        - triggerTimestamp
+        - evidencePayload
+      properties:
+        inputEventId:
+          type: string
+          format: uuid
+        inputType:
+          $ref: '#/components/schemas/InputType'
+        sourceType:
+          $ref: '#/components/schemas/SourceType'
+        orgId:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        carePlanInstanceId:
+          type: string
+          format: uuid
+        packageAssignmentId:
+          type: string
+          format: uuid
+        triggerTimestamp:
+          type: string
+          format: date-time
+        evidencePayload:
+          type: object
+          additionalProperties: true
+        appliesToType:
+          $ref: '#/components/schemas/AppliesToType'
+        linkedEntityCode:
+          type: string
+        severityHint:
+          $ref: '#/components/schemas/SeverityHint'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        priorityHint:
+          $ref: '#/components/schemas/Priority'
+        alertPolicyTemplateVersionId:
+          type: string
+          format: uuid
+        thresholdTemplateVersionId:
+          type: string
+          format: uuid
+        groupingKey:
+          type: string
+        triggerSummary:
+          type: string
+        triggerSummaryTemplateCode:
+          type: string
+        triggerSummaryParams:
+          type: object
+          additionalProperties: true
 
     CreateAlertRequest:
       type: object
@@ -707,7 +773,7 @@ components:
             correlationId: "req-123"
 
 paths:
-  /v1/alerts:
+  /alerts:
     get:
       operationId: listAlerts
       summary: List alerts (Team Queue or My Alerts)
@@ -817,6 +883,7 @@ paths:
         Adds a new alert for the organization in the JWT scope: new `alertId`, initial state typically
         `UNASSIGNED`, grouping/SLA applied, `ALERT_CREATED` activity recorded. Requires permission to create
         alerts. Prefer **`sourceType`: `USER_INTERFACE`** when the origin is this API or the care UI.
+        Response body uses the standard platform envelope; alert detail is in `data`.
       tags: [Alert instances]
       requestBody:
         required: true
@@ -835,14 +902,14 @@ paths:
                   priority: P1
                   triggerSummary: Patient follow-up required
                   evidencePayload:
-                    source: USER_INTERFACE
-                    inputType: ENGAGEMENT_TRIGGER
+                    engagementType: FOLLOW_UP
+                    channel: IN_APP
       responses:
         '201':
           description: Alert created.
           headers:
             Location:
-              description: URL of the new alert (`/v1/alerts/{alertId}`).
+              description: URL of the new alert (`/alerts/{alertId}`).
               schema:
                 type: string
           content:
@@ -856,13 +923,17 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          description: Idempotent replay — `inputEventId` already processed; returns existing alert in `data`.
+          description: Idempotent replay — `inputEventId` already processed for this org; returns existing alert in `data`.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponseAlertDetail'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  /v1/alerts/workflow:
+  /alerts/workflow:
     post:
       operationId: updateAlertWorkflow
       summary: Workflow transitions and priority (single or multi-select)
@@ -933,7 +1004,7 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 
-  /v1/alerts/assignment:
+  /alerts/assignment:
     post:
       operationId: updateAlertAssignment
       summary: Assignment actions (single or multi-select)
@@ -966,7 +1037,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
-  /v1/alerts/{alertId}:
+  /alerts/{alertId}:
     parameters:
       - $ref: '#/components/parameters/alertId'
     get:
@@ -988,7 +1059,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/alerts/{alertId}/activity:
+  /alerts/{alertId}/activity:
     parameters:
       - $ref: '#/components/parameters/alertId'
     get:
@@ -1023,7 +1094,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/alerts/{alertId}/notes:
+  /alerts/{alertId}/notes:
     parameters:
       - $ref: '#/components/parameters/alertId'
     post:

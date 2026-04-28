@@ -71,6 +71,18 @@
     },
     {
       "path": "./libs/service-clients"
+    },
+    {
+      "path": "./apps/template-service"
+    },
+    {
+      "path": "./libs/template"
+    },
+    {
+      "path": "./libs/metadata"
+    },
+    {
+      "path": "./apps/metadata-registry-service"
     }
   ]
 }

@@ -185,6 +185,7 @@ export async function sendSms(options: {
     const formattedPhone = normalizeIndianPhone(phone);
     console.log('FINAL TEMPLATE DATA : ', options.templateData);
     console.log('FINAL TEMPLATE : ', options.template);
+
     // try {
     //   if (options.template) {
     //     const map: Record<string, any> = { WELCOME: 'WELCOME_USER', WELCOME_USER: 'WELCOME_USER', WELCOME_STAFF: 'WELCOME_STAFF', INVITE: 'INVITE_USER', PROFILE_UPDATED: 'PROFILE_UPDATED' };

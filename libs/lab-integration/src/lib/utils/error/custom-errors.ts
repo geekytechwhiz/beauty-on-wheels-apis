@@ -27,7 +27,7 @@ export class PartnerUnavailableError extends Error {
 export class PartnerAuthenticationError extends Error {
   constructor(
     public readonly partnerId: string,
-    message: string = 'Authentication failed'
+    message = 'Authentication failed'
   ) {
     super(`[${partnerId}] ${message}`);
     this.name = 'PartnerAuthenticationError';

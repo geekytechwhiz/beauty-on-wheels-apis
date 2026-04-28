@@ -1,0 +1,602 @@
+service: template-service
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  # Must match the CodePipeline / CloudFormation stack name (see buildspec STACK_NAME + suffix).
+  # stackName: ${self:provider.stage}-template-service-serverless-stack
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-template-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
+    REGION: ${self:provider.region}
+    TEMPLATE_TABLE: template-library-${self:provider.stage}
+    TEMPLATE_BUCKET: ${self:provider.stage}-mvx-templates-library
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+    EVENT_BUS: ${self:provider.stage}-template-service-bus 
+    # Merge libs/rules/global/rules.json before template rules on execute. Set false to disable.
+    TEMPLATE_GLOBAL_RULES_ENABLED: 'true'
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:TransactWriteItems
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/template-library-${self:provider.stage}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/template-library-${self:provider.stage}/index/*
+
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource:
+        - arn:aws:s3:::${self:custom.templateBucketName}/*
+
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource: '*'
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
+
+custom:
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+  templateBucketName: mvx-${self:provider.stage}-templates-library
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node18
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
+    loader:
+      '.json': 'json'
+
+  autoswagger:
+    title: Template Service API
+    description: Template library, metadata registry, execution, and care-plan draft APIs
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    # serverless-auto-swagger generates Swagger 2.0 definitions.
+    # Keep this config Swagger 2.0 compatible to avoid mixed-version output.
+    # Do not merge the manual OpenAPI file into serverless-auto-swagger output.
+    # Mixing generated swagger: "2.0" with openapi: "3.x" causes Swagger UI render failures.
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - prd
+    tags:
+      - name: Health
+        description: Health check endpoints
+      - name: Templates
+        description: Template definitions, publish, and execute
+      - name: Metadata
+        description: Metadata registry operations
+      - name: CarePlans
+        description: Care plan draft generation
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+          documentation:
+            summary: Health check
+            description: Returns service health and standard success envelope
+            tags:
+              - Health
+            responses:
+              200:
+                description: OK
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        success:
+                          type: boolean
+                        statusCode:
+                          type: integer
+                        data:
+                          type: object
+                          properties:
+                            status:
+                              type: string
+                              example: ok
+  listApplicableMetadata:
+    handler: src/handlers/listApplicableMetadata.main
+    events:
+      - http:
+          path: metadata/applicable
+          method: get
+          cors: true
+          documentation:
+            summary: List applicable metadata
+            description: Filter registry entries by templateType, category, condition, country query params
+            tags:
+              - Metadata
+            responses:
+              200:
+                description: Success envelope with data.items array of metadata definitions
+              400:
+                description: Validation error
+              401:
+                description: Missing organization context
+
+  listMetadataVersions:
+    handler: src/handlers/listMetadataVersions.main
+    events:
+      - http:
+          path: metadata/{type}/{name}/versions
+          method: get
+          cors: true
+          documentation:
+            summary: List metadata versions for a name
+            tags:
+              - Metadata
+            responses:
+              200:
+                description: Success envelope with data.items
+              400:
+                description: Invalid path segments
+              401:
+                description: Missing organization context
+
+  upsertMetadataDefinition:
+    handler: src/handlers/upsertMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}/{name}/{version}
+          method: put
+          cors: true
+          documentation:
+            summary: Upsert metadata definition
+            description: Create or replace a metadata definition at a specific version
+            tags:
+              - Metadata
+            requestBody:
+              description: Metadata upsert body (name excluded; path defines type/name/version)
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+            responses:
+              200:
+                description: Upserted definition in data
+              400:
+                description: Validation error
+              404:
+                description: Not found
+              409:
+                description: Conflict
+
+  deleteMetadataDefinition:
+    handler: src/handlers/deleteMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}/{name}/{version}
+          method: delete
+          cors: true
+          documentation:
+            summary: Delete metadata definition version
+            tags:
+              - Metadata
+            responses:
+              200:
+                description: data.deleted true
+              400:
+                description: Invalid path
+              404:
+                description: Not found
+
+  listMetadataByType:
+    handler: src/handlers/listMetadataByType.main
+    events:
+      - http:
+          path: metadata/{type}
+          method: get
+          cors: true
+          documentation:
+            summary: List metadata by partition type
+            description: Optional query `status` — all, active, or inactive
+            tags:
+              - Metadata
+            responses:
+              200:
+                description: Success envelope with data.items
+              400:
+                description: Invalid type or status
+
+  createMetadataDefinition:
+    handler: src/handlers/createMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}
+          method: post
+          cors: true
+          documentation:
+            summary: Create metadata definition
+            tags:
+              - Metadata
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+            responses:
+              200:
+                description: Created definition in data
+              400:
+                description: Validation error
+              409:
+                description: Conflict
+
+  getMetadataDefinition:
+    handler: src/handlers/getMetadataDefinition.main
+    events:
+      - http:
+          path: metadata/{type}/{name}
+          method: get
+          cors: true
+          documentation:
+            summary: Get metadata definition
+            description: Optional query `version` for a specific version
+            tags:
+              - Metadata
+            responses:
+              200:
+                description: Definition in data
+              400:
+                description: Invalid path
+              404:
+                description: Not found
+
+  createTemplate:
+    handler: src/handlers/createTemplate.main
+    events:
+      - http:
+          path: templates
+          method: post
+          cors: true
+          documentation:
+            summary: Create template
+            description: Creates a new template version; optional Idempotency-Key header
+            tags:
+              - Templates
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - templateId
+            responses:
+              201:
+                description: Template created
+              400:
+                description: Validation error
+              401:
+                description: Missing organization context
+              409:
+                description: Version already exists or hierarchy error
+              500:
+                description: Server error
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  getTemplate:
+    handler: src/handlers/getTemplate.main
+    events:
+      - http:
+          path: templates/{id}
+          method: get
+          cors: true
+          documentation:
+            summary: Get template by id
+            description: Query `view` — published (default) or raw
+            tags:
+              - Templates
+            responses:
+              200:
+                description: Template definition in data
+              400:
+                description: Bad request
+              404:
+                description: Not found
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  updateTemplate:
+    handler: src/handlers/updateTemplate.main
+    events:
+      - http:
+          path: templates/{id}
+          method: put
+          cors: true
+          documentation:
+            summary: Update template version
+            description: Optional Idempotency-Key header
+            tags:
+              - Templates
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - version
+            responses:
+              200:
+                description: Updated template in data
+              400:
+                description: Validation error
+              404:
+                description: Not found
+              409:
+                description: Conflict
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  publishTemplate:
+    handler: src/handlers/publishTemplate.main
+    events:
+      - http:
+          path: templates/{id}/publish
+          method: post
+          cors: true
+          documentation:
+            summary: Publish template version
+            tags:
+              - Templates
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - version
+            responses:
+              200:
+                description: Published template in data
+              400:
+                description: Validation error
+              404:
+                description: Not found
+              409:
+                description: Conflict
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  processTemplateOutbox:
+    handler: src/handlers/processOutbox.main
+    events:
+      - schedule: rate(1 minute)
+
+  carePlanTemplatePublishedConsumer:
+    handler: src/handlers/events/carePlanTemplatePublished.main
+    events:
+      - eventBridge:
+          eventBus:
+            Ref: TemplateEventBus
+          pattern:
+            source:
+              - template-service
+            detail-type:
+              - Template.Published.v1
+          retryPolicy:
+            maximumEventAge: 3600
+            maximumRetryAttempts: 2
+          deadLetterQueueArn:
+            Fn::GetAtt:
+              - TemplateEventsDLQ
+              - Arn
+
+  carePlanCreatedBindingConsumer:
+    handler: src/handlers/events/carePlanCreatedBinding.main
+    events:
+      - eventBridge:
+          eventBus:
+            Ref: TemplateEventBus
+          pattern:
+            source:
+              - careplan-service
+            detail-type:
+              - CarePlan.Created.v1
+          retryPolicy:
+            maximumEventAge: 3600
+            maximumRetryAttempts: 2
+          deadLetterQueueArn:
+            Fn::GetAtt:
+              - TemplateEventsDLQ
+              - Arn
+
+  taskCarePlanAssignedConsumer:
+    handler: src/handlers/events/taskCarePlanAssigned.main
+    events:
+      - eventBridge:
+          eventBus:
+            Ref: TemplateEventBus
+          pattern:
+            source:
+              - careplan-service
+            detail-type:
+              - CarePlan.Assigned.v1
+          retryPolicy:
+            maximumEventAge: 3600
+            maximumRetryAttempts: 2
+          deadLetterQueueArn:
+            Fn::GetAtt:
+              - TemplateEventsDLQ
+              - Arn
+
+  executeTemplate:
+    handler: src/handlers/executeTemplate.main
+    events:
+      - http:
+          path: templates/{id}/execute
+          method: post
+          cors: true
+          documentation:
+            summary: Execute template rules
+            tags:
+              - Templates
+            requestBody:
+              content:
+                application/json:
+                  schema:
+                    type: object
+            responses:
+              200:
+                description: Execution result in data
+              400:
+                description: Validation error
+              404:
+                description: Template not found
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+
+  createCarePlanDraft:
+    handler: src/handlers/createCarePlanDraft.main
+    events:
+      - http:
+          path: care-plans/draft
+          method: post
+          cors: true
+          documentation:
+            summary: Create care plan draft
+            description: Runs template execute with patient and effectiveDate context
+            tags:
+              - CarePlans
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required:
+                      - templateId
+                      - patientId
+                      - effectiveDate
+            responses:
+              200:
+                description: CarePlanDraft in data
+              400:
+                description: Validation error
+              404:
+                description: Template not found
+
+resources:
+  Resources:
+    TemplateEventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:provider.stage}-template-service-bus
+
+    TemplateBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.templateBucketName}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+
+     
+
+    TemplateEventsDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: template-events-dlq-${self:provider.stage}

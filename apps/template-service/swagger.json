@@ -1,0 +1,1057 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Template Service API",
+    "version": "1.0.0",
+    "description": "REST API for template library CRUD, publish and execute, metadata registry, and care-plan draft generation. Organization scope is resolved from the JWT (Bearer token) or API Gateway authorizer claims (`custom:organizationID` / `organizationId`)."
+  },
+  "tags": [
+    { "name": "Health", "description": "Service health" },
+    { "name": "Templates", "description": "Template definitions and execution" },
+    { "name": "Metadata", "description": "Template metadata registry" },
+    { "name": "CarePlans", "description": "Care plan draft helpers" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "operationId": "healthCheck",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthSuccessResponse" },
+                "example": {
+                  "success": true,
+                  "statusCode": 200,
+                  "message": {
+                    "title": "HEALTH.HEALTH_CHECK_OK",
+                    "description": "OK",
+                    "severity": "SUCCESS"
+                  },
+                  "data": { "status": "ok" },
+                  "error": null,
+                  "meta": {
+                    "requestId": "corr-abc123",
+                    "timestamp": "2026-04-03T12:00:00.000Z",
+                    "version": "v1"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/templates": {
+      "post": {
+        "tags": ["Templates"],
+        "summary": "Create template",
+        "operationId": "createTemplate",
+        "parameters": [{ "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateTemplateRequest" },
+              "example": {
+                "templateId": "care-plan-master-v2",
+                "version": "1.0.0",
+                "type": "ORG",
+                "extendsTemplateId": "care-plan-master",
+                "extendsVersion": "2.1.0",
+                "config": { "sections": [] },
+                "status": "DRAFT"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Template created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CreateTemplateSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/templates/{id}": {
+      "get": {
+        "tags": ["Templates"],
+        "summary": "Get template",
+        "operationId": "getTemplate",
+        "parameters": [
+          { "$ref": "#/components/parameters/TemplateId" },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["published", "raw"], "default": "published" },
+            "description": "Use `raw` for draft/unpublished document view when permitted."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Template found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GetTemplateSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "put": {
+        "tags": ["Templates"],
+        "summary": "Update template",
+        "operationId": "updateTemplate",
+        "parameters": [{ "$ref": "#/components/parameters/TemplateId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateTemplateRequest" },
+              "example": {
+                "version": "1.0.1",
+                "config": { "sections": [{ "id": "intro" }] },
+                "status": "DRAFT"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Template updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TemplateDefinitionSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/templates/{id}/publish": {
+      "post": {
+        "tags": ["Templates"],
+        "summary": "Publish template version",
+        "operationId": "publishTemplate",
+        "parameters": [{ "$ref": "#/components/parameters/TemplateId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PublishTemplateRequest" },
+              "example": { "version": "1.0.0" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Template published",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TemplateDefinitionSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/templates/{id}/execute": {
+      "post": {
+        "tags": ["Templates"],
+        "summary": "Execute template rules",
+        "operationId": "executeTemplate",
+        "parameters": [{ "$ref": "#/components/parameters/TemplateId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ExecuteTemplateRequest" },
+              "example": {
+                "version": "1.0.0",
+                "context": {
+                  "patientId": "pat-001",
+                  "vitals": { "hr": 72 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Execution result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExecuteTemplateSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/care-plans/draft": {
+      "post": {
+        "tags": ["CarePlans"],
+        "summary": "Create care plan draft from template execution",
+        "operationId": "createCarePlanDraft",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCarePlanDraftRequest" },
+              "example": {
+                "templateId": "care-plan-org-001",
+                "patientId": "pat-001",
+                "effectiveDate": "2026-04-01",
+                "version": "1.0.0",
+                "context": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft generated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CarePlanDraftSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/metadata/applicable": {
+      "get": {
+        "tags": ["Metadata"],
+        "summary": "List metadata applicable to profile dimensions",
+        "operationId": "listApplicableMetadata",
+        "parameters": [
+          {
+            "name": "templateType",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by template type dimension"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "condition",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Applicable metadata definitions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataListSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/metadata/{type}": {
+      "get": {
+        "tags": ["Metadata"],
+        "summary": "List metadata definitions by partition type",
+        "operationId": "listMetadataByType",
+        "parameters": [
+          { "$ref": "#/components/parameters/MetadataType" },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["all", "active", "inactive"] },
+            "description": "Filter by registry status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataListSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "post": {
+        "tags": ["Metadata"],
+        "summary": "Create metadata definition",
+        "operationId": "createMetadataDefinition",
+        "parameters": [{ "$ref": "#/components/parameters/MetadataType" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MetadataDefinitionCreateRequest" },
+              "example": {
+                "name": "severity",
+                "type": "ENUM",
+                "values": ["low", "medium", "high"],
+                "metadataMode": "Fixed",
+                "applicability": {
+                  "templateType": ["MASTER"],
+                  "category": ["care"],
+                  "condition": ["default"],
+                  "country": ["US"]
+                },
+                "status": "ACTIVE",
+                "version": "1.0.0"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Metadata created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataDefinitionSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/metadata/{type}/{name}": {
+      "get": {
+        "tags": ["Metadata"],
+        "summary": "Get metadata definition (latest or by version)",
+        "operationId": "getMetadataDefinition",
+        "parameters": [
+          { "$ref": "#/components/parameters/MetadataType" },
+          { "$ref": "#/components/parameters/MetadataName" },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Specific version; omit for default resolution"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata definition",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataDefinitionSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/metadata/{type}/{name}/versions": {
+      "get": {
+        "tags": ["Metadata"],
+        "summary": "List versions for a metadata name",
+        "operationId": "listMetadataVersions",
+        "parameters": [{ "$ref": "#/components/parameters/MetadataType" }, { "$ref": "#/components/parameters/MetadataName" }],
+        "responses": {
+          "200": {
+            "description": "Version list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataVersionListSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/metadata/{type}/{name}/{version}": {
+      "put": {
+        "tags": ["Metadata"],
+        "summary": "Upsert metadata definition at version",
+        "operationId": "upsertMetadataDefinition",
+        "parameters": [
+          { "$ref": "#/components/parameters/MetadataType" },
+          { "$ref": "#/components/parameters/MetadataName" },
+          { "$ref": "#/components/parameters/MetadataVersion" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MetadataDefinitionUpsertRequest" },
+              "example": {
+                "type": "ENUM",
+                "values": ["a", "b"],
+                "metadataMode": "Fixed",
+                "applicability": {
+                  "templateType": ["MASTER"],
+                  "category": ["care"],
+                  "condition": ["default"],
+                  "country": ["US"]
+                },
+                "status": "ACTIVE"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Metadata upserted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataDefinitionSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "delete": {
+        "tags": ["Metadata"],
+        "summary": "Delete metadata definition version",
+        "operationId": "deleteMetadataDefinition",
+        "parameters": [
+          { "$ref": "#/components/parameters/MetadataType" },
+          { "$ref": "#/components/parameters/MetadataName" },
+          { "$ref": "#/components/parameters/MetadataVersion" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataDeleteSuccessResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Bearer token containing organization id in claims (e.g. custom:organizationID)."
+      }
+    },
+    "parameters": {
+      "TemplateId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 },
+        "description": "Template identifier"
+      },
+      "MetadataType": {
+        "name": "type",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+        "description": "Metadata partition type (alphanumeric, underscore, hyphen)"
+      },
+      "MetadataName": {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 },
+        "description": "Metadata name (no slashes)"
+      },
+      "MetadataVersion": {
+        "name": "version",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 },
+        "description": "Version segment (no slashes)"
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" },
+        "description": "Optional idempotency key for safe retries on create/update/publish"
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Validation or bad input",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiErrorResponse" },
+            "example": {
+              "success": false,
+              "statusCode": 400,
+              "message": {
+                "title": "VALIDATION_ERROR",
+                "description": "rules must be a valid enterprise rule set",
+                "severity": "ERROR"
+              },
+              "data": null,
+              "error": {
+                "code": "TEMPLATE.TEMPLATE_VALIDATION_FAILED",
+                "details": [{ "field": "rules", "message": "invalid" }]
+              },
+              "meta": {
+                "requestId": "corr-abc123",
+                "timestamp": "2026-04-03T12:00:00.000Z",
+                "version": "v1"
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid credentials / organization context",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Version or state conflict",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected server error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Message": {
+        "type": "object",
+        "required": ["title", "description", "severity"],
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "severity": { "type": "string", "enum": ["SUCCESS", "INFO", "WARNING", "ERROR"] }
+        }
+      },
+      "Meta": {
+        "type": "object",
+        "required": ["requestId", "timestamp", "version"],
+        "properties": {
+          "requestId": { "type": "string", "description": "Correlation / request id" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "version": { "type": "string", "enum": ["v1"] }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "field": { "type": "string" },
+          "message": { "type": "string" }
+        },
+        "required": ["message"]
+      },
+      "ErrorBody": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "details": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ErrorDetail" }
+          }
+        }
+      },
+      "ApiSuccessEnvelope": {
+        "type": "object",
+        "required": ["success", "statusCode", "message", "data", "error", "meta"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [true] },
+          "statusCode": { "type": "integer" },
+          "message": { "$ref": "#/components/schemas/Message" },
+          "data": {},
+          "error": { "type": "null" },
+          "meta": { "$ref": "#/components/schemas/Meta" }
+        }
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "required": ["success", "statusCode", "message", "data", "error", "meta"],
+        "properties": {
+          "success": { "type": "boolean", "enum": [false] },
+          "statusCode": { "type": "integer" },
+          "message": { "$ref": "#/components/schemas/Message" },
+          "data": { "type": "null" },
+          "error": { "$ref": "#/components/schemas/ErrorBody" },
+          "meta": { "$ref": "#/components/schemas/Meta" }
+        }
+      },
+      "HealthSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": ["status"],
+                "properties": { "status": { "type": "string", "enum": ["ok"], "description": "Health status" } }
+              }
+            }
+          }
+        ]
+      },
+      "TemplateProfile": {
+        "type": "object",
+        "required": ["profileTemplateType", "category", "condition", "country"],
+        "properties": {
+          "profileTemplateType": { "type": "string", "minLength": 1 },
+          "category": { "type": "string", "minLength": 1 },
+          "condition": { "type": "string", "minLength": 1 },
+          "country": { "type": "string", "minLength": 1 }
+        }
+      },
+      "CreateTemplateRequest": {
+        "type": "object",
+        "required": ["templateId"],
+        "properties": {
+          "templateId": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["MASTER", "ORG"], "default": "ORG" },
+          "extendsTemplateId": { "type": "string", "minLength": 1 },
+          "extendsVersion": { "type": "string", "minLength": 1 },
+          "extendsBaseOrgId": { "type": "string", "minLength": 1 },
+          "profile": { "$ref": "#/components/schemas/TemplateProfile" },
+          "config": {
+            "type": "object",
+            "additionalProperties": true,
+            "default": {}
+          },
+          "rules": { "description": "Enterprise rule set (validated server-side)" },
+          "actions": {},
+          "status": { "type": "string" },
+          "createdBy": { "type": "string" }
+        },
+        "description": "When `type` is `ORG`, `extendsTemplateId` and `extendsVersion` must reference a published master template."
+      },
+      "UpdateTemplateRequest": {
+        "type": "object",
+        "required": ["version"],
+        "properties": {
+          "version": { "type": "string", "minLength": 1 },
+          "extendsTemplateId": { "type": "string", "minLength": 1 },
+          "extendsVersion": { "type": "string", "minLength": 1 },
+          "extendsBaseOrgId": { "type": "string", "minLength": 1 },
+          "profile": { "$ref": "#/components/schemas/TemplateProfile" },
+          "config": { "type": "object", "additionalProperties": true },
+          "rules": {},
+          "actions": {},
+          "status": { "type": "string" }
+        }
+      },
+      "ExecuteTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "context": {
+            "type": "object",
+            "additionalProperties": true,
+            "default": {}
+          },
+          "version": { "type": "string" }
+        }
+      },
+      "PublishTemplateRequest": {
+        "type": "object",
+        "required": ["version"],
+        "properties": {
+          "version": { "type": "string", "minLength": 1 }
+        }
+      },
+      "CreateCarePlanDraftRequest": {
+        "type": "object",
+        "required": ["templateId", "patientId", "effectiveDate"],
+        "properties": {
+          "templateId": { "type": "string", "minLength": 1 },
+          "patientId": { "type": "string", "minLength": 1 },
+          "effectiveDate": { "type": "string", "minLength": 1, "description": "ISO 8601 date or date-time" },
+          "version": { "type": "string", "minLength": 1 },
+          "context": { "type": "object", "additionalProperties": true, "default": {} }
+        }
+      },
+      "MetadataApplicability": {
+        "type": "object",
+        "required": ["templateType", "category", "condition", "country"],
+        "properties": {
+          "templateType": { "type": "array", "items": { "type": "string" } },
+          "category": { "type": "array", "items": { "type": "string" } },
+          "condition": { "type": "array", "items": { "type": "string" } },
+          "country": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "MetadataConstraints": {
+        "type": "object",
+        "properties": {
+          "minSelections": { "type": "number" },
+          "maxSelections": { "type": "number" },
+          "minValue": { "type": "number" },
+          "maxValue": { "type": "number" },
+          "regex": { "type": "string" },
+          "maxLength": { "type": "number" },
+          "minLength": { "type": "number" }
+        }
+      },
+      "MetadataDefinitionCreateRequest": {
+        "type": "object",
+        "required": ["name", "type", "metadataMode", "applicability", "status", "version"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["ENUM", "MULTI_ENUM", "NUMERIC", "BOOLEAN", "STRING"] },
+          "values": { "type": "array", "items": { "type": "string" } },
+          "defaultValue": {},
+          "metadataMode": { "type": "string", "enum": ["Fixed", "Expandable", "FixedDefaultExpandable"] },
+          "applicability": { "$ref": "#/components/schemas/MetadataApplicability" },
+          "constraints": { "$ref": "#/components/schemas/MetadataConstraints" },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+          "version": { "type": "string", "minLength": 1 }
+        }
+      },
+      "MetadataDefinitionUpsertRequest": {
+        "type": "object",
+        "required": ["type", "metadataMode", "applicability", "status"],
+        "properties": {
+          "type": { "type": "string", "enum": ["ENUM", "MULTI_ENUM", "NUMERIC", "BOOLEAN", "STRING"] },
+          "values": { "type": "array", "items": { "type": "string" } },
+          "defaultValue": {},
+          "metadataMode": { "type": "string", "enum": ["Fixed", "Expandable", "FixedDefaultExpandable"] },
+          "applicability": { "$ref": "#/components/schemas/MetadataApplicability" },
+          "constraints": { "$ref": "#/components/schemas/MetadataConstraints" },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] }
+        }
+      },
+      "TemplateDefinition": {
+        "type": "object",
+        "required": ["templateId", "orgId", "version", "config", "rules", "actions", "status", "createdAt", "updatedAt"],
+        "properties": {
+          "templateId": { "type": "string" },
+          "orgId": { "type": "string" },
+          "version": { "type": "string" },
+          "type": { "type": "string", "enum": ["MASTER", "ORG"] },
+          "schemaRef": { "type": "string" },
+          "extendsTemplateId": { "type": "string" },
+          "extendsVersion": { "type": "string" },
+          "extendsBaseOrgId": { "type": "string" },
+          "masterTemplateVersionId": { "type": "string" },
+          "snapshotRef": { "type": "string" },
+          "snapshotId": { "type": "string" },
+          "profile": { "$ref": "#/components/schemas/TemplateProfile" },
+          "profileKey": { "type": "string" },
+          "config": { "type": "object", "additionalProperties": true },
+          "rules": { "type": "array", "items": {} },
+          "actions": {},
+          "status": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "createdBy": { "type": "string" }
+        }
+      },
+      "TemplateExecutionResult": {
+        "type": "object",
+        "required": ["matched", "actions", "resolved", "ruleEvaluation"],
+        "properties": {
+          "matched": { "type": "boolean" },
+          "actions": {},
+          "resolved": { "type": "object", "additionalProperties": true },
+          "ruleEvaluation": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "CarePlanDraft": {
+        "type": "object",
+        "required": [
+          "patientId",
+          "effectiveDate",
+          "templateId",
+          "templateVersion",
+          "orgId",
+          "resolutionChain",
+          "definition",
+          "policy",
+          "linkedResources",
+          "carePlanStatus"
+        ],
+        "properties": {
+          "patientId": { "type": "string" },
+          "effectiveDate": { "type": "string" },
+          "templateId": { "type": "string" },
+          "templateVersion": { "type": "string" },
+          "orgId": { "type": "string" },
+          "resolutionChain": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["templateId", "version"],
+              "properties": {
+                "templateId": { "type": "string" },
+                "version": { "type": "string" }
+              }
+            }
+          },
+          "definition": { "type": "object", "additionalProperties": true },
+          "policy": {
+            "type": "object",
+            "required": ["matched", "appliedRuleIds", "linkRequirements", "validationHints"],
+            "properties": {
+              "matched": { "type": "boolean" },
+              "appliedRuleIds": { "type": "array", "items": { "type": "string" } },
+              "linkRequirements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["requiredTemplate"],
+                  "properties": { "requiredTemplate": { "type": "string" } }
+                }
+              },
+              "validationHints": { "type": "object", "additionalProperties": true }
+            }
+          },
+          "linkedResources": {
+            "type": "object",
+            "properties": {
+              "okrPlanId": { "type": "string" },
+              "taskTemplateRefs": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "carePlanStatus": { "type": "string", "enum": ["draft", "ready_for_linking", "active"] },
+          "execution": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "MetadataDefinition": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "metadataMode",
+          "applicability",
+          "status",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string", "enum": ["ENUM", "MULTI_ENUM", "NUMERIC", "BOOLEAN", "STRING"] },
+          "values": { "type": "array", "items": { "type": "string" } },
+          "defaultValue": {},
+          "metadataMode": { "type": "string", "enum": ["Fixed", "Expandable", "FixedDefaultExpandable"] },
+          "applicability": { "$ref": "#/components/schemas/MetadataApplicability" },
+          "constraints": { "$ref": "#/components/schemas/MetadataConstraints" },
+          "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+          "version": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateTemplateSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "statusCode": { "type": "integer", "enum": [201] },
+              "data": { "$ref": "#/components/schemas/TemplateDefinition" }
+            }
+          }
+        ]
+      },
+      "TemplateDefinitionSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": { "$ref": "#/components/schemas/TemplateDefinition" }
+            }
+          }
+        ]
+      },
+      "GetTemplateSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": { "$ref": "#/components/schemas/TemplateDefinition" }
+            }
+          }
+        ]
+      },
+      "ExecuteTemplateSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": { "$ref": "#/components/schemas/TemplateExecutionResult" }
+            }
+          }
+        ]
+      },
+      "CarePlanDraftSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": { "$ref": "#/components/schemas/CarePlanDraft" }
+            }
+          }
+        ]
+      },
+      "MetadataListSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "description": "Array results are wrapped as `{ items: [...] }` by the API layer.",
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": ["items"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/MetadataDefinition" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MetadataDefinitionSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": { "$ref": "#/components/schemas/MetadataDefinition" }
+            }
+          }
+        ]
+      },
+      "MetadataVersionListSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": ["items"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/MetadataDefinition" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MetadataDeleteSuccessResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ApiSuccessEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": ["deleted"],
+                "properties": { "deleted": { "type": "boolean", "enum": [true] } }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "pk": "ORG_META",
+  "sk": "SUPPORTED_VITALS",
+  "attributes": [
+    {
+      "steps": {
+        "activityType": "stepCounts",
+        "code": "steps",
+        "device": false,
+        "displayName": "Steps",
+        "vitalType": "Steps"
+      }
+    },
+    {
+      "duration": {
+        "activityType": "duration",
+        "code": "duration",
+        "device": false,
+        "displayName": "Activity",
+        "vitalType": "Activity"
+      }
+    },
+    {
+      "bloodPressure": {
+        "code": "bloodPressure",
+        "device": true,
+        "displayName": "Blood Pressure",
+        "vitalType": "BloodPressure"
+      }
+    },
+    {
+      "oximeter": {
+        "code": "oximeter",
+        "device": true,
+        "displayName": "Oximeter",
+        "vitalType": "Oximeter"
+      }
+    },
+    {
+      "glucose": {
+        "code": "glucose",
+        "device": true,
+        "displayName": "Glucose",
+        "vitalType": "Glucose"
+      }
+    },
+    {
+      "weight": {
+        "code": "weight",
+        "device": true,
+        "displayName": "Weight",
+        "vitalType": "Weight"
+      }
+    },
+    {
+      "bodyComposition": {
+        "code": "bodyComposition",
+        "device": true,
+        "displayName": "Body Composition",
+        "vitalType": "BodyComposition"
+      }
+    },
+    {
+      "cholesterol": {
+        "code": "cholesterol",
+        "device": true,
+        "displayName": "Cholesterol",
+        "vitalType": "Cholesterol"
+      }
+    },
+    {
+      "bodyTemperature": {
+        "code": "bodyTemperature",
+        "device": true,
+        "displayName": "Body Temperature",
+        "vitalType": "BodyTemperature"
+      }
+    },
+    {
+      "hydration": {
+        "code": "hydration",
+        "device": false,
+        "displayName": "Hydration",
+        "vitalType": "Hydration"
+      }
+    },
+    {
+      "sleep": {
+        "code": "sleep",
+        "device": false,
+        "displayName": "Sleep",
+        "vitalType": "Sleep"
+      }
+    }
+  ],
+  "createdDate": 1771398664763,
+  "modifiedDate": 1775037000378
+}

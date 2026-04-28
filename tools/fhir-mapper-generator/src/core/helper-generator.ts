@@ -45,7 +45,7 @@ export class HelperGenerator {
   /**
    * Get the utility file path for this helper
    */
-  getUtilityFilePath(category: string = 'reference'): string {
+  getUtilityFilePath(category = 'reference'): string {
     return `libs/fhir/src/utils/${category}.ts`;
   }
 }

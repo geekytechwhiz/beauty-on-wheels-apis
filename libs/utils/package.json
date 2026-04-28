@@ -15,5 +15,13 @@
       "default": "./dist/index.js"
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "jest": "^30.0.2",
+    "@aws-sdk/client-dynamodb": "^3.958.0",
+    "@aws-sdk/lib-dynamodb": "^3.958.0",
+    "aws-lambda": "^1.0.7",
+    "libphonenumber-js": "^1.12.39",
+    "winston": "^3.19.0",
+    "@api-hub/logger": "workspace:*"
+  }
 }

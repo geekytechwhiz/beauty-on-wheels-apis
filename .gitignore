@@ -24,6 +24,9 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Cursor (local only)
+.cursor/settings.json
+
 # misc
 /.sass-cache
 /connect.lock
@@ -59,6 +62,11 @@ services/sso-integration/.env
 
 # Serverless build artifacts
 **/.serverless/
+apps/metadata-registry-service/.env
+
+# Ad-hoc zip exports (e.g. local packaging); not for Git — triggers GitHub file-size / push protection
+apps/template-service.zip
+apps/template-service/*.zip
 
 # Swagger generated files
 apps/user-service/swagger
@@ -77,4 +85,55 @@ api-endpoints-export.xlsx
 myVitalRx/
 # Only ignore top-level scripts/ (e.g. script outputs). App-specific scripts (e.g. device-service seed data) stay tracked.
 /scripts/
+!/scripts/
+!/scripts/rule-checker.js
 vite.config.*.timestamp*
+apps/template-service/.esbuild/.build/src/handlers/createCarePlanDraft.js
+apps/template-service/.esbuild/.build/src/handlers/createCarePlanDraft.js.map
+apps/template-service/.esbuild/.build/src/handlers/createTemplate.js
+apps/template-service/.esbuild/.build/src/handlers/createTemplate.js.map
+apps/template-service/.esbuild/.build/src/handlers/executeTemplate.js
+apps/template-service/.esbuild/.build/src/handlers/executeTemplate.js.map
+apps/template-service/.esbuild/.build/src/handlers/getTemplate.js
+apps/template-service/.esbuild/.build/src/handlers/getTemplate.js.map
+apps/template-service/.esbuild/.build/src/handlers/health.js
+apps/template-service/.esbuild/.build/src/handlers/health.js.map
+apps/template-service/.esbuild/.build/src/handlers/processOutbox.js
+apps/template-service/.esbuild/.build/src/handlers/processOutbox.js.map
+apps/template-service/.esbuild/.build/src/handlers/publishTemplate.js
+apps/template-service/.esbuild/.build/src/handlers/publishTemplate.js.map
+apps/template-service/.esbuild/.build/src/handlers/updateTemplate.js
+apps/template-service/.esbuild/.build/src/handlers/updateTemplate.js.map
+apps/template-service/.esbuild/.build/src/handlers/events/carePlanCreatedBinding.js
+apps/template-service/.esbuild/.build/src/handlers/events/carePlanCreatedBinding.js.map
+apps/template-service/.esbuild/.build/src/handlers/events/carePlanTemplatePublished.js
+apps/template-service/.esbuild/.build/src/handlers/events/carePlanTemplatePublished.js.map
+apps/template-service/.esbuild/.build/src/handlers/events/taskCarePlanAssigned.js
+apps/template-service/.esbuild/.build/src/handlers/events/taskCarePlanAssigned.js.map
+apps/template-service/docs/care-plan-draft.request.json
+apps/template-service/.esbuild/.build/src/handlers/createMetadataDefinition.js
+apps/template-service/.esbuild/.build/src/handlers/createMetadataDefinition.js.map
+apps/template-service/.esbuild/.build/src/handlers/deleteMetadataDefinition.js
+apps/template-service/.esbuild/.build/src/handlers/deleteMetadataDefinition.js.map
+apps/template-service/.esbuild/.build/src/handlers/getMetadataDefinition.js
+apps/template-service/.esbuild/.build/src/handlers/getMetadataDefinition.js.map
+apps/template-service/.esbuild/.build/src/handlers/listApplicableMetadata.js
+apps/template-service/.esbuild/.build/src/handlers/listApplicableMetadata.js.map
+apps/template-service/.esbuild/.build/src/handlers/listMetadataByType.js
+apps/template-service/.esbuild/.build/src/handlers/listMetadataByType.js.map
+apps/template-service/.esbuild/.build/src/handlers/listMetadataVersions.js
+apps/template-service/.esbuild/.build/src/handlers/listMetadataVersions.js.map
+apps/template-service/.esbuild/.build/src/handlers/upsertMetadataDefinition.js
+apps/template-service/.esbuild/.build/src/handlers/upsertMetadataDefinition.js.map
+apps/template-service/docs/care-plan-master-create.request.json
+apps/template-service/docs/care-plan-org.json
+apps/template-service/docs/care-plan.json
+apps/template-service/docs/OKR-master.json
+apps/template-service/docs/single-table-migration.md
+apps/template-service/docs/template-library-tester-guide.md
+apps/template-service/scripts/migrate-single-table-aux-data.mjs
+
+apps/metadata-registry-service.zip
+apps/metadata-registry-service/*.zip
+
+apps/metadata-registry-service/.esbuild/

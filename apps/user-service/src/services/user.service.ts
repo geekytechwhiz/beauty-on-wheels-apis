@@ -15,6 +15,8 @@ import { notifyUser } from './notification.service';
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const roleRepository = new RoleRepository();
 const packageRepository = new PackageRepository();
+let cachedUserPoolId: string | undefined;
+let cachedUserPoolIdPromise: Promise<string | undefined> | null = null;
 
 const friendFamilyService = new FriendFamilyService();
 function generateSortableId() {
@@ -1691,45 +1693,54 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       roleId = (userBasicDetails as any).userRole?.[0] ?? '';
 
       if (roleId) {
-        const orgFeatures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
-        logStepDuration('fetch_org_features');
-        const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(
-          userOrgId,
-          actualUserId,
-          orgFeatures,
-          authHeader,
-        );
-        logStepDuration('fetch_role_permissions');
-        if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
-          const roleItems = rolePermissionsFromRolesTable;
-          const roleHeader =
-            roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
-            roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
-            roleItems[0];
+        if (authHeader) {
+          const orgFeatures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
+          logStepDuration('fetch_org_features');
+          const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(
+            userOrgId,
+            actualUserId,
+            orgFeatures,
+            authHeader,
+          );
+          logStepDuration('fetch_role_permissions');
+          if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
+            const roleItems = rolePermissionsFromRolesTable;
+            const roleHeader =
+              roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
+              roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
+              roleItems[0];
 
-          roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
-          isDefault = roleHeader?.isDefault ?? false;
-          roleType = roleHeader?.roleType ?? null;
+            roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
+            isDefault = roleHeader?.isDefault ?? false;
+            roleType = roleHeader?.roleType ?? null;
 
-          const headerFeatures = roleHeader?.features;
-          if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
-            userPermissions = headerFeatures;
-          } else if (headerFeatures && typeof headerFeatures === 'object') {
-            userPermissions = Object.values(headerFeatures);
-          } else {
-            const featureItems = roleItems.filter((it: any) => {
-              const sk = String(it.SK || it.sk || '');
-              return (
-                it.itemType === 'Feature' ||
-                !!it.featureKey ||
-                sk.includes('#FEATURE#') ||
-                sk.startsWith('MODULE#')
-              );
-            });
-            userPermissions = featureItems;
+            const headerFeatures = roleHeader?.features;
+            if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
+              userPermissions = headerFeatures;
+            } else if (headerFeatures && typeof headerFeatures === 'object') {
+              userPermissions = Object.values(headerFeatures);
+            } else {
+              const featureItems = roleItems.filter((it: any) => {
+                const sk = String(it.SK || it.sk || '');
+                return (
+                  it.itemType === 'Feature' ||
+                  !!it.featureKey ||
+                  sk.includes('#FEATURE#') ||
+                  sk.startsWith('MODULE#')
+                );
+              });
+              userPermissions = featureItems;
+            }
+
+            uniquePermissions = this.getUniquePermissions(userPermissions);
           }
-
-          uniquePermissions = this.getUniquePermissions(userPermissions);
+        } else {
+          logger.info({
+            event: 'skip_role_feature_fetch_no_auth',
+            userOrgId,
+            actualUserId,
+            roleId,
+          });
         }
       }
 
@@ -1827,9 +1838,13 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       // Get email/phone verification status (matches original: getEmailPhoneVerifiedStatus)
       let emailVerified = false;
       let phoneVerified = false;
+      const verificationPromise = userBasicDetails
+        ? this.getEmailPhoneVerifiedStatus(userBasicDetails, actualUserId, userOrgId)
+        : Promise.resolve(undefined);
+
       if (userBasicDetails) {
         try {
-          const verifiedStatus = await this.getEmailPhoneVerifiedStatus(userBasicDetails, actualUserId, userOrgId);
+          const verifiedStatus = await verificationPromise;
           emailVerified = verifiedStatus?.emailVerified || false;
           phoneVerified = verifiedStatus?.phoneVerified || false;
           logStepDuration('resolve_email_phone_verification');
@@ -2170,28 +2185,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     if ((!emailVerified || !phoneVerified) && userBasicDetails) {
       try {
         const { CognitoIdentityProviderClient, ListUsersCommand } = await import('@aws-sdk/client-cognito-identity-provider');
-        const { SecretsManagerClient, GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
-        
-        // Get user pool ID from secrets manager
-        const secretManagerName = process.env.SECRET_MANAGER_NAME;
-        let userPoolId: string | undefined;
-        
-        if (secretManagerName) {
-          try {
-            const secretClient = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
-            const command = new GetSecretValueCommand({ SecretId: secretManagerName });
-            const data = await secretClient.send(command);
-            const secretString = 'SecretString' in data 
-              ? data.SecretString 
-              : (data.SecretBinary ? Buffer.from(data.SecretBinary as any).toString('ascii') : '');
-            if (secretString) {
-              const secrets = JSON.parse(secretString);
-              userPoolId = secrets.USER_POOL_ID;
-            }
-          } catch (err) {
-            methodLogger.warn({ event: 'get_secrets_error', err: serializeError(err) });
-          }
-        }
+        const userPoolId = await this.getUserPoolId(methodLogger);
 
         if (userPoolId) {
           const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -2259,6 +2253,48 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     }
 
     return { emailVerified, phoneVerified };
+  }
+
+  private async getUserPoolId(methodLogger: ReturnType<typeof createChildLogger>): Promise<string | undefined> {
+    if (cachedUserPoolId) {
+      return cachedUserPoolId;
+    }
+
+    if (cachedUserPoolIdPromise) {
+      return cachedUserPoolIdPromise;
+    }
+
+    cachedUserPoolIdPromise = (async () => {
+      try {
+        const secretManagerName = process.env.SECRET_MANAGER_NAME;
+        if (!secretManagerName) {
+          return undefined;
+        }
+
+        const { SecretsManagerClient, GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
+        const secretClient = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
+        const command = new GetSecretValueCommand({ SecretId: secretManagerName });
+        const data = await secretClient.send(command);
+        const secretString = 'SecretString' in data
+          ? data.SecretString
+          : (data.SecretBinary ? Buffer.from(data.SecretBinary as any).toString('ascii') : '');
+
+        if (!secretString) {
+          return undefined;
+        }
+
+        const secrets = JSON.parse(secretString);
+        return secrets.USER_POOL_ID as string | undefined;
+      } catch (err) {
+        methodLogger.warn({ event: 'get_secrets_error', err: serializeError(err) });
+        return undefined;
+      } finally {
+        cachedUserPoolIdPromise = null;
+      }
+    })();
+
+    cachedUserPoolId = await cachedUserPoolIdPromise;
+    return cachedUserPoolId;
   }
 }
 

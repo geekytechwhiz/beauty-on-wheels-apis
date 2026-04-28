@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { ValidationError } from '../domain/errors';
 import { validateMetadataTypeInput } from './validate-inputs';
 
 describe('validateMetadataTypeInput', () => {
@@ -30,5 +31,15 @@ describe('validateMetadataTypeInput', () => {
     expect(() =>
       validateMetadataTypeInput({ metadataTypeCode: 'SampleType', displayName: 'Renamed' }, true),
     ).not.toThrow();
+  });
+
+  it('rejects non-string metadataTypeCode', () => {
+    try {
+      validateMetadataTypeInput({ ...validCreate, metadataTypeCode: 123 as never }, false);
+      expect.fail('expected ValidationError');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ValidationError);
+      expect((e as ValidationError).details?.[0]?.message).toBe('Must be a string');
+    }
   });
 });

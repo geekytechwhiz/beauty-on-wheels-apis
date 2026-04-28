@@ -83,8 +83,14 @@ async function handlePostMetadataType(
   body: Record<string, unknown> | undefined,
   userId: string | undefined,
 ) {
-  if (!body?.metadataTypeCode) {
-    throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
+  const code = body?.metadataTypeCode;
+  if (code === undefined || code === null || typeof code !== 'string' || code.trim() === '') {
+    throw new ValidationError('metadataTypeCode is required', [
+      {
+        field: 'metadataTypeCode',
+        message: code !== undefined && code !== null && typeof code !== 'string' ? 'Must be a string' : 'Required',
+      },
+    ]);
   }
   return upsertMetadataType(
     normalizeMetadataTypeInput(body as MetadataTypeInput & Record<string, unknown>),
@@ -97,11 +103,18 @@ async function handlePostMetadataValue(
   userId: string | undefined,
 ) {
   const raw = (body ?? {}) as MetadataValueInput & Record<string, unknown>;
-  if (!raw.metadataTypeCode || String(raw.metadataTypeCode).trim() === '') {
-    throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
+  const typeCodeRaw = raw.metadataTypeCode;
+  if (typeCodeRaw === undefined || typeCodeRaw === null || typeof typeCodeRaw !== 'string' || typeCodeRaw.trim() === '') {
+    throw new ValidationError('metadataTypeCode is required', [
+      {
+        field: 'metadataTypeCode',
+        message:
+          typeCodeRaw !== undefined && typeCodeRaw !== null && typeof typeCodeRaw !== 'string' ? 'Must be a string' : 'Required',
+      },
+    ]);
   }
   assertPostMetadataValueRequiredBody(raw);
-  const metadataTypeCode = String(raw.metadataTypeCode).trim();
+  const metadataTypeCode = typeCodeRaw.trim();
   const valueCode = (raw.valueCode ?? raw.metadataValueCode) as string;
   const existing = await getValue(metadataTypeCode, valueCode);
   const normalized = normalizeMetadataValueInput(

@@ -1639,19 +1639,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     const timer = createPerformanceTimer(baseLogger, 'getUserWithOrganizationDetails');
     const logger = createChildLogger(baseLogger, { patientId, organizationId, requestingUserId });
     logger.info({ event: 'service_getUserWithOrganizationDetails_start' });
-    const methodStartTime = Date.now();
-    let lastStepTime = methodStartTime;
-    const logStepDuration = (step: string, extra?: Record<string, unknown>) => {
-      const now = Date.now();
-      logger.info({
-        event: 'service_getUserWithOrganizationDetails_timing',
-        step,
-        stepDurationMs: now - lastStepTime,
-        totalDurationMs: now - methodStartTime,
-        ...extra,
-      });
-      lastStepTime = now;
-    };
 
     try {
       // Handle default profile (family member access)
@@ -1661,11 +1648,9 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       if (defaultProfile && defaultProfile !== '') {
         actualUserId = defaultProfile;
         fnfDetails = await this.repository.getUser(patientId, organizationId);
-        logStepDuration('fetch_fnf_details');
       }
 
       const userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
-      logStepDuration('fetch_user_basic_details');
 
       if (!userBasicDetails) {
         throw new UserNotFoundError(actualUserId);
@@ -1760,7 +1745,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         //   });
         // }
         roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
-        logStepDuration('fetch_role_details');
           if (roleDetails && roleDetails.length > 0) {
             const roleDetail = roleDetails[0];
             roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
@@ -1775,9 +1759,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       }
 
       orgBasicDetails = await orgBasicDetailsPromise;
-      if (userOrgId && userOrgId !== 'ROOT') {
-        logStepDuration('fetch_organization_details');
-      }
 
       // Calculate account age
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
@@ -1791,7 +1772,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       // Get currencies (matches original: getCurrenciesForCountryCode)
       const currencies = await currenciesPromise;
-      logStepDuration('fetch_currencies');
 
       // Resolve units from org defaultSetting and user overrides (match legacy getUserUnits: sign_up/get_user_profile/dynamodb.js)
       const orgDefaultSetting = orgBasicDetails?.organizationInfo?.defaultSetting
@@ -1876,13 +1856,11 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
           const verifiedStatus = await verificationPromise;
           emailVerified = verifiedStatus?.emailVerified || false;
           phoneVerified = verifiedStatus?.phoneVerified || false;
-          logStepDuration('resolve_email_phone_verification');
         } catch (err) {
           logger.warn({ event: 'getEmailPhoneVerifiedStatus_error', err: serializeError(err) });
           // Fallback to DB values
           emailVerified = userBasicDetails.emailVerified || false;
           phoneVerified = userBasicDetails.phoneVerified || false;
-          logStepDuration('resolve_email_phone_verification_fallback');
         }
       }
 
@@ -2068,7 +2046,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       // Add reporter details if available
       if (userBasicDetails.reporterId) {
         const reporterDetails = await reporterDetailsPromise;
-        logStepDuration('fetch_reporter_details');
         if (reporterDetails) {
           data.reporterId = userBasicDetails.reporterId;
           data.reporterProfilePic = reporterDetails.profilePic || '';
@@ -2087,7 +2064,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       // Add all assigned doctors from ASSIGNEE# mapping (referenced array)
       const assignedDoctorLinks = await assignedDoctorLinksPromise;
-      logStepDuration('fetch_assigned_doctor_links', { assignedDoctorCount: assignedDoctorLinks.length });
       data.assignedDoctors = await Promise.all(
         assignedDoctorLinks.map(async (link) => {
           const docDetails = await this.repository.getUser(link.doctorId, link.organizationID || userOrgId);
@@ -2113,8 +2089,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
           };
         })
       );
-      logStepDuration('fetch_assigned_doctor_profiles');
-
       // Fitness apps
       data.fitnessApps = {
         garmin: !!(userBasicDetails as any).garmin,
@@ -2125,13 +2099,11 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       data.isTaskCompleted = userBasicDetails.isTaskCompleted !== undefined 
         ? userBasicDetails.isTaskCompleted 
         : await this.repository.checkCompletedTasks(actualUserId);
-      logStepDuration('resolve_task_completion_status');
 
       // Format full name with prefix
       if (data.namePrefix?.includes('Dr.') || data.namePrefix?.includes('DR')) {
         data.fullName = `${data.namePrefix} ${data.fullName}`.trim();
       }
-      logStepDuration('build_response_payload');
 
       logger.info({ event: 'service_getUserWithOrganizationDetails_success' });
       timer.end();

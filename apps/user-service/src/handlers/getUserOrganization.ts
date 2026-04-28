@@ -13,7 +13,6 @@ interface Params {
 const handler = async (
   req: LambdaRequest<Params, any, Record<string, any>>
 ) => {
-  const startTime = Date.now();
   const {   userType } = req.params;
   const { userContext } = req.context;
 
@@ -27,25 +26,14 @@ const handler = async (
     pathOrganizationId=userContext?.organizationId as string;
   }
 
-  try {
-    return await userService.getUserWithOrganizationDetails(
-      pathUserId as string,
-      pathOrganizationId as string,
-      userContext?.userId as string | undefined, //loged in user id
-      undefined, // default profile
-      userType,
-      req.context?.authHeader as string
-    );
-  } finally {
-    const durationMs = Date.now() - startTime;
-    req.context?.logger?.info?.({
-      event: 'handler_getUserOrganization_timing',
-      durationMs,
-      pathUserId,
-      pathOrganizationId,
-      hasAuthHeader: !!req.context?.authHeader,
-    });
-  }
+  return userService.getUserWithOrganizationDetails(
+    pathUserId as string,
+    pathOrganizationId as string,
+    userContext?.userId as string | undefined, //loged in user id
+    undefined, // default profile
+    userType,
+    req.context?.authHeader as string
+  );
 };
 
 export const main = withLambdaHandler(handler);

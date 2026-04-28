@@ -1676,10 +1676,11 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       const userOrgId = (organizationId && organizationId.trim() !== '')
         ? organizationId
         : userBasicDetails.organizationID;
-      if (userOrgId && userOrgId !== 'ROOT') {
-        orgBasicDetails = await this.organizationRepository.getOrganizationFromDB(userOrgId);
-        logStepDuration('fetch_organization_details');
-      }
+      const orgBasicDetailsPromise =
+        userOrgId && userOrgId !== 'ROOT'
+          ? this.organizationRepository.getOrganizationFromDB(userOrgId)
+          : Promise.resolve(null);
+      const verificationPromise = this.getEmailPhoneVerifiedStatus(userBasicDetails, actualUserId, userOrgId);
 
       let roleName = '';
       let userPermissions: any[] = [];
@@ -1742,6 +1743,11 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
             roleId,
           });
         }
+      }
+
+      orgBasicDetails = await orgBasicDetailsPromise;
+      if (userOrgId && userOrgId !== 'ROOT') {
+        logStepDuration('fetch_organization_details');
       }
 
       // Calculate account age
@@ -1838,10 +1844,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       // Get email/phone verification status (matches original: getEmailPhoneVerifiedStatus)
       let emailVerified = false;
       let phoneVerified = false;
-      const verificationPromise = userBasicDetails
-        ? this.getEmailPhoneVerifiedStatus(userBasicDetails, actualUserId, userOrgId)
-        : Promise.resolve(undefined);
-
       if (userBasicDetails) {
         try {
           const verifiedStatus = await verificationPromise;

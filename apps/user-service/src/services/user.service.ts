@@ -4,8 +4,8 @@ import { ulid } from 'ulid';
 import { publishEvent } from '../events/event.publisher';
 import { User, UserFile, UserMetadata, UserOrganization, UserResponse } from '../models';
 import { OrganizationRepository } from '../repositories/organization.repository';
-import { PackageRepository } from '../repositories/package.repositrory';
-import { RoleRepository } from '../repositories/role.repository';
+// import { PackageRepository } from '../repositories/package.repositrory';
+// import { RoleRepository } from '../repositories/role.repository';
 import { ListOrganizationUsersOptions, UserRepository } from '../repositories/user.repository';
 import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
@@ -13,8 +13,8 @@ import { FriendFamilyService } from './friendFamily.service';
 import { notifyUser } from './notification.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
-const roleRepository = new RoleRepository();
-const packageRepository = new PackageRepository();
+// const roleRepository = new RoleRepository();
+// const packageRepository = new PackageRepository();
 let cachedUserPoolId: string | undefined;
 let cachedUserPoolIdPromise: Promise<string | undefined> | null = null;
 

@@ -1,0 +1,28 @@
+{
+  "name": "metadata-registry-service",
+  "projectType": "application",
+  "sourceRoot": "apps/metadata-registry-service/src",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec tsc -p apps/metadata-registry-service/tsconfig.app.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/metadata-registry-service/jest.config.mjs",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["apps/metadata-registry-service/src/**/*.{ts,tsx,js,jsx}"]
+      }
+    }
+  },
+  "tags": ["type:app", "scope:metadata-registry-service"]
+}

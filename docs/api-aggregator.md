@@ -37,11 +37,11 @@ pnpm install
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_API_BASE_URL` | API base URL (no trailing slash). **Express aggregator (local):** leave unset; Vite proxies `/api` → `http://localhost:4000`. **Serverless `api-aggregator-registry`:** set to your API Gateway base URL (e.g. `https://xxxx.execute-api.us-east-1.amazonaws.com`). The UI calls `GET /health`, `GET /services`, `GET /specs`, `GET /specs/{service}`, and `POST /services` (register). |
+| `VITE_API_BASE_URL` | API base URL (no trailing slash). **Express aggregator (local):** leave unset; Vite proxies `/api` → `http://localhost:4000`. **Serverless `service-registry`:** set to your API Gateway base URL (e.g. `https://xxxx.execute-api.us-east-1.amazonaws.com`). The UI calls `GET /health`, `GET /services`, `GET /specs`, `GET /specs/{service}`, and `POST /services` (register). |
 
 See also `frontend/.env.example`.
 
-**Quick connect to deployed `api-aggregator-registry`:** from repo root run `pnpm aggregator:frontend:dev:registry` (or in `frontend/`: `pnpm dev:registry`), which sets `VITE_API_BASE_URL` to the current API Gateway host used in that script—update the URL in `frontend/package.json` if your stage/API id changes.
+**Quick connect to deployed `service-registry`:** from repo root run `pnpm aggregator:frontend:dev:registry` (or in `frontend/`: `pnpm dev:registry`), which sets `VITE_API_BASE_URL` to the current API Gateway host used in that script—update the URL in `frontend/package.json` if your stage/API id changes.
 
 ## Run locally
 

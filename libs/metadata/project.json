@@ -1,0 +1,16 @@
+{
+  "name": "metadata",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/metadata/src",
+  "projectType": "library",
+  "tags": ["scope:metadata", "type:lib", "allowed-for-app"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/metadata/jest.config.mjs",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

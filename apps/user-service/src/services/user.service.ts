@@ -1215,7 +1215,7 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      // Best-effort SMS when the user has a phone (same shape as createUser → SMS gateway)
+      // Best-effort email + SMS (same event path as createUser → SNS → notification consumer)
       try {
         const phoneRaw =
           (updated.phoneNumber && String(updated.phoneNumber).trim()) ||
@@ -1236,7 +1236,11 @@ export class UserService {
             notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
           }
         }
-        if (notifyPhone) {
+        const notifyEmail = String(updated.emailAddress || '').trim();
+        const profileChannels: string[] = [];
+        if (notifyPhone) profileChannels.push('sms');
+        if (notifyEmail) profileChannels.push('email');
+        if (profileChannels.length > 0) {
           const notifyName =
             (updates.fullName as string | undefined) ??
             updated.fullName ??
@@ -1244,18 +1248,20 @@ export class UserService {
             '';
           await notifyUser({
             userId: updated.userID,
-            email: updated.emailAddress,
+            email: notifyEmail || undefined,
             phone: notifyPhone,
             name: notifyName,
-            channels: ['sms'],
+            channels: profileChannels,
             template: 'PROFILE_UPDATED',
+            // PROFILE_UPDATED template in template.registry has no {{placeholders}}; empty is valid.
             templateData: {},
             correlationId,
           });
         } else {
           logger.info({
             event: 'service_updateUser_notification_skipped',
-            message: 'PROFILE_UPDATED SMS skipped: no phone on user or request',
+            message:
+              'PROFILE_UPDATED skipped: no phone and no email on user or request',
           });
         }
       } catch (notifyErr) {

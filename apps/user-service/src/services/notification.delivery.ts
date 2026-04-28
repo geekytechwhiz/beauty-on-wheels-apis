@@ -214,6 +214,17 @@ export async function sendSms(options: {
           templateKey: 'PROFILE_UPDATED',
           variables: {},
         };
+      } else if (options.template === 'STAFF_DEACTIVATED') {
+        payload = {
+          ...payload,
+          templateKey: 'STAFF_DEACTIVATED',
+          variables: {
+            orgName:
+              (options.templateData?.ORG_NAME as string) ||
+              (options.templateData?.orgName as string) ||
+              '',
+          },
+        };
       } else if (
         options.template &&
         options.templateData &&

@@ -47,6 +47,7 @@ provider:
         - dynamodb:GetItem
         - dynamodb:PutItem
         - dynamodb:Query
+        - dynamodb:Scan
         - dynamodb:BatchGetItem
         - dynamodb:BatchWriteItem
         - dynamodb:TransactWriteItems

@@ -1649,69 +1649,22 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         fnfDetails = await this.repository.getUser(patientId, organizationId);
       }
 
-      // First, try to get the user using the organizationId (new schema: pk=ORG#orgId, sk=USER#userId)
-      let userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
-        if (!userBasicDetails) {
-        userBasicDetails = await this.repository.getUser(actualUserId);
-      }
+      const userBasicDetails = await this.repository.getUser(actualUserId, organizationId);
 
       if (!userBasicDetails) {
         throw new UserNotFoundError(actualUserId);
       }
 
-      // Get organization details (matches original: getOrgBasicDetails from USER_TABLE)
       let orgBasicDetails: any = null;
-      // Prefer organizationId from the request when provided; fall back to user's stored organizationID
+
       const userOrgId = (organizationId && organizationId.trim() !== '')
         ? organizationId
         : userBasicDetails.organizationID;
       if (userOrgId && userOrgId !== 'ROOT') {
-        // First try getOrgBasicDetails from USER_TABLE (matches original flow)
-        orgBasicDetails = await this.organizationRepository.getOrgBasicDetails(userOrgId);
-        // Fallback to getOrganizationFromDB if not found
-        if (!orgBasicDetails) {
-          orgBasicDetails = await this.organizationRepository.getOrganizationFromDB(userOrgId);
-        }
-        // Final fallback to Organization API if not found in DB
-        if (!orgBasicDetails) {
-          orgBasicDetails = await getOrganizationViaApi(userOrgId, authHeader);
-        }
-        
-        logger.debug({
-          event: 'org_details_fetched',
-          userOrgId,
-          hasOrgBasicDetails: !!orgBasicDetails,
-          orgStructure: orgBasicDetails ? {
-            hasOrganizationInfo: !!orgBasicDetails.organizationInfo,
-            hasAdminDetails: !!orgBasicDetails.adminDetails,
-            organizationInfoKeys: orgBasicDetails.organizationInfo ? Object.keys(orgBasicDetails.organizationInfo) : [],
-          } : null,
-        });
+        orgBasicDetails = await this.organizationRepository.getOrganizationFromDB(userOrgId);
       }
 
-      // Get all related user data items (preferences, metadata, etc.) using pk=USER#userId
-      const allUserData = await this.repository.getAllUserData(actualUserId);
-      
-      // Check if definedRoleCode exists in any item in allUserData
-      const itemWithDefinedRoleCode = allUserData.find((item: any) => item.definedRoleCode);
-      const itemRoleId =
-        allUserData.find(item => item.userRole?.[0])?.userRole[0] ?? '';
-
-      
-      // Find preference details from allUserData
-      const preferenceDetails = allUserData.find((item: any) => 
-        item.sk?.includes('PREFERENCE') || item.sk === 'PREFERENCE' || item.sk?.startsWith('PREFERENCE')
-      );
-
-      // Get roles and permissions (matches original flow exactly)
-      // Step 1: Get user roles from USER_TABLE using getUserRolesPermissions
-      // This provides the mapping between user and roles (USER_TABLE → ROLES_TABLE mapping)
-      // const permissionResponse = await this.repository.getUserRolesPermissions(actualUserId, userOrgId, authHeader);
-      // const filteredRoles = permissionResponse.roles || [];
-      // console.log("USER DATA 1336 PERMISSION RESPONSE: ", permissionResponse);
-       let roleDetails: any[] = [];
-       let roleName = '';
-      // Use userPermissions from API response if available, otherwise will be set from ROLES_TABLE
+      let roleName = '';
       let userPermissions: any[] = [];
       let isDefault = false;
       let definedRoleCode: string | null = null;
@@ -1719,211 +1672,69 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       let roleId: string | null = null;
       let uniquePermissions: any = {};
 
-      definedRoleCode = itemWithDefinedRoleCode ? itemWithDefinedRoleCode.definedRoleCode : null;
+      definedRoleCode = (userBasicDetails as any).definedRoleCode ?? null;
+      roleId = (userBasicDetails as any).userRole?.[0] ?? '';
+      console.log('[getUserWithOrganizationDetails] assigned role identifiers', {
+        definedRoleCode,
+        roleId,
+        patientId,
+        actualUserId,
+        userOrgId,
+      });
 
-      // Step 2: If roles found, get role details from ROLES_TABLE (matches original: getRolePermissions)
-      // The original code uses getRolePermissions from ROLES_TABLE to get features array
-      if (itemRoleId) {
-        // roleId = filteredRoles[0];
-        logger.debug({ event: 'fetching_role_permissions_from_roles_table', roleId, userOrgId });
-         
- 
-        const orgFetaures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
-        const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(userOrgId, actualUserId,orgFetaures, authHeader);
-        
-        logger.debug({ 
-          event: 'role_permissions_from_roles_table_result', 
-          roleId, 
+      if (roleId) {
+        const orgFeatures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
+        const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(
           userOrgId,
-          rolePermissionsCount: rolePermissionsFromRolesTable?.length || 0,
-        });
-        
+          actualUserId,
+          orgFeatures,
+          authHeader,
+        );
         if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
           const roleItems = rolePermissionsFromRolesTable;
+          const roleHeader =
+            roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
+            roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
+            roleItems[0];
 
-          // Match original: index.js line 115-119
-          // const roleDetails = await DB.getRolePermissions(filteredRoles[0], organizationID);
-          // const definedRoleCode = orgFeaturesroleDetails[0]?.definedRoleCode ?? null;
-          // The original just takes the first item from getRolePermissions result
-          const roleDetailsFirstItem = roleItems[0];
-
-          // Try to find a role header item (SK === ROLE#roleId or starts with ROLE#roleId)
-          // If not found, use first item (matches original behavior)
-            const roleHeader =
-            roleItems.find((it: any) => {
-              const sk = String(it.SK || it.sk || '');
-              return sk === `ROLE#${roleId}` || sk.startsWith(`ROLE#${roleId}#`);
-            }) || roleDetailsFirstItem;
-
-            console.log("roleHeader: ");
-          // Extract fields - match original: index.js line 116-120
-          roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || roleDetailsFirstItem?.roleName || roleDetailsFirstItem?.definedRoleCode || '';
-          isDefault = roleHeader?.isDefault ?? roleDetailsFirstItem?.isDefault ?? false;
-          // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then ROLES_TABLE
-          const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
-            (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
-          definedRoleCode = definedRoleCodeFromUserTable ?? roleDetailsFirstItem?.definedRoleCode ?? roleHeader?.definedRoleCode ?? null;
-          roleType = roleHeader?.roleType ?? roleDetailsFirstItem?.roleType ?? null;
-
-          // Only set userPermissions from ROLES_TABLE if not already set from API
-          if (!userPermissions || userPermissions.length === 0) {
-            console.log("here")
-            // console.log("ROLE DETAILS FIRST ITEM FEATURES: ", JSON.stringify(roleDetailsFirstItem?.features));
-            const headerFeatures = roleDetailsFirstItem?.features;
-            console.log("headerFeatures: ", JSON.stringify(headerFeatures));
-            userPermissions = headerFeatures;
-          }
-
-          // Ensure userPermissions is always an array
-          if (!Array.isArray(userPermissions)) userPermissions = [];
-
-          logger.info({
-            event: 'role_permissions_fetched_from_roles_table',
-            roleId,
-            roleItemsCount: roleItems.length,
-            userPermissionsCount: userPermissions.length,
-            userPermissionsSource: userPermissions.length > 0 
-              ? 'ROLES_TABLE'
-              : 'empty',
-            definedRoleCode,
-            definedRoleCodeSource: roleHeader?.definedRoleCode ? 'roleHeader' : (userBasicDetails.definedRoleCode ? 'userBasicDetails' : 'null'),
+          roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
+          isDefault = roleHeader?.isDefault ?? false;
+          roleType = roleHeader?.roleType ?? null;
+          console.log('[getUserWithOrganizationDetails] assigned role metadata', {
             roleName,
+            isDefault,
             roleType,
+            roleId,
           });
-        } else {
-          // Fallback: try to get from USER_TABLE if not found in ROLES_TABLE
-          logger.debug({ event: 'fallback_to_user_table_role_details', roleId, userOrgId });
-          roleDetails = await this.repository.getRoleDetails(userOrgId, itemRoleId);
-          
-          if (roleDetails && roleDetails.length > 0) {
-            const roleDetail = roleDetails[0];
-            roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
-            // Try to get features from USER_TABLE role details
-            const featuresFromUserTable = roleDetail.features;
-            if (featuresFromUserTable) {
-              userPermissions = Array.isArray(featuresFromUserTable) ? featuresFromUserTable :
-                               (typeof featuresFromUserTable === 'object' ? Object.values(featuresFromUserTable) : []);
-            } else {
-              userPermissions = [];
-            }
-            isDefault = roleDetail.isDefault ?? false;
-            // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then role detail
-            const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
-              (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
-            definedRoleCode = definedRoleCodeFromUserTable ?? roleDetail.definedRoleCode ?? null;
-            roleType = roleDetail.roleType ?? null;
-            
-            logger.debug({
-              event: 'definedRoleCode_from_user_table_fallback',
-              roleId,
-              definedRoleCode,
-              definedRoleCodeSource: roleDetail.definedRoleCode ? 'roleDetail' : (userBasicDetails.definedRoleCode ? 'userBasicDetails' : 'null'),
-            });
+
+          const headerFeatures = roleHeader?.features;
+          if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
+            userPermissions = headerFeatures;
+          } else if (headerFeatures && typeof headerFeatures === 'object') {
+            userPermissions = Object.values(headerFeatures);
           } else {
-            // If no role details found, get definedRoleCode from userBasicDetails or allUserData (USER_TABLE)
-            const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
-              (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
-            definedRoleCode = definedRoleCodeFromUserTable ?? null;
-            logger.warn({ 
-              event: 'role_details_not_found', 
-              roleId, 
-              userOrgId,
-              triedRolesTable: true,
-              triedUserTable: true,
-              definedRoleCodeFromUserBasic: userBasicDetails.definedRoleCode ?? null,
+            const featureItems = roleItems.filter((it: any) => {
+              const sk = String(it.SK || it.sk || '');
+              return (
+                it.itemType === 'Feature' ||
+                !!it.featureKey ||
+                sk.includes('#FEATURE#') ||
+                sk.startsWith('MODULE#')
+              );
             });
+            userPermissions = featureItems;
           }
-        }
-      } else {
-        // Fallback: try to use roleID from userBasicDetails
-        const userRoleId = (userBasicDetails as any).roleID || (userBasicDetails as any).roleId;
-        if (userRoleId) {
-          roleId = userRoleId;
-          logger.debug({ event: 'using_role_from_user_basic_details', roleId });
-          if (roleId) {
-            // Try ROLES_TABLE first
-            const orgFetaures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
-            const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(userOrgId, actualUserId,orgFetaures, authHeader);            if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
-              const roleItems = rolePermissionsFromRolesTable;
-              const roleHeader =
-                roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
-                roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
-                roleItems[0];
 
-              roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
-              isDefault = roleHeader?.isDefault ?? false;
-              // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then ROLES_TABLE
-              const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
-                (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
-              definedRoleCode = definedRoleCodeFromUserTable ?? roleHeader?.definedRoleCode ?? null;
-              roleType = roleHeader?.roleType ?? null;
-
-              // console.log("ROLE HEADER FEATURES: ", roleHeader);
-              const headerFeatures = roleHeader?.features;
-              if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
-                userPermissions = headerFeatures;
-              } else if (headerFeatures && typeof headerFeatures === 'object') {
-                userPermissions = Object.values(headerFeatures);
-              } else {
-                const featureItems = roleItems.filter((it: any) => {
-                  const sk = String(it.SK || it.sk || '');
-                  return (
-                    it.itemType === 'Feature' ||
-                    !!it.featureKey ||
-                    sk.includes('#FEATURE#') ||
-                    sk.startsWith('MODULE#')
-                  );
-                });
-                userPermissions = featureItems;
-              }
-
-              if (!Array.isArray(userPermissions)) userPermissions = [];
-            } else {
-              // Fallback to USER_TABLE
-              roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
-              if (roleDetails && roleDetails.length > 0) {
-                const roleDetail = roleDetails[0];
-                roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
-                const featuresFromUserTable = roleDetail.features;
-                userPermissions = Array.isArray(featuresFromUserTable) ? featuresFromUserTable : 
-                                 (typeof featuresFromUserTable === 'object' ? Object.values(featuresFromUserTable) : []);
-                isDefault = roleDetail.isDefault ?? false;
-                // Prioritize definedRoleCode from USER_TABLE (userBasicDetails or allUserData) first, then role detail
-                const definedRoleCodeFromUserTable = (userBasicDetails as any).definedRoleCode ?? 
-                  (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
-                definedRoleCode = definedRoleCodeFromUserTable ?? roleDetail.definedRoleCode ?? null;
-                roleType = roleDetail.roleType ?? null;
-              }
-            }
-          }
+          uniquePermissions = this.getUniquePermissions(userPermissions);
+          console.log('[getUserWithOrganizationDetails] assigned permissions', {
+            permissionsCount: userPermissions.length,
+            uniquePermissionKeys: Object.keys(uniquePermissions || {}),
+          });
         }
       }
-
-      // Final fallback: If definedRoleCode is still null, get it from USER_TABLE
-      if (!definedRoleCode) {
-        const definedRoleCodeFromUserTableFinal = (userBasicDetails as any).definedRoleCode ?? 
-          (allUserData.find((item: any) => item.definedRoleCode) as any)?.definedRoleCode;
-        if (definedRoleCodeFromUserTableFinal) {
-          definedRoleCode = definedRoleCodeFromUserTableFinal;
-        }
-      }
-
-      // Step 3: Get unique permissions (matches original: line 122)
-      // permissionResponse.permissions is an array of permission objects
-      // if (permissionResponse.permissions && permissionResponse.permissions.length > 0) {
-        uniquePermissions = this.getUniquePermissions(userPermissions);
-      // }
-
 
       // Calculate account age
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
-
-      // Build schedule configuration from preferences
-      let scheduleConfiguration: any = {};
-      if (preferenceDetails) {
-        const { pk, sk, userID, createdDate, modifiedDate, organizationID, ...rest } = preferenceDetails;
-        scheduleConfiguration = { ...rest };
-      }
 
       // Get user category: prefer DB userType (source of truth), then userCat, then request param, then default
       let userCategory =
@@ -2089,11 +1900,10 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
                                  orgBasicDetails?.emailAddress || 
                                  '',
         organizationType: orgBasicDetails?.organizationType || orgBasicDetails?.organizationInfo?.organizationType || orgBasicDetails?.lsi_organizationType || (orgBasicDetails as any)?.orgType || (orgBasicDetails as any)?.type || '',
-        scheduleConfiguration,
         roleName,
-        userRoles: itemRoleId ? [itemRoleId] : [],
+        userRoles: roleId ? [roleId] : [],
         roleType,
-        roleId:itemRoleId,
+        roleId:roleId,
         userPermissions,
         changePassword: userBasicDetails.changePassword || false,
         isRpmUser: userBasicDetails.isRpmUser || false,

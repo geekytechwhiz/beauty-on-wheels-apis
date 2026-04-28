@@ -71,9 +71,9 @@ custom:
     stg: info
     prd: warn
   deploymentBucket:
-    dev: dev-mvx-metadata-registry-bucket
-    stg: nvstg-mvx-metadata-registry-bucket
-    prd: nvprd-mvx-metadata-registry-bucket
+    dev: dev-mvx-metadata-registry-service-bucket
+    stg: nvstg-mvx-metadata-registry-service-bucket
+    prd: nvprd-mvx-metadata-registry-service-bucket
   esbuild:
     bundle: true
     minify: false

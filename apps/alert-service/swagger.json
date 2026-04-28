@@ -17,40 +17,9 @@
   "definitions": {
     "CreateAlertRequest": {
       "type": "object",
-      "description": "Create-alert payload. Aligns with `createAlertRequestSchema` (Zod) in the service; org is resolved from the JWT, not the body.",
-      "required": [
-        "inputType",
-        "sourceType",
-        "patientId",
-        "triggerTimestamp",
-        "evidencePayload"
-      ],
+      "description": "Create-alert payload from the HTTP UI. Aligns with `createAlertHttpBodySchema` (Zod). Org is resolved from the JWT. `inputEventId`, `inputType`, and `sourceType` are set server-side (new UUID idempotency key; ENGAGEMENT_TRIGGER / USER_INTERFACE for tracking).",
+      "required": ["patientId", "triggerTimestamp", "evidencePayload"],
       "properties": {
-        "inputEventId": {
-          "type": "string",
-          "description": "Optional; used for idempotency / de-dupe"
-        },
-        "inputType": {
-          "type": "string",
-          "enum": [
-            "THRESHOLD_BREACH",
-            "MISSED_READING",
-            "MISSING_DEVICE",
-            "SYMPTOM_RISK_TRIGGER",
-            "ENGAGEMENT_TRIGGER"
-          ]
-        },
-        "sourceType": {
-          "type": "string",
-          "enum": [
-            "MONITORING_SERVICE",
-            "DEVICE_MONITORING",
-            "DEVICE_WORKFLOW",
-            "SYMPTOM_ENGINE",
-            "ENGAGEMENT_SERVICE",
-            "USER_INTERFACE"
-          ]
-        },
         "patientId": { "type": "string" },
         "carePlanInstanceId": { "type": "string" },
         "packageAssignmentId": { "type": "string" },
@@ -83,7 +52,7 @@
         },
         "evidencePayload": {
           "type": "object",
-          "description": "Non-empty object; required keys depend on inputType (e.g. THRESHOLD_BREACH: metricCode/reading/metric, ENGAGEMENT_TRIGGER: engagementType/channel/context, etc.).",
+          "description": "Non-empty object. For HTTP create, inputType is fixed server-side as ENGAGEMENT_TRIGGER (e.g. engagementType, channel, or context).",
           "minProperties": 1,
           "additionalProperties": true
         }
@@ -100,7 +69,7 @@
     },
     "/alerts": {
       "post": {
-        "summary": "Create alert (idempotent on inputEventId)",
+        "summary": "Create alert (idempotency key generated server-side; no inputEventId/inputType/sourceType in body)",
         "consumes": ["application/json"],
         "produces": ["application/json"],
         "parameters": [

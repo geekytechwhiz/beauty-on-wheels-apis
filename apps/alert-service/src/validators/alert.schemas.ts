@@ -1,7 +1,11 @@
 /**
- * Zod schemas for HTTP bodies. `createAlertRequestSchema` is used from `validation/request.validators.ts`.
+ * Zod schemas for HTTP bodies. `createAlertHttpBodySchema` is used from `validation/request.validators.ts`.
  * @see `docs/http-api-implementation-guide.md` §4–§5
+ *
+ * **Public create-alert body:** `inputEventId`, `inputType`, and `sourceType` are not in the JSON body; defaults are
+ * applied inside {@link AlertService.createAlert} (`@api-hub/alert-integration`).
  */
+import { CREATE_ALERT_DEFAULT_INPUT_TYPE } from '@api-hub/alert-integration';
 import { z } from 'zod';
 
 const inputTypeZ = z.enum([
@@ -12,27 +16,15 @@ const inputTypeZ = z.enum([
   'ENGAGEMENT_TRIGGER',
 ]);
 
-const sourceTypeZ = z.enum([
-  'MONITORING_SERVICE',
-  'DEVICE_MONITORING',
-  'DEVICE_WORKFLOW',
-  'SYMPTOM_ENGINE',
-  'ENGAGEMENT_SERVICE',
-  'USER_INTERFACE',
-]);
-
 const appliesToTypeZ = z.enum(['VITAL_SIGN', 'DEVICE', 'SYMPTOM', 'ENGAGEMENT']);
 const severityHintZ = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 const priorityZ = z.enum(['P0', 'P1', 'P2', 'P3']);
 
 /**
- * HTTP body validator for `CreateAlertRequest` (OpenAPI). Org is intentionally omitted — it comes from the JWT only.
+ * Request body fields the UI may send (strict: unknown keys rejected).
  */
-export const createAlertRequestSchema = z
+export const createAlertHttpBodySchema = z
   .object({
-    inputEventId: z.string().min(1).optional(),
-    inputType: inputTypeZ,
-    sourceType: sourceTypeZ,
     patientId: z.string().min(1),
     carePlanInstanceId: z.string().min(1).optional(),
     packageAssignmentId: z.string().min(1).optional(),
@@ -49,6 +41,8 @@ export const createAlertRequestSchema = z
     triggerSummaryParams: z.record(z.string(), z.unknown()).optional(),
     evidencePayload: z.record(z.string(), z.unknown()),
   })
+  /** Reject `inputEventId`, `inputType`, `sourceType`, etc. if the client sends them — not HTTP inputs. */
+  .strict()
   .superRefine((val, ctx) => {
     const ts = Date.parse(val.triggerTimestamp);
     if (Number.isNaN(ts)) {
@@ -68,17 +62,17 @@ export const createAlertRequestSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'evidencePayload must be a non-empty object', path: ['evidencePayload'] });
       return;
     }
-    const ok = checkEvidenceForInputType(val.inputType, p);
+    const ok = checkEvidenceForInputType(CREATE_ALERT_DEFAULT_INPUT_TYPE, p);
     if (!ok) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `evidencePayload shape is invalid for inputType ${val.inputType}`,
+        message: `evidencePayload shape is invalid for inputType ${CREATE_ALERT_DEFAULT_INPUT_TYPE}`,
         path: ['evidencePayload'],
       });
     }
   });
 
-export type CreateAlertRequest = z.infer<typeof createAlertRequestSchema>;
+export type CreateAlertHttpBody = z.infer<typeof createAlertHttpBodySchema>;
 
 function checkEvidenceForInputType(inputType: z.infer<typeof inputTypeZ>, payload: Record<string, unknown>): boolean {
   switch (inputType) {

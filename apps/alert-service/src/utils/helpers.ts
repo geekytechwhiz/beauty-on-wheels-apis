@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
+import { extractHeader } from '@api-hub/utils';
 
 /**
  * Auth helpers aligned with **user-service** `apps/user-service/src/utils/helpers.ts`:
@@ -63,13 +64,16 @@ export function getUserIdAndOrganizationIdFromToken(authHeader: string | undefin
   }
 }
 
+/**
+ * Reads `Authorization` the way API Gateway often sends it (single or multi-value headers, case-insensitive).
+ * Use this for alert HTTP flows so user-service / org-service receive a bearer token on every call.
+ */
+export function getAuthorizationForGatewayEvent(event: APIGatewayProxyEvent): string | undefined {
+  return extractHeader(event, 'Authorization') ?? undefined;
+}
+
 function resolveAuthHeader(event: APIGatewayProxyEvent, authHeader?: string): string | undefined {
-  return (
-    authHeader ??
-    event.headers?.Authorization ??
-    event.headers?.authorization ??
-    event.headers?.AUTHORIZATION
-  );
+  return authHeader ?? getAuthorizationForGatewayEvent(event);
 }
 
 /** Tenant id for the request: authorizer first, then JWT claims (never from body). */

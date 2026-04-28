@@ -253,3 +253,20 @@ export class ApiResponse {
     );
   }
 }
+
+/**
+ * Standard {@link ResponseOptions} for {@link ApiResponse}: `requestId` + correlation / `no-store` headers.
+ */
+export function apiGatewayResponseOptions(
+  correlationId: string,
+  extraHeaders?: Record<string, string>,
+): ResponseOptions {
+  return {
+    requestId: correlationId,
+    headers: {
+      'X-Correlation-Id': correlationId,
+      'Cache-Control': 'no-store',
+      ...extraHeaders,
+    },
+  };
+}

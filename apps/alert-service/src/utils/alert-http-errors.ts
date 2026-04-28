@@ -3,11 +3,11 @@
  * {@link handleError} (`@api-hub/utils`) can build responses, matching the
  * user-service pattern (`withLambdaHandler` catch → `handleError`).
  */
-import { serializeError } from '@api-hub/logger';
+import { serializeError, type Logger } from '@api-hub/logger';
 import { BaseError } from '@api-hub/utils';
 
 export interface NormalizeAlertServiceErrorLog {
-  logger?: { error: (m: unknown) => void };
+  logger?: Logger;
   correlationId?: string;
   organizationId?: string;
   logEvent?: string;

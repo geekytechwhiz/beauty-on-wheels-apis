@@ -6,9 +6,14 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import type { TransactWriteItem } from '@aws-sdk/client-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { marshall as awsMarshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
 import type { AlertRecord, AlertState, CreateAlertInput, UpdateAlertInput } from './alert.types';
+
+/** `marshall` throws on `undefined` property values; Dynamo attributes omit if removed. */
+function ddbMarshal(data: unknown) {
+  return awsMarshall(data, { removeUndefinedValues: true });
+}
 
 const client = new DynamoDBClient({});
 
@@ -137,7 +142,7 @@ export class AlertRepository {
     const res = await client.send(
       new GetItemCommand({
         TableName: TABLE,
-        Key: marshall({ pk: `EVENT#${inputEventId}`, sk: EVENT_SK }),
+        Key: ddbMarshal({ pk: `EVENT#${inputEventId}`, sk: EVENT_SK }),
       }),
     );
     if (!res.Item) return 'missing';
@@ -154,7 +159,7 @@ export class AlertRepository {
     const res = await client.send(
       new GetItemCommand({
         TableName: TABLE,
-        Key: marshall({ pk: `GROUP#${groupingKey}`, sk: ALERT_SK }),
+        Key: ddbMarshal({ pk: `GROUP#${groupingKey}`, sk: ALERT_SK }),
         ProjectionExpression: 'pk',
       }),
     );
@@ -167,7 +172,7 @@ export class AlertRepository {
     const res = await client.send(
       new GetItemCommand({
         TableName: TABLE,
-        Key: marshall({ pk: `ALERT#${alertId}`, sk: ALERT_SK }),
+        Key: ddbMarshal({ pk: `ALERT#${alertId}`, sk: ALERT_SK }),
       }),
     );
     if (!res.Item) return null;
@@ -261,7 +266,7 @@ export class AlertRepository {
       {
         Put: {
           TableName: TABLE,
-          Item: marshall({
+          Item: ddbMarshal({
             pk: `EVENT#${idempotencyId}`,
             sk: EVENT_SK,
             organizationId: input.organizationId,
@@ -275,14 +280,14 @@ export class AlertRepository {
       {
         Put: {
           TableName: TABLE,
-          Item: marshall(record),
+          Item: ddbMarshal(record),
           ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
         },
       },
       {
         Put: {
           TableName: TABLE,
-          Item: marshall({
+          Item: ddbMarshal({
             pk: record.pk,
             sk: activitySk,
             entityType: 'ACTIVITY',
@@ -301,7 +306,7 @@ export class AlertRepository {
     const groupPutItem = (): TransactWriteItem => ({
       Put: {
         TableName: TABLE,
-        Item: marshall({
+        Item: ddbMarshal({
           pk: groupPk,
           sk: ALERT_SK,
           OpenCount: 1,
@@ -320,7 +325,7 @@ export class AlertRepository {
     const groupUpdateItem = (): TransactWriteItem => ({
       Update: {
         TableName: TABLE,
-        Key: marshall({ pk: groupPk, sk: ALERT_SK }),
+        Key: ddbMarshal({ pk: groupPk, sk: ALERT_SK }),
         UpdateExpression: [
           'ADD OpenCount :one',
           'SET',
@@ -330,7 +335,7 @@ export class AlertRepository {
           '  #ua = :now',
         ].join(' '),
         ExpressionAttributeNames: { '#ua': 'UpdatedAt' },
-        ExpressionAttributeValues: marshall({
+        ExpressionAttributeValues: ddbMarshal({
           ':one': 1,
           ':ts': triggerTimestamp,
           ':aid': alertId,
@@ -372,7 +377,7 @@ export class AlertRepository {
         TableName: TABLE,
         IndexName: 'GSI3',
         KeyConditionExpression: 'gsi3pk = :p',
-        ExpressionAttributeValues: marshall({
+        ExpressionAttributeValues: ddbMarshal({
           ':p': toPatPartitionKey(patientId),
         }),
         ScanIndexForward: false,
@@ -400,7 +405,7 @@ export class AlertRepository {
         TableName: TABLE,
         IndexName: 'GSI1',
         KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
-        ExpressionAttributeValues: marshall({
+        ExpressionAttributeValues: ddbMarshal({
           ':o': toOrgPartitionKey(organizationId),
           ':s': `STATE#${state}#`,
         }),
@@ -423,7 +428,7 @@ export class AlertRepository {
     const base = {
       TableName: TABLE,
       IndexName: 'GSI2',
-      ExpressionAttributeValues: marshall({
+      ExpressionAttributeValues: ddbMarshal({
         ':u': toUserPartitionKey(userId),
         ...(opts.state ? { ':st': `STATE#${opts.state}#` } : {}),
       }),
@@ -465,10 +470,10 @@ export class AlertRepository {
       await client.send(
         new UpdateItemCommand({
           TableName: TABLE,
-          Key: marshall({ pk: existing.pk, sk: existing.sk }),
+          Key: ddbMarshal({ pk: existing.pk, sk: existing.sk }),
           UpdateExpression:
             'SET alertState = :st, updatedAt = :u, gsi1sk = :g1s, slaBreachIndicator = :sla, assignedToUserId = :a, gsi2pk = :g2p, gsi2sk = :g2s',
-          ExpressionAttributeValues: marshall({
+          ExpressionAttributeValues: ddbMarshal({
             ':st': nextState,
             ':u': now,
             ':g1s': gsi1sk,
@@ -483,10 +488,10 @@ export class AlertRepository {
       await client.send(
         new UpdateItemCommand({
           TableName: TABLE,
-          Key: marshall({ pk: existing.pk, sk: existing.sk }),
+          Key: ddbMarshal({ pk: existing.pk, sk: existing.sk }),
           UpdateExpression:
             'SET alertState = :st, updatedAt = :u, gsi1sk = :g1s, slaBreachIndicator = :sla REMOVE assignedToUserId, gsi2pk, gsi2sk',
-          ExpressionAttributeValues: marshall({
+          ExpressionAttributeValues: ddbMarshal({
             ':st': nextState,
             ':u': now,
             ':g1s': gsi1sk,

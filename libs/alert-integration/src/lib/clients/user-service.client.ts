@@ -30,7 +30,9 @@ export async function validatePatientContext(
   } else if (base) {
     url = `${base}/user/organization/${encodeURIComponent(organizationId)}/${encodeURIComponent(userId)}`;
   }
-  if (!url) return;
+  if (!url) {
+    return;
+  }
   const res = await axios.get(url, {
     headers: authHeader ? { Authorization: authHeader } : {},
     timeout: Number(process.env.USER_SERVICE_TIMEOUT_MS ?? '8000'),

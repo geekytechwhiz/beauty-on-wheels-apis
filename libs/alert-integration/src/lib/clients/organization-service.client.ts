@@ -24,7 +24,9 @@ export async function validateOrganizationContext(organizationId: string, authHe
   } else if (base) {
     url = `${base}/organization/${encodeURIComponent(organizationId)}`;
   }
-  if (!url) return;
+  if (!url) {
+    return;
+  }
   const res = await axios.get(url, {
     headers: authHeader ? { Authorization: authHeader } : {},
     timeout: Number(process.env.ORGANIZATION_SERVICE_TIMEOUT_MS ?? '8000'),

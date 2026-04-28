@@ -371,7 +371,7 @@ export class UserRepository {
         );
         result = { Item: queryResult.Items?.[0] };
       }
-      console.log("RESULT: ", result);
+      //console.log("RESULT: ", result);
       if (
         !result.Item ||
         result.Item.isDeleted === true ||

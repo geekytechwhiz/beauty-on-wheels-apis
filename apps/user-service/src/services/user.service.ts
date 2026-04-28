@@ -4,8 +4,6 @@ import { ulid } from 'ulid';
 import { publishEvent } from '../events/event.publisher';
 import { User, UserFile, UserMetadata, UserOrganization, UserResponse } from '../models';
 import { OrganizationRepository } from '../repositories/organization.repository';
-// import { PackageRepository } from '../repositories/package.repositrory';
-// import { RoleRepository } from '../repositories/role.repository';
 import { ListOrganizationUsersOptions, UserRepository } from '../repositories/user.repository';
 import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
@@ -13,8 +11,6 @@ import { FriendFamilyService } from './friendFamily.service';
 import { notifyUser } from './notification.service';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
-// const roleRepository = new RoleRepository();
-// const packageRepository = new PackageRepository();
 let cachedUserPoolId: string | undefined;
 let cachedUserPoolIdPromise: Promise<string | undefined> | null = null;
 
@@ -1677,11 +1673,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
               org?.organizationInfo?.address?.countryCode || ''
             )
           );
-      //const prefetchedRoleId = (userBasicDetails as any).userRole?.[0];
-      // const orgFeaturesPromise =
-      //   authHeader && prefetchedRoleId
-      //     ? packageRepository.getOrgFeatures(userOrgId, authHeader)
-      //     : Promise.resolve(null);
+
       let roleDetails: any[] = [];
       let roleName = '';
       let userPermissions: any[] = [];
@@ -1695,55 +1687,6 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       roleId = (userBasicDetails as any).userRole?.[0] ?? '';
 
       if (roleId) {
-        // if (authHeader) {
-        //   const orgFeatures = await orgFeaturesPromise;
-        //   logStepDuration('fetch_org_features');
-        //   const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(
-        //     userOrgId,
-        //     actualUserId,
-        //     orgFeatures,
-        //     authHeader,
-        //   );
-        //   logStepDuration('fetch_role_permissions');
-        //   if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
-        //     const roleItems = rolePermissionsFromRolesTable;
-        //     const roleHeader =
-        //       roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
-        //       roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
-        //       roleItems[0];
-
-        //     roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
-        //     isDefault = roleHeader?.isDefault ?? false;
-        //     roleType = roleHeader?.roleType ?? null;
-
-        //     const headerFeatures = roleHeader?.features;
-        //     if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
-        //       userPermissions = headerFeatures;
-        //     } else if (headerFeatures && typeof headerFeatures === 'object') {
-        //       userPermissions = Object.values(headerFeatures);
-        //     } else {
-        //       const featureItems = roleItems.filter((it: any) => {
-        //         const sk = String(it.SK || it.sk || '');
-        //         return (
-        //           it.itemType === 'Feature' ||
-        //           !!it.featureKey ||
-        //           sk.includes('#FEATURE#') ||
-        //           sk.startsWith('MODULE#')
-        //         );
-        //       });
-        //       userPermissions = featureItems;
-        //     }
-
-        //     uniquePermissions = this.getUniquePermissions(userPermissions);
-        //   }
-        // } else {
-        //   logger.info({
-        //     event: 'skip_role_feature_fetch_no_auth',
-        //     userOrgId,
-        //     actualUserId,
-        //     roleId,
-        //   });
-        // }
         roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
           if (roleDetails && roleDetails.length > 0) {
             const roleDetail = roleDetails[0];

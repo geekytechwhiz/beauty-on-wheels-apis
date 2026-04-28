@@ -1681,6 +1681,17 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
           ? this.organizationRepository.getOrganizationFromDB(userOrgId)
           : Promise.resolve(null);
       const verificationPromise = this.getEmailPhoneVerifiedStatus(userBasicDetails, actualUserId, userOrgId);
+      const reporterDetailsPromise = userBasicDetails.reporterId
+        ? this.repository.getUser(userBasicDetails.reporterId, userOrgId)
+        : Promise.resolve(null);
+      const assignedDoctorLinksPromise = this.repository.listAssignedDoctorIdsForPatient(actualUserId);
+      const currenciesPromise = userBasicDetails.countryCode
+        ? this.repository.getCurrenciesForCountryCode(userBasicDetails.countryCode)
+        : orgBasicDetailsPromise.then((org) =>
+            this.repository.getCurrenciesForCountryCode(
+              org?.organizationInfo?.address?.countryCode || ''
+            )
+          );
 
       let roleName = '';
       let userPermissions: any[] = [];
@@ -1761,9 +1772,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         'USER';
 
       // Get currencies (matches original: getCurrenciesForCountryCode)
-      const currencies = await this.repository.getCurrenciesForCountryCode(
-        userBasicDetails.countryCode || orgBasicDetails?.organizationInfo?.address?.countryCode || ''
-      );
+      const currencies = await currenciesPromise;
       logStepDuration('fetch_currencies');
 
       // Resolve units from org defaultSetting and user overrides (match legacy getUserUnits: sign_up/get_user_profile/dynamodb.js)
@@ -2040,7 +2049,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       // Add reporter details if available
       if (userBasicDetails.reporterId) {
-        const reporterDetails = await this.repository.getUser(userBasicDetails.reporterId, userOrgId);
+        const reporterDetails = await reporterDetailsPromise;
         logStepDuration('fetch_reporter_details');
         if (reporterDetails) {
           data.reporterId = userBasicDetails.reporterId;
@@ -2059,7 +2068,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       if ((userBasicDetails as any).healthCoach) data.healthCoach = (userBasicDetails as any).healthCoach;
 
       // Add all assigned doctors from ASSIGNEE# mapping (referenced array)
-      const assignedDoctorLinks = await this.repository.listAssignedDoctorIdsForPatient(actualUserId);
+      const assignedDoctorLinks = await assignedDoctorLinksPromise;
       logStepDuration('fetch_assigned_doctor_links', { assignedDoctorCount: assignedDoctorLinks.length });
       data.assignedDoctors = await Promise.all(
         assignedDoctorLinks.map(async (link) => {
@@ -2191,50 +2200,63 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
         if (userPoolId) {
           const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'us-east-1' });
-          
+          const checks: Promise<void>[] = [];
+
           // Check email verification
           if (!emailVerified && userBasicDetails.emailAddress) {
-            try {
-              const params = {
-                UserPoolId: userPoolId,
-                Filter: `email = "${userBasicDetails.emailAddress}"`,
-              };
-              const result = await client.send(new ListUsersCommand(params));
-              const cognitoUser = result.Users && result.Users[0];
-              if (cognitoUser) {
-                const attr = cognitoUser.Attributes?.find((a: any) => a.Name === 'email_verified');
-                if (attr && attr.Value === 'true') {
-                  emailVerified = true;
-                  shouldUpdate = true;
+            checks.push(
+              (async () => {
+                try {
+                  const params = {
+                    UserPoolId: userPoolId,
+                    Filter: `email = "${userBasicDetails.emailAddress}"`,
+                  };
+                  const result = await client.send(new ListUsersCommand(params));
+                  const cognitoUser = result.Users && result.Users[0];
+                  if (cognitoUser) {
+                    const attr = cognitoUser.Attributes?.find((a: any) => a.Name === 'email_verified');
+                    if (attr && attr.Value === 'true') {
+                      emailVerified = true;
+                      shouldUpdate = true;
+                    }
+                  }
+                } catch (err) {
+                  methodLogger.warn({ event: 'check_email_verification_error', err: serializeError(err) });
                 }
-              }
-            } catch (err) {
-              methodLogger.warn({ event: 'check_email_verification_error', err: serializeError(err) });
-            }
+              })()
+            );
           }
 
           // Check phone verification
           if (!phoneVerified && userBasicDetails.phoneNumber) {
-            try {
-              const phoneFilter = userBasicDetails.phoneCode 
-                ? `phone_number = "${userBasicDetails.phoneCode}${userBasicDetails.phoneNumber}"`
-                : `phone_number = "${userBasicDetails.phoneNumber}"`;
-              const params = {
-                UserPoolId: userPoolId,
-                Filter: phoneFilter,
-              };
-              const result = await client.send(new ListUsersCommand(params));
-              const cognitoUser = result.Users && result.Users[0];
-              if (cognitoUser) {
-                const attr = cognitoUser.Attributes?.find((a: any) => a.Name === 'phone_number_verified');
-                if (attr && attr.Value === 'true') {
-                  phoneVerified = true;
-                  shouldUpdate = true;
+            checks.push(
+              (async () => {
+                try {
+                  const phoneFilter = userBasicDetails.phoneCode
+                    ? `phone_number = "${userBasicDetails.phoneCode}${userBasicDetails.phoneNumber}"`
+                    : `phone_number = "${userBasicDetails.phoneNumber}"`;
+                  const params = {
+                    UserPoolId: userPoolId,
+                    Filter: phoneFilter,
+                  };
+                  const result = await client.send(new ListUsersCommand(params));
+                  const cognitoUser = result.Users && result.Users[0];
+                  if (cognitoUser) {
+                    const attr = cognitoUser.Attributes?.find((a: any) => a.Name === 'phone_number_verified');
+                    if (attr && attr.Value === 'true') {
+                      phoneVerified = true;
+                      shouldUpdate = true;
+                    }
+                  }
+                } catch (err) {
+                  methodLogger.warn({ event: 'check_phone_verification_error', err: serializeError(err) });
                 }
-              }
-            } catch (err) {
-              methodLogger.warn({ event: 'check_phone_verification_error', err: serializeError(err) });
-            }
+              })()
+            );
+          }
+
+          if (checks.length > 0) {
+            await Promise.all(checks);
           }
 
           // Update DB if verification status changed

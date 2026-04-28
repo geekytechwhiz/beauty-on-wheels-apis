@@ -1692,12 +1692,12 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
               org?.organizationInfo?.address?.countryCode || ''
             )
           );
-      const prefetchedRoleId = (userBasicDetails as any).userRole?.[0];
-      const orgFeaturesPromise =
-        authHeader && prefetchedRoleId
-          ? packageRepository.getOrgFeatures(userOrgId, authHeader)
-          : Promise.resolve(null);
-
+      //const prefetchedRoleId = (userBasicDetails as any).userRole?.[0];
+      // const orgFeaturesPromise =
+      //   authHeader && prefetchedRoleId
+      //     ? packageRepository.getOrgFeatures(userOrgId, authHeader)
+      //     : Promise.resolve(null);
+      let roleDetails: any[] = [];
       let roleName = '';
       let userPermissions: any[] = [];
       let isDefault = false;
@@ -1710,55 +1710,68 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       roleId = (userBasicDetails as any).userRole?.[0] ?? '';
 
       if (roleId) {
-        if (authHeader) {
-          const orgFeatures = await orgFeaturesPromise;
-          logStepDuration('fetch_org_features');
-          const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(
-            userOrgId,
-            actualUserId,
-            orgFeatures,
-            authHeader,
-          );
-          logStepDuration('fetch_role_permissions');
-          if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
-            const roleItems = rolePermissionsFromRolesTable;
-            const roleHeader =
-              roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
-              roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
-              roleItems[0];
+        // if (authHeader) {
+        //   const orgFeatures = await orgFeaturesPromise;
+        //   logStepDuration('fetch_org_features');
+        //   const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(
+        //     userOrgId,
+        //     actualUserId,
+        //     orgFeatures,
+        //     authHeader,
+        //   );
+        //   logStepDuration('fetch_role_permissions');
+        //   if (rolePermissionsFromRolesTable && rolePermissionsFromRolesTable.length > 0) {
+        //     const roleItems = rolePermissionsFromRolesTable;
+        //     const roleHeader =
+        //       roleItems.find((it: any) => String(it.SK || it.sk || '') === `ROLE#${roleId}`) ||
+        //       roleItems.find((it: any) => String(it.SK || it.sk || '').startsWith(`ROLE#${roleId}`)) ||
+        //       roleItems[0];
 
-            roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
-            isDefault = roleHeader?.isDefault ?? false;
-            roleType = roleHeader?.roleType ?? null;
+        //     roleName = roleHeader?.roleName || roleHeader?.definedRoleCode || '';
+        //     isDefault = roleHeader?.isDefault ?? false;
+        //     roleType = roleHeader?.roleType ?? null;
 
-            const headerFeatures = roleHeader?.features;
-            if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
-              userPermissions = headerFeatures;
-            } else if (headerFeatures && typeof headerFeatures === 'object') {
-              userPermissions = Object.values(headerFeatures);
-            } else {
-              const featureItems = roleItems.filter((it: any) => {
-                const sk = String(it.SK || it.sk || '');
-                return (
-                  it.itemType === 'Feature' ||
-                  !!it.featureKey ||
-                  sk.includes('#FEATURE#') ||
-                  sk.startsWith('MODULE#')
-                );
-              });
-              userPermissions = featureItems;
-            }
+        //     const headerFeatures = roleHeader?.features;
+        //     if (Array.isArray(headerFeatures) && headerFeatures.length > 0) {
+        //       userPermissions = headerFeatures;
+        //     } else if (headerFeatures && typeof headerFeatures === 'object') {
+        //       userPermissions = Object.values(headerFeatures);
+        //     } else {
+        //       const featureItems = roleItems.filter((it: any) => {
+        //         const sk = String(it.SK || it.sk || '');
+        //         return (
+        //           it.itemType === 'Feature' ||
+        //           !!it.featureKey ||
+        //           sk.includes('#FEATURE#') ||
+        //           sk.startsWith('MODULE#')
+        //         );
+        //       });
+        //       userPermissions = featureItems;
+        //     }
 
-            uniquePermissions = this.getUniquePermissions(userPermissions);
+        //     uniquePermissions = this.getUniquePermissions(userPermissions);
+        //   }
+        // } else {
+        //   logger.info({
+        //     event: 'skip_role_feature_fetch_no_auth',
+        //     userOrgId,
+        //     actualUserId,
+        //     roleId,
+        //   });
+        // }
+        roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
+        logStepDuration('fetch_role_details');
+          if (roleDetails && roleDetails.length > 0) {
+            const roleDetail = roleDetails[0];
+            roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
+            const featuresFromUserTable = roleDetail.features;
+            userPermissions = Array.isArray(featuresFromUserTable) ? featuresFromUserTable : 
+                              (typeof featuresFromUserTable === 'object' ? Object.values(featuresFromUserTable) : []);
+            isDefault = roleDetail.isDefault ?? false;
+            roleType = roleDetail.roleType ?? null;
           }
-        } else {
-          logger.info({
-            event: 'skip_role_feature_fetch_no_auth',
-            userOrgId,
-            actualUserId,
-            roleId,
-          });
-        }
+
+          uniquePermissions = this.getUniquePermissions(userPermissions);
       }
 
       orgBasicDetails = await orgBasicDetailsPromise;

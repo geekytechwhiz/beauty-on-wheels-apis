@@ -1692,6 +1692,11 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
               org?.organizationInfo?.address?.countryCode || ''
             )
           );
+      const prefetchedRoleId = (userBasicDetails as any).userRole?.[0];
+      const orgFeaturesPromise =
+        authHeader && prefetchedRoleId
+          ? packageRepository.getOrgFeatures(userOrgId, authHeader)
+          : Promise.resolve(null);
 
       let roleName = '';
       let userPermissions: any[] = [];
@@ -1706,7 +1711,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       if (roleId) {
         if (authHeader) {
-          const orgFeatures = await packageRepository.getOrgFeatures(userOrgId, authHeader);
+          const orgFeatures = await orgFeaturesPromise;
           logStepDuration('fetch_org_features');
           const rolePermissionsFromRolesTable = await roleRepository.getUserPermission(
             userOrgId,

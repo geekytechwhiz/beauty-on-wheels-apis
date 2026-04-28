@@ -1215,22 +1215,55 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      // Best-effort notification that profile changed
-      // try {
-      //   const notifyEmail = updates.emailAddress ?? updated.emailAddress;
-      //   const notifyName = updates.fullName ?? updated.fullName ?? updated.firstName;
-      //   await notifyUser({
-      //     userId: updated.userID,
-      //     email: notifyEmail,
-      //     name: notifyName,
-      //     channels: updates.emailAddress ? ['email'] : [],
-      //     template: 'PROFILE_UPDATED',
-      //     templateData: updates,
-      //     correlationId,
-      //   });
-      // } catch (notifyErr) {
-      //   logger.warn({ event: 'service_updateUser_notification_failed', err: serializeError(notifyErr) });
-      // }
+      // Best-effort SMS when the user has a phone (same shape as createUser → SMS gateway)
+      try {
+        const phoneRaw =
+          (updated.phoneNumber && String(updated.phoneNumber).trim()) ||
+          (updates.phoneNumber !== undefined && String(updates.phoneNumber).trim()) ||
+          '';
+        const phoneCodeRaw = String(
+          updated.phoneCode ||
+            (updates.phoneCode !== undefined ? String(updates.phoneCode).trim() : '') ||
+            '',
+        ).trim();
+        let notifyPhone: string | undefined;
+        if (phoneRaw) {
+          if (phoneCodeRaw) {
+            notifyPhone = phoneCodeRaw.startsWith('+')
+              ? `${phoneCodeRaw}${phoneRaw}`
+              : `+${phoneCodeRaw}${phoneRaw}`;
+          } else {
+            notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
+          }
+        }
+        if (notifyPhone) {
+          const notifyName =
+            (updates.fullName as string | undefined) ??
+            updated.fullName ??
+            updated.firstName ??
+            '';
+          await notifyUser({
+            userId: updated.userID,
+            email: updated.emailAddress,
+            phone: notifyPhone,
+            name: notifyName,
+            channels: ['sms'],
+            template: 'PROFILE_UPDATED',
+            templateData: {},
+            correlationId,
+          });
+        } else {
+          logger.info({
+            event: 'service_updateUser_notification_skipped',
+            message: 'PROFILE_UPDATED SMS skipped: no phone on user or request',
+          });
+        }
+      } catch (notifyErr) {
+        logger.warn({
+          event: 'service_updateUser_notification_failed',
+          err: serializeError(notifyErr as Error),
+        });
+      }
 
       logger.info({ event: 'service_updateUser_success' });
       timer.end();

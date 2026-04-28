@@ -13,7 +13,7 @@ interface Params {
 const handler = async (
   req: LambdaRequest<Params, any, Record<string, any>>
 ) => {
-  console.log('Received request for getUserOrganization', JSON.stringify(req));
+  console.log('Received request for getUserOrganization', req);
   const {   userType } = req.params;
   const { userContext } = req.context;
 

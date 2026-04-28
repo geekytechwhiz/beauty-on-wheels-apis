@@ -274,7 +274,7 @@
     "/devices/recommendations/remove": {
       "post": {
         "summary": "deviceRecommendationRemove",
-        "description": "",
+        "description": "Removes one or more device recommendations for a patient. Body: patientUserId, devices (array of { deviceId }), optional doctorName.",
         "operationId": "deviceRecommendationRemove.post.devices/recommendations/remove",
         "consumes": [
           "application/json"

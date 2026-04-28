@@ -78,6 +78,11 @@ function buildValueListApplicabilityFilter(
     assertEnumTokenArray(countries, 'applicableCountries');
     filter.country = countries;
   }
+  const languages = queryTokens(q.applicableLanguages);
+  if (languages?.length) {
+    assertEnumTokenArray(languages, 'applicableLanguages');
+    filter.language = languages;
+  }
 
   return filter;
 }

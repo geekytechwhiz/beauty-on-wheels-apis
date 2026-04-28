@@ -15,6 +15,7 @@ const APPLICABILITY_KEYS = [
   'applicableCategories',
   'applicableConditions',
   'applicableCountries',
+  'applicableLanguages',
 ] as const;
 
 type PostMetadataRequest = {
@@ -27,7 +28,8 @@ type PostMetadataRequest = {
 /**
  * Enforces required fields on every POST (create and update) for metadata values:
  * `metadataTypeCode` and `valueCode`/`metadataValueCode`, `label`, `isGlobal`, `status`.
- * `applicableModules` / `applicableCategories` / `applicableConditions` / `applicableCountries`
+ * `applicableModules` / `applicableCategories` / `applicableConditions` / `applicableCountries` /
+ * `applicableLanguages`
  * are optional; when present they must be arrays (empty arrays allowed).
  */
 function assertPostMetadataValueRequiredBody(body: Record<string, unknown>): void {

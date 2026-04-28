@@ -133,6 +133,11 @@ export function validateMetadataValueConditionalApplicability(
       { field: 'applicableCountries', message: 'Required' },
     ]);
   }
+  if (cfg.languageDependent && !(applicability.language?.length)) {
+    throw new ValidationError('applicableLanguages is required for this metadata type', [
+      { field: 'applicableLanguages', message: 'Required' },
+    ]);
+  }
 }
 
 export function validateMetadataValueInput(

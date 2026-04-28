@@ -33,6 +33,7 @@ export interface ValueApplicabilityConfig {
   categoryDependent?: boolean;
   conditionDependent?: boolean;
   countryDependent?: boolean;
+  languageDependent?: boolean;
 }
 
 export interface MetadataTypeInput {

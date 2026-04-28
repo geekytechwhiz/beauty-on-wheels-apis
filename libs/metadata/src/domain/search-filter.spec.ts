@@ -53,6 +53,31 @@ describe('matchesSearchFilter', () => {
     expect(matchesSearchFilter(row, { module: ['A'], country: ['IN'] })).toBe(true);
   });
 
+  it('filters by language with OR within and AND across dimensions', () => {
+    const row = v({
+      valueCode: 'L',
+      applicability: {
+        module: ['A'],
+        category: [],
+        condition: [],
+        country: [],
+        language: ['EN', 'FR'],
+      },
+    });
+    expect(matchesSearchFilter(row, { language: ['EN'] })).toBe(true);
+    expect(matchesSearchFilter(row, { language: ['DE'] })).toBe(false);
+    expect(matchesSearchFilter(row, { module: ['B'], language: ['EN'] })).toBe(false);
+    expect(matchesSearchFilter(row, { module: ['A'], language: ['FR'] })).toBe(true);
+  });
+
+  it('treats missing value language as empty when filter requests language', () => {
+    const row = v({
+      valueCode: 'N',
+      applicability: { module: ['A'], category: [], condition: [], country: [] },
+    });
+    expect(matchesSearchFilter(row, { language: ['EN'] })).toBe(false);
+  });
+
   it('respects explicit status filter', () => {
     const inactive = v({ valueCode: 'I', status: STATUS.INACTIVE });
     expect(matchesSearchFilter(inactive, { status: STATUS.INACTIVE })).toBe(true);

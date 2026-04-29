@@ -2,7 +2,7 @@ Here’s your **final, production-ready README** aligned with the **auto-init + 
 
 ---
 
-# 🚀 @myvitalrx/observability
+# @myvitalrx/observability
 
 **Enterprise-grade observability SDK for Node.js & AWS Lambda**
 
@@ -13,11 +13,9 @@ A lightweight, production-ready library providing:
 * Log level + sampling control (CloudWatch cost optimization)
 * PII protection & log policy enforcement
 * Metrics (EMF)
-* **Zero manual initialization (auto-init)**
+  
 
----
-
-# 🧠 Why This Library Exists
+# Why This Library Exists
 
 In distributed systems:
 

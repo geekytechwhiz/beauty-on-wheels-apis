@@ -5,20 +5,30 @@ const USERS = {
   dev: 'Myvital@2026'
 };
 
+const PUBLIC_EXTENSIONS = [
+  '.js', '.css', '.png', '.svg', '.ico',
+  '.html', '.json', '.map', '.woff', '.woff2'
+];
+
 exports.handler = async (event) => {
   const request = event.Records[0].cf.request;
-
   const headers = request.headers;
-  const authHeader = headers.authorization?.[0]?.value;
 
-  // 🔓 Allow static assets (prevents weird browser behavior)
-  if (
-    request.uri.includes('.js') ||
-    request.uri.includes('.css') ||
-    request.uri.includes('.png') ||
-    request.uri.includes('.svg') ||
-    request.uri.includes('.ico')
-  ) {
+  const authHeader =
+    headers.authorization?.[0]?.value ||
+    headers.Authorization?.[0]?.value;
+
+  // Allow HEAD requests
+  if (request.method === 'HEAD') {
+    return request;
+  }
+
+  // Allow static assets safely
+  const isStatic = PUBLIC_EXTENSIONS.some(ext =>
+    request.uri.toLowerCase().endsWith(ext)
+  );
+
+  if (isStatic) {
     return request;
   }
 
@@ -27,9 +37,19 @@ exports.handler = async (event) => {
   }
 
   const encoded = authHeader.split(' ')[1];
-  const decoded = Buffer.from(encoded, 'base64').toString();
 
-  const [username, password] = decoded.split(':');
+  let decoded;
+  try {
+    decoded = Buffer.from(encoded, 'base64').toString();
+  } catch (e) {
+    return unauthorized();
+  }
+
+  const index = decoded.indexOf(':');
+  if (index === -1) return unauthorized();
+
+  const username = decoded.substring(0, index);
+  const password = decoded.substring(index + 1);
 
   if (USERS[username] !== password) {
     return unauthorized();
@@ -53,6 +73,12 @@ function unauthorized() {
         {
           key: 'Cache-Control',
           value: 'no-store'
+        }
+      ],
+      'pragma': [
+        {
+          key: 'Pragma',
+          value: 'no-cache'
         }
       ]
     }

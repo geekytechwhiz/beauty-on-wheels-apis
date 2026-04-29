@@ -130,7 +130,7 @@ export function localSpecApiPlugin(options) {
             if (!options.enabled) {
                 return;
             }
-            server.middlewares.use(attachHandler(process.cwd()));
+            server.middlewares.use(attachHandler(server.config.root));
         },
     };
 }

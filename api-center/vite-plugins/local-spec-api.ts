@@ -166,7 +166,7 @@ export function localSpecApiPlugin(options: { enabled: boolean; specsPrefix?: st
       if (!options.enabled) {
         return;
       }
-      server.middlewares.use(attachHandler(process.cwd()));
+      server.middlewares.use(attachHandler(server.config.root));
     },
   };
 }

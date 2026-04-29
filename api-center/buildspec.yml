@@ -4,11 +4,9 @@ env:
   variables:
     NODE_ENV: production
     AWS_REGION: us-east-1
-
     LAMBDA_NAME: cf-basic-auth
     ROLE_NAME: developer-hub-dev-us-east-1-lambdaRole
     DISTRIBUTION_ID: E2IR80EP36T2RA
-
     KEEP_LAST_N: 2
     DRY_RUN: false
 
@@ -37,49 +35,39 @@ phases:
       - echo "Running cleanup..."
       - node ./scripts/lambda-version.cleanup.js || true
 
-      # -----------------------------
-      # 🔍 Validate ENV
-      # -----------------------------
+      # Validate ENV
       - echo "Validating environment..."
       - echo "LAMBDA_NAME=$LAMBDA_NAME"
       - echo "ROLE_NAME=$ROLE_NAME"
       - echo "DISTRIBUTION_ID=$DISTRIBUTION_ID"
-      - : "${LAMBDA_NAME:?Missing}"
-      - : "${ROLE_NAME:?Missing}"
-      - : "${DISTRIBUTION_ID:?Missing}"
 
-      # -----------------------------
-      # 🧾 Account ID
-      # -----------------------------
+      - test -n "$LAMBDA_NAME"
+      - test -n "$ROLE_NAME"
+      - test -n "$DISTRIBUTION_ID"
+
+      # Account ID
       - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - echo "ACCOUNT_ID=$ACCOUNT_ID"
 
-      # -----------------------------
-      # 🔐 Ensure IAM Role Exists
-      # -----------------------------
+      # IAM Role
       - |
         if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
-          echo "IAM role already exists: $ROLE_NAME"
+          echo "IAM role exists"
         else
-          echo "Creating IAM role: $ROLE_NAME"
+          echo "Creating IAM role..."
           echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":["lambda.amazonaws.com","edgelambda.amazonaws.com"]},"Action":"sts:AssumeRole"}]}' > trust.json
           aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document file://trust.json
           aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-          echo "Waiting for IAM propagation..."
           sleep 15
         fi
 
-      # -----------------------------
-      # 📦 Package Lambda
-      # -----------------------------
+      # Package
       - echo "Packaging Lambda..."
       - cd api-center/edge-auth
       - zip -r function.zip . >/dev/null
       - cd -
 
-      # -----------------------------
-      # 🚀 Deploy Lambda
-      # -----------------------------
+      # Deploy
       - |
         if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$AWS_REGION" >/dev/null 2>&1; then
           echo "Updating Lambda..."
@@ -89,32 +77,22 @@ phases:
           aws lambda create-function --function-name "$LAMBDA_NAME" --runtime nodejs18.x --handler index.handler --role "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME" --zip-file "fileb://api-center/edge-auth/function.zip" --region "$AWS_REGION"
         fi
 
-      # -----------------------------
-      # 📌 Publish Version
-      # -----------------------------
+      # Publish
       - VERSION=$(aws lambda publish-version --function-name "$LAMBDA_NAME" --region "$AWS_REGION" --query 'Version' --output text)
-      - echo "Lambda Version: $VERSION"
+      - echo "Version=$VERSION"
 
-      # -----------------------------
-      # 🌍 Update CloudFront
-      # -----------------------------
-      - echo "Updating CloudFront..."
-
+      # CloudFront
       - aws cloudfront get-distribution-config --id "$DISTRIBUTION_ID" > cf.json
       - ETAG=$(jq -r '.ETag' cf.json)
       - jq '.DistributionConfig' cf.json > dist.json
 
       - |
         LAMBDA_ARN="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$LAMBDA_NAME:$VERSION"
-        echo "Lambda ARN: $LAMBDA_ARN"
         jq ".DefaultCacheBehavior.LambdaFunctionAssociations = {\"Quantity\":1,\"Items\":[{\"EventType\":\"viewer-request\",\"LambdaFunctionARN\":\"$LAMBDA_ARN\"}]}" dist.json > updated.json
 
       - aws cloudfront update-distribution --id "$DISTRIBUTION_ID" --if-match "$ETAG" --distribution-config file://updated.json
 
-      # -----------------------------
-      # 🔄 Invalidate Cache
-      # -----------------------------
-      - echo "Invalidating cache..."
+      # Invalidate
       - aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
 
 artifacts:

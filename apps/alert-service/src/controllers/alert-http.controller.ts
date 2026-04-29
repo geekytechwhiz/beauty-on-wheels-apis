@@ -5,28 +5,22 @@
  *
  * **Responses:** {@link apiGatewayResponseOptions} from `@api-hub/utils` (same defaults as SSO `BaseController.errorResponse`).
  */
-import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { createChildLogger, createLogger } from '@api-hub/logger';
-import type { AppError, LambdaRequest } from '@api-hub/utils';
-import { ApiResponse, apiGatewayResponseOptions, buildRequestContext, handleError } from '@api-hub/utils';
+import type { LambdaRequest } from '@api-hub/utils';
+import { BaseError } from '@api-hub/utils';
 import type { AlertRecord, AlertState, CreateAlertPayload } from '@api-hub/alert-integration';
-import { toAlertDetail, toPublicAlert } from '@api-hub/alert-integration';
-import { getAlertService } from '../services/alert-app.service';
-import { patchAlertBodySchema, type CreateAlertHttpBody } from '../validators/alert.schemas';
 import {
-  parseListAlertsQuery,
-  validateCreateAlertRequest,
-  type ValidatedCreateAlert,
-} from '../validation/request.validators';
+  createAlertPayloadFromHttpBody,
+  toAlertDetail,
+  toPublicAlert,
+} from '@api-hub/alert-integration';
+import { getAlertService } from '../services/alert-app.service';
+import { patchAlertBodySchema } from '../validators/alert.schemas';
+import { parseListAlertsQuery, type ValidatedCreateAlert } from '../validation/request.validators';
 import {
   getActorUserIdForRequest,
-  getAuthorizationForGatewayEvent,
-  getLambdaInvocationMeta,
   getOrganizationIdForRequest,
 } from '../utils/helpers';
 import { normalizeAlertServiceError } from '../utils/alert-http-errors';
-
-const controllerBaseLogger = createLogger({ service: 'alert-service', redactPII: true });
 
 let ctrl: AlertHttpController | undefined;
 
@@ -92,115 +86,44 @@ function applyAlertListPostFilters(
   return items;
 }
 
-function buildCreateAlertPayload(
-  orgId: string,
-  actorUserId: string | undefined,
-  body: CreateAlertHttpBody,
-): CreateAlertPayload {
-  const ev = body.evidencePayload;
-  return {
-    organizationId: orgId,
-    actorUserId,
-    ...body,
-    appliesToType: ev.appliesToType,
-    linkedEntityCode: ev.linkedEntityCode,
-    evidencePayload: { ...ev },
-  };
-}
-
 export class AlertHttpController {
   private readonly svc = getAlertService();
-  private readonly errSeverity = 'ERROR' as const;
-  private readonly okSeverity = 'SUCCESS' as const;
 
   /**
-   * POST /alerts — validation → `AlertService`; errors via {@link normalizeAlertServiceError} + {@link handleError}.
+   * POST /alerts — body validated by {@link validateCreateAlertRequest} in the HTTP handler (`withLambdaHandler`).
+   * Returns alert detail for both new create and idempotent replay; standard success envelope is **200** from
+   * `withLambdaHandler` (no change to shared middleware). Service errors: {@link normalizeAlertServiceError} → throw → `handleError`.
    */
-  async handleCreateAlert(
-    event: APIGatewayProxyEvent,
-    context?: Context,
-  ): Promise<APIGatewayProxyResult> {
-    const { correlationId, awsRequestId } = getLambdaInvocationMeta(event, context);
+  async handleCreateAlert(req: LambdaRequest) {
+    const requestLogger = req.context.logger!;
+    const correlationId = req.context.correlationId as string;
 
-    const requestLogger = createChildLogger(controllerBaseLogger, {
-      correlationId,
-      awsRequestId,
-      component: 'AlertHttpController',
-    });
-
-    const request = buildRequestContext(event) as LambdaRequest;
-    const ctx = request.context as { authHeader?: string };
-    const resolvedAuthHeader = getAuthorizationForGatewayEvent(event) ?? ctx.authHeader;
-    Object.assign(request.context as object, {
-      logger: requestLogger,
-      correlationId,
-      awsRequestId,
-      authHeader: resolvedAuthHeader,
-    });
-
-    try {
-      validateCreateAlertRequest(request);
-    } catch (e) {
-      return await handleError(e as AppError, {
-        correlationId,
-        logger: requestLogger,
-        event,
-      });
-    }
-
-    const errorOpts = apiGatewayResponseOptions(correlationId);
-    const v = (request as LambdaRequest & { validatedCreateAlert?: ValidatedCreateAlert }).validatedCreateAlert;
+    const v = (req as LambdaRequest & { validatedCreateAlert?: ValidatedCreateAlert }).validatedCreateAlert;
     if (!v) {
-      return ApiResponse.internalServerError(
-        {
-          title: 'Internal server error',
-          description: 'Request was not validated before controller',
-          severity: this.errSeverity,
-        },
-        errorOpts,
-        { code: 'INTERNAL_ERROR', details: [{ message: 'Request was not validated before controller' }] },
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
       );
     }
 
-    const createInput = buildCreateAlertPayload(v.orgId, v.actorUserId, v.body);
-    const authHeader = v.authHeader;
+    const createInput = createAlertPayloadFromHttpBody(
+      v.orgId,
+      v.actorUserId,
+      v.body as Omit<CreateAlertPayload, 'organizationId' | 'actorUserId'>,
+    );
 
     try {
-      const { record, duplicate } = await this.svc.createAlert(createInput, authHeader);
-      const data = toAlertDetail(record);
-      const location = `/alerts/${record.alertId}`;
-      if (duplicate) {
-        return ApiResponse.conflictWithData(
-          data,
-          {
-            title: 'Conflict',
-            description:
-              'An alert for this idempotency key (inputEventId) already exists in this organization.',
-            severity: 'WARNING',
-          },
-          apiGatewayResponseOptions(correlationId),
-        );
-      }
-      return ApiResponse.created(
-        data,
-        { title: 'SUCCESS', description: 'Alert created', severity: this.okSeverity },
-        apiGatewayResponseOptions(correlationId, { Location: location }),
-      );
+      const { record } = await this.svc.createAlert(createInput, v.authHeader);
+      return toAlertDetail(record);
     } catch (e: unknown) {
-      try {
-        normalizeAlertServiceError(e, {
-          logger: requestLogger,
-          correlationId,
-          organizationId: v.orgId,
-          logEvent: 'create_alert_error',
-        });
-      } catch (appErr) {
-        return await handleError(appErr as AppError, {
-          correlationId,
-          logger: requestLogger,
-          event,
-        });
-      }
+      normalizeAlertServiceError(e, {
+        logger: requestLogger,
+        correlationId,
+        organizationId: v.orgId,
+        logEvent: 'create_alert_error',
+      });
     }
   }
 
@@ -361,3 +284,4 @@ export function getAlertHttpController(): AlertHttpController {
   if (!ctrl) ctrl = new AlertHttpController();
   return ctrl;
 }
+

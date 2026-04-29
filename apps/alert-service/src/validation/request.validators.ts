@@ -10,7 +10,7 @@ import {
   type CreateAlertHttpBody,
   type ListAlertsQuery,
 } from '../validators/alert.schemas';
-import { assertCreateAlertCallerAllowed, resolveCreateAlertIdentity } from '../utils/helpers';
+import { assertCreateAlertCallerAllowed, resolveCreateAlertIdentity, getAuthorizationForGatewayEvent } from '../utils/helpers';
 
 /** Same shape as user-service `throwVal` (`apps/user-service/src/validation/request.validators.ts`). */
 function throwVal(
@@ -55,7 +55,9 @@ export type ValidatedCreateAlert = {
  */
 export function validateCreateAlertRequest(req: LambdaRequest): void {
   const event = req.event;
-  const authHeader = req.context.authHeader as string | undefined;
+  const authHeader =
+    getAuthorizationForGatewayEvent(event) ?? (req.context as { authHeader?: string }).authHeader;
+  Object.assign(req.context as object, { authHeader });
 
   const identity = resolveCreateAlertIdentity(event, authHeader);
 

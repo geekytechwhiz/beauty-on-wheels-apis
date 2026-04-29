@@ -18,6 +18,8 @@ export function buildExecuteTemplateHandler(useCase: ExecuteTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.execute',
       validator: validateExecuteTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_EXECUTED_SUCCESS',
     },

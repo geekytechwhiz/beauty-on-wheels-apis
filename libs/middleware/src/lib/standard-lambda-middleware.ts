@@ -19,7 +19,7 @@ export function createStandardLambdaHttpMiddlewares<
   return buildApiExecutionPipeline<TResult, TContext>({
     operation: options.operation,
     schema: options.schema,
-  });
+  }) as Array<Middleware<MiddlewarePipelineEvent, TResult, TContext>>;
 }
 
 type ApiGatewayishHandler<TEvent, TResult, TContext> = Handler<TEvent, TResult, TContext>;

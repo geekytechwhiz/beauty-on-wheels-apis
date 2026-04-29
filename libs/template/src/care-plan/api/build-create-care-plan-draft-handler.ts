@@ -18,6 +18,8 @@ export function buildCreateCarePlanDraftHandler(useCase: CreateCarePlanDraftUseC
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'carePlan.draft.create',
       validator: validateCreateCarePlanDraft,
       successMessageKey: 'CARE_PLAN.CARE_PLAN_DRAFT_SUCCESS',
     },

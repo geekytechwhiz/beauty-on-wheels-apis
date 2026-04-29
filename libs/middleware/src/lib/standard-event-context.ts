@@ -1,104 +1,53 @@
-import { extractAwsRequestId, extractCorrelationId } from '@api-hub/logger';
 import type { Context } from 'aws-lambda';
 
 import type { ExecutionContext, MiddlewarePipelineEvent } from './types';
 import { randomUUID } from 'node:crypto';
 
 const awsRequestIdFromLambdaContext = (lambdaContext: unknown): string =>
-  extractAwsRequestId(lambdaContext as Context);
+  (lambdaContext as Context).awsRequestId || 'unknown-request-id';
 
 /**
  * SQS: message attributes, body JSON, or `messageId` (prefixed) as a stable id.
  */
-function correlationIdFromSqsEvent(event: unknown): string | undefined {
-  if (typeof event !== 'object' || event === null) {
+export function correlationIdFromSqsEvent(event: any): string | undefined {
+  try {
+    const record = event?.Records?.[0];
+    if (!record) return;
+
+    // Case 1: messageAttributes
+    const attr = record.messageAttributes?.correlationId?.stringValue;
+    if (attr) return attr;
+
+    // Case 2: inside body (SNS → SQS)
+    const body = JSON.parse(record.body);
+    const message = body?.Message ? JSON.parse(body.Message) : body;
+
+    return message?.meta?.correlationId;
+  } catch {
     return undefined;
   }
-  const recs = (event as { Records?: unknown }).Records;
-  if (!Array.isArray(recs) || recs.length === 0) {
-    return undefined;
-  }
-  const rec = recs[0] as Record<string, unknown>;
-  const attrs = rec.messageAttributes as
-    | Record<string, { stringValue?: string }>
-    | undefined;
-  if (attrs) {
-    const fromAttr =
-      attrs.correlationId?.stringValue ||
-      attrs.CorrelationId?.stringValue ||
-      attrs['X-Correlation-Id']?.stringValue;
-    if (typeof fromAttr === 'string' && fromAttr.length > 0) {
-      return fromAttr;
-    }
-  }
-  if (typeof rec.body === 'string' && rec.body.length > 0) {
-    try {
-      const body = JSON.parse(rec.body) as {
-        correlationId?: string;
-        metadata?: { correlationId?: string };
-      };
-      if (typeof body.correlationId === 'string' && body.correlationId.length > 0) {
-        return body.correlationId;
-      }
-      const m = body.metadata?.correlationId;
-      if (typeof m === 'string' && m.length > 0) {
-        return m;
-      }
-    } catch {
-      /* not JSON */
-    }
-  }
-  if (typeof rec.messageId === 'string' && rec.messageId.length > 0) {
-    return `sqs:${rec.messageId}`;
-  }
-  return undefined;
 }
 
-/**
- * EventBridge: envelope `id`, or `detail.correlationId` / `detail.metadata`.
- */
-function correlationIdFromEventBridgeLike(event: unknown): string | undefined {
-  if (typeof event !== 'object' || event === null) {
-    return undefined;
-  }
-  const e = event as Record<string, unknown>;
-  if (typeof e.id === 'string' && e.id.length > 0) {
-    if (typeof e.source === 'string' || e['detail-type'] != null) {
-      return e.id;
-    }
-  }
-  const detail = e.detail;
-  if (detail && typeof detail === 'object' && detail !== null) {
-    const d = detail as Record<string, unknown>;
-    if (typeof d.correlationId === 'string' && d.correlationId.length > 0) {
-      return d.correlationId;
-    }
-    const meta = d.metadata;
-    if (meta && typeof meta === 'object' && meta !== null) {
-      const c = (meta as { correlationId?: string }).correlationId;
-      if (typeof c === 'string' && c.length > 0) {
-        return c;
-      }
-    }
-  }
-  return undefined;
+ 
+export function extractCorrelationId(event: any): string | undefined {
+  return event?.headers?.['x-correlation-id'];
 }
-
+export function correlationIdFromEventBridge(event: any): string | undefined {
+  return event?.detail?.meta?.correlationId;
+}
 /**
  * Resolves a correlation id: SQS and EventBridge first, then API Gateway / HTTP (shared logger helper),
  * which may generate a fallback string when absent.
  */
-export function resolveCorrelationId(event: unknown): string {
-  const id =
-  extractCorrelationId(event as Parameters<typeof extractCorrelationId>[0]) ??
-  correlationIdFromSqsEvent(event) ??
-  correlationIdFromEventBridgeLike(event);
-
-return isValid(id) ? id : randomUUID();
+export function resolveCorrelationId(event: any): string {
+  return (
+    correlationIdFromSqsEvent(event) ||
+    correlationIdFromEventBridge(event) ||
+    extractCorrelationId(event) ||
+    randomUUID() // ✅ only as LAST fallback
+  );
 }
-function isValid(id?: string): id is string {
-  return typeof id === 'string' && id.length > 5;
-}
+ 
 /**
  * `source` and `eventType` hints by transport (EventBridge, SQS, API Gateway / HTTP).
  */

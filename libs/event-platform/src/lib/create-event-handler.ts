@@ -1,19 +1,43 @@
-import { runMiddlewares } from '@api-hub/middleware';
-import { buildEventExecutionPipeline } from '@api-hub/middleware';
 import type {
   Handler,
   Middleware,
   MiddlewarePipelineEvent,
-  PayloadSchemaRegistry,
+} from '@api-hub/middleware';
+import {
+  buildEventExecutionPipeline,
+  ensureObservabilityInitialized,
+  runMiddlewares,
 } from '@api-hub/middleware';
 
-import { consumeEvent } from './event-platform';
-import type { BaseEvent } from '../core/event-envelope/base-event';
-import type { EventMetadata } from '../core/event-envelope/base-event';
-import { DomainIdempotencyStrategy } from '../core/idempotency/domain-idempotency.strategy';
-import type { EventConsumerDeps } from '../sdk/consumer/event-consumer';
+import { createLogger } from '@api-hub/observability';
+import { z } from 'zod';
 
+import type { BaseEvent } from '../typings/base-event.types';
+import { DomainIdempotencyStrategy } from '../core/idempotency/domain-idempotency.strategy';
+import { EventConsumerDeps } from '../typings/consumer.types';
+import { buildInternalMapper } from '../utils/helpers';
+import { consumeEvent } from './event-platform';
+
+ensureObservabilityInitialized();
+
+const logger = createLogger();
+
+/** -----------------------------
+ * 🔹 New Types
+ * ----------------------------- */
+ 
+type VersionedEventSchema = {
+  name: string;
+  versions: Record<string, z.ZodType<unknown>>;
+};
+
+type EventConfig = VersionedEventSchema | VersionedEventSchema[];
+
+/** -----------------------------
+ * 🔹 Defaults
+ * ----------------------------- */
 const idempotencyStrategy = new DomainIdempotencyStrategy();
+
 const baseConsumerDeps: EventConsumerDeps = {
   idempotencyStrategy,
   retry: {
@@ -24,51 +48,111 @@ const baseConsumerDeps: EventConsumerDeps = {
   dlq: { enabled: true },
 };
 
-/**
- * Composes the standard event middleware stack and wraps the handler with
- * idempotency, payload validation, retry, and DLQ (via `consumeEvent`).
- */
-export function createEventHandler<
-  TEvent extends MiddlewarePipelineEvent,
-  TResult = unknown,
-  TContext = unknown,
->(
-  options: {
-    operation: string;
-    payloadSchemas?: PayloadSchemaRegistry;
-    mapRawToBaseEvent?: (raw: unknown) => BaseEvent<unknown>;
-    /** Shallow-merged on top of platform defaults (idempotency, retry, etc.). */
-    consumer?: Partial<EventConsumerDeps>;
-  },
-  handler: Handler<TEvent, TResult, TContext>,
-): (event: TEvent, context: TContext) => Promise<TResult> {
-  const mergedConsumerDeps: EventConsumerDeps = {
-    ...baseConsumerDeps,
-    ...options.consumer,
-    ...(options.payloadSchemas !== undefined
-      ? { payloadSchemas: options.payloadSchemas }
-      : {}),
-    ...(options.mapRawToBaseEvent !== undefined
-      ? { mapRawToBaseEvent: options.mapRawToBaseEvent }
-      : {}),
-  };
+/** -----------------------------
+ * 🔹 Helpers
+ * ----------------------------- */
 
-  const wrappedHandler = consumeEvent(mergedConsumerDeps, async (payload: unknown, meta: EventMetadata) => {
+/**
+ * Normalize event config → Record<string, schema>
+ */
+function normalizeEventSchemas(events?: EventConfig) {
+  if (!events) return undefined;
+
+  const list = Array.isArray(events) ? events : [events];
+
+  return {
+    versioned: Object.fromEntries(
+      list.map((e) => [e.name, e.versions]),
+    ),
+  };
+}
+function buildFlatSchemaMap(
+  versionedMap: Record<string, Record<string, z.ZodType<unknown>>>,
+) {
+  const flat: Record<string, z.ZodType<unknown>> = {};
+
+  for (const eventName in versionedMap) {
+    const versions = versionedMap[eventName];
+
+    // default to latest or v1
+    const latestVersion =
+    Object.keys(versions)
+      .sort((a, b) => Number(a.replace('v', '')) - Number(b.replace('v', '')))
+      .slice(-1)[0] || 'v1';
+
+    flat[eventName] = versions[latestVersion];
+  }
+
+  return flat;
+}
+
+type OperationName =
+`${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
+
+export function createEventHandler<
+TEvent extends MiddlewarePipelineEvent,
+TContext = unknown,
+>(
+options: {
+  operation: OperationName;
+  events?: EventConfig;
+  mapRawToBaseEvent?: (raw: unknown) => BaseEvent<unknown>;
+  eventBridgeSource?: string;
+  consumer?: Partial<EventConsumerDeps>;
+},
+handler: Handler<TEvent, void, TContext>,
+): (event: TEvent, context: TContext) => Promise<void> {
+
+const normalized = normalizeEventSchemas(options.events);
+const versionedMap = normalized?.versioned;
+
+const flatSchemaMap = versionedMap
+  ? buildFlatSchemaMap(versionedMap)
+  : undefined;
+
+const autoMapper =
+  !options.mapRawToBaseEvent &&
+  versionedMap &&
+  options.eventBridgeSource
+    ? buildInternalMapper(versionedMap, options.eventBridgeSource)
+    : undefined;
+
+const mergedConsumerDeps: EventConsumerDeps = {
+  ...baseConsumerDeps,
+  ...options.consumer,
+  ...(flatSchemaMap ? { payloadSchemas: flatSchemaMap } : {}),
+  mapRawToBaseEvent:
+    options.mapRawToBaseEvent ?? autoMapper,
+};
+
+const wrappedHandler = consumeEvent(
+  mergedConsumerDeps,
+  async (event) => {
+    logger.info({
+      event: 'event_handler_dispatch',
+      message: 'Consumed domain event',
+      operation: options.operation,
+      correlationId: event.meta.correlationId,
+      eventVersion: event.eventVersion,
+    });
+
     await handler(
       {
-        ...(payload as object as TEvent),
-        meta,
+        ...(event.payload as object as TEvent),
+        meta: event.meta,
       } as TEvent,
       {} as TContext,
     );
-  });
+  },
+);
 
-  const stack = buildEventExecutionPipeline<TResult, TContext>({
-    operation: options.operation,
-  }) as Array<Middleware<TEvent, TResult, TContext>>;
+const stack = buildEventExecutionPipeline<void, TContext>({
+  operation: options.operation,
+}) as Array<Middleware<TEvent, void, TContext>>;
 
-  return runMiddlewares(
-    stack,
-    wrappedHandler as unknown as Handler<TEvent, TResult, TContext>,
-  );
+return runMiddlewares(
+  stack,
+  wrappedHandler as unknown as Handler<TEvent, void, TContext>,
+);
 }
+ 

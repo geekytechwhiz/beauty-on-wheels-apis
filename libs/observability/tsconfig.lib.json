@@ -6,6 +6,7 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
+    "composite": false,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"]
@@ -16,6 +17,7 @@
     "jest.config.ts",
     "jest.config.cts",
     "src/**/*.spec.ts",
-    "src/**/*.test.ts"
+    "src/**/*.test.ts",
+    "test/**/*"
   ]
 }

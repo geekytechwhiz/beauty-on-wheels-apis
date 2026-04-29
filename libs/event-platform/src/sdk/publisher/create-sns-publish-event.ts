@@ -1,11 +1,12 @@
 import { createLogger, type Logger } from '@api-hub/logger';
 
 import type { EventEnvelope } from '../../core/event-envelope/base-event';
-import type { PayloadSchemaRegistry } from '../../core/schema/validate';
+ 
 import { EventPublisher } from './event-publisher';
 import { createSnsTopicAdapter, isCredentialLikeSnsError, isNonProdRelaxed } from './sns-topic-adapter';
 import type { EventPublishAdapter } from './event-publish-adapter';
 import type { PublishInput } from './publish-input';
+import { PayloadSchemaRegistry } from '../../typings/consumer.types';
 
 export type CreateSnsPublishEventOptions = {
   serviceName: string;

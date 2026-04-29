@@ -1,4 +1,4 @@
-import { decodeJwtPayload } from '@api-hub/utils';
+import { decodeJwtPayload, pickOrganizationIdFromJwtPayload } from '@api-hub/utils';
 
 import type { RequestBuildEvent } from './types';
 
@@ -6,16 +6,14 @@ export const buildRequestContext = (event: RequestBuildEvent) => {
   const authHeader =
     event.headers?.Authorization || event.headers?.authorization;
 
-  const decoded = authHeader ? decodeJwtPayload(authHeader) : {};
+  const decoded = authHeader ? decodeJwtPayload(authHeader) : ({} as Record<string, unknown>);
 
   const user = {
     userId:
-      decoded?.['custom:userID'] ||
-      decoded?.userId ||
-      decoded?.sub,
-    organizationId:
-      decoded?.['custom:organizationID'] ||
-      decoded?.organizationId,
+      decoded['custom:userID'] ||
+      decoded.userId ||
+      decoded.sub,
+    organizationId: pickOrganizationIdFromJwtPayload(decoded),
   };
 
   let body: any = undefined;

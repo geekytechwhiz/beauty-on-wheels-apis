@@ -18,6 +18,8 @@ export function buildUpdateTemplateHandler(useCase: UpdateTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.update',
       validator: validateUpdateTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_UPDATED_SUCCESS',
     },

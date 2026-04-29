@@ -1,3 +1,4 @@
+export * from './lib/observability-init';
 export * from './lib/types';
 export * from './lib/standard-event-context';
 export * from './lib/middlewareEngine';

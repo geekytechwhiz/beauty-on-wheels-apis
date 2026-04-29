@@ -1,6 +1,11 @@
-import { logger } from '@api-hub/observability';
+import { createLogger } from '@api-hub/observability';
 
 import type { Middleware, MiddlewarePipelineEvent } from './types';
+import { ensureObservabilityInitialized } from './observability-init';
+
+ensureObservabilityInitialized();
+
+const logger = createLogger();
 
 /**
  * JSON snapshot of the Lambda `event` for logs (handles circular structures).

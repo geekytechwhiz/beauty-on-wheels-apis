@@ -1,4 +1,4 @@
-import type { BaseEvent } from '../../core/event-envelope/base-event';
+ 
 import {
   EventSerializationError,
   serializeBaseEvent as serializeBaseEventCore,
@@ -7,6 +7,7 @@ import {
   EventValidationError,
   validateBaseEvent,
 } from '../../core/event-envelope/validate-base-event';
+import { BaseEvent } from '../../typings/base-event.types';
 
 export class SqsMessageParseError extends Error {
   constructor(

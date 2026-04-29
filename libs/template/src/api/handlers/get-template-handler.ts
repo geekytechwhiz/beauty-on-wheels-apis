@@ -23,6 +23,8 @@ export function buildGetTemplateHandler(useCase: GetTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.get',
       validator: validateGetTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_RETRIEVED_SUCCESS',
     },

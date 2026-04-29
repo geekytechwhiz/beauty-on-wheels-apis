@@ -1,4 +1,5 @@
-import type { BaseEvent } from './base-event';
+ 
+import { BaseEvent } from '../../typings/base-event.types';
 
 export class EventValidationError extends Error {
   constructor(

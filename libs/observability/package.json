@@ -1,24 +1,40 @@
 {
-  "name": "@api-hub/observability",
-  "version": "0.0.1",
-  "private": true,
-  "main": "./dist/index.js",
+  "name": "@myvitalrx-api-hub/observability",
+  "version": "2.0.0",
+  "description": "Enterprise observability library for logging, metrics, and context propagation",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    "./package.json": "./package.json",
     ".": {
-      "@api-hub/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
   },
-  "nx": {
-    "name": "observability"
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "jest",
+    "lint": "eslint .",
+    "prepare": "npm run build"
   },
   "dependencies": {
-    "@aws-lambda-powertools/metrics": "^2.33.0",
-    "tslib": "^2.3.0"
+    "@aws-lambda-powertools/logger": "^2.x",
+    "@aws-lambda-powertools/metrics": "^2.x"
+  },
+  "devDependencies": {
+    "tsup": "^8.x",
+    "typescript": "^5.x",
+    "jest": "^29.x",
+    "@types/jest": "^29.x"
+  },
+  "peerDependencies": {
+    "aws-lambda": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

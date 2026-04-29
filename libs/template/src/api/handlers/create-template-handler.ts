@@ -18,6 +18,8 @@ export function buildCreateTemplateHandler(useCase: CreateTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.create',
       validator: validateCreateTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_CREATED_SUCCESS',
       useCreated: true,

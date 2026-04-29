@@ -1,4 +1,4 @@
-import type { BaseEvent } from './base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 
 export class EventSerializationError extends Error {
   constructor(

@@ -1,14 +1,17 @@
-import { logger, publishMiddlewarePipelineMetrics } from '@api-hub/observability';
+import { createLogger, publishMiddlewarePipelineMetrics } from '@api-hub/observability';
 
 import type { Middleware } from './types';
+import { ensureObservabilityInitialized } from './observability-init';
+
+ensureObservabilityInitialized();
+
+const logger = createLogger();
 
 /**
  * Measures `next()` duration, logs structured timing, and emits Powertools EMF metrics
  * (`Latency`, `Success`, `Failure` counts) — no domain logic.
  *
- * Metrics namespace follows `POWERTOOLS_METRICS_NAMESPACE`; service name follows `SERVICE_NAME`
- * (see `requireServiceName` in `@api-hub/observability`).
- * (see `publishMiddlewarePipelineMetrics` in `@api-hub/observability`).
+ * Metrics namespace and service name come from `initObservability` (see `ensureObservabilityInitialized`).
  */
 export function performanceMiddleware<
   TResult = unknown,
@@ -21,7 +24,9 @@ export function performanceMiddleware<
       const result = await next();
       const durationMs = Date.now() - startedAt;
 
-      logger.info('Middleware pipeline timing', {
+      logger.info({
+        event: 'middleware_performance',
+        message: 'Middleware pipeline timing',
         logType: 'middleware_performance',
         operation,
         durationMs,
@@ -38,11 +43,13 @@ export function performanceMiddleware<
     } catch (error) {
       const durationMs = Date.now() - startedAt;
 
-      logger.info('Middleware pipeline timing', {
+      logger.info({
         event: 'middleware_performance',
+        message: 'Middleware pipeline timing',
         operation,
         durationMs,
         outcome: 'failure',
+        err: error,
       });
 
       publishMiddlewarePipelineMetrics({

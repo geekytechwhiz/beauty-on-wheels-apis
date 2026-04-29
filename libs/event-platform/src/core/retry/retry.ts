@@ -1,45 +1,8 @@
 // core/retry/retry.ts
 
-export type RetryBackoffStrategy = 'exponential' | 'fixed';
-export type RetryJitter = 'none' | 'full' | 'partial';
-
-export type RetryLogger = {
-  warn: (message: string, meta?: Record<string, unknown>) => void;
-};
-
-export type RetryContext = {
-  currentRetryCount?: number;
-};
-
-export type RetryOptions = {
-  maxAttempts: number;
-  strategy: RetryBackoffStrategy;
-  delayMs: number;
-
-  factor?: number;
-  maxDelayMs?: number;
-
-  jitter?: RetryJitter;
-  timeoutMs?: number;
-
-  isRetryable?: (error: unknown) => boolean;
-  shouldRetryResult?: (result: any) => boolean;
-
-  shouldStop?: (error: unknown, attempt: number) => boolean;
-
-  signal?: AbortSignal;
-
-  logger?: RetryLogger;
-  onBeforeRetry?: (info: RetryOnBeforeRetryInfo) => void;
-  onComplete?: (info: { success: boolean; attempts: number }) => void;
-};
-
-export type RetryOnBeforeRetryInfo = {
-  failedAttempt: number;
-  maxAttempts: number;
-  waitMs: number;
-  error: unknown;
-};
+import { RetryOptions } from '../../typings/consumer.types';
+import { RetryContext } from '../../typings/consumer.types';
+import { RetryJitter } from '../../typings/consumer.types';
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));

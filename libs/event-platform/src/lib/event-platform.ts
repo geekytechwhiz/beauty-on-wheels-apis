@@ -2,28 +2,36 @@
 
 import {
   type BaseEvent,
-  type EventMetadata,
+  type EventMeta
 } from '../core/event-envelope/base-event';
 import { EventConsumer } from '../sdk/consumer/event-consumer';
-import type {
-  EventConsumerDeps,
+import type { 
   HandleResult,
 } from '../sdk/consumer/event-consumer';
+import { EventConsumerDeps, StreamOrSqsRecord, VersionedPayloadSchemas } from '../typings/consumer.types';
 
-type StreamOrSqsRecord = {
-  messageId?: string;
-  eventID?: string;
-  sequenceNumber?: string;
-};
 
-function eventMetadataFromBaseEvent<T>(event: BaseEvent<T>): EventMetadata {
-  return {
-    correlationId: event.correlationId,
-    retryCount: event.meta?.retryCount,
-    publishedAt: event.meta?.publishedAt,
-  };
+function resolveSchema(
+  schemas: VersionedPayloadSchemas | undefined,
+  eventType: string,
+  version: string
+) {
+  const eventSchemas = schemas?.[eventType];
+
+  if (!eventSchemas) {
+    throw new Error(`No schemas found for eventType: ${eventType}`);
+  }
+
+  const schema = eventSchemas[version];
+
+  if (!schema) {
+    throw new Error(
+      `No schema for eventType=${eventType}, version=${version}`
+    );
+  }
+
+  return schema;
 }
-
 function itemIdentifierFromRecord(record: unknown): string {
   if (record !== null && typeof record === 'object') {
     const r = record as StreamOrSqsRecord;
@@ -40,25 +48,46 @@ function itemIdentifierFromRecord(record: unknown): string {
  */
 export function consumeEvent<TPayload = unknown>(
   deps: EventConsumerDeps,
-  handler: (payload: TPayload, meta: EventMetadata) => Promise<void>
+  handler: (event: BaseEvent<TPayload>) => Promise<void>
 ): (
   rawEvent: unknown
 ) => Promise<HandleResult | { batchItemFailures: { itemIdentifier: string }[] }> {
 
-  // ✅ reuse across Lambda invocations
   const consumer = new EventConsumer(deps);
+
+  async function process(raw: unknown) {
+    return consumer.handle<TPayload>(raw, async (event) => {
+
+      // 🔥 Resolve schema dynamically
+      const schema = resolveSchema(
+        deps.payloadSchemas as unknown as VersionedPayloadSchemas,
+        event.eventType,
+        event.eventVersion
+      );
+
+      // 🔥 Validate payload
+      const parsedPayload = schema.parse(event.payload);
+
+      const enrichedEvent: BaseEvent<TPayload> = {
+        ...event,
+        payload: parsedPayload,
+      };
+
+      return handler(enrichedEvent);
+    });
+  }
 
   return async function wrapped(rawEvent: unknown) {
 
     // -------------------------------
-    // 🔥 1. Batch Handling (SQS / Streams)
+    // 🔥 Batch Handling
     // -------------------------------
     const records =
       rawEvent !== null &&
       typeof rawEvent === 'object' &&
       'Records' in rawEvent &&
-      Array.isArray((rawEvent as { Records: unknown }).Records)
-        ? (rawEvent as { Records: unknown[] }).Records
+      Array.isArray((rawEvent as any).Records)
+        ? (rawEvent as any).Records
         : null;
 
     if (records) {
@@ -66,18 +95,10 @@ export function consumeEvent<TPayload = unknown>(
 
       for (const record of records) {
         try {
-          const result = await consumer.handle<TPayload>(
-            record,
-            async (event: BaseEvent<TPayload>) =>
-              handler(event.payload, eventMetadataFromBaseEvent(event))
-          );
+          const result = await process(record);
 
-          // 🔥 Duplicate → treat as success (DO NOT retry)
-          if (result.outcome === 'duplicate') {
-            continue;
-          }
+          if (result.outcome === 'duplicate') continue;
 
-          // 🔥 DLQ candidate → mark as failed (optional strategy)
           if (result.outcome === 'dead_letter_candidate') {
             batchItemFailures.push({
               itemIdentifier: itemIdentifierFromRecord(record),
@@ -85,7 +106,6 @@ export function consumeEvent<TPayload = unknown>(
           }
 
         } catch {
-          // 🔥 HARD FAILURE → retry this message only
           batchItemFailures.push({
             itemIdentifier: itemIdentifierFromRecord(record),
           });
@@ -96,12 +116,8 @@ export function consumeEvent<TPayload = unknown>(
     }
 
     // -------------------------------
-    // 🔥 2. Single Event (EventBridge / direct)
+    // 🔥 Single Event
     // -------------------------------
-    const result = await consumer.handle<TPayload>(rawEvent, async (event) =>
-      handler(event.payload, eventMetadataFromBaseEvent(event))
-    );
-    // duplicate → treated as success
-    return result;
+    return process(rawEvent);
   };
 }

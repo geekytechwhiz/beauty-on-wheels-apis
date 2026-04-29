@@ -1,3 +1,4 @@
+import { ensureObservabilityInitialized } from '@api-hub/middleware';
 import {
   recordConsumerDeadLetter,
   recordConsumerDuplicateEvent,
@@ -7,23 +8,23 @@ import {
 } from '@api-hub/observability';
 
 import { decideDeliveryDisposition } from '../../core/dlq/delivery-decision';
-import type { DlqConfig } from '../../core/dlq/dlq-config';
-import type { BaseEvent } from '../../core/event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 
-import { retry, type RetryOptions } from '../../core/retry/retry';
+import { retry } from '../../core/retry/retry';
+import { RetryOptions } from '../../typings/consumer.types';
 
-import type { PayloadSchemaRegistry } from '../../core/schema/validate';
-import { validatePayloadByEventType } from '../../core/schema/validate';
 
-import type { EventTracingHooks } from '../../core/tracing/event-tracing-hooks';
 import { traceContextFromEvent } from '../../core/tracing/trace-context';
 
-import type { VersionCheckConfig } from '../../core/versioning/version-compatibility';
 import { assertVersionCompatible } from '../../core/versioning/version-compatibility';
 
+import { EventConsumerDeps, PayloadSchemaRegistry } from '../../typings/consumer.types';
+import { resolveSchema } from '../../utils/helpers';
 import { parseInboundEvent } from './parse-inbound-event';
+import { normalizeEventMeta } from '../../core/event-envelope/normalize-event-meta';
+import { HandleOptions, HandleResult } from '../../typings/publisher.types';
 
-import type { IdempotencyStrategy } from '../../core/idempotency/idempotency-strategy';
+ensureObservabilityInitialized();
 
 /** Barrel exports can narrow optional arity; runtime accepts these full signatures. */
 const emitRetry = recordConsumerRetry as (eventType?: string, retryCount?: number) => void;
@@ -32,37 +33,6 @@ const emitDeadLetter = recordConsumerDeadLetter as (
   context?: { retryCount?: number; error?: string },
 ) => void;
 const emitFailure = recordConsumerFailure as (eventType?: string, error?: unknown) => void;
-
-export type EventConsumerDeps = {
-  idempotencyStrategy: IdempotencyStrategy;
-
-  retry: RetryOptions;
-  dlq?: DlqConfig;
-
-  payloadSchemas?: PayloadSchemaRegistry;
-  versionCheck?: VersionCheckConfig;
-
-  tracing?: EventTracingHooks;
-
-  /**
-   * When the inbound value is not a {@link BaseEvent} after transport normalization
-   * (legacy SQS body, EventBridge detail, etc.), build a canonical envelope from the raw record.
-   */
-  mapRawToBaseEvent?: (raw: unknown) => BaseEvent;
-};
-
-export type HandleOptions = {
-  correlationId?: string;
-};
-
-export type HandleResult =
-  | { outcome: 'processed' }
-  | { outcome: 'duplicate'; idempotencyKey: string }
-  | {
-      outcome: 'dead_letter_candidate';
-      idempotencyKey: string;
-      error: unknown;
-    };
 
 export class EventConsumer {
   constructor(private readonly deps: EventConsumerDeps) {}
@@ -83,12 +53,9 @@ export class EventConsumer {
         mapRawToBaseEvent: this.deps.mapRawToBaseEvent,
       });
       // ensure meta exists
-      if (!parsed.meta) {
-        parsed.meta = {
-          retryCount: 0,
-          publishedAt: parsed.timestamp,
-        };
-      }
+      parsed = normalizeEventMeta(parsed, {
+        fallbackCorrelationId: handleOptions?.correlationId,
+      });
     } catch (error) {
       trace?.onEventFailed({
         stage: 'parse',
@@ -102,42 +69,56 @@ export class EventConsumer {
     // -------------------------------
     // 2. Version check
     // -------------------------------
-    try {
-      if (this.deps.versionCheck !== undefined) {
-        assertVersionCompatible(parsed.version, this.deps.versionCheck);
-      }
-    } catch (error) {
-      const ctx = traceContextFromEvent(parsed, handleOptions?.correlationId);
-      trace?.onEventFailed({
-        stage: 'version',
-        error,
-        correlationId: ctx.correlationId,
-        eventId: ctx.eventId,
-        eventType: ctx.eventType,
-      });
-      recordConsumerFailure(ctx.eventType);
-      throw error;
-    }
-
+    // -------------------------------
+// 2. Version check
+// -------------------------------
+try {
+  if (this.deps.versionCheck !== undefined) {
+    assertVersionCompatible(parsed.eventVersion, this.deps.versionCheck); // ✅ FIX
+  }
+} catch (error) {
+  const ctx = traceContextFromEvent(parsed, handleOptions?.correlationId);
+  trace?.onEventFailed({
+    stage: 'version',
+    error,
+    correlationId: ctx.correlationId,
+    eventId: ctx.eventId,
+    eventType: ctx.eventType,
+  });
+  recordConsumerFailure(ctx.eventType);
+  throw error;
+}
     // -------------------------------
     // 3. Schema validation
     // -------------------------------
-    try {
-      if (this.deps.payloadSchemas !== undefined) {
-        parsed = validatePayloadByEventType(parsed, this.deps.payloadSchemas);
-      }
-    } catch (error) {
-      const ctx = traceContextFromEvent(parsed, handleOptions?.correlationId);
-      trace?.onEventFailed({
-        stage: 'schema',
-        error,
-        correlationId: ctx.correlationId,
-        eventId: ctx.eventId,
-        eventType: ctx.eventType,
-      });
-      recordConsumerFailure(ctx.eventType);
-      throw error;
-    }
+   // -------------------------------
+// 3. Schema validation (version-aware)
+// -------------------------------
+try {
+  if (this.deps.payloadSchemas !== undefined) {
+    const schema: any = resolveSchema(
+      this.deps.payloadSchemas as unknown as PayloadSchemaRegistry,
+      parsed.eventType,
+      parsed.eventVersion,
+    );
+
+    parsed = {
+      ...parsed,
+      payload: schema.parse(parsed.payload) as unknown as T,
+    };
+  }
+} catch (error) {
+  const ctx = traceContextFromEvent(parsed, handleOptions?.correlationId);
+  trace?.onEventFailed({
+    stage: 'schema',
+    error,
+    correlationId: ctx.correlationId,
+    eventId: ctx.eventId,
+    eventType: ctx.eventType,
+  });
+  recordConsumerFailure(ctx.eventType);
+  throw error;
+}
 
     // -------------------------------
     // 4. Tracing context
@@ -196,58 +177,86 @@ export class EventConsumer {
     // 7. Execute handler
     // -------------------------------
     try {
-      await retry(async () => {
-        // 🔥 increment retry count
-        parsed.meta!.retryCount += 1;
-
-        return handler(parsed as BaseEvent<T>);
-      }, retryOptions, {
-        currentRetryCount: parsed.meta?.retryCount ?? 0,
-      });
+      await retry(
+        async () => {
+          // ✅ Ensure meta exists (defensive, even if type says required)
+          if (!parsed.meta) {
+            parsed.meta = {
+              correlationId: parsed.eventId,
+              retryCount: 0,
+              publishedAt: parsed.timestamp,
+            };
+          }
+    
+          // ✅ Safe increment (no optional chaining)
+          parsed.meta.retryCount = (parsed.meta.retryCount ?? 0) + 1;
+    
+          await handler(parsed as BaseEvent<T>);
+        },
+        retryOptions,
+        {
+          currentRetryCount: parsed.meta.retryCount ?? 0,
+        },
+      );
     } catch (error) {
-      // 🔥 Idempotency error hook
-       // -------------------------------
-// DLQ + Retry disposition
-// -------------------------------
-const retryCount = parsed.meta?.retryCount ?? 0;
-
-const disposition = decideDeliveryDisposition({
-  retryCount,
-  maxAttempts: this.deps.retry.maxAttempts,
-  dlq,
-  error,
-});
-
-if (disposition === 'dead_letter_candidate') {
-  trace?.onEventFailed({
-    stage: 'handler_dead_letter',
-    error,
-    correlationId: traceCtx.correlationId,
-    eventId: traceCtx.eventId,
-    eventType: traceCtx.eventType,
-  });
-
-  emitDeadLetter(traceCtx.eventType, {
-    retryCount,
-    error: error instanceof Error ? error.message : String(error),
-  });
-
-  return {
-    outcome: 'dead_letter_candidate',
-    idempotencyKey,
-    error,
-  };
-}
-
-if (disposition === 'propagate_error') {
-  emitFailure(traceCtx.eventType, {
-    retryCount,
-  });
-  throw error;
-}
-
-// retry case → should never reach here (retry handled inside retry())
-throw error;
+      // -------------------------------
+      // 🔥 DLQ + Retry disposition
+      // -------------------------------
+      const retryCount = parsed.meta?.retryCount ?? 0;
+    
+      const disposition = decideDeliveryDisposition({
+        retryCount,
+        maxAttempts: this.deps.retry.maxAttempts,
+        dlq: this.deps.dlq ?? { enabled: false },
+        error,
+      });
+    
+      // -------------------------------
+      // 🔥 DEAD LETTER
+      // -------------------------------
+      if (disposition === 'dead_letter_candidate') {
+        const errMessage =
+          error instanceof Error ? error.message : String(error);
+    
+        trace?.onEventFailed({
+          stage: 'handler_dead_letter',
+          error,
+          correlationId: traceCtx.correlationId,
+          eventId: traceCtx.eventId,
+          eventType: traceCtx.eventType,
+        });
+    
+        emitDeadLetter(traceCtx.eventType, {
+          retryCount,
+          error: errMessage,
+        });
+    
+        return {
+          outcome: 'dead_letter_candidate',
+          idempotencyKey,
+          error,
+        };
+      }
+    
+      // -------------------------------
+      // 🔥 PROPAGATE ERROR
+      // -------------------------------
+      if (disposition === 'propagate_error') {
+        emitFailure(traceCtx.eventType, {
+          retryCount,
+        });
+    
+        throw error;
+      }
+    
+      // -------------------------------
+      // 🔥 FALLBACK (should not happen)
+      // -------------------------------
+      emitFailure(traceCtx.eventType, {
+        retryCount,
+      });
+    
+      throw error;
     }
 
     // -------------------------------

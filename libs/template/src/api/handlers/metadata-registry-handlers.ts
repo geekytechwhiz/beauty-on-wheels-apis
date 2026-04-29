@@ -31,6 +31,8 @@ export function buildListApplicableMetadataHandler(useCase: ListApplicableMetada
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'metadata.applicable.list',
       validator: validateListApplicableMetadata,
       successMessageKey: 'METADATA.METADATA_APPLICABLE_LIST_SUCCESS',
     },
@@ -50,6 +52,8 @@ export function buildListMetadataByTypeHandler(useCase: ListMetadataByTypeUseCas
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'metadata.listByType',
       validator: validateListMetadataByType,
       successMessageKey: 'METADATA.METADATA_LIST_SUCCESS',
     },
@@ -69,6 +73,8 @@ export function buildListMetadataVersionsHandler(useCase: ListMetadataVersionsUs
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'metadata.versions.list',
       validator: validateListMetadataVersions,
       successMessageKey: 'METADATA.METADATA_VERSIONS_LIST_SUCCESS',
     },
@@ -88,6 +94,8 @@ export function buildGetMetadataDefinitionHandler(useCase: GetMetadataDefinition
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'metadata.definition.get',
       validator: validateGetMetadataDefinition,
       successMessageKey: 'METADATA.METADATA_GET_SUCCESS',
     },
@@ -107,6 +115,8 @@ export function buildCreateMetadataDefinitionHandler(useCase: CreateMetadataDefi
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'metadata.definition.create',
       validator: validateCreateMetadataDefinition,
       successMessageKey: 'METADATA.METADATA_CREATE_SUCCESS',
       useCreated: true,
@@ -127,6 +137,8 @@ export function buildUpsertMetadataDefinitionHandler(useCase: UpsertMetadataDefi
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'metadata.definition.upsert',
       validator: validateUpsertMetadataDefinition,
       successMessageKey: 'METADATA.METADATA_UPSERT_SUCCESS',
     },
@@ -147,6 +159,8 @@ export function buildDeleteMetadataDefinitionHandler(useCase: DeleteMetadataDefi
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'metadata.definition.delete',
       validator: validateDeleteMetadataDefinition,
       successMessageKey: 'METADATA.METADATA_DELETE_SUCCESS',
     },

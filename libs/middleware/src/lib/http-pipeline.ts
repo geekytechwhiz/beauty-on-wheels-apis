@@ -1,16 +1,20 @@
-import { requireServiceName } from '@api-hub/observability';
 import type { z } from 'zod';
+
+import { getConfig } from '@api-hub/observability';
 
 import { contextMiddleware } from './context-middleware';
 import { errorMiddleware } from './error.middleware';
 import { invocationContextMiddleware } from './invocation-context.middleware';
 import { loggerMiddleware } from './logger.middleware';
+import { ensureObservabilityInitialized } from './observability-init';
 import { performanceMiddleware } from './performance.middleware';
 import { schemaValidationMiddleware } from './schema-validation.middleware';
 import { getTracerForService } from './tracer-singleton';
 import { tracerMiddleware } from './tracer.middleware';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
-// import { consumeEvent } from '@api-hub/event-platform';
+
+ensureObservabilityInitialized();
+
 /**
  * API Gateway / HTTP execution stack: error → context → invocation → logger →
  * tracer → (optional) HTTP request schema → performance → handler.
@@ -23,7 +27,7 @@ export function buildApiExecutionPipeline<
   operation: string;
   schema?: z.ZodType<unknown>;
 }) {
-  const tracer = getTracerForService(requireServiceName());
+  const tracer = getTracerForService(getConfig().serviceName);
 
   return [
     contextMiddleware(),
@@ -48,8 +52,7 @@ export function buildEventExecutionPipeline<
 >(options: { operation: string }): Array<
   Middleware<MiddlewarePipelineEvent, TResult, TContext>
 > {
-  const service = requireServiceName();
-  const tracer = getTracerForService(service);
+  const tracer = getTracerForService(getConfig().serviceName);
   return [
     contextMiddleware(),
     invocationContextMiddleware({ operation: options.operation }),
@@ -62,5 +65,3 @@ export function buildEventExecutionPipeline<
     errorMiddleware(),
   ];
 }
-
- 

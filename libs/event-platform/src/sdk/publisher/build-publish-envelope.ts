@@ -21,14 +21,18 @@ export function buildPublishEnvelope<T>(input: PublishInput<T>): BaseEvent<T> {
       eventId: randomUUID() as string,
     });
 
-  return {
-    eventId,
-    eventType: input.eventType,
-    version,
-    timestamp,
-    source: input.source,
-    correlationId: input.correlationId,
-    idempotencyKey,
-    payload: input.payload,
-  };
+    return {
+      eventId,
+      eventType: input.eventType,
+      eventVersion: version, // ✅ correct field
+      timestamp,
+      source: input.source,
+      idempotencyKey,
+      payload: input.payload,
+      meta: {
+        correlationId: input.correlationId ?? eventId,
+        publishedAt: timestamp,
+        retryCount: 0,
+      },
+    };
 }

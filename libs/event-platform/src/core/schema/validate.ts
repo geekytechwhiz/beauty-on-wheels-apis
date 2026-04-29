@@ -1,7 +1,6 @@
 import type { z } from 'zod';
-
-import type { BaseEvent } from '../event-envelope/base-event';
-import { EventSchemaError } from './event-schema-error';
+import { EventSchemaError } from "@api-hub/middleware";
+import { BaseEvent } from '../../typings/base-event.types';
 
 /**
  * Validates a value against an explicit Zod schema (e.g. full {@link BaseEvent} or payload).

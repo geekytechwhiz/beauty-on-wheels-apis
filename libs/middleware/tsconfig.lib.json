@@ -24,9 +24,6 @@
     },
     {
       "path": "../utils/tsconfig.lib.json"
-    },
-    {
-      "path": "../observability/tsconfig.lib.json"
     }
   ]
 }

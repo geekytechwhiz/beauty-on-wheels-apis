@@ -18,6 +18,8 @@ export function buildPublishTemplateHandler(useCase: PublishTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.publish',
       validator: validatePublishTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_PUBLISHED_SUCCESS',
     },

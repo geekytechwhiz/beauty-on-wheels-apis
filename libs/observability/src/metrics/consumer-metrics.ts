@@ -1,18 +1,24 @@
 import { MetricUnit, Metrics } from '@aws-lambda-powertools/metrics';
 
-import { requireServiceName } from '../service-name.js';
-import { logger } from '../logger/logger.js';
+import { getConfig } from '../config/config.js';
 
-let metricsInstance: Metrics | undefined;
+function createMetricsInstance(): Metrics {
+  const cfg = getConfig();
+  return new Metrics({
+    namespace: cfg.metricsNamespace,
+    serviceName: cfg.serviceName,
+  });
+}
 
-function getMetrics(): Metrics {
-  if (!metricsInstance) {
-    metricsInstance = new Metrics({
-      namespace: process.env.POWERTOOLS_METRICS_NAMESPACE ?? 'ApiHub',
-      serviceName: requireServiceName(),
-    });
-  }
-  return metricsInstance;
+function metricsPublishFailed(context: string, err: unknown): void {
+  // eslint-disable-next-line no-console
+  console.error(
+    JSON.stringify({
+      event: 'metrics_publish_failed',
+      context,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  );
 }
 
 function addEventTypeDimension(m: Metrics, eventType?: string): void {
@@ -23,14 +29,11 @@ function addEventTypeDimension(m: Metrics, eventType?: string): void {
 
 function safePublish(fn: (m: Metrics) => void): void {
   try {
-    const m = getMetrics();
+    const m = createMetricsInstance();
     fn(m);
     m.publishStoredMetrics();
   } catch (error) {
-    logger.warn('Failed to publish event consumer metrics', {
-      event: 'event_consumer_metrics_publish_failed',
-      err: error,
-    });
+    metricsPublishFailed('event_consumer', error);
   }
 }
 
@@ -88,7 +91,7 @@ export function recordConsumerRetry(eventType?: string, retryCount?: number): vo
 /** @deprecated Use {@link recordConsumerDeliveryDisposition}; kept for `EventConsumer` call sites. */
 export function recordConsumerDeadLetter(
   eventType?: string,
-  _context?: { retryCount?: number; error?: string },
+  _context?: { retryCount?: number; error?: string }
 ): void {
   recordConsumerDeliveryDisposition(eventType, 'dead_letter_candidate');
 }

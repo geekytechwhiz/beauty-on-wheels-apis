@@ -45,8 +45,7 @@
       "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
       "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"],
       "@api-hub/middleware": ["libs/middleware/src/index.ts"],
-      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
-      "@api-hub/observability": ["libs/observability/src/index.ts"]
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"]
     }
   }
 }

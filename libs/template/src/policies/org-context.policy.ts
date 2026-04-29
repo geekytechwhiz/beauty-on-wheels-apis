@@ -1,13 +1,20 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
+import { decodeJwtPayload, pickOrganizationIdFromJwtPayload } from '@api-hub/utils';
 
 export function resolveOrganizationIdFromRequest(req: {
   event: APIGatewayProxyEvent;
   context?: { userContext?: { organizationId?: string } };
+  params?: { organizationId?: string; organizationID?: string };
 }): string | undefined {
   const fromJwt = req.context?.userContext?.organizationId;
- 
+
   if (fromJwt !== undefined && fromJwt !== null && String(fromJwt).trim() !== '') {
     return String(fromJwt);
+  }
+
+  const fromParams = req.params?.organizationId ?? req.params?.organizationID;
+  if (fromParams !== undefined && fromParams !== null && String(fromParams).trim() !== '') {
+    return String(fromParams);
   }
 
   return getAuthorizerOrganizationId(req.event);
@@ -16,40 +23,24 @@ export function resolveOrganizationIdFromRequest(req: {
 export function getAuthorizerOrganizationId(event: APIGatewayProxyEvent): string | undefined {
   const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> })?.authorizer;
 
-  const orgIdFromAuthorizer =
-    authorizer?.organizationID ??
-    authorizer?.organizationId ??
-    (authorizer?.claims as Record<string, unknown> | undefined)?.['custom:organizationID'] ??
-    (authorizer?.claims as Record<string, unknown> | undefined)?.['custom:organizationId'];
+  const fromClaims = authorizer?.claims
+    ? pickOrganizationIdFromJwtPayload(authorizer.claims as Record<string, unknown>)
+    : undefined;
 
-  if (typeof orgIdFromAuthorizer === 'string' && orgIdFromAuthorizer) {
-    return orgIdFromAuthorizer;
+  const orgIdFromAuthorizer =
+    (typeof authorizer?.organizationID === 'string' && authorizer.organizationID) ||
+    (typeof authorizer?.organizationId === 'string' && authorizer.organizationId) ||
+    (typeof authorizer?.tenantId === 'string' && authorizer.tenantId) ||
+    fromClaims;
+
+  if (typeof orgIdFromAuthorizer === 'string' && orgIdFromAuthorizer.trim() !== '') {
+    return orgIdFromAuthorizer.trim();
   }
 
   const authHeader =
     event.headers?.Authorization ?? event.headers?.authorization ?? event.headers?.AUTHORIZATION;
   if (!authHeader) return undefined;
 
-  try {
-    const token = authHeader.replace(/^\s*Bearer\s+/i, '').trim();
-    const base64Url = token.split('.')[1];
-    if (!base64Url) return undefined;
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      Buffer.from(base64, 'base64')
-        .toString()
-        .split('')
-        .map((char) => '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2))
-        .join(''),
-    );
-    const decoded = JSON.parse(jsonPayload) as Record<string, unknown>;
-    return (
-      (decoded['custom:organizationID'] as string) ??
-      (decoded['custom:organizationId'] as string) ??
-      (decoded.organizationID as string) ??
-      (decoded.organizationId as string)
-    );
-  } catch {
-    return undefined;
-  }
+  const decoded = decodeJwtPayload(authHeader);
+  return pickOrganizationIdFromJwtPayload(decoded);
 }

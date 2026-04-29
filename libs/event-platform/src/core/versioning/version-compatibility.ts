@@ -1,32 +1,11 @@
 import { compareVersions, parseSemver } from './compare-versions';
+import { VersionCompatibilityStrategy } from '../../typings/consumer.types';
+import { VersionCheckConfig } from '../../typings/consumer.types';
+import { VersionIncompatibleError } from './version-parse-error';
 
-export type VersionCompatibilityStrategy = 'strict' | 'backward' | 'forward';
 
-export class VersionIncompatibleError extends Error {
-  constructor(
-    message: string,
-    readonly eventVersion: string,
-    readonly supportedVersion: string,
-    readonly strategy: VersionCompatibilityStrategy,
-  ) {
-    super(message);
-    this.name = 'VersionIncompatibleError';
-  }
-}
-
-export type VersionCheckConfig = {
-  strategy: VersionCompatibilityStrategy;
-  /** Consumer-supported semantic version (e.g. `"1.2.0"`). */
-  supportedVersion: string;
-};
-
-/**
- * Same major is required; then strategy decides how event vs supported ordering is allowed.
- *
- * - **strict**: event version must equal supported.
- * - **backward**: event must be `<=` supported (consumer handles older or same events).
- * - **forward**: event must be `>=` supported (consumer handles newer or same events).
- */
+ 
+ 
 export function isVersionCompatible(
   eventVersion: string,
   config: VersionCheckConfig,
@@ -45,11 +24,12 @@ export function isVersionCompatible(
     case 'forward':
       return cmp >= 0;
     default: {
-      const _exhaustive: never = config.strategy;
-      return _exhaustive;
+      const _exhaustive: never = (config.strategy ?? 'strict') as never;
+      throw new Error(`Invalid version compatibility strategy: ${_exhaustive}`);
     }
   }
 }
+
 
 export function assertVersionCompatible(
   eventVersion: string,
@@ -60,7 +40,19 @@ export function assertVersionCompatible(
       `Event version "${eventVersion}" is incompatible with supported "${config.supportedVersion}" (${config.strategy})`,
       eventVersion,
       config.supportedVersion,
-      config.strategy,
+      config.strategy as VersionCompatibilityStrategy,
+    );
+  }
+
+  // 🔥 Deprecation hook
+  if (config.deprecatedVersions?.includes(eventVersion)) {
+    config.onDeprecated?.(eventVersion);
+  }
+
+  // ⚠️ Forward compatibility warning
+  if (config.strategy === 'forward') {
+    console.warn(
+      `Forward compatibility enabled for ${eventVersion}. Ensure schema is additive.`,
     );
   }
 }

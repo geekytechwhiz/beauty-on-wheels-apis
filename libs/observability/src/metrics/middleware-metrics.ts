@@ -1,18 +1,24 @@
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 
-import { requireServiceName } from '../service-name.js';
-import { logger } from '../logger/logger.js';
+import { getConfig } from '../config/config.js';
 
-let metricsInstance: Metrics | undefined;
+function createMetricsInstance(): Metrics {
+  const cfg = getConfig();
+  return new Metrics({
+    namespace: cfg.metricsNamespace,
+    serviceName: cfg.serviceName,
+  });
+}
 
-function getMetrics(): Metrics {
-  if (!metricsInstance) {
-    metricsInstance = new Metrics({
-      namespace: process.env.POWERTOOLS_METRICS_NAMESPACE ?? 'ApiHub',
-      serviceName: requireServiceName(),
-    });
-  }
-  return metricsInstance;
+function metricsPublishFailed(context: string, err: unknown): void {
+  // eslint-disable-next-line no-console
+  console.error(
+    JSON.stringify({
+      event: 'metrics_publish_failed',
+      context,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  );
 }
 
 /**
@@ -25,7 +31,7 @@ export function publishMiddlewarePipelineMetrics(options: {
   outcome: 'success' | 'failure';
 }): void {
   try {
-    const m = getMetrics();
+    const m = createMetricsInstance();
     m.addDimension('operation', options.operation);
     m.addMetric('RequestInvocations', MetricUnit.Count, 1);
     m.addMetric('Latency', MetricUnit.Milliseconds, options.durationMs);
@@ -33,10 +39,6 @@ export function publishMiddlewarePipelineMetrics(options: {
     m.addMetric('Failure', MetricUnit.Count, options.outcome === 'failure' ? 1 : 0);
     m.publishStoredMetrics();
   } catch (error) {
-    logger.warn('Failed to publish middleware pipeline metrics', {
-      event: 'middleware_metrics_publish_failed',
-      operation: options.operation,
-      err: error,
-    });
+    metricsPublishFailed('middleware_pipeline', error);
   }
 }

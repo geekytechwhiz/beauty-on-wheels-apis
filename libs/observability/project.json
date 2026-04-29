@@ -1,0 +1,25 @@
+{
+  "name": "observability",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/observability/src",
+  "projectType": "library",
+  "tags": ["type:lib", "allowed-for-app"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/observability/jest.config.cjs",
+        "passWithNoTests": true
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run build",
+        "cwd": "libs/observability"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    }
+  }
+}

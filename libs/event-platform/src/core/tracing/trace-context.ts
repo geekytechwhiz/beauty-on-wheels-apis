@@ -1,4 +1,4 @@
-import type { BaseEvent } from '../event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 
 export type TraceContext = {
   correlationId: string | undefined;
@@ -8,11 +8,11 @@ export type TraceContext = {
 
 /** Prefer `override` (e.g. transport header) then envelope `correlationId`. */
 export function traceContextFromEvent(
-  event: BaseEvent,
+  event: BaseEvent<unknown>,
   correlationIdOverride?: string,
 ): TraceContext {
   return {
-    correlationId: correlationIdOverride ?? event.correlationId,
+    correlationId: correlationIdOverride ?? event.meta.correlationId,
     eventId: event.eventId,
     eventType: event.eventType,
   };

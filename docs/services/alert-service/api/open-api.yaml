@@ -41,7 +41,6 @@ components:
       required: true
       schema:
         type: string
-        format: uuid
 
   schemas:
     SuccessResponse:
@@ -49,10 +48,10 @@ components:
       properties:
         data:
           description: Response data (can be object, array, or null)
+          nullable: true
           oneOf:
             - type: object
             - type: array
-            - type: "null"
         meta:
           type: object
           description: Additional metadata (optional)
@@ -232,6 +231,9 @@ components:
 
     EvidenceMissedReading:
       type: object
+      description: >
+        **Required:** `eventTimestamp`, `source`, `inputType`, `appliesToType`, `linkedEntityCode`,
+        `lastSuccessfulReadingTimestamp`, `missedDuration`, `readingType`. No additional properties.
       required:
         - eventTimestamp
         - source
@@ -259,13 +261,16 @@ components:
           format: date-time
         missedDuration:
           type: string
-          description: ISO-8601 duration (e.g. P3D).
+          description: Missed-reading window (e.g. ISO 8601 duration P3D; product convention).
         readingType:
           type: string
       additionalProperties: false
 
     EvidenceMissingDevice:
       type: object
+      description: >
+        **Required:** `eventTimestamp`, `source`, `inputType`, `appliesToType`, `linkedEntityCode`, `deviceLinked`.
+        No additional properties.
       required:
         - eventTimestamp
         - source
@@ -330,13 +335,14 @@ components:
     CreateAlertRequest:
       type: object
       description: >
-        Creates an alert record: server assigns `alertId`, writes `ALERT_CREATED` activity, applies
-        grouping/SLA rules, and projects to list GSIs. **Organization** is taken from the JWT (not repeated
-        in body). **`inputEventId`** is optional (UUID) for idempotent creates (**409** on replay).
-        **`inputType`** (`MISSED_READING` or `MISSING_DEVICE` only) and **`sourceType`** are required and must match
-        **`evidencePayload.inputType`**. **`appliesToType`** and **`linkedEntityCode`** are required inside
-        **`evidencePayload`** (§5.1.3.1); the API also copies them to the alert record. Pair **`triggerSummaryTemplateCode`**
-        with **`triggerSummaryParams`** (use `{}` if no placeholders).
+        **Required:** `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, `evidencePayload`.
+        **Optional:** `inputEventId`, `carePlanInstanceId`, `packageAssignmentId`, `severityHint`, `priority`,
+        `alertPolicyTemplateVersionId`, `thresholdTemplateVersionId`, `groupingKey`, `triggerSummary`,
+        `triggerSummaryTemplateCode`, `triggerSummaryParams` (required when `triggerSummaryTemplateCode` is set; may be `{}`).
+
+        Organization is from the JWT (not in body). `sourceType` must equal `evidencePayload.source`;
+        `evidencePayload.inputType` must equal top-level `inputType`. `appliesToType` and `linkedEntityCode`
+        are required inside `evidencePayload`.
       required:
         - inputType
         - sourceType
@@ -346,59 +352,66 @@ components:
       properties:
         inputEventId:
           type: string
-          format: uuid
-          description: >
-            Optional idempotency key. Same UUID retried for the same org returns **409** with the existing alert.
+          description: Optional. Idempotency key; same value for same org returns **409** with existing alert.
         inputType:
-          $ref: '#/components/schemas/CreateAlertInputType'
+          allOf:
+            - $ref: '#/components/schemas/CreateAlertInputType'
+          description: Required. `MISSED_READING` or `MISSING_DEVICE`.
         sourceType:
-          $ref: '#/components/schemas/SourceType'
+          allOf:
+            - $ref: '#/components/schemas/SourceType'
+          description: Required. Must match `evidencePayload.source`.
         patientId:
           type: string
-          format: uuid
+          description: Required.
         carePlanInstanceId:
           type: string
-          format: uuid
+          description: Optional. When tied to an active care plan.
         packageAssignmentId:
           type: string
-          format: uuid
+          description: Optional. Package context when relevant.
         triggerTimestamp:
           type: string
           format: date-time
-          description: When the condition occurred (not receipt time).
+          description: Required. When the condition occurred (not receipt time).
         severityHint:
-          $ref: '#/components/schemas/SeverityHint'
+          allOf:
+            - $ref: '#/components/schemas/SeverityHint'
+          description: Optional.
         priority:
-          $ref: '#/components/schemas/Priority'
-          description: Resolved priority; if omitted, derived from policy when applicable.
+          allOf:
+            - $ref: '#/components/schemas/Priority'
+          description: Optional. Resolved priority; derived from policy when omitted.
         alertPolicyTemplateVersionId:
           type: string
-          format: uuid
+          description: Optional. Policy template version.
         thresholdTemplateVersionId:
           type: string
-          format: uuid
+          description: Optional. Threshold template when applicable.
         groupingKey:
           type: string
-          description: If omitted, computed from policy/grouping strategy.
+          description: Optional. May be computed server-side if omitted.
         triggerSummary:
           type: string
-          description: Pre-rendered summary; if omitted, built from template fields when provided.
+          description: Optional. Pre-rendered summary when not using a template.
         triggerSummaryTemplateCode:
           type: string
+          description: Optional. Pair with `triggerSummaryParams` when set.
         triggerSummaryParams:
           type: object
           additionalProperties: true
           description: >
-            Required when `triggerSummaryTemplateCode` is set (may be `{}`). Omit both when using only pre-rendered `triggerSummary`.
+            Optional unless `triggerSummaryTemplateCode` is set; then required (may be `{}`). Omit both when using only `triggerSummary`.
         evidencePayload:
-          $ref: '#/components/schemas/EvidencePayload'
+          allOf:
+            - $ref: '#/components/schemas/EvidencePayload'
+          description: Required. Per-`inputType` shape; see `EvidenceMissedReading` or `EvidenceMissingDevice`.
 
     AlertSummary:
       type: object
       properties:
         alertId:
           type: string
-          format: uuid
         priority:
           $ref: '#/components/schemas/Priority'
         alertState:
@@ -416,12 +429,10 @@ components:
           type: string
         patientId:
           type: string
-          format: uuid
         patientName:
           type: string
         assignedToUserId:
           type: string
-          format: uuid
           nullable: true
         assignedToDisplayName:
           type: string
@@ -445,29 +456,24 @@ components:
           properties:
             inputEventId:
               type: string
-              format: uuid
             orgId:
               type: string
-              format: uuid
             evidencePayload:
               type: object
               additionalProperties: true
             groupId:
               type: string
-              format: uuid
               description: Operational group for drill-down and applyToGroup actions.
             assignedAt:
               type: string
               format: date-time
             assignedBy:
               type: string
-              format: uuid
             statusUpdatedAt:
               type: string
               format: date-time
             statusUpdatedBy:
               type: string
-              format: uuid
             closureComment:
               type: string
             resolutionCode:
@@ -488,26 +494,20 @@ components:
               format: date-time
             carePlanInstanceId:
               type: string
-              format: uuid
             packageAssignmentId:
               type: string
-              format: uuid
             alertPolicyTemplateVersionId:
               type: string
-              format: uuid
             thresholdTemplateVersionId:
               type: string
-              format: uuid
 
     ActivityRecord:
       type: object
       properties:
         activityId:
           type: string
-          format: uuid
         alertId:
           type: string
-          format: uuid
         activityType:
           $ref: '#/components/schemas/ActivityType'
         activityTimestamp:
@@ -530,10 +530,8 @@ components:
           $ref: '#/components/schemas/Priority'
         previousAssignee:
           type: string
-          format: uuid
         newAssignee:
           type: string
-          format: uuid
         evidencePayload:
           type: object
           additionalProperties: true
@@ -546,7 +544,6 @@ components:
           $ref: '#/components/schemas/AssignmentAction'
         assignToUserId:
           type: string
-          format: uuid
           description: Required for ASSIGN and REASSIGN.
         comment:
           type: string
@@ -557,7 +554,6 @@ components:
       description: One or many alert ids (single-select = array of one element).
       items:
         type: string
-        format: uuid
       minItems: 1
       maxItems: 100
 
@@ -630,7 +626,6 @@ components:
           type: array
           items:
             type: string
-            format: uuid
         failed:
           type: array
           items:
@@ -639,7 +634,6 @@ components:
             properties:
               alertId:
                 type: string
-                format: uuid
               code:
                 type: string
                 example: NOT_FOUND
@@ -838,7 +832,6 @@ paths:
             Omit for the default Team Queue or My Alerts list without a patient filter.
           schema:
             type: string
-            format: uuid
           example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
         - name: dateFrom
           in: query
@@ -903,7 +896,7 @@ paths:
                 value:
                   inputType: MISSING_DEVICE
                   sourceType: DEVICE_WORKFLOW
-                  patientId: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                  patientId: pat-456
                   triggerTimestamp: '2026-04-17T10:00:00.000Z'
                   evidencePayload:
                     eventTimestamp: '2026-04-17T10:00:00.000Z'
@@ -916,12 +909,12 @@ paths:
                 summary: Missed reading (§5.1.3.1)
                 value:
                   inputType: MISSED_READING
-                  sourceType: MONITORING_SERVICE
-                  patientId: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                  sourceType: DEVICE_MONITORING
+                  patientId: pat-123
                   triggerTimestamp: '2026-04-17T10:00:00.000Z'
                   evidencePayload:
                     eventTimestamp: '2026-04-17T10:00:00.000Z'
-                    source: MONITORING_SERVICE
+                    source: DEVICE_MONITORING
                     inputType: MISSED_READING
                     appliesToType: VITAL_SIGN
                     linkedEntityCode: BP_SYSTOLIC

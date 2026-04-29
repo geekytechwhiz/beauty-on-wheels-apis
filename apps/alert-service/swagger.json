@@ -51,6 +51,7 @@
       },
       "EvidenceMissedReading": {
         "type": "object",
+        "description": "MISSED_READING evidence. Required: eventTimestamp, source, inputType, appliesToType, linkedEntityCode, lastSuccessfulReadingTimestamp, missedDuration, readingType. No additional properties.",
         "required": [
           "eventTimestamp",
           "source",
@@ -70,7 +71,7 @@
           "lastSuccessfulReadingTimestamp": { "type": "string", "format": "date-time" },
           "missedDuration": {
             "type": "string",
-            "description": "ISO-8601 duration (e.g. P3D)."
+            "description": "Missed-reading window (e.g. ISO 8601 duration P3D; product convention)."
           },
           "readingType": { "type": "string" }
         },
@@ -78,6 +79,7 @@
       },
       "EvidenceMissingDevice": {
         "type": "object",
+        "description": "MISSING_DEVICE evidence. Required: eventTimestamp, source, inputType, appliesToType, linkedEntityCode, deviceLinked. No additional properties.",
         "required": [
           "eventTimestamp",
           "source",
@@ -106,40 +108,73 @@
       },
       "CreateAlertRequest": {
         "type": "object",
-        "description": "Create-alert body; org from JWT. inputType is MISSED_READING or MISSING_DEVICE. appliesToType and linkedEntityCode are required inside evidencePayload; API copies them to alert record columns.",
+        "description": "Create-alert body; organization from JWT (not in body). Required: inputType, sourceType, patientId, triggerTimestamp, evidencePayload. Optional: inputEventId and all other properties listed below. sourceType must equal evidencePayload.source; evidencePayload.inputType must equal inputType. appliesToType and linkedEntityCode live inside evidencePayload (required there).",
         "required": ["inputType", "sourceType", "patientId", "triggerTimestamp", "evidencePayload"],
         "properties": {
           "inputEventId": {
             "type": "string",
-            "format": "uuid",
-            "description": "Optional idempotency key"
+            "description": "Optional. Idempotency key; same value for same org returns 409 with existing alert."
           },
-          "inputType": { "$ref": "#/components/schemas/CreateAlertInputType" },
-          "sourceType": { "$ref": "#/components/schemas/SourceType" },
-          "patientId": { "type": "string", "format": "uuid" },
-          "carePlanInstanceId": { "type": "string", "format": "uuid" },
-          "packageAssignmentId": { "type": "string", "format": "uuid" },
+          "inputType": {
+            "allOf": [{ "$ref": "#/components/schemas/CreateAlertInputType" }],
+            "description": "Required. MISSED_READING or MISSING_DEVICE."
+          },
+          "sourceType": {
+            "allOf": [{ "$ref": "#/components/schemas/SourceType" }],
+            "description": "Required. Must match evidencePayload.source."
+          },
+          "patientId": { "type": "string", "description": "Required." },
+          "carePlanInstanceId": {
+            "type": "string",
+            "description": "Optional. When the event is tied to an active care plan."
+          },
+          "packageAssignmentId": {
+            "type": "string",
+            "description": "Optional. Package context when relevant."
+          },
           "triggerTimestamp": {
             "type": "string",
             "format": "date-time",
-            "description": "ISO-8601 when the condition occurred"
+            "description": "Required. When the condition occurred (ISO 8601 date-time)."
           },
-          "severityHint": { "$ref": "#/components/schemas/SeverityHint" },
+          "severityHint": {
+            "allOf": [{ "$ref": "#/components/schemas/SeverityHint" }],
+            "description": "Optional."
+          },
           "priority": {
             "type": "string",
-            "enum": ["P0", "P1", "P2", "P3"]
+            "enum": ["P0", "P1", "P2", "P3"],
+            "description": "Optional. Resolved priority; derived from policy when omitted."
           },
-          "alertPolicyTemplateVersionId": { "type": "string", "format": "uuid" },
-          "thresholdTemplateVersionId": { "type": "string", "format": "uuid" },
-          "groupingKey": { "type": "string" },
-          "triggerSummary": { "type": "string" },
-          "triggerSummaryTemplateCode": { "type": "string" },
+          "alertPolicyTemplateVersionId": {
+            "type": "string",
+            "description": "Optional. Policy template version."
+          },
+          "thresholdTemplateVersionId": {
+            "type": "string",
+            "description": "Optional. Threshold template version when applicable."
+          },
+          "groupingKey": {
+            "type": "string",
+            "description": "Optional. Runtime grouping; may be computed server-side if omitted."
+          },
+          "triggerSummary": {
+            "type": "string",
+            "description": "Optional. Pre-rendered summary when not using a template."
+          },
+          "triggerSummaryTemplateCode": {
+            "type": "string",
+            "description": "Optional. Pair with triggerSummaryParams when set."
+          },
           "triggerSummaryParams": {
             "type": "object",
             "additionalProperties": true,
-            "description": "Required when triggerSummaryTemplateCode is set (may be {})"
+            "description": "Optional unless triggerSummaryTemplateCode is set; then required (may be {}). Omit both with triggerSummary only."
           },
-          "evidencePayload": { "$ref": "#/components/schemas/EvidencePayload" }
+          "evidencePayload": {
+            "allOf": [{ "$ref": "#/components/schemas/EvidencePayload" }],
+            "description": "Required. Discriminated by inputType; see EvidenceMissedReading or EvidenceMissingDevice."
+          }
         }
       },
       "PatchAlertRequest": {
@@ -177,7 +212,7 @@
     },
     "/alerts": {
       "post": {
-        "summary": "Create alert (inputType, sourceType, evidencePayload required; optional inputEventId UUID for idempotency)",
+        "summary": "Create alert (required: inputType, sourceType, patientId, triggerTimestamp, evidencePayload; optional inputEventId for idempotency)",
         "requestBody": {
           "required": true,
           "content": {

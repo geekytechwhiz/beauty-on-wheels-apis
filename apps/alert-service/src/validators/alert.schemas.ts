@@ -3,7 +3,7 @@
  * @see `Alert-Service.yaml` CreateAlertRequest / evidencePayload (per-`inputType` shapes).
  *
  * **HTTP create-alert:** `inputType` and `sourceType` are required in the body; `organizationId` comes from the JWT.
- * `inputEventId` is optional (UUID idempotency). **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
+ * `inputEventId` is optional (idempotency key). **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
  * `evidencePayload` is discriminated by `inputType` and must mirror top-level `inputType` (§5.1.3.1).
  */
 import { z } from 'zod';
@@ -24,11 +24,11 @@ const appliesToTypeZ = z.enum(['VITAL_SIGN', 'DEVICE', 'SYMPTOM', 'ENGAGEMENT'])
 const severityHintZ = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 const priorityZ = z.enum(['P0', 'P1', 'P2', 'P3']);
 
-function preprocessTrimmedUuidOptional(): z.ZodType<string | undefined> {
+function preprocessTrimmedStringOptional(): z.ZodType<string | undefined> {
   return z.preprocess((v) => {
     if (v === undefined || v === null || v === '') return undefined;
     return typeof v === 'string' ? v.trim() : v;
-  }, z.string().uuid().optional());
+  }, z.string().min(1).optional());
 }
 
 function preprocessTrimmedOptionalNonEmpty(): z.ZodType<string | undefined> {
@@ -90,17 +90,17 @@ function assertIsoDateTime(value: string, path: (string | number)[], label: stri
  */
 export const createAlertHttpBodySchema = z
   .object({
-    inputEventId: preprocessTrimmedUuidOptional(),
+    inputEventId: preprocessTrimmedStringOptional(),
     inputType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), createAlertInputTypeZ),
     sourceType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ),
-    patientId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().uuid()),
-    carePlanInstanceId: preprocessTrimmedUuidOptional(),
-    packageAssignmentId: preprocessTrimmedUuidOptional(),
+    patientId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+    carePlanInstanceId: preprocessTrimmedStringOptional(),
+    packageAssignmentId: preprocessTrimmedStringOptional(),
     triggerTimestamp: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
     severityHint: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), severityHintZ).optional(),
     priority: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), priorityZ).optional(),
-    alertPolicyTemplateVersionId: preprocessTrimmedUuidOptional(),
-    thresholdTemplateVersionId: preprocessTrimmedUuidOptional(),
+    alertPolicyTemplateVersionId: preprocessTrimmedStringOptional(),
+    thresholdTemplateVersionId: preprocessTrimmedStringOptional(),
     groupingKey: preprocessTrimmedOptionalNonEmpty(),
     triggerSummary: z.preprocess((v) => {
       if (v === undefined || v === null) return undefined;
@@ -121,6 +121,14 @@ export const createAlertHttpBodySchema = z
         code: z.ZodIssueCode.custom,
         message: 'evidencePayload.inputType must match top-level inputType',
         path: ['evidencePayload', 'inputType'],
+      });
+    }
+
+    if (val.sourceType !== val.evidencePayload.source) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'sourceType must match evidencePayload.source',
+        path: ['sourceType'],
       });
     }
 

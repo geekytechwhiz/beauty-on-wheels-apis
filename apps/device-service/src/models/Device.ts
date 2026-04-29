@@ -73,6 +73,8 @@ export interface OrgDevice {
   sk2: string; // ${device.name.toUpperCase().split(' ').join('_')}
   sk3: string; // ${device.category}#${device.name}
   organizationID: string;
+  /** Org assignment lifecycle: only the latest sync should be true for listing (default true on create). */
+  isActive?: boolean;
   enabled: boolean;
   isAutoSyncSupported: boolean;
   name: string;
@@ -154,7 +156,6 @@ export interface GlobalDevice {
 }
 
 export type OrganizationDevice = {
-  
   category: string;
   countriesSupported: string[];
   createdDate: number; // epoch timestamp
@@ -162,6 +163,7 @@ export type OrganizationDevice = {
   deviceId: string;
   deviceImage: string;
   displayName: string;
+  isActive?: boolean;
   enabled: boolean;
   isAutoSyncSupported: boolean;
   manufacturerImage: string;

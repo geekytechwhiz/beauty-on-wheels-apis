@@ -1,5 +1,6 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import type { QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { OrgDevice } from '../models';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
 import { DeviceNotFoundError } from '../utils/errors';
@@ -56,6 +57,7 @@ export class OrgDeviceRepository {
       sk2: device.name.toUpperCase().split(' ').join('_'),
       sk3: `${device.category}#${device.name}`,
       organizationID: organizationId,
+      isActive: true,
       enabled: device.enabled ?? true,
       isAutoSyncSupported: device.isAutoSyncSupported ?? true,
       name: device.name,
@@ -82,6 +84,7 @@ export class OrgDeviceRepository {
       sk2: device.name.toUpperCase().split(' ').join('_'),
       sk3: `${device.category}#${device.name}`,
       organizationID: organizationId,
+      isActive: true,
       enabled: device.enabled ?? true,
       isAutoSyncSupported: device.isAutoSyncSupported ?? true,
       name: device.name,
@@ -117,6 +120,73 @@ export class OrgDeviceRepository {
       logger.info({ event: 'org_device_added', deviceId: device.deviceId });
     } catch (err) {
       logger.error({ event: 'org_device_add_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /**
+   * Sets isActive=false on every row for this org (org→device forward items under ORG_DEVICES#{orgId},
+   * and device→org reverse items). Call before writing the new active device set.
+   */
+  async deactivateAllOrgDevicesForOrganization(organizationId: string): Promise<void> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    const forwardPk = `ORG_DEVICES#${organizationId}`;
+    let exclusiveStartKey: Record<string, unknown> | undefined;
+    const now = Date.now();
+
+    try {
+      do {
+        const result = (await this.docClient.send(
+          new QueryCommand({
+            TableName: this.tableName,
+            KeyConditionExpression: 'pk = :pk',
+            ExpressionAttributeValues: { ':pk': forwardPk },
+            ExclusiveStartKey: exclusiveStartKey,
+          }),
+        )) as QueryCommandOutput;
+
+        await Promise.all(
+          (result.Items ?? []).map(async (raw) => {
+            const sk = raw.sk as string | undefined;
+            if (!sk) return;
+
+            await this.docClient.send(
+              new UpdateCommand({
+                TableName: this.tableName,
+                Key: { pk: forwardPk, sk },
+                UpdateExpression: 'SET isActive = :inactive, modifiedDate = :modifiedDate',
+                ExpressionAttributeValues: { ':inactive': false, ':modifiedDate': now },
+              }),
+            );
+
+            if (sk === 'NON-DEVICES') return;
+
+            try {
+              await this.docClient.send(
+                new UpdateCommand({
+                  TableName: this.tableName,
+                  Key: { pk: `ORG_DEVICES#${sk}`, sk: organizationId },
+                  UpdateExpression: 'SET isActive = :inactive, modifiedDate = :modifiedDate',
+                  ExpressionAttributeValues: { ':inactive': false, ':modifiedDate': now },
+                }),
+              );
+            } catch (err) {
+              logger.warn({
+                event: 'deactivate_org_device_reverse_mapping_failed',
+                organizationId,
+                sk,
+                err: serializeError(err),
+              });
+            }
+          }),
+        );
+
+        exclusiveStartKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
+      } while (exclusiveStartKey);
+
+      logger.info({ event: 'deactivate_all_org_devices_done', organizationId });
+    } catch (err) {
+      logger.error({ event: 'deactivate_all_org_devices_error', err: serializeError(err) });
       throw err;
     }
   }
@@ -229,7 +299,6 @@ export class OrgDeviceRepository {
    * Get organization devices
    */
   async getOrgDevices(organizationId: string): Promise<OrgDevice[]> {
-    console.log("ORG DEVICES ", this.tableName);
     const logger = createChildLogger(baseLogger, { organizationId });
     try {
       const result = await this.docClient.send(
@@ -241,7 +310,6 @@ export class OrgDeviceRepository {
           },
         }),
       );
-      console.log("ORG DEVICES ", result);
       logger.info({ event: 'get_org_devices_success', count: result.Items?.length || 0 });
       return (result.Items || []) as OrgDevice[];
     } catch (err) {
@@ -278,7 +346,7 @@ export class OrgDeviceRepository {
    */
   async isDeviceInOrganization(organizationId: string, deviceId: string): Promise<boolean> {
     const device = await this.getOrgDevice(organizationId, deviceId);
-    return device !== null && device?.enabled === true;
+    return device !== null && device.enabled === true && device.isActive !== false;
   }
 
   /**
@@ -294,6 +362,7 @@ export class OrgDeviceRepository {
       sk: 'NON-DEVICES',
       category: 'NON-DEVICES',
       organizationID: organizationId,
+      isActive: true,
       supportedVitals,
       createdDate: now,
       modifiedDate: now,

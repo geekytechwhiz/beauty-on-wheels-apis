@@ -1,7 +1,18 @@
-import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationLink, OrganizationUpdate } from '../models';
+import {
+  Organization,
+  OrganizationMetadata,
+  OrganizationFile,
+  OrganizationUser,
+  OrganizationLink,
+  OrganizationUpdate,
+  OrgConfigEntity,
+  OrganizationConfigPatch,
+  OrgConfigEntityType,
+  OrgConfigStatus,
+} from '../models';
 import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
 import {
   organizationPk,
@@ -504,6 +515,111 @@ export class OrganizationRepository {
         throw new OrganizationNotFoundError(organizationId);
       }
       logger.error({ event: 'organization_status_update_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async getLatestOrganizationConfig(organizationId: string): Promise<OrgConfigEntity | null> {
+    try {
+      const response = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :skPrefix)',
+          ExpressionAttributeNames: {
+            '#pk': 'pk',
+            '#sk': 'sk',
+          },
+          ExpressionAttributeValues: {
+            ':pk': organizationPk(organizationId),
+            ':skPrefix': 'CONFIG#v',
+          },
+          ScanIndexForward: false,
+          Limit: 25,
+        }),
+      );
+      console.log('response', response);
+      const items = (response.Items ?? []) as OrgConfigEntity[];
+      const latestActive = items.find(
+        (item) => item.entityType === OrgConfigEntityType.ORG_CONFIG && item.status === OrgConfigStatus.ACTIVE,
+      );
+      if (latestActive) return latestActive;
+      return items.find((item) => item.entityType === OrgConfigEntityType.ORG_CONFIG) ?? null;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId });
+      logger.error({ event: 'organization_config_get_latest_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async createOrganizationConfigVersion(
+    organizationId: string,
+    mergedConfig: Required<OrganizationConfigPatch>,
+  ): Promise<OrgConfigEntity> {
+    const now = Date.now();
+    const previousConfig = await this.getLatestOrganizationConfig(organizationId);
+    const nextVersion = (previousConfig?.version ?? 0) + 1;
+
+    const nextItem: OrgConfigEntity = {
+      pk: organizationPk(organizationId),
+      sk: `CONFIG#v${nextVersion}`,
+      entityType: OrgConfigEntityType.ORG_CONFIG,
+      orgId: organizationId,
+      version: nextVersion,
+      supportedCountries: mergedConfig.supportedCountries,
+      supportedLanguages: mergedConfig.supportedLanguages,
+      supportedStates: mergedConfig.supportedStates,
+      supportedCategories: mergedConfig.supportedCategories,
+      supportedConditions: mergedConfig.supportedConditions,
+      status: OrgConfigStatus.ACTIVE,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const transactItems: Array<Record<string, unknown>> = [
+      {
+        Put: {
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: nextItem,
+          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+        },
+      },
+    ];
+
+    if (previousConfig && previousConfig.status === OrgConfigStatus.ACTIVE) {
+      transactItems.push({
+        Update: {
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: previousConfig.pk,
+            sk: previousConfig.sk,
+          },
+          UpdateExpression: 'SET #status = :inactive, #updatedAt = :updatedAt',
+          ConditionExpression: '#status = :active',
+          ExpressionAttributeNames: {
+            '#status': 'status',
+            '#updatedAt': 'updatedAt',
+          },
+          ExpressionAttributeValues: {
+            ':inactive': OrgConfigStatus.INACTIVE,
+            ':active': OrgConfigStatus.ACTIVE,
+            ':updatedAt': now,
+          },
+        },
+      });
+    }
+
+    try {
+      await ddbDocClient.send(
+        new TransactWriteCommand({
+          TransactItems: transactItems as any,
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
+      logger.info({ event: 'organization_config_version_created' });
+      return nextItem;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
+      logger.error({ event: 'organization_config_version_create_error', err: serializeError(err) });
       throw err;
     }
   }

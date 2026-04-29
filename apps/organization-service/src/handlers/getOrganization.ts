@@ -82,6 +82,10 @@ const handler = async (req: LambdaRequest<Params>) => {
       name: organization.name,
       status: organization.status,
       organizationType: organization.organizationType,
+      ...(organization.organizationConfig ? { organizationConfig: organization.organizationConfig } : {}),
+      ...(organization.organizationConfigVersion !== undefined
+        ? { organizationConfigVersion: organization.organizationConfigVersion }
+        : {}),
       organizationInfo: minimalOrgInfo,
     };
   }
@@ -194,6 +198,10 @@ const handler = async (req: LambdaRequest<Params>) => {
 
   if (!isRootOrg && organization.searchFields && typeof organization.searchFields === 'object') {
     transformed.searchFields = organization.searchFields;
+  }
+  if (organization.organizationConfig) transformed.organizationConfig = organization.organizationConfig;
+  if (organization.organizationConfigVersion !== undefined) {
+    transformed.organizationConfigVersion = organization.organizationConfigVersion;
   }
   if (!isRootOrg) transformed.status = organization.status;
   if (!isRootOrg && organization.traceId) transformed.traceId = organization.traceId;

@@ -61,6 +61,8 @@ export interface Organization {
   modules?: unknown;
   devices?: unknown;
   supportedVitals?: unknown;
+  organizationConfig?: OrganizationConfigPatch;
+  organizationConfigVersion?: number;
   organizationInfo?: unknown;
   searchFields?: unknown;
   website?: string;
@@ -73,6 +75,40 @@ export interface Organization {
   integration?: Integration;
   sourceSystem: string; // TruTech
 }
+
+export interface OrganizationConfigPatch {
+  supportedCountries?: string[];
+  supportedLanguages?: string[];
+  supportedStates?: string[];
+  supportedCategories?: string[];
+  supportedConditions?: string[];
+}
+
+export enum OrgConfigEntityType {
+  ORG_CONFIG = 'ORG_CONFIG',
+}
+
+export enum OrgConfigStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+}
+
+export interface OrgConfigEntity {
+  pk: string;
+  sk: string;
+  entityType: OrgConfigEntityType;
+  orgId: string;
+  version: number;
+  supportedCountries: string[];
+  supportedLanguages: string[];
+  supportedStates: string[];
+  supportedCategories: string[];
+  supportedConditions: string[];
+  status: OrgConfigStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Integration {
   provider?: string; // e.g. TruTech provider id for GSI2
   providerName?: string; // provider name from the provider service

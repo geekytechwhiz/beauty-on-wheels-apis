@@ -67,6 +67,13 @@ export type NormalizedOrganizationPayload = {
     metadata?: Record<string, unknown>;
   };
   subdomain?: string;
+  organizationConfig?: {
+    supportedCountries?: string[];
+    supportedLanguages?: string[];
+    supportedStates?: string[];
+    supportedCategories?: string[];
+    supportedConditions?: string[];
+  };
 };
 import { extractSubdomainFromUrl } from './helpers';
 
@@ -103,9 +110,23 @@ const parseIntegrationSourceSystem = (value: unknown): IntegrationSourceSystem |
   return undefined;
 };
 
+const normalizeCodeArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const normalizedValues = value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
+  return Array.from(new Set(normalizedValues));
+};
+
 export const normalizeOrganizationPayload = (input: any): NormalizationResult => {
   const errors: Array<{ field: string; message: string }> = [];
   const organizationInfo = input?.organizationInfo || {};
+  const organizationConfigInput =
+    input?.organizationConfig && typeof input.organizationConfig === 'object'
+      ? input.organizationConfig
+      : undefined;
   const orgAddress = organizationInfo?.organizationAdd || organizationInfo?.address || {};
 
   const organizationId =
@@ -230,6 +251,51 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
   const modules = input?.modules;
   const devices = input?.devices;
   const supportedVitals = input?.supportedVitals;
+
+  let organizationConfig: NormalizedOrganizationPayload['organizationConfig'];
+  if (organizationConfigInput) {
+    const supportedCountries = normalizeCodeArray(organizationConfigInput.supportedCountries);
+    const supportedLanguages = normalizeCodeArray(organizationConfigInput.supportedLanguages);
+    const supportedStates = normalizeCodeArray(organizationConfigInput.supportedStates);
+    const supportedCategories = normalizeCodeArray(organizationConfigInput.supportedCategories);
+    const supportedConditions = normalizeCodeArray(organizationConfigInput.supportedConditions);
+
+    if (
+      organizationConfigInput.supportedCountries !== undefined &&
+      !Array.isArray(organizationConfigInput.supportedCountries)
+    ) {
+      errors.push({ field: 'organizationConfig.supportedCountries', message: 'supportedCountries must be an array' });
+    }
+    if (
+      organizationConfigInput.supportedLanguages !== undefined &&
+      !Array.isArray(organizationConfigInput.supportedLanguages)
+    ) {
+      errors.push({ field: 'organizationConfig.supportedLanguages', message: 'supportedLanguages must be an array' });
+    }
+    if (organizationConfigInput.supportedStates !== undefined && !Array.isArray(organizationConfigInput.supportedStates)) {
+      errors.push({ field: 'organizationConfig.supportedStates', message: 'supportedStates must be an array' });
+    }
+    if (
+      organizationConfigInput.supportedCategories !== undefined &&
+      !Array.isArray(organizationConfigInput.supportedCategories)
+    ) {
+      errors.push({ field: 'organizationConfig.supportedCategories', message: 'supportedCategories must be an array' });
+    }
+    if (
+      organizationConfigInput.supportedConditions !== undefined &&
+      !Array.isArray(organizationConfigInput.supportedConditions)
+    ) {
+      errors.push({ field: 'organizationConfig.supportedConditions', message: 'supportedConditions must be an array' });
+    }
+
+    organizationConfig = {
+      ...(supportedCountries !== undefined ? { supportedCountries } : {}),
+      ...(supportedLanguages !== undefined ? { supportedLanguages } : {}),
+      ...(supportedStates !== undefined ? { supportedStates } : {}),
+      ...(supportedCategories !== undefined ? { supportedCategories } : {}),
+      ...(supportedConditions !== undefined ? { supportedConditions } : {}),
+    };
+  }
 
   const organizationInfoOutput = Object.keys(organizationInfo || {}).length > 0
     ? {
@@ -370,6 +436,7 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
       size,
       integration,
       subdomain: integrationSubdomain,
+      organizationConfig,
     },
     errors,
   };

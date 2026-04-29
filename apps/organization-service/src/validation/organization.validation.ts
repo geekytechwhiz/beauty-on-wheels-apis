@@ -19,6 +19,29 @@ const integrationSchema = z
   })
   .optional();
 
+const configCodeSchema = z.string().trim().min(1);
+
+const organizationConfigSchema = z
+  .object({
+    supportedCountries: z.array(configCodeSchema).optional(),
+    supportedLanguages: z.array(configCodeSchema).optional(),
+    supportedStates: z.array(configCodeSchema).optional(),
+    supportedCategories: z.array(configCodeSchema).optional(),
+    supportedConditions: z.array(configCodeSchema).optional(),
+  })
+  .refine(
+    (value) =>
+      value.supportedCountries !== undefined ||
+      value.supportedLanguages !== undefined ||
+      value.supportedStates !== undefined ||
+      value.supportedCategories !== undefined ||
+      value.supportedConditions !== undefined,
+    {
+      message: 'organizationConfig must include at least one supported* field',
+    },
+  )
+  .optional();
+
 export const createOrganizationSchema = z
   .object({
   organizationId: z.string().optional(),
@@ -83,6 +106,7 @@ export const createOrganizationSchema = z
   size: z.enum(['SMALL', 'MEDIUM', 'LARGE']).optional(),
   integration: integrationSchema,
   subdomain: z.string().optional(),
+  organizationConfig: organizationConfigSchema,
 })
 .superRefine((data, ctx) => {
   const organizationType = data.organizationType?.toUpperCase();
@@ -175,6 +199,7 @@ export const updateOrganizationSchema = z.object({
   size: z.enum(['SMALL', 'MEDIUM', 'LARGE']).optional(),
   integration: integrationSchema,
   subdomain: z.string().optional(),
+  organizationConfig: organizationConfigSchema,
 });
 
 export const getExternalTenantSchema = z.object({

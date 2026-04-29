@@ -456,8 +456,9 @@
           }
         ],
         "responses": {
-          "201": { "description": "Created" },
-          "200": { "description": "Duplicate event (idempotent replay)" },
+          "200": {
+            "description": "OK — alert detail in standard success envelope (new alert or idempotent replay on inputEventId)"
+          },
           "422": { "description": "Validation or business rule error" }
         }
       }

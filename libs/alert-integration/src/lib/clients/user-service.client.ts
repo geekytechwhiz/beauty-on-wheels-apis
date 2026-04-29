@@ -10,7 +10,7 @@ function trimTrailingSlash(url: string): string {
 
 /**
  * Validates the patient (user) exists in the organization via user-service GET
- * `user/organization/{organizationId}/{userId}` under {@link process.env.USER_SERVICE_BASE_URL}.
+ * `user/organization/{organizationId}/{userId}` using the `USER_SERVICE_BASE_URL` env var.
  *
  * Optional override: `USER_SERVICE_PATIENT_LOOKUP_URL` with `{organizationId}` and `{userId}`.
  * If neither base URL nor template is set, validation is skipped.

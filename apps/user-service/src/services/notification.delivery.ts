@@ -214,6 +214,17 @@ export async function sendSms(options: {
           templateKey: 'PROFILE_UPDATED',
           variables: {},
         };
+      } else if (options.template === 'STAFF_DEACTIVATED') {
+        payload = {
+          ...payload,
+          templateKey: 'STAFF_DEACTIVATED',
+          variables: {
+            orgName:
+              (options.templateData?.ORG_NAME as string) ||
+              (options.templateData?.orgName as string) ||
+              '',
+          },
+        };
       } else if (
         options.template &&
         options.templateData &&
@@ -231,10 +242,12 @@ export async function sendSms(options: {
         } else if (options.template === 'WELCOME_STAFF') {
           payload = {
             ...payload,
-            templateKey: 'WELCOME_SMS',
+            templateKey: 'STAFF_ACCOUNT_CREATED',
             variables: {
-              ...payload.variables,
-              orgName: options.templateData?.ORG_NAME,
+              orgName:
+                (options.templateData?.ORG_NAME as string) ||
+                (options.templateData?.orgName as string) ||
+                '',
             },
           };
         } else if (options.template === 'INVITE_USER') {

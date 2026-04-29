@@ -1320,8 +1320,59 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     const logger = createChildLogger(baseLogger, { correlationId, organizationId, targetUserId, action });
 
     try {
+      const existing = await this.repository.getUser(targetUserId, organizationId);
+      if (!existing) {
+        throw new UserNotFoundError(targetUserId);
+      }
+
       const isActive = action === 'ACTIVATE';
       await this.repository.updateUser(targetUserId, organizationId, { isActive, modifiedDate: Date.now() });
+
+      if (action === 'DEACTIVATE') {
+        try {
+          const userTypeUpper = String(existing.userType || '').toUpperCase();
+          const isStaffLike = userTypeUpper === 'STAFF' || userTypeUpper === 'ADMIN';
+          const phoneRaw = String(existing.phoneNumber || '').trim();
+          const phoneCodeRaw = String(existing.phoneCode || '').trim();
+          let notifyPhone: string | undefined;
+          if (phoneRaw && isStaffLike) {
+            if (phoneCodeRaw) {
+              notifyPhone = phoneCodeRaw.startsWith('+')
+                ? `${phoneCodeRaw}${phoneRaw}`
+                : `+${phoneCodeRaw}${phoneRaw}`;
+            } else {
+              notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
+            }
+          }
+          if (notifyPhone) {
+            const orgDetails = await this.organizationRepository.getOrganizationFromDB(organizationId);
+            const organizationName =
+              (orgDetails as any)?.name ||
+              (orgDetails as any)?.organizationInfo?.organizationName ||
+              (orgDetails as any)?.organizationInfo?.name ||
+              '';
+            await notifyUser({
+              userId: existing.userID,
+              phone: notifyPhone,
+              channels: ['sms'],
+              template: 'STAFF_DEACTIVATED',
+              templateData: { ORG_NAME: organizationName },
+              correlationId,
+            });
+          } else {
+            logger.info({
+              event: 'service_activateDeactivateUser_sms_skipped',
+              reason: !isStaffLike ? 'not_staff_or_admin' : 'no_phone',
+            });
+          }
+        } catch (notifyErr) {
+          logger.warn({
+            event: 'service_activateDeactivateUser_notification_failed',
+            err: serializeError(notifyErr as Error),
+          });
+        }
+      }
+
       logger.info({ event: 'service_activateDeactivateUser_success' });
       timer.end();
     } catch (err) {

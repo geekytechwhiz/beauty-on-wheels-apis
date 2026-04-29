@@ -117,7 +117,8 @@ export class OrgDeviceService {
     logger.info({ event: 'service_getOrganizationDevices_start' });
 
     const devices = await this.repository.getOrgDevices(organizationId);
-    logger.info({ event: 'service_getOrganizationDevices_success', count: devices.length });
-    return devices;
+    const active = devices.filter((d) => d.isActive !== false);
+    logger.info({ event: 'service_getOrganizationDevices_success', count: active.length });
+    return active;
   }
 }

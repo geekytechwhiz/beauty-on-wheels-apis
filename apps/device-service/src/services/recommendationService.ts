@@ -97,6 +97,30 @@ export class RecommendationService {
   }
 
   /**
+   * Remove multiple device recommendations for a patient (duplicate deviceIds are processed once)
+   */
+  async removeRecommendations(
+    patientUserId: string,
+    doctorName: string | undefined,
+    devices: Array<{ deviceId: string }>,
+    correlationId?: string,
+  ): Promise<void> {
+    const uniqueByDevice = [...new Map(devices.map((d) => [d.deviceId, d])).values()];
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      patientUserId,
+      ...(doctorName != null && doctorName !== '' && { doctorName }),
+      count: uniqueByDevice.length,
+    });
+    logger.info({ event: 'service_removeRecommendations_start' });
+
+    await Promise.all(
+      uniqueByDevice.map((d) => this.removeRecommendation(patientUserId, d.deviceId, correlationId)),
+    );
+    logger.info({ event: 'recommendations_removed', count: uniqueByDevice.length });
+  }
+
+  /**
    * Get user recommendations
    */
   async getUserRecommendations(userId: string): Promise<DeviceRecommendation[]> {

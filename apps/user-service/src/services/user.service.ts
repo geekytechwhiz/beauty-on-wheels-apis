@@ -963,11 +963,11 @@ export class UserService {
     ]);
 
     // Extract roles and permissions data
-    let roleName: string = '';
-    let roleType: string = '';
+    let roleName = '';
+    let roleType = '';
     let permission: any = {};
     let userPermissions: any[] = [];
-    let isDefault: boolean = false;
+    let isDefault = false;
 
     // Process role permissions results
     if (rolePermissionsResults.status === 'fulfilled' && rolePermissionsResults.value) {
@@ -1212,22 +1212,61 @@ export class UserService {
         throw new UserNotFoundError(userId);
       }
 
-      // Best-effort notification that profile changed
-      // try {
-      //   const notifyEmail = updates.emailAddress ?? updated.emailAddress;
-      //   const notifyName = updates.fullName ?? updated.fullName ?? updated.firstName;
-      //   await notifyUser({
-      //     userId: updated.userID,
-      //     email: notifyEmail,
-      //     name: notifyName,
-      //     channels: updates.emailAddress ? ['email'] : [],
-      //     template: 'PROFILE_UPDATED',
-      //     templateData: updates,
-      //     correlationId,
-      //   });
-      // } catch (notifyErr) {
-      //   logger.warn({ event: 'service_updateUser_notification_failed', err: serializeError(notifyErr) });
-      // }
+      // Best-effort email + SMS (same event path as createUser → SNS → notification consumer)
+      try {
+        const phoneRaw =
+          (updated.phoneNumber && String(updated.phoneNumber).trim()) ||
+          (updates.phoneNumber !== undefined && String(updates.phoneNumber).trim()) ||
+          '';
+        const phoneCodeRaw = String(
+          updated.phoneCode ||
+            (updates.phoneCode !== undefined ? String(updates.phoneCode).trim() : '') ||
+            '',
+        ).trim();
+        let notifyPhone: string | undefined;
+        if (phoneRaw) {
+          if (phoneCodeRaw) {
+            notifyPhone = phoneCodeRaw.startsWith('+')
+              ? `${phoneCodeRaw}${phoneRaw}`
+              : `+${phoneCodeRaw}${phoneRaw}`;
+          } else {
+            notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
+          }
+        }
+        const notifyEmail = String(updated.emailAddress || '').trim();
+        const profileChannels: string[] = [];
+        if (notifyPhone) profileChannels.push('sms');
+        if (notifyEmail) profileChannels.push('email');
+        if (profileChannels.length > 0) {
+          const notifyName =
+            (updates.fullName as string | undefined) ??
+            updated.fullName ??
+            updated.firstName ??
+            '';
+          await notifyUser({
+            userId: updated.userID,
+            email: notifyEmail || undefined,
+            phone: notifyPhone,
+            name: notifyName,
+            channels: profileChannels,
+            template: 'PROFILE_UPDATED',
+            // PROFILE_UPDATED template in template.registry has no {{placeholders}}; empty is valid.
+            templateData: {},
+            correlationId,
+          });
+        } else {
+          logger.info({
+            event: 'service_updateUser_notification_skipped',
+            message:
+              'PROFILE_UPDATED skipped: no phone and no email on user or request',
+          });
+        }
+      } catch (notifyErr) {
+        logger.warn({
+          event: 'service_updateUser_notification_failed',
+          err: serializeError(notifyErr as Error),
+        });
+      }
 
       logger.info({ event: 'service_updateUser_success' });
       timer.end();
@@ -1281,8 +1320,59 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     const logger = createChildLogger(baseLogger, { correlationId, organizationId, targetUserId, action });
 
     try {
+      const existing = await this.repository.getUser(targetUserId, organizationId);
+      if (!existing) {
+        throw new UserNotFoundError(targetUserId);
+      }
+
       const isActive = action === 'ACTIVATE';
       await this.repository.updateUser(targetUserId, organizationId, { isActive, modifiedDate: Date.now() });
+
+      if (action === 'DEACTIVATE') {
+        try {
+          const userTypeUpper = String(existing.userType || '').toUpperCase();
+          const isStaffLike = userTypeUpper === 'STAFF' || userTypeUpper === 'ADMIN';
+          const phoneRaw = String(existing.phoneNumber || '').trim();
+          const phoneCodeRaw = String(existing.phoneCode || '').trim();
+          let notifyPhone: string | undefined;
+          if (phoneRaw && isStaffLike) {
+            if (phoneCodeRaw) {
+              notifyPhone = phoneCodeRaw.startsWith('+')
+                ? `${phoneCodeRaw}${phoneRaw}`
+                : `+${phoneCodeRaw}${phoneRaw}`;
+            } else {
+              notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
+            }
+          }
+          if (notifyPhone) {
+            const orgDetails = await this.organizationRepository.getOrganizationFromDB(organizationId);
+            const organizationName =
+              (orgDetails as any)?.name ||
+              (orgDetails as any)?.organizationInfo?.organizationName ||
+              (orgDetails as any)?.organizationInfo?.name ||
+              '';
+            await notifyUser({
+              userId: existing.userID,
+              phone: notifyPhone,
+              channels: ['sms'],
+              template: 'STAFF_DEACTIVATED',
+              templateData: { ORG_NAME: organizationName },
+              correlationId,
+            });
+          } else {
+            logger.info({
+              event: 'service_activateDeactivateUser_sms_skipped',
+              reason: !isStaffLike ? 'not_staff_or_admin' : 'no_phone',
+            });
+          }
+        } catch (notifyErr) {
+          logger.warn({
+            event: 'service_activateDeactivateUser_notification_failed',
+            err: serializeError(notifyErr as Error),
+          });
+        }
+      }
+
       logger.info({ event: 'service_activateDeactivateUser_success' });
       timer.end();
     } catch (err) {
@@ -1712,7 +1802,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());
 
       // Get user category: prefer DB userType (source of truth), then userCat, then request param, then default
-      let userCategory =
+      const userCategory =
         (userBasicDetails.userType && String(userBasicDetails.userType).trim()) ||
         userBasicDetails.userCat?.[0] ||
         userType ||
@@ -2259,4 +2349,3 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     return cachedUserPoolId;
   }
 }
-

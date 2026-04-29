@@ -5,7 +5,7 @@ import { publishEvent } from '../events/event.publisher';
 import { User, UserFile, UserMetadata, UserOrganization, UserResponse } from '../models';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { ListOrganizationUsersOptions, UserRepository } from '../repositories/user.repository';
-import { UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
+import { OrganizationNotFoundError, UserAlreadyExistsError, UserNotFoundError } from '../utils/errors';
 import { CognitoService } from './cognito.service';
 import { FriendFamilyService } from './friendFamily.service';
 import { notifyUser } from './notification.service';
@@ -1659,7 +1659,12 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         : userBasicDetails.organizationID;
       const orgBasicDetailsPromise =
         userOrgId && userOrgId !== 'ROOT'
-          ? this.organizationRepository.getOrganizationFromDB(userOrgId)
+          ? this.organizationRepository.getOrganizationFromDB(userOrgId).then((org) => {
+              if (!org) {
+                throw new OrganizationNotFoundError(userOrgId);
+              }
+              return org;
+            })
           : Promise.resolve(null);
       const verificationPromise = this.getEmailPhoneVerifiedStatus(userBasicDetails, actualUserId, userOrgId);
       const reporterDetailsPromise = userBasicDetails.reporterId
@@ -1669,9 +1674,9 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       const currenciesPromise = userBasicDetails.countryCode
         ? this.repository.getCurrenciesForCountryCode(userBasicDetails.countryCode)
         : orgBasicDetailsPromise.then((org) =>
-            this.repository.getCurrenciesForCountryCode(
-              org?.organizationInfo?.address?.countryCode || ''
-            )
+            org?.organizationInfo?.address?.countryCode
+              ? this.repository.getCurrenciesForCountryCode(org.organizationInfo.address.countryCode)
+              : []
           );
 
       let roleDetails: any[] = [];

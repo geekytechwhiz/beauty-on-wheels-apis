@@ -53,7 +53,7 @@
     },
     "EvidenceMissedReading": {
       "type": "object",
-      "description": "MISSED_READING evidence. Required fields as listed; no additional properties.",
+      "description": "MISSED_READING evidence (strict). Required: eventTimestamp, source, inputType, appliesToType, linkedEntityCode, lastSuccessfulReadingTimestamp, missedDuration, readingType. Must match top-level inputType; source must match sourceType.",
       "required": [
         "eventTimestamp",
         "source",
@@ -65,23 +65,42 @@
         "readingType"
       ],
       "properties": {
-        "eventTimestamp": { "type": "string", "format": "date-time" },
+        "eventTimestamp": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time",
+          "description": "When the missed-reading condition was observed (ISO-8601 date-time)."
+        },
         "source": { "$ref": "#/definitions/SourceType" },
         "inputType": { "type": "string", "enum": ["MISSED_READING"] },
         "appliesToType": { "$ref": "#/definitions/AppliesToType" },
-        "linkedEntityCode": { "type": "string" },
-        "lastSuccessfulReadingTimestamp": { "type": "string", "format": "date-time" },
+        "linkedEntityCode": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Product code for the linked entity (e.g. BP_SYSTOLIC); non-empty."
+        },
+        "lastSuccessfulReadingTimestamp": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time",
+          "description": "Last good reading time before the miss (ISO-8601 date-time)."
+        },
         "missedDuration": {
           "type": "string",
-          "description": "Missed-reading window (e.g. ISO 8601 duration P3D; product convention)."
+          "minLength": 1,
+          "description": "Non-empty duration string (e.g. ISO-8601 P3D) or product-specific token."
         },
-        "readingType": { "type": "string" }
+        "readingType": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reading / vital family label (e.g. BLOOD_PRESSURE); non-empty."
+        }
       },
       "additionalProperties": false
     },
     "EvidenceMissingDevice": {
       "type": "object",
-      "description": "MISSING_DEVICE evidence.",
+      "description": "MISSING_DEVICE evidence (strict). Required: eventTimestamp, source, inputType, appliesToType, linkedEntityCode, deviceLinked.",
       "required": [
         "eventTimestamp",
         "source",
@@ -91,18 +110,30 @@
         "deviceLinked"
       ],
       "properties": {
-        "eventTimestamp": { "type": "string", "format": "date-time" },
+        "eventTimestamp": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time",
+          "description": "When the missing-device condition was observed (ISO-8601 date-time)."
+        },
         "source": { "$ref": "#/definitions/SourceType" },
         "inputType": { "type": "string", "enum": ["MISSING_DEVICE"] },
         "appliesToType": { "$ref": "#/definitions/AppliesToType" },
-        "linkedEntityCode": { "type": "string" },
-        "deviceLinked": { "type": "boolean" }
+        "linkedEntityCode": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Product code for the device or catalog entry (e.g. WEIGHING_SCALE); non-empty."
+        },
+        "deviceLinked": {
+          "type": "boolean",
+          "description": "Whether the patient has an active link to the device in context."
+        }
       },
       "additionalProperties": false
     },
     "EvidencePayload": {
       "type": "object",
-      "description": "POST /alerts: MISSED_READING or MISSING_DEVICE.",
+      "description": "POST /alerts: discriminated by inputType (MISSED_READING | MISSING_DEVICE). Common fields: eventTimestamp, source, inputType, appliesToType, linkedEntityCode; plus variant fields. Strict: no extra properties. source must equal top-level sourceType.",
       "oneOf": [
         { "$ref": "#/definitions/EvidenceMissedReading" },
         { "$ref": "#/definitions/EvidenceMissingDevice" }
@@ -110,7 +141,8 @@
     },
     "CreateAlertRequest": {
       "type": "object",
-      "description": "Create-alert body; organization from JWT. Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload.",
+      "description": "Create-alert body; organization from JWT. Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload. evidencePayload is EvidenceMissedReading or EvidenceMissingDevice (strict). Unknown top-level properties rejected.",
+      "additionalProperties": false,
       "required": [
         "inputEventId",
         "inputType",

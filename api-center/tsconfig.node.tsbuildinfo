@@ -1,1 +1,1 @@
-{"root":["./vite.config.ts","./vite-plugins/local-spec-api.ts","./vite-plugins/spec-store.ts"],"version":"5.7.3"}
+{"root":["./vite.config.ts","./vite-plugins/local-spec-api.ts","./vite-plugins/spec-store.ts"],"errors":true,"version":"5.7.3"}

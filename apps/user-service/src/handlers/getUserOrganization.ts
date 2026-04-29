@@ -32,7 +32,7 @@ const handler = async (
     userContext?.userId as string | undefined, //loged in user id
     undefined, // default profile
     userType,
-    userContext?.authHeader as string
+    req.context?.authHeader as string
   );
 };
 

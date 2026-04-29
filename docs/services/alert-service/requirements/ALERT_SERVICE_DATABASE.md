@@ -41,7 +41,7 @@ Aligned with the design doc (lifecycle, assignment, queues, SLA):
 |------|----------------|
 | `POST /alerts` | `TransactWrite`: `ALERT#` + `EVENT#` (condition on `EVENT#` for idempotency). |
 | `GET /alerts/{id}` | `GetItem` on `ALERT#` / `META`. |
-| `GET /patients/{id}/alerts` | `Query` **GSI1**; optional `openOnly` / `inputType` (filter after query for MVP). |
+| `GET /alerts` (`queue=PATIENT`, `patientId`) | `Query` **GSI3** (`PAT#`); optional `inputType` etc. (see alert-service HTTP docs). |
 | `GET /organizations/{id}/alerts` | `Query` **GSI2** `begins_with` on `gsi2sk` with `state` (default `OPEN`); `unassignedOnly` filtered in app. |
 | `GET /users/{id}/alerts` | `Query` **GSI3** (assigned alerts only). |
 | `PATCH /alerts/{id}` | `UpdateItem` on `ALERT#` / `META`; updates `gsi2sk`; sets or **removes** `gsi3*` on assign/unassign. |

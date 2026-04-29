@@ -161,3 +161,73 @@ export const patchAlertBodySchema = z.object({
   assignedToUserId: z.union([z.string().min(1), z.null()]).optional(),
   slaBreachIndicator: z.boolean().optional(),
 });
+
+const listQueueKindZ = z.enum(['TEAM', 'MY', 'PATIENT']);
+
+const listAlertStateFilterZ = z.enum([
+  'UNASSIGNED',
+  'ASSIGNED',
+  'IN_PROGRESS',
+  'WAITING',
+  'RESOLVED',
+  'DISMISSED',
+]);
+
+const listAssignmentFilterZ = z.enum(['UNASSIGNED', 'ASSIGNED']);
+
+/** GET /alerts query string — `queue` enum, `patientId` rules in `superRefine`. */
+export const listAlertsQuerySchema = z
+  .object({
+    queue: z.preprocess((v) => {
+      if (v === undefined || v === null || v === '') return 'TEAM';
+      const s = typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
+      return s === '' ? 'TEAM' : s;
+    }, listQueueKindZ),
+    patientId: z.preprocess((v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      const s = typeof v === 'string' ? v.trim() : String(v).trim();
+      return s === '' ? undefined : s;
+    }, z.string().min(1).optional()),
+    state: z.preprocess((v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      const s = typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
+      return s === '' ? undefined : s;
+    }, listAlertStateFilterZ.optional()),
+    assignment: z.preprocess((v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      const s = typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
+      return s === '' ? undefined : s;
+    }, listAssignmentFilterZ.optional()),
+    priority: z.preprocess((v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      return typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
+    }, priorityZ.optional()),
+    inputType: preprocessTrimmedStringOptional(),
+    dateFrom: preprocessTrimmedStringOptional(),
+    dateTo: preprocessTrimmedStringOptional(),
+    search: preprocessTrimmedStringOptional(),
+    pageSize: z.preprocess((v) => {
+      if (v === undefined || v === null || v === '') return undefined;
+      const n = Number(typeof v === 'string' ? v.trim() : v);
+      return Number.isFinite(n) ? n : NaN;
+    }, z.number().finite().int().min(1).max(100).optional()),
+    nextToken: preprocessTrimmedStringOptional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.queue === 'PATIENT' && !data.patientId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'patientId is required when queue=PATIENT',
+        path: ['patientId'],
+      });
+    }
+    if (data.queue !== 'PATIENT' && data.patientId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'patientId is only allowed when queue=PATIENT',
+        path: ['patientId'],
+      });
+    }
+  });
+
+export type ListAlertsQuery = z.infer<typeof listAlertsQuerySchema>;

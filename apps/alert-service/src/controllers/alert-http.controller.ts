@@ -9,12 +9,17 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-l
 import { createChildLogger, createLogger } from '@api-hub/logger';
 import type { AppError, LambdaRequest } from '@api-hub/utils';
 import { ApiResponse, apiGatewayResponseOptions, buildRequestContext, handleError } from '@api-hub/utils';
-import type { AlertState, CreateAlertPayload } from '@api-hub/alert-integration';
+import type { AlertRecord, AlertState, CreateAlertPayload } from '@api-hub/alert-integration';
 import { toAlertDetail, toPublicAlert } from '@api-hub/alert-integration';
 import { getAlertService } from '../services/alert-app.service';
 import { patchAlertBodySchema, type CreateAlertHttpBody } from '../validators/alert.schemas';
-import { validateCreateAlertRequest, type ValidatedCreateAlert } from '../validation/request.validators';
 import {
+  parseListAlertsQuery,
+  validateCreateAlertRequest,
+  type ValidatedCreateAlert,
+} from '../validation/request.validators';
+import {
+  getActorUserIdForRequest,
   getAuthorizationForGatewayEvent,
   getLambdaInvocationMeta,
   getOrganizationIdForRequest,
@@ -24,6 +29,68 @@ import { normalizeAlertServiceError } from '../utils/alert-http-errors';
 const controllerBaseLogger = createLogger({ service: 'alert-service', redactPII: true });
 
 let ctrl: AlertHttpController | undefined;
+
+type ListQueueKind = 'TEAM' | 'MY' | 'PATIENT';
+
+function applyAlertListPostFilters(
+  rows: AlertRecord[],
+  organizationId: string,
+  opts: {
+    queue: ListQueueKind;
+    priority?: string;
+    inputType?: string;
+    state?: AlertState;
+    assignment?: 'UNASSIGNED' | 'ASSIGNED';
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  },
+): AlertRecord[] {
+  // TEAM list is already scoped by org on GSI1; MY / PATIENT need tenant filter on top of user/patient index.
+  let items =
+    opts.queue === 'TEAM'
+      ? rows
+      : rows.filter((a) => a.organizationId === organizationId);
+
+  if (opts.priority?.trim()) {
+    const p = opts.priority.trim();
+    items = items.filter((a) => a.priority === p);
+  }
+  // PATIENT: inputType is applied in `queryPatientAlerts` — avoid duplicating here.
+  if (opts.queue !== 'PATIENT' && opts.inputType?.trim()) {
+    const t = opts.inputType.trim();
+    items = items.filter((a) => a.inputType === t);
+  }
+
+  if (opts.queue === 'PATIENT' && opts.state) {
+    items = items.filter((a) => a.alertState === opts.state);
+  }
+
+  if (opts.queue === 'TEAM' && opts.assignment === 'ASSIGNED') {
+    items = items.filter((a) => !!a.assignedToUserId);
+  }
+
+  const fromTs = opts.dateFrom ? Date.parse(opts.dateFrom) : NaN;
+  if (!Number.isNaN(fromTs)) {
+    items = items.filter((a) => Date.parse(a.triggerTimestamp) >= fromTs);
+  }
+  const toTs = opts.dateTo ? Date.parse(opts.dateTo) : NaN;
+  if (!Number.isNaN(toTs)) {
+    items = items.filter((a) => Date.parse(a.triggerTimestamp) <= toTs);
+  }
+
+  const q = opts.search?.trim().toLowerCase();
+  if (q) {
+    items = items.filter(
+      (a) =>
+        a.alertId.toLowerCase().includes(q) ||
+        a.triggerSummary.toLowerCase().includes(q) ||
+        a.patientId.toLowerCase().includes(q),
+    );
+  }
+
+  return items;
+}
 
 function buildCreateAlertPayload(
   orgId: string,
@@ -177,14 +244,80 @@ export class AlertHttpController {
     return { items };
   }
 
-  async handleListPatientAlerts(req: LambdaRequest) {
-    const patientId = req.pathParameters?.patientId;
-    if (!patientId) throw Object.assign(new Error('patientId required'), { statusCode: 400 });
-    const qp = req.params as Record<string, string | undefined>;
-    const openOnly = qp.openOnly === 'true' || qp.openOnly === '1';
-    const inputType = qp.inputType;
-    const limit = qp.limit ? Number(qp.limit) : 50;
-    const rows = await this.svc.listPatientAlerts(patientId, { openOnly, inputType, limit });
+  /**
+   * GET /alerts — `queue=TEAM` (default), `MY`, or `PATIENT`. For `PATIENT`, `patientId` is required; for `TEAM`/`MY`,
+   * `patientId` must be omitted (use `queue=PATIENT` for patient timeline).
+   */
+  async handleListAlerts(req: LambdaRequest) {
+    const event = req.event;
+    const authHeader = req.context.authHeader;
+    const orgId = getOrganizationIdForRequest(event, authHeader);
+    if (!orgId) {
+      const e = new Error('Organization could not be resolved from the access token') as Error & {
+        statusCode: number;
+        code?: string;
+      };
+      e.statusCode = 401;
+      e.code = 'UNAUTHORIZED';
+      throw e;
+    }
+
+    const {
+      queue,
+      patientId,
+      state,
+      assignment,
+      priority,
+      inputType,
+      dateFrom,
+      dateTo,
+      search,
+      pageSize,
+    } = parseListAlertsQuery(req.params as Record<string, string | string[] | undefined>);
+    const limit = Math.min(100, Math.max(1, pageSize ?? 20));
+
+    let rows: AlertRecord[];
+
+    if (queue === 'PATIENT') {
+      rows = await this.svc.listPatientAlerts(patientId!, {
+        inputType,
+        limit,
+        openOnly: false,
+      });
+    } else if (queue === 'MY') {
+      const userId = getActorUserIdForRequest(event, authHeader);
+      if (!userId) {
+        throw Object.assign(new Error('User id could not be resolved for MY queue'), { statusCode: 400 });
+      }
+      rows = await this.svc.listUserAlerts(userId, { state, limit });
+    } else {
+      let orgState: AlertState;
+      if (state) {
+        orgState = state;
+      } else if (assignment === 'ASSIGNED') {
+        orgState = 'ASSIGNED';
+      } else {
+        orgState = 'UNASSIGNED';
+      }
+      const unassignedOnly = assignment === 'UNASSIGNED';
+      rows = await this.svc.listOrgAlerts(orgId, {
+        state: orgState,
+        unassignedOnly,
+        limit,
+      });
+    }
+
+    rows = applyAlertListPostFilters(rows, orgId, {
+      queue,
+      priority,
+      inputType,
+      state,
+      assignment: queue === 'TEAM' ? assignment : undefined,
+      dateFrom,
+      dateTo,
+      search,
+    });
+
     return { items: rows.map(toPublicAlert) };
   }
 

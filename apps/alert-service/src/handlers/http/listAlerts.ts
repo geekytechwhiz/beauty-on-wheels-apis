@@ -3,6 +3,6 @@ import { getAlertHttpController } from '../../controllers/alert-http.controller'
 
 const c = getAlertHttpController();
 
-const handler = async (req: LambdaRequest) => c.handleListPatientAlerts(req);
+const handler = async (req: LambdaRequest) => c.handleListAlerts(req);
 
 export const main = withLambdaHandler(handler);

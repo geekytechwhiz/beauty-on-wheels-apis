@@ -4,8 +4,9 @@ info:
   version: 1.0.0
   description: >
     Operational REST API for the Alert Service. Alerts are created via **POST /alerts** for authorized
-    callers (e.g. care ops UI). Policy definitions live outside this service. List endpoints support filters
-    and search; workflow, priority, and assignment use unified endpoints with `alertIds` (one or many).
+    callers (e.g. care ops UI). **GET /alerts** supports org **Team Queue** (`queue=TEAM`), **My Alerts** (`queue=MY`),
+    and **patient-scoped** lists (`queue=PATIENT` with mandatory **`patientId`**). Policy definitions live outside this service.
+    Workflow, priority, and assignment use unified endpoints with `alertIds` (one or many).
 
     **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header).
     No optional tracing header is required; correlation may appear in responses (`ProblemDetails.correlationId`, `SuccessResponse.requestId`).
@@ -23,9 +24,8 @@ security:
 tags:
   - name: Alert instances
     description: >
-      Create (POST /alerts), list, detail, unified workflow (POST /alerts/workflow), priority
-      (PATCH /alerts/priority), assignment (POST /alerts/assignment) with alertIds,
-      notes, and activity timeline.
+      Create (POST /alerts), **GET /alerts** (queues `TEAM`, `MY`, or `PATIENT` + `patientId`), detail, workflow,
+      priority, assignment, notes, and activity.
 
 components:
   securitySchemes:
@@ -347,8 +347,11 @@ components:
 
     QueueKind:
       type: string
-      description: Team Queue (default) or My Alerts (alerts assigned to the current user).
-      enum: [TEAM, MY]
+      description: >
+        **`TEAM`** — organization Team Queue. **`MY`** — alerts assigned to the current user.
+        **`PATIENT`** — alerts for a single patient (patient chart / timeline): you **must** send **`patientId`**;
+        `MY` / team semantics do not apply. Default when omitted is **`TEAM`**.
+      enum: [TEAM, MY, PATIENT]
       default: TEAM
 
     AlertListAssignmentFilter:
@@ -820,36 +823,41 @@ paths:
   /alerts:
     get:
       operationId: listAlerts
-      summary: List alerts (Team Queue or My Alerts)
+      summary: List alerts (Team, My, or patient scope)
       description: >
-        Supports the **Filters** panel and the list toolbar **search** field used in the UI.
-        **Team Queue** vs **My Alerts** maps to `queue` (`TEAM` default, `MY` for the current user’s assignments).
-        **Assignment:** omit `assignment` when no assignment filter is needed.
-        Use `assignment` (`UNASSIGNED` or `ASSIGNED`) only when filtering by whether an alert has an assignee.
-        **`queue=MY`** already restricts to the current user’s assignments.
-        **Filter modal:** Priority → `priority`; Status → `state`; Type → `inputType`.
-        **Patient-centric / timeline:** optional `patientId` (UUID) restricts the list to alerts for that patient
-        (still scoped to the organization from the JWT). Omit for the global Team Queue or My Alerts views.
-        **`patientId` may be combined** with `queue`, `state`, `priority`, `inputType`, `assignment`, and
-        `dateFrom` / `dateTo` as usual.
-        **By date range** → `dateFrom` / `dateTo` (inclusive).
-        **Search bar** (`search`) matches **patient name** and/or **alert id** (substring or exact per implementation).
-        When `patientId` is set, `search` may still apply (e.g. alert id substring); matching **patient name** is
-        redundant if the patient is already fixed by `patientId`.
-        Combine filters with `search` as needed; results are paginated with `pageSize` and `nextToken`.
-        **Ordering:** which attribute the list is sorted by and ascending vs descending are implementation-defined
-        (typically newest first by created time). Date bounds align with the list index timestamp when the server
-        applies date-range filtering.
+        Single list API with **`queue`** selecting the view:
+        - **`TEAM`** (default) — org Team Queue. Optional filters: `state`, `priority`, `inputType`, `assignment`,
+          `dateFrom` / `dateTo`, `search`, pagination.
+        - **`MY`** — same filters as Team, but only alerts **assigned to the current user**.
+        - **`PATIENT`** — alerts for **one patient** only. You **must** pass **`patientId`**. Do not use **`MY`**
+          semantics here; Team/My assignment filters are for operational queues only. Other filters (e.g. `state`,
+          `openOnly`-style behavior if applicable, `inputType`) may still apply per product rules.
+
+        **Validation:** **`patientId` is required when `queue=PATIENT`**. Omit **`patientId`** (or leave empty) for
+        **`TEAM`** and **`MY`**. Sending **`queue=PATIENT`** without **`patientId`** (or **`patientId`** with **`TEAM`/`MY`**
+        if the server rejects mixed mode) yields **400**.
+
+        Paginate with **`pageSize`** and **`nextToken`** where supported. Sort order is implementation-defined.
       tags: [Alert instances]
       parameters:
         - name: queue
           in: query
-          description: Team Queue (`TEAM`) or My Alerts (`MY`).
+          description: >
+            `TEAM` | `MY` | `PATIENT`. For **`PATIENT`**, **`patientId`** is required.
           schema:
             $ref: '#/components/schemas/QueueKind'
+        - name: patientId
+          in: query
+          description: >
+            **Required when `queue=PATIENT`** — patient whose alerts are listed. **Must be omitted** for `TEAM` and `MY`
+            (patient lists use `queue=PATIENT` only; sending `patientId` with `TEAM`/`MY` is **400**).
+          schema:
+            type: string
+          example: pat-123
+          allowEmptyValue: false
         - name: state
           in: query
-          description: Filter by alert status (UI **Status** dropdown).
+          description: Filter by alert status (UI **Status** dropdown). Applies per queue type as implemented.
           schema:
             $ref: '#/components/schemas/AlertState'
         - name: priority
@@ -865,17 +873,10 @@ paths:
         - name: assignment
           in: query
           description: >
-            Omit when not filtering by assignment status. When set, `UNASSIGNED` or `ASSIGNED` (see schema).
+            **Team / My queues only** — omit when not filtering by assignee presence, or when `queue=PATIENT` if not applicable.
+            `UNASSIGNED` or `ASSIGNED`.
           schema:
             $ref: '#/components/schemas/AlertListAssignmentFilter'
-        - name: patientId
-          in: query
-          description: >
-            When set, return only alerts linked to this patient (UUID). Organization scope comes from the JWT.
-            Omit for the default Team Queue or My Alerts list without a patient filter.
-          schema:
-            type: string
-          example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
         - name: dateFrom
           in: query
           description: Start of **By date range** (inclusive, ISO-8601).
@@ -891,9 +892,8 @@ paths:
         - name: search
           in: query
           description: >
-            Same behavior as the toolbar **“Search by Patient / Alert ID”** field: match against **patient name**
-            (display name) and **alert id** (supports partial id text). Server-side search index recommended at scale;
-            otherwise implement via supported backend or document client-side filtering limits.
+            Search **patient name** and/or **alert id** (toolbar behavior). For `queue=PATIENT`, patient is already fixed;
+            matching name may be redundant but **`alert id`** substring search may still apply.
           schema:
             type: string
             example: Jane Doe
@@ -914,6 +914,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponsePaginatedAlerts'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

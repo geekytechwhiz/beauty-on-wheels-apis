@@ -211,6 +211,70 @@ functions:
             "422": Validation or business rule error
             "500": Server error
 
+  listAlerts:
+    handler: src/handlers/http/listAlerts.main
+    events:
+      - http:
+          path: alerts
+          method: get
+          summary: List alerts (Team, My, or Patient)
+          description: >
+            Use query `queue=TEAM` (default), `MY`, or `PATIENT`. For `queue=PATIENT`, `patientId` is required.
+            For `TEAM` or `MY`, do not send `patientId` (patient timeline uses `queue=PATIENT` only).
+            Organization scope from JWT; results are restricted to that org.
+          queryStringParameters:
+            queue:
+              required: false
+              type: string
+              description: TEAM (default), MY, or PATIENT
+            patientId:
+              required: false
+              type: string
+              description: Required when queue=PATIENT; omit for TEAM and MY
+            state:
+              required: false
+              type: string
+            priority:
+              required: false
+              type: string
+            inputType:
+              required: false
+              type: string
+            assignment:
+              required: false
+              type: string
+              description: UNASSIGNED or ASSIGNED (Team queue)
+            dateFrom:
+              required: false
+              type: string
+            dateTo:
+              required: false
+              type: string
+            search:
+              required: false
+              type: string
+            pageSize:
+              required: false
+              type: integer
+            nextToken:
+              required: false
+              type: string
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+
   getAlert:
     handler: src/handlers/http/getAlert.main
     events:
@@ -260,21 +324,6 @@ functions:
             "500": Server error
 
   # --- Other HTTP APIs: uncomment when ready ---
-  # listPatientAlerts:
-  #   handler: src/handlers/http/listPatientAlerts.main
-  #   events:
-  #     - http:
-  #         path: /patients/{patientId}/alerts
-  #         method: get
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #
   # listOrgAlerts:
   #   handler: src/handlers/http/listOrgAlerts.main
   #   events:

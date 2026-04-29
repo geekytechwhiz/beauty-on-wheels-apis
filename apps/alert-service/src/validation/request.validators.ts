@@ -6,7 +6,9 @@ import type { APIGatewayProxyEvent } from 'aws-lambda';
 import type { LambdaRequest } from '@api-hub/utils';
 import {
   createAlertHttpBodySchema,
+  listAlertsQuerySchema,
   type CreateAlertHttpBody,
+  type ListAlertsQuery,
 } from '../validators/alert.schemas';
 import { assertCreateAlertCallerAllowed, resolveCreateAlertIdentity } from '../utils/helpers';
 
@@ -92,4 +94,45 @@ export function validateCreateAlertRequest(req: LambdaRequest): void {
     body: result.data,
     authHeader: identity.authHeader,
   };
+}
+
+/**
+ * Validates GET /alerts query params (`queue` enum, `patientId` vs queue, filters).
+ * Throws same shape as `throwVal` on failure (400).
+ */
+export function parseListAlertsQuery(
+  qp: Record<string, string | string[] | undefined>,
+): ListAlertsQuery {
+  const first = (v: string | string[] | undefined): string | undefined => {
+    if (v === undefined || v === null) return undefined;
+    return Array.isArray(v) ? v[0] : v;
+  };
+  const raw = {
+    queue: first(qp.queue),
+    patientId: first(qp.patientId),
+    state: first(qp.state),
+    assignment: first(qp.assignment),
+    priority: first(qp.priority),
+    inputType: first(qp.inputType),
+    dateFrom: first(qp.dateFrom),
+    dateTo: first(qp.dateTo),
+    search: first(qp.search),
+    pageSize: first(qp.pageSize),
+    nextToken: first(qp.nextToken),
+  };
+
+  const result = listAlertsQuerySchema.safeParse(raw);
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      400,
+      'VALIDATION_ERROR',
+      result.error.issues.map((i) => ({
+        field: i.path.join('.') || undefined,
+        message: i.message,
+      })),
+    );
+  }
+
+  return result.data;
 }

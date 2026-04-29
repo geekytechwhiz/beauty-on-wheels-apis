@@ -1,113 +1,451 @@
-# @api-hub/observability
+Here’s your **final, production-ready README** aligned with the **auto-init + optional override architecture** 👇
 
-Enterprise-focused logging, metrics, and request context for Node.js and AWS Lambda. Designed to **cut CloudWatch volume**, **enforce structured logging**, and **avoid PII / full payload leaks** without coupling to any remote configuration service.
+---
 
-## Installation
+# 🚀 @myvitalrx/observability
 
-```bash
-pnpm add @api-hub/observability
-```
+**Enterprise-grade observability SDK for Node.js & AWS Lambda**
 
-Peer: `aws-lambda` (types for handlers).
+A lightweight, production-ready library providing:
 
-Requires **Node.js ≥ 18** (uses `AsyncLocalStorage`, `crypto.randomUUID()`).
+* Structured logging (built on Powertools)
+* Automatic context propagation (correlationId, request scope)
+* Log level + sampling control (CloudWatch cost optimization)
+* PII protection & log policy enforcement
+* Metrics (EMF)
+* **Zero manual initialization (auto-init)**
 
-## Bootstrap (required)
+---
 
-Call **`initObservability()` once** per runtime (typically cold start) before `createLogger()` or metrics helpers. The library **does not read `process.env`**; map environment or remote config in your app:
+# 🧠 Why This Library Exists
 
-```ts
-import { initObservability, createLogger } from '@api-hub/observability';
+In distributed systems:
 
-initObservability({
-  serviceName: process.env.SERVICE_NAME ?? 'local-dev-service',
-  logLevel: 'INFO',
-  sampling: { info: 0.25, debug: 0 },
-  redactPII: true,
-  enforceLogPolicy: true,
-  metricsNamespace: 'ApiHub',
-});
-```
+* Logs become noisy → **high CloudWatch cost**
+* No correlation → **hard debugging**
+* Payload logging → **PII/security risks**
+* Inconsistent logs → **no observability standard**
 
-In this repo, **`ensureObservabilityInitialized()`** from `@api-hub/middleware` performs the env → config mapping for shared services.
+---
 
-Use **`updateObservabilityConfig(partial)`** to change behavior at runtime when your app loads new settings (AppConfig, SSM, etc.); the library does **not** fetch config from AWS.
+## This SDK Solves
 
-## Logger
+| Problem            | Solution              |
+| ------------------ | --------------------- |
+| Log explosion      | Sampling + log levels |
+| No tracing         | Correlation ID        |
+| PII leakage        | Automatic redaction   |
+| Inconsistent logs  | Enforced structure    |
+| Developer friction | Zero-config usage     |
 
-```ts
-const log = createLogger();
+---
 
-log.info({
-  event: 'order_placed',
-  message: 'Order accepted',
-  orderId: '…',
-});
-
-const child = createChildLogger(log, { tenantId: orgId });
-```
-
-- **Levels**: logs below the configured minimum level are dropped before sampling.
-- **Sampling**: `ERROR` / `WARN` always pass; `INFO` / `DEBUG` use `Math.random()` against `sampling.info` / `sampling.debug` (after level filter).
-- **Cold start**: first log on a Powertools logger instance includes `coldStart: true`.
-- **Policy** (`enforceLogPolicy`): requires non-empty **`event`** and **`message`**. Top-level **`request`** / **`response`** fields are replaced with `[BLOCKED]` and a short warning — full HTTP dumps are not allowed.
-
-String overloads (`log.info('hello')`) default `event` to `application_log`.
-
-## Controlled logging (preferred)
-
-Use these instead of ad-hoc structured logs for cross-cutting concerns:
-
-- `logHttpRequest(logger, { method, path, statusCode, durationMs | duration, … })`
-- `logDbQuery(logger, { operation, resource?, durationMs, … })` — do not pass raw SQL
-- `logExternalCall(logger, { target, operation, durationMs, statusCode?, outcome?, … })` — no secrets in `target`
-
-## Context
-
-```ts
-import { withLoggerContext, getLoggerContext } from '@api-hub/observability';
-
-await withLoggerContext({ correlationId, tenantId }, async () => {
-  // getLoggerContext() merges tenant/org aliases
-});
-```
-
-## Lambda / HTTP wrappers
-
-```ts
-import { withLambdaObservability, withHttpObservability } from '@api-hub/observability';
-
-export const handler = withLambdaObservability(async (event, context) => {
-  // correlationId + awsRequestId in ALS (UUID if not on event)
-});
-```
-
-`withHttpObservability` expects API Gateway–style `headers` / `requestContext`.
-
-## Metrics (Powertools EMF)
-
-`publishMiddlewarePipelineMetrics`, `recordConsumerEventProcessed`, etc. allocate a **new `Metrics` instance per call** (no global singleton). They read namespace and service name from config.
-
-## PII
-
-When `redactPII` is true, known sensitive keys are redacted recursively and common patterns (email, JWT-like strings, phones, Bearer tokens) are scrubbed in string values.
-
-## Cost strategy
-
-- Raise the **minimum log level** in production (`ERROR` or `WARN`).
-- Lower **`sampling.info`** (e.g. `0.1`) for high-traffic success paths; keep `ERROR`/`WARN` unsampled.
-- Rely on **`logHttpRequest`** / **`logExternalCall`** with small fields instead of logging full payloads.
-- Avoid `DEBUG` in hot paths unless `sampling.debug` is non-zero.
-
-## Public API surface
-
-Exports are intentionally small: config, logger factory, context helpers, `serializeError`, controlled logging helpers, metrics publishers, and middleware wrappers. Internal utilities and Powertools instances are not exposed.
-
-## Building
-
-From the package root:
+#   Installation
 
 ```bash
-pnpm run build   # tsup → dist/*.js, *.cjs, *.d.ts
-pnpm test        # Jest in test/
+pnpm add @myvitalrx/observability
 ```
+
+---
+
+#  Zero-Config Usage (Auto Initialization)
+
+
+The library **automatically initializes on first use** using:
+
+```text
+override > environment variables > safe defaults
+```
+
+---
+
+## Basic Usage
+
+```ts
+import { getLogger } from '@myvitalrx/observability';
+
+const logger = getLogger();
+
+logger.info('app_started', {
+  message: 'Application initialized',
+});
+```
+
+---
+
+# Configuration
+
+##   Environment Variables (Recommended)
+
+```bash
+SERVICE_NAME=sms-service
+LOG_LEVEL=INFO
+LOG_SAMPLE_INFO=0.1
+LOG_SAMPLE_DEBUG=0.01
+REDACT_PII=true
+METRICS_NAMESPACE=ApiHub
+```
+
+---
+
+## Optional Override (Advanced)
+
+```ts
+import { configureObservability } from '@myvitalrx/observability';
+
+configureObservability({
+  serviceName: 'sms-service',
+  logLevel: 'DEBUG',
+  sampling: { debug: 1 },
+});
+```
+
+---
+
+## Important Rule
+
+```ts
+// Correct
+configureObservability(...);
+const logger = getLogger();
+
+// Wrong
+const logger = getLogger();
+configureObservability(...); // too late
+```
+
+---
+
+# Logging
+
+## Standard Usage
+
+```ts
+const logger = getLogger();
+
+logger.info('sms_sent', {
+  message: 'SMS delivered',
+  provider: 'aws',
+});
+```
+
+---
+
+## Log Structure (Enforced)
+
+```ts
+{
+  event: string,
+  message?: string,
+  ...metadata
+}
+```
+
+* `event` is mandatory (auto-filled if missing)
+* Policy violations are sanitized automatically
+
+---
+
+## Child Logger
+
+```ts
+const logger = getLogger({ tenantId: 'org-123' });
+
+logger.info('tenant_action');
+```
+
+---
+
+# 🔁 Context Propagation
+
+## Lambda Wrapper (Recommended)
+
+```ts
+import { withLambdaObservability } from '@myvitalrx/observability';
+
+export const handler = withLambdaObservability(async () => {
+  const logger = getLogger();
+
+  logger.info('handler_started');
+});
+```
+
+---
+
+## Injected Context
+
+* `correlationId`
+* `awsRequestId`
+* `functionName`
+
+---
+
+## Manual Context
+
+```ts
+import { withContext } from '@myvitalrx/observability';
+
+await withContext({ correlationId: 'abc-123' }, async () => {
+  const logger = getLogger();
+  logger.info('inside_context');
+});
+```
+
+---
+
+# Correlation ID Strategy
+
+Priority order:
+
+```text
+1. x-correlation-id (client)
+2. SQS / EventBridge propagation
+3. awsRequestId
+4. Generated UUID
+```
+
+---
+
+# Log Levels
+
+Controlled via:
+
+```bash
+LOG_LEVEL=INFO
+```
+
+---
+
+## Behavior
+
+| Level | Logs Included       |
+| ----- | ------------------- |
+| ERROR | ERROR               |
+| WARN  | WARN + ERROR        |
+| INFO  | INFO + WARN + ERROR |
+| DEBUG | ALL                 |
+
+ Handled internally by Powertools
+
+---
+
+#  Sampling (Cost Optimization)
+
+```bash
+LOG_SAMPLE_INFO=0.1
+LOG_SAMPLE_DEBUG=0.01
+```
+
+---
+
+## Behavior
+
+* ERROR / WARN → always logged
+* INFO / DEBUG → sampled
+
+---
+
+#  PII Protection & Log Policy
+
+Enabled by default.
+
+---
+
+## Automatically Blocked Fields
+
+```ts
+request → "[BLOCKED]"
+response → "[BLOCKED]"
+headers → "[BLOCKED]"
+body → "[BLOCKED]"
+```
+
+---
+
+## Additional Protection
+
+* Emails masked
+* Phone numbers masked
+* Tokens removed
+* JWTs redacted
+
+---
+
+# Controlled Logging (Recommended)
+
+## HTTP
+
+```ts
+logHttpRequest(logger, {
+  method: 'POST',
+  path: '/send-sms',
+  statusCode: 200,
+  durationMs: 120,
+});
+```
+
+---
+
+## External Calls
+
+```ts
+logExternalCall(logger, {
+  target: 'sms-provider',
+  operation: 'sendSms',
+  durationMs: 85,
+});
+```
+
+---
+
+## Database
+
+```ts
+logDbQuery(logger, {
+  operation: 'INSERT',
+  resource: 'users',
+  durationMs: 20,
+});
+```
+
+---
+
+# 📊 Metrics (EMF)
+
+```ts
+import { recordConsumerEventProcessed } from '@myvitalrx/observability';
+
+recordConsumerEventProcessed({
+  status: 'SUCCESS',
+});
+```
+
+* Uses Powertools EMF
+* No global state
+
+---
+
+# Cost Optimization Strategy
+
+## Recommended Production Setup
+
+```bash
+LOG_LEVEL=ERROR
+LOG_SAMPLE_INFO=0.05
+```
+
+---
+
+## Best Practices
+
+* Use `ERROR` or `WARN` in production
+* Avoid DEBUG in hot paths
+* Use sampling for high-volume APIs
+* Log summaries, not payloads
+
+---
+
+# What NOT To Do
+
+## Avoid console logs
+
+```ts
+console.log('debug'); // ❌
+```
+
+---
+
+## Do NOT log full payloads
+
+```ts
+logger.info('request', {
+  request: event, // blocked
+});
+```
+
+---
+
+## Do NOT log sensitive data
+
+* passwords
+* tokens
+* JWT
+* headers
+
+---
+
+## Do NOT pass logger manually
+
+```ts
+service.doWork(logger); // ❌
+```
+
+---
+
+## Do NOT create logger globally
+
+```ts
+const logger = getLogger(); // ❌
+```
+
+---
+
+# Recommended Pattern
+
+```text
+Middleware → Context → Logger → Structured Logs
+```
+
+---
+
+# 🏢 Enterprise Benefits
+
+## 📈 Observability
+
+* Standard logs across services
+* Easy debugging
+* End-to-end traceability
+
+---
+
+## Cost Control
+
+* Reduced CloudWatch usage
+* Sampling-based logging
+* No redundant logs
+
+---
+
+## Security & Compliance
+
+* PII masking
+* No accidental leaks
+* Audit-safe logs
+
+---
+
+## Developer Experience
+
+* Zero setup
+* Minimal boilerplate
+* Works across services
+
+---
+
+# Architecture Philosophy
+
+> **Auto-initialization + enforced standards + minimal developer effort**
+
+---
+
+# 🏁 Summary
+
+This SDK ensures:
+
+* Clean logs
+* Safe logs
+* Scalable observability
+* Low operational cost
+
+---
+ 

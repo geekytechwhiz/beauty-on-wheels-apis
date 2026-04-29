@@ -1,6 +1,6 @@
 {
-  "name": "@myvitalrx-api-hub/observability",
-  "version": "2.0.0",
+  "name": "@myvitalrx/observability",
+  "version": "2.5.0",
   "description": "Enterprise observability library for logging, metrics, and context propagation",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -13,7 +13,9 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -26,10 +28,10 @@
     "@aws-lambda-powertools/metrics": "^2.x"
   },
   "devDependencies": {
-    "tsup": "^8.x",
-    "typescript": "^5.x",
+    "@types/jest": "^29.x",
     "jest": "^29.x",
-    "@types/jest": "^29.x"
+    "tsup": "^8.x",
+    "typescript": "^5.x"
   },
   "peerDependencies": {
     "aws-lambda": "^1.0.0"

@@ -1,22 +1,11 @@
-import type { LogLevelName } from '../config/config.js';
+export function shouldSample(level: 'DEBUG' | 'INFO') {
+  if (level === 'INFO') {
+    return Math.random() < Number(process.env.LOG_SAMPLE_INFO ?? 0.1);
+  }
 
-export const ENTRY_LEVEL_FLOOR: Record<LogLevelName, number> = {
-  DEBUG: 10,
-  INFO: 20,
-  WARN: 30,
-  ERROR: 40,
-};
+  if (level === 'DEBUG') {
+    return Math.random() < Number(process.env.LOG_SAMPLE_DEBUG ?? 0.01);
+  }
 
-export function passesLevelFilter(level: LogLevelName, configFloor: number): boolean {
-  return ENTRY_LEVEL_FLOOR[level] >= configFloor;
-}
-
-export function passesSampling(
-  level: LogLevelName,
-  sampling: { info: number; debug: number }
-): boolean {
-  if (level === 'ERROR' || level === 'WARN') return true;
-  if (level === 'INFO') return Math.random() < sampling.info;
-  if (level === 'DEBUG') return Math.random() < sampling.debug;
-  return false;
+  return true;
 }

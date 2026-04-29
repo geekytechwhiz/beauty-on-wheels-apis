@@ -1,41 +1,31 @@
-export {
-  initObservability,
-  getConfig,
-  updateObservabilityConfig,
+export { 
+  getConfig, 
   type ObservabilityConfig,
   type LogLevelName,
   type ObservabilityConfigInput,
-} from './config/config.js';
+  configureObservability,
+} from './config/config';
 
 export {
-  withLoggerContext,
-  getLoggerContext,
-  type LoggerContext,
-} from './core/context.js';
+  getContext,
+  withContext,  
+} from './core/context';
 
-export { Logger, createLogger, createChildLogger } from './logger/logger.js';
-export { serializeError } from './logger/serialize-error.js';
-export {
-  logDbQuery,
-  logExternalCall,
-  logHttpRequest,
-  type DbQueryLogData,
-  type ExternalCallLogData,
-  type HttpLogData,
-} from './logger/controlled-logging.js';
+export { getLogger } from './logger/logger';
+export { serializeError } from './logger/serialize-error';
 
-export {
-  publishMiddlewarePipelineMetrics,
+export { 
   recordConsumerDeadLetter,
   recordConsumerDeliveryDisposition,
   recordConsumerDuplicateEvent,
   recordConsumerEventProcessed,
   recordConsumerFailure,
   recordConsumerRetry,
-} from './metrics/index.js';
+} from './metrics/consumer-metrics';
 
 export {
   withHttpObservability,
   withLambdaObservability,
+  
   type ApiGatewayLikeEvent,
-} from './middleware/index.js';
+} from './middleware/index';

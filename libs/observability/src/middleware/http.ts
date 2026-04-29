@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Handler } from 'aws-lambda';
 
-import { withLoggerContext } from '../core/context.js';
+import { withContext } from '../core/context';
 
 /** API Gateway (REST or HTTP API) proxy-ish event shape. */
 export type ApiGatewayLikeEvent = {
@@ -24,7 +24,7 @@ export function withHttpObservability<TEvent extends ApiGatewayLikeEvent, TResul
         ? event.requestContext.requestId
         : randomUUID());
     const awsRequestId = context.awsRequestId ?? 'unknown-request-id';
-    return withLoggerContext({ correlationId, awsRequestId }, () =>
+    return withContext({ correlationId, awsRequestId }, () =>
       handler(event, context, callback) as Promise<TResult> | TResult
     );
   }) as Handler<TEvent, TResult>;

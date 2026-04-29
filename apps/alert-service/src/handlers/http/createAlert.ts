@@ -1,12 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import {
-  createLogger,
-  extractAwsRequestId,
-  extractCorrelationId,
-  serializeError,
-} from '@api-hub/logger';
+import { createLogger, serializeError } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
 import { getAlertHttpController } from '../../controllers/alert-http.controller';
+import { getLambdaInvocationMeta } from '../../utils/helpers';
 
 const logger = createLogger({ service: 'alert-service', redactPII: true });
 
@@ -20,8 +16,7 @@ export async function main(
   event: APIGatewayProxyEvent,
   context?: Context,
 ): Promise<APIGatewayProxyResult> {
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const { correlationId, awsRequestId } = getLambdaInvocationMeta(event, context);
 
   logger.info({
     event: 'lambda_invocation_start',

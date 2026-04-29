@@ -17,16 +17,38 @@
   "definitions": {
     "CreateAlertRequest": {
       "type": "object",
-      "description": "Create-alert payload from the HTTP UI. Aligns with `createAlertHttpBodySchema` (Zod). Org is resolved from the JWT. `inputEventId`, `inputType`, and `sourceType` are set server-side (new UUID idempotency key; ENGAGEMENT_TRIGGER / USER_INTERFACE for tracking).",
-      "required": ["patientId", "triggerTimestamp", "evidencePayload"],
+      "description": "Create-alert body; org from JWT. Required: inputType, sourceType, patientId (UUID), triggerTimestamp (ISO-8601), evidencePayload. Optional inputEventId (UUID) for idempotency (409 on replay). evidencePayload must use the same inputType as top-level; include eventTimestamp, source (SourceType). Per inputType: THRESHOLD_BREACH → observedValue, unit, comparisonOperator (GT|LT|GTE|LTE|EQ), severityLevel, readingTimestamp, readingSource, and thresholdValue OR minValue+maxValue; MISSED_READING → lastSuccessfulReadingTimestamp, missedDuration (e.g. P3D), readingType; MISSING_DEVICE → deviceLinked; SYMPTOM_RISK_TRIGGER → questionCode, responseValue, responseTimestamp; ENGAGEMENT_TRIGGER → engagementEventCode. When appliesToType/linkedEntityCode are set on the request, match them in evidencePayload.",
+      "required": ["inputType", "sourceType", "patientId", "triggerTimestamp", "evidencePayload"],
       "properties": {
-        "patientId": { "type": "string" },
-        "carePlanInstanceId": { "type": "string" },
-        "packageAssignmentId": { "type": "string" },
+        "inputEventId": { "type": "string", "format": "uuid", "description": "Optional idempotency key" },
+        "inputType": {
+          "type": "string",
+          "enum": [
+            "THRESHOLD_BREACH",
+            "MISSED_READING",
+            "MISSING_DEVICE",
+            "SYMPTOM_RISK_TRIGGER",
+            "ENGAGEMENT_TRIGGER"
+          ]
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "MONITORING_SERVICE",
+            "DEVICE_MONITORING",
+            "DEVICE_WORKFLOW",
+            "SYMPTOM_ENGINE",
+            "ENGAGEMENT_SERVICE",
+            "USER_INTERFACE"
+          ]
+        },
+        "patientId": { "type": "string", "format": "uuid" },
+        "carePlanInstanceId": { "type": "string", "format": "uuid" },
+        "packageAssignmentId": { "type": "string", "format": "uuid" },
         "triggerTimestamp": {
           "type": "string",
           "format": "date-time",
-          "description": "ISO-8601 date-time"
+          "description": "ISO-8601 when the condition occurred"
         },
         "appliesToType": {
           "type": "string",
@@ -41,18 +63,19 @@
           "type": "string",
           "enum": ["P0", "P1", "P2", "P3"]
         },
-        "alertPolicyTemplateVersionId": { "type": "string" },
-        "thresholdTemplateVersionId": { "type": "string" },
+        "alertPolicyTemplateVersionId": { "type": "string", "format": "uuid" },
+        "thresholdTemplateVersionId": { "type": "string", "format": "uuid" },
         "groupingKey": { "type": "string" },
         "triggerSummary": { "type": "string" },
         "triggerSummaryTemplateCode": { "type": "string" },
         "triggerSummaryParams": {
           "type": "object",
-          "additionalProperties": true
+          "additionalProperties": true,
+          "description": "Required when triggerSummaryTemplateCode is set (may be {})"
         },
         "evidencePayload": {
           "type": "object",
-          "description": "Non-empty object. For HTTP create, inputType is fixed server-side as ENGAGEMENT_TRIGGER (e.g. engagementType, channel, or context).",
+          "description": "Discriminated by inputType matching top-level inputType; see CreateAlertRequest description.",
           "minProperties": 1,
           "additionalProperties": true
         }
@@ -69,7 +92,7 @@
     },
     "/alerts": {
       "post": {
-        "summary": "Create alert (idempotency key generated server-side; no inputEventId/inputType/sourceType in body)",
+        "summary": "Create alert (inputType, sourceType, evidencePayload required; optional inputEventId UUID for idempotency)",
         "consumes": ["application/json"],
         "produces": ["application/json"],
         "parameters": [

@@ -1,4 +1,5 @@
-import type { APIGatewayProxyEvent } from 'aws-lambda';
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import { extractAwsRequestId, extractCorrelationId } from '@api-hub/logger';
 import { extractHeader } from '@api-hub/utils';
 
 /**
@@ -7,6 +8,17 @@ import { extractHeader } from '@api-hub/utils';
  *
  * Used from HTTP controllers only (`docs/http-api-implementation-guide.md` §4.1).
  */
+
+/** Correlation + AWS ids once per invocation (handler + controller). */
+export function getLambdaInvocationMeta(
+  event: APIGatewayProxyEvent,
+  context?: Context,
+): { correlationId: string; awsRequestId: string } {
+  return {
+    correlationId: extractCorrelationId(event) || context?.awsRequestId || 'unknown',
+    awsRequestId: context ? extractAwsRequestId(context) : (event.requestContext?.requestId ?? 'unknown'),
+  };
+}
 
 export function getAuthorizerUserId(event: APIGatewayProxyEvent): string | undefined {
   const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> })?.authorizer;
@@ -31,6 +43,8 @@ export function getUserIdAndOrganizationIdFromToken(authHeader: string | undefin
   userId?: string;
   organizationId?: string;
   sub?: string;
+  /** Cognito `custom:userType` (e.g. STAFF, PATIENT). */
+  userType?: string;
 } {
   if (!authHeader || typeof authHeader !== 'string') return {};
   try {
@@ -58,6 +72,10 @@ export function getUserIdAndOrganizationIdFromToken(authHeader: string | undefin
         (decoded.organizationID as string) ??
         (decoded.organizationId as string),
       sub: decoded.sub as string,
+      userType:
+        (decoded['custom:userType'] as string) ??
+        (decoded['custom:usertype'] as string) ??
+        (decoded.userType as string),
     };
   } catch {
     return {};
@@ -84,30 +102,62 @@ export function getOrganizationIdForRequest(event: APIGatewayProxyEvent, authHea
   );
 }
 
-/** Current user id for audit (`performedBy`): authorizer first, then JWT `custom:userID` or `sub`. */
-export function getActorUserIdForRequest(event: APIGatewayProxyEvent, authHeader?: string): string | undefined {
-  const t = getUserIdAndOrganizationIdFromToken(resolveAuthHeader(event, authHeader));
-  return getAuthorizerUserId(event) ?? t.userId ?? t.sub;
-}
-
-function readUserType(event: APIGatewayProxyEvent): string | undefined {
+function readUserTypeFromAuthorizer(event: APIGatewayProxyEvent): string | undefined {
   const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> })?.authorizer;
-  const ut =
+  const fromContext =
     authorizer?.userType ??
     authorizer?.user_type ??
-    (authorizer?.claims as Record<string, unknown> | undefined)?.['custom:userType'];
-  return typeof ut === 'string' ? ut : undefined;
+    (authorizer?.claims as Record<string, unknown> | undefined)?.['custom:userType'] ??
+    (authorizer?.['custom:userType'] as string | undefined);
+  return typeof fromContext === 'string' && fromContext.length > 0 ? fromContext : undefined;
+}
+
+/**
+ * Resolves org, actor, and userType for POST /alerts with **at most one** JWT payload decode when the authorizer
+ * omits any of those fields.
+ */
+export function resolveCreateAlertIdentity(
+  event: APIGatewayProxyEvent,
+  authHeader?: string,
+): {
+  authHeader: string | undefined;
+  orgId: string | undefined;
+  actorUserId: string | undefined;
+  userType: string | undefined;
+} {
+  const resolvedHeader = resolveAuthHeader(event, authHeader);
+  let cached: ReturnType<typeof getUserIdAndOrganizationIdFromToken> | undefined;
+  const claims = () => {
+    if (cached === undefined) cached = getUserIdAndOrganizationIdFromToken(resolvedHeader);
+    return cached;
+  };
+  return {
+    authHeader: resolvedHeader,
+    orgId: getAuthorizerOrganizationId(event) ?? claims().organizationId,
+    userType: readUserTypeFromAuthorizer(event) ?? claims().userType,
+    actorUserId: getAuthorizerUserId(event) ?? claims().userId ?? claims().sub,
+  };
 }
 
 /** Patients cannot create operational alerts via this API. */
-export function assertCanCreateAlerts(event: APIGatewayProxyEvent): void {
-  const ut = readUserType(event);
-  if (!ut) return;
-  const upper = ut.toUpperCase();
+export function assertCreateAlertCallerAllowed(userType: string | undefined): void {
+  if (!userType) return;
+  const upper = userType.toUpperCase();
   if (upper === 'PATIENT' || upper === 'PATIENTS') {
     const e = new Error('Insufficient permission to create alerts');
     (e as Error & { statusCode?: number; code?: string }).statusCode = 403;
     (e as Error & { code?: string }).code = 'FORBIDDEN';
     throw e;
   }
+}
+
+/** @deprecated Prefer {@link resolveCreateAlertIdentity} + {@link assertCreateAlertCallerAllowed} in one pass. */
+export function assertCanCreateAlerts(event: APIGatewayProxyEvent, authHeader?: string): void {
+  assertCreateAlertCallerAllowed(resolveCreateAlertIdentity(event, authHeader).userType);
+}
+
+/** Current user id for audit (`performedBy`): authorizer first, then JWT `custom:userID` or `sub`. */
+export function getActorUserIdForRequest(event: APIGatewayProxyEvent, authHeader?: string): string | undefined {
+  const t = getUserIdAndOrganizationIdFromToken(resolveAuthHeader(event, authHeader));
+  return getAuthorizerUserId(event) ?? t.userId ?? t.sub;
 }

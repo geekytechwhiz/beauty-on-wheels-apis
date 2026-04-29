@@ -20,8 +20,6 @@ import { validatePatientContext } from './clients/user-service.client';
 
 import { validateOrganizationContext } from './clients/organization-service.client';
 
-import { CREATE_ALERT_DEFAULT_INPUT_TYPE, CREATE_ALERT_DEFAULT_SOURCE_TYPE } from './create-alert.defaults';
-
 import type { CreateAlertPayload } from './create-alert.types';
 
 
@@ -84,11 +82,9 @@ export class AlertService {
 
    *
 
-   * Omitted `inputType` / `sourceType` are filled with {@link CREATE_ALERT_DEFAULT_INPUT_TYPE} /
+   * Omitted `inputEventId` yields a new UUID idempotency key.
 
-   * {@link CREATE_ALERT_DEFAULT_SOURCE_TYPE}. Omitted `inputEventId` yields a new UUID idempotency key.
-
-   * Pass all three explicitly for SQS / internal producers with their own event correlation.
+   * **`inputType` and `sourceType` must be set by the caller** (e.g. from the HTTP body or async producer), not inferred here.
 
    *
 
@@ -100,17 +96,7 @@ export class AlertService {
 
   async createAlert(payload: CreateAlertPayload, authHeader?: string): Promise<{ record: AlertRecord; duplicate: boolean }> {
 
-    const input: CreateAlertInput = {
-
-      ...payload,
-
-      inputType: payload.inputType ?? CREATE_ALERT_DEFAULT_INPUT_TYPE,
-
-      sourceType: payload.sourceType ?? CREATE_ALERT_DEFAULT_SOURCE_TYPE,
-
-      inputEventId: payload.inputEventId,
-
-    };
+    const input: CreateAlertInput = { ...payload };
 
 
 

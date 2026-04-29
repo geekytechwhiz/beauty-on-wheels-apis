@@ -6,12 +6,7 @@
  * **Responses:** {@link apiGatewayResponseOptions} from `@api-hub/utils` (same defaults as SSO `BaseController.errorResponse`).
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import {
-  createChildLogger,
-  createLogger,
-  extractAwsRequestId,
-  extractCorrelationId,
-} from '@api-hub/logger';
+import { createChildLogger, createLogger } from '@api-hub/logger';
 import type { AppError, LambdaRequest } from '@api-hub/utils';
 import { ApiResponse, apiGatewayResponseOptions, buildRequestContext, handleError } from '@api-hub/utils';
 import type { AlertState, CreateAlertPayload } from '@api-hub/alert-integration';
@@ -19,7 +14,7 @@ import { toAlertDetail, toPublicAlert } from '@api-hub/alert-integration';
 import { getAlertService } from '../services/alert-app.service';
 import { patchAlertBodySchema, type CreateAlertHttpBody } from '../validators/alert.schemas';
 import { validateCreateAlertRequest, type ValidatedCreateAlert } from '../validation/request.validators';
-import { getAuthorizationForGatewayEvent } from '../utils/helpers';
+import { getAuthorizationForGatewayEvent, getLambdaInvocationMeta } from '../utils/helpers';
 import { normalizeAlertServiceError } from '../utils/alert-http-errors';
 
 const controllerBaseLogger = createLogger({ service: 'alert-service', redactPII: true });
@@ -50,8 +45,7 @@ export class AlertHttpController {
     event: APIGatewayProxyEvent,
     context?: Context,
   ): Promise<APIGatewayProxyResult> {
-    const correlationId = extractCorrelationId(event) || context?.awsRequestId || 'unknown';
-    const awsRequestId = context ? extractAwsRequestId(context) : (event.requestContext?.requestId ?? 'unknown');
+    const { correlationId, awsRequestId } = getLambdaInvocationMeta(event, context);
 
     const requestLogger = createChildLogger(controllerBaseLogger, {
       correlationId,

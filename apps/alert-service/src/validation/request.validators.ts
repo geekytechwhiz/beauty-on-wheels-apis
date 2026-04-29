@@ -8,11 +8,7 @@ import {
   createAlertHttpBodySchema,
   type CreateAlertHttpBody,
 } from '../validators/alert.schemas';
-import {
-  assertCanCreateAlerts,
-  getActorUserIdForRequest,
-  getOrganizationIdForRequest,
-} from '../utils/helpers';
+import { assertCreateAlertCallerAllowed, resolveCreateAlertIdentity } from '../utils/helpers';
 
 /** Same shape as user-service `throwVal` (`apps/user-service/src/validation/request.validators.ts`). */
 function throwVal(
@@ -53,21 +49,21 @@ export type ValidatedCreateAlert = {
 };
 
 /**
- * Resolves org/actor, permission, JSON body, then `createAlertHttpBodySchema.safeParse` + HTTP UI defaults
- * (same flow as `validateCreateUser` → `createUserSchema.safeParse` + `req.validatedCreateUser`).
+ * Resolves org/actor, permission, JSON body, then `createAlertHttpBodySchema.safeParse`.
  */
 export function validateCreateAlertRequest(req: LambdaRequest): void {
   const event = req.event;
   const authHeader = req.context.authHeader as string | undefined;
 
-  const orgId = getOrganizationIdForRequest(event, authHeader);
-  if (!orgId) {
+  const identity = resolveCreateAlertIdentity(event, authHeader);
+
+  if (!identity.orgId) {
     throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED', [
       { message: 'Missing or invalid tenant in token' },
     ]);
   }
 
-  assertCanCreateAlerts(event);
+  assertCreateAlertCallerAllowed(identity.userType);
 
   const parsedBody = parseHttpBody(event);
   if (!parsedBody.ok) {
@@ -90,11 +86,10 @@ export function validateCreateAlertRequest(req: LambdaRequest): void {
     );
   }
 
-  const actorUserId = getActorUserIdForRequest(event, authHeader);
   (req as LambdaRequest & { validatedCreateAlert: ValidatedCreateAlert }).validatedCreateAlert = {
-    orgId,
-    actorUserId,
+    orgId: identity.orgId,
+    actorUserId: identity.actorUserId,
     body: result.data,
-    authHeader,
+    authHeader: identity.authHeader,
   };
 }

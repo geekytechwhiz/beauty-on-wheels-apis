@@ -190,7 +190,7 @@ functions:
           # serverless-auto-swagger: body shows in Swagger UI as #/definitions/CreateAlertRequest
           bodyType: CreateAlertRequest
           summary: Create alert
-          description: Idempotent on inputEventId. Organization scope is taken from the JWT only, not the body.
+          description: Idempotent on optional inputEventId (UUID). inputType, sourceType, and evidencePayload are required. Organization scope is taken from the JWT only, not the body.
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}

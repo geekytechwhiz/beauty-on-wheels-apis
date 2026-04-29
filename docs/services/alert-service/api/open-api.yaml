@@ -213,6 +213,188 @@ components:
       type: string
       enum: [LOW, MEDIUM, HIGH, CRITICAL]
 
+    ComparisonOperator:
+      type: string
+      description: How `observedValue` relates to the threshold (THRESHOLD_BREACH evidence).
+      enum: [GT, LT, GTE, LTE, EQ]
+
+    EvidencePayload:
+      type: object
+      description: >
+        Structured evidence; **`inputType` here must equal the request’s top-level `inputType`**. Shared fields:
+        `eventTimestamp`, `source`, and discriminant `inputType`. When top-level `appliesToType` / `linkedEntityCode`
+        are set, the same pair should appear on the payload. **THRESHOLD_BREACH:** supply `thresholdValue` **or**
+        both `minValue` and `maxValue` (not both styles). **MISSED_READING:** `missedDuration` is an ISO-8601 duration (e.g. `P3D`).
+      oneOf:
+        - $ref: '#/components/schemas/EvidenceThresholdBreach'
+        - $ref: '#/components/schemas/EvidenceMissedReading'
+        - $ref: '#/components/schemas/EvidenceMissingDevice'
+        - $ref: '#/components/schemas/EvidenceSymptomRisk'
+        - $ref: '#/components/schemas/EvidenceEngagement'
+
+    EvidenceThresholdBreach:
+      type: object
+      required:
+        - eventTimestamp
+        - source
+        - inputType
+        - observedValue
+        - unit
+        - comparisonOperator
+        - severityLevel
+        - readingTimestamp
+        - readingSource
+      properties:
+        eventTimestamp:
+          type: string
+          format: date-time
+        source:
+          $ref: '#/components/schemas/SourceType'
+        inputType:
+          type: string
+          enum: [THRESHOLD_BREACH]
+        appliesToType:
+          $ref: '#/components/schemas/AppliesToType'
+        linkedEntityCode:
+          type: string
+        observedValue:
+          type: number
+        unit:
+          type: string
+        comparisonOperator:
+          $ref: '#/components/schemas/ComparisonOperator'
+        thresholdValue:
+          type: number
+        minValue:
+          type: number
+        maxValue:
+          type: number
+        severityLevel:
+          $ref: '#/components/schemas/SeverityHint'
+        readingTimestamp:
+          type: string
+          format: date-time
+        readingSource:
+          type: string
+      additionalProperties: true
+
+    EvidenceMissedReading:
+      type: object
+      required:
+        - eventTimestamp
+        - source
+        - inputType
+        - lastSuccessfulReadingTimestamp
+        - missedDuration
+        - readingType
+      properties:
+        eventTimestamp:
+          type: string
+          format: date-time
+        source:
+          $ref: '#/components/schemas/SourceType'
+        inputType:
+          type: string
+          enum: [MISSED_READING]
+        appliesToType:
+          $ref: '#/components/schemas/AppliesToType'
+        linkedEntityCode:
+          type: string
+        lastSuccessfulReadingTimestamp:
+          type: string
+          format: date-time
+        missedDuration:
+          type: string
+        readingType:
+          type: string
+      additionalProperties: true
+
+    EvidenceMissingDevice:
+      type: object
+      required:
+        - eventTimestamp
+        - source
+        - inputType
+        - deviceLinked
+      properties:
+        eventTimestamp:
+          type: string
+          format: date-time
+        source:
+          $ref: '#/components/schemas/SourceType'
+        inputType:
+          type: string
+          enum: [MISSING_DEVICE]
+        appliesToType:
+          $ref: '#/components/schemas/AppliesToType'
+        linkedEntityCode:
+          type: string
+        deviceLinked:
+          type: boolean
+      additionalProperties: true
+
+    EvidenceSymptomRisk:
+      type: object
+      required:
+        - eventTimestamp
+        - source
+        - inputType
+        - questionCode
+        - responseValue
+        - responseTimestamp
+      properties:
+        eventTimestamp:
+          type: string
+          format: date-time
+        source:
+          $ref: '#/components/schemas/SourceType'
+        inputType:
+          type: string
+          enum: [SYMPTOM_RISK_TRIGGER]
+        appliesToType:
+          $ref: '#/components/schemas/AppliesToType'
+        linkedEntityCode:
+          type: string
+        questionCode:
+          type: string
+        responseValue:
+          type: string
+        responseLabel:
+          type: string
+        responseTimestamp:
+          type: string
+          format: date-time
+      additionalProperties: true
+
+    EvidenceEngagement:
+      type: object
+      required:
+        - eventTimestamp
+        - source
+        - inputType
+        - engagementEventCode
+      properties:
+        eventTimestamp:
+          type: string
+          format: date-time
+        source:
+          $ref: '#/components/schemas/SourceType'
+        inputType:
+          type: string
+          enum: [ENGAGEMENT_TRIGGER]
+        appliesToType:
+          $ref: '#/components/schemas/AppliesToType'
+        linkedEntityCode:
+          type: string
+        engagementEventCode:
+          type: string
+        dueAt:
+          type: string
+          format: date-time
+        missedDuration:
+          type: string
+      additionalProperties: true
+
     ActivityType:
       type: string
       enum:
@@ -255,8 +437,10 @@ components:
       description: >
         Creates an alert record: server assigns `alertId`, writes `ALERT_CREATED` activity, applies
         grouping/SLA rules, and projects to list GSIs. **Organization** is taken from the JWT (not repeated
-        in body). Use **`sourceType`: `USER_INTERFACE`** for UI or manual API creation; other values match
-        upstream system actors. Optionally supply **`inputEventId`** for idempotent creates.
+        in body). **`inputEventId`** is optional (UUID) for idempotent creates (**409** on replay).
+        **`inputType`** and **`sourceType`** are required and must match **`evidencePayload.inputType`**; when top-level
+        `appliesToType` / `linkedEntityCode` are set they must match the payload. Pair **`triggerSummaryTemplateCode`**
+        with **`triggerSummaryParams`** (use `{}` if no placeholders).
       required:
         - inputType
         - sourceType
@@ -266,8 +450,9 @@ components:
       properties:
         inputEventId:
           type: string
+          format: uuid
           description: >
-            Optional idempotency key (any non-empty string). If supplied and already processed for this org, return existing alert.
+            Optional idempotency key. Same UUID retried for the same org returns **409** with the existing alert.
         inputType:
           $ref: '#/components/schemas/InputType'
         sourceType:
@@ -311,14 +496,10 @@ components:
         triggerSummaryParams:
           type: object
           additionalProperties: true
-        evidencePayload:
-          type: object
           description: >
-            Required non-empty object. Shape is validated per `inputType` (e.g. THRESHOLD_BREACH: `metricCode` / `reading` / `metric`;
-            MISSED_READING: `deviceId` / `readingType` / `window`; MISSING_DEVICE: `deviceId` / `deviceType`; SYMPTOM_RISK_TRIGGER:
-            `symptomCode` / `symptom` / `riskScore`; ENGAGEMENT_TRIGGER: `engagementType` / `channel` / `context`).
-          minProperties: 1
-          additionalProperties: true
+            Required when `triggerSummaryTemplateCode` is set (may be `{}`). Omit both when using only pre-rendered `triggerSummary`.
+        evidencePayload:
+          $ref: '#/components/schemas/EvidencePayload'
 
     AlertSummary:
       type: object

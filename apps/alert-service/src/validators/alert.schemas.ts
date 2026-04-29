@@ -1,11 +1,10 @@
 /**
  * Zod schemas for HTTP bodies. `createAlertHttpBodySchema` is used from `validation/request.validators.ts`.
- * @see `docs/http-api-implementation-guide.md` §4–§5
+ * @see `Alert-Service.yaml` CreateAlertRequest / evidencePayload (per-`inputType` shapes).
  *
- * **Public create-alert body:** `inputEventId`, `inputType`, and `sourceType` are not in the JSON body; defaults are
- * applied inside {@link AlertService.createAlert} (`@api-hub/alert-integration`).
+ * **HTTP create-alert:** `inputType` and `sourceType` are required in the body; `organizationId` comes from the JWT.
+ * `inputEventId` is optional (UUID idempotency). `evidencePayload` is discriminated by `inputType` and must mirror top-level `inputType`.
  */
-import { CREATE_ALERT_DEFAULT_INPUT_TYPE } from '@api-hub/alert-integration';
 import { z } from 'zod';
 
 const inputTypeZ = z.enum([
@@ -16,38 +15,165 @@ const inputTypeZ = z.enum([
   'ENGAGEMENT_TRIGGER',
 ]);
 
+const sourceTypeZ = z.enum([
+  'MONITORING_SERVICE',
+  'DEVICE_MONITORING',
+  'DEVICE_WORKFLOW',
+  'SYMPTOM_ENGINE',
+  'ENGAGEMENT_SERVICE',
+  'USER_INTERFACE',
+]);
+
 const appliesToTypeZ = z.enum(['VITAL_SIGN', 'DEVICE', 'SYMPTOM', 'ENGAGEMENT']);
 const severityHintZ = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 const priorityZ = z.enum(['P0', 'P1', 'P2', 'P3']);
+const comparisonOperatorZ = z.enum(['GT', 'LT', 'GTE', 'LTE', 'EQ']);
+
+function preprocessTrimmedUuidOptional(): z.ZodType<string | undefined> {
+  return z.preprocess((v) => {
+    if (v === undefined || v === null || v === '') return undefined;
+    return typeof v === 'string' ? v.trim() : v;
+  }, z.string().uuid().optional());
+}
+
+function preprocessTrimmedOptionalNonEmpty(): z.ZodType<string | undefined> {
+  return z.preprocess((v) => {
+    if (v === undefined || v === null || v === '') return undefined;
+    return typeof v === 'string' ? v.trim() : v;
+  }, z.string().min(1).optional());
+}
+
+/** Common §5.1.3.1 fields on every `evidencePayload` (plus type-specific keys). */
+const evidenceBaseSchema = z.object({
+  eventTimestamp: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  source: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ),
+  appliesToType: appliesToTypeZ.optional(),
+  linkedEntityCode: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1).optional()),
+});
+
+const evidenceThresholdBreachSchema = evidenceBaseSchema.extend({
+  inputType: z.literal('THRESHOLD_BREACH'),
+  observedValue: z.number(),
+  unit: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  comparisonOperator: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), comparisonOperatorZ),
+  thresholdValue: z.number().optional(),
+  minValue: z.number().optional(),
+  maxValue: z.number().optional(),
+  severityLevel: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), severityHintZ),
+  readingTimestamp: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  readingSource: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+}).superRefine((data, ctx) => {
+  const hasPoint = data.thresholdValue !== undefined;
+  const hasRange =
+    data.minValue !== undefined && data.maxValue !== undefined;
+  const hasPartialRange =
+    (data.minValue !== undefined) !== (data.maxValue !== undefined);
+  if (hasPartialRange) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'minValue and maxValue must both be set for a range threshold',
+      path: ['minValue'],
+    });
+    return;
+  }
+  if (!hasPoint && !hasRange) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Provide thresholdValue or both minValue and maxValue',
+      path: ['thresholdValue'],
+    });
+  }
+  if (hasPoint && hasRange) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Use either thresholdValue or minValue/maxValue, not both',
+      path: ['thresholdValue'],
+    });
+  }
+});
+
+const evidenceMissedReadingSchema = evidenceBaseSchema.extend({
+  inputType: z.literal('MISSED_READING'),
+  lastSuccessfulReadingTimestamp: z.preprocess(
+    (v) => (typeof v === 'string' ? v.trim() : v),
+    z.string().min(1),
+  ),
+  missedDuration: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  readingType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+});
+
+const evidenceMissingDeviceSchema = evidenceBaseSchema.extend({
+  inputType: z.literal('MISSING_DEVICE'),
+  deviceLinked: z.boolean(),
+});
+
+const evidenceSymptomRiskSchema = evidenceBaseSchema.extend({
+  inputType: z.literal('SYMPTOM_RISK_TRIGGER'),
+  questionCode: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  responseValue: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  responseLabel: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1).optional()),
+  responseTimestamp: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+});
+
+const evidenceEngagementSchema = evidenceBaseSchema.extend({
+  inputType: z.literal('ENGAGEMENT_TRIGGER'),
+  engagementEventCode: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  dueAt: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1).optional()),
+  missedDuration: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1).optional()),
+});
+
+const evidencePayloadSchema = z.discriminatedUnion('inputType', [
+  evidenceThresholdBreachSchema,
+  evidenceMissedReadingSchema,
+  evidenceMissingDeviceSchema,
+  evidenceSymptomRiskSchema,
+  evidenceEngagementSchema,
+]);
+
+function assertIsoDateTime(value: string, path: (string | number)[], label: string, ctx: z.RefinementCtx): void {
+  const ts = Date.parse(value);
+  if (Number.isNaN(ts)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `${label} must be a valid ISO-8601 date-time`,
+      path,
+    });
+  }
+}
 
 /**
- * Request body fields the UI may send (strict: unknown keys rejected).
+ * Request body (strict: unknown keys rejected). Organization ID is not an HTTP field.
  */
 export const createAlertHttpBodySchema = z
   .object({
-    patientId: z.string().min(1),
-    carePlanInstanceId: z.string().min(1).optional(),
-    packageAssignmentId: z.string().min(1).optional(),
-    triggerTimestamp: z.string().min(1),
+    inputEventId: preprocessTrimmedUuidOptional(),
+    inputType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), inputTypeZ),
+    sourceType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ),
+    patientId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().uuid()),
+    carePlanInstanceId: preprocessTrimmedUuidOptional(),
+    packageAssignmentId: preprocessTrimmedUuidOptional(),
+    triggerTimestamp: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
     appliesToType: appliesToTypeZ.optional(),
-    linkedEntityCode: z.string().min(1).optional(),
-    severityHint: severityHintZ.optional(),
-    priority: priorityZ.optional(),
-    alertPolicyTemplateVersionId: z.string().min(1).optional(),
-    thresholdTemplateVersionId: z.string().min(1).optional(),
-    groupingKey: z.string().min(1).optional(),
-    triggerSummary: z.string().optional(),
-    triggerSummaryTemplateCode: z.string().optional(),
+    linkedEntityCode: preprocessTrimmedOptionalNonEmpty(),
+    severityHint: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), severityHintZ).optional(),
+    priority: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), priorityZ).optional(),
+    alertPolicyTemplateVersionId: preprocessTrimmedUuidOptional(),
+    thresholdTemplateVersionId: preprocessTrimmedUuidOptional(),
+    groupingKey: preprocessTrimmedOptionalNonEmpty(),
+    triggerSummary: z.preprocess((v) => {
+      if (v === undefined || v === null) return undefined;
+      if (typeof v !== 'string') return v;
+      const t = v.trim();
+      return t === '' ? undefined : t;
+    }, z.string().optional()),
+    triggerSummaryTemplateCode: preprocessTrimmedOptionalNonEmpty(),
     triggerSummaryParams: z.record(z.string(), z.unknown()).optional(),
-    evidencePayload: z.record(z.string(), z.unknown()),
+    evidencePayload: evidencePayloadSchema,
   })
-  /** Reject `inputEventId`, `inputType`, `sourceType`, etc. if the client sends them — not HTTP inputs. */
   .strict()
   .superRefine((val, ctx) => {
-    const ts = Date.parse(val.triggerTimestamp);
-    if (Number.isNaN(ts)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'triggerTimestamp must be a valid ISO-8601 date-time', path: ['triggerTimestamp'] });
-    }
+    assertIsoDateTime(val.triggerTimestamp, ['triggerTimestamp'], 'triggerTimestamp', ctx);
+
     if ((val.appliesToType != null) !== (val.linkedEntityCode != null)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -55,41 +181,72 @@ export const createAlertHttpBodySchema = z
         path: ['appliesToType'],
       });
     }
-  })
-  .superRefine((val, ctx) => {
-    const p = val.evidencePayload;
-    if (!p || typeof p !== 'object' || Object.keys(p).length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'evidencePayload must be a non-empty object', path: ['evidencePayload'] });
-      return;
-    }
-    const ok = checkEvidenceForInputType(CREATE_ALERT_DEFAULT_INPUT_TYPE, p);
-    if (!ok) {
+
+    if (val.evidencePayload.inputType !== val.inputType) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `evidencePayload shape is invalid for inputType ${CREATE_ALERT_DEFAULT_INPUT_TYPE}`,
-        path: ['evidencePayload'],
+        message: 'evidencePayload.inputType must match top-level inputType',
+        path: ['evidencePayload', 'inputType'],
       });
+    }
+
+    if (val.appliesToType != null) {
+      if (val.evidencePayload.appliesToType !== val.appliesToType) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'evidencePayload.appliesToType must match top-level appliesToType when set',
+          path: ['evidencePayload', 'appliesToType'],
+        });
+      }
+      if (val.linkedEntityCode != null && val.evidencePayload.linkedEntityCode !== val.linkedEntityCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'evidencePayload.linkedEntityCode must match top-level linkedEntityCode when set',
+          path: ['evidencePayload', 'linkedEntityCode'],
+        });
+      }
+    }
+
+    if (val.triggerSummaryTemplateCode != null && val.triggerSummaryParams === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'triggerSummaryParams is required when triggerSummaryTemplateCode is set (use {} if no placeholders)',
+        path: ['triggerSummaryParams'],
+      });
+    }
+
+    const ev = val.evidencePayload;
+    assertIsoDateTime(ev.eventTimestamp, ['evidencePayload', 'eventTimestamp'], 'evidencePayload.eventTimestamp', ctx);
+    if (ev.inputType === 'THRESHOLD_BREACH') {
+      assertIsoDateTime(
+        ev.readingTimestamp,
+        ['evidencePayload', 'readingTimestamp'],
+        'evidencePayload.readingTimestamp',
+        ctx,
+      );
+    }
+    if (ev.inputType === 'MISSED_READING') {
+      assertIsoDateTime(
+        ev.lastSuccessfulReadingTimestamp,
+        ['evidencePayload', 'lastSuccessfulReadingTimestamp'],
+        'evidencePayload.lastSuccessfulReadingTimestamp',
+        ctx,
+      );
+    }
+    if (ev.inputType === 'SYMPTOM_RISK_TRIGGER') {
+      assertIsoDateTime(
+        ev.responseTimestamp,
+        ['evidencePayload', 'responseTimestamp'],
+        'evidencePayload.responseTimestamp',
+        ctx,
+      );
+    }
+    if (ev.inputType === 'ENGAGEMENT_TRIGGER' && ev.dueAt != null) {
+      assertIsoDateTime(ev.dueAt, ['evidencePayload', 'dueAt'], 'evidencePayload.dueAt', ctx);
     }
   });
 
 export type CreateAlertHttpBody = z.infer<typeof createAlertHttpBodySchema>;
-
-function checkEvidenceForInputType(inputType: z.infer<typeof inputTypeZ>, payload: Record<string, unknown>): boolean {
-  switch (inputType) {
-    case 'THRESHOLD_BREACH':
-      return 'metricCode' in payload || 'reading' in payload || 'metric' in payload;
-    case 'MISSED_READING':
-      return 'deviceId' in payload || 'readingType' in payload || 'window' in payload;
-    case 'MISSING_DEVICE':
-      return 'deviceId' in payload || 'deviceType' in payload;
-    case 'SYMPTOM_RISK_TRIGGER':
-      return 'symptomCode' in payload || 'symptom' in payload || 'riskScore' in payload;
-    case 'ENGAGEMENT_TRIGGER':
-      return 'engagementType' in payload || 'channel' in payload || 'context' in payload;
-    default:
-      return true;
-  }
-}
 
 export const patchAlertBodySchema = z.object({
   alertState: z

@@ -2,8 +2,8 @@
  * Zod schemas for HTTP bodies. `createAlertHttpBodySchema` is used from `validation/request.validators.ts`.
  * @see `Alert-Service.yaml` CreateAlertRequest / evidencePayload (per-`inputType` shapes).
  *
- * **HTTP create-alert:** `inputType` and `sourceType` are required in the body; `organizationId` comes from the JWT.
- * `inputEventId` is optional (idempotency key). **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
+ * **HTTP create-alert:** `inputEventId` (idempotency — supplied by the client UI), `inputType`, and `sourceType`
+ * are required in the body; `organizationId` comes from the JWT. **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
  * `evidencePayload` is discriminated by `inputType` and must mirror top-level `inputType` (§5.1.3.1).
  */
 import { z } from 'zod';
@@ -90,7 +90,7 @@ function assertIsoDateTime(value: string, path: (string | number)[], label: stri
  */
 export const createAlertHttpBodySchema = z
   .object({
-    inputEventId: preprocessTrimmedStringOptional(),
+    inputEventId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
     inputType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), createAlertInputTypeZ),
     sourceType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ),
     patientId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),

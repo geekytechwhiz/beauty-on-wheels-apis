@@ -335,8 +335,9 @@ components:
     CreateAlertRequest:
       type: object
       description: >
-        **Required:** `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, `evidencePayload`.
-        **Optional:** `inputEventId`, `carePlanInstanceId`, `packageAssignmentId`, `severityHint`, `priority`,
+        **Required:** `inputEventId`, `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, `evidencePayload`.
+        `inputEventId` is provided by the client (e.g. care UI) for idempotent creates.
+        **Optional:** `carePlanInstanceId`, `packageAssignmentId`, `severityHint`, `priority`,
         `alertPolicyTemplateVersionId`, `thresholdTemplateVersionId`, `groupingKey`, `triggerSummary`,
         `triggerSummaryTemplateCode`, `triggerSummaryParams` (required when `triggerSummaryTemplateCode` is set; may be `{}`).
 
@@ -344,6 +345,7 @@ components:
         `evidencePayload.inputType` must equal top-level `inputType`. `appliesToType` and `linkedEntityCode`
         are required inside `evidencePayload`.
       required:
+        - inputEventId
         - inputType
         - sourceType
         - patientId
@@ -352,7 +354,8 @@ components:
       properties:
         inputEventId:
           type: string
-          description: Optional. Idempotency key; same value for same org returns **409** with existing alert.
+          description: >
+            Required. Client-generated idempotency key (e.g. from UI). Same value retried for the same org returns **409** with the existing alert.
         inputType:
           allOf:
             - $ref: '#/components/schemas/CreateAlertInputType'
@@ -894,6 +897,7 @@ paths:
               missingDevice:
                 summary: Missing device (§5.1.3.1)
                 value:
+                  inputEventId: ui-missing-device-001
                   inputType: MISSING_DEVICE
                   sourceType: DEVICE_WORKFLOW
                   patientId: pat-456
@@ -908,6 +912,7 @@ paths:
               missedReading:
                 summary: Missed reading (§5.1.3.1)
                 value:
+                  inputEventId: ui-missed-reading-001
                   inputType: MISSED_READING
                   sourceType: DEVICE_MONITORING
                   patientId: pat-123

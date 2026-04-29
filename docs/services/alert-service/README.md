@@ -12,7 +12,7 @@ Deployable app under `apps/alert-service`: HTTP APIs for alert lifecycle (Server
 ## Responsibilities
 
 - **REST**: create/list/get/patch alerts (patient timeline, org queue, user queue).
-- **Idempotency**: `inputEventId` maps to `EVENT#<id>` + `ALERT` row; duplicate creates return the existing alert.
+- **Idempotency**: `inputEventId` is required on **HTTP create** (client/UI); it maps to `EVENT#<id>` + `ALERT` row; duplicate creates return the existing alert (**409**).
 
 ## External services (optional)
 

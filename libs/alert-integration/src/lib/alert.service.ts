@@ -80,9 +80,11 @@ export class AlertService {
 
    * (EVENT# idempotency). The same patient and org can have many alerts; they must use different idempotency keys.
 
+   * **`POST /alerts`** clients (e.g. care UI) should send a stable **`inputEventId`**; the HTTP schema requires it.
+
    *
 
-   * Omitted `inputEventId` yields a new UUID idempotency key.
+   * Omitted `inputEventId` (non-HTTP callers only) yields a new UUID idempotency key.
 
    * **`inputType` and `sourceType` must be set by the caller** (e.g. from the HTTP body or async producer), not inferred here.
 

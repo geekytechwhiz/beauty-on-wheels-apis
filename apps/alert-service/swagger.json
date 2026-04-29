@@ -108,12 +108,19 @@
       },
       "CreateAlertRequest": {
         "type": "object",
-        "description": "Create-alert body; organization from JWT (not in body). Required: inputType, sourceType, patientId, triggerTimestamp, evidencePayload. Optional: inputEventId and all other properties listed below. sourceType must equal evidencePayload.source; evidencePayload.inputType must equal inputType. appliesToType and linkedEntityCode live inside evidencePayload (required there).",
-        "required": ["inputType", "sourceType", "patientId", "triggerTimestamp", "evidencePayload"],
+        "description": "Create-alert body; organization from JWT (not in body). Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload. Optional: other properties below. inputEventId is the client/UI idempotency key (same value for same org returns 409). sourceType must equal evidencePayload.source; evidencePayload.inputType must equal inputType. appliesToType and linkedEntityCode live inside evidencePayload (required there).",
+        "required": [
+          "inputEventId",
+          "inputType",
+          "sourceType",
+          "patientId",
+          "triggerTimestamp",
+          "evidencePayload"
+        ],
         "properties": {
           "inputEventId": {
             "type": "string",
-            "description": "Optional. Idempotency key; same value for same org returns 409 with existing alert."
+            "description": "Required. Client-generated idempotency key (e.g. from UI); same value for same org returns 409 with existing alert."
           },
           "inputType": {
             "allOf": [{ "$ref": "#/components/schemas/CreateAlertInputType" }],
@@ -212,7 +219,7 @@
     },
     "/alerts": {
       "post": {
-        "summary": "Create alert (required: inputType, sourceType, patientId, triggerTimestamp, evidencePayload; optional inputEventId for idempotency)",
+        "summary": "Create alert (required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload)",
         "requestBody": {
           "required": true,
           "content": {

@@ -129,6 +129,8 @@ custom:
 
   autoswagger:
     title: Alert Service API
+    description: Operational alert HTTP API (create, get, list, patch). Swagger 2 merge file for serverless-auto-swagger.
+    version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
     schemes:

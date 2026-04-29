@@ -1685,23 +1685,23 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       definedRoleCode = (userBasicDetails as any).definedRoleCode ?? null;
       roleId = (userBasicDetails as any).userRole?.[0] ?? '';
+      const roleDetailsPromise = roleId
+        ? this.repository.getRoleDetails(userOrgId, roleId)
+        : Promise.resolve([]);
 
-      if (roleId) {
-        roleDetails = await this.repository.getRoleDetails(userOrgId, roleId);
-          if (roleDetails && roleDetails.length > 0) {
-            const roleDetail = roleDetails[0];
-            roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
-            const featuresFromUserTable = roleDetail.features;
-            userPermissions = Array.isArray(featuresFromUserTable) ? featuresFromUserTable : 
-                              (typeof featuresFromUserTable === 'object' ? Object.values(featuresFromUserTable) : []);
-            isDefault = roleDetail.isDefault ?? false;
-            roleType = roleDetail.roleType ?? null;
-          }
+      [orgBasicDetails, roleDetails] = await Promise.all([orgBasicDetailsPromise, roleDetailsPromise]);
 
-          uniquePermissions = this.getUniquePermissions(userPermissions);
+      if (roleDetails && roleDetails.length > 0) {
+        const roleDetail = roleDetails[0];
+        roleName = roleDetail.roleName || roleDetail.definedRoleCode || '';
+        const featuresFromUserTable = roleDetail.features;
+        userPermissions = Array.isArray(featuresFromUserTable)
+          ? featuresFromUserTable
+          : (typeof featuresFromUserTable === 'object' ? Object.values(featuresFromUserTable) : []);
+        isDefault = roleDetail.isDefault ?? false;
+        roleType = roleDetail.roleType ?? null;
       }
-
-      orgBasicDetails = await orgBasicDetailsPromise;
+      uniquePermissions = this.getUniquePermissions(userPermissions);
 
       // Calculate account age
       const accountAge = this.calculateAccountAge(userBasicDetails.createdDate || Date.now());

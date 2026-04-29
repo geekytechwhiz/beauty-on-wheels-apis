@@ -75,6 +75,11 @@ phases:
           aws lambda create-function --function-name "$LAMBDA_NAME" --runtime nodejs18.x --handler index.handler --role "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME" --zip-file "fileb://api-center/edge-auth/function.zip" --region "$AWS_REGION"
         fi
 
+      # ✅ WAIT FOR UPDATE (FIX)
+      - "echo Waiting for Lambda update to complete..."
+      - "aws lambda wait function-updated --function-name \"$LAMBDA_NAME\" --region \"$AWS_REGION\""
+      - "echo Lambda update complete"
+
       # PUBLISH
       - "VERSION=$(aws lambda publish-version --function-name \"$LAMBDA_NAME\" --region \"$AWS_REGION\" --query 'Version' --output text)"
       - "echo Version=$VERSION"

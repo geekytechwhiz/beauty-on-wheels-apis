@@ -1,4 +1,4 @@
-import { VersionParseError } from '../versioning/version-parse-error';
+import { VersionParseError } from './version-parse-error';
 
 export type SemVerParts = {
   major: number;

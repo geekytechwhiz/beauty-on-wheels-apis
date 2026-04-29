@@ -10,6 +10,9 @@ info:
     **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header).
     No optional tracing header is required; correlation may appear in responses (`ProblemDetails.correlationId`, `SuccessResponse.requestId`).
 
+    **Deployed Swagger UI** uses `apps/alert-service/swagger.json` (merged by `serverless-auto-swagger`), not this OpenAPI
+    file. For **Try it out** / model examples in that UI, duplicate samples there as Swagger 2 `example` or `x-example`.
+
 servers:
   - url: https://api.example.com
     description: Production
@@ -155,13 +158,13 @@ components:
             data:
               $ref: '#/components/schemas/AlertMutationResult'
 
-    SuccessResponsePaginatedActivity:
+    SuccessResponseActivityList:
       allOf:
         - $ref: '#/components/schemas/SuccessResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/PaginatedActivity'
+              $ref: '#/components/schemas/ActivityList'
 
     SuccessResponseActivityRecord:
       allOf:
@@ -702,15 +705,16 @@ components:
           type: string
           description: Opaque cursor for the next page.
 
-    PaginatedActivity:
+    ActivityList:
       type: object
+      description: Full activity timeline for one alert (no pagination).
+      required:
+        - items
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/ActivityRecord'
-        nextToken:
-          type: string
 
   responses:
     BadRequest:
@@ -1136,40 +1140,18 @@ paths:
       - $ref: '#/components/parameters/alertId'
     get:
       operationId: getAlertActivity
-      summary: Get paginated activity / audit timeline
+      summary: Get activity / audit timeline for an alert
       description: >
-        Returns activity rows for this alert (newest first). Organization scope comes from the **JWT** only
-        (same tenant rule as GET `/alerts/{alertId}`). **`nextToken`** is an opaque cursor from a prior response
-        (base64url-encoded DynamoDB pagination key); invalid cursors yield **400**.
+        Returns **all** activity rows for this alert in **one response** (newest first). Organization scope comes from the **JWT** only
+        (same tenant rule as GET `/alerts/{alertId}`). No query filters or pagination.
       tags: [Alert instances]
-      parameters:
-        - name: activityType
-          in: query
-          description: When set, only activities of this type are returned.
-          schema:
-            $ref: '#/components/schemas/ActivityType'
-        - name: pageSize
-          in: query
-          description: Page size (default **50**, min **1**, max **100**).
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-            maximum: 100
-        - name: nextToken
-          in: query
-          description: Opaque cursor from the previous page’s `data.nextToken`.
-          schema:
-            type: string
       responses:
         '200':
-          description: Paginated activity records.
+          description: Activity records (full list).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponsePaginatedActivity'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: '#/components/schemas/SuccessResponseActivityList'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

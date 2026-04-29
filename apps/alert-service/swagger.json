@@ -3,7 +3,7 @@
   "info": {
     "title": "Alert Service API",
     "version": "1.0.0",
-    "description": "Alerts: HTTP APIs only. See docs/services/alert-service for DynamoDB access patterns. API Gateway uses the shared Lambda authorizer; send a JWT in the `Authorization` header (value `Bearer <token>` or as required by your client)."
+    "description": "Alerts: HTTP APIs. **Deployed Swagger UI uses this file + serverless-auto-swagger** — it does not load `docs/services/alert-service/api/open-api.yaml`. Rich multi-example narratives live there; this spec carries **Swagger 2–compatible `example` / `x-example`** values for Try-it-out and model panels."
   },
   "schemes": ["https", "http"],
   "consumes": ["application/json"],
@@ -96,7 +96,17 @@
           "description": "Reading / vital family label (e.g. BLOOD_PRESSURE); non-empty."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "example": {
+        "eventTimestamp": "2026-04-17T10:00:00.000Z",
+        "source": "DEVICE_MONITORING",
+        "inputType": "MISSED_READING",
+        "appliesToType": "VITAL_SIGN",
+        "linkedEntityCode": "BP_SYSTOLIC",
+        "lastSuccessfulReadingTimestamp": "2026-04-14T08:00:00.000Z",
+        "missedDuration": "P3D",
+        "readingType": "BLOOD_PRESSURE"
+      }
     },
     "EvidenceMissingDevice": {
       "type": "object",
@@ -129,7 +139,15 @@
           "description": "Whether the patient has an active link to the device in context."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "example": {
+        "eventTimestamp": "2026-04-17T10:00:00.000Z",
+        "source": "DEVICE_WORKFLOW",
+        "inputType": "MISSING_DEVICE",
+        "appliesToType": "DEVICE",
+        "linkedEntityCode": "WEIGHING_SCALE",
+        "deviceLinked": false
+      }
     },
     "EvidencePayload": {
       "type": "object",
@@ -216,6 +234,23 @@
           "allOf": [{ "$ref": "#/definitions/EvidencePayload" }],
           "description": "Required. Per inputType; see EvidenceMissedReading or EvidenceMissingDevice."
         }
+      },
+      "example": {
+        "inputEventId": "ui-missed-reading-001",
+        "inputType": "MISSED_READING",
+        "sourceType": "DEVICE_MONITORING",
+        "patientId": "pat-123",
+        "triggerTimestamp": "2026-04-17T10:00:00.000Z",
+        "evidencePayload": {
+          "eventTimestamp": "2026-04-17T10:00:00.000Z",
+          "source": "DEVICE_MONITORING",
+          "inputType": "MISSED_READING",
+          "appliesToType": "VITAL_SIGN",
+          "linkedEntityCode": "BP_SYSTOLIC",
+          "lastSuccessfulReadingTimestamp": "2026-04-14T08:00:00.000Z",
+          "missedDuration": "P3D",
+          "readingType": "BLOOD_PRESSURE"
+        }
       }
     },
     "PatchAlertRequest": {
@@ -238,6 +273,11 @@
           "x-nullable": true
         },
         "slaBreachIndicator": { "type": "boolean" }
+      },
+      "example": {
+        "alertState": "IN_PROGRESS",
+        "assignedToUserId": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+        "slaBreachIndicator": false
       }
     },
     "ActivityType": {
@@ -269,29 +309,60 @@
         "activityComment": { "type": "string" }
       }
     },
-    "PaginatedActivity": {
+    "ActivityList": {
       "type": "object",
+      "description": "Full activity timeline for one alert (no pagination).",
+      "required": ["items"],
       "properties": {
         "items": {
           "type": "array",
           "items": { "$ref": "#/definitions/ActivityRecord" }
-        },
-        "nextToken": {
-          "type": "string",
-          "description": "Opaque cursor from a previous response; omit on first page."
         }
+      },
+      "example": {
+        "items": [
+          {
+            "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
+            "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "activityType": "ALERT_CREATED",
+            "activityTimestamp": "2026-04-17T10:05:00.000Z",
+            "performedBy": "SYSTEM"
+          }
+        ]
       }
     },
-    "SuccessEnvelopePaginatedActivity": {
+    "SuccessEnvelopeActivityList": {
       "type": "object",
-      "description": "Standard ApiResponse.ok body; activity list is in `data`.",
+      "description": "Standard ApiResponse.ok body; full activity list is in `data.items`.",
       "properties": {
         "success": { "type": "boolean", "example": true },
         "statusCode": { "type": "integer", "example": 200 },
-        "data": { "$ref": "#/definitions/PaginatedActivity" },
+        "data": { "$ref": "#/definitions/ActivityList" },
         "error": { "type": "object", "x-nullable": true },
         "message": { "type": "object" },
         "meta": { "type": "object" }
+      },
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "data": {
+          "items": [
+            {
+              "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
+              "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+              "activityType": "ALERT_CREATED",
+              "activityTimestamp": "2026-04-17T10:05:00.000Z",
+              "performedBy": "SYSTEM"
+            }
+          ]
+        },
+        "error": null,
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
+        "meta": { "requestId": "req-example", "timestamp": "2026-04-17T10:05:01.000Z", "version": "v1" }
       }
     }
   },
@@ -306,6 +377,7 @@
     "/alerts": {
       "post": {
         "summary": "Create alert (required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload)",
+        "description": "Request body example shown in Swagger is **MISSED_READING** (see model `CreateAlertRequest`). For **MISSING_DEVICE**, align body with `EvidenceMissingDevice` example on that model (and matching `sourceType` / `evidencePayload.source`).",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -362,58 +434,22 @@
     "/alerts/{alertId}/activity": {
       "get": {
         "summary": "Get alert activity timeline",
-        "description": "Paginated activity / audit rows for the alert (newest first). Tenant from JWT.",
+        "description": "Full activity / audit list for the alert (newest first, single response). Tenant from JWT.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
             "name": "alertId",
             "in": "path",
             "required": true,
-            "type": "string"
-          },
-          {
-            "name": "activityType",
-            "in": "query",
-            "required": false,
             "type": "string",
-            "description": "Filter by activity type",
-            "enum": [
-              "ALERT_CREATED",
-              "ALERT_GROUPED",
-              "ALERT_ASSIGNED",
-              "ALERT_REASSIGNED",
-              "ALERT_STATE_CHANGED",
-              "EVIDENCE_ADDED_OR_UPDATED",
-              "ALERT_RESOLVED",
-              "ALERT_DISMISSED",
-              "SLA_BREACHED",
-              "NOTE_ADDED",
-              "PRIORITY_CHANGED"
-            ]
-          },
-          {
-            "name": "pageSize",
-            "in": "query",
-            "required": false,
-            "type": "integer",
-            "default": 50,
-            "minimum": 1,
-            "maximum": 100
-          },
-          {
-            "name": "nextToken",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "description": "Cursor from prior response `data.nextToken`"
+            "x-example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
           }
         ],
         "responses": {
           "200": {
-            "description": "OK — paginated activity in response body `data`",
-            "schema": { "$ref": "#/definitions/SuccessEnvelopePaginatedActivity" }
+            "description": "OK — activity rows in response body `data.items`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeActivityList" }
           },
-          "400": { "description": "Invalid pageSize or nextToken" },
           "401": { "description": "Unauthorized" },
           "404": { "description": "Alert not found" }
         }

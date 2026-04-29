@@ -242,7 +242,7 @@ functions:
           path: alerts/{alertId}/activity
           method: get
           summary: Get alert activity timeline
-          description: Paginated activity / audit rows for the alert (tenant from JWT only).
+          description: Full activity / audit list for the alert (newest first; single response, no pagination). Tenant from JWT only.
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
@@ -254,7 +254,6 @@ functions:
             resultTtlInSeconds: 0
           responses:
             "200": OK
-            "400": Bad request
             "401": Unauthorized
             "403": Forbidden
             "404": Not found

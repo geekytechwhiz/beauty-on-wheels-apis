@@ -127,9 +127,6 @@ function isGroupPutConditionalRace(err: unknown): boolean {
   return (err.CancellationReasons ?? [])[GROUP_TRANSACT_ITEM_INDEX]?.Code === 'ConditionalCheckFailed';
 }
 
-/** DynamoDB `ExclusiveStartKey` / `LastEvaluatedKey` for {@link AlertRepository.queryAlertActivities}. */
-export type AlertActivityExclusiveStartKey = Record<string, AttributeValue>;
-
 function toPublicActivity(raw: Record<string, unknown>): AlertActivityRecord {
   const {
     pk: _pk,
@@ -201,56 +198,38 @@ export class AlertRepository {
   }
 
   /**
-   * Activity timeline: query `ALERT#<alertId>` with `sk` beginning `ACTIVITY#` (newest first).
-   * Caller must enforce tenant access (e.g. `AlertService` after `getAlert`).
+   * Full activity timeline for an alert: all `ACTIVITY#…` rows under `ALERT#<alertId>` (newest segment first per query page; full list is ordered newest-first overall).
+   * Uses repeated DynamoDB `Query` until exhaust (no public pagination). Caller enforces tenant (e.g. `AlertService` after `getAlert`).
    */
-  async queryAlertActivities(
-    alertId: string,
-    opts: {
-      activityType?: string;
-      pageSize?: number;
-      exclusiveStartKey?: AlertActivityExclusiveStartKey;
-    },
-  ): Promise<{
-    items: AlertActivityRecord[];
-    lastEvaluatedKey?: AlertActivityExclusiveStartKey;
-  }> {
+  async queryAlertActivities(alertId: string): Promise<AlertActivityRecord[]> {
     assertAlertTableConfigured();
-    const limit = Math.min(Math.max(opts.pageSize ?? 50, 1), 100);
+    const out: AlertActivityRecord[] = [];
+    const batchSize = 100;
+    let exclusiveStartKey: Record<string, AttributeValue> | undefined;
 
-    const res = await client.send(
-      new QueryCommand({
-        TableName: TABLE,
-        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :act)',
-        ...(opts.activityType
-          ? {
-              FilterExpression: 'activityType = :atype',
-              ExpressionAttributeValues: {
-                ...ddbMarshal({
-                  ':pk': `ALERT#${alertId}`,
-                  ':act': ACTIVITY_SK_PREFIX,
-                  ':atype': opts.activityType,
-                }),
-              },
-            }
-          : {
-              ExpressionAttributeValues: ddbMarshal({
-                ':pk': `ALERT#${alertId}`,
-                ':act': ACTIVITY_SK_PREFIX,
-              }),
-            }),
-        Limit: limit,
-        ScanIndexForward: false,
-        ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
-      }),
-    );
+    do {
+      const res = await client.send(
+        new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'pk = :pk AND begins_with(sk, :act)',
+          ExpressionAttributeValues: ddbMarshal({
+            ':pk': `ALERT#${alertId}`,
+            ':act': ACTIVITY_SK_PREFIX,
+          }),
+          Limit: batchSize,
+          ScanIndexForward: false,
+          ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+        }),
+      );
 
-    const items = (res.Items ?? []).map((i) => toPublicActivity(unmarshall(i) as Record<string, unknown>));
+      for (const i of res.Items ?? []) {
+        out.push(toPublicActivity(unmarshall(i) as Record<string, unknown>));
+      }
 
-    return {
-      items,
-      ...(res.LastEvaluatedKey ? { lastEvaluatedKey: res.LastEvaluatedKey } : {}),
-    };
+      exclusiveStartKey = res.LastEvaluatedKey;
+    } while (exclusiveStartKey);
+
+    return out;
   }
 
   /**

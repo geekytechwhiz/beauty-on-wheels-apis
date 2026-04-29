@@ -8,8 +8,6 @@ import {
 
   type AlertActivityRecord,
 
-  type AlertActivityExclusiveStartKey,
-
   type AlertRecord,
 
   type CreateAlertInput,
@@ -234,23 +232,12 @@ export class AlertService {
   }
 
   /**
-   * Paginated activity timeline for an alert. Returns null if the alert is missing or not in `organizationId`.
+   * Full activity timeline for an alert (all rows). Returns null if the alert is missing or not in `organizationId`.
    */
-  async listAlertActivity(
-    alertId: string,
-    organizationId: string,
-    q: {
-      activityType?: string;
-      pageSize?: number;
-      exclusiveStartKey?: AlertActivityExclusiveStartKey;
-    },
-  ): Promise<{
-    items: AlertActivityRecord[];
-    lastEvaluatedKey?: AlertActivityExclusiveStartKey;
-  } | null> {
+  async listAlertActivity(alertId: string, organizationId: string): Promise<AlertActivityRecord[] | null> {
     const alert = await this.getAlert(alertId, organizationId);
     if (!alert) return null;
-    return this.repo.queryAlertActivities(alertId, q);
+    return this.repo.queryAlertActivities(alertId);
   }
 
 

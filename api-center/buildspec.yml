@@ -5,9 +5,8 @@ env:
     NODE_ENV: production
     AWS_REGION: us-east-1
 
-    # 🔑 REQUIRED VARIABLES
     LAMBDA_NAME: cf-basic-auth
-    ROLE_NAME: dev-developer-hub-dev-us-east-1-lambdaRole
+    ROLE_NAME: developer-hub-dev-us-east-1-lambdaRole
     DISTRIBUTION_ID: E2IR80EP36T2RA
 
     KEEP_LAST_N: 2
@@ -18,81 +17,69 @@ phases:
     runtime-versions:
       nodejs: 22
     commands:
-      - echo "Using Node $(node --version)"
-      - echo "Using npm $(npm --version)"
-      - echo "Installing jq..."
+      - echo "Node: $(node --version)"
+      - echo "NPM: $(npm --version)"
       - apt-get update && apt-get install -y jq zip
 
   pre_build:
     commands:
-      - echo "Installing api-center dependencies..."
+      - echo "Installing dependencies..."
       - npm --prefix api-center install --include=dev
-
-      - echo "Installing cleanup dependencies..."
       - npm install @aws-sdk/client-lambda
 
   build:
     commands:
-      - echo "Building frontend (api-center)..."
+      - echo "Building frontend..."
       - npm --prefix api-center run build
 
   post_build:
     commands:
-      - echo "Starting Lambda version cleanup..."
+      - echo "Running cleanup..."
       - node ./scripts/lambda-version.cleanup.js || true
-      - echo "Cleanup done"
 
       # -----------------------------
-      # 🔍 DEBUG + VALIDATION
+      # 🔍 Validate ENV
       # -----------------------------
-      - echo "Validating environment variables..."
+      - echo "Validating environment..."
       - echo "LAMBDA_NAME=$LAMBDA_NAME"
       - echo "ROLE_NAME=$ROLE_NAME"
       - echo "DISTRIBUTION_ID=$DISTRIBUTION_ID"
-      - echo "AWS_REGION=$AWS_REGION"
-
-      - : "${LAMBDA_NAME:?LAMBDA_NAME is required}"
-      - : "${ROLE_NAME:?ROLE_NAME is required}"
-      - : "${DISTRIBUTION_ID:?DISTRIBUTION_ID is required}"
+      - : "${LAMBDA_NAME:?Missing}"
+      - : "${ROLE_NAME:?Missing}"
+      - : "${DISTRIBUTION_ID:?Missing}"
 
       # -----------------------------
-      # 🧾 ACCOUNT ID
+      # 🧾 Account ID
       # -----------------------------
       - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - echo "ACCOUNT_ID=$ACCOUNT_ID"
 
       # -----------------------------
-      # 🔐 CREATE IAM ROLE
+      # 🔐 Ensure IAM Role Exists
       # -----------------------------
       - |
         if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
-          echo "IAM role exists"
+          echo "IAM role already exists: $ROLE_NAME"
         else
-          echo "Creating IAM role..."
+          echo "Creating IAM role: $ROLE_NAME"
           echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":["lambda.amazonaws.com","edgelambda.amazonaws.com"]},"Action":"sts:AssumeRole"}]}' > trust.json
-
           aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document file://trust.json
-
           aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
           echo "Waiting for IAM propagation..."
           sleep 15
         fi
 
       # -----------------------------
-      # 📦 PACKAGE LAMBDA
+      # 📦 Package Lambda
       # -----------------------------
       - echo "Packaging Lambda..."
-      - ls -la api-center/edge-auth
       - cd api-center/edge-auth
       - zip -r function.zip . >/dev/null
       - cd -
 
       # -----------------------------
-      # 🚀 DEPLOY LAMBDA
+      # 🚀 Deploy Lambda
       # -----------------------------
-      - echo "Deploying Lambda..."
-
       - |
         if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$AWS_REGION" >/dev/null 2>&1; then
           echo "Updating Lambda..."
@@ -103,48 +90,31 @@ phases:
         fi
 
       # -----------------------------
-      # 📌 PUBLISH VERSION (MANDATORY)
+      # 📌 Publish Version
       # -----------------------------
-      - echo "Publishing Lambda version..."
-
-      - |
-        VERSION=$(aws lambda publish-version --function-name "$LAMBDA_NAME" --region "$AWS_REGION" --query 'Version' --output text)
-        echo "Lambda version: $VERSION"
+      - VERSION=$(aws lambda publish-version --function-name "$LAMBDA_NAME" --region "$AWS_REGION" --query 'Version' --output text)
+      - echo "Lambda Version: $VERSION"
 
       # -----------------------------
-      # 🌍 UPDATE CLOUDFRONT
+      # 🌍 Update CloudFront
       # -----------------------------
-      - echo "Updating CloudFront distribution..."
+      - echo "Updating CloudFront..."
 
       - aws cloudfront get-distribution-config --id "$DISTRIBUTION_ID" > cf.json
-
-      - export ETAG=$(jq -r '.ETag' cf.json)
-      - jq '.DistributionConfig' cf.json > dist-config.json
+      - ETAG=$(jq -r '.ETag' cf.json)
+      - jq '.DistributionConfig' cf.json > dist.json
 
       - |
         LAMBDA_ARN="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$LAMBDA_NAME:$VERSION"
         echo "Lambda ARN: $LAMBDA_ARN"
+        jq ".DefaultCacheBehavior.LambdaFunctionAssociations = {\"Quantity\":1,\"Items\":[{\"EventType\":\"viewer-request\",\"LambdaFunctionARN\":\"$LAMBDA_ARN\"}]}" dist.json > updated.json
 
-      - |
-        jq "
-        .DefaultCacheBehavior.LambdaFunctionAssociations = {
-          Quantity: 1,
-          Items: [{
-            EventType: \"viewer-request\",
-            LambdaFunctionARN: \"$LAMBDA_ARN\"
-          }]
-        }
-        " dist-config.json > updated-config.json
-
-      - aws cloudfront update-distribution --id "$DISTRIBUTION_ID" --if-match "$ETAG" --distribution-config file://updated-config.json
-
-      - echo "CloudFront updated"
+      - aws cloudfront update-distribution --id "$DISTRIBUTION_ID" --if-match "$ETAG" --distribution-config file://updated.json
 
       # -----------------------------
-      # 🔄 INVALIDATE CACHE
+      # 🔄 Invalidate Cache
       # -----------------------------
-      - echo "Invalidating CloudFront cache..."
-
+      - echo "Invalidating cache..."
       - aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
 
 artifacts:

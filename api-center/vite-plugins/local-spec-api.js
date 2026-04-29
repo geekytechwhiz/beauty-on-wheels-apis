@@ -32,13 +32,13 @@ export function localSpecApiPlugin(options) {
     function attachHandler(rootDir) {
         return (req, res, next) => {
             const url = req.url?.split('?')[0] ?? '';
-            if (!url.startsWith('/__api-center/specs')) {
+            if (!url.startsWith('/__api-center/specs-store')) {
                 next();
                 return;
             }
             void (async () => {
                 try {
-                    const pathname = url.replace('/__api-center/specs', '') || '/';
+                    const pathname = url.replace('/__api-center/specs-store', '') || '/';
                     const activeStore = ensureStore(rootDir);
                     if (req.method === 'GET' && pathname === '/catalog') {
                         sendJson(res, 200, activeStore.getCatalog());

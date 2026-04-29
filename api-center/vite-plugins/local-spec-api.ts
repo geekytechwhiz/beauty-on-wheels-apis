@@ -44,14 +44,14 @@ export function localSpecApiPlugin(options: { enabled: boolean; specsPrefix?: st
   function attachHandler(rootDir: string) {
     return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
       const url = req.url?.split('?')[0] ?? '';
-      if (!url.startsWith('/__api-center/specs')) {
+      if (!url.startsWith('/__api-center/specs-store')) {
         next();
         return;
       }
 
       void (async () => {
         try {
-          const pathname = url.replace('/__api-center/specs', '') || '/';
+          const pathname = url.replace('/__api-center/specs-store', '') || '/';
           const activeStore = ensureStore(rootDir);
 
           if (req.method === 'GET' && pathname === '/catalog') {

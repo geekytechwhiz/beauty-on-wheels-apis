@@ -26,10 +26,14 @@ function buildCreateAlertPayload(
   actorUserId: string | undefined,
   body: CreateAlertHttpBody,
 ): CreateAlertPayload {
+  const ev = body.evidencePayload;
   return {
     organizationId: orgId,
     actorUserId,
     ...body,
+    appliesToType: ev.appliesToType,
+    linkedEntityCode: ev.linkedEntityCode,
+    evidencePayload: { ...ev },
   };
 }
 

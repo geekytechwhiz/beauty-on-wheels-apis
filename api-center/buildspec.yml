@@ -6,7 +6,7 @@ env:
     AWS_REGION: us-east-1
     LAMBDA_NAME: developer-hub-dev-basic-auth
     ROLE_NAME: developer-hub-dev-us-east-1-lambdaRole
-    DISTRIBUTION_ID: E2IR80EP36T2RA
+    DISTRIBUTION_ID: EWGY1JYSRFKJQ
     KEEP_LAST_N: 2
     DRY_RUN: false
 

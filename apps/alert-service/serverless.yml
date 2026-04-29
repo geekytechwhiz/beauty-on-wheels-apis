@@ -209,22 +209,31 @@ functions:
             "422": Validation or business rule error
             "500": Server error
 
+  getAlert:
+    handler: src/handlers/http/getAlert.main
+    events:
+      - http:
+          path: alerts/{alertId}
+          method: get
+          summary: Get alert by id
+          description: Alert detail for the authenticated organization (tenant from JWT only).
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "500": Server error
+
   # --- Other HTTP APIs: uncomment when ready ---
-  # getAlert:
-  #   handler: src/handlers/http/getAlert.main
-  #   events:
-  #     - http:
-  #         path: /alerts/{alertId}
-  #         method: get
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #
   # listPatientAlerts:
   #   handler: src/handlers/http/listPatientAlerts.main
   #   events:

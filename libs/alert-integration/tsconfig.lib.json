@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "baseUrl": "../..",
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
@@ -15,7 +15,8 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../alert-repository/tsconfig.lib.json" }
+    { "path": "../alert-repository/tsconfig.lib.json" },
+    { "path": "../logger/tsconfig.lib.json" }
   ],
   "exclude": [
     "jest.config.ts",

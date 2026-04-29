@@ -26,6 +26,17 @@ import type { CreateAlertPayload } from './create-alert.types';
 
 const log = createLogger({ service: 'alert-service', redactPII: true });
 
+/** Compare stored org id with JWT org (either may use optional `ORG#` prefix). */
+function organizationIdsMatch(recordOrg: string | undefined, requestOrg: string): boolean {
+  if (!recordOrg?.trim() || !requestOrg.trim()) return false;
+  const norm = (id: string) =>
+    id
+      .trim()
+      .replace(/^ORG#/i, '')
+      .toLowerCase();
+  return norm(recordOrg) === norm(requestOrg);
+}
+
 
 
 /**
@@ -208,10 +219,14 @@ export class AlertService {
 
 
 
-  getAlert(alertId: string): Promise<AlertRecord | null> {
-
-    return this.repo.getAlertById(alertId);
-
+  /**
+   * Loads `ALERT#id` / `METADATA`. Returns null if missing or if `organizationId` does not own the alert.
+   */
+  async getAlert(alertId: string, organizationId: string): Promise<AlertRecord | null> {
+    const row = await this.repo.getAlertById(alertId);
+    if (!row) return null;
+    if (!organizationIdsMatch(row.organizationId, organizationId)) return null;
+    return row;
   }
 
 

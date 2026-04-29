@@ -14,7 +14,11 @@ import { toAlertDetail, toPublicAlert } from '@api-hub/alert-integration';
 import { getAlertService } from '../services/alert-app.service';
 import { patchAlertBodySchema, type CreateAlertHttpBody } from '../validators/alert.schemas';
 import { validateCreateAlertRequest, type ValidatedCreateAlert } from '../validation/request.validators';
-import { getAuthorizationForGatewayEvent, getLambdaInvocationMeta } from '../utils/helpers';
+import {
+  getAuthorizationForGatewayEvent,
+  getLambdaInvocationMeta,
+  getOrganizationIdForRequest,
+} from '../utils/helpers';
 import { normalizeAlertServiceError } from '../utils/alert-http-errors';
 
 const controllerBaseLogger = createLogger({ service: 'alert-service', redactPII: true });
@@ -136,9 +140,20 @@ export class AlertHttpController {
   async handleGetAlert(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
     if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
-    const row = await this.svc.getAlert(alertId);
+    const authHeader = req.context.authHeader;
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    if (!orgId) {
+      const e = new Error('Organization could not be resolved from the access token') as Error & {
+        statusCode: number;
+        code?: string;
+      };
+      e.statusCode = 401;
+      e.code = 'UNAUTHORIZED';
+      throw e;
+    }
+    const row = await this.svc.getAlert(alertId, orgId);
     if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
-    return { alert: toPublicAlert(row) };
+    return toAlertDetail(row);
   }
 
   async handleListPatientAlerts(req: LambdaRequest) {

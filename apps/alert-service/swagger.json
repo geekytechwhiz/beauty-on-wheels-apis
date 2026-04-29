@@ -239,6 +239,60 @@
         },
         "slaBreachIndicator": { "type": "boolean" }
       }
+    },
+    "ActivityType": {
+      "type": "string",
+      "enum": [
+        "ALERT_CREATED",
+        "ALERT_GROUPED",
+        "ALERT_ASSIGNED",
+        "ALERT_REASSIGNED",
+        "ALERT_STATE_CHANGED",
+        "EVIDENCE_ADDED_OR_UPDATED",
+        "ALERT_RESOLVED",
+        "ALERT_DISMISSED",
+        "SLA_BREACHED",
+        "NOTE_ADDED",
+        "PRIORITY_CHANGED"
+      ]
+    },
+    "ActivityRecord": {
+      "type": "object",
+      "description": "One audit / timeline row for an alert.",
+      "properties": {
+        "activityId": { "type": "string" },
+        "alertId": { "type": "string" },
+        "activityType": { "$ref": "#/definitions/ActivityType" },
+        "activityTimestamp": { "type": "string", "format": "date-time" },
+        "performedBy": { "type": "string" },
+        "performedByDisplayName": { "type": "string" },
+        "activityComment": { "type": "string" }
+      }
+    },
+    "PaginatedActivity": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ActivityRecord" }
+        },
+        "nextToken": {
+          "type": "string",
+          "description": "Opaque cursor from a previous response; omit on first page."
+        }
+      }
+    },
+    "SuccessEnvelopePaginatedActivity": {
+      "type": "object",
+      "description": "Standard ApiResponse.ok body; activity list is in `data`.",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "data": { "$ref": "#/definitions/PaginatedActivity" },
+        "error": { "type": "object", "x-nullable": true },
+        "message": { "type": "object" },
+        "meta": { "type": "object" }
+      }
     }
   },
   "paths": {
@@ -305,9 +359,70 @@
         "responses": { "200": { "description": "OK" } }
       }
     },
+    "/alerts/{alertId}/activity": {
+      "get": {
+        "summary": "Get alert activity timeline",
+        "description": "Paginated activity / audit rows for the alert (newest first). Tenant from JWT.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "activityType",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "Filter by activity type",
+            "enum": [
+              "ALERT_CREATED",
+              "ALERT_GROUPED",
+              "ALERT_ASSIGNED",
+              "ALERT_REASSIGNED",
+              "ALERT_STATE_CHANGED",
+              "EVIDENCE_ADDED_OR_UPDATED",
+              "ALERT_RESOLVED",
+              "ALERT_DISMISSED",
+              "SLA_BREACHED",
+              "NOTE_ADDED",
+              "PRIORITY_CHANGED"
+            ]
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 100
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "Cursor from prior response `data.nextToken`"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — paginated activity in response body `data`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopePaginatedActivity" }
+          },
+          "400": { "description": "Invalid pageSize or nextToken" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Alert not found" }
+        }
+      }
+    },
     "/patients/{patientId}/alerts": {
       "get": {
-        "summary": "List alerts for patient (GSI1)",
+        "summary": "List alerts for one patient (patient timeline)",
+        "description": "Patient-scoped list (GSI-3). For org-wide Team Queue or My Alerts, use GET /alerts with queue=TEAM or MY (when that route is exposed).",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {

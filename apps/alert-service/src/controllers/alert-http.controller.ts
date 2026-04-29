@@ -11,6 +11,7 @@ import type { AppError, LambdaRequest } from '@api-hub/utils';
 import { ApiResponse, apiGatewayResponseOptions, buildRequestContext, handleError } from '@api-hub/utils';
 import type { AlertState, CreateAlertPayload } from '@api-hub/alert-integration';
 import { toAlertDetail, toPublicAlert } from '@api-hub/alert-integration';
+import type { AlertActivityExclusiveStartKey } from '@api-hub/alert-repository';
 import { getAlertService } from '../services/alert-app.service';
 import { patchAlertBodySchema, type CreateAlertHttpBody } from '../validators/alert.schemas';
 import { validateCreateAlertRequest, type ValidatedCreateAlert } from '../validation/request.validators';
@@ -154,6 +155,60 @@ export class AlertHttpController {
     const row = await this.svc.getAlert(alertId, orgId);
     if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
     return toAlertDetail(row);
+  }
+
+  async handleGetAlertActivity(req: LambdaRequest) {
+    const alertId = req.pathParameters?.alertId;
+    if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
+    const authHeader = req.context.authHeader;
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    if (!orgId) {
+      const e = new Error('Organization could not be resolved from the access token') as Error & {
+        statusCode: number;
+        code?: string;
+      };
+      e.statusCode = 401;
+      e.code = 'UNAUTHORIZED';
+      throw e;
+    }
+    const qp = req.params as Record<string, string | undefined>;
+    const activityType = qp.activityType?.trim() || undefined;
+    const pageSizeRaw = qp.pageSize;
+    const pageSize =
+      pageSizeRaw !== undefined && pageSizeRaw !== '' ? Number(pageSizeRaw) : undefined;
+    if (
+      pageSize !== undefined &&
+      (Number.isNaN(pageSize) || !Number.isFinite(pageSize) || pageSize < 1 || pageSize > 100)
+    ) {
+      throw Object.assign(new Error('pageSize must be between 1 and 100'), { statusCode: 400 });
+    }
+
+    let exclusiveStartKey: AlertActivityExclusiveStartKey | undefined;
+    if (qp.nextToken) {
+      try {
+        exclusiveStartKey = JSON.parse(
+          Buffer.from(qp.nextToken, 'base64url').toString('utf8'),
+        ) as AlertActivityExclusiveStartKey;
+      } catch {
+        throw Object.assign(new Error('Invalid nextToken'), { statusCode: 400 });
+      }
+    }
+
+    const page = await this.svc.listAlertActivity(alertId, orgId, {
+      activityType,
+      pageSize,
+      exclusiveStartKey,
+    });
+    if (!page) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+
+    const nextToken = page.lastEvaluatedKey
+      ? Buffer.from(JSON.stringify(page.lastEvaluatedKey), 'utf8').toString('base64url')
+      : undefined;
+
+    return {
+      items: page.items,
+      ...(nextToken ? { nextToken } : {}),
+    };
   }
 
   async handleListPatientAlerts(req: LambdaRequest) {

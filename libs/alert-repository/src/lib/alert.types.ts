@@ -87,3 +87,21 @@ export interface UpdateAlertInput {
   assignedToUserId?: string | null;
   slaBreachIndicator?: boolean;
 }
+
+/** Single activity row under `ALERT#<id>` / `ACTIVITY#…` — API shape (no Dynamo keys). */
+export interface AlertActivityRecord {
+  activityId: string;
+  alertId: string;
+  activityType: string;
+  activityTimestamp: string;
+  performedBy: string;
+  performedByDisplayName?: string;
+  activityComment?: string;
+  previousState?: AlertState;
+  newState?: AlertState;
+  previousPriority?: PriorityBand;
+  newPriority?: PriorityBand;
+  previousAssignee?: string;
+  newAssignee?: string;
+  evidencePayload?: Record<string, unknown>;
+}

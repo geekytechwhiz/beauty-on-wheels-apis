@@ -10,7 +10,7 @@
     "fhir-gateway:offline:dev:watch": "cd services/fhir-gateway && pnpm run offline:dev:watch",
     "authorizer-service:offline": "cd services/authorizer-service && serverless offline",
     "build:all": "nx run many --target=build --all",
-    "alert-service:offline": "cd apps/alert-service && npx nodemon --watch src --watch serverless.yml --ext ts,js,yml,json --exec \"npx --no-install serverless offline --stage dev\"",
+    "alert-service:offline": "cd apps/alert-service && npx nodemon --watch src --ext ts,js,yml,json --exec \"serverless offline --stage dev\"",
     "aggregator:backend:dev": "pnpm --filter @api-hub/api-aggregator-backend dev",
     "aggregator:backend:build": "pnpm --filter @api-hub/api-aggregator-backend build",
     "aggregator:backend:start": "pnpm --filter @api-hub/api-aggregator-backend start",

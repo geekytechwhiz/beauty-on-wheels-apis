@@ -5,10 +5,16 @@ import {
   QueryCommand,
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
-import type { TransactWriteItem } from '@aws-sdk/client-dynamodb';
+import type { AttributeValue, TransactWriteItem } from '@aws-sdk/client-dynamodb';
 import { marshall as awsMarshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
-import type { AlertRecord, AlertState, CreateAlertInput, UpdateAlertInput } from './alert.types';
+import type {
+  AlertActivityRecord,
+  AlertRecord,
+  AlertState,
+  CreateAlertInput,
+  UpdateAlertInput,
+} from './alert.types';
 
 /** `marshall` throws on `undefined` property values; Dynamo attributes omit if removed. */
 function ddbMarshal(data: unknown) {
@@ -27,6 +33,7 @@ function assertAlertTableConfigured(): void {
 
 const ALERT_SK = 'METADATA';
 const EVENT_SK = 'METADATA';
+const ACTIVITY_SK_PREFIX = 'ACTIVITY#';
 
 /** Adds minutes in UTC and returns ISO-8601 (used for SLA due timestamps). */
 function addMinutesIso(iso: string, minutes: number): string {
@@ -120,6 +127,20 @@ function isGroupPutConditionalRace(err: unknown): boolean {
   return (err.CancellationReasons ?? [])[GROUP_TRANSACT_ITEM_INDEX]?.Code === 'ConditionalCheckFailed';
 }
 
+/** DynamoDB `ExclusiveStartKey` / `LastEvaluatedKey` for {@link AlertRepository.queryAlertActivities}. */
+export type AlertActivityExclusiveStartKey = Record<string, AttributeValue>;
+
+function toPublicActivity(raw: Record<string, unknown>): AlertActivityRecord {
+  const {
+    pk: _pk,
+    sk: _sk,
+    entityType: _entityType,
+    organizationId: _organizationId,
+    ...rest
+  } = raw;
+  return rest as unknown as AlertActivityRecord;
+}
+
 export type EventIdResolution = 'missing' | 'foreign_org' | AlertRecord;
 
 /**
@@ -177,6 +198,59 @@ export class AlertRepository {
     );
     if (!res.Item) return null;
     return unmarshall(res.Item) as AlertRecord;
+  }
+
+  /**
+   * Activity timeline: query `ALERT#<alertId>` with `sk` beginning `ACTIVITY#` (newest first).
+   * Caller must enforce tenant access (e.g. `AlertService` after `getAlert`).
+   */
+  async queryAlertActivities(
+    alertId: string,
+    opts: {
+      activityType?: string;
+      pageSize?: number;
+      exclusiveStartKey?: AlertActivityExclusiveStartKey;
+    },
+  ): Promise<{
+    items: AlertActivityRecord[];
+    lastEvaluatedKey?: AlertActivityExclusiveStartKey;
+  }> {
+    assertAlertTableConfigured();
+    const limit = Math.min(Math.max(opts.pageSize ?? 50, 1), 100);
+
+    const res = await client.send(
+      new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :act)',
+        ...(opts.activityType
+          ? {
+              FilterExpression: 'activityType = :atype',
+              ExpressionAttributeValues: {
+                ...ddbMarshal({
+                  ':pk': `ALERT#${alertId}`,
+                  ':act': ACTIVITY_SK_PREFIX,
+                  ':atype': opts.activityType,
+                }),
+              },
+            }
+          : {
+              ExpressionAttributeValues: ddbMarshal({
+                ':pk': `ALERT#${alertId}`,
+                ':act': ACTIVITY_SK_PREFIX,
+              }),
+            }),
+        Limit: limit,
+        ScanIndexForward: false,
+        ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
+      }),
+    );
+
+    const items = (res.Items ?? []).map((i) => toPublicActivity(unmarshall(i) as Record<string, unknown>));
+
+    return {
+      items,
+      ...(res.LastEvaluatedKey ? { lastEvaluatedKey: res.LastEvaluatedKey } : {}),
+    };
   }
 
   /**

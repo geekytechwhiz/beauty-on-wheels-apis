@@ -6,6 +6,10 @@ import {
 
   AlertRepository,
 
+  type AlertActivityRecord,
+
+  type AlertActivityExclusiveStartKey,
+
   type AlertRecord,
 
   type CreateAlertInput,
@@ -227,6 +231,26 @@ export class AlertService {
     if (!row) return null;
     if (!organizationIdsMatch(row.organizationId, organizationId)) return null;
     return row;
+  }
+
+  /**
+   * Paginated activity timeline for an alert. Returns null if the alert is missing or not in `organizationId`.
+   */
+  async listAlertActivity(
+    alertId: string,
+    organizationId: string,
+    q: {
+      activityType?: string;
+      pageSize?: number;
+      exclusiveStartKey?: AlertActivityExclusiveStartKey;
+    },
+  ): Promise<{
+    items: AlertActivityRecord[];
+    lastEvaluatedKey?: AlertActivityExclusiveStartKey;
+  } | null> {
+    const alert = await this.getAlert(alertId, organizationId);
+    if (!alert) return null;
+    return this.repo.queryAlertActivities(alertId, q);
   }
 
 

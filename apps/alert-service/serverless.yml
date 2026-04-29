@@ -235,6 +235,31 @@ functions:
             "404": Not found
             "500": Server error
 
+  getAlertActivity:
+    handler: src/handlers/http/getAlertActivity.main
+    events:
+      - http:
+          path: alerts/{alertId}/activity
+          method: get
+          summary: Get alert activity timeline
+          description: Paginated activity / audit rows for the alert (tenant from JWT only).
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "500": Server error
+
   # --- Other HTTP APIs: uncomment when ready ---
   # listPatientAlerts:
   #   handler: src/handlers/http/listPatientAlerts.main

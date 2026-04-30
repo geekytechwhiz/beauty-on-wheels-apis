@@ -95,7 +95,8 @@ custom:
       - '.json'
     loader:
       '.json': json
-  cors:
+  # Anchor so IDE schema sees a real object + array (not Serverless vars, which validate as strings).
+  defaultHttpCors: &defaultHttpCors
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
       - Content-Type
@@ -111,7 +112,7 @@ functions:
       - http:
           path: health
           method: get
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   postMetadata:
     handler: src/handlers/postMetadata.main
@@ -119,7 +120,7 @@ functions:
       - http:
           path: metadata/{entityType}
           method: post
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   patchMetadataStatus:
     handler: src/handlers/patchMetadataStatus.main
@@ -127,7 +128,7 @@ functions:
       - http:
           path: metadata/{entityType}/status
           method: patch
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   getMetadata:
     handler: src/handlers/getMetadata.main
@@ -135,7 +136,7 @@ functions:
       - http:
           path: metadata/{entityType}
           method: get
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   listMetadata:
     handler: src/handlers/listMetadata.main
@@ -143,7 +144,7 @@ functions:
       - http:
           path: metadata/{entityType}/list
           method: get
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   listMetadataAudit:
     handler: src/handlers/listMetadataAudit.main
@@ -151,7 +152,7 @@ functions:
       - http:
           path: metadata/{entityType}/audit
           method: get
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   postMetadataRelation:
     handler: src/handlers/postRelation.main
@@ -159,7 +160,7 @@ functions:
       - http:
           path: metadata/relations
           method: post
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   getMetadataRelations:
     handler: src/handlers/getRelations.main
@@ -167,7 +168,7 @@ functions:
       - http:
           path: metadata/relations
           method: get
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   getMetadataRelatedValues:
     handler: src/handlers/getRelatedValues.main
@@ -175,7 +176,7 @@ functions:
       - http:
           path: metadata/values/related
           method: get
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
   patchMetadataRelation:
     handler: src/handlers/patchRelation.main
@@ -183,4 +184,4 @@ functions:
       - http:
           path: metadata/relations/{id}
           method: patch
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors

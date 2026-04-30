@@ -1,0 +1,479 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Alert service — UI integration (requests and responses)",
+  "description": "Per-operation request/response reference aligned with open-api.yaml (`components.schemas`). Organization scope is from the JWT only.",
+  "openApiRef": "./open-api.yaml",
+  "basePathNote": "Replace `{baseUrl}` with deployed API base.",
+  "common": {
+    "headers": {
+      "request": {
+        "Authorization": "Bearer <JWT>",
+        "Content-Type": "application/json (POST bodies only)"
+      }
+    },
+    "successEnvelope": {
+      "description": "SuccessResponse: `data` is required. Optional: `meta`, `links`, `requestId`, `message`.",
+      "openapiSchema": "SuccessResponse"
+    },
+    "errorEnvelope": {
+      "description": "RFC 7807-style ProblemDetails (application/problem+json where noted in OpenAPI).",
+      "openapiSchema": "ProblemDetails",
+      "typicalFields": ["title", "status", "detail", "code", "correlationId", "errors"]
+    }
+  },
+  "operations": {
+    "createAlert": {
+      "operationId": "createAlert",
+      "request": {
+        "method": "POST",
+        "path": "{baseUrl}/alerts",
+        "bodyContentType": "application/json",
+        "strictBody": true,
+        "requiredFields": [
+          "inputEventId",
+          "inputType",
+          "sourceType",
+          "patientId",
+          "triggerTimestamp",
+          "evidencePayload"
+        ],
+        "optionalFields": [
+          "carePlanInstanceId",
+          "packageAssignmentId",
+          "severityHint",
+          "priority",
+          "alertPolicyTemplateVersionId",
+          "thresholdTemplateVersionId",
+          "groupingKey",
+          "triggerSummary",
+          "triggerSummaryTemplateCode",
+          "triggerSummaryParams"
+        ],
+        "rules": [
+          "inputType: MISSED_READING | MISSING_DEVICE",
+          "sourceType must equal evidencePayload.source",
+          "evidencePayload.inputType must equal top-level inputType",
+          "evidencePayload strict (variant fields only)",
+          "triggerSummaryTemplateCode set ⇒ triggerSummaryParams required (may be {})"
+        ],
+        "sampleBodyMissedReading": {
+          "inputEventId": "ui-create-001",
+          "inputType": "MISSED_READING",
+          "sourceType": "USER_INTERFACE",
+          "patientId": "pat-123",
+          "triggerTimestamp": "2026-01-15T14:30:00.000Z",
+          "severityHint": "MEDIUM",
+          "priority": "P2",
+          "triggerSummary": "No BP reading for 3 days",
+          "evidencePayload": {
+            "eventTimestamp": "2026-01-15T14:30:00.000Z",
+            "source": "USER_INTERFACE",
+            "inputType": "MISSED_READING",
+            "appliesToType": "VITAL_SIGN",
+            "linkedEntityCode": "BP_SYSTOLIC",
+            "lastSuccessfulReadingTimestamp": "2026-01-12T09:00:00.000Z",
+            "missedDuration": "P3D",
+            "readingType": "BLOOD_PRESSURE"
+          }
+        },
+        "sampleBodyMissingDevice": {
+          "inputEventId": "ui-create-002",
+          "inputType": "MISSING_DEVICE",
+          "sourceType": "USER_INTERFACE",
+          "patientId": "pat-456",
+          "triggerTimestamp": "2026-01-15T14:30:00.000Z",
+          "evidencePayload": {
+            "eventTimestamp": "2026-01-15T14:30:00.000Z",
+            "source": "USER_INTERFACE",
+            "inputType": "MISSING_DEVICE",
+            "appliesToType": "DEVICE",
+            "linkedEntityCode": "WEIGHING_SCALE",
+            "deviceLinked": false
+          }
+        }
+      },
+      "response": {
+        "openapiSchemas": {
+          "successData": "AlertDetail",
+          "envelope": "SuccessResponseAlertDetail"
+        },
+        "success": {
+          "status": 201,
+          "description": "Alert created. Optional Location header: /alerts/{alertId}",
+          "contentType": "application/json",
+          "sample": {
+            "data": {
+              "alertId": "alt_01HZ8QX3example",
+              "inputEventId": "ui-create-001",
+              "orgId": "org_01",
+              "priority": "P2",
+              "alertState": "UNASSIGNED",
+              "inputType": "MISSED_READING",
+              "sourceType": "USER_INTERFACE",
+              "triggerSummary": "No BP reading for 3 days",
+              "triggerTimestamp": "2026-01-15T14:30:00.000Z",
+              "groupingKey": "pat-123|MISSED_READING|BP_SYSTOLIC",
+              "groupId": "grp_01",
+              "patientId": "pat-123",
+              "patientName": "Jane Doe",
+              "assignedToUserId": null,
+              "assignedToDisplayName": "",
+              "slaBreachIndicator": false,
+              "assignSlaDueAt": "2026-01-15T15:30:00.000Z",
+              "resolveSlaDueAt": null,
+              "createdAt": "2026-01-15T14:31:00.000Z",
+              "evidencePayload": {
+                "eventTimestamp": "2026-01-15T14:30:00.000Z",
+                "source": "USER_INTERFACE",
+                "inputType": "MISSED_READING",
+                "appliesToType": "VITAL_SIGN",
+                "linkedEntityCode": "BP_SYSTOLIC",
+                "lastSuccessfulReadingTimestamp": "2026-01-12T09:00:00.000Z",
+                "missedDuration": "P3D",
+                "readingType": "BLOOD_PRESSURE"
+              },
+              "assignSla": 60,
+              "resolveSla": 1440
+            },
+            "requestId": "req-abc123",
+            "message": "Operation completed successfully"
+          }
+        },
+        "conflict": {
+          "status": 409,
+          "description": "Idempotent replay — same inputEventId for org; existing alert in data",
+          "contentType": "application/json",
+          "openapiSchema": "SuccessResponseAlertDetail",
+          "sample": {
+            "data": {
+              "alertId": "alt_existing_same_event",
+              "inputEventId": "ui-create-001",
+              "orgId": "org_01",
+              "priority": "P2",
+              "alertState": "ASSIGNED",
+              "inputType": "MISSED_READING",
+              "sourceType": "USER_INTERFACE",
+              "triggerSummary": "No BP reading for 3 days",
+              "triggerTimestamp": "2026-01-15T14:30:00.000Z",
+              "patientId": "pat-123",
+              "patientName": "Jane Doe",
+              "assignedToUserId": "usr_01",
+              "assignedToDisplayName": "Clinical Staff",
+              "slaBreachIndicator": false,
+              "createdAt": "2026-01-15T14:31:00.000Z",
+              "evidencePayload": {
+                "eventTimestamp": "2026-01-15T14:30:00.000Z",
+                "source": "USER_INTERFACE",
+                "inputType": "MISSED_READING",
+                "appliesToType": "VITAL_SIGN",
+                "linkedEntityCode": "BP_SYSTOLIC",
+                "lastSuccessfulReadingTimestamp": "2026-01-12T09:00:00.000Z",
+                "missedDuration": "P3D",
+                "readingType": "BLOOD_PRESSURE"
+              }
+            },
+            "requestId": "req-xyz789"
+          }
+        },
+        "errors": [
+          {
+            "status": 400,
+            "openapiResponse": "BadRequest",
+            "sample": {
+              "title": "Validation failed",
+              "status": 400,
+              "detail": "Invalid request data",
+              "code": "VALIDATION_ERROR",
+              "correlationId": "req-123",
+              "errors": [{ "field": "evidencePayload", "message": "Strict object: unknown key" }]
+            }
+          },
+          { "status": 401, "description": "Unauthorized" },
+          { "status": 403, "description": "Forbidden" },
+          {
+            "status": 422,
+            "openapiResponse": "UnprocessableEntity",
+            "sample": {
+              "title": "Unprocessable",
+              "status": 422,
+              "detail": "Business rule violation",
+              "code": "INVALID_STATE_TRANSITION"
+            }
+          },
+          {
+            "status": 500,
+            "openapiResponse": "InternalServerError",
+            "sample": {
+              "title": "Internal error",
+              "status": 500,
+              "detail": "An unexpected error occurred",
+              "code": "INTERNAL_ERROR",
+              "correlationId": "req-123"
+            }
+          }
+        ]
+      }
+    },
+    "listAlerts": {
+      "operationId": "listAlerts",
+      "request": {
+        "method": "GET",
+        "path": "{baseUrl}/alerts",
+        "queryParameters": {
+          "queue": {
+            "default": "TEAM",
+            "enum": ["TEAM", "MY", "PATIENT"],
+            "note": "patientId required if PATIENT; forbidden with TEAM/MY"
+          },
+          "patientId": { "when": "queue=PATIENT only" },
+          "state": {
+            "enum": ["UNASSIGNED", "ASSIGNED", "IN_PROGRESS", "WAITING", "RESOLVED", "DISMISSED"]
+          },
+          "priority": { "enum": ["P0", "P1", "P2", "P3"] },
+          "inputType": { "type": "string" },
+          "assignment": { "enum": ["UNASSIGNED", "ASSIGNED"] },
+          "dateFrom": { "format": "ISO-8601 date-time" },
+          "dateTo": { "format": "ISO-8601 date-time" },
+          "search": { "type": "string" },
+          "pageSize": { "type": "integer", "min": 1, "max": 100, "default": 20 },
+          "nextToken": { "type": "string" }
+        },
+        "sampleQueryStrings": {
+          "teamQueueFirstPage": "queue=TEAM&pageSize=20",
+          "myQueueWithState": "queue=MY&state=IN_PROGRESS",
+          "patientChart": "queue=PATIENT&patientId=pat-123",
+          "filteredTeam": "queue=TEAM&state=UNASSIGNED&assignment=UNASSIGNED&priority=P1&search=Jane"
+        }
+      },
+      "response": {
+        "openapiSchemas": {
+          "successData": "PaginatedAlerts",
+          "item": "AlertSummary",
+          "envelope": "SuccessResponsePaginatedAlerts"
+        },
+        "success": {
+          "status": 200,
+          "contentType": "application/json",
+          "sample": {
+            "data": {
+              "items": [
+                {
+                  "alertId": "alt_01HZ8QX3example",
+                  "priority": "P1",
+                  "alertState": "IN_PROGRESS",
+                  "inputType": "MISSED_READING",
+                  "sourceType": "USER_INTERFACE",
+                  "triggerSummary": "No BP reading for 3 days",
+                  "triggerTimestamp": "2026-01-15T14:30:00.000Z",
+                  "groupingKey": "pat-123|MISSED_READING|BP_SYSTOLIC",
+                  "patientId": "pat-123",
+                  "patientName": "Jane Doe",
+                  "assignedToUserId": "usr_01",
+                  "assignedToDisplayName": "Clinical Staff",
+                  "slaBreachIndicator": false,
+                  "assignSlaDueAt": "2026-01-15T15:30:00.000Z",
+                  "resolveSlaDueAt": "2026-01-16T14:30:00.000Z",
+                  "createdAt": "2026-01-15T14:31:00.000Z"
+                }
+              ],
+              "nextToken": "eyJhbGciOiJIexample"
+            },
+            "requestId": "req-list-1"
+          }
+        },
+        "lastPageNote": "When no more results, `nextToken` may be omitted or null depending on implementation.",
+        "errors": [
+          {
+            "status": 400,
+            "sample": {
+              "title": "Validation failed",
+              "status": 400,
+              "detail": "patientId is required when queue=PATIENT",
+              "code": "VALIDATION_ERROR",
+              "errors": [{ "field": "patientId", "message": "patientId is required when queue=PATIENT" }]
+            }
+          },
+          { "status": 401, "description": "Unauthorized" },
+          { "status": 403, "description": "Forbidden" }
+        ]
+      }
+    },
+    "getAlert": {
+      "operationId": "getAlert",
+      "request": {
+        "method": "GET",
+        "path": "{baseUrl}/alerts/{alertId}",
+        "pathParameters": {
+          "alertId": { "required": true }
+        },
+        "samplePath": "{baseUrl}/alerts/alt_01HZ8QX3example"
+      },
+      "response": {
+        "openapiSchemas": {
+          "successData": "AlertDetail",
+          "envelope": "SuccessResponseAlertDetail"
+        },
+        "success": {
+          "status": 200,
+          "contentType": "application/json",
+          "sample": {
+            "data": {
+              "alertId": "alt_01HZ8QX3example",
+              "inputEventId": "ui-create-001",
+              "orgId": "org_01",
+              "priority": "P2",
+              "alertState": "IN_PROGRESS",
+              "inputType": "MISSED_READING",
+              "sourceType": "USER_INTERFACE",
+              "triggerSummary": "No BP reading for 3 days",
+              "triggerTimestamp": "2026-01-15T14:30:00.000Z",
+              "groupingKey": "pat-123|MISSED_READING|BP_SYSTOLIC",
+              "groupId": "grp_01",
+              "patientId": "pat-123",
+              "patientName": "Jane Doe",
+              "assignedToUserId": "usr_01",
+              "assignedToDisplayName": "Clinical Staff",
+              "slaBreachIndicator": false,
+              "assignSlaDueAt": "2026-01-15T15:30:00.000Z",
+              "resolveSlaDueAt": "2026-01-16T14:30:00.000Z",
+              "createdAt": "2026-01-15T14:31:00.000Z",
+              "assignedAt": "2026-01-15T14:35:00.000Z",
+              "assignedBy": "usr_manager",
+              "statusUpdatedAt": "2026-01-15T14:40:00.000Z",
+              "statusUpdatedBy": "usr_01",
+              "closureComment": null,
+              "resolutionCode": null,
+              "dismissReason": null,
+              "assignSla": 60,
+              "resolveSla": 1440,
+              "assignSlaBreachedAt": null,
+              "resolveSlaBreachedAt": null,
+              "carePlanInstanceId": "cpi_01",
+              "packageAssignmentId": null,
+              "alertPolicyTemplateVersionId": "aptv_01",
+              "thresholdTemplateVersionId": null,
+              "evidencePayload": {
+                "eventTimestamp": "2026-01-15T14:30:00.000Z",
+                "source": "USER_INTERFACE",
+                "inputType": "MISSED_READING",
+                "appliesToType": "VITAL_SIGN",
+                "linkedEntityCode": "BP_SYSTOLIC",
+                "lastSuccessfulReadingTimestamp": "2026-01-12T09:00:00.000Z",
+                "missedDuration": "P3D",
+                "readingType": "BLOOD_PRESSURE"
+              }
+            },
+            "requestId": "req-get-1"
+          }
+        },
+        "errors": [
+          { "status": 401, "description": "Unauthorized" },
+          { "status": 403, "description": "Forbidden" },
+          {
+            "status": 404,
+            "description": "Alert not found or not in org scope",
+            "sample": {
+              "title": "Not Found",
+              "status": 404,
+              "detail": "Alert not found",
+              "code": "NOT_FOUND"
+            }
+          }
+        ]
+      }
+    },
+    "getAlertActivity": {
+      "operationId": "getAlertActivity",
+      "request": {
+        "method": "GET",
+        "path": "{baseUrl}/alerts/{alertId}/activity",
+        "pathParameters": {
+          "alertId": { "required": true }
+        },
+        "samplePath": "{baseUrl}/alerts/alt_01HZ8QX3example/activity",
+        "notes": [
+          "No query parameters; full timeline in one response (newest first per OpenAPI).",
+          "Each item reflects one activity: do not mix assignee, priority, state, and note fields on the same row."
+        ]
+      },
+      "response": {
+        "openapiSchemas": {
+          "successData": "ActivityList",
+          "item": "ActivityRecord",
+          "envelope": "SuccessResponseActivityList"
+        },
+        "success": {
+          "status": 200,
+          "contentType": "application/json",
+          "sample": {
+            "data": {
+              "items": [
+                {
+                  "activityId": "act_005",
+                  "alertId": "alt_01HZ8QX3example",
+                  "activityType": "ALERT_STATE_CHANGED",
+                  "activityTimestamp": "2026-01-15T14:40:00.000Z",
+                  "performedBy": "usr_01",
+                  "performedByDisplayName": "Clinical Staff",
+                  "previousState": "ASSIGNED",
+                  "newState": "IN_PROGRESS"
+                },
+                {
+                  "activityId": "act_004",
+                  "alertId": "alt_01HZ8QX3example",
+                  "activityType": "PRIORITY_CHANGED",
+                  "activityTimestamp": "2026-01-15T14:39:00.000Z",
+                  "performedBy": "usr_manager",
+                  "performedByDisplayName": "Lead Nurse",
+                  "previousPriority": "P3",
+                  "newPriority": "P2"
+                },
+                {
+                  "activityId": "act_003",
+                  "alertId": "alt_01HZ8QX3example",
+                  "activityType": "NOTE_ADDED",
+                  "activityTimestamp": "2026-01-15T14:38:00.000Z",
+                  "performedBy": "usr_02",
+                  "performedByDisplayName": "Ankita Gupta",
+                  "activityComment": "Closing this ticket in this story as the changes will be designed."
+                },
+                {
+                  "activityId": "act_002",
+                  "alertId": "alt_01HZ8QX3example",
+                  "activityType": "ALERT_ASSIGNED",
+                  "activityTimestamp": "2026-01-15T14:35:00.000Z",
+                  "performedBy": "usr_manager",
+                  "performedByDisplayName": "Lead Nurse",
+                  "previousAssignee": null,
+                  "newAssignee": "usr_01"
+                },
+                {
+                  "activityId": "act_001",
+                  "alertId": "alt_01HZ8QX3example",
+                  "activityType": "ALERT_CREATED",
+                  "activityTimestamp": "2026-01-15T14:31:00.000Z",
+                  "performedBy": "SYSTEM",
+                  "performedByDisplayName": "System"
+                }
+              ]
+            },
+            "requestId": "req-activity-1"
+          }
+        },
+        "errors": [
+          { "status": 401, "description": "Unauthorized" },
+          { "status": 403, "description": "Forbidden" },
+          {
+            "status": 404,
+            "sample": {
+              "title": "Not Found",
+              "status": 404,
+              "detail": "Alert not found",
+              "code": "NOT_FOUND"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

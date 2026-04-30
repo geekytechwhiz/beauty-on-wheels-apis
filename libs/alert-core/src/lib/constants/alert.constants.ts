@@ -12,9 +12,11 @@ export const GSI3_PATIENT = 'GSI3' as const;
 export const GSI4_GROUP = 'GSI4' as const;
 export const GSI5_SLA = 'GSI5' as const;
 
-/** Order: EVENT, ALERT, ACTIVITY, GROUP */
+/** Transact item index for conditional idempotency EVENT Put failures. */
 export const TRANSACT_INDEX_EVENT = 0;
-export const TRANSACT_INDEX_GROUP = 3;
+
+/** Base-table `GROUP#` partition: membership rows use `sk` beginning with this prefix. */
+export const GROUP_MEMBERSHIP_SK_PREFIX = 'Alert#' as const;
 
 export const ENV_ALERT_TABLE = 'ALERT_TABLE';
 export const ENV_ASSIGN_SLA_MINUTES = 'ALERT_DEFAULT_ASSIGN_SLA_MINUTES';

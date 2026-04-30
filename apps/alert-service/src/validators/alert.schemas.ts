@@ -231,6 +231,30 @@ export const listAlertsQuerySchema = z
         path: ['patientId'],
       });
     }
+    if (
+      data.state !== undefined &&
+      data.assignment !== undefined &&
+      data.state === 'ASSIGNED' &&
+      data.assignment === 'UNASSIGNED'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'state ASSIGNED conflicts with assignment=UNASSIGNED',
+        path: ['assignment'],
+      });
+    }
+    if (
+      data.state !== undefined &&
+      data.assignment !== undefined &&
+      data.state === 'UNASSIGNED' &&
+      data.assignment === 'ASSIGNED'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'state UNASSIGNED conflicts with assignment=ASSIGNED',
+        path: ['assignment'],
+      });
+    }
   });
 
 export type ListAlertsQuery = z.infer<typeof listAlertsQuerySchema>;

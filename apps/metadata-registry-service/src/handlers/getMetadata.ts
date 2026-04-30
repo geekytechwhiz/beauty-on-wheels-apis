@@ -20,4 +20,4 @@ export const main = withLambdaHandler(async (req) => {
   throw new ValidationError('entityType must be "type" or "value"', [
     { field: 'entityType', message: 'Must be "type" or "value"' },
   ]);
-}, { useCreated: false });
+});

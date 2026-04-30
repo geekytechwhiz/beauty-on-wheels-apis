@@ -18,5 +18,4 @@ export const main = withLambdaHandler(
       { field: 'entityType', message: 'Must be "type" or "value"' },
     ]);
   },
-  { useCreated: false },
 );

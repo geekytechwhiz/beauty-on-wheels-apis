@@ -9,7 +9,7 @@ import {
   logHttpRequest,
 } from '@api-hub/logger';
 
-import { successResponse } from './response.middleware';
+import { createdResponse, successResponse } from './response.middleware';
 import { handleError } from './error.middleware';
 import { Message } from '../types/core-types';
 
@@ -20,6 +20,8 @@ const baseLogger = createLogger({
 
 interface LambdaHandlerOptions {
   validator?: (request: any) => void | Promise<void>;
+  /** When true, respond with HTTP 201 Created instead of 200 OK */
+  useCreated?: boolean;
 }
 
 export const withLambdaHandler =
@@ -102,11 +104,8 @@ export const withLambdaHandler =
       /**
        * Response middleware
        */
-      return successResponse(
-        result,
-        successMessage,
-        { correlationId }
-      );
+      const respond = options.useCreated ? createdResponse : successResponse;
+      return respond(result, successMessage, { correlationId });
 
     } catch (error: any) {
 

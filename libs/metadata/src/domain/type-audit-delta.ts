@@ -1,5 +1,5 @@
-import { metadataTypeUsesSeparateSchemaItem } from './constants';
-import type { MetadataTypeRecord } from './types';
+import { metadataTypeUsesSeparateSchemaItem } from '../constants';
+import type { MetadataTypeRecord } from '../models/types';
 
 function sortKeysDeep(x: unknown): unknown {
   if (x === null || typeof x !== 'object') {

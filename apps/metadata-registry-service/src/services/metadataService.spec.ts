@@ -1,11 +1,13 @@
-import { STATUS, validateMetadataTypeInput, type MetadataTypeInput } from '@api-hub/metadata';
 import {
+  STATUS,
+  validateMetadataTypeInput,
+  type MetadataTypeInput,
   normalizeMetadataTypeInput,
   parseGetEntityStatusMode,
   parseListEntityStatusMode,
   parsePatchStatusBody,
   parseQueryIncludeInactive,
-} from './metadataService';
+} from '@api-hub/metadata';
 
 describe('normalizeMetadataTypeInput', () => {
   const base = {

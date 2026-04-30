@@ -15,7 +15,7 @@ import {
   metadataTypeUsesSeparateSchemaItem,
   resolveAttributeSchemaForMetadataType,
   STATUS,
-} from '../domain/constants';
+} from '../../constants';
 import type {
   Applicability,
   AuditRecord,
@@ -25,11 +25,10 @@ import type {
   MetadataValueRecord,
   Status,
   ValueSearchFilter,
-} from '../domain/types';
-import { ConflictError, NotFoundError } from '../domain/errors';
+} from '../../models/types';
+import { ConflictError, NotFoundError } from '../../domain/errors';
 import {
   auditTypePartitionKey,
-  auditTypePrefix,
   auditValuePartitionKey,
   buildApplSortKeys,
   catalogPartitionKey,
@@ -41,15 +40,16 @@ import {
   typePartitionKey,
   valueLatestSk,
   valueSk,
-} from '../domain/keys';
-import { getMetadataTypeDelta, typeCreateAuditNewValue } from '../domain/type-audit-delta';
+} from '../../domain/keys';
+import { getMetadataTypeDelta, typeCreateAuditNewValue } from '../../domain/type-audit-delta';
 import {
   getMetadataValueDelta,
   resolveValueUpdateAction,
   valueCreateAuditNewValue,
-} from '../domain/value-audit-delta';
-import { matchesSearchFilter, sortValuesForSearch } from '../domain/search-filter';
-import type { IMetadataRegistryRepository, ListTypesFilter } from './metadata-registry.repository.interface';
+} from '../../domain/value-audit-delta';
+import { matchesSearchFilter, sortValuesForSearch } from '../../domain/search-filter';
+import { MetadataKeyBuilder } from '../../builders/metadata-key.builder';
+import type { IMetadataRegistryRepository, ListTypesFilter } from '../metadata-registry.repository.interface';
 
 const ulid = monotonicFactory();
 
@@ -302,7 +302,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async listMetadataTypes(filter: ListTypesFilter): Promise<MetadataTypeRecord[]> {
-    const indexRows = await this.queryAll(catalogPartitionKey(), 'TYPE#');
+    const indexRows = await this.queryAll(catalogPartitionKey(), MetadataKeyBuilder.catalogTypeEntrySortKeyPrefix());
     const legacyRows = await this.queryAll(LEGACY_CATALOG_PK, LEGACY_CATALOG_SK_PREFIX);
     const fromIndexAndLegacy = [...indexRows, ...legacyRows]
       .filter((r) => r.entityType === ENTITY_TYPE.CATALOG_ENTRY)
@@ -511,7 +511,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
 
   async listMetadataValues(metadataTypeCode: string, statusFilter?: Status | null): Promise<MetadataValueRecord[]> {
     const pk = typePartitionKey(metadataTypeCode);
-    const rows = await this.queryAll(pk, 'VALUE_LATEST#');
+    const rows = await this.queryAll(pk, MetadataKeyBuilder.valueLatestSortKeyPrefix());
     const codes = rows
       .filter((r) => r.entityType === 'VALUE_LATEST')
       .map((r) => r.valueCode as string)
@@ -528,7 +528,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
 
   async searchMetadataValues(metadataTypeCode: string, filter: ValueSearchFilter): Promise<MetadataValueRecord[]> {
     const pk = typePartitionKey(metadataTypeCode);
-    const applRows = await this.queryAll(pk, 'APPL#');
+    const applRows = await this.queryAll(pk, MetadataKeyBuilder.applSortKeyPrefix());
     const fromAppl = new Set<string>();
     for (const r of applRows) {
       const sk = r[this.skAttr] as string;
@@ -538,7 +538,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       }
     }
 
-    const latestRows = await this.queryAll(pk, 'VALUE_LATEST#');
+    const latestRows = await this.queryAll(pk, MetadataKeyBuilder.valueLatestSortKeyPrefix());
     const allCodes = new Set<string>();
     for (const r of latestRows) {
       if (r.entityType === 'VALUE_LATEST' && r.valueCode) {
@@ -554,9 +554,9 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]> {
-    const rows = await this.queryAll(auditTypePartitionKey(metadataTypeCode), 'TIMESTAMP#');
+    const rows = await this.queryAll(auditTypePartitionKey(metadataTypeCode), MetadataKeyBuilder.auditTimestampSortKeyPrefix());
     const legacyPk = typePartitionKey(metadataTypeCode);
-    const legacyPrefix = `${auditTypePrefix(metadataTypeCode)}#`;
+    const legacyPrefix = MetadataKeyBuilder.legacyTypeAuditSkPrefixOnTypePartition(metadataTypeCode);
     const legacyRows = await this.queryAll(legacyPk, legacyPrefix);
     const merged = [...rows, ...legacyRows];
     return merged
@@ -566,9 +566,9 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   async listValueAudit(metadataTypeCode: string, valueCode: string): Promise<AuditRecord[]> {
-    const rows = await this.queryAll(auditValuePartitionKey(valueCode), 'TIMESTAMP#');
+    const rows = await this.queryAll(auditValuePartitionKey(valueCode), MetadataKeyBuilder.auditTimestampSortKeyPrefix());
     const legacyPk = typePartitionKey(metadataTypeCode);
-    const legacyPrefix = `${auditValuePartitionKey(valueCode)}#`;
+    const legacyPrefix = MetadataKeyBuilder.legacyValueAuditSkPrefixOnTypePartition(valueCode);
     const legacyRows = await this.queryAll(legacyPk, legacyPrefix);
     const merged = [...rows, ...legacyRows];
     return merged
@@ -607,7 +607,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     if (legacy) {
       return legacy.latestVersion;
     }
-    const rows = await this.queryAll(pk, 'TYPE#METADATA');
+    const rows = await this.queryAll(pk, MetadataKeyBuilder.typeMetadataFamilySortKeyPrefix());
     let max = 0;
     for (const r of rows) {
       const sk = r[this.skAttr] as string;
@@ -673,7 +673,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
    */
   private async discoverMetadataTypeCodesOnPartitions(): Promise<string[]> {
     const pkPrefix = typePartitionKey('');
-    const typeEntitySkPrefix = 'TYPE#METADATA#';
+    const typeEntitySkPrefix = MetadataKeyBuilder.typeMetadataVersionedSkPrefix();
     const codes = new Set<string>();
     let startKey: Record<string, unknown> | undefined;
     do {
@@ -901,7 +901,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     },
   ): Record<string, unknown> {
     const id = ulid();
-    const sk = `TIMESTAMP#${params.timestamp}#${id}`;
+    const sk = MetadataKeyBuilder.auditTimestampSk(params.timestamp, id);
     return {
       ...this.key(auditPk, sk),
       entityType: 'AUDIT',
@@ -931,7 +931,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     },
   ): Record<string, unknown> {
     const id = ulid();
-    const sk = `TIMESTAMP#${params.timestamp}#${id}`;
+    const sk = MetadataKeyBuilder.auditTimestampSk(params.timestamp, id);
     return {
       ...this.key(auditPk, sk),
       entityType: 'AUDIT',

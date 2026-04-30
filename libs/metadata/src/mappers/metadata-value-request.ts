@@ -1,4 +1,4 @@
-import type { Applicability } from '../domain/types';
+import type { Applicability } from '../models/types';
 import { ValidationError } from '../domain/errors';
 
 /** Flat API field names (Figma) → nested applicability keys. */

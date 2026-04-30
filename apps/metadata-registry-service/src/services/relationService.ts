@@ -10,8 +10,9 @@ import {
   skBeginsWithForListFilter,
   validateRelationRequestShape,
   assertRelationEndpointsExist,
+  getMetadataRepository,
+  getRelationRepository,
 } from '@api-hub/metadata';
-import { getMetadataRepository, getRelationRepository } from '../repositories/dynamodb';
 
 export async function createMetadataRelation(
   body: CreateMetadataRelationInput,
@@ -52,7 +53,7 @@ export async function listRelationsForValue(
   let rows = await rel.listRelationsByFrom(fromType, fromValue, { skBeginsWith });
   if (query.toType?.trim() && !query.relationType?.trim()) {
     const t = query.toType.trim();
-    rows = rows.filter((r) => r.toMetadataTypeCode === t);
+    rows = rows.filter((r: MetadataRelationRecord) => r.toMetadataTypeCode === t);
   }
   return rows;
 }

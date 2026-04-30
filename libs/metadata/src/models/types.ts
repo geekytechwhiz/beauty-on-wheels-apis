@@ -1,4 +1,4 @@
-import type { STATUS } from './constants';
+import type { STATUS } from '../constants';
 
 export type Status = (typeof STATUS)[keyof typeof STATUS];
 
@@ -33,6 +33,7 @@ export interface ValueApplicabilityConfig {
   categoryDependent?: boolean;
   conditionDependent?: boolean;
   countryDependent?: boolean;
+  languageDependent?: boolean;
 }
 
 export interface MetadataTypeInput {

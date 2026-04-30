@@ -82,7 +82,7 @@
       "path": "./libs/metadata"
     },
     {
-      "path": "./apps/metadata-registry-service"
+      "path": "./libs/rule-engine"
     }
   ]
 }

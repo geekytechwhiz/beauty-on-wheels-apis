@@ -1,4 +1,4 @@
-import type { IMetadataRegistryRepository } from '../repository/metadata-registry.repository.interface';
+import type { IMetadataRegistryRepository } from '../repositories/metadata-registry.repository.interface';
 
 /**
  * Application service facade over {@link IMetadataRegistryRepository}.

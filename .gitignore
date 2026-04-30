@@ -137,3 +137,13 @@ apps/metadata-registry-service.zip
 apps/metadata-registry-service/*.zip
 
 apps/metadata-registry-service/.esbuild/
+apps/alert-service/.esbuild/.build/src/handlers/http/createAlert.js
+apps/alert-service/.esbuild/.build/src/handlers/http/createAlert.js.map
+apps/alert-service/.esbuild/.build/src/handlers/http/getAlert.js
+apps/alert-service/.esbuild/.build/src/handlers/http/getAlert.js.map
+apps/alert-service/.esbuild/.build/src/handlers/http/getAlertActivity.js
+apps/alert-service/.esbuild/.build/src/handlers/http/getAlertActivity.js.map
+apps/alert-service/.esbuild/.build/src/handlers/http/health.js
+apps/alert-service/.esbuild/.build/src/handlers/http/health.js.map
+apps/alert-service/.esbuild/.build/src/handlers/http/listAlerts.js
+apps/alert-service/.esbuild/.build/src/handlers/http/listAlerts.js.map

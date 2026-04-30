@@ -85,7 +85,7 @@ const VERSION_COLLATOR = new Intl.Collator(undefined, {
 const SEMVER_PATTERN = /^(v?)(\d+)(?:\.(\d+))?(?:\.(\d+))?$/i;
 
 /** Dev/preview-only JSON API mount (not the same path as static `public/{specsPrefix}/`). */
-const LOCAL_SPEC_API = '/__api-center/specs';
+const LOCAL_SPEC_API = '/__api-center/specs-store';
 
 function getSpecsPrefix(): string {
   const rawPrefix = import.meta.env.VITE_SPECS_PREFIX?.trim();

@@ -1,9 +1,10 @@
- 
+ import servicesJson from './utils/services.json';
+
 export interface ServiceVersionRecord {
   url: string;
 }
 
-/** Matches GET /services response from api-aggregator-registry */
+/** Matches GET /services response from service-registry */
 export interface ServiceRegistryEntry {
   name: string;
   latest: string;
@@ -25,6 +26,25 @@ export interface RegisterServicePayload {
   version?: string;
   module?: string;
   rules?: string[];
+}
+
+/** Row shape in `src/utils/services.json` (kept in sync with service-registry config). */
+export interface ServicesJsonEntry {
+  name: string;
+  url: string;
+  version: string;
+  module?: string;
+  rules?: string[];
+}
+
+function servicesJsonToRegistry(entries: ServicesJsonEntry[]): ServiceRegistryEntry[] {
+  return entries.map((row) => ({
+    name: row.name,
+    latest: row.version,
+    versions: { [row.version]: { url: row.url } },
+    ...(row.module !== undefined ? { module: row.module } : {}),
+    ...(row.rules !== undefined ? { rules: row.rules } : {}),
+  }));
 }
 
 export function getApiBase(): string {
@@ -66,7 +86,8 @@ export async function fetchHealth(): Promise<HealthResponse> {
 }
 
 export async function fetchServices(): Promise<ServiceRegistryEntry[]> {
-  return fetchJson<ServiceRegistryEntry[]>('/services');
+  const raw = servicesJson as ServicesJsonEntry[];
+  return Promise.resolve(servicesJsonToRegistry(raw));
 }
 
 export async function fetchMergedSpec(): Promise<object> {

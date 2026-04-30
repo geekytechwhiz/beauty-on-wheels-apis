@@ -57,8 +57,8 @@ const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
         { code: 'ORGANIZATION_ID_REQUIRED' },
       );
     } 
-      const allDevices =
-        await orgDeviceRepository.getOrgDevices(organizationID);
+      const allDevices = await orgDeviceRepository.getOrgDevices(organizationID);
+      const activeDevices = allDevices.filter((d) => d.isActive !== false);
       const duration = Date.now() - startTime;
       logHttpRequest(
         logger,
@@ -69,7 +69,7 @@ const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
         correlationId,
       );
       return ApiResponse.ok(
-        allDevices,
+        activeDevices,
         'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS',
         { requestId: correlationId, event },
       ); 

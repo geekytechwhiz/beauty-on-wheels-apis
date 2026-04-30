@@ -184,7 +184,8 @@ export async function sendSms(options: {
     const phone = resolvePhoneNumber({ phone: options.phone });
     const formattedPhone = normalizeIndianPhone(phone);
     console.log('FINAL TEMPLATE DATA : ', options.templateData);
-    console.log('FINAL TEMPLATE : ', options.template); 
+    console.log('FINAL TEMPLATE : ', options.template);
+
     // try {
     //   if (options.template) {
     //     const map: Record<string, any> = { WELCOME: 'WELCOME_USER', WELCOME_USER: 'WELCOME_USER', WELCOME_STAFF: 'WELCOME_STAFF', INVITE: 'INVITE_USER', PROFILE_UPDATED: 'PROFILE_UPDATED' };
@@ -206,12 +207,50 @@ export async function sendSms(options: {
       variables: {},
     };
     try {
-      if (
+      // PROFILE_UPDATED is sent with empty templateData from updateUser; must not require keys.
+      if (options.template === 'PROFILE_UPDATED') {
+        payload = {
+          ...payload,
+          templateKey: 'PROFILE_UPDATED',
+          variables: {},
+        };
+      } else if (options.template === 'STAFF_DEACTIVATED') {
+        payload = {
+          ...payload,
+          templateKey: 'STAFF_DEACTIVATED',
+          variables: {
+            orgName:
+              (options.templateData?.ORG_NAME as string) ||
+              (options.templateData?.orgName as string) ||
+              '',
+          },
+        };
+      } else if (
         options.template &&
         options.templateData &&
         Object.keys(options.templateData).length > 0
       ) {
-        if (options.template == 'WELCOME_USER') {
+          if(options.template === 'WELCOME_USER') {
+          payload = {
+            ...payload,
+            templateKey: 'WELCOME_SMS',
+            variables: {
+              ...payload.variables,
+              orgName: options.templateData?.ORG_NAME,
+            },
+          };
+        } else if (options.template === 'WELCOME_STAFF') {
+          payload = {
+            ...payload,
+            templateKey: 'STAFF_ACCOUNT_CREATED',
+            variables: {
+              orgName:
+                (options.templateData?.ORG_NAME as string) ||
+                (options.templateData?.orgName as string) ||
+                '',
+            },
+          };
+        } else if (options.template === 'INVITE_USER') {
           payload = {
             ...payload,
             templateKey: 'WELCOME_SMS',
@@ -221,37 +260,8 @@ export async function sendSms(options: {
             },
           };
         }
-      } else if (options.template == 'WELCOME_STAFF') {
-        payload = {
-          ...payload,
-          templateKey: 'WELCOME_SMS',
-          variables: {
-            ...payload.variables,
-            orgName: options.templateData?.ORG_NAME,
-          },
-        };
-      } else if (options.template == 'INVITE_USER') {
-        payload = {
-          ...payload,
-          templateKey: 'WELCOME_SMS',
-          variables: {
-            ...payload.variables,
-            orgName: options.templateData?.ORG_NAME,
-          },
-        };
-      } else if (options.template == 'PROFILE_UPDATED') {
-        payload = {
-          ...payload,
-          templateKey: 'WELCOME_SMS',
-          variables: {
-            ...payload.variables,
-            orgName: options.templateData?.ORG_NAME,
-          },
-        };
-      } else {
-        if (!options.template || !options.templateData)
-          throw new Error('Template Or TemplateData is missing');
       }
+      // Other templates: keep initial payload (templateKey: options.template).
     } catch (err) {
       console.error('TEMPLATE / TEMPLATE DATA ERROR : ', err);
     }

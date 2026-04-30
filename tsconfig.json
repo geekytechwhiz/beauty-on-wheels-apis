@@ -87,11 +87,16 @@
     {
       "path": "./libs/observability"
     },
-    {
-      "path": "./services/api-aggregator-registry"
-    },
+   
     {
       "path": "./libs/rule-engine"
+    },
+    {
+      "path": "./apps/metadata-registry-service"
+    },
+    {
+      "path": "./libs/metadata"
+
     }
   ]
 }

@@ -192,6 +192,25 @@ export class ApiResponse {
     );
   }
 
+  static unprocessableEntity(
+    message: any | Message,
+    options: ResponseOptions,
+    error?: ErrorBody,
+  ): APIGatewayProxyResult {
+    return createResponse(
+      422,
+      {
+        success: false,
+        statusCode: 422,
+        message,
+        data: null,
+        error: error ?? { code: 'UNPROCESSABLE_ENTITY' },
+        meta: buildMeta(options),
+      },
+      options.headers
+    );
+  }
+
   static internalServerError(
     message: any | Message,
     options: ResponseOptions,

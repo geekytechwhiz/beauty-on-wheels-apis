@@ -390,6 +390,9 @@ functions:
             resultTtlInSeconds: 0
   getUserOrganization:
     handler: src/handlers/getUserOrganization.main
+    warmup:
+      default:
+        enabled: true
     timeout: 30
     memorySize: 512
     events:

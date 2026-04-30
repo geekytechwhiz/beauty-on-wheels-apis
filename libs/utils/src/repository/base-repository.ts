@@ -7,13 +7,18 @@ import {
   BatchGetCommand,
   QueryCommandInput,
   UpdateCommandInput,
+  TransactWriteCommand,
+
   type GetCommandOutput,
   type PutCommandOutput,
   type UpdateCommandOutput,
   type DeleteCommandOutput,
   type QueryCommandOutput,
   type BatchGetCommandOutput,
+  type TransactWriteCommandInput,
+  type TransactWriteCommandOutput,
 } from "@aws-sdk/lib-dynamodb";
+
 
 import { ddbDocClient } from "../configs/db.config";
 import { sendDoc } from "../configs/dynamodb-send";
@@ -47,6 +52,22 @@ export abstract class BaseRepository {
 
     return (result.Item as T) || null;
 
+  }
+
+  protected async transactWrite(
+    params: TransactWriteCommandInput
+  ): Promise<void> {
+  
+    this.logger.debug({
+      event: 'dynamodb_transact_write',
+      tables: params.TransactItems?.length,
+    });
+  
+    await sendDoc<TransactWriteCommandOutput>(
+      ddbDocClient,
+      new TransactWriteCommand(params)
+    );
+  
   }
 
   protected async put<T>(

@@ -1,6 +1,6 @@
 import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
-import { getAlertHttpController } from '../../controllers/alert-http.controller';
-import { validateCreateAlertRequest } from '../../validation/request.validators';
+import { getAlertHttpController } from '../../controllers/alert-http.controller';  
+import { validateCreateAlertRequest } from '../../validators/request.validators';
 
 const c = getAlertHttpController();
 

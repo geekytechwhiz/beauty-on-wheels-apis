@@ -79,16 +79,7 @@
       "path": "./libs/template"
     },
     {
-      "path": "./apps/alert-service-e2e"
-    },
-    {
       "path": "./apps/alert-service"
-    },
-    {
-      "path": "./libs/alert-repository"
-    },
-    {
-      "path": "./libs/alert-integration"
     }
   ]
 }

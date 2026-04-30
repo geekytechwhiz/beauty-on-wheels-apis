@@ -1,101 +1,64 @@
 /**
  * HTTP controllers for alert-service.
  *
- * **HTTP → `getAlertService` → `AlertService` (`@api-hub/alert-integration`) → `AlertRepository`**
+ * **Flow:** `withLambdaHandler` builds context + optional schema validation → controller (authz, orchestration) →
+ * {@link AlertService} (`@api-hub/alert-core`) → {@link AlertRepository}.
  *
- * **Responses:** {@link apiGatewayResponseOptions} from `@api-hub/utils` (same defaults as SSO `BaseController.errorResponse`).
+ * **Responses:** shared `withLambdaHandler` success / {@link handleError} error envelopes (`@api-hub/utils`).
  */
 import type { LambdaRequest } from '@api-hub/utils';
 import { BaseError } from '@api-hub/utils';
-import type { AlertRecord, AlertState, CreateAlertPayload } from '@api-hub/alert-integration';
 import {
+  AlertService,
   createAlertPayloadFromHttpBody,
+  normalizeAlertServiceError,
   toAlertDetail,
   toPublicAlert,
-} from '@api-hub/alert-integration';
-import { getAlertService } from '../services/alert-app.service';
+  type AlertState,
+  type CreateAlertPayload,
+} from '@api-hub/alert-core';
 import { patchAlertBodySchema } from '../validators/alert.schemas';
-import { parseListAlertsQuery, type ValidatedCreateAlert } from '../validation/request.validators';
+import { parseListAlertsQuery, type ValidatedCreateAlert } from '../validators/request.validators';
 import {
   getActorUserIdForRequest,
   getOrganizationIdForRequest,
 } from '../utils/helpers';
-import { normalizeAlertServiceError } from '../utils/alert-http-errors';
+
+let alertService: AlertService | undefined;
+function getAlertService(): AlertService {
+  if (!alertService) alertService = new AlertService();
+  return alertService;
+}
 
 let ctrl: AlertHttpController | undefined;
 
-type ListQueueKind = 'TEAM' | 'MY' | 'PATIENT';
-
-function applyAlertListPostFilters(
-  rows: AlertRecord[],
-  organizationId: string,
-  opts: {
-    queue: ListQueueKind;
-    priority?: string;
-    inputType?: string;
-    state?: AlertState;
-    assignment?: 'UNASSIGNED' | 'ASSIGNED';
-    dateFrom?: string;
-    dateTo?: string;
-    search?: string;
-  },
-): AlertRecord[] {
-  // TEAM list is already scoped by org on GSI1; MY / PATIENT need tenant filter on top of user/patient index.
-  let items =
-    opts.queue === 'TEAM'
-      ? rows
-      : rows.filter((a) => a.organizationId === organizationId);
-
-  if (opts.priority?.trim()) {
-    const p = opts.priority.trim();
-    items = items.filter((a) => a.priority === p);
-  }
-  // PATIENT: inputType is applied in `queryPatientAlerts` — avoid duplicating here.
-  if (opts.queue !== 'PATIENT' && opts.inputType?.trim()) {
-    const t = opts.inputType.trim();
-    items = items.filter((a) => a.inputType === t);
-  }
-
-  if (opts.queue === 'PATIENT' && opts.state) {
-    items = items.filter((a) => a.alertState === opts.state);
-  }
-
-  if (opts.queue === 'TEAM' && opts.assignment === 'ASSIGNED') {
-    items = items.filter((a) => !!a.assignedToUserId);
-  }
-
-  const fromTs = opts.dateFrom ? Date.parse(opts.dateFrom) : NaN;
-  if (!Number.isNaN(fromTs)) {
-    items = items.filter((a) => Date.parse(a.triggerTimestamp) >= fromTs);
-  }
-  const toTs = opts.dateTo ? Date.parse(opts.dateTo) : NaN;
-  if (!Number.isNaN(toTs)) {
-    items = items.filter((a) => Date.parse(a.triggerTimestamp) <= toTs);
-  }
-
-  const q = opts.search?.trim().toLowerCase();
-  if (q) {
-    items = items.filter(
-      (a) =>
-        a.alertId.toLowerCase().includes(q) ||
-        a.triggerSummary.toLowerCase().includes(q) ||
-        a.patientId.toLowerCase().includes(q),
-    );
-  }
-
-  return items;
+function unauthorizedOrgError(): Error & { statusCode: number; code: string } {
+  const e = new Error('Organization could not be resolved from the access token') as Error & {
+    statusCode: number;
+    code: string;
+  };
+  e.statusCode = 401;
+  e.code = 'UNAUTHORIZED';
+  return e;
 }
 
 export class AlertHttpController {
   private readonly svc = getAlertService();
 
   /**
-   * POST /alerts — body validated by {@link validateCreateAlertRequest} in the HTTP handler (`withLambdaHandler`).
-   * Returns alert detail for both new create and idempotent replay; standard success envelope is **200** from
-   * `withLambdaHandler` (no change to shared middleware). Service errors: {@link normalizeAlertServiceError} → throw → `handleError`.
+   * POST /alerts — body validated by {@link validateCreateAlertRequest} in `withLambdaHandler`; tenant + actor
+   * attached there as {@link ValidatedCreateAlert}.
    */
   async handleCreateAlert(req: LambdaRequest) {
-    const requestLogger = req.context.logger!;
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
     const correlationId = req.context.correlationId as string;
 
     const v = (req as LambdaRequest & { validatedCreateAlert?: ValidatedCreateAlert }).validatedCreateAlert;
@@ -132,15 +95,7 @@ export class AlertHttpController {
     if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
-    if (!orgId) {
-      const e = new Error('Organization could not be resolved from the access token') as Error & {
-        statusCode: number;
-        code?: string;
-      };
-      e.statusCode = 401;
-      e.code = 'UNAUTHORIZED';
-      throw e;
-    }
+    if (!orgId) throw unauthorizedOrgError();
     const row = await this.svc.getAlert(alertId, orgId);
     if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
     return toAlertDetail(row);
@@ -151,15 +106,7 @@ export class AlertHttpController {
     if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
-    if (!orgId) {
-      const e = new Error('Organization could not be resolved from the access token') as Error & {
-        statusCode: number;
-        code?: string;
-      };
-      e.statusCode = 401;
-      e.code = 'UNAUTHORIZED';
-      throw e;
-    }
+    if (!orgId) throw unauthorizedOrgError();
 
     const items = await this.svc.listAlertActivity(alertId, orgId);
     if (!items) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
@@ -175,15 +122,7 @@ export class AlertHttpController {
     const event = req.event;
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(event, authHeader);
-    if (!orgId) {
-      const e = new Error('Organization could not be resolved from the access token') as Error & {
-        statusCode: number;
-        code?: string;
-      };
-      e.statusCode = 401;
-      e.code = 'UNAUTHORIZED';
-      throw e;
-    }
+    if (!orgId) throw unauthorizedOrgError();
 
     const {
       queue,
@@ -198,47 +137,21 @@ export class AlertHttpController {
       pageSize,
     } = parseListAlertsQuery(req.params as Record<string, string | string[] | undefined>);
     const limit = Math.min(100, Math.max(1, pageSize ?? 20));
+    const actorUserId = getActorUserIdForRequest(event, authHeader);
 
-    let rows: AlertRecord[];
-
-    if (queue === 'PATIENT') {
-      rows = await this.svc.listPatientAlerts(patientId!, {
-        inputType,
-        limit,
-        openOnly: false,
-      });
-    } else if (queue === 'MY') {
-      const userId = getActorUserIdForRequest(event, authHeader);
-      if (!userId) {
-        throw Object.assign(new Error('User id could not be resolved for MY queue'), { statusCode: 400 });
-      }
-      rows = await this.svc.listUserAlerts(userId, { state, limit });
-    } else {
-      let orgState: AlertState;
-      if (state) {
-        orgState = state;
-      } else if (assignment === 'ASSIGNED') {
-        orgState = 'ASSIGNED';
-      } else {
-        orgState = 'UNASSIGNED';
-      }
-      const unassignedOnly = assignment === 'UNASSIGNED';
-      rows = await this.svc.listOrgAlerts(orgId, {
-        state: orgState,
-        unassignedOnly,
-        limit,
-      });
-    }
-
-    rows = applyAlertListPostFilters(rows, orgId, {
+    const rows = await this.svc.listAlerts({
+      organizationId: orgId,
+      actorUserId,
       queue,
+      patientId,
+      state,
+      assignment,
       priority,
       inputType,
-      state,
-      assignment: queue === 'TEAM' ? assignment : undefined,
       dateFrom,
       dateTo,
       search,
+      limit,
     });
 
     return { items: rows.map(toPublicAlert) };
@@ -268,6 +181,13 @@ export class AlertHttpController {
   async handlePatchAlert(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
     if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
+    const authHeader = req.context.authHeader;
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    if (!orgId) throw unauthorizedOrgError();
+
+    const existing = await this.svc.getAlert(alertId, orgId);
+    if (!existing) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+
     const raw = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {};
     const patch = patchAlertBodySchema.parse(raw) as {
       alertState?: AlertState;
@@ -284,4 +204,3 @@ export function getAlertHttpController(): AlertHttpController {
   if (!ctrl) ctrl = new AlertHttpController();
   return ctrl;
 }
-

@@ -33,8 +33,8 @@ Mirrors `sso-integration` style env wiring:
 
 **Libraries**:
 
-- `libs/alert-repository` — DynamoDB entity types and `AlertRepository` (single-table keys + GSIs).
-- `libs/alert-integration` — `AlertService`, optional user/org HTTP validation clients, `toPublicAlert` DTO mapping.
+- `libs/alert-core` — DynamoDB entity types and `AlertRepository` (single-table keys + GSIs).
+- `libs/alert-core` — persistence (`AlertRepository`), orchestration (`AlertService`), optional user/org HTTP validation clients, `toPublicAlert` / `toAlertDetail` DTO mapping.
 
 ```
 apps/alert-service/

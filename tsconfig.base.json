@@ -44,8 +44,7 @@
       "@api-hub/template-executor": ["libs/template/src/application/index.ts"],
       "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
       "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"],
-      "@api-hub/alert-repository": ["libs/alert-repository/src/index.ts"],
-      "@api-hub/alert-integration": ["libs/alert-integration/src/index.ts"]
+      "@api-hub/alert-core": ["libs/alert-core/src/index.ts"]
     }
   }
 }

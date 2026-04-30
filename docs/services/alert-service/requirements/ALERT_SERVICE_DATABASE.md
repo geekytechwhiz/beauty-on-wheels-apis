@@ -1,6 +1,6 @@
 # Alert Service — DynamoDB mapping
 
-This document translates the Confluence export `Alert+Service+Table+DB+design-3.doc` into the **implemented** single-table design: table resources in `apps/alert-service/serverless.yml`, persistence and query logic in [`libs/alert-repository`](../../../../libs/alert-repository) (`alert-service-<stage>`).
+This document translates the Confluence export `Alert+Service+Table+DB+design-3.doc` into the **implemented** single-table design: table resources in `apps/alert-service/serverless.yml`, persistence and query logic in [`libs/alert-core`](../../../../libs/alert-core) (`alert-service-<stage>`).
 
 ## Table
 

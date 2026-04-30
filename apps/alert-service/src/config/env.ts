@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * App-level env (Lambda + serverless). Domain persistence lives in @api-hub/alert-repository / alert-integration.
+ * App-level env (Lambda + serverless). Domain persistence lives in @api-hub/alert-core.
  */
 const envSchema = z.object({
   NODE_ENV: z.string().optional(),

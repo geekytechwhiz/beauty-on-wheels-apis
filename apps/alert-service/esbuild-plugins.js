@@ -10,8 +10,7 @@ module.exports = [
       const workspacePackages = {
         '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
-        '@api-hub/alert-repository': resolve(workspaceRoot, 'libs/alert-repository/src/index.ts'),
-        '@api-hub/alert-integration': resolve(workspaceRoot, 'libs/alert-integration/src/index.ts'),
+        '@api-hub/alert-core': resolve(workspaceRoot, 'libs/alert-core/src/index.ts'),
       };
 
       build.onResolve({ filter: /^@api-hub\/.*/ }, (args) => {

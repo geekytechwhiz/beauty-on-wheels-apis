@@ -334,7 +334,7 @@ export class OrgDeviceRepository {
           },
         }),
       );
-      return result.Item as OrgDevice | null;
+      return (result?.Item as OrgDevice | undefined) ?? null;
     } catch (err) {
       logger.error({ event: 'get_org_device_error', err: serializeError(err) });
       throw err;
@@ -346,7 +346,8 @@ export class OrgDeviceRepository {
    */
   async isDeviceInOrganization(organizationId: string, deviceId: string): Promise<boolean> {
     const device = await this.getOrgDevice(organizationId, deviceId);
-    return device !== null && device.enabled === true && device.isActive !== false;
+    if (!device) return false;
+    return device.enabled !== false && device.isActive !== false;
   }
 
   /**

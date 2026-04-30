@@ -219,6 +219,7 @@ export class OrganizationService {
     organizationId: string,
     updates: Partial<Organization> & { organizationConfig?: OrganizationConfigPatch },
     correlationId?: string,
+    userType?: string,
   ): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'updateOrganization', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
@@ -257,8 +258,11 @@ export class OrganizationService {
         await this.repository.updateOrganization(organizationId, organizationUpdates);
       }
       
+      const normalizedUserType = String(userType ?? '').trim().toUpperCase();
+      const canUpdateOrganizationConfig = normalizedUserType === 'ROOT_ADMIN';
+
       let configVersion: number | undefined;
-      if (organizationConfig) {
+      if (organizationConfig && canUpdateOrganizationConfig) {
         const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId);
         const mergedConfig: Required<OrganizationConfigPatch> = {
           supportedCountries: organizationConfig.supportedCountries ?? latestConfig?.supportedCountries ?? [],
@@ -279,6 +283,12 @@ export class OrganizationService {
           const configRecord = await this.repository.createOrganizationConfigVersion(organizationId, mergedConfig);
           configVersion = configRecord.version;
         }
+      } else if (organizationConfig && !canUpdateOrganizationConfig) {
+        logger.warn({
+          event: 'service_updateOrganization_config_update_skipped',
+          reason: 'organizationConfig update requires ROOT_ADMIN',
+          userType: normalizedUserType || 'UNKNOWN',
+        });
       }
 
       const updated = await this.repository.getOrganization(organizationId);
@@ -303,7 +313,9 @@ export class OrganizationService {
       if (organizationUpdates.industry !== undefined) updatedFields.industry = organizationUpdates.industry;
       if (organizationUpdates.size !== undefined) updatedFields.size = organizationUpdates.size;
       if (organizationUpdates.adminDetails !== undefined) updatedFields.adminDetails = organizationUpdates.adminDetails;
-      if (organizationConfig !== undefined) updatedFields.organizationConfig = organizationConfig;
+      if (organizationConfig !== undefined && canUpdateOrganizationConfig) {
+        updatedFields.organizationConfig = organizationConfig;
+      }
       if (configVersion !== undefined) updatedFields.organizationConfigVersion = configVersion;
 
       await publishEvent(

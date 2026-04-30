@@ -1,4 +1,4 @@
-import type { CreateMetadataRelationInput, MetadataRelationRecord } from '../domain/relation-types';
+import type { CreateMetadataRelationInput, MetadataRelationRecord } from '../models/relation-types';
 
 export interface ListRelationsByFromOptions {
   /** `begins_with` on sort key, e.g. `CHILD#` or `CHILD#State#` */

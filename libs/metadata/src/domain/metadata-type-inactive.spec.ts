@@ -2,12 +2,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { STATUS } from './constants';
+import { STATUS } from '../constants';
 import {
   assertMetadataTypeActiveForValueMutation,
   MetadataTypeInactiveError,
 } from './errors';
-import type { MetadataTypeRecord } from './types';
+import type { MetadataTypeRecord } from '../models/types';
 
 function baseType(overrides: Partial<MetadataTypeRecord> = {}): MetadataTypeRecord {
   return {
@@ -51,7 +51,7 @@ describe('assertMetadataTypeActiveForValueMutation', () => {
  */
 describe('read paths vs inactive type (contract)', () => {
   const repoSrc = readFileSync(
-    join(__dirname, '..', 'repository', 'dynamodb-metadata.repository.ts'),
+    join(__dirname, '..', 'repositories', 'dynamodb', 'metadata.repository.impl.ts'),
     'utf8',
   );
 

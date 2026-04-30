@@ -1,6 +1,6 @@
 import { ValidationError } from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
-import { listTypeAudit, listValueAudit } from '../services/metadataService';
+import { listTypeAudit, listValueAudit } from '@api-hub/metadata';
 
 type ListMetadataAuditRequest = {
   params?: Record<string, string>;

@@ -8,7 +8,7 @@ import {
   normalizeMetadataValueInput,
   upsertMetadataType,
   upsertMetadataValue,
-} from '../services/metadataService';
+} from '@api-hub/metadata';
 
 const APPLICABILITY_KEYS = [
   'applicableModules',
@@ -127,23 +127,24 @@ async function handlePostMetadataValue(
   return flattenMetadataValueForApi(record);
 }
 
-export const main = withLambdaHandler(
-  async (req: PostMetadataRequest) => {
-    const entityType = resolveEntityType(req);
-    if (!entityType) {
-      throw new ValidationError('entityType is required in path', [{ field: 'entityType', message: 'Required' }]);
-    }
-    const kind = entityType.toLowerCase();
-    const userId = req.context?.userContext?.userId;
-    if (kind === 'type') {
-      return handlePostMetadataType(req.body, userId);
-    }
-    if (kind === 'value') {
-      return handlePostMetadataValue(req.body, userId);
-    }
-    throw new ValidationError('entityType must be "type" or "value"', [
-      { field: 'entityType', message: 'Must be "type" or "value"' },
-    ]);
-  },
-  { useCreated: false },
-);
+export const main = withLambdaHandler(async (req: PostMetadataRequest) => {
+  const entityType = resolveEntityType(req);
+  if (!entityType) {
+    throw new ValidationError('entityType is required in path', [{ field: 'entityType', message: 'Required' }]);
+  }
+  const kind = entityType.toLowerCase();
+  const userId = req.context?.userContext?.userId;
+  const body = req.body as Record<string, unknown> | undefined;
+
+  if (kind === 'type') {
+    return handlePostMetadataType(body, userId);
+  }
+
+  if (kind === 'value') {
+    return handlePostMetadataValue(body, userId);
+  }
+
+  throw new ValidationError('entityType must be "type" or "value"', [
+    { field: 'entityType', message: 'Must be "type" or "value"' },
+  ]);
+});

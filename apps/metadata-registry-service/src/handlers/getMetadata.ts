@@ -1,6 +1,10 @@
-import { NotFoundError, STATUS, ValidationError } from '@api-hub/metadata';
+import {
+  parseGetEntityStatusMode,
+  resolveMetadataTypeGet,
+  resolveMetadataValueGetForApi,
+  ValidationError,
+} from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
-import { flattenMetadataValueForApi, getType, getValue, parseGetEntityStatusMode } from '../services/metadataService';
 
 type GetMetadataRequest = {
   params?: Record<string, string>;
@@ -43,23 +47,7 @@ export const main = withLambdaHandler(async (req: GetMetadataRequest) => {
       throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
     }
     const mode = parseGetEntityStatusMode(q);
-    const t = await getType(code);
-    if (!t) {
-      throw new NotFoundError(`Metadata type ${code} not found`);
-    }
-    if (mode === 'all') {
-      return t;
-    }
-    if (mode === 'inactive') {
-      if (t.status !== STATUS.INACTIVE) {
-        throw new NotFoundError(`Metadata type ${code} not found`);
-      }
-      return t;
-    }
-    if (t.status !== STATUS.ACTIVE) {
-      throw new NotFoundError(`Metadata type ${code} not found`);
-    }
-    return t;
+    return resolveMetadataTypeGet(code, mode);
   }
 
   if (kind === 'value') {
@@ -71,23 +59,7 @@ export const main = withLambdaHandler(async (req: GetMetadataRequest) => {
       throw new ValidationError('metadataValueCode is required', [{ field: 'metadataValueCode', message: 'Required' }]);
     }
     const mode = parseGetEntityStatusMode(q);
-    const v = await getValue(metadataTypeCode, valueCode);
-    if (!v) {
-      throw new NotFoundError(`Value ${valueCode} not found`);
-    }
-    if (mode === 'all') {
-      return flattenMetadataValueForApi(v);
-    }
-    if (mode === 'inactive') {
-      if (v.status !== STATUS.INACTIVE) {
-        throw new NotFoundError(`Value ${valueCode} not found`);
-      }
-      return flattenMetadataValueForApi(v);
-    }
-    if (v.status !== STATUS.ACTIVE) {
-      throw new NotFoundError(`Value ${valueCode} not found`);
-    }
-    return flattenMetadataValueForApi(v);
+    return resolveMetadataValueGetForApi(metadataTypeCode, valueCode, mode);
   }
 
   throw new ValidationError('entityType must be "type" or "value"', [

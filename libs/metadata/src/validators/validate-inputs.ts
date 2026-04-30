@@ -6,15 +6,15 @@ import {
   type MetadataValueInput,
   type ValueDataType,
   type ValueSearchFilter,
-} from '../domain/types';
-import { STATUS } from '../domain/constants';
+} from '../models/types';
+import { STATUS } from '../constants';
 import { ValidationError } from '../domain/errors';
 import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from './code-patterns';
 import { validateMetricCodeAttributes } from './metric-code.schema';
 import { validateQuestionCodeAttributes } from './question-code.schema';
 import {
   validateMetadataValueApplicabilityRules,
-} from '../utils/metadata-value-request';
+} from '../mappers/metadata-value-request';
 
 const DISPLAY_NAME_MAX = 100;
 const METADATA_VALUE_LABEL_MAX = 150;

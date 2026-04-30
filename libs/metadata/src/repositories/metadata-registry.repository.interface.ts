@@ -6,7 +6,7 @@ import type {
   MetadataValueRecord,
   Status,
   ValueSearchFilter,
-} from '../domain/types';
+} from '../models/types';
 
 export interface ListTypesFilter {
   status?: Status;

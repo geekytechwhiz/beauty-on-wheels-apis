@@ -5,7 +5,7 @@ import {
   parsePatchStatusBody,
   patchTypeStatus,
   patchValueStatus,
-} from '../services/metadataService';
+} from '@api-hub/metadata';
 
 type PatchMetadataStatusRequest = {
   params?: Record<string, string>;

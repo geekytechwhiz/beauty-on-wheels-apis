@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
-import { STATUS } from './constants';
+import { STATUS } from '../constants';
 import { matchesSearchFilter, sortValuesForSearch } from './search-filter';
-import type { MetadataValueRecord } from './types';
+import type { MetadataValueRecord } from '../models/types';
 
 function v(partial: Partial<MetadataValueRecord> & Pick<MetadataValueRecord, 'valueCode'>): MetadataValueRecord {
   return {

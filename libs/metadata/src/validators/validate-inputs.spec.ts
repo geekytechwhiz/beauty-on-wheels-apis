@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
-import { STATUS } from '../domain/constants';
+import { STATUS } from '../constants';
 import { ValidationError } from '../domain/errors';
-import type { MetadataTypeRecord } from '../domain/types';
+import type { MetadataTypeRecord } from '../models/types';
 import { validateMetadataTypeInput, validateMetadataValueConditionalApplicability } from './validate-inputs';
 
 describe('validateMetadataTypeInput', () => {

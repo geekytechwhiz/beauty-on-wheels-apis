@@ -1,4 +1,4 @@
-import type { STATUS } from './constants';
+import type { STATUS } from '../constants';
 
 export type Status = (typeof STATUS)[keyof typeof STATUS];
 

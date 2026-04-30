@@ -5,6 +5,10 @@ import { PriorityBand } from '../types/priority-band.type';
 export interface Alert extends BaseEntity {
   alertId: string;
   patientId: string;
+  /** Display name for `patientId`, supplied by the client on create (e.g. care UI). */
+  patientName?: string;
+  /** Display name of the authenticated user who created the alert; supplied by the client (not from JWT). */
+  actorName?: string;
 
   inputEventId: string;
   inputType: string;

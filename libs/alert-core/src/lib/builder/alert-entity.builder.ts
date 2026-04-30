@@ -65,6 +65,8 @@ export class AlertEntityBuilder {
       alertId,
       organizationId: input.organizationId,
       patientId: input.patientId,
+      patientName: input.patientName,
+      actorName: input.actorName,
 
       inputEventId: input.inputEventId!,
       inputType: input.inputType,
@@ -121,7 +123,12 @@ export class AlertEntityBuilder {
 
       // 🔹 GSIs
       gsi1pk: AlertKeyBuilder.toOrgPartitionKey(input.organizationId),
-      gsi1sk: AlertKeyBuilder.buildGsi2Sk('UNASSIGNED', input.priority ?? 'P2', now),
+      gsi1sk: AlertKeyBuilder.buildGsi1Sk(
+        'UNASSIGNED',
+        input.priority ?? 'P2',
+        input.triggerTimestamp,
+        alertId,
+      ),
 
       gsi2pk: undefined,
       gsi2sk: undefined,
@@ -142,23 +149,23 @@ export class AlertEntityBuilder {
   // -----------------------------
   static buildCreateActivity(ctx: CreateAlertContext) {
     const { alertId, now, input } = ctx;
-
+    const activityId = randomUUID()
     return {
       TableName: process.env.ALERT_TABLE!,
 
       pk: AlertKeyBuilder.toAlertPk(alertId),
-      sk: `ACTIVITY#${now}#${randomUUID()}`,
+      sk: `ACTIVITY#${now}#${activityId}`,
 
       entityType: 'ALERT_ACTIVITY',
 
-      activityId: randomUUID(),
+      activityId,
       alertId,
 
       activityType: 'AlertCreated',
       activityTimestamp: now,
 
       performedBy: input.actorUserId ?? 'SYSTEM',
-      performedByDisplayName: undefined,
+      performedByDisplayName: input.actorName,
 
       activityComment: 'Alert created',
 

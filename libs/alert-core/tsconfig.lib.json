@@ -13,8 +13,8 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {
-      "@api-hub/logger": ["dist/libs/logger/index.d.ts"],
-      "@api-hub/utils": ["dist/libs/utils/index.d.ts"],
+      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
       "@api-hub/fhir": ["libs/fhir/src/index.ts"],
       "@api-hub/consent": ["libs/consent/src/index.ts"],

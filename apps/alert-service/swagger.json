@@ -159,7 +159,7 @@
     },
     "CreateAlertRequest": {
       "type": "object",
-      "description": "Create-alert body; organization from JWT. Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload. evidencePayload is EvidenceMissedReading or EvidenceMissingDevice (strict). Unknown top-level properties rejected.",
+      "description": "Create-alert body; organization from JWT. Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload. Optional: patientName, actorName (client display names). evidencePayload is EvidenceMissedReading or EvidenceMissingDevice (strict). Unknown top-level properties rejected.",
       "additionalProperties": false,
       "required": [
         "inputEventId",
@@ -183,6 +183,14 @@
           "description": "Required. Must match evidencePayload.source."
         },
         "patientId": { "type": "string", "description": "Required." },
+        "patientName": {
+          "type": "string",
+          "description": "Optional. Patient display name from the UI; stored for list/detail."
+        },
+        "actorName": {
+          "type": "string",
+          "description": "Optional. Display name of the API caller (actor); not from JWT."
+        },
         "carePlanInstanceId": {
           "type": "string",
           "description": "Optional. When the event is tied to an active care plan."
@@ -238,12 +246,14 @@
       "example": {
         "inputEventId": "ui-missed-reading-001",
         "inputType": "MISSED_READING",
-        "sourceType": "DEVICE_MONITORING",
+        "sourceType": "MONITORING_SERVICE",
         "patientId": "pat-123",
+        "patientName": "Jane Doe",
+        "actorName": "Dr. Smith",
         "triggerTimestamp": "2026-04-17T10:00:00.000Z",
         "evidencePayload": {
           "eventTimestamp": "2026-04-17T10:00:00.000Z",
-          "source": "DEVICE_MONITORING",
+          "source": "MONITORING_SERVICE",
           "inputType": "MISSED_READING",
           "appliesToType": "VITAL_SIGN",
           "linkedEntityCode": "BP_SYSTOLIC",

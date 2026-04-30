@@ -9,6 +9,10 @@ export interface CreateAlertRequest {
   sourceType: string;
 
   patientId: string;
+  /** Client-supplied patient display name (e.g. chart name at create time). */
+  patientName?: string;
+  /** Client-supplied display name for the user calling the API (actor). */
+  actorName?: string;
   triggerTimestamp: string;
 
   evidencePayload: Record<string, unknown>;

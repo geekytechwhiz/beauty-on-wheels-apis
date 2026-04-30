@@ -14,8 +14,8 @@ export function serializeError(error: unknown): Record<string, unknown> {
 
   if (typeof error === 'object' && error !== null) {
     return {
-      name: 'NonErrorThrowable',
-      message: 'Non-Error value thrown',
+      name: 'SerializedUnknownRejection',
+      message: 'Non-Error value logged',
       value: safeParse(error),
     };
   }

@@ -1,65 +1,111 @@
-import { createLogger } from '@api-hub/observability';
+import {
+  createChildLogger,
+  createLogger,
+} from '@api-hub/logger';
+import { serializeError } from '@api-hub/observability';
+import { BaseError, handleError, toBaseError } from '@api-hub/utils';
 
+import { EventSchemaError } from './event-schema/event-schema-error';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
-import { ensureObservabilityInitialized } from './observability-init';
 
-ensureObservabilityInitialized();
+const baseLogger = createLogger({
+  service: 'api-service',
+  redactPII: true,
+});
 
-const logger = createLogger();
-
-/**
- * JSON snapshot of the Lambda `event` for logs (handles circular structures).
- */
-function snapshotEventPayload(value: unknown): unknown {
-  const seen = new WeakSet<object>();
-  try {
-    return JSON.parse(
-      JSON.stringify(value, (_key, v) => {
-        if (typeof v === 'object' && v !== null) {
-          if (seen.has(v)) {
-            return '[Circular]';
-          }
-          seen.add(v);
-        }
-        return v;
-      }) as string
-    ) as unknown;
-  } catch {
-    return { _error: 'event_payload_not_serializable' };
+function normalizePipelineError(error: unknown): BaseError {
+  if (error instanceof EventSchemaError) {
+    const z = error.zodError;
+    return new BaseError(
+      error.message,
+      400,
+      'VALIDATION_ERROR',
+      z.issues.map((i) => ({
+        field: i.path.join('.'),
+        message: i.message,
+      })),
+      { retryable: false },
+    );
   }
+  return toBaseError(error);
 }
 
 /**
- * Catches all errors from `next()`, logs, then re-throws. Placed **first** in the array so
- * this middleware wraps the entire inner chain. Because the outer `catch` may run outside
- * AsyncLocalStorage, we merge `event.__context` for correlation and trace fields.
+ * HTTP API Gateway stack: outer catch normalizes errors, logs once, returns {@link APIGatewayProxyResult}.
  */
-export function errorMiddleware<
+export function httpApiErrorMiddleware<
+  TResult,
+  TContext = unknown,
+>(): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
+  return async ({ event, next }) => {
+    try {
+      return await next();
+    } catch (error: unknown) {
+      const appError = normalizePipelineError(error);
+      const raw = (event as MiddlewarePipelineEvent).__context;
+      const correlationId = raw?.correlationId ?? 'unknown';
+      const awsRequestId = raw?.awsRequestId ?? 'unknown-request-id';
+      const logger = createChildLogger(baseLogger, {
+        correlationId,
+        awsRequestId,
+      });
+
+      logger.error({
+        event: 'http_pipeline_error',
+        operation: raw?.operation,
+        correlationId,
+        traceId: raw?.traceId,
+        'error.code': appError.code,
+        'error.retryable': appError.retryable ?? false,
+        err: serializeError(appError),
+      });
+
+      const response = await handleError(appError, {
+        correlationId,
+        logger,
+        event,
+        skipLog: true,
+      });
+
+      return response as TResult;
+    }
+  };
+}
+
+/**
+ * Async / non-HTTP pipeline: normalize to {@link BaseError}, single structured log, rethrow.
+ */
+export function asyncErrorMiddleware<
   TResult = unknown,
   TContext = unknown,
 >(): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
   return async ({ event, next }) => {
     try {
       return await next();
-    } catch (error) {
+    } catch (error: unknown) {
+      const appError = normalizePipelineError(error);
       const raw = (event as MiddlewarePipelineEvent).__context;
-      const bridge =
-        raw && typeof raw === 'object'
-          ? {
-              correlationId: raw.correlationId,
-              awsRequestId: raw.awsRequestId,
-              traceId: raw.traceId,
-            }
-          : undefined;
-
-      logger.error('Unhandled error in middleware pipeline', {
-        event: 'unhandled_middleware_error',
-        eventPayload: snapshotEventPayload(event),
-        err: error,
-        ...bridge,
+      const correlationId = raw?.correlationId ?? 'unknown';
+      const awsRequestId = raw?.awsRequestId ?? 'unknown-request-id';
+      const logger = createChildLogger(baseLogger, {
+        correlationId,
+        awsRequestId,
       });
 
-      throw error;
+      logger.error({
+        event: 'async_pipeline_error',
+        operation: raw?.operation,
+        correlationId,
+        traceId: raw?.traceId,
+        'error.code': appError.code,
+        'error.retryable': appError.retryable ?? false,
+        err: serializeError(appError),
+      });
+
+      throw appError;
     }
   };
 }
+
+/** @deprecated Use {@link asyncErrorMiddleware} or {@link httpApiErrorMiddleware}. */
+export const errorMiddleware = asyncErrorMiddleware;

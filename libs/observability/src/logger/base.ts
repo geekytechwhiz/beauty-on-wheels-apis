@@ -11,3 +11,8 @@ export function getBaseLogger() {
   }
   return baseLogger;
 }
+
+/** Powertools singleton; accepts structured objects on `.info`/`.warn` like AWS Lambda Powertools Logger. */
+export function createLogger(): Logger {
+  return getBaseLogger();
+}

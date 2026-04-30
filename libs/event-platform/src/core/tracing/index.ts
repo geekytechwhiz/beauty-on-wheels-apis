@@ -1,5 +1,8 @@
 export {
   createEventTracingHooks,
+  fireProcessingFailure,
+  fireProcessingStart,
+  fireProcessingSuccess,
   type CreateEventTracingHooksOptions,
   type EventTracingHooks,
 } from './event-tracing-hooks';

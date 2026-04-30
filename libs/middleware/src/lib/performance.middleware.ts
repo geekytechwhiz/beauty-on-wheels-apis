@@ -1,3 +1,5 @@
+import { BaseError, errorCodeFromUnknown } from '@api-hub/utils';
+
 import { createLogger, publishMiddlewarePipelineMetrics } from '@api-hub/observability';
 
 import type { Middleware } from './types';
@@ -42,20 +44,26 @@ export function performanceMiddleware<
       return result;
     } catch (error) {
       const durationMs = Date.now() - startedAt;
+      const retryable =
+        error instanceof BaseError ? (error.retryable ?? false) : undefined;
 
       logger.info({
         event: 'middleware_performance',
         message: 'Middleware pipeline timing',
+        logType: 'middleware_performance',
         operation,
         durationMs,
         outcome: 'failure',
-        err: error,
+        errorCode: errorCodeFromUnknown(error),
+        ...(retryable !== undefined ? { 'error.retryable': retryable } : {}),
       });
 
       publishMiddlewarePipelineMetrics({
         operation,
         durationMs,
         outcome: 'failure',
+        errorCode: errorCodeFromUnknown(error),
+        retryable,
       });
 
       throw error;

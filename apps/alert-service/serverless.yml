@@ -17,9 +17,9 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  deploymentBucket:
-    name: ${self:provider.stage}-mvx-alert-service-bucket
-    serverSideEncryption: AES256
+  # deploymentBucket:
+  #   name: ${self:provider.stage}-mvx-alert-service-bucket
+  #   serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 
@@ -196,20 +196,28 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "201": Created
-            "200": Duplicate event (idempotent replay on inputEventId)
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "422": Validation or business rule error
-            "500": Server error
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+          documentation:
+            responses:
+              201:
+                description: Created
+              200:
+                description: Duplicate event (idempotent replay on inputEventId)
+              400:
+                description: Bad request
+              401:
+                description: Unauthorized
+              403:
+                description: Forbidden
+              422:
+                description: Validation or business rule error
+              500:
+                description: Server error
 
   listAlerts:
     handler: src/handlers/http/listAlerts.main
@@ -262,18 +270,24 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+          documentation:
+            responses:
+              200:
+                description: OK
+              400:
+                description: Bad request
+              401:
+                description: Unauthorized
+              403:
+                description: Forbidden
+              500:
+                description: Server error
 
   getAlert:
     handler: src/handlers/http/getAlert.main
@@ -286,18 +300,24 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "500": Server error
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+          documentation:
+            responses:
+              200:
+                description: OK
+              401:
+                description: Unauthorized
+              403:
+                description: Forbidden
+              404:
+                description: Not found
+              500:
+                description: Server error
 
   getAlertActivity:
     handler: src/handlers/http/getAlertActivity.main
@@ -310,18 +330,189 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "500": Server error
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+          documentation:
+            responses:
+              200:
+                description: OK
+              401:
+                description: Unauthorized
+              403:
+                description: Forbidden
+              404:
+                description: Not found
+              500:
+                description: Server error
+
+resources:
+  Resources:
+    AlertServiceTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: alert-service-dev
+        BillingMode: PAY_PER_REQUEST
+
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+
+          - AttributeName: gsi1pk
+            AttributeType: S
+          - AttributeName: gsi1sk
+            AttributeType: S
+
+          - AttributeName: gsi2pk
+            AttributeType: S
+          - AttributeName: gsi2sk
+            AttributeType: S
+
+          - AttributeName: gsi3pk
+            AttributeType: S
+          - AttributeName: gsi3sk
+            AttributeType: S
+
+          - AttributeName: gsi4pk
+            AttributeType: S
+          - AttributeName: gsi4sk
+            AttributeType: S
+
+          - AttributeName: gsi5pk
+            AttributeType: S
+          - AttributeName: gsi5sk
+            AttributeType: S
+
+          - AttributeName: sk1
+            AttributeType: S
+          - AttributeName: sk2
+            AttributeType: S
+          - AttributeName: sk3
+            AttributeType: S
+
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: gsi1pk
+                KeyType: HASH
+              - AttributeName: gsi1sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - alertId
+
+          - IndexName: GSI2
+            KeySchema:
+              - AttributeName: gsi2pk
+                KeyType: HASH
+              - AttributeName: gsi2sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - alertId
+
+          - IndexName: GSI3
+            KeySchema:
+              - AttributeName: gsi3pk
+                KeyType: HASH
+              - AttributeName: gsi3sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - alertId
+
+          - IndexName: GSI4
+            KeySchema:
+              - AttributeName: gsi4pk
+                KeyType: HASH
+              - AttributeName: gsi4sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - alertId
+
+          - IndexName: GSI5
+            KeySchema:
+              - AttributeName: gsi5pk
+                KeyType: HASH
+              - AttributeName: gsi5sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - alertId
+
+          - IndexName: pk-sk1
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk1
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - patientId
+                - triggerTimestamp
+                - assignedToUserID
+                - alertState
+                - orgId
+                - priority
+                - triggerSummary
+                - alertId
+                - groupingKey
+
+          - IndexName: pk-sk2-index
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk2
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - patientId
+                - triggerTimestamp
+                - assignedToUserID
+                - alertState
+                - orgId
+                - priority
+                - triggerSummary
+                - alertId
+                - groupingKey
+
+          - IndexName: pk-sk3-index
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk3
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - patientId
+                - triggerTimestamp
+                - assignedToUserID
+                - alertState
+                - orgId
+                - priority
+                - triggerSummary
+                - alertId
+                - groupingKey
 
   # --- Other HTTP APIs: uncomment when ready ---
   # listOrgAlerts:

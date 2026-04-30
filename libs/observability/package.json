@@ -1,5 +1,5 @@
 {
-  "name": "@myvitalrx/observability",
+  "name": "@api-hub/observability",
   "version": "2.6.0",
   "description": "Enterprise observability library for logging, metrics, and context propagation",
   "main": "./dist/index.cjs",

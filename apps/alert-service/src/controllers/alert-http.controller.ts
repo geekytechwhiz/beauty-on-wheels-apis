@@ -32,14 +32,14 @@ function getAlertService(): AlertService {
 
 let ctrl: AlertHttpController | undefined;
 
-function unauthorizedOrgError(): Error & { statusCode: number; code: string } {
-  const e = new Error('Organization could not be resolved from the access token') as Error & {
-    statusCode: number;
-    code: string;
-  };
-  e.statusCode = 401;
-  e.code = 'UNAUTHORIZED';
-  return e;
+function unauthorizedOrgError(): BaseError {
+  return new BaseError(
+    'Organization could not be resolved from the access token',
+    401,
+    'UNAUTHORIZED',
+    [{ message: 'Organization could not be resolved from the access token' }],
+    { retryable: false },
+  );
 }
 
 export class AlertHttpController {
@@ -92,24 +92,40 @@ export class AlertHttpController {
 
   async handleGetAlert(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
-    if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
+    if (!alertId) {
+      throw new BaseError('alertId required', 400, 'INVALID_REQUEST', [
+        { message: 'alertId required' },
+      ], { retryable: false });
+    }
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     const row = await this.svc.getAlert(alertId, orgId);
-    if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+    if (!row) {
+      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
+        retryable: false,
+      });
+    }
     return toAlertDetail(row);
   }
 
   async handleGetAlertActivity(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
-    if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
+    if (!alertId) {
+      throw new BaseError('alertId required', 400, 'INVALID_REQUEST', [
+        { message: 'alertId required' },
+      ], { retryable: false });
+    }
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const items = await this.svc.listAlertActivity(alertId, orgId);
-    if (!items) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+    if (!items) {
+      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
+        retryable: false,
+      });
+    }
 
     return { items };
   }
@@ -159,7 +175,11 @@ export class AlertHttpController {
 
   async handleListOrgAlerts(req: LambdaRequest) {
     const organizationId = req.pathParameters?.organizationId;
-    if (!organizationId) throw Object.assign(new Error('organizationId required'), { statusCode: 400 });
+    if (!organizationId) {
+      throw new BaseError('organizationId required', 400, 'INVALID_REQUEST', [
+        { message: 'organizationId required' },
+      ], { retryable: false });
+    }
     const qp = req.params as Record<string, string | undefined>;
     const state = (qp.state as AlertState | undefined) ?? 'UNASSIGNED';
     const unassignedOnly = qp.unassignedOnly === 'true' || qp.unassignedOnly === '1';
@@ -170,7 +190,11 @@ export class AlertHttpController {
 
   async handleListUserAlerts(req: LambdaRequest) {
     const userId = req.pathParameters?.userId;
-    if (!userId) throw Object.assign(new Error('userId required'), { statusCode: 400 });
+    if (!userId) {
+      throw new BaseError('userId required', 400, 'INVALID_REQUEST', [{ message: 'userId required' }], {
+        retryable: false,
+      });
+    }
     const qp = req.params as Record<string, string | undefined>;
     const state = qp.state as AlertState | undefined;
     const limit = qp.limit ? Number(qp.limit) : 50;
@@ -180,22 +204,33 @@ export class AlertHttpController {
 
   async handlePatchAlert(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
-    if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
+    if (!alertId) {
+      throw new BaseError('alertId required', 400, 'INVALID_REQUEST', [
+        { message: 'alertId required' },
+      ], { retryable: false });
+    }
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const existing = await this.svc.getAlert(alertId, orgId);
-    if (!existing) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+    if (!existing) {
+      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
+        retryable: false,
+      });
+    }
 
-    const raw = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {};
-    const patch = patchAlertBodySchema.parse(raw) as {
+    const patch = patchAlertBodySchema.parse(req.body ?? {}) as {
       alertState?: AlertState;
       assignedToUserId?: string | null;
       slaBreachIndicator?: boolean;
     };
     const row = await this.svc.updateAlert(alertId, patch);
-    if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+    if (!row) {
+      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
+        retryable: false,
+      });
+    }
     return { alert: toPublicAlert(row) };
   }
 }

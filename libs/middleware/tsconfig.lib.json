@@ -20,10 +20,13 @@
   ],
   "references": [
     {
-      "path": "../logger/tsconfig.lib.json"
+      "path": "../utils/tsconfig.lib.json"
     },
     {
-      "path": "../utils/tsconfig.lib.json"
+      "path": "../observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../logger/tsconfig.lib.json"
     }
   ]
 }

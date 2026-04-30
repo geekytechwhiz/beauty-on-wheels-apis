@@ -19,6 +19,9 @@
     },
     {
       "path": "../logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../observability/tsconfig.lib.json"
     }
   ],
   "exclude": [

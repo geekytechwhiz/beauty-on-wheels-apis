@@ -1,10 +1,15 @@
 import type { Context } from 'aws-lambda';
 
+import { resolveCorrelationIdForHttp } from '@api-hub/logger';
+
 import type { ExecutionContext, MiddlewarePipelineEvent } from './types';
 import { randomUUID } from 'node:crypto';
 
 const awsRequestIdFromLambdaContext = (lambdaContext: unknown): string =>
   (lambdaContext as Context).awsRequestId || 'unknown-request-id';
+
+/** Re-export for callers that imported correlation helpers from `@api-hub/middleware`. */
+export { extractCorrelationId, resolveCorrelationIdForHttp } from '@api-hub/logger';
 
 /**
  * SQS: message attributes, body JSON, or `messageId` (prefixed) as a stable id.
@@ -28,26 +33,24 @@ export function correlationIdFromSqsEvent(event: any): string | undefined {
   }
 }
 
- 
-export function extractCorrelationId(event: any): string | undefined {
-  return event?.headers?.['x-correlation-id'];
-}
 export function correlationIdFromEventBridge(event: any): string | undefined {
   return event?.detail?.meta?.correlationId;
 }
+
 /**
- * Resolves a correlation id: SQS and EventBridge first, then API Gateway / HTTP (shared logger helper),
- * which may generate a fallback string when absent.
+ * Resolves a correlation id: SQS and EventBridge first, then API Gateway / HTTP
+ * (headers + requestContext + Lambda request id), then UUID.
  */
-export function resolveCorrelationId(event: any): string {
+export function resolveCorrelationId(event: any, lambdaContext?: unknown): string {
+  const awsRid = awsRequestIdFromLambdaContext(lambdaContext);
   return (
     correlationIdFromSqsEvent(event) ||
     correlationIdFromEventBridge(event) ||
-    extractCorrelationId(event) ||
-    randomUUID() // ✅ only as LAST fallback
+    resolveCorrelationIdForHttp(event, awsRid) ||
+    randomUUID()
   );
 }
- 
+
 /**
  * `source` and `eventType` hints by transport (EventBridge, SQS, API Gateway / HTTP).
  */
@@ -93,12 +96,18 @@ function transportSourceAndType(event: unknown): Pick<
         eventType: path ? `${e.httpMethod} ${path}` : e.httpMethod,
       };
     }
-    const v2 = e as { version?: string; rawPath?: string; requestContext?: { http?: { method?: string } } };
+    const v2 = e as {
+      version?: string;
+      rawPath?: string;
+      requestContext?: { http?: { method?: string } };
+    };
     if (v2.version === '2.0' && v2.requestContext?.http?.method) {
       const p = v2.rawPath ?? '';
       return {
         source: 'aws:apigateway',
-        eventType: p ? `${v2.requestContext.http.method} ${p}` : v2.requestContext.http.method,
+        eventType: p
+          ? `${v2.requestContext.http.method} ${p}`
+          : v2.requestContext.http.method,
       };
     }
   }
@@ -116,7 +125,7 @@ function transportSourceAndType(event: unknown): Pick<
  */
 export function buildStandardEventContext(
   event: unknown,
-  lambdaContext: unknown
+  lambdaContext: unknown,
 ): Pick<
   ExecutionContext,
   'correlationId' | 'awsRequestId' | 'source' | 'eventType' | 'traceId'
@@ -129,11 +138,10 @@ export function buildStandardEventContext(
       : undefined;
 
   return {
-    correlationId: resolveCorrelationId(event),
+    correlationId: resolveCorrelationId(event, lambdaContext),
     awsRequestId: awsRequestIdFromLambdaContext(lambdaContext),
     source,
     eventType,
-    
     traceId,
   };
 }
@@ -145,7 +153,7 @@ export function buildStandardEventContext(
  */
 export function applyStandardEventContext(
   event: MiddlewarePipelineEvent,
-  lambdaContext: unknown
+  lambdaContext: unknown,
 ): void {
   const prior = event.__context ?? {};
   const built = buildStandardEventContext(event, lambdaContext);

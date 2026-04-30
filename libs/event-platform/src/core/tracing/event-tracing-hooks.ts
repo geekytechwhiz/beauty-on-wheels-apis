@@ -6,6 +6,13 @@ export type EventTracingHooks = {
   onEventReceived: (ctx: TraceContext) => void;
   onEventProcessed: (ctx: TraceContext) => void;
   onEventFailed: (ctx: TraceFailureContext) => void;
+  onStart?: (ctx: TraceContext) => void;
+  onSuccess?: (ctx: TraceContext) => void;
+  onFailure?: (ctx: TraceFailureContext) => void;
+  onRetry?: (
+    ctx: TraceContext & { attempt: number; delayMs?: number; reason?: string },
+  ) => void;
+  onDlq?: (ctx: TraceFailureContext & { reason?: string }) => void;
 };
 
 export type CreateEventTracingHooksOptions = {
@@ -20,8 +27,8 @@ export function createEventTracingHooks(
 ): EventTracingHooks {
   const component = options.component ?? 'event-platform';
 
-  const correlationFields = (ctx: { correlationId?: string | undefined }) => ({
-    ...(ctx.correlationId !== undefined ? { correlationId: ctx.correlationId } : {}),
+  const correlationFields = (ctx: { correlationId: string }) => ({
+    correlationId: ctx.correlationId,
   });
 
   return {
@@ -55,4 +62,37 @@ export function createEventTracingHooks(
       });
     },
   };
+}
+
+export function fireProcessingStart(
+  hooks: EventTracingHooks | undefined,
+  ctx: TraceContext,
+): void {
+  if (hooks?.onStart) {
+    hooks.onStart(ctx);
+  } else {
+    hooks?.onEventReceived(ctx);
+  }
+}
+
+export function fireProcessingSuccess(
+  hooks: EventTracingHooks | undefined,
+  ctx: TraceContext,
+): void {
+  if (hooks?.onSuccess) {
+    hooks.onSuccess(ctx);
+  } else {
+    hooks?.onEventProcessed(ctx);
+  }
+}
+
+export function fireProcessingFailure(
+  hooks: EventTracingHooks | undefined,
+  f: TraceFailureContext,
+): void {
+  if (hooks?.onFailure) {
+    hooks.onFailure(f);
+  } else {
+    hooks?.onEventFailed(f);
+  }
 }

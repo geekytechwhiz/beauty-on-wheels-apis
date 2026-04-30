@@ -1,12 +1,38 @@
-import { decodeJwtPayload, pickOrganizationIdFromJwtPayload } from '@api-hub/utils';
+import {
+  BaseError,
+  decodeJwtPayload,
+  pickOrganizationIdFromJwtPayload,
+} from '@api-hub/utils';
 
-import type { RequestBuildEvent } from './types';
+import type { Middleware, MiddlewarePipelineEvent, RequestBuildEvent } from './types';
+
+function parseEventBody(body: RequestBuildEvent['body']): unknown {
+  if (body === undefined || body === null) {
+    return body;
+  }
+  if (typeof body !== 'string') {
+    return body;
+  }
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new BaseError(
+      'Invalid JSON body',
+      400,
+      'INVALID_JSON',
+      [{ message: 'Invalid JSON body' }],
+      { retryable: false },
+    );
+  }
+}
 
 export const buildRequestContext = (event: RequestBuildEvent) => {
   const authHeader =
     event.headers?.Authorization || event.headers?.authorization;
 
-  const decoded = authHeader ? decodeJwtPayload(authHeader) : ({} as Record<string, unknown>);
+  const decoded = authHeader
+    ? decodeJwtPayload(authHeader)
+    : ({} as Record<string, unknown>);
 
   const user = {
     userId:
@@ -16,44 +42,24 @@ export const buildRequestContext = (event: RequestBuildEvent) => {
     organizationId: pickOrganizationIdFromJwtPayload(decoded),
   };
 
-  let body: any = undefined;
-  if (event.body != null) {
-    try {
-      body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body;
-    } catch {
-      body = undefined;
-    }
-  }
-
-  /**
-   * Normalise path/query parameters so handlers can rely on:
-   * - req.pathParameters
-   * - req.params (merged path + query)
-   *
-   * Supports three direct-Lambda invocation shapes:
-   *   1. API Gateway  → event.pathParameters / event.queryStringParameters
-   *   2. Top-level    → { userId, userID, organizationId, organizationID }
-   *   3. Nested data  → { data: { userID, organizationID, userId, organizationId } }
-   *                     (common pattern when invoking via a lambda-invoker utility)
-   */
   const directPayload = (event.data ?? event) as RequestBuildEvent;
 
-  const resolvedUserId =
-    directPayload.userId ||
-    directPayload.userID;
+  const resolvedUserId = directPayload.userId || directPayload.userID;
 
   const resolvedOrganizationId =
-    directPayload.organizationId ||
-    directPayload.organizationID;
+    directPayload.organizationId || directPayload.organizationID;
 
   const normalizedPathParameters =
     event.pathParameters ??
     (((resolvedUserId || resolvedOrganizationId) && {
       ...(resolvedUserId && { userId: String(resolvedUserId) }),
-      ...(resolvedOrganizationId && { organizationId: String(resolvedOrganizationId) }),
+      ...(resolvedOrganizationId && {
+        organizationId: String(resolvedOrganizationId),
+      }),
     }) as Record<string, string> | undefined);
 
-  const normalizedQueryParameters = event.queryStringParameters ?? undefined;
+  const normalizedQueryParameters =
+    event.queryStringParameters ?? undefined;
 
   return {
     event,
@@ -62,10 +68,35 @@ export const buildRequestContext = (event: RequestBuildEvent) => {
       ...(normalizedQueryParameters ?? {}),
     },
     pathParameters: normalizedPathParameters,
-    body,
+    body: parseEventBody(event.body),
     context: {
       authHeader,
       userContext: user,
     },
   };
 };
+
+/** Runs before {@link buildRequestContext} in the HTTP pipeline so `event.body` is parsed once. */
+export function requestParserMiddleware<
+  TResult = unknown,
+  TContext = unknown,
+>(): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
+  return async ({ event, next }) => {
+    const e = event as RequestBuildEvent;
+    if (e?.body && typeof e.body === 'string') {
+      try {
+        e.body = JSON.parse(e.body);
+      } catch {
+        throw new BaseError(
+          'Invalid JSON body',
+          400,
+          'INVALID_JSON',
+          [{ message: 'Invalid JSON body' }],
+          { retryable: false },
+        );
+      }
+    }
+
+    return next();
+  };
+}

@@ -1,29 +1,44 @@
 import type { z } from 'zod';
+import { BaseError } from '@api-hub/utils';
 
 import { EventSchemaError } from './event-schema/event-schema-error';
-import type { Middleware, MiddlewarePipelineEvent } from './types';
 
-/**
- * **HTTP API only:** validates the full Lambda `event` (e.g. `APIGatewayProxyEvent`) when
- * a Zod schema is provided. Omitted or absent `schema` → no-op.
- * Domain `eventType` + `payload` validation for platform events lives in `@api-hub/event-platform`.
- */
-export function schemaValidationMiddleware<
-  TResult = unknown,
-  TContext = unknown,
->(options: {
+export function schemaValidationMiddleware(options: {
   schema?: z.ZodType<unknown>;
-}): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
+}) {
   const { schema } = options;
-  if (schema === undefined) {
-    return async ({ next }) => next();
-  }
 
-  return async ({ event, next }) => {
-    const r = schema.safeParse(event);
-    if (!r.success) {
-      throw new EventSchemaError('API request event failed schema validation', r.error);
+  return async ({ event, next }: any) => {
+    if (!schema) return next();
+
+    let body = event?.body;
+
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        throw new BaseError(
+          'Invalid JSON body',
+          400,
+          'INVALID_JSON',
+          [{ message: 'Invalid JSON body' }],
+          { retryable: false },
+        );
+      }
     }
+
+    const result = schema.safeParse(body);
+
+    if (!result.success) {
+      throw new EventSchemaError(
+        'API request body failed schema validation',
+        result.error
+      );
+    }
+
+    // 🔥 ensure downstream gets correct value
+    event.body = result.data;
+
     return next();
   };
 }

@@ -97,4 +97,9 @@ export type PublishResult =
         outcome: 'dead_letter_candidate';
         idempotencyKey: string;
         error: unknown;
+      }
+    | {
+        outcome: 'discarded_non_retryable';
+        idempotencyKey: string;
+        error: unknown;
       };

@@ -1,11 +1,11 @@
 import { createLogger, type Logger } from '@api-hub/logger';
 
-import type { EventEnvelope } from '../../core/event-envelope/base-event';
+import type { EventEnvelope } from '../../typings/base-event.types';
  
 import { EventPublisher } from './event-publisher';
 import { createSnsTopicAdapter, isCredentialLikeSnsError, isNonProdRelaxed } from './sns-topic-adapter';
 import type { EventPublishAdapter } from './event-publish-adapter';
-import type { PublishInput } from './publish-input';
+import type { PublishInput } from '../../typings/publisher.types';
 import { PayloadSchemaRegistry } from '../../typings/consumer.types';
 
 export type CreateSnsPublishEventOptions = {
@@ -36,7 +36,7 @@ export function createSnsPublishEvent(
       service: serviceName,
       redactPII: true,
     });
-    const finalCorrelationId = evt.correlationId ?? correlationId;
+    const finalCorrelationId = evt.meta?.correlationId ?? correlationId;
     const logger = parentLogger;
 
     if (!topicArn) {
@@ -60,7 +60,7 @@ export function createSnsPublishEvent(
 
     const input: PublishInput<T> = {
       eventType: evt.eventType,
-      version: evt.version,
+      version: evt.eventVersion,
       source: evt.source ?? defaultSource,
       payload: evt.payload,
       correlationId: finalCorrelationId,

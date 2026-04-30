@@ -45,6 +45,8 @@ export interface ErrorHandlerOptions {
     correlationId?: string;
     event?: any;
     logger?: any;
+    /** When true, {@link handleError} omits its own log line (caller already logged structured error). */
+    skipLog?: boolean;
   }
   export interface LambdaRequest<
   Params = Record<string, any>,
@@ -64,6 +66,8 @@ export interface RequestContext {
   logger: any;
   authHeader?: string;
   userContext?: UserContext;
+  traceId?: string;
+  operation?: string;
 }
 export interface UserContext {
   userId?: string;

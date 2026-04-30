@@ -8,7 +8,7 @@ import {
   SQSClient,
 } from '@aws-sdk/client-sqs';
 
-import type { BaseEvent } from '../../core/event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 import type { SqsAdapterConfig } from './sqs-adapter-config';
 import { parseMessageBody, serializeBaseEvent } from './message-serialization';
 

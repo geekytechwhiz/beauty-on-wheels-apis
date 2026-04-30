@@ -39,3 +39,7 @@ export type NormalizeMetaOptions = {
   defaultChannel?: string;
   defaultEnvironment?: string;
 };
+
+export interface TransportAdapter {
+  normalize(raw: unknown): BaseEvent[]; 
+}

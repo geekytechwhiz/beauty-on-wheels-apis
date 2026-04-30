@@ -3,23 +3,28 @@ import type { z } from 'zod';
 import { getConfig } from '@api-hub/observability';
 
 import { contextMiddleware } from './context-middleware';
-import { errorMiddleware } from './error.middleware';
+import { asyncErrorMiddleware, httpApiErrorMiddleware } from './error.middleware';
 import { invocationContextMiddleware } from './invocation-context.middleware';
 import { loggerMiddleware } from './logger.middleware';
-import { ensureObservabilityInitialized } from './observability-init';
 import { performanceMiddleware } from './performance.middleware';
 import { schemaValidationMiddleware } from './schema-validation.middleware';
 import { getTracerForService } from './tracer-singleton';
 import { tracerMiddleware } from './tracer.middleware';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
+import { requestParserMiddleware } from './request-context.middleware';
 
-ensureObservabilityInitialized();
+ 
 
 /**
- * API Gateway / HTTP execution stack: error → context → invocation → logger →
- * tracer → (optional) HTTP request schema → performance → handler.
+ * API Gateway / HTTP execution stack: error middleware is **first** in the array so it wraps the
+ * whole inner chain ({@link runMiddlewares} nests index 0 as the outer caller). Order inside the
+ * stack: error → context → invocation → logger → tracer → (optional) HTTP schema → performance → handler.
+ *
  * Reliability (idempotency, event payload schemas, retry, DLQ) belongs in `@api-hub/event-platform`, not here.
  */
+
+
+
 export function buildApiExecutionPipeline<
   TResult = unknown,
   TContext = unknown,
@@ -30,6 +35,7 @@ export function buildApiExecutionPipeline<
   const tracer = getTracerForService(getConfig().serviceName);
 
   return [
+    httpApiErrorMiddleware(),
     contextMiddleware(),
     invocationContextMiddleware({ operation: options.operation }),
     loggerMiddleware(),
@@ -37,9 +43,11 @@ export function buildApiExecutionPipeline<
       captureResponse: false,
       operation: options.operation,
     }),
+
+    requestParserMiddleware(),                    // 🔥 critical
     schemaValidationMiddleware({ schema: options.schema }),
+
     performanceMiddleware(options.operation),
-    errorMiddleware(),
   ];
 }
 
@@ -54,6 +62,7 @@ export function buildEventExecutionPipeline<
 > {
   const tracer = getTracerForService(getConfig().serviceName);
   return [
+    asyncErrorMiddleware(),
     contextMiddleware(),
     invocationContextMiddleware({ operation: options.operation }),
     loggerMiddleware(),
@@ -62,6 +71,5 @@ export function buildEventExecutionPipeline<
       operation: options.operation,
     }),
     performanceMiddleware(options.operation),
-    errorMiddleware(),
   ];
 }

@@ -3,10 +3,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "rootDir": "src",
-    "outDir": "dist",
+    "outDir": "dist/libs/observability",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "declaration": true,
     "emitDeclarationOnly": false,
-    "composite": false,
+    "composite": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"]

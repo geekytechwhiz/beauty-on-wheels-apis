@@ -1,3 +1,5 @@
+import { toBaseError } from '@api-hub/utils';
+
 import type {
   Handler,
   Middleware,
@@ -22,6 +24,10 @@ export function runMiddlewares<TEvent, TResult, TContext = unknown>(
 
       if (index < middlewares.length) {
         const middleware = middlewares[index];
+        if (!middleware) {
+          // 🔥 FINAL HANDLER MUST GET MUTATED CONTEXT
+          return handler(event, context);
+        }
         return middleware({
           event,
           context,
@@ -45,11 +51,12 @@ export function runMiddlewares<TEvent, TResult, TContext = unknown>(
 
       return result;
     } catch (error) {
+      const normalized = toBaseError(error);
       if (hooks?.onError) {
-        await hooks.onError(error, event, context);
+        await hooks.onError(normalized, event, context);
       }
 
-      throw error;
+      throw normalized;
     }
   };
 }

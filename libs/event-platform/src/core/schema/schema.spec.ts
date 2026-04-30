@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { BaseEvent } from '../event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 import { EventSchemaError } from './event-schema-error';
 import { validate, validatePayloadByEventType } from './validate';
 
@@ -20,11 +20,14 @@ describe('validatePayloadByEventType', () => {
   const base = (): BaseEvent => ({
     eventId: 'e',
     eventType: 'My.Event',
-    version: '1',
+    eventVersion: '1',
     timestamp: '2026-01-01T00:00:00.000Z',
     source: 's',
     idempotencyKey: 'k',
     payload: { n: 1 },
+    meta: {
+      correlationId: 'c',
+    },
   });
 
   it('passes when payload matches schema for eventType', () => {

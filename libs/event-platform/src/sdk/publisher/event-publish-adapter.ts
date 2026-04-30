@@ -1,4 +1,4 @@
-import type { BaseEvent } from '../../core/event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 
 /** Transport boundary: SQS / EventBridge adapters both implement this shape. */
 export type EventPublishAdapter = {

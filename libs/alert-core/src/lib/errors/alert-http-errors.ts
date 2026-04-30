@@ -34,7 +34,9 @@ export function normalizeAlertServiceError(error: unknown, log: NormalizeAlertSe
     throw new BaseError('Organization could not be found', 400, 'ORG_NOT_FOUND', [{ message: msg }]);
   }
   if (err.statusCode === 502) {
-    throw new BaseError(msg, 502, 'UPSTREAM_ERROR', [{ message: msg }]);
+    throw new BaseError(msg, 502, 'UPSTREAM_ERROR', [{ message: msg }], {
+      retryable: true,
+    });
   }
 
   const logEvent = log.logEvent ?? 'alert_create_service_error';

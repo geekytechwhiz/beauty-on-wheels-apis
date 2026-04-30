@@ -1,4 +1,4 @@
-import type { EventSchemaMeta } from './define-event-schema';
+import type { EventSchemaMeta } from './define-event';
 
 export function getSchemaMeta(schema: any): EventSchemaMeta {
   if (!schema.__meta) {

@@ -14,7 +14,7 @@ export class EventValidationError extends Error {
 const REQUIRED_KEYS = [
   'eventId',
   'eventType',
-  'version',
+  'eventVersion',
   'timestamp',
   'source',
   'idempotencyKey',
@@ -27,6 +27,11 @@ export function validateBaseEvent(value: unknown): BaseEvent {
     throw new EventValidationError('Event must be a non-null object');
   }
   const o = value as Record<string, unknown>;
+
+  if (!('eventVersion' in o) && 'version' in o) {
+    o.eventVersion = o.version;
+  }
+
   for (const key of REQUIRED_KEYS) {
     if (!(key in o)) {
       throw new EventValidationError(`Missing required field: ${key}`);

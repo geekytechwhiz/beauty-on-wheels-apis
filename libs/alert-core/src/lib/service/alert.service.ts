@@ -98,10 +98,10 @@ export class AlertService extends BaseAlertService {
       return { record: resolution, duplicate: true };
     }
 
-    await Promise.all([
-      validatePatientContext(input.patientId, input.organizationId, authHeader),
-      validateOrganizationContext(input.organizationId, authHeader),
-    ]);
+    // await Promise.all([
+    //   validatePatientContext(input.patientId, input.organizationId, authHeader),
+    //   validateOrganizationContext(input.organizationId, authHeader),
+    // ]);
 
     try {
       const record = await this.repo.createAlert(keyed);

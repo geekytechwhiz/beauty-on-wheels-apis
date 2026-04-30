@@ -1,9 +1,12 @@
+import { z } from 'zod';
+
 import { createLogger, type Logger } from '@api-hub/logger';
 import { getLoggerContext } from '@api-hub/observability';
 import type { EventPublishAdapter } from './event-publish-adapter';
-import type { PublishInput } from './publish-input';
+import type { PublishInput } from '../../typings/publisher.types';
 import type { BaseEvent } from '../../typings/base-event.types';
 import { createBaseEvent } from '../../core/event-envelope/create-base-event';
+import { resolveSchema } from '../../core/schema/schema-resolver';
 import type { PayloadSchemaRegistry } from '../../typings/consumer.types';
 
 /** -----------------------------
@@ -14,28 +17,6 @@ function serializeErr(err: unknown): Record<string, unknown> {
     return { name: err.name, message: err.message, stack: err.stack };
   }
   return { value: String(err) };
-}
-
-function resolveSchema(
-  schemas: PayloadSchemaRegistry | undefined,
-  eventType: string,
-  version: string,
-) {
-  const eventSchemas:any = schemas?.[eventType];
-
-  if (!eventSchemas) {
-    throw new Error(`No schemas found for eventType: ${eventType}`);
-  }
-
-  const schema = eventSchemas[version];
-
-  if (!schema) {
-    throw new Error(
-      `No schema for eventType=${eventType}, version=${version}`,
-    );
-  }
-
-  return schema;
 }
 
 /** -----------------------------
@@ -94,6 +75,7 @@ export class EventPublisher {
         spanId: input.meta?.spanId,
 
         causationId: input.meta?.causationId,
+        publishedAt:   new Date().toISOString(),
 
         schemaRef: `${input.eventType}@${input.version ?? '1.0.0'}`,
       },
@@ -105,7 +87,9 @@ export class EventPublisher {
     if (this.deps.payloadSchemas) {
       try {
         const schema = resolveSchema(
-          this.deps.payloadSchemas,
+          this.deps.payloadSchemas as unknown as
+            | Record<string, Record<string, z.ZodTypeAny>>
+            | undefined,
           event.eventType,
           event.eventVersion,
         );

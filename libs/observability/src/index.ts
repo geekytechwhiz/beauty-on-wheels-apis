@@ -6,12 +6,18 @@ export {
   configureObservability,
 } from './config/config';
 
-export {
+export { 
   getContext,
   withContext,  
+  getContext as getLoggerContext,
+  withContext as withLoggerContext,
 } from './core/context';
 
+export type { Context } from './core/context';
+export type LoggerContext = Partial<import('./core/context').Context>;
+
 export { getLogger } from './logger/logger';
+export { createLogger } from './logger/base';
 export { serializeError } from './logger/serialize-error';
 
 export { 
@@ -22,6 +28,10 @@ export {
   recordConsumerFailure,
   recordConsumerRetry,
 } from './metrics/consumer-metrics';
+
+export { publishMiddlewarePipelineMetrics } from './metrics/middleware-metrics';
+
+export { recordUpstreamRetryAttempts } from './metrics/upstream-metrics';
 
 export {
   withHttpObservability,

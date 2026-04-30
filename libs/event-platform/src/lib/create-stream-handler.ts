@@ -3,9 +3,9 @@ import { runMiddlewares } from '@api-hub/middleware';
 import { buildEventExecutionPipeline } from '@api-hub/middleware';
 import type { Handler, Middleware } from '@api-hub/middleware';
 
-import type { BaseEvent, EventMetadata } from '../core/event-envelope/base-event';
+import type { BaseEvent, EventMeta } from '../typings/base-event.types';
+import type { EventConsumerDeps } from '../typings/consumer.types';
 import { EventConsumer } from '../sdk/consumer/event-consumer';
-import type { EventConsumerDeps } from '../sdk/consumer/event-consumer';
 
 type StreamOrDdbRecord = {
   messageId?: string;
@@ -31,9 +31,14 @@ export function createStreamHandler<
 >(
   options: {
     operation: string;
-    mapRecordToBaseEvent: (record: DynamoDBRecord) => BaseEvent<unknown> | null | undefined;
+    mapRecordToBaseEvent: (
+      record: DynamoDBRecord,
+    ) => BaseEvent<unknown> | null | undefined;
   } & EventConsumerDeps,
-  business: (payload: unknown, meta: EventMetadata) => Promise<void>,
+  business: (
+    payload: unknown,
+    meta: Pick<EventMeta, 'correlationId' | 'retryCount' | 'publishedAt'>,
+  ) => Promise<void>,
 ): (event: DynamoDBStreamEvent, context: TContext) => Promise<TResult> {
   const { operation, mapRecordToBaseEvent, ...consumerOpts } = options;
   const deps: EventConsumerDeps = consumerOpts;
@@ -50,19 +55,26 @@ export function createStreamHandler<
       try {
         const result = await consumer.handle<unknown>(base, async (e) =>
           business(e.payload, {
-            correlationId: e.correlationId,
-            retryCount: e.meta?.retryCount,
-            publishedAt: e.meta?.publishedAt,
+            correlationId: e.meta.correlationId,
+            retryCount: e.meta.retryCount,
+            publishedAt: e.meta.publishedAt,
           }),
         );
         if (result.outcome === 'duplicate') {
           continue;
         }
+        if (result.outcome === 'discarded_non_retryable') {
+          continue;
+        }
         if (result.outcome === 'dead_letter_candidate') {
-          batchItemFailures.push({ itemIdentifier: itemIdentifierFromStreamRecord(record) });
+          batchItemFailures.push({
+            itemIdentifier: itemIdentifierFromStreamRecord(record),
+          });
         }
       } catch {
-        batchItemFailures.push({ itemIdentifier: itemIdentifierFromStreamRecord(record) });
+        batchItemFailures.push({
+          itemIdentifier: itemIdentifierFromStreamRecord(record),
+        });
       }
     }
 

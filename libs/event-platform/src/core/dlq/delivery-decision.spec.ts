@@ -3,7 +3,9 @@ import {
   classifyAfterHandlerFailure,
   decideDeliveryDisposition,
   outcomeWhenExhausted,
+  resolveDeliveryDecision,
 } from './delivery-decision';
+import { ZodError } from 'zod';
 
 describe('classifyAfterHandlerFailure', () => {
   it('returns retry when more attempts remain', () => {
@@ -63,5 +65,42 @@ describe('decideDeliveryDisposition', () => {
         dlq: { enabled: true },
       }),
     ).toBe('retry');
+  });
+});
+
+describe('resolveDeliveryDecision', () => {
+  it('routes non-retryable errors to dead-letter immediately when DLQ has a strategy', () => {
+    const d = resolveDeliveryDecision({
+      effectiveAttempt: 1,
+      maxAttempts: 5,
+      dlq: { enabled: true, strategy: { send: async () => {} } },
+      error: new ZodError([]),
+      allowTransportRetry: true,
+    });
+    expect(d.type).toBe('dead_letter');
+    expect(d).toMatchObject({ reason: 'non_retryable_error' });
+  });
+
+  it('returns discard on non-retryable errors when DLQ strategy is absent', () => {
+    const d = resolveDeliveryDecision({
+      effectiveAttempt: 1,
+      maxAttempts: 5,
+      dlq: { enabled: false },
+      error: new ZodError([]),
+      allowTransportRetry: true,
+    });
+    expect(d.type).toBe('discard');
+    expect(d).toMatchObject({ reason: 'non_retryable_error' });
+  });
+
+  it('requests transport retry while attempts remain for retryable errors', () => {
+    const d = resolveDeliveryDecision({
+      effectiveAttempt: 1,
+      maxAttempts: 3,
+      dlq: { enabled: true },
+      error: new Error('boom'),
+      allowTransportRetry: true,
+    });
+    expect(d.type).toBe('retry');
   });
 });

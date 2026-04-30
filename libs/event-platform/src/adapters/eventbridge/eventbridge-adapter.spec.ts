@@ -3,7 +3,7 @@ import {
   PutEventsCommand,
 } from '@aws-sdk/client-eventbridge';
 
-import type { BaseEvent } from '../../core/event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 import { serializeBaseEvent } from '../../core/event-envelope/serialize-base-event';
 import { EventBridgeAdapter } from './eventbridge-adapter';
 import { toPutEventsEntry } from './eventbridge-put-events';

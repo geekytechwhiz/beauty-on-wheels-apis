@@ -13,8 +13,8 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {
-      "@api-hub/logger": ["dist/libs/logger/index.d.ts"],
-      "@api-hub/utils": ["dist/libs/utils/index.d.ts"],
+      "@api-hub/logger": ["libs/logger/dist/index.d.ts"],
+      "@api-hub/utils": ["libs/utils/dist/index.d.ts"],
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
       "@api-hub/fhir": ["libs/fhir/src/index.ts"],
       "@api-hub/consent": ["libs/consent/src/index.ts"],
@@ -41,7 +41,7 @@
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
     { "path": "../logger/tsconfig.lib.json" },
     { "path": "../utils/tsconfig.lib.json" }

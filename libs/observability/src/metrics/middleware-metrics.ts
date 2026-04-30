@@ -29,6 +29,9 @@ export function publishMiddlewarePipelineMetrics(options: {
   operation: string;
   durationMs: number;
   outcome: 'success' | 'failure';
+  /** Set when `outcome` is `failure` for classification dashboards. */
+  errorCode?: string;
+  retryable?: boolean;
 }): void {
   try {
     const m = createMetricsInstance();
@@ -37,6 +40,14 @@ export function publishMiddlewarePipelineMetrics(options: {
     m.addMetric('Latency', MetricUnit.Milliseconds, options.durationMs);
     m.addMetric('Success', MetricUnit.Count, options.outcome === 'success' ? 1 : 0);
     m.addMetric('Failure', MetricUnit.Count, options.outcome === 'failure' ? 1 : 0);
+    if (options.outcome === 'failure') {
+      if (options.errorCode) {
+        m.addDimension('ErrorCode', options.errorCode);
+      }
+      if (options.retryable !== undefined) {
+        m.addDimension('Retryable', options.retryable ? 'true' : 'false');
+      }
+    }
     m.publishStoredMetrics();
   } catch (error) {
     metricsPublishFailed('middleware_pipeline', error);

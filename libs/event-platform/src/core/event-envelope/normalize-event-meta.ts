@@ -10,10 +10,13 @@ export function normalizeEventMeta<T>(
 
   const existing = event.meta ?? {};
 
+  const existingCorrelation = existing.correlationId?.trim();
+
   const normalizedMeta: EventMeta = {
     correlationId:
-      existing.correlationId ??
-      fallbackCorrelationId,
+      existingCorrelation && existingCorrelation.length > 0
+        ? existingCorrelation
+        : fallbackCorrelationId,
 
     retryCount: existing.retryCount ?? 0,
 

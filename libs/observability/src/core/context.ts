@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-type Context = {
+export type Context = {
   correlationId: string;
   awsRequestId?: string;
   functionName?: string;
@@ -9,8 +9,12 @@ type Context = {
 
 const store = new AsyncLocalStorage<Context>();
 
-export const withContext = <T>(ctx: Context, fn: () => T) => {
-  return store.run(ctx, fn);
+export const withContext = <T>(ctx: Partial<Context>, fn: () => T) => {
+  const merged: Context = {
+    correlationId: ctx.correlationId ?? 'unknown',
+    ...ctx,
+  };
+  return store.run(merged, fn);
 };
 
 export const getContext = (): Context => {

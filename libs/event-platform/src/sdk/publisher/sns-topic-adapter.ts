@@ -1,7 +1,7 @@
 import { PublishCommand, SNSClient, type SNSClientConfig } from '@aws-sdk/client-sns';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 
-import type { BaseEvent } from '../../core/event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 import type { EventPublishAdapter } from './event-publish-adapter';
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {

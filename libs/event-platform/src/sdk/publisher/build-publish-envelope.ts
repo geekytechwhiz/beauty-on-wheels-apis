@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
-import type { BaseEvent } from '../../core/event-envelope/base-event';
+import type { BaseEvent } from '../../typings/base-event.types';
 import { generateIdempotencyKey } from '../../core/idempotency/generate-idempotency-key';
-import type { PublishInput } from './publish-input';
+import type { PublishInput } from '../../typings/publisher.types';
 
 const DEFAULT_VERSION = '1.0.0';
 

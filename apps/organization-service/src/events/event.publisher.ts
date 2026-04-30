@@ -53,19 +53,25 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
     );
     logger.info({ event: 'sns_publish_success', message: 'Event published' });
   } catch (err: unknown) {
-    const code = (err as { name?: string; code?: string })?.name || (err as { code?: string })?.code;
+    const name = (err as { name?: string })?.name;
+    const codeFromError = (err as { code?: string })?.code;
+    const messageText = (err as { message?: string })?.message;
+    // Some SDK failures surface as name="Error" while the actionable AWS reason is in message.
+    const code = name && name !== 'Error' ? name : codeFromError || messageText || name;
     const credentialErrors = [
       'UnrecognizedClientException',
       'InvalidClientTokenId',
       'SignatureDoesNotMatch',
       'AccessDeniedException',
       'InvalidAccessKeyId',
+      'AuthorizationError',
+      'AuthorizationErrorException',
     ];
     if (isNonProdRelaxed() && credentialErrors.includes(code || '')) {
       logger.warn({
         event: 'sns_publish_skipped_nonprod_invalid_credentials',
         code,
-        message: (err as Error)?.message,
+        message: messageText,
       });
       return;
     }

@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import type { UpdateTemplateUseCase } from '../../application';
 import { ensureHttpError } from '../http-error.mapper';
 import { validateUpdateTemplate } from '../request.validators';
@@ -17,6 +18,8 @@ export function buildUpdateTemplateHandler(useCase: UpdateTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.update',
       validator: validateUpdateTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_UPDATED_SUCCESS',
     },

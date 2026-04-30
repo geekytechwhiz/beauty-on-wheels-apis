@@ -13,10 +13,19 @@
   "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
   "references": [
     {
-      "path": "../../libs/utils"
+      "path": "../../libs/logger/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/logger/tsconfig.lib.json"
+      "path": "../../libs/service-clients/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/event-platform/tsconfig.lib.json"
     }
   ]
 }

@@ -184,7 +184,7 @@ export function UploadOpenApiSpec({
           <Stack spacing={1}>
             <LinearProgress />
             <Typography variant="body2" color="text.secondary">
-              Uploading spec to S3...
+              Saving spec to local store...
             </Typography>
           </Stack>
         )}

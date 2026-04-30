@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import type { PublishTemplateUseCase } from '../../application';
 import { ensureHttpError } from '../http-error.mapper';
 import { validatePublishTemplate } from '../request.validators';
@@ -17,6 +18,8 @@ export function buildPublishTemplateHandler(useCase: PublishTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.publish',
       validator: validatePublishTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_PUBLISHED_SUCCESS',
     },

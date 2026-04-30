@@ -79,7 +79,25 @@
       "path": "./libs/template"
     },
     {
+      "path": "./libs/event-platform"
+    },
+    {
+      "path": "./libs/middleware"
+    },
+    {
+      "path": "./libs/observability"
+    },
+    {
+      "path": "./libs/rule-engine"
+    },
+    {
+      "path": "./libs/metadata"
+    },
+    {
       "path": "./apps/alert-service"
+    },
+    {
+      "path": "./libs/alert-core"
     }
   ]
 }

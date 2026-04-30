@@ -1,4 +1,5 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service'; 
 
 const userService = new UserService();
@@ -32,7 +33,7 @@ const handler = async (
     userContext?.userId as string | undefined, //loged in user id
     undefined, // default profile
     userType,
-    userContext?.authHeader as string
+    req.context?.authHeader as string
   );
 };
 

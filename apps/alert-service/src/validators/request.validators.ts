@@ -60,25 +60,13 @@ export type ValidatedCreateAlert = {
   body: CreateAlertHttpBody;
   authHeader: string | undefined;
 };
-
+export function validateCreateHttpAlertRequest(input: unknown): CreateAlertHttpBody {
+  return createAlertHttpBodySchema.parse(input);
+}
 export function validateCreateAlertRequest(req: LambdaRequest): void {
   const body = req.body;
-
-  const result = createAlertHttpBodySchema.safeParse(body);
-
-  if (!result.success) {
-    throwVal(
-      result.error.issues[0]?.message ?? 'Validation failed',
-      422,
-      'VALIDATION_ERROR',
-      result.error.issues.map((i) => ({
-        field: i.path.join('.') || undefined,
-        message: i.message,
-      })),
-    );
-  }
-
-  validateSourceAgainstInput(result.data.inputType, result.data.sourceType);
+ 
+  validateSourceAgainstInput(body.inputType, body.sourceType);
 
   const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
   if (!orgId) {
@@ -89,7 +77,7 @@ export function validateCreateAlertRequest(req: LambdaRequest): void {
   (req as LambdaRequest & { validatedCreateAlert: ValidatedCreateAlert }).validatedCreateAlert = {
     orgId,
     actorUserId,
-    body: result.data,
+    body: body,
     authHeader: req.context.authHeader,
   };
 }

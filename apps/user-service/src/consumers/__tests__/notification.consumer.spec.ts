@@ -57,7 +57,7 @@ describe('notification.consumer', () => {
   it('should call sendEmail and sendSms for channels', async () => {
     const envelope = {
       eventType: 'UserCreatedNotificationRequested',
-      data: {
+      payload: {
         userId: 'u1',
         email: 'a@b.com',
         phone: '9123456789',

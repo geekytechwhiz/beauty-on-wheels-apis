@@ -1,5 +1,6 @@
 import { createChildLogger } from '@api-hub/logger';
-import { LambdaRequest, withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { UserRepository } from '../repositories/user.repository';
 import { validateListAppointments } from '../validation/request.validators';
 

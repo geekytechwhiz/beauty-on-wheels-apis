@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import { TemplateNotFoundError } from '../../shared';
 import type { GetTemplateUseCase } from '../../application';
 import { ensureHttpError } from '../http-error.mapper';
@@ -22,6 +23,8 @@ export function buildGetTemplateHandler(useCase: GetTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.get',
       validator: validateGetTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_RETRIEVED_SUCCESS',
     },

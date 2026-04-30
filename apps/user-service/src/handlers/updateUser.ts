@@ -11,7 +11,8 @@ import {
   serializeError,
   logHttpRequest,
 } from '@api-hub/logger';
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { ApiResponse } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { UserNotFoundError } from '../utils/errors';

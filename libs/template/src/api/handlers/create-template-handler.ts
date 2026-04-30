@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import type { CreateTemplateUseCase } from '../../application';
 import { ensureHttpError } from '../http-error.mapper';
 import { validateCreateTemplate } from '../request.validators';
@@ -17,6 +18,8 @@ export function buildCreateTemplateHandler(useCase: CreateTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.create',
       validator: validateCreateTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_CREATED_SUCCESS',
       useCreated: true,

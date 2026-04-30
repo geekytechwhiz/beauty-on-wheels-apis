@@ -14,3 +14,4 @@ export * from './api/handlers/publish-template.handler';
 export * from './api/handlers/execute-template-handler';
 export * from './api/handlers/health.handler';
 export * from './api/handlers/metadata-registry-handlers';
+export * from './api/handlers/create-handler';

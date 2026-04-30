@@ -1,4 +1,5 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import type { LambdaRequest } from '@api-hub/utils';
 import type { ExecuteTemplateUseCase } from '../../application';
 import { ensureHttpError } from '../http-error.mapper';
 import { validateExecuteTemplate } from '../request.validators';
@@ -17,6 +18,8 @@ export function buildExecuteTemplateHandler(useCase: ExecuteTemplateUseCase) {
       }
     },
     {
+      serviceName: 'template-service',
+      operation: 'template.execute',
       validator: validateExecuteTemplate,
       successMessageKey: 'TEMPLATE.TEMPLATE_EXECUTED_SUCCESS',
     },

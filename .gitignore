@@ -24,6 +24,9 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Cursor (local only)
+.cursor/settings.json
+
 # misc
 /.sass-cache
 /connect.lock
@@ -59,6 +62,7 @@ services/sso-integration/.env
 
 # Serverless build artifacts
 **/.serverless/
+apps/metadata-registry-service/.env
 
 # Ad-hoc zip exports (e.g. local packaging); not for Git — triggers GitHub file-size / push protection
 apps/template-service.zip
@@ -128,6 +132,11 @@ apps/template-service/docs/OKR-master.json
 apps/template-service/docs/single-table-migration.md
 apps/template-service/docs/template-library-tester-guide.md
 apps/template-service/scripts/migrate-single-table-aux-data.mjs
+
+apps/metadata-registry-service.zip
+apps/metadata-registry-service/*.zip
+
+apps/metadata-registry-service/.esbuild/
 apps/alert-service/esbuild-plugins.js
 apps/alert-service/tsconfig.app.json
 apps/alert-service/.esbuild/.build/src/handlers/http/createAlert.js

@@ -1,7 +1,9 @@
 /**
  * Upstream HTTP client for {@link AlertService} only — not for controllers.
  */
-import axios from 'axios';
+import { BaseError } from '@api-hub/utils';
+
+import { executeUpstreamGet } from './upstream-http';
 
 function trimTrailingSlash(url: string): string {
   return url.replace(/\/$/, '');
@@ -29,21 +31,24 @@ export async function validatePatientContext(
   if (!url) {
     return;
   }
-  const res = await axios.get(url, {
+  const res = await executeUpstreamGet({
+    dependency: 'user-service',
+    url,
     headers: authHeader ? { Authorization: authHeader } : {},
-    timeout: Number(process.env.USER_SERVICE_TIMEOUT_MS ?? '8000'),
-    validateStatus: () => true,
+    timeoutMs: Number(process.env.USER_SERVICE_TIMEOUT_MS ?? '8000'),
+    maxRetriesEnvKey: 'USER_SERVICE_MAX_RETRIES',
   });
   if (res.status === 404) {
-    const e = new Error('Patient not found') as Error & { statusCode: number; code: string };
-    e.statusCode = 404;
-    e.code = 'PATIENT_NOT_FOUND';
-    throw e;
+    throw new BaseError('Patient not found', 404, 'PATIENT_NOT_FOUND', [
+      { message: 'Patient not found' },
+    ]);
   }
   if (res.status >= 400) {
-    const e = new Error('User service validation failed') as Error & { statusCode: number; code: string };
-    e.statusCode = 502;
-    e.code = 'USER_SERVICE_UPSTREAM';
-    throw e;
+    throw new BaseError('User service validation failed', 502, 'USER_SERVICE_UPSTREAM', [
+      { message: 'User service validation failed' },
+    ], {
+      retryable: true,
+      metadata: { dependency: 'user-service' },
+    });
   }
 }

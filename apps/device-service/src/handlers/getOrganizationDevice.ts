@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import {
   createLogger,
@@ -13,7 +14,7 @@ import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const orgDeviceRepository = new OrgDeviceRepository();
 
-export const handler: APIGatewayProxyHandler = async (
+const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
   event,
   context?: Context,
 ) => {
@@ -56,8 +57,8 @@ export const handler: APIGatewayProxyHandler = async (
         { code: 'ORGANIZATION_ID_REQUIRED' },
       );
     } 
-      const allDevices =
-        await orgDeviceRepository.getOrgDevices(organizationID);
+      const allDevices = await orgDeviceRepository.getOrgDevices(organizationID);
+      const activeDevices = allDevices.filter((d) => d.isActive !== false);
       const duration = Date.now() - startTime;
       logHttpRequest(
         logger,
@@ -68,7 +69,7 @@ export const handler: APIGatewayProxyHandler = async (
         correlationId,
       );
       return ApiResponse.ok(
-        allDevices,
+        activeDevices,
         'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS',
         { requestId: correlationId, event },
       ); 
@@ -90,3 +91,5 @@ export const handler: APIGatewayProxyHandler = async (
     );
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.getOrganization', getOrganizationDeviceImpl, { serviceName: 'device-service' });

@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { ApiResponse } from '@api-hub/utils';
 import { RecommendationService } from '../services/recommendationService';
@@ -14,7 +15,7 @@ import { ERROR_CODES } from '../constants/errorCodes';
 
 const recommendationService = new RecommendationService();
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const ctx = createHandlerContext(event, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
@@ -42,23 +43,25 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   }
 
   try {
-    await recommendationService.removeRecommendation(
+    await recommendationService.removeRecommendations(
       validation.data.patientUserId,
-      validation.data.deviceId,
+      validation.data.doctorName,
+      validation.data.devices,
       correlationId,
     );
     logger.info({
       event: 'deviceRecommendationRemove_success',
       patientUserId: validation.data.patientUserId,
-      deviceId: validation.data.deviceId,
+      ...(validation.data.doctorName != null && { doctorName: validation.data.doctorName }),
+      deviceCount: validation.data.devices.length,
     });
     return logAndRespond(
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.DEVICES_RECOMMENDATIONS_REMOVE, statusCode: 200, startTime, correlationId },
       await ApiResponse.ok(
-        { message: 'Device un-recommended successfully' },
+        { message: 'Devices un-recommended successfully' },
         {
-          title: 'Device unrecommend success',
-          description: 'The device unrecommend completed successfully.',
+          title: 'Devices unrecommend success',
+          description: 'The device recommendations were removed successfully.',
         },
         { requestId: correlationId, event: evt },
       ),
@@ -81,3 +84,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.recommendationRemove', deviceRecommendationRemoveImpl, { serviceName: 'device-service' });

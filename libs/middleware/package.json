@@ -1,0 +1,27 @@
+{
+  "name": "@api-hub/middleware",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@api-hub/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@aws-lambda-powertools/tracer": "^2.33.0",
+    "aws-xray-sdk-core": "^3.12.0",
+    "@api-hub/logger": "workspace:*",
+    "@api-hub/observability": "workspace:*",
+    "@api-hub/utils": "workspace:*",
+    "aws-lambda": "^1.0.7",
+    "tslib": "^2.3.0",
+    "zod": "^4.2.1"
+  }
+}

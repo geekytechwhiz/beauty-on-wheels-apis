@@ -1,0 +1,186 @@
+# Metadata Registry — single-table DynamoDB, prefix queries only (no GSI).
+# TODO: Confirm with OpenAPI spec — base path / authorizer / deployment wiring.
+service: metadata-registry-service
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-esbuild
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:custom.deploymentBucket.${self:provider.stage}}
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment:
+    REGION: ${self:provider.region}
+    METADATA_REGISTRY_TABLE: MetadataRegistry-${self:provider.stage}
+    # Optional: METADATA_REGISTRY_PK_ATTR + METADATA_REGISTRY_SK_ATTR (both set) override auto-discovery.
+    # If unset, the Lambda resolves key names via DescribeTable (matches DevOps-created tables).
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    DEFAULT_REGION: ${self:provider.region}
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:TransactWriteItems
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/MetadataRegistry-${self:provider.stage}
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
+
+custom:
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+  deploymentBucket:
+    dev: dev-mvx-metadata-registry-service-bucket
+    stg: nvstg-mvx-metadata-registry-service-bucket
+    prd: nvprd-mvx-metadata-registry-service-bucket
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node20
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
+    loader:
+      '.json': json
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: health
+          method: get
+          cors: ${self:custom.cors}
+
+  postMetadata:
+    handler: src/handlers/postMetadata.main
+    events:
+      - http:
+          path: metadata/{entityType}
+          method: post
+          cors: ${self:custom.cors}
+
+  patchMetadataStatus:
+    handler: src/handlers/patchMetadataStatus.main
+    events:
+      - http:
+          path: metadata/{entityType}/status
+          method: patch
+          cors: ${self:custom.cors}
+
+  getMetadata:
+    handler: src/handlers/getMetadata.main
+    events:
+      - http:
+          path: metadata/{entityType}
+          method: get
+          cors: ${self:custom.cors}
+
+  listMetadata:
+    handler: src/handlers/listMetadata.main
+    events:
+      - http:
+          path: metadata/{entityType}/list
+          method: get
+          cors: ${self:custom.cors}
+
+  listMetadataAudit:
+    handler: src/handlers/listMetadataAudit.main
+    events:
+      - http:
+          path: metadata/{entityType}/audit
+          method: get
+          cors: ${self:custom.cors}
+
+  postMetadataRelation:
+    handler: src/handlers/postRelation.main
+    events:
+      - http:
+          path: metadata/relations
+          method: post
+          cors: ${self:custom.cors}
+
+  getMetadataRelations:
+    handler: src/handlers/getRelations.main
+    events:
+      - http:
+          path: metadata/relations
+          method: get
+          cors: ${self:custom.cors}
+
+  getMetadataRelatedValues:
+    handler: src/handlers/getRelatedValues.main
+    events:
+      - http:
+          path: metadata/values/related
+          method: get
+          cors: ${self:custom.cors}
+
+  patchMetadataRelation:
+    handler: src/handlers/patchRelation.main
+    events:
+      - http:
+          path: metadata/relations/{id}
+          method: patch
+          cors: ${self:custom.cors}

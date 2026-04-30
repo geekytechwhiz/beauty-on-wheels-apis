@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { serializeError } from '@api-hub/logger';
 
-import { AppError } from '../errors/app.error';
+import { toBaseError } from '../errors/normalize-error';
 import { ErrorHandlerOptions, Message } from '../types/core-types';
 import { ApiResponse } from '../helper/http-response.helpers';
 import { resolveMessage } from '../helper/message.helpers';
@@ -41,6 +41,11 @@ const ERROR_TITLES: Record<string, string> = {
 
   // ── Other ────────────────────────────────────────────────────────────────────
   EMAIL_OR_PHONE_REQUIRED:            'Email or phone number required',
+
+  // ── Metadata registry ────────────────────────────────────────────────────────
+  METADATA_TYPE_INACTIVE:              'Metadata type is inactive',
+
+  UPSTREAM_ERROR:                      'Upstream service error',
 };
 
 /**
@@ -50,28 +55,31 @@ const ERROR_TITLES: Record<string, string> = {
  * or the key is missing, so the title is always human-readable.
  */
 export async function handleError(
-  error: AppError,
+  error: unknown,
   options: ErrorHandlerOptions = {}
 ): Promise<APIGatewayProxyResult> {
 
-  const { correlationId, logger } = options;
+  const { correlationId, logger, skipLog } = options;
 
-  const statusCode = error?.statusCode ?? 500;
-  const errorCode = error?.code ?? mapStatusToCode(statusCode);
-  const rawDescription = error?.message ?? 'Unexpected server error';
+  const resolved = toBaseError(error);
+
+  const statusCode = resolved.statusCode ?? 500;
+  const errorCode = resolved.code ?? mapStatusToCode(statusCode);
+  const rawDescription = resolved.message ?? 'Unexpected server error';
 
   const requestId = correlationId ?? 'unknown';
 
   /**
    * Structured logging
    */
-  if (logger) {
+  if (logger && !skipLog) {
     logger.error({
       event: 'lambda_error',
       requestId,
       statusCode,
       errorCode,
-      error: serializeError(error),
+      error: serializeError(resolved),
+      'error.retryable': resolved.retryable ?? false,
     });
   }
 
@@ -98,16 +106,18 @@ export async function handleError(
     description: localDescription,
     severity: 'ERROR' as const,
   }));
-  console.log("CDN ERROR MESSAGE : ",cdnMessage);
+  // For INTERNAL_SERVER_ERROR, prefer the thrown error message so AWS/DynamoDB details are not replaced by CDN copy.
+  const descriptionForClient =
+    errorCode === 'INTERNAL_SERVER_ERROR' ? localDescription : cdnMessage.description;
   const message: Message = {
     title: errorCode === 'INVITE_UPDATE_TOO_SOON' ? cdnMessage.description : cdnMessage.title,
-    description: cdnMessage.description,
+    description: descriptionForClient,
     severity: cdnMessage.severity,
   };
 
   const errorPayload = {
     code: errorCode,
-    details: error?.details ?? [{ message: rawDescription }],
+    details: resolved.details ?? [{ message: rawDescription }],
   };
 
   const optionsPayload = { requestId };
@@ -155,6 +165,14 @@ export async function handleError(
     case 429:
       return ApiResponse.error(
         429,
+        message,
+        optionsPayload,
+        errorPayload
+      );
+
+    case 502:
+      return ApiResponse.error(
+        502,
         message,
         optionsPayload,
         errorPayload

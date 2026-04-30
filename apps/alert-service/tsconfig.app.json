@@ -4,17 +4,12 @@
     "outDir": "dist",
     "types": ["node"],
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": false,
-    "rootDir": "src",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false, 
     "baseUrl": "../..",
-    "paths": {
-      "@api-hub/logger": ["libs/logger/src/index.ts"],
-      "@api-hub/utils": ["libs/utils/src/index.ts"],
-      "@api-hub/alert-core": ["libs/alert-core/src/index.ts"]
-    }
+    
   },
   "include": ["src/**/*.ts"],
   "exclude": [
@@ -30,8 +25,14 @@
     "eslint.config.mjs"
   ],
   "references": [
-    { "path": "../../libs/logger/tsconfig.lib.json" },
-    { "path": "../../libs/utils/tsconfig.lib.json" },
-    { "path": "../../libs/alert-core/tsconfig.lib.json" }
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    }
   ]
 }

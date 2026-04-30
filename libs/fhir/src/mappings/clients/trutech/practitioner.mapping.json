@@ -1,0 +1,6 @@
+{
+  "mappings": {
+    "identifier[0].system": "__literal__:https://trutech.com/practitioner-id",
+    "identifier[0].value": "medicalRecordNumber"
+  }
+}

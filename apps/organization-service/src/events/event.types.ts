@@ -1,12 +1,4 @@
-export interface EventEnvelope<T = unknown> {
-  eventId: string;
-  eventType: string;
-  occurredAt: string;
-  source: string;
-  correlationId?: string;
-  idempotencyKey?: string;
-  data: T;
-}
+export type { EventEnvelope } from '@api-hub/event-platform';
 
 export interface OrganizationCreatedData {
   organizationId: string;

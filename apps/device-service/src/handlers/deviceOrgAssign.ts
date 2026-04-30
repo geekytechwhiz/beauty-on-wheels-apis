@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -33,7 +34,7 @@ const deviceAssignSchema = z.object({
   supportedVitals: z.array(z.string()).optional(),
 });
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceOrgAssignImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const awsRequestId = context ? extractAwsRequestId(context) : 'local';
   const correlationId = extractCorrelationId(event.headers);
@@ -104,6 +105,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
  * Assign devices to organization: POST /devices/organizations
  * Body: { accountAlias, roleId, devices: [...] }
  * Note: accountAlias is the organization ID
+ * Deactivates (isActive=false) all existing org rows, then writes the payload with isActive=true (replace semantics).
  */
 async function assignDevicesToOrganization(
   data: z.infer<typeof deviceAssignSchema>,
@@ -118,6 +120,9 @@ async function assignDevicesToOrganization(
     status: 'success' | 'failed';
     error?: string;
   }> = [];
+
+  logger.info({ event: 'deviceOrgAssign_deactivating_previous_org_devices', orgId });
+  await orgDeviceRepository.deactivateAllOrgDevicesForOrganization(orgId);
 
   // Process each device
   for (const device of data.devices) {
@@ -202,7 +207,7 @@ async function assignDevicesToOrganization(
     const orgDevices = await orgDeviceRepository.getOrgDevices(orgId);
     const deviceCoveredVitals = new Set<string>();
     for (const dev of orgDevices) {
-      if (dev.sk === 'NON-DEVICES') continue; // skip the NON-DEVICES metadata entry
+      if (dev.sk === 'NON-DEVICES' || dev.isActive === false) continue;
       for (const v of dev.supportedVitals ?? []) {
         deviceCoveredVitals.add(v);
       }
@@ -305,3 +310,5 @@ async function assignDevicesToOrganization(
     { requestId: correlationId, event },
   );
 }
+
+export const handler = withStandardApiGatewayPipeline('device.orgAssign', deviceOrgAssignImpl, { serviceName: 'device-service' });

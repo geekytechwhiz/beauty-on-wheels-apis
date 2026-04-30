@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -7,7 +8,7 @@ import { publishDeviceErrorNotification } from '../services/notification.service
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const PATH = '/devices/error-notification';
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const errorNotificationImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -70,3 +71,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     );
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.errorNotification', errorNotificationImpl, { serviceName: 'device-service' });

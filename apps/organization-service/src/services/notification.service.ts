@@ -68,14 +68,17 @@ export async function notifyAdminForOrganizationActivated(payload: {
   };
 
   try {
+    const eventId = randomUUID();
     await publishEvent(
       {
-        eventId: randomUUID(),
+        eventId,
         eventType: 'OrganizationActivatedNotificationRequested',
-        occurredAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
         source: 'organization-service',
         correlationId: payload.correlationId,
-        data,
+        idempotencyKey: eventId,
+        payload: data,
       },
       payload.correlationId,
     );

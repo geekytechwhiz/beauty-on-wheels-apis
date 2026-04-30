@@ -5,6 +5,7 @@ service: organization-service
 frameworkVersion: '3'
 
 plugins:
+  - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
@@ -196,6 +197,10 @@ custom:
     nvstg: info
     prd: warn
 
+  # serverless-plugin-warmup: declare default warmer
+  warmup:
+    default: {}
+
   cors:
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
@@ -315,6 +320,9 @@ functions:
 
   getOrganization:
     handler: src/handlers/getOrganization.main
+    warmup:
+      default:
+        enabled: true
     timeout: 30
     memorySize: 256
     events:

@@ -38,6 +38,10 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
+  if ((req.event as { source?: string })?.source === 'serverless-plugin-warmup') {
+    return { message: 'WarmUp - Lambda is warm!' };
+  }
+
   const { organizationId } = req.params;
   const view = String(req.event.queryStringParameters?.view ?? '').toLowerCase();
   const isMinimalView = view === 'minimal';

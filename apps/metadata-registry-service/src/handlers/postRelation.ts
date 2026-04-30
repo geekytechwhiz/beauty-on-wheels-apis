@@ -1,5 +1,5 @@
 import type { CreateMetadataRelationInput } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { createMetadataRelation } from '../services/relationService';
 
 export const main = withLambdaHandler(

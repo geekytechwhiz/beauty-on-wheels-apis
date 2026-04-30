@@ -12,5 +12,16 @@
     "emitDeclarationOnly": false
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts"]
+  "exclude": ["src/**/*.spec.ts"],
+  "references": [
+    {
+      "path": "../../libs/logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/metadata/tsconfig.lib.json"
+    }
+  ]
 }

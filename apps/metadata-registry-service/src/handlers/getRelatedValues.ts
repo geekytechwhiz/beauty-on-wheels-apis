@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { listRelatedValues } from '../services/relationService';
 
 /**

@@ -1,5 +1,5 @@
 import { STATUS, ValidationError } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import type { MetadataTypeInput, MetadataValueInput } from '@api-hub/metadata';
 import {
   flattenMetadataValueForApi,

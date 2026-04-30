@@ -1,5 +1,5 @@
 import { ValidationError } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { inactivateRelationById } from '../services/relationService';
 
 export const main = withLambdaHandler(async (req: {

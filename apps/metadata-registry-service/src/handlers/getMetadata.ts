@@ -1,5 +1,5 @@
 import { NotFoundError, STATUS, ValidationError } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { flattenMetadataValueForApi, getType, getValue, parseGetEntityStatusMode } from '../services/metadataService';
 
 type GetMetadataRequest = {

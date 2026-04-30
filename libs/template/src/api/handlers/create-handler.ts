@@ -1,4 +1,4 @@
-import { withLambdaHandler, type LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler, type LambdaRequest } from '@api-hub/middleware';
 import type { CreateTemplateUseCase } from '../../application';
 import { ensureHttpError } from '../http-error.mapper';
 import { validateCreateTemplate } from '../request.validators';

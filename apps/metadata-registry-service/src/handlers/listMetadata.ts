@@ -7,7 +7,7 @@ import {
   type Status,
   type ValueSearchFilter,
 } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { flattenMetadataValueForApi, listTypes, listValues, parseListEntityStatusMode } from '../services/metadataService';
 
 type ListMetadataRequest = {

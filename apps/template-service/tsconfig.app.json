@@ -21,13 +21,16 @@
       "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/middleware/tsconfig.lib.json"
+      "path": "../../libs/event-platform/tsconfig.lib.json"
     },
     {
       "path": "../../libs/logger/tsconfig.lib.json"
     },
     {
       "path": "../../libs/template/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
     }
   ]
 }

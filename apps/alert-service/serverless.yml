@@ -1,0 +1,370 @@
+service: alert-service
+
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-plugin-warmup
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-alert-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+  
+  environment:
+    REGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    NODE_ENV: ${self:provider.stage}
+    SERVICE_NAME: ${self:service}
+    # Table must exist before deploy; name from custom.alertDynamoTableName.
+    ALERT_TABLE: ${self:custom.alertDynamoTableName}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    # Same base URLs as services/sso-integration `custom.stageUrls`.
+    USER_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
+    ORGANIZATION_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
+    USER_SERVICE_TIMEOUT_MS: '8000'
+    ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:TransactWriteItems
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}/index/*
+
+    # X-Ray
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
+
+custom:
+  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event)
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - X-Request-Id
+      - X-Requested-With
+      - Sec-Ch-Ua
+      - Sec-Ch-Ua-Mobile
+      - Sec-Ch-Ua-Platform
+
+  alertDynamoTableName: alert-service-${self:provider.stage}
+
+  # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
+  sourcemapsByStage:
+    dev: true
+    stg: false
+    prd: false
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
+    concurrency: 8
+    zipConcurrency: 8
+    # Resolve NX workspace dependencies (@api-hub/* packages)
+    plugins: esbuild-plugins.js
+    # Ensure proper module resolution
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.mjs'
+      - '.json'
+
+  autoswagger:
+    title: Alert Service API
+    description: Operational alert HTTP API (create, get, list, patch). Swagger 2 merge file for serverless-auto-swagger.
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+  # serverless-plugin-warmup: declare default warmer (attach per-function `warmup` when needed)
+  warmup:
+    default: {}
+
+  dotenv:
+    logging: false
+
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
+  # Per-stage API bases (aligned with services/sso-integration/serverless.yml custom.stageUrls)
+  stageUrls:
+    dev:
+      USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+      ORGANIZATION_SERVICE_BASE_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
+    stg:
+      USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
+      ORGANIZATION_SERVICE_BASE_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
+    prd:
+      USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
+      ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
+
+# REST + CORS; secured routes: cors block first, then shared token authorizer (same as user-service).
+functions:
+  health:
+    handler: src/handlers/http/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
+  createAlert:
+    handler: src/handlers/http/createAlert.main
+    events:
+      - http:
+          path: alerts
+          method: post
+          # serverless-auto-swagger: body shows in Swagger UI as #/definitions/CreateAlertRequest
+          bodyType: CreateAlertRequest
+          summary: Create alert
+          description: Requires `inputEventId` (client/UI idempotency key), `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, and `evidencePayload`. Organization scope is taken from the JWT only, not the body.
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "201": Created
+            "200": Duplicate event (idempotent replay on inputEventId)
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "422": Validation or business rule error
+            "500": Server error
+
+  listAlerts:
+    handler: src/handlers/http/listAlerts.main
+    events:
+      - http:
+          path: alerts
+          method: get
+          summary: List alerts (Team, My, or Patient)
+          description: >
+            Use query `queue=TEAM` (default), `MY`, or `PATIENT`. For `queue=PATIENT`, `patientId` is required.
+            For `TEAM` or `MY`, do not send `patientId` (patient timeline uses `queue=PATIENT` only).
+            Organization scope from JWT; results are restricted to that org.
+          queryStringParameters:
+            queue:
+              required: false
+              type: string
+              description: TEAM (default), MY, or PATIENT
+            patientId:
+              required: false
+              type: string
+              description: Required when queue=PATIENT; omit for TEAM and MY
+            state:
+              required: false
+              type: string
+            priority:
+              required: false
+              type: string
+            inputType:
+              required: false
+              type: string
+            assignment:
+              required: false
+              type: string
+              description: UNASSIGNED or ASSIGNED (Team queue)
+            dateFrom:
+              required: false
+              type: string
+            dateTo:
+              required: false
+              type: string
+            search:
+              required: false
+              type: string
+            pageSize:
+              required: false
+              type: integer
+            nextToken:
+              required: false
+              type: string
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+
+  getAlert:
+    handler: src/handlers/http/getAlert.main
+    events:
+      - http:
+          path: alerts/{alertId}
+          method: get
+          summary: Get alert by id
+          description: Alert detail for the authenticated organization (tenant from JWT only).
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "500": Server error
+
+  getAlertActivity:
+    handler: src/handlers/http/getAlertActivity.main
+    events:
+      - http:
+          path: alerts/{alertId}/activity
+          method: get
+          summary: Get alert activity timeline
+          description: Full activity / audit list for the alert (newest first; single response, no pagination). Tenant from JWT only.
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "500": Server error
+
+  # --- Other HTTP APIs: uncomment when ready ---
+  # listOrgAlerts:
+  #   handler: src/handlers/http/listOrgAlerts.main
+  #   events:
+  #     - http:
+  #         path: /organizations/{organizationId}/alerts
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #
+  # listUserAlerts:
+  #   handler: src/handlers/http/listUserAlerts.main
+  #   events:
+  #     - http:
+  #         path: /users/{userId}/alerts
+  #         method: get
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false
+  #
+  # patchAlert:
+  #   handler: src/handlers/http/patchAlert.main
+  #   events:
+  #     - http:
+  #         path: /alerts/{alertId}
+  #         method: patch
+  #         cors:
+  #           origin: '*'
+  #           headers:
+  #             - Content-Type
+  #             - Authorization
+  #             - X-Correlation-Id
+  #             - X-Request-Id
+  #           allowCredentials: false

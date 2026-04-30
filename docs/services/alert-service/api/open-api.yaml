@@ -1,0 +1,1189 @@
+openapi: 3.0.3
+info:
+  title: Alert Service API
+  version: 1.0.0
+  description: >
+    Operational REST API for the Alert Service. Alerts are created via **POST /alerts** for authorized
+    callers (e.g. care ops UI). **GET /alerts** supports org **Team Queue** (`queue=TEAM`), **My Alerts** (`queue=MY`),
+    and **patient-scoped** lists (`queue=PATIENT` with mandatory **`patientId`**). Policy definitions live outside this service.
+    Workflow, priority, and assignment use unified endpoints with `alertIds` (one or many).
+
+    **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header).
+    No optional tracing header is required; correlation may appear in responses (`ProblemDetails.correlationId`, `SuccessResponse.requestId`).
+
+    **Deployed Swagger UI** uses `apps/alert-service/swagger.json` (merged by `serverless-auto-swagger`), not this OpenAPI
+    file. For **Try it out** / model examples in that UI, duplicate samples there as Swagger 2 `example` or `x-example`.
+
+servers:
+  - url: https://api.example.com
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Alert instances
+    description: >
+      Create (POST /alerts), **GET /alerts** (queues `TEAM`, `MY`, or `PATIENT` + `patientId`), detail, workflow,
+      priority, assignment, notes, and activity.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Tenant scope comes from the JWT organization claim (e.g. `org_id` / `organization_id` — product-defined).
+        Do not send a separate org header; the service resolves org from the token for every request.
+
+  parameters:
+    alertId:
+      name: alertId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        data:
+          description: Response data (can be object, array, or null)
+          nullable: true
+          oneOf:
+            - type: object
+            - type: array
+        meta:
+          type: object
+          description: Additional metadata (optional)
+          additionalProperties: true
+        links:
+          type: object
+          description: Related resource links (optional)
+          additionalProperties:
+            type: string
+        requestId:
+          type: string
+          description: Request correlation ID
+          example: "req-123"
+        message:
+          type: string
+          description: Success message (optional)
+          example: "Operation completed successfully"
+      required:
+        - data
+
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          description: URI reference that identifies the problem type
+          default: "about:blank"
+          example: "about:blank"
+        title:
+          type: string
+          description: Short, human-readable summary of the problem
+          example: "Validation failed"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Human-readable explanation of the problem
+          example: "Invalid request data"
+        instance:
+          type: string
+          description: URI reference that identifies the specific occurrence of the problem
+        code:
+          type: string
+          description: Application-specific error code (e.g. INVALID_STATE_TRANSITION, BULK_HETEROGENEOUS_ALERT_STATE)
+          example: "VALIDATION_ERROR"
+        correlationId:
+          type: string
+          description: Optional correlation ID for tracing (e.g. server-generated).
+          example: "req-123"
+        errors:
+          type: array
+          description: List of validation errors (optional)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field name that has the error
+                example: "alertIds"
+              message:
+                type: string
+                description: Error message
+                example: "Invalid format"
+            required:
+              - message
+      required:
+        - title
+        - status
+
+    SuccessResponsePaginatedAlerts:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PaginatedAlerts'
+
+    SuccessResponseAlertDetail:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AlertDetail'
+
+    SuccessResponseWorkflowMutationResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/WorkflowMutationResponse'
+
+    SuccessResponseAlertMutationResult:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AlertMutationResult'
+
+    SuccessResponseActivityList:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ActivityList'
+
+    SuccessResponseActivityRecord:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ActivityRecord'
+
+    InputType:
+      type: string
+      enum:
+        - THRESHOLD_BREACH
+        - MISSED_READING
+        - MISSING_DEVICE
+        - SYMPTOM_RISK_TRIGGER
+        - ENGAGEMENT_TRIGGER
+
+    CreateAlertInputType:
+      type: string
+      description: POST `/alerts` only — §5.1.3.1 create variants.
+      enum:
+        - MISSED_READING
+        - MISSING_DEVICE
+
+    SourceType:
+      type: string
+      enum:
+        - MONITORING_SERVICE
+        - DEVICE_MONITORING
+        - DEVICE_WORKFLOW
+        - SYMPTOM_ENGINE
+        - ENGAGEMENT_SERVICE
+        - USER_INTERFACE
+
+    AppliesToType:
+      type: string
+      enum: [VITAL_SIGN, DEVICE, SYMPTOM, ENGAGEMENT]
+
+    Priority:
+      type: string
+      enum: [P0, P1, P2, P3]
+
+    AlertState:
+      type: string
+      enum:
+        - UNASSIGNED
+        - ASSIGNED
+        - IN_PROGRESS
+        - WAITING
+        - RESOLVED
+        - DISMISSED
+
+    SeverityHint:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    EvidencePayload:
+      type: object
+      description: >
+        POST `/alerts` only: discriminated by **`inputType`** — **`MISSED_READING`** or **`MISSING_DEVICE`** (§5.1.3.1).
+        Every variant includes: `eventTimestamp`, `source`, `inputType`, `appliesToType`, `linkedEntityCode`, plus
+        the variant’s extra fields. Must match top-level `inputType` and `sourceType` must equal `source`.
+        Server rejects unknown properties (strict object).
+      discriminator:
+        propertyName: inputType
+        mapping:
+          MISSED_READING: '#/components/schemas/EvidenceMissedReading'
+          MISSING_DEVICE: '#/components/schemas/EvidenceMissingDevice'
+      oneOf:
+        - $ref: '#/components/schemas/EvidenceMissedReading'
+        - $ref: '#/components/schemas/EvidenceMissingDevice'
+
+    EvidenceMissedReading:
+      type: object
+      description: >
+        **MISSED_READING** evidence (strict). **Required:** `eventTimestamp`, `source`, `inputType`, `appliesToType`,
+        `linkedEntityCode`, `lastSuccessfulReadingTimestamp`, `missedDuration`, `readingType`. No additional properties.
+      required:
+        - eventTimestamp
+        - source
+        - inputType
+        - appliesToType
+        - linkedEntityCode
+        - lastSuccessfulReadingTimestamp
+        - missedDuration
+        - readingType
+      properties:
+        eventTimestamp:
+          type: string
+          minLength: 1
+          format: date-time
+          description: When the missed-reading condition was observed (ISO-8601 date-time).
+        source:
+          allOf:
+            - $ref: '#/components/schemas/SourceType'
+          description: Must match top-level `sourceType`.
+        inputType:
+          type: string
+          enum: [MISSED_READING]
+        appliesToType:
+          allOf:
+            - $ref: '#/components/schemas/AppliesToType'
+          description: What the alert applies to (e.g. `VITAL_SIGN` for a reading-type miss).
+        linkedEntityCode:
+          type: string
+          minLength: 1
+          description: >
+            Product code for the linked entity (e.g. vital or device code such as `BP_SYSTOLIC`); must be non-empty.
+        lastSuccessfulReadingTimestamp:
+          type: string
+          minLength: 1
+          format: date-time
+          description: Last good reading time before the miss (ISO-8601 date-time).
+        missedDuration:
+          type: string
+          minLength: 1
+          description: >
+            How long the reading has been missing; non-empty string (e.g. ISO-8601 duration `P3D` or product-specific token).
+        readingType:
+          type: string
+          minLength: 1
+          description: >
+            Reading / vital family label (e.g. `BLOOD_PRESSURE`); product-defined, non-empty string.
+      additionalProperties: false
+
+    EvidenceMissingDevice:
+      type: object
+      description: >
+        **MISSING_DEVICE** evidence (strict). **Required:** `eventTimestamp`, `source`, `inputType`, `appliesToType`,
+        `linkedEntityCode`, `deviceLinked`. No additional properties.
+      required:
+        - eventTimestamp
+        - source
+        - inputType
+        - appliesToType
+        - linkedEntityCode
+        - deviceLinked
+      properties:
+        eventTimestamp:
+          type: string
+          minLength: 1
+          format: date-time
+          description: When the missing-device condition was observed (ISO-8601 date-time).
+        source:
+          allOf:
+            - $ref: '#/components/schemas/SourceType'
+          description: Must match top-level `sourceType`.
+        inputType:
+          type: string
+          enum: [MISSING_DEVICE]
+        appliesToType:
+          allOf:
+            - $ref: '#/components/schemas/AppliesToType'
+          description: Typically `DEVICE` when the linked entity is a device class.
+        linkedEntityCode:
+          type: string
+          minLength: 1
+          description: >
+            Product code for the device or catalog entry (e.g. `WEIGHING_SCALE`); must be non-empty.
+        deviceLinked:
+          type: boolean
+          description: Whether the patient currently has an active link to the device in context.
+      additionalProperties: false
+
+    ActivityType:
+      type: string
+      enum:
+        - ALERT_CREATED
+        - ALERT_GROUPED
+        - ALERT_ASSIGNED
+        - ALERT_REASSIGNED
+        - ALERT_STATE_CHANGED
+        - EVIDENCE_ADDED_OR_UPDATED
+        - ALERT_RESOLVED
+        - ALERT_DISMISSED
+        - SLA_BREACHED
+        - NOTE_ADDED
+        - PRIORITY_CHANGED
+
+    QueueKind:
+      type: string
+      description: >
+        **`TEAM`** — organization Team Queue. **`MY`** — alerts assigned to the current user.
+        **`PATIENT`** — alerts for a single patient (patient chart / timeline): you **must** send **`patientId`**;
+        `MY` / team semantics do not apply. Default when omitted is **`TEAM`**.
+      enum: [TEAM, MY, PATIENT]
+      default: TEAM
+
+    AlertListAssignmentFilter:
+      type: string
+      description: >
+        When present, narrows the list by assignee presence. Omit this parameter entirely when the client does not
+        want to filter by assignment status (return both assigned and unassigned according to other filters).
+        `UNASSIGNED` — only alerts with no assignee. `ASSIGNED` — only alerts that have a current assignee.
+      enum: [UNASSIGNED, ASSIGNED]
+
+    AssignmentAction:
+      type: string
+      enum: [ASSIGN, ASSIGN_TO_SELF, REASSIGN, UNASSIGN]
+
+    WorkflowAction:
+      type: string
+      enum: [START_WORK, WAIT, RESUME, RESOLVE, DISMISS]
+
+    CreateAlertRequest:
+      type: object
+      description: >
+        **Required:** `inputEventId`, `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, `evidencePayload`.
+        `inputEventId` is provided by the client (e.g. care UI) for idempotent creates.
+        **Optional:** `carePlanInstanceId`, `packageAssignmentId`, `severityHint`, `priority`,
+        `alertPolicyTemplateVersionId`, `thresholdTemplateVersionId`, `groupingKey`, `triggerSummary`,
+        `triggerSummaryTemplateCode`, `triggerSummaryParams` (required when `triggerSummaryTemplateCode` is set; may be `{}`).
+
+        Organization is from the JWT (not in body). `sourceType` must equal `evidencePayload.source`;
+        `evidencePayload.inputType` must equal top-level `inputType`. `evidencePayload` is a strict discriminated object:
+        see **`EvidenceMissedReading`** (7 common + 3 type-specific fields) or **`EvidenceMissingDevice`** (7 fields total).
+
+        Unknown top-level properties are rejected (strict body).
+      additionalProperties: false
+      required:
+        - inputEventId
+        - inputType
+        - sourceType
+        - patientId
+        - triggerTimestamp
+        - evidencePayload
+      properties:
+        inputEventId:
+          type: string
+          description: >
+            Required. Client-generated idempotency key (e.g. from UI). Same value retried for the same org returns **409** with the existing alert.
+        inputType:
+          allOf:
+            - $ref: '#/components/schemas/CreateAlertInputType'
+          description: Required. `MISSED_READING` or `MISSING_DEVICE`.
+        sourceType:
+          allOf:
+            - $ref: '#/components/schemas/SourceType'
+          description: Required. Must match `evidencePayload.source`.
+        patientId:
+          type: string
+          description: Required.
+        carePlanInstanceId:
+          type: string
+          description: Optional. When tied to an active care plan.
+        packageAssignmentId:
+          type: string
+          description: Optional. Package context when relevant.
+        triggerTimestamp:
+          type: string
+          format: date-time
+          description: Required. When the condition occurred (not receipt time).
+        severityHint:
+          allOf:
+            - $ref: '#/components/schemas/SeverityHint'
+          description: Optional.
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/Priority'
+          description: Optional. Resolved priority; derived from policy when omitted.
+        alertPolicyTemplateVersionId:
+          type: string
+          description: Optional. Policy template version.
+        thresholdTemplateVersionId:
+          type: string
+          description: Optional. Threshold template when applicable.
+        groupingKey:
+          type: string
+          description: Optional. May be computed server-side if omitted.
+        triggerSummary:
+          type: string
+          description: Optional. Pre-rendered summary when not using a template.
+        triggerSummaryTemplateCode:
+          type: string
+          description: Optional. Pair with `triggerSummaryParams` when set.
+        triggerSummaryParams:
+          type: object
+          additionalProperties: true
+          description: >
+            Optional unless `triggerSummaryTemplateCode` is set; then required (may be `{}`). Omit both when using only `triggerSummary`.
+        evidencePayload:
+          $ref: '#/components/schemas/EvidencePayload'
+
+    AlertSummary:
+      type: object
+      properties:
+        alertId:
+          type: string
+        priority:
+          $ref: '#/components/schemas/Priority'
+        alertState:
+          $ref: '#/components/schemas/AlertState'
+        inputType:
+          $ref: '#/components/schemas/InputType'
+        sourceType:
+          $ref: '#/components/schemas/SourceType'
+        triggerSummary:
+          type: string
+        triggerTimestamp:
+          type: string
+          format: date-time
+        groupingKey:
+          type: string
+        patientId:
+          type: string
+        patientName:
+          type: string
+        assignedToUserId:
+          type: string
+          nullable: true
+        assignedToDisplayName:
+          type: string
+        slaBreachIndicator:
+          type: boolean
+          description: True when assignment or resolution SLA is breached.
+        assignSlaDueAt:
+          type: string
+          format: date-time
+        resolveSlaDueAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    AlertDetail:
+      allOf:
+        - $ref: '#/components/schemas/AlertSummary'
+        - type: object
+          properties:
+            inputEventId:
+              type: string
+            orgId:
+              type: string
+            evidencePayload:
+              description: >
+                Stored evidence JSON. For alerts created via POST `/alerts`, the shape matches **`EvidencePayload`**
+                (`EvidenceMissedReading` or `EvidenceMissingDevice`). Other provenance may include additional keys.
+              type: object
+              additionalProperties: true
+            groupId:
+              type: string
+              description: Operational group for drill-down and applyToGroup actions.
+            assignedAt:
+              type: string
+              format: date-time
+            assignedBy:
+              type: string
+            statusUpdatedAt:
+              type: string
+              format: date-time
+            statusUpdatedBy:
+              type: string
+            closureComment:
+              type: string
+            resolutionCode:
+              type: string
+            dismissReason:
+              type: string
+            assignSla:
+              type: integer
+              description: Assignment SLA window in minutes (from creation).
+            resolveSla:
+              type: integer
+              description: Resolution SLA window in minutes (from assignment).
+            assignSlaBreachedAt:
+              type: string
+              format: date-time
+            resolveSlaBreachedAt:
+              type: string
+              format: date-time
+            carePlanInstanceId:
+              type: string
+            packageAssignmentId:
+              type: string
+            alertPolicyTemplateVersionId:
+              type: string
+            thresholdTemplateVersionId:
+              type: string
+
+    ActivityRecord:
+      type: object
+      properties:
+        activityId:
+          type: string
+        alertId:
+          type: string
+        activityType:
+          $ref: '#/components/schemas/ActivityType'
+        activityTimestamp:
+          type: string
+          format: date-time
+        performedBy:
+          type: string
+          description: User ID or SYSTEM.
+        performedByDisplayName:
+          type: string
+        activityComment:
+          type: string
+        previousState:
+          $ref: '#/components/schemas/AlertState'
+        newState:
+          $ref: '#/components/schemas/AlertState'
+        previousPriority:
+          $ref: '#/components/schemas/Priority'
+        newPriority:
+          $ref: '#/components/schemas/Priority'
+        previousAssignee:
+          type: string
+        newAssignee:
+          type: string
+        evidencePayload:
+          type: object
+          additionalProperties: true
+
+    AssignmentRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          $ref: '#/components/schemas/AssignmentAction'
+        assignToUserId:
+          type: string
+          description: Required for ASSIGN and REASSIGN.
+        comment:
+          type: string
+          description: Optional; used with REASSIGN.
+
+    AlertIds:
+      type: array
+      description: One or many alert ids (single-select = array of one element).
+      items:
+        type: string
+      minItems: 1
+      maxItems: 100
+
+    WorkflowMutationRequest:
+      type: object
+      required: [alertIds, action]
+      description: >
+        Applies the same workflow action to every id in `alertIds`. For **multiple** ids,
+        **all listed alerts must share the same `alertState`** or the request fails with 422
+        (`BULK_HETEROGENEOUS_ALERT_STATE`) and **none** are updated. For a **single** id,
+        normal state-machine rules apply. `applyToGroup` is only valid when `alertIds` has
+        exactly one element.
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+        action:
+          $ref: '#/components/schemas/WorkflowAction'
+        closureComment:
+          type: string
+          description: Required for RESOLVE and DISMISS (terminal closure).
+        resolutionCode:
+          type: string
+          description: Optional structured code when resolving.
+        dismissReason:
+          type: string
+          description: Optional structured reason when dismissing.
+        comment:
+          type: string
+          description: Optional for START_WORK, WAIT, and RESUME.
+        applyToGroup:
+          type: boolean
+          default: false
+          description: >
+            Only when `alertIds` contains exactly one id: when true with RESOLVE or DISMISS,
+            applies to all open alerts in the same group. Ignored when multiple ids are present.
+
+    NoteRequest:
+      type: object
+      required: [comment]
+      properties:
+        comment:
+          type: string
+
+    PriorityMutationRequest:
+      type: object
+      required: [alertIds, priority]
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        comment:
+          type: string
+
+    AssignmentMutationRequest:
+      allOf:
+        - type: object
+          required: [alertIds]
+          properties:
+            alertIds:
+              $ref: '#/components/schemas/AlertIds'
+        - $ref: '#/components/schemas/AssignmentRequest'
+
+    AlertMutationResult:
+      type: object
+      description: >
+        Per-alert outcomes. For workflow with one id and `applyToGroup`, `affectedCount` may be set.
+      properties:
+        succeeded:
+          type: array
+          items:
+            type: string
+        failed:
+          type: array
+          items:
+            type: object
+            required: [alertId, code, message]
+            properties:
+              alertId:
+                type: string
+              code:
+                type: string
+                example: NOT_FOUND
+              message:
+                type: string
+        affectedCount:
+          type: integer
+          description: Present when `applyToGroup` resolved/dismissed multiple alerts in a group.
+
+    WorkflowMutationResponse:
+      allOf:
+        - $ref: '#/components/schemas/AlertMutationResult'
+        - type: object
+          properties:
+            primaryAlert:
+              $ref: '#/components/schemas/AlertDetail'
+              description: Optional; when a single alert was updated, full detail may be returned.
+
+    PaginatedAlerts:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertSummary'
+        nextToken:
+          type: string
+          description: Opaque cursor for the next page.
+
+    ActivityList:
+      type: object
+      description: Full activity timeline for one alert (no pagination).
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityRecord'
+
+  responses:
+    BadRequest:
+      description: Bad request — invalid input data
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Validation failed"
+            status: 400
+            detail: "Invalid request data"
+            code: "VALIDATION_ERROR"
+            correlationId: "req-123"
+
+    Unauthorized:
+      description: Unauthorized — missing or invalid authentication
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Unauthorized"
+            status: 401
+            detail: "Missing or invalid access token"
+            code: "UNAUTHORIZED"
+            correlationId: "req-123"
+
+    Forbidden:
+      description: Forbidden — insufficient permissions
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Forbidden"
+            status: 403
+            detail: "Insufficient permission for this operation"
+            code: "FORBIDDEN"
+            correlationId: "req-123"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Not found"
+            status: 404
+            detail: "Alert not found"
+            code: "NOT_FOUND"
+            correlationId: "req-123"
+
+    Conflict:
+      description: Resource conflict (e.g. idempotent replay)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Conflict"
+            status: 409
+            detail: "Request conflicts with current state"
+            code: "CONFLICT"
+            correlationId: "req-123"
+
+    UnprocessableEntity:
+      description: >
+        Unprocessable entity — e.g. `BULK_HETEROGENEOUS_ALERT_STATE`, `INVALID_STATE_TRANSITION`, or request validation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Unprocessable entity"
+            status: 422
+            detail: "Invalid state transition or heterogeneous bulk state"
+            code: "BULK_HETEROGENEOUS_ALERT_STATE"
+            correlationId: "req-123"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "about:blank"
+            title: "Internal server error"
+            status: 500
+            detail: "An unexpected error occurred"
+            code: "INTERNAL_ERROR"
+            correlationId: "req-123"
+
+paths:
+  /alerts:
+    get:
+      operationId: listAlerts
+      summary: List alerts (Team, My, or patient scope)
+      description: >
+        Single list API with **`queue`** selecting the view:
+        - **`TEAM`** (default) — org Team Queue. Optional filters: `state`, `priority`, `inputType`, `assignment`,
+          `dateFrom` / `dateTo`, `search`, pagination.
+        - **`MY`** — same filters as Team, but only alerts **assigned to the current user**.
+        - **`PATIENT`** — alerts for **one patient** only. You **must** pass **`patientId`**. Do not use **`MY`**
+          semantics here; Team/My assignment filters are for operational queues only. Other filters (e.g. `state`,
+          `openOnly`-style behavior if applicable, `inputType`) may still apply per product rules.
+
+        **Validation:** **`patientId` is required when `queue=PATIENT`**. Omit **`patientId`** (or leave empty) for
+        **`TEAM`** and **`MY`**. Sending **`queue=PATIENT`** without **`patientId`** (or **`patientId`** with **`TEAM`/`MY`**
+        if the server rejects mixed mode) yields **400**.
+
+        Paginate with **`pageSize`** and **`nextToken`** where supported. Sort order is implementation-defined.
+      tags: [Alert instances]
+      parameters:
+        - name: queue
+          in: query
+          description: >
+            `TEAM` | `MY` | `PATIENT`. For **`PATIENT`**, **`patientId`** is required.
+          schema:
+            $ref: '#/components/schemas/QueueKind'
+        - name: patientId
+          in: query
+          description: >
+            **Required when `queue=PATIENT`** — patient whose alerts are listed. **Must be omitted** for `TEAM` and `MY`
+            (patient lists use `queue=PATIENT` only; sending `patientId` with `TEAM`/`MY` is **400**).
+          schema:
+            type: string
+          example: pat-123
+          allowEmptyValue: false
+        - name: state
+          in: query
+          description: Filter by alert status (UI **Status** dropdown). Applies per queue type as implemented.
+          schema:
+            $ref: '#/components/schemas/AlertState'
+        - name: priority
+          in: query
+          description: Filter by priority (UI **Priority** dropdown).
+          schema:
+            $ref: '#/components/schemas/Priority'
+        - name: inputType
+          in: query
+          description: Filter by alert type (UI **Type** dropdown).
+          schema:
+            $ref: '#/components/schemas/InputType'
+        - name: assignment
+          in: query
+          description: >
+            **Team / My queues only** — omit when not filtering by assignee presence, or when `queue=PATIENT` if not applicable.
+            `UNASSIGNED` or `ASSIGNED`.
+          schema:
+            $ref: '#/components/schemas/AlertListAssignmentFilter'
+        - name: dateFrom
+          in: query
+          description: Start of **By date range** (inclusive, ISO-8601).
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          description: End of **By date range** (inclusive, ISO-8601).
+          schema:
+            type: string
+            format: date-time
+        - name: search
+          in: query
+          description: >
+            Search **patient name** and/or **alert id** (toolbar behavior). For `queue=PATIENT`, patient is already fixed;
+            matching name may be redundant but **`alert id`** substring search may still apply.
+          schema:
+            type: string
+            example: Jane Doe
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: nextToken
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated alert list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponsePaginatedAlerts'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      operationId: createAlert
+      summary: Create an alert
+      description: >
+        Adds a new alert for the organization in the JWT scope: new `alertId`, initial state typically
+        `UNASSIGNED`, grouping/SLA applied, `ALERT_CREATED` activity recorded. Requires permission to create
+        alerts. Prefer **`sourceType`: `USER_INTERFACE`** when the origin is this API or the care UI.
+      tags: [Alert instances]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+            examples:
+              missingDevice:
+                summary: Missing device (§5.1.3.1)
+                value:
+                  inputEventId: ui-missing-device-001
+                  inputType: MISSING_DEVICE
+                  sourceType: DEVICE_WORKFLOW
+                  patientId: pat-456
+                  triggerTimestamp: '2026-04-17T10:00:00.000Z'
+                  evidencePayload:
+                    eventTimestamp: '2026-04-17T10:00:00.000Z'
+                    source: DEVICE_WORKFLOW
+                    inputType: MISSING_DEVICE
+                    appliesToType: DEVICE
+                    linkedEntityCode: WEIGHING_SCALE
+                    deviceLinked: false
+              missedReading:
+                summary: Missed reading (§5.1.3.1)
+                value:
+                  inputEventId: ui-missed-reading-001
+                  inputType: MISSED_READING
+                  sourceType: DEVICE_MONITORING
+                  patientId: pat-123
+                  triggerTimestamp: '2026-04-17T10:00:00.000Z'
+                  evidencePayload:
+                    eventTimestamp: '2026-04-17T10:00:00.000Z'
+                    source: DEVICE_MONITORING
+                    inputType: MISSED_READING
+                    appliesToType: VITAL_SIGN
+                    linkedEntityCode: BP_SYSTOLIC
+                    lastSuccessfulReadingTimestamp: '2026-04-14T08:00:00.000Z'
+                    missedDuration: P3D
+                    readingType: BLOOD_PRESSURE
+      responses:
+        '201':
+          description: Alert created.
+          headers:
+            Location:
+              description: URL of the new alert (`/alerts/{alertId}`).
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseAlertDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Idempotent replay — `inputEventId` already processed; returns existing alert in `data`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseAlertDetail'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /alerts/workflow:
+    post:
+      operationId: updateAlertWorkflow
+      summary: Workflow transitions (single or multi-select)
+      description: >
+        Same state machine as before, unified: pass **`alertIds`** with one id or many.
+        Multiple ids require **identical `alertState`** on every alert or **422**
+        (`BULK_HETEROGENEOUS_ALERT_STATE`). With **one** id, `applyToGroup` may resolve/dismiss the whole group.
+      tags: [Alert instances]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowMutationRequest'
+            examples:
+              single:
+                summary: Single alert
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  action: START_WORK
+              multi:
+                summary: Same transition for many alerts (homogeneous state)
+                value:
+                  alertIds:
+                    - 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    - 4fa85f64-5717-4562-b3fc-2c963f66afa7
+                  action: RESOLVE
+                  closureComment: Bulk resolved
+              group:
+                summary: One id + apply to group
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  action: RESOLVE
+                  closureComment: Stabilized
+                  applyToGroup: true
+      responses:
+        '200':
+          description: Mutation result; optional `primaryAlert` when one alert updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseWorkflowMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /alerts/priority:
+    patch:
+      operationId: updateAlertPriority
+      summary: Change priority (single or multi-select)
+      tags: [Alert instances]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriorityMutationRequest'
+            examples:
+              one:
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  priority: P1
+              many:
+                value:
+                  alertIds:
+                    - 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    - 4fa85f64-5717-4562-b3fc-2c963f66afa7
+                  priority: P2
+                  comment: Triage bump
+      responses:
+        '200':
+          description: Per-alert outcomes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseAlertMutationResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /alerts/assignment:
+    post:
+      operationId: updateAlertAssignment
+      summary: Assignment actions (single or multi-select)
+      tags: [Alert instances]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentMutationRequest'
+            examples:
+              assignMany:
+                value:
+                  alertIds:
+                    - 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    - 4fa85f64-5717-4562-b3fc-2c963f66afa7
+                  action: ASSIGN
+                  assignToUserId: 5fa85f64-5717-4562-b3fc-2c963f66afa8
+      responses:
+        '200':
+          description: Per-alert outcomes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseAlertMutationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /alerts/{alertId}:
+    parameters:
+      - $ref: '#/components/parameters/alertId'
+    get:
+      operationId: getAlert
+      summary: Get alert detail
+      description: Full alert context including evidence, SLA, assignment, and closure fields.
+      tags: [Alert instances]
+      responses:
+        '200':
+          description: Alert detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseAlertDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /alerts/{alertId}/activity:
+    parameters:
+      - $ref: '#/components/parameters/alertId'
+    get:
+      operationId: getAlertActivity
+      summary: Get activity / audit timeline for an alert
+      description: >
+        Returns **all** activity rows for this alert in **one response** (newest first). Organization scope comes from the **JWT** only
+        (same tenant rule as GET `/alerts/{alertId}`). No query filters or pagination.
+      tags: [Alert instances]
+      responses:
+        '200':
+          description: Activity records (full list).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseActivityList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /alerts/{alertId}/notes:
+    parameters:
+      - $ref: '#/components/parameters/alertId'
+    post:
+      operationId: addAlertNote
+      summary: Add an operational note
+      tags: [Alert instances]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteRequest'
+      responses:
+        '201':
+          description: NOTE_ADDED activity created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseActivityRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

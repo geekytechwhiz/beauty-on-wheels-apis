@@ -1,0 +1,588 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Alert Service API",
+    "version": "1.0.0",
+    "description": "Alerts: HTTP APIs. **Deployed Swagger UI uses this file + serverless-auto-swagger** — it does not load `docs/services/alert-service/api/open-api.yaml`. Rich multi-example narratives live there; this spec carries **Swagger 2–compatible `example` / `x-example`** values for Try-it-out and model panels."
+  },
+  "schemes": ["https", "http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "bearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Bearer JWT from the identity provider."
+    }
+  },
+  "definitions": {
+    "InputType": {
+      "type": "string",
+      "enum": [
+        "THRESHOLD_BREACH",
+        "MISSED_READING",
+        "MISSING_DEVICE",
+        "SYMPTOM_RISK_TRIGGER",
+        "ENGAGEMENT_TRIGGER"
+      ]
+    },
+    "CreateAlertInputType": {
+      "type": "string",
+      "description": "POST /alerts only — §5.1.3.1 (MISSED_READING | MISSING_DEVICE).",
+      "enum": ["MISSED_READING", "MISSING_DEVICE"]
+    },
+    "SourceType": {
+      "type": "string",
+      "enum": [
+        "MONITORING_SERVICE",
+        "DEVICE_MONITORING",
+        "DEVICE_WORKFLOW",
+        "SYMPTOM_ENGINE",
+        "ENGAGEMENT_SERVICE",
+        "USER_INTERFACE"
+      ]
+    },
+    "AppliesToType": {
+      "type": "string",
+      "enum": ["VITAL_SIGN", "DEVICE", "SYMPTOM", "ENGAGEMENT"]
+    },
+    "SeverityHint": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    },
+    "EvidenceMissedReading": {
+      "type": "object",
+      "description": "MISSED_READING evidence (strict). Required: eventTimestamp, source, inputType, appliesToType, linkedEntityCode, lastSuccessfulReadingTimestamp, missedDuration, readingType. Must match top-level inputType; source must match sourceType.",
+      "required": [
+        "eventTimestamp",
+        "source",
+        "inputType",
+        "appliesToType",
+        "linkedEntityCode",
+        "lastSuccessfulReadingTimestamp",
+        "missedDuration",
+        "readingType"
+      ],
+      "properties": {
+        "eventTimestamp": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time",
+          "description": "When the missed-reading condition was observed (ISO-8601 date-time)."
+        },
+        "source": { "$ref": "#/definitions/SourceType" },
+        "inputType": { "type": "string", "enum": ["MISSED_READING"] },
+        "appliesToType": { "$ref": "#/definitions/AppliesToType" },
+        "linkedEntityCode": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Product code for the linked entity (e.g. BP_SYSTOLIC); non-empty."
+        },
+        "lastSuccessfulReadingTimestamp": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time",
+          "description": "Last good reading time before the miss (ISO-8601 date-time)."
+        },
+        "missedDuration": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Non-empty duration string (e.g. ISO-8601 P3D) or product-specific token."
+        },
+        "readingType": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reading / vital family label (e.g. BLOOD_PRESSURE); non-empty."
+        }
+      },
+      "additionalProperties": false,
+      "example": {
+        "eventTimestamp": "2026-04-17T10:00:00.000Z",
+        "source": "DEVICE_MONITORING",
+        "inputType": "MISSED_READING",
+        "appliesToType": "VITAL_SIGN",
+        "linkedEntityCode": "BP_SYSTOLIC",
+        "lastSuccessfulReadingTimestamp": "2026-04-14T08:00:00.000Z",
+        "missedDuration": "P3D",
+        "readingType": "BLOOD_PRESSURE"
+      }
+    },
+    "EvidenceMissingDevice": {
+      "type": "object",
+      "description": "MISSING_DEVICE evidence (strict). Required: eventTimestamp, source, inputType, appliesToType, linkedEntityCode, deviceLinked.",
+      "required": [
+        "eventTimestamp",
+        "source",
+        "inputType",
+        "appliesToType",
+        "linkedEntityCode",
+        "deviceLinked"
+      ],
+      "properties": {
+        "eventTimestamp": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time",
+          "description": "When the missing-device condition was observed (ISO-8601 date-time)."
+        },
+        "source": { "$ref": "#/definitions/SourceType" },
+        "inputType": { "type": "string", "enum": ["MISSING_DEVICE"] },
+        "appliesToType": { "$ref": "#/definitions/AppliesToType" },
+        "linkedEntityCode": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Product code for the device or catalog entry (e.g. WEIGHING_SCALE); non-empty."
+        },
+        "deviceLinked": {
+          "type": "boolean",
+          "description": "Whether the patient has an active link to the device in context."
+        }
+      },
+      "additionalProperties": false,
+      "example": {
+        "eventTimestamp": "2026-04-17T10:00:00.000Z",
+        "source": "DEVICE_WORKFLOW",
+        "inputType": "MISSING_DEVICE",
+        "appliesToType": "DEVICE",
+        "linkedEntityCode": "WEIGHING_SCALE",
+        "deviceLinked": false
+      }
+    },
+    "EvidencePayload": {
+      "type": "object",
+      "description": "POST /alerts: discriminated by inputType (MISSED_READING | MISSING_DEVICE). Common fields: eventTimestamp, source, inputType, appliesToType, linkedEntityCode; plus variant fields. Strict: no extra properties. source must equal top-level sourceType.",
+      "oneOf": [
+        { "$ref": "#/definitions/EvidenceMissedReading" },
+        { "$ref": "#/definitions/EvidenceMissingDevice" }
+      ]
+    },
+    "CreateAlertRequest": {
+      "type": "object",
+      "description": "Create-alert body; organization from JWT. Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload. evidencePayload is EvidenceMissedReading or EvidenceMissingDevice (strict). Unknown top-level properties rejected.",
+      "additionalProperties": false,
+      "required": [
+        "inputEventId",
+        "inputType",
+        "sourceType",
+        "patientId",
+        "triggerTimestamp",
+        "evidencePayload"
+      ],
+      "properties": {
+        "inputEventId": {
+          "type": "string",
+          "description": "Required. Client-generated idempotency key (e.g. from UI)."
+        },
+        "inputType": {
+          "allOf": [{ "$ref": "#/definitions/CreateAlertInputType" }],
+          "description": "Required. MISSED_READING or MISSING_DEVICE."
+        },
+        "sourceType": {
+          "allOf": [{ "$ref": "#/definitions/SourceType" }],
+          "description": "Required. Must match evidencePayload.source."
+        },
+        "patientId": { "type": "string", "description": "Required." },
+        "carePlanInstanceId": {
+          "type": "string",
+          "description": "Optional. When the event is tied to an active care plan."
+        },
+        "packageAssignmentId": {
+          "type": "string",
+          "description": "Optional. Package context when relevant."
+        },
+        "triggerTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Required. When the condition occurred (ISO 8601 date-time)."
+        },
+        "severityHint": {
+          "allOf": [{ "$ref": "#/definitions/SeverityHint" }],
+          "description": "Optional."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2", "P3"],
+          "description": "Optional. Resolved priority; derived from policy when omitted."
+        },
+        "alertPolicyTemplateVersionId": {
+          "type": "string",
+          "description": "Optional. Policy template version."
+        },
+        "thresholdTemplateVersionId": {
+          "type": "string",
+          "description": "Optional. Threshold template version when applicable."
+        },
+        "groupingKey": {
+          "type": "string",
+          "description": "Optional. Runtime grouping; may be computed server-side if omitted."
+        },
+        "triggerSummary": {
+          "type": "string",
+          "description": "Optional. Pre-rendered summary when not using a template."
+        },
+        "triggerSummaryTemplateCode": {
+          "type": "string",
+          "description": "Optional. Pair with triggerSummaryParams when set."
+        },
+        "triggerSummaryParams": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional unless triggerSummaryTemplateCode is set; then required (may be {})."
+        },
+        "evidencePayload": {
+          "allOf": [{ "$ref": "#/definitions/EvidencePayload" }],
+          "description": "Required. Per inputType; see EvidenceMissedReading or EvidenceMissingDevice."
+        }
+      },
+      "example": {
+        "inputEventId": "ui-missed-reading-001",
+        "inputType": "MISSED_READING",
+        "sourceType": "DEVICE_MONITORING",
+        "patientId": "pat-123",
+        "triggerTimestamp": "2026-04-17T10:00:00.000Z",
+        "evidencePayload": {
+          "eventTimestamp": "2026-04-17T10:00:00.000Z",
+          "source": "DEVICE_MONITORING",
+          "inputType": "MISSED_READING",
+          "appliesToType": "VITAL_SIGN",
+          "linkedEntityCode": "BP_SYSTOLIC",
+          "lastSuccessfulReadingTimestamp": "2026-04-14T08:00:00.000Z",
+          "missedDuration": "P3D",
+          "readingType": "BLOOD_PRESSURE"
+        }
+      }
+    },
+    "PatchAlertRequest": {
+      "type": "object",
+      "properties": {
+        "alertState": {
+          "type": "string",
+          "enum": [
+            "UNASSIGNED",
+            "ASSIGNED",
+            "IN_PROGRESS",
+            "WAITING",
+            "RESOLVED",
+            "DISMISSED"
+          ]
+        },
+        "assignedToUserId": {
+          "type": "string",
+          "description": "Assignee user id or null to clear assignment",
+          "x-nullable": true
+        },
+        "slaBreachIndicator": { "type": "boolean" }
+      },
+      "example": {
+        "alertState": "IN_PROGRESS",
+        "assignedToUserId": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+        "slaBreachIndicator": false
+      }
+    },
+    "ActivityType": {
+      "type": "string",
+      "enum": [
+        "ALERT_CREATED",
+        "ALERT_GROUPED",
+        "ALERT_ASSIGNED",
+        "ALERT_REASSIGNED",
+        "ALERT_STATE_CHANGED",
+        "EVIDENCE_ADDED_OR_UPDATED",
+        "ALERT_RESOLVED",
+        "ALERT_DISMISSED",
+        "SLA_BREACHED",
+        "NOTE_ADDED",
+        "PRIORITY_CHANGED"
+      ]
+    },
+    "ActivityRecord": {
+      "type": "object",
+      "description": "One audit / timeline row for an alert.",
+      "properties": {
+        "activityId": { "type": "string" },
+        "alertId": { "type": "string" },
+        "activityType": { "$ref": "#/definitions/ActivityType" },
+        "activityTimestamp": { "type": "string", "format": "date-time" },
+        "performedBy": { "type": "string" },
+        "performedByDisplayName": { "type": "string" },
+        "activityComment": { "type": "string" }
+      }
+    },
+    "ActivityList": {
+      "type": "object",
+      "description": "Full activity timeline for one alert (no pagination).",
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ActivityRecord" }
+        }
+      },
+      "example": {
+        "items": [
+          {
+            "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
+            "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "activityType": "ALERT_CREATED",
+            "activityTimestamp": "2026-04-17T10:05:00.000Z",
+            "performedBy": "SYSTEM"
+          }
+        ]
+      }
+    },
+    "SuccessEnvelopeActivityList": {
+      "type": "object",
+      "description": "Standard ApiResponse.ok body; full activity list is in `data.items`.",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "data": { "$ref": "#/definitions/ActivityList" },
+        "error": { "type": "object", "x-nullable": true },
+        "message": { "type": "object" },
+        "meta": { "type": "object" }
+      },
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "data": {
+          "items": [
+            {
+              "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
+              "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+              "activityType": "ALERT_CREATED",
+              "activityTimestamp": "2026-04-17T10:05:00.000Z",
+              "performedBy": "SYSTEM"
+            }
+          ]
+        },
+        "error": null,
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
+        "meta": { "requestId": "req-example", "timestamp": "2026-04-17T10:05:01.000Z", "version": "v1" }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "security": [],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/alerts": {
+      "get": {
+        "summary": "List alerts (Team, My, or Patient)",
+        "description": "Use `queue=TEAM` (default), `MY`, or `PATIENT`. For `queue=PATIENT` you must pass `patientId`. For `TEAM` or `MY`, omit `patientId` (patient timeline is `queue=PATIENT` only). Tenant/org scope comes from the JWT; results are filtered to that organization.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": ["TEAM", "MY", "PATIENT"],
+            "default": "TEAM",
+            "description": "`PATIENT` requires query param `patientId`."
+          },
+          {
+            "name": "patientId",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "x-example": "pat-123",
+            "description": "Required when queue=PATIENT; must be omitted for TEAM and MY."
+          },
+          { "name": "state", "in": "query", "required": false, "type": "string" },
+          { "name": "priority", "in": "query", "required": false, "type": "string" },
+          { "name": "inputType", "in": "query", "required": false, "type": "string" },
+          {
+            "name": "assignment",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": ["UNASSIGNED", "ASSIGNED"],
+            "description": "Primarily for the Team queue (`queue=TEAM`)."
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          { "name": "search", "in": "query", "required": false, "type": "string" },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "default": 20
+          },
+          { "name": "nextToken", "in": "query", "required": false, "type": "string" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — list payload in standard success envelope (`data.items`)"
+          },
+          "400": {
+            "description": "Bad request — e.g. `queue=PATIENT` without `patientId`, or `patientId` with `TEAM`/`MY`"
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      },
+      "post": {
+        "summary": "Create alert (required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload)",
+        "description": "Request body example shown in Swagger is **MISSED_READING** (see model `CreateAlertRequest`). For **MISSING_DEVICE**, align body with `EvidenceMissingDevice` example on that model (and matching `sourceType` / `evidencePayload.source`).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateAlertRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — alert detail in standard success envelope (new alert or idempotent replay on inputEventId)"
+          },
+          "422": { "description": "Validation or business rule error" }
+        }
+      }
+    },
+    "/alerts/{alertId}": {
+      "get": {
+        "summary": "Get alert by id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update assignment / state / SLA flag",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": { "$ref": "#/definitions/PatchAlertRequest" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/alerts/{alertId}/activity": {
+      "get": {
+        "summary": "Get alert activity timeline",
+        "description": "Full activity / audit list for the alert (newest first, single response). Tenant from JWT.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "x-example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — activity rows in response body `data.items`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeActivityList" }
+          },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Alert not found" }
+        }
+      }
+    },
+    "/organizations/{organizationId}/alerts": {
+      "get": {
+        "summary": "Org work queue (GSI2)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "unassignedOnly",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/users/{userId}/alerts": {
+      "get": {
+        "summary": "User queue (GSI3)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}

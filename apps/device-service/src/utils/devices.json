@@ -1658,7 +1658,7 @@
               "templateId": 17,
               "deviceDetails": "deviceDetails_tracky_thermometer",
               "supportedVitals": [
-                "BodyTemperature"
+                "bodyTemperature"
               ]
             }
           ]
@@ -1696,7 +1696,7 @@
               "templateId": 22,
               "deviceDetails": "",
               "supportedVitals": [
-                "BodyTemperature"
+                "bodyTemperature"
               ]
             }
           ]

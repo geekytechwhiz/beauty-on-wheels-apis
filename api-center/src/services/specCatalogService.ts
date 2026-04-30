@@ -389,7 +389,7 @@ function pickPreferredFile(current: OpenApiSpecFile, candidate: OpenApiSpecFile)
 }
 
 function parseCatalogIndex(rawValue: unknown): PublicCatalogIndex {
-  console.log('rawValue', JSON.stringify(rawValue, null, 2));
+  // console.log('rawValue', JSON.stringify(rawValue, null, 2));
   const rawServices = Array.isArray(rawValue)
     ? rawValue
     : rawValue &&

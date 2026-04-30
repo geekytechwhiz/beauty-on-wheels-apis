@@ -41,7 +41,7 @@ const handler = async (req: LambdaRequest<Params>) => {
   const { organizationId } = req.params;
   const view = String(req.event.queryStringParameters?.view ?? '').toLowerCase();
   const isMinimalView = view === 'minimal';
-  console.log('req from handler', req);
+  // console.log('req from handler', req);
   const authHeader = req.context.authHeader ?? req.event.headers?.Authorization ?? req.event.headers?.authorization ?? req.event.headers?.AUTHORIZATION;
   const { correlationId } = req.context;
   const event = req.event;
@@ -90,7 +90,7 @@ const handler = async (req: LambdaRequest<Params>) => {
 
   if (!isRootOrg) {
     transformed.accountAlias = organization.organizationId;
-    console.log('authHeader', authHeader);
+    // console.log('authHeader', authHeader);
     const adminDetails = Array.isArray(organization.adminDetails) ? organization.adminDetails : [];
     let enrichedAdminDetails: unknown = null;
     if (adminDetails.length > 0) {

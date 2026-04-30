@@ -1576,10 +1576,10 @@ export class UserRepository {
         const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
         nextPaginationKey = result.LastEvaluatedKey;
         if (result.Items && result.Items.length > 0) {
-          console.log(
-            'getUserRolesPermissions items (pk/sk1):',
-            JSON.stringify(result.Items, null, 2),
-          );
+          // console.log(
+            // 'getUserRolesPermissions items (pk/sk1):',
+            // JSON.stringify(result.Items, null, 2),
+          // );
           data = data.concat(result.Items);
         }
       } while (nextPaginationKey);
@@ -1614,10 +1614,10 @@ export class UserRepository {
           const r2 = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params2));
           nextKey2 = r2.LastEvaluatedKey;
           if (r2.Items && r2.Items.length > 0) {
-            console.log(
-              'getUserRolesPermissions items (PK/SK1):',
-              JSON.stringify(r2.Items, null, 2),
-            );
+            // console.log(
+              // 'getUserRolesPermissions items (PK/SK1):',
+              // JSON.stringify(r2.Items, null, 2),
+            // );
             data = data.concat(r2.Items);
           }
         } while (nextKey2);
@@ -1625,26 +1625,26 @@ export class UserRepository {
 
       const roles: string[] = [];
       const promises: Promise<any>[] = [];
-      console.log('getUserRolesPermissions - data items count:', data.length);
-      console.log(
-        'getUserRolesPermissions - data items:',
-        JSON.stringify(data, null, 2),
-      );
+      // console.log('getUserRolesPermissions - data items count:', data.length);
+      // console.log(
+        // 'getUserRolesPermissions - data items:',
+        // JSON.stringify(data, null, 2),
+      // );
       for (const role of data) {
         if (role.roleID) {
-          console.log('Found roleID:', role.roleID);
+          // console.log('Found roleID:', role.roleID);
           roles.push(role.roleID);
           promises.push(this.getRoleDetails(organizationId, role.roleID));
         } else if (role.roleId) {
           // Some items may use roleId instead of roleID
-          console.log('Found roleId:', role.roleId);
+          // console.log('Found roleId:', role.roleId);
           roles.push(role.roleId);
           promises.push(this.getRoleDetails(organizationId, role.roleId));
         } else {
-          console.log(
-            'Role item missing roleID/roleId:',
-            JSON.stringify(role, null, 2),
-          );
+          // console.log(
+            // 'Role item missing roleID/roleId:',
+            // JSON.stringify(role, null, 2),
+          // );
         }
       }
 

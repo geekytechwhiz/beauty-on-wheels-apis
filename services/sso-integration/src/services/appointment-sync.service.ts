@@ -403,7 +403,7 @@ export class AppointmentSyncService extends BaseService {
     if (!appointments.length) {
       return [];
     }
-    console.log("appointments received", JSON.stringify(appointments))
+    // console.log("appointments received", JSON.stringify(appointments))
     const { validAppointments } =
       this.appointmentValidationService.validateAppointments(
         appointments,
@@ -564,11 +564,11 @@ export class AppointmentSyncService extends BaseService {
         { externalId: doctorExternalId },
         context,
       );
-      console.log("doctorUser", JSON.stringify(doctorUser))
+      // console.log("doctorUser", JSON.stringify(doctorUser))
       if (!doctorUser?.id) {
         continue;
       }
-      console.log("doctorUser found", JSON.stringify(doctorUser))
+      // console.log("doctorUser found", JSON.stringify(doctorUser))
       const internalDoctorId = String(doctorUser.id);
       const keys = new Set(
         message.appointments
@@ -596,9 +596,9 @@ export class AppointmentSyncService extends BaseService {
           }),
       );
 
-      console.log("keys", JSON.stringify(keys))
+      // console.log("keys", JSON.stringify(keys))
       const resolvedKeys = await Promise.all(Array.from(keys));
-      console.log("resolvedKeys", JSON.stringify(resolvedKeys))
+      // console.log("resolvedKeys", JSON.stringify(resolvedKeys))
       internalDoctorToKeys.set(
         internalDoctorId,
         new Set(resolvedKeys.filter((k): k is string => !!k)),
@@ -614,7 +614,7 @@ export class AppointmentSyncService extends BaseService {
       context,
     );
 
-    console.log("fetchedSchedules", JSON.stringify(fetchedSchedules))
+    // console.log("fetchedSchedules", JSON.stringify(fetchedSchedules))
 
     this.logger.info({
       event: 'reconciliation_schedules_fetched',
@@ -696,13 +696,13 @@ export class AppointmentSyncService extends BaseService {
         endEpoch,
       );
 
-      console.log("startEpoch", startEpoch)
-      console.log("scheduleKey", scheduleKey)
+      // console.log("startEpoch", startEpoch)
+      // console.log("scheduleKey", scheduleKey)
 
       // If TruTech did not return any appointment for this doctor in the window,
       // we should treat fetched schedules as cancel candidates (not skip).
       const doctorKeys = internalDoctorToKeys.get(doctorId) ?? new Set<string>();
-      console.log("doctorKeys", doctorKeys)
+      // console.log("doctorKeys", doctorKeys)
 
       if (doctorKeys.has(scheduleKey)) {
         skipped++;

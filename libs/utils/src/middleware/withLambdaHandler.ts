@@ -43,7 +43,7 @@ export const withLambdaHandler =
       typeof event === 'object' &&
       (event as { source?: string }).source === 'serverless-plugin-warmup'
     ) {
-      console.log('WarmUP - Lambda is warm!');
+      // console.log('WarmUP - Lambda is warm!');
       return {
         statusCode: 200,
         body: JSON.stringify('Lambda is warm!'),

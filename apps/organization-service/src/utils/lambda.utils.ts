@@ -24,7 +24,7 @@ export const getMobileScreens = async (
 
     if (result && result.Payload) {
       const response = JSON.parse(Buffer.from(result.Payload).toString());
-      console.log('invoke response', response);
+      // console.log('invoke response', response);
       
       // Check if the response indicates an error
       if (response.success === false || response.statusCode >= 400) {

@@ -11,5 +11,5 @@ exec(`bash "${scriptPath}"`, (error, stdout, stderr) => {
     console.error(stderr);
     return;
   }
-  console.log('Script output:', stdout);
+  // console.log('Script output:', stdout);
 });

@@ -17,5 +17,18 @@ module.exports = {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: 'test-output/jest/coverage',
+  coverageDirectory: '../../coverage/apps/alert-service',
+  coverageReporters: ['text', 'text-summary', 'html', 'lcov'],
+  collectCoverageFrom: [
+    'src/controllers/**/*.ts',
+    'src/handlers/**/*.ts',
+    // Exclusions
+    '!src/**/*.spec.ts',
+    '!src/**/__tests__/**',
+    '!src/**/*.d.ts',
+    // Exclude index files
+    '!src/**/index.ts',
+    '!src/**/health.ts',
+  ],
+  verbose: true,
 };

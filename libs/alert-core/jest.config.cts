@@ -17,5 +17,13 @@ module.exports = {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: 'test-output/jest/coverage',
+  coverageDirectory: '../../coverage/libs/alert-core',
+  coverageReporters: ['text', 'text-summary', 'html', 'lcov'],
+  collectCoverageFrom: [
+    // Restrict coverage scope to repository + service only.
+    'src/lib/repositories/**/*.ts',
+    'src/lib/service/**/*.ts',
+    '!src/**/*.spec.ts',
+  ],
+  verbose: true,
 };

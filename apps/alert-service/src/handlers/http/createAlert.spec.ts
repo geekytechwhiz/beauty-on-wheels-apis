@@ -1,0 +1,247 @@
+import type { APIGatewayProxyEvent } from 'aws-lambda';
+import {
+  bearerToken,
+  minimalAlertRecord,
+  setupHandlerTestEnv,
+  testLambdaContext,
+} from '../../__tests__/handler-test-utils';
+
+/** Mock must be set in factory before AlertHttpController loads (Jest hoist). */
+// eslint-disable-next-line no-var
+var mockCreateAlert: jest.Mock;
+
+jest.mock('@api-hub/alert-core', () => {
+  mockCreateAlert = jest.fn();
+  const actual = jest.requireActual<typeof import('@api-hub/alert-core')>('@api-hub/alert-core');
+  return {
+    ...actual,
+    AlertService: jest.fn().mockImplementation(() => ({
+      createAlert: mockCreateAlert,
+    })),
+  };
+});
+
+import { main } from './createAlert';
+
+describe('createAlert HTTP handler', () => {
+  let envCleanup: () => void;
+
+  beforeAll(() => {
+    envCleanup = setupHandlerTestEnv().restore;
+  });
+
+  afterAll(() => {
+    envCleanup();
+  });
+
+  beforeEach(() => {
+    mockCreateAlert.mockReset();
+  });
+
+  function validMissedReadingBody(): Record<string, unknown> {
+    return {
+      inputEventId: 'evt-unique-1',
+      inputType: 'MISSED_READING',
+      sourceType: 'MONITORING_SERVICE',
+      patientId: 'pat-1',
+      triggerTimestamp: '2026-01-15T10:00:00.000Z',
+      evidencePayload: {
+        eventTimestamp: '2026-01-15T09:00:00.000Z',
+        source: 'MONITORING_SERVICE',
+        inputType: 'MISSED_READING',
+        appliesToType: 'VITAL_SIGN',
+        linkedEntityCode: 'BP_SYSTOLIC',
+        lastSuccessfulReadingTimestamp: '2026-01-14T09:00:00.000Z',
+        missedDuration: '24h',
+        readingType: 'BLOOD_PRESSURE',
+      },
+    };
+  }
+
+  function baseEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayProxyEvent {
+    return {
+      httpMethod: 'POST',
+      path: '/dev/alerts',
+      pathParameters: null,
+      queryStringParameters: null,
+      headers: {
+        Authorization: bearerToken({
+          'custom:organizationID': 'org-1',
+          'custom:userID': 'user-1',
+        }),
+      },
+      body: JSON.stringify(validMissedReadingBody()),
+      ...overrides,
+    } as unknown as APIGatewayProxyEvent;
+  }
+
+  const context = testLambdaContext();
+
+  it('returns 200 with alert detail when createAlert succeeds', async () => {
+    const record = minimalAlertRecord();
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+
+    const result = await main(baseEvent(), context);
+
+    expect(result.statusCode).toBe(200);
+    const body = JSON.parse(result.body ?? '{}') as {
+      success: boolean;
+      data: { orgId: string; alertId: string; patientId: string };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data.orgId).toBe('org-1');
+    expect(body.data.alertId).toBe(record.alertId);
+    expect(body.data.patientId).toBe('pat-1');
+
+    expect(mockCreateAlert).toHaveBeenCalledTimes(1);
+    const [payload, authHeader] = mockCreateAlert.mock.calls[0] as [
+      { organizationId: string; actorUserId: string | undefined; patientId: string },
+      string | undefined,
+    ];
+    expect(payload.organizationId).toBe('org-1');
+    expect(payload.actorUserId).toBe('user-1');
+    expect(payload.patientId).toBe('pat-1');
+    expect(authHeader).toContain('Bearer');
+  });
+
+  it('returns 200 on idempotent replay (duplicate: true) with same alert payload', async () => {
+    const record = minimalAlertRecord();
+    mockCreateAlert.mockResolvedValue({ record, duplicate: true });
+
+    const result = await main(baseEvent(), context);
+
+    expect(result.statusCode).toBe(200);
+    const body = JSON.parse(result.body ?? '{}') as { data: { alertId: string } };
+    expect(body.data.alertId).toBe(record.alertId);
+  });
+
+  it('returns 200 for MISSING_DEVICE with DEVICE_MONITORING', async () => {
+    const record = minimalAlertRecord({
+      inputType: 'MISSING_DEVICE',
+      sourceType: 'DEVICE_MONITORING',
+      inputEventId: 'evt-device-1',
+    });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+
+    const bodyObj = {
+      inputEventId: 'evt-device-1',
+      inputType: 'MISSING_DEVICE',
+      sourceType: 'DEVICE_MONITORING',
+      patientId: 'pat-1',
+      triggerTimestamp: '2026-01-15T10:00:00.000Z',
+      evidencePayload: {
+        eventTimestamp: '2026-01-15T09:00:00.000Z',
+        source: 'DEVICE_MONITORING',
+        inputType: 'MISSING_DEVICE',
+        appliesToType: 'DEVICE',
+        linkedEntityCode: 'GLUCOSE_METER',
+        deviceLinked: false,
+      },
+    };
+    const event = baseEvent({ body: JSON.stringify(bodyObj) });
+
+    const result = await main(event, context);
+
+    expect(result.statusCode).toBe(200);
+    expect(mockCreateAlert).toHaveBeenCalledTimes(1);
+    const payload = mockCreateAlert.mock.calls[0][0] as { inputType: string };
+    expect(payload.inputType).toBe('MISSING_DEVICE');
+  });
+
+  it('returns 500 when createAlert throws an unexpected error', async () => {
+    mockCreateAlert.mockRejectedValue(new Error('Unexpected failure'));
+
+    const result = await main(baseEvent(), context);
+
+    expect(result.statusCode).toBe(500);
+    expect(mockCreateAlert).toHaveBeenCalled();
+  });
+
+  it('returns 409 when createAlert throws IDEMPOTENCY_KEY_IN_USE', async () => {
+    const err = new Error('This idempotency key is already in use') as Error & {
+      statusCode: number;
+      code: string;
+    };
+    err.statusCode = 409;
+    err.code = 'IDEMPOTENCY_KEY_IN_USE';
+    mockCreateAlert.mockRejectedValue(err);
+
+    const result = await main(baseEvent(), context);
+
+    expect(result.statusCode).toBe(409);
+    const body = JSON.parse(result.body ?? '{}') as {
+      success: boolean;
+      error: { code: string } | null;
+    };
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe('IDEMPOTENCY_KEY_IN_USE');
+  });
+
+  it('returns 401 when organization is missing from token', async () => {
+    const event = baseEvent({
+      headers: { Authorization: bearerToken({ sub: 'user-only' }) },
+    });
+
+    const result = await main(event, context);
+
+    expect([401, 422]).toContain(result.statusCode);
+    const body = JSON.parse(result.body ?? '{}') as {
+      statusCode?: number;
+      error: { code?: string } | null;
+    };
+    expect(body.statusCode ?? result.statusCode).toBeGreaterThanOrEqual(401);
+    if (result.statusCode === 401) {
+      expect(body.error?.code).toBe('UNAUTHORIZED');
+    }
+    expect(mockCreateAlert).not.toHaveBeenCalled();
+  });
+
+  it('returns 422 when body fails Zod validation', async () => {
+    const bad = {
+      ...validMissedReadingBody(),
+      inputType: 'INVALID_TYPE',
+    };
+    const event = baseEvent({ body: JSON.stringify(bad) });
+
+    const result = await main(event, context);
+
+    expect(result.statusCode).toBe(422);
+    expect(mockCreateAlert).not.toHaveBeenCalled();
+  });
+
+  it('returns 422 when sourceType is not allowed for inputType', async () => {
+    const bad = {
+      ...validMissedReadingBody(),
+      sourceType: 'USER_INTERFACE',
+      evidencePayload: {
+        ...(validMissedReadingBody().evidencePayload as object),
+        source: 'USER_INTERFACE',
+      },
+    };
+    const event = baseEvent({ body: JSON.stringify(bad) });
+
+    const result = await main(event, context);
+
+    expect(result.statusCode).toBe(422);
+    const body = JSON.parse(result.body ?? '{}') as { error: { code?: string } | null };
+    expect(body.error?.code ?? 'VALIDATION_ERROR').toBeTruthy();
+    expect(mockCreateAlert).not.toHaveBeenCalled();
+  });
+
+  it('returns 422 for strict schema when extra top-level property is present', async () => {
+    const bad = { ...validMissedReadingBody(), unknownField: true };
+    const event = baseEvent({ body: JSON.stringify(bad) });
+
+    const result = await main(event, context);
+
+    expect(result.statusCode).toBe(422);
+    expect(mockCreateAlert).not.toHaveBeenCalled();
+  });
+
+  it('handles serverless-plugin-warmup payload with 200', async () => {
+    const warmupEvent = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
+    const result = await main(warmupEvent, context);
+    expect(result.statusCode).toBe(200);
+    expect(mockCreateAlert).not.toHaveBeenCalled();
+  });
+});

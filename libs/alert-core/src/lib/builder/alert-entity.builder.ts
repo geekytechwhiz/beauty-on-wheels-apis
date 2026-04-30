@@ -220,9 +220,6 @@ export class AlertEntityBuilder {
         Item: {
           pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
           sk: AlertKeyBuilder.buildGroupMembershipSk(input.triggerTimestamp, alertId),
-          entityType: 'ALERT_GROUP_MEMBER',
-          alertId,
-          groupingKey,
           organizationId: input.organizationId,
           createdAt: now,
         },

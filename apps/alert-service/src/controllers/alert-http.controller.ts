@@ -92,7 +92,9 @@ export class AlertHttpController {
 
   async handleGetAlert(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
-    if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
+    if (!alertId) {
+      throw Object.assign(new Error('alertId required'), { statusCode: 400, code: 'INVALID_REQUEST' });
+    }
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
@@ -109,7 +111,7 @@ export class AlertHttpController {
     if (!orgId) throw unauthorizedOrgError();
 
     const items = await this.svc.listAlertActivity(alertId, orgId);
-    if (!items) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+    if (!items) throw Object.assign(new Error('Alert not found'), { statusCode: 404, code: 'NOT_FOUND' });
 
     return { items };
   }

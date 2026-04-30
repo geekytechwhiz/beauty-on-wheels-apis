@@ -149,6 +149,9 @@ export async function handleError(
         errorPayload
       );
 
+    case 422:
+      return ApiResponse.error(422, message, optionsPayload, errorPayload);
+
     case 429:
       return ApiResponse.error(
         429,
@@ -187,6 +190,9 @@ function mapStatusToCode(statusCode: number): string {
 
     case 409:
       return 'CONFLICT';
+
+    case 422:
+      return 'VALIDATION_ERROR';
 
     default:
       return 'INTERNAL_SERVER_ERROR';

@@ -8,7 +8,7 @@ plugins:
   - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
-  - serverless-auto-swagger
+  # - serverless-auto-swagger
   - serverless-offline
 
 provider:

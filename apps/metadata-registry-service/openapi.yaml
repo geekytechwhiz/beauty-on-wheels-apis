@@ -1,0 +1,659 @@
+openapi: 3.0.3
+info:
+  title: Metadata Registry Service API (draft)
+  description: |
+    Draft specification generated for review. TODO — align with official OpenAPI when published.
+    List metadata types unions legacy catalog rows (`METADATA_REGISTRY#CATALOG` / `METADATA_TYPE#…`), any existing
+    `METADATA_TYPES` / `TYPE#…` index rows (read-only for old data), and type entities under `METADATA_TYPE#<code>`
+    (scan). The service does not write new `METADATA_TYPES` catalog items.
+  version: 0.1.0
+servers:
+  - url: https://api.example.com/{stage}
+    variables:
+      stage:
+        default: dev
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /metadata/{entityType}/status:
+    patch:
+      summary: Activate / inactivate type or value (new version)
+      description: |
+        `entityType=type`: body must include `metadataTypeCode` and `status` (`PatchMetadataTypeStatusRequest`).
+        `entityType=value`: body must include `metadataTypeCode`, `status`, and `metadataValueCode` or `valueCode` (`PatchMetadataValueStatusRequest`).
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [type, value]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PatchMetadataTypeStatusRequest'
+                - $ref: '#/components/schemas/PatchMetadataValueStatusRequest'
+      responses:
+        '200':
+          description: |
+            When `entityType` is `type`, the full updated metadata type record. When `entityType` is `value`, `MetadataValueResponse`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: Updated metadata type record
+                    additionalProperties: true
+                  - $ref: '#/components/schemas/MetadataValueResponse'
+  /metadata/{entityType}/audit:
+    get:
+      summary: Audit trail for a metadata type or value
+      description: |
+        `entityType=type`: query `metadataTypeCode` (required). `entityType=value`: query `metadataTypeCode` and
+        `metadataValueCode` (or `valueCode` alias) required.
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [type, value]
+        - in: query
+          name: metadataTypeCode
+          required: true
+          description: Always required. Identifies the parent type.
+          schema: { type: string }
+        - in: query
+          name: metadataValueCode
+          required: false
+          description: Required when `entityType=value`. Identifies the value within the type.
+          schema: { type: string }
+        - in: query
+          name: valueCode
+          required: false
+          description: Alias for `metadataValueCode` when `entityType=value`.
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of audit records
+
+  /metadata/{entityType}:
+    get:
+      summary: Get a single metadata type or value
+      description: |
+        `entityType=type`: query `metadataTypeCode` (required). `entityType=value`: query `metadataTypeCode` and
+        `metadataValueCode` (or `valueCode`) required. Status mode matches legacy GET (include-inactive, status, etc.).
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [type, value]
+        - in: query
+          name: metadataTypeCode
+          required: false
+          schema: { type: string }
+        - in: query
+          name: metadataValueCode
+          required: false
+          schema: { type: string }
+        - in: query
+          name: valueCode
+          required: false
+          description: Alias for `metadataValueCode` when `entityType=value`.
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [ACTIVE, INACTIVE, ALL, BOTH] }
+        - in: query
+          name: include-inactive
+          schema: { type: string }
+        - in: query
+          name: includeInactive
+          schema: { type: string }
+      responses:
+        '200':
+          description: Metadata type or flattened metadata value
+        '404':
+          description: Not found
+    post:
+      summary: Create or update metadata type or value
+      description: |
+        Path `entityType`: `type` — upsert metadata type (body `MetadataTypeCreateInput`).
+        `value` — upsert metadata value (body `MetadataValueInput`); `metadataTypeCode` must be in the body (not the query string).
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [type, value]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/MetadataTypeCreateInput'
+                - $ref: '#/components/schemas/MetadataValueInput'
+      responses:
+        '200':
+          description: Upsert result (metadata value responses use `MetadataValueResponse`)
+  /metadata/{entityType}/list:
+    get:
+      summary: List metadata types or values for a type
+      description: |
+        `entityType=type`: `module`, `valueDataType` / `datatype`, and list status mode (`include-inactive` / `status`).
+        `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
+        filters: `applicableModules`, `applicableCategories`, `applicableConditions`, `applicableCountries`,
+        `applicableLanguages` (comma-separated
+        tokens, OR within a field, AND across fields; `isGlobal` values always included). The `search` query param is not supported.
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [type, value]
+        - in: query
+          name: metadataTypeCode
+          required: false
+          description: Required when `entityType=value`.
+          schema: { type: string }
+        - in: query
+          name: status
+          description: >-
+            When entityType is value, optional; default ACTIVE. INACTIVE lists inactive values only.
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - INACTIVE
+        - in: query
+          name: include-inactive
+          description: Used when `entityType=type` only.
+          schema: { type: string }
+        - in: query
+          name: includeInactive
+          description: Used when `entityType=type` only.
+          schema: { type: string }
+        - in: query
+          name: module
+          description: Used when `entityType=type` only.
+          schema: { type: string }
+        - in: query
+          name: valueDataType
+          description: Used when `entityType=type` only.
+          schema: { type: string }
+        - in: query
+          name: datatype
+          description: Used when `entityType=type` only.
+          schema: { type: string }
+        - in: query
+          name: applicableModules
+          description: When `entityType=value`; comma-separated enum tokens (e.g. `RPM` or `RPM,OP`).
+          schema: { type: string }
+        - in: query
+          name: applicableCategories
+          schema: { type: string }
+        - in: query
+          name: applicableConditions
+          schema: { type: string }
+        - in: query
+          name: applicableCountries
+          schema: { type: string }
+        - in: query
+          name: applicableLanguages
+          description: >-
+            When `entityType=value`; comma-separated language tokens (e.g. `EN` or `EN,FR`), same enum-token style as other applicability dimensions.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Array of types or flattened values
+  /metadata/relations:
+    post:
+      summary: Create a relation between two metadata values (forward direction only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMetadataRelationInput'
+      responses:
+        '201':
+          description: Relation created
+    get:
+      summary: List relations from a source value
+      parameters:
+        - in: query
+          name: fromType
+          required: true
+          schema: { type: string }
+        - in: query
+          name: fromValue
+          required: true
+          schema: { type: string }
+        - in: query
+          name: relationType
+          schema:
+            type: string
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+        - in: query
+          name: toType
+          schema: { type: string }
+      responses:
+        '200':
+          description: Wrapper object with `relations` array (see standard ApiResponse `data`)
+
+  /metadata/values/related:
+    get:
+      summary: List related target values (minimal shape) for a source value
+      parameters:
+        - in: query
+          name: fromType
+          required: true
+          schema: { type: string }
+        - in: query
+          name: fromValue
+          required: true
+          schema: { type: string }
+        - in: query
+          name: relationType
+          schema:
+            type: string
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+        - in: query
+          name: toType
+          schema: { type: string }
+      responses:
+        '200':
+          description: Wrapper object with `values` array
+
+  /metadata/relations/{id}:
+    patch:
+      summary: Inactivate a relation (soft delete; audit row appended)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            description: Opaque id returned by create / list (encodes PK/SK)
+      responses:
+        '200':
+          description: Inactivated relation record
+
+components:
+  parameters:
+    metadataTypeCode:
+      name: metadataTypeCode
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Z][A-Za-z0-9]*$'
+    metadataValueCode:
+      name: metadataValueCode
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Z0-9]+(_[A-Z0-9]+)*$'
+  schemas:
+    PatchStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: |
+            Preferred values are `Active` and `Inactive` (UI / Figma). The service trims and
+            case-normalizes; `ACTIVE` / `INACTIVE` and other casings are also accepted. Stored and
+            response values remain uppercase `ACTIVE` or `INACTIVE`.
+          enum: [Active, Inactive, ACTIVE, INACTIVE, active, inactive]
+    PatchMetadataTypeStatusRequest:
+      allOf:
+        - type: object
+          required: [metadataTypeCode]
+          properties:
+            metadataTypeCode:
+              type: string
+              description: Identifies the metadata type to update; not mutable via this endpoint
+        - $ref: '#/components/schemas/PatchStatusRequest'
+    PatchMetadataValueStatusRequest:
+      oneOf:
+        - allOf:
+            - type: object
+              required: [metadataTypeCode, metadataValueCode]
+              properties:
+                metadataTypeCode:
+                  type: string
+                  description: Parent type; required for every value status change
+                metadataValueCode:
+                  type: string
+            - $ref: '#/components/schemas/PatchStatusRequest'
+        - allOf:
+            - type: object
+              required: [metadataTypeCode, valueCode]
+              properties:
+                metadataTypeCode:
+                  type: string
+                  description: Parent type; required for every value status change
+                valueCode:
+                  type: string
+                  description: Alias for `metadataValueCode`
+            - $ref: '#/components/schemas/PatchStatusRequest'
+    Applicability:
+      type: object
+      required: [module, category, condition, country]
+      properties:
+        module:
+          type: array
+          items: { type: string }
+        category:
+          type: array
+          items: { type: string }
+        condition:
+          type: array
+          items: { type: string }
+        country:
+          type: array
+          items: { type: string }
+        language:
+          type: array
+          items: { type: string }
+    MetadataTypeInput:
+      type: object
+      description: |
+        Upsert body for `POST /metadata/type`. **First create** requires: `metadataTypeCode`, `displayName` (max 100),
+        `valueDataType`, `multiSelectAllowed`, `applicableModules` (min 1), `status` (ACTIVE|INACTIVE).
+        `description` and `attributeSchema` are optional. **Updates** may send a partial body; see `MetadataTypeCreateInput`
+        for the strict create contract. Version and audit timestamps are system-owned on the stored record.
+      required: [metadataTypeCode]
+      properties:
+        metadataTypeCode:
+          type: string
+          description: Unique across registry; immutable after publish
+        displayName:
+          type: string
+          maxLength: 100
+        description: { type: string }
+        valueDataType:
+          type: string
+          enum: [Enum, Numeric, Boolean, Text]
+        multiSelectAllowed: { type: boolean }
+        applicableModules:
+          type: array
+          items: { type: string }
+          minItems: 1
+          description: One or more platform module tokens
+        attributeSchema:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+    MetadataTypeCreateInput:
+      type: object
+      description: Strict shape for **creating** a metadata type (enforced by the API on first insert).
+      required:
+        - metadataTypeCode
+        - displayName
+        - valueDataType
+        - multiSelectAllowed
+        - applicableModules
+        - status
+      properties:
+        metadataTypeCode:
+          type: string
+          description: Unique across registry; immutable after publish
+        displayName:
+          type: string
+          maxLength: 100
+        description: { type: string }
+        valueDataType:
+          type: string
+          enum: [Enum, Numeric, Boolean, Text]
+        multiSelectAllowed: { type: boolean }
+        applicableModules:
+          type: array
+          items: { type: string }
+          minItems: 1
+        attributeSchema:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+    MetadataValueInput:
+      type: object
+      description: |
+        Upsert body for `POST /metadata/value` (include `metadataTypeCode` in the body).
+        `valueCode` is immutable after the value is first published (create a new value for a new code).
+        On **create**, `isGlobal` is required. On update, omitted fields keep existing values.
+        **Request aliases** (same semantics): `metadataValueCode` ↔ `valueCode`; `valueAttributes` ↔ `attributes`;
+        flat `applicable*` arrays ↔ nested `applicability` when the nested object is omitted.
+        **Responses** use a single shape: `metadataValueCode`, `valueAttributes`, and flat `applicable*` only.
+      required: [label]
+      properties:
+        valueCode:
+          type: string
+          description: MetadataValueCode; immutable after publish
+        metadataValueCode:
+          type: string
+          description: Alias for `valueCode` (use one or the other)
+        label:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+        sortOrder: { type: integer }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        isGlobal:
+          type: boolean
+          description: Required on create
+        attributes:
+          type: object
+          additionalProperties: true
+          description: ValueAttributes; must match parent type AttributeSchema when defined
+        valueAttributes:
+          type: object
+          additionalProperties: true
+          description: Alias for `attributes`
+        applicableModules:
+          type: array
+          items: { type: string }
+        applicableCategories:
+          type: array
+          items: { type: string }
+        applicableConditions:
+          type: array
+          items: { type: string }
+        applicableCountries:
+          type: array
+          items: { type: string }
+        applicableLanguages:
+          type: array
+          items: { type: string }
+          description: Maps to applicability.language; token lists are normalized to uppercase
+        applicability:
+          $ref: '#/components/schemas/Applicability'
+        createdBy:
+          type: string
+          description: Optional override for audit actor when not using API user context
+    MetadataValueResponse:
+      type: object
+      description: |
+        Value resource as returned by GET / list / search / POST / PATCH. Flat applicability only (`applicable*` arrays);
+        `metadataValueCode` and `valueAttributes` (no `valueCode`, `attributes`, or nested `applicability`).
+      required:
+        - metadataTypeCode
+        - metadataValueCode
+        - version
+        - label
+        - sortOrder
+        - status
+        - isGlobal
+        - valueAttributes
+        - applicableModules
+        - applicableCategories
+        - applicableConditions
+        - applicableCountries
+        - applicableLanguages
+        - applSkKeys
+        - createdAt
+        - lastModifiedAt
+      properties:
+        metadataTypeCode: { type: string }
+        metadataValueCode: { type: string }
+        version: { type: integer }
+        label: { type: string, maxLength: 150 }
+        description: { type: string, maxLength: 2000 }
+        sortOrder: { type: integer }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        isGlobal: { type: boolean }
+        valueAttributes:
+          type: object
+          additionalProperties: true
+        applicableModules:
+          type: array
+          items: { type: string }
+        applicableCategories:
+          type: array
+          items: { type: string }
+        applicableConditions:
+          type: array
+          items: { type: string }
+        applicableCountries:
+          type: array
+          items: { type: string }
+        applicableLanguages:
+          type: array
+          items: { type: string }
+        applSkKeys:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastModifiedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+    MetadataValueRecord:
+      type: object
+      description: |
+        Persistence / domain shape (nested `applicability`, `valueCode`, `attributes`). HTTP value responses
+        use schema `MetadataValueResponse` (flat `applicable*` and `metadataValueCode` / `valueAttributes` only).
+      required:
+        - metadataTypeCode
+        - valueCode
+        - version
+        - label
+        - sortOrder
+        - status
+        - isGlobal
+        - attributes
+        - applicability
+        - applSkKeys
+        - createdAt
+        - lastModifiedAt
+      properties:
+        metadataTypeCode: { type: string }
+        valueCode: { type: string }
+        version: { type: integer }
+        label: { type: string, maxLength: 150 }
+        description: { type: string, maxLength: 2000 }
+        sortOrder: { type: integer }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        isGlobal: { type: boolean }
+        attributes:
+          type: object
+          additionalProperties: true
+        applicability:
+          $ref: '#/components/schemas/Applicability'
+        applSkKeys:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastModifiedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+    ValueSearchFilter:
+      type: object
+      properties:
+        module:
+          type: array
+          items: { type: string }
+        category:
+          type: array
+          items: { type: string }
+        condition:
+          type: array
+          items: { type: string }
+        country:
+          type: array
+          items: { type: string }
+        language:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+
+    RelationType:
+      type: string
+      enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+    CreateMetadataRelationInput:
+      type: object
+      required:
+        - relationType
+        - fromMetadataTypeCode
+        - fromMetadataValueCode
+        - toMetadataTypeCode
+        - toMetadataValueCode
+      properties:
+        relationType:
+          $ref: '#/components/schemas/RelationType'
+        fromMetadataTypeCode: { type: string }
+        fromMetadataValueCode: { type: string }
+        toMetadataTypeCode: { type: string }
+        toMetadataValueCode: { type: string }
+        createdBy: { type: string, description: Optional audit actor override }
+    MetadataRelationRecord:
+      type: object
+      properties:
+        id: { type: string }
+        relationType: { $ref: '#/components/schemas/RelationType' }
+        fromMetadataTypeCode: { type: string }
+        fromMetadataValueCode: { type: string }
+        toMetadataTypeCode: { type: string }
+        toMetadataValueCode: { type: string }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+    RelatedValueRef:
+      type: object
+      properties:
+        metadataTypeCode: { type: string }
+        metadataValueCode: { type: string }

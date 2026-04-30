@@ -41,6 +41,9 @@ const ERROR_TITLES: Record<string, string> = {
 
   // ── Other ────────────────────────────────────────────────────────────────────
   EMAIL_OR_PHONE_REQUIRED:            'Email or phone number required',
+
+    // ── Metadata registry ────────────────────────────────────────────────────────
+  METADATA_TYPE_INACTIVE:              'Metadata type is inactive'
 };
 
 /**
@@ -99,9 +102,12 @@ export async function handleError(
     severity: 'ERROR' as const,
   }));
   console.log("CDN ERROR MESSAGE : ",cdnMessage);
-  const message: Message = {
+    // For INTERNAL_SERVER_ERROR, prefer the thrown error message so AWS/DynamoDB details are not replaced by CDN copy.
+    const descriptionForClient =
+    errorCode === 'INTERNAL_SERVER_ERROR' ? localDescription : cdnMessage.description;
+    const message: Message = {
     title: errorCode === 'INVITE_UPDATE_TOO_SOON' ? cdnMessage.description : cdnMessage.title,
-    description: cdnMessage.description,
+    description: descriptionForClient,
     severity: cdnMessage.severity,
   };
 

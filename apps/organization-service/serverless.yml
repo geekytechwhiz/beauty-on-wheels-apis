@@ -156,6 +156,7 @@ custom:
       - '.tsx'
       - '.js'
       - '.jsx'
+      - '.mjs'
       - '.json'
     # Ensure .json (e.g. org-vitals.json) is inlined so health handler has default vitals in the bundle
     loader:

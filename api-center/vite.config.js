@@ -1,7 +1,12 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { localSpecApiPlugin } from './vite-plugins/local-spec-api';
 import { mergeSpecsStorePlugin } from './vite-plugins/merge-specs-store';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /**
  * NOTE: Vite resolves `vite.config.js` before `vite.config.ts`. Do not add a duplicate
  * `vite.config.js` — it will shadow this file and break proxy/env behavior.
@@ -13,9 +18,10 @@ import { mergeSpecsStorePlugin } from './vite-plugins/merge-specs-store';
  * Specs are stored on disk at `API_CENTER_SPECS_DIR` (defaults to `api-center/specs-store`).
  */
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, process.cwd(), '');
+    const env = loadEnv(mode, __dirname, '');
     const localSpecApiEnabled = true;
     return {
+        root: __dirname,
         plugins: [
             react(),
             mergeSpecsStorePlugin({

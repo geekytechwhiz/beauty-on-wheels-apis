@@ -346,7 +346,7 @@ export class OrgDeviceRepository {
    */
   async isDeviceInOrganization(organizationId: string, deviceId: string): Promise<boolean> {
     const device = await this.getOrgDevice(organizationId, deviceId);
-    return device !== null && device.enabled === true && device.isActive !== false;
+    return device !== null && device?.enabled === true && device?.isActive !== false;
   }
 
   /**

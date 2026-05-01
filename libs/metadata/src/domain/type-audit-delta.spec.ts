@@ -1,6 +1,6 @@
-import { STATUS } from './constants';
+import { STATUS } from '../constants';
 import { getMetadataTypeDelta, typeCreateAuditNewValue, metadataTypeToAuditSnapshot } from './type-audit-delta';
-import type { MetadataTypeRecord } from './types';
+import type { MetadataTypeRecord } from '../models/types';
 
 const base: MetadataTypeRecord = {
   metadataTypeCode: 'MetricCode',

@@ -77,12 +77,13 @@ export const listMetadataValuesQuerySchema = paginationSchema.extend({
   category: z.string().optional(),
   condition: z.string().optional(),
   country: z.string().optional(),
+  language: z.string().optional(),
 });
 
 /** POST body: which applicability dimension to collect distinct values for. */
 export const applicabilityContextFilterBodySchema = z.object({
-  dimension: z.enum(['module', 'category', 'condition', 'country'], {
-    message: 'dimension must be module, category, condition, or country',
+  dimension: z.enum(['module', 'category', 'condition', 'country', 'language'], {
+    message: 'dimension must be module, category, condition, country, or language',
   }),
   includeInactive: z.boolean().optional().default(false),
 });

@@ -1,19 +1,20 @@
 import { GetCommand, PutCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { monotonicFactory } from 'ulid';
 
+import { MetadataKeyBuilder } from '../../builders/metadata-key.builder';
 import type {
   CreateMetadataRelationInput,
   MetadataRelationRecord,
-} from '../domain/relation-types';
-import { RELATION_ENTITY_TYPE, RELATION_STATUS } from '../domain/relation-types';
-import { ConflictError, NotFoundError } from '../domain/errors';
+} from '../../models/relation-types';
+import { RELATION_ENTITY_TYPE, RELATION_STATUS } from '../../models/relation-types';
+import { ConflictError, NotFoundError } from '../../domain/errors';
 import {
   auditRelationPartitionKey,
   encodeRelationId,
   relationPartitionKey,
   relationSortKey,
-} from '../domain/relation-keys';
-import type { IRelationRepository, ListRelationsByFromOptions } from './relation.repository.interface';
+} from '../../domain/relation-keys';
+import type { IRelationRepository, ListRelationsByFromOptions } from '../relation.repository.interface';
 
 const ulid = monotonicFactory();
 
@@ -80,7 +81,7 @@ export class DynamoDbRelationRepository implements IRelationRepository {
         // Only include the sort-key name placeholder when `begins_with` is used. Including `#sk` in
         // ExpressionAttributeNames when it does not appear in KeyConditionExpression can cause
         // DynamoDB to return ValidationException.
-        const names = useBegins
+        const names: Record<string, string> = useBegins
           ? { '#pk': this.pkAttr, '#sk': this.skAttr }
           : { '#pk': this.pkAttr };
         const res = (await this.doc.send(
@@ -194,7 +195,7 @@ export class DynamoDbRelationRepository implements IRelationRepository {
       existing.fromMetadataValueCode,
     );
     const auditId = ulid();
-    const auditSk = `TIMESTAMP#${now}#${auditId}`;
+    const auditSk = MetadataKeyBuilder.auditTimestampSk(now, auditId);
 
     const fromCode = existing.fromMetadataValueCode;
     const toCode = existing.toMetadataValueCode;

@@ -1,6 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
+import { STATUS } from '../constants';
 import { ValidationError } from '../domain/errors';
-import { validateMetadataTypeInput } from './validate-inputs';
+import type { MetadataTypeRecord } from '../models/types';
+import { validateMetadataTypeInput, validateMetadataValueConditionalApplicability } from './validate-inputs';
 
 describe('validateMetadataTypeInput', () => {
   const validCreate = {
@@ -41,5 +43,36 @@ describe('validateMetadataTypeInput', () => {
       expect(e).toBeInstanceOf(ValidationError);
       expect((e as ValidationError).details?.[0]?.message).toBe('Must be a string');
     }
+  });
+});
+
+describe('validateMetadataValueConditionalApplicability', () => {
+  const type: MetadataTypeRecord = {
+    metadataTypeCode: 'T',
+    version: 1,
+    displayName: 'T',
+    valueDataType: 'Enum',
+    multiSelectAllowed: false,
+    applicableModules: ['M'],
+    status: STATUS.ACTIVE,
+    createdAt: '',
+    lastModifiedAt: '',
+  };
+
+  it('requires applicableLanguages when languageDependent is set', () => {
+    expect(() =>
+      validateMetadataValueConditionalApplicability(
+        { ...type, valueApplicabilityConfig: { languageDependent: true } },
+        false,
+        { module: ['M'], category: [], condition: [], country: [], language: [] },
+      ),
+    ).toThrow(/applicableLanguages is required/);
+    expect(() =>
+      validateMetadataValueConditionalApplicability(
+        { ...type, valueApplicabilityConfig: { languageDependent: true } },
+        false,
+        { module: ['M'], category: [], condition: [], country: [], language: ['EN'] },
+      ),
+    ).not.toThrow();
   });
 });

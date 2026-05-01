@@ -21,6 +21,17 @@ describe('keys', () => {
     expect(keys.some((k) => k.includes('#*#') && k.endsWith('#VALUE#CODE'))).toBe(true);
   });
 
+  it('buildApplSortKeys includes explicit language segment', () => {
+    const keys = buildApplSortKeys('CODE', {
+      module: ['M'],
+      category: ['C'],
+      condition: [],
+      country: [],
+      language: ['EN'],
+    });
+    expect(keys).toContain('APPL#M#C#*#*#EN#VALUE#CODE');
+  });
+
   it('extractValueCodeFromApplSk', () => {
     expect(extractValueCodeFromApplSk('APPL#M#C#*#*#*#VALUE#FOO')).toBe('FOO');
   });

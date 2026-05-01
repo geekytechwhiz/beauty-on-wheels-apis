@@ -2,6 +2,9 @@
   "name": "@api-hub/metadata-registry-service",
   "version": "0.0.1",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.958.0",
     "@aws-sdk/lib-dynamodb": "^3.958.0",

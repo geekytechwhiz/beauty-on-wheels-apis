@@ -98,6 +98,9 @@
     },
     {
       "path": "./libs/alert-core"
+    },
+    {
+      "path": "./libs/rule-engine"
     }
   ]
 }

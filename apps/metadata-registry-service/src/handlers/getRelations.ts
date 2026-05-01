@@ -1,12 +1,12 @@
 import { withLambdaHandler } from '@api-hub/middleware';
 import { listRelationsForValue } from '../services/relationService';
+import { getRelationsSchema } from '../schemas/getRelations.schema';
 
-export const main = withLambdaHandler(async (req: { params?: Record<string, string> }) => {
-  const p = req.params ?? {};
-  const fromType = p.fromType ?? p.fromTypeCode ?? '';
-  const fromValue = p.fromValue ?? p.fromValueCode ?? '';
-  const relationType = p.relationType;
-  const toType = p.toType ?? p.toMetadataTypeCode;
-  const relations = await listRelationsForValue(fromType, fromValue, { relationType, toType });
+export const main = withLambdaHandler(async (req) => {
+  const input = getRelationsSchema.parse(req);
+  const relations = await listRelationsForValue(input.fromType, input.fromValue, {
+    relationType: input.relationType,
+    toType: input.toType,
+  });
   return { relations };
 });

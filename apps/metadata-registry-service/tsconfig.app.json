@@ -1,3 +1,4 @@
+
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
@@ -9,7 +10,12 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
-    "emitDeclarationOnly": false
+    "emitDeclarationOnly": false,
+    "paths": {
+      "@api-hub/metadata": ["libs/metadata/src/index.ts"],
+      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/utils": ["libs/utils/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"],
@@ -19,6 +25,9 @@
     },
     {
       "path": "../../libs/middleware/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
       "path": "../../libs/metadata/tsconfig.lib.json"

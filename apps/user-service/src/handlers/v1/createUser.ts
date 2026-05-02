@@ -226,12 +226,7 @@ export const main =   withApiHandler(
             operation: 'createUser',
             validator: (req) => validateCreateUser(req as any),
           },
-          async (req) => {
-            const correlationId =
-              (req.context as { correlationId?: string }).correlationId ?? 'unknown';
-
-            const result = await (handler as any)(req);
-
-            return successResponse(result, undefined, { correlationId });
-          }
+           async (req) => {
+    return await (handler as any)(req);
+  },
         );

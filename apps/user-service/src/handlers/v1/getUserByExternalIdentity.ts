@@ -52,12 +52,7 @@ export const main =   withApiHandler(
             operation: 'getUserByExternalIdentity',
             
           },
-          async (req) => {
-            const correlationId =
-              (req.context as { correlationId?: string }).correlationId ?? 'unknown';
-
-            const result = await (handler as any)(req);
-
-            return successResponse(result, undefined, { correlationId });
-          }
+           async (req) => {
+    return await (handler as any)(req);
+  },
         );

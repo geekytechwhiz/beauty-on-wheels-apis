@@ -12,8 +12,12 @@ export class VersionIncompatibleError extends Error {
   }
 }
 
-export declare class VersionParseError extends Error {
-  readonly value: string;
-  constructor(message: string, value: string);
+export class VersionParseError extends Error {
+  constructor(
+    message: string,
+    readonly value: string,
+  ) {
+    super(message);
+    this.name = "VersionParseError";
+  }
 }
-//# sourceMap

@@ -1,6 +1,6 @@
 import { MetricUnit, Metrics } from '@aws-lambda-powertools/metrics';
 
-import { getConfig } from '../config/config.js';
+import { getConfig } from '../config/config';
 
 function createMetricsInstance(): Metrics {
   const cfg = getConfig();

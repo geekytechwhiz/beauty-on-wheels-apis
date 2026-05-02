@@ -1,4 +1,4 @@
-import { safeParse } from '../core/utils.js';
+import { safeParse } from '../core/utils';
 
 export function serializeError(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {

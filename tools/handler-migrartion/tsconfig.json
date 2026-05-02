@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["./migrate-handlers-to-v1.ts"]
+  "include": ["./migrate-handlers-to-v1.ts","./migrate-handlers-v1.ts"]
 }

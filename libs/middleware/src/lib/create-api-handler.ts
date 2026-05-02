@@ -112,7 +112,7 @@ export function  withApiHandler<
 
     const correlationIdFromContext =
       (req.context as { correlationId?: string }).correlationId ?? 'unknown';
-
+     
     return successResponse(result, undefined, { correlationId :correlationIdFromContext}) as TResult;
   };
 

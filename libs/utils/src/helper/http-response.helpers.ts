@@ -16,7 +16,7 @@ function now() {
 
 function buildMeta(options: ResponseOptions): Meta {
   return {
-    requestId: options.requestId,
+    correlationId: options.correlationId,
     timestamp: now(),
     version: 'v1',
   };
@@ -262,7 +262,7 @@ export function apiGatewayResponseOptions(
   extraHeaders?: Record<string, string>,
 ): ResponseOptions {
   return {
-    requestId: correlationId,
+    correlationId: correlationId,
     headers: {
       'X-Correlation-Id': correlationId,
       'Cache-Control': 'no-store',

@@ -1,2 +1,2 @@
-export { withLambdaObservability } from './lambda.js';
-export { withHttpObservability, type ApiGatewayLikeEvent } from './http.js';
+export { withLambdaObservability } from './lambda';
+export { withHttpObservability, type ApiGatewayLikeEvent } from './http';

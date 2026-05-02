@@ -1,4 +1,4 @@
-export { publishMiddlewarePipelineMetrics } from './middleware-metrics.js';
+export { publishMiddlewarePipelineMetrics } from './middleware-metrics';
 export {
   recordConsumerDeadLetter,
   recordConsumerDeliveryDisposition,
@@ -6,4 +6,4 @@ export {
   recordConsumerEventProcessed,
   recordConsumerFailure,
   recordConsumerRetry,
-} from './consumer-metrics.js';
+} from './consumer-metrics';

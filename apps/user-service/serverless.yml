@@ -17,9 +17,9 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  deploymentBucket:
-    name: ${self:provider.stage}-mvx-user-service-bucket
-    serverSideEncryption: AES256
+  # deploymentBucket:
+  #   name: ${self:provider.stage}-mvx-user-service-bucket
+  #   serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 
@@ -195,6 +195,8 @@ custom:
     stg: false
     prd: false
   esbuild:
+    # Monorepo uses pnpm; default npm packager runs `npm ls` and fails (ELSPROBLEMS) on pnpm layouts.
+    packager: pnpm
     bundle: true
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
@@ -311,7 +313,7 @@ functions:
     handler: src/handlers/health.main
     events:
       - http:
-          path: /health
+          path: health
           method: get
           cors:
             origin: ${self:custom.cors.origin}
@@ -322,8 +324,18 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
+
+  healthV1:
+    handler: src/handlers/v1/health.main
+    events:
+      - http:
+          path: v1/health
+          method: get
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
   # fhirMetadata:
-  #   handler: src/handlers/fhirMetadata.main
+  #   handler: src/handlers/v1/fhirMetadata.main
   #   events:
   #     - http:
   #         path: fhir/metadata
@@ -331,8 +343,10 @@ functions:
   #         cors:
   #           origin: ${self:custom.cors.origin}
   #           headers: ${self:custom.cors.headers}
+
+  
   createUser:
-    handler: src/handlers/createUser.main
+    handler: src/handlers/v1/createUser.main
     warmup:
       default:
         enabled: true
@@ -351,7 +365,7 @@ functions:
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
   createUserV1:
-    handler: src/handlers/create-user.handler
+    handler: src/handlers/v1/create-user.handler
     
     memorySize: 256
     events:
@@ -362,7 +376,7 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
   getUser:
-    handler: src/handlers/getUser.main
+    handler: src/handlers/v1/getUser.main
     timeout: 30
     memorySize: 512
     events:
@@ -379,7 +393,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   getUserByExternalIdentity:
-    handler: src/handlers/getUserByExternalIdentity.main
+    handler: src/handlers/v1/getUserByExternalIdentity.main
     memorySize: 256
     events:
       - http:
@@ -395,7 +409,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   getUserOrganization:
-    handler: src/handlers/getUserOrganization.main
+    handler: src/handlers/v1/getUserOrganization.main
     warmup:
       default:
         enabled: true
@@ -429,7 +443,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   updateUser:
-    handler: src/handlers/updateUser.main
+    handler: src/handlers/v1/updateUser.main
     timeout: 10
     memorySize: 256
     events:
@@ -446,7 +460,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   deleteUser:
-    handler: src/handlers/deleteUser.main
+    handler: src/handlers/v1/deleteUser.main
     timeout: 10
     memorySize: 256
     events:
@@ -463,7 +477,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   setLogoutRequired:
-    handler: src/handlers/setLogoutRequired.main
+    handler: src/handlers/v1/setLogoutRequired.main
     timeout: 10
     memorySize: 256
     events:
@@ -480,7 +494,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   putAssignedPackages:
-    handler: src/handlers/putAssignedPackages.main
+    handler: src/handlers/v1/putAssignedPackages.main
     timeout: 10
     memorySize: 256
     events:
@@ -497,7 +511,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   assignUserToOrganization:
-    handler: src/handlers/assignUserToOrganization.handler
+    handler: src/handlers/v1/assignUserToOrganization.handler
     timeout: 10
     memorySize: 256
     events:
@@ -514,7 +528,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listUserOrganizations:
-    handler: src/handlers/listUserOrganizations.main
+    handler: src/handlers/v1/listUserOrganizations.main
     timeout: 5
     memorySize: 256
     events:
@@ -531,7 +545,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   updateUserMetadata:
-    handler: src/handlers/updateUserMetadata.main
+    handler: src/handlers/v1/updateUserMetadata.main
     timeout: 10
     memorySize: 256
     events:
@@ -548,7 +562,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   updateRecentInvite:
-    handler: src/handlers/updateRecentInvite.main
+    handler: src/handlers/v1/updateRecentInvite.main
     timeout: 10
     memorySize: 256
     events:
@@ -566,7 +580,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listUserFiles:
-    handler: src/handlers/listUserFiles.main
+    handler: src/handlers/v1/listUserFiles.main
     timeout: 5
     memorySize: 256
     events:
@@ -583,7 +597,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   createPendingAppointment:
-    handler: src/handlers/create-pending-appointment.main
+    handler: src/handlers/v1/create-pending-appointment.main
     timeout: 10
     memorySize: 256
     events:
@@ -600,7 +614,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   getPendingAppointment:
-    handler: src/handlers/get-pending-appointment.main
+    handler: src/handlers/v1/get-pending-appointment.main
     timeout: 10
     memorySize: 256
     events:
@@ -617,7 +631,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listPendingAppointments:
-    handler: src/handlers/list-appointments.main
+    handler: src/handlers/v1/list-appointments.main
     timeout: 10
     memorySize: 256
     events:
@@ -634,7 +648,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listOrganizationUsers:
-    handler: src/handlers/listOrganizationUsers.main
+    handler: src/handlers/v1/listOrganizationUsers.main
     timeout: 5
     memorySize: 256
     events:
@@ -651,7 +665,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listOrganizationUsersPost:
-    handler: src/handlers/listOrganizationUsersPost.main
+    handler: src/handlers/v1/listOrganizationUsersPost.main
     timeout: 30
     memorySize: 512
     events:
@@ -668,7 +682,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   assignDoctor:
-    handler: src/handlers/assignDoctor.handler
+    handler: src/handlers/v1/assignDoctor.handler
     
     memorySize: 256
     events:
@@ -685,7 +699,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   listDoctorPatients:
-    handler: src/handlers/listUsers.main
+    handler: src/handlers/v1/listUsers.main
     
     memorySize: 256
     events:
@@ -703,7 +717,7 @@ functions:
             resultTtlInSeconds: 0
 
   v2UserList:
-    handler: src/handlers/v2UserList.main
+    handler: src/handlers/v1/v2UserList.main
     timeout: 30
     memorySize: 512
     events:
@@ -721,7 +735,7 @@ functions:
             resultTtlInSeconds: 0
        
   friendFamilySearch:
-    handler: src/handlers/friendFamilySearch.main
+    handler: src/handlers/v1/friendFamilySearch.main
     
     memorySize: 256
     events:
@@ -739,7 +753,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyAddMember:
-    handler: src/handlers/friendFamilyAddMember.main
+    handler: src/handlers/v1/friendFamilyAddMember.main
     
     memorySize: 256
     events:
@@ -757,7 +771,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyUpdate:
-    handler: src/handlers/friendFamilyUpdate.main
+    handler: src/handlers/v1/friendFamilyUpdate.main
     
     memorySize: 256
     events:
@@ -775,7 +789,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyFetch:
-    handler: src/handlers/friendFamilyFetch.main
+    handler: src/handlers/v1/friendFamilyFetch.main
     
     memorySize: 256
     events:
@@ -793,7 +807,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyDelete:
-    handler: src/handlers/friendFamilyDelete.main
+    handler: src/handlers/v1/friendFamilyDelete.main
     
     memorySize: 256
     events:
@@ -811,7 +825,7 @@ functions:
             resultTtlInSeconds: 0
 
   friendFamilyCheck:
-    handler: src/handlers/friendFamilyCheck.main
+    handler: src/handlers/v1/friendFamilyCheck.main
     timeout: 5
     memorySize: 256
     events:
@@ -829,7 +843,7 @@ functions:
             resultTtlInSeconds: 0
 
   activateDeactivateUser:
-    handler: src/handlers/activateDeactivateUser.main
+    handler: src/handlers/v1/activateDeactivateUser.main
     timeout: 10
     memorySize: 256
     events:
@@ -846,7 +860,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   validateContacts:
-    handler: src/handlers/validateContacts.main
+    handler: src/handlers/v1/validateContacts.main
     timeout: 10
     memorySize: 256
     events:
@@ -864,7 +878,7 @@ functions:
             resultTtlInSeconds: 0
 
   validateUsers:
-    handler: src/handlers/validateUsers.main
+    handler: src/handlers/v1/validateUsers.main
     timeout: 10
     memorySize: 256
     events:
@@ -875,7 +889,7 @@ functions:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
   getOrganizationUserCount:
-    handler: src/handlers/getOrganizationUserCount.main
+    handler: src/handlers/v1/getOrganizationUserCount.main
     
     memorySize: 256
     events:
@@ -892,7 +906,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
   uploadUserFile:
-    handler: src/handlers/s3/uploadUserFile.main
+    handler: src/handlers/v1/s3/uploadUserFile.main
     timeout: 30
     memorySize: 512
     events:
@@ -908,12 +922,12 @@ functions:
                   - user-files-bucket-${self:provider.stage}
 
   userReminderEvent:
-    handler: src/handlers/sqs/userReminderEvent.main
+    handler: src/handlers/v1/sqs/userReminderEvent.main
     timeout: 30
     memorySize: 256
 
   userProfileStreamHandler:
-    handler: src/handlers/stream/userProfileStreamHandler.main
+    handler: src/handlers/v1/stream/userProfileStreamHandler.main
     timeout: 30
     memorySize: 256
     # events:
@@ -926,7 +940,7 @@ functions:
     #       functionResponseType: ReportBatchItemFailures
 
   inviteNotificationStreamHandler:
-    handler: src/handlers/stream/inviteNotificationStreamHandler.main
+    handler: src/handlers/v1/stream/inviteNotificationStreamHandler.main
     timeout: 30
     memorySize: 256
     description: Listens to user-table DynamoDB Stream; sends email/SMS when inviteDetails changes
@@ -949,7 +963,7 @@ functions:
           arn: ${self:provider.environment.USER_EVENTS_TOPIC_ARN}
 
   userRoleAssignmentRequested:
-    handler: src/handlers/userRoleAssignmentRequested.handler
+    handler: src/handlers/v1/userRoleAssignmentRequested.handler
     timeout: 30
     memorySize: 256
     events:

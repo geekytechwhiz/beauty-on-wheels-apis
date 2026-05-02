@@ -16,7 +16,13 @@
     "aggregator:backend:start": "pnpm --filter @api-hub/api-aggregator-backend start",
     "aggregator:frontend:dev": "pnpm --filter @api-hub/api-aggregator-frontend dev",
     "aggregator:frontend:dev:registry": "pnpm --filter @api-hub/api-aggregator-frontend dev:registry",
-    "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build"
+    "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build",
+    "migrate:handlers-v1": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts",
+    "migrate:handlers-v1:metadata-registry": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts metadata-registry-service",
+    "fix:imports": "ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
+    "update:version": "ts-node --project tools/update-version/tsconfig.json tools/update-version/update-version.ts",
+    "fix:imports:light": "FIX_IMPORTS_SKIP_CLEAN=1 FIX_IMPORTS_SKIP_BUILD=1 ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
+    "fix:imports:sh": "sh tools/file-import/fix-imports.sh"
   },
   "private": true,
   "dependencies": {
@@ -50,6 +56,7 @@
     "get-stream": "^9.0.1",
     "glob": "^13.0.0",
     "join": "^3.0.0",
+    "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.3",
     "jwk-to-pem": "^2.0.5",
     "libphonenumber-js": "^1.12.39",
@@ -59,6 +66,7 @@
     "serverless-esbuild": "^1.57.0",
     "serverless-offline": "^13.9.0",
     "serverless-openapi-documentation": "^0.4.0",
+    "ts-morph": "^28.0.0",
     "ulid": "^3.0.2",
     "winston": "^3.19.0",
     "zod": "^4.2.1"
@@ -80,6 +88,7 @@
     "@swc/jest": "~0.2.38",
     "@types/aws-lambda": "^8.10.159",
     "@types/jest": "^30.0.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/luxon": "^3.7.1",
     "@types/node": "20.19.9",
     "@types/winston": "^2.4.4",

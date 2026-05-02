@@ -15,13 +15,14 @@ import type {
   MiddlewarePipelineEvent,
   RequestBuildEvent,
 } from './types';
+import { successResponse } from './response.middleware';
 
 const baseLogger = createLogger({
   service: 'api-service',
   redactPII: true,
 });
 
-export type CreateApiHandlerOptions = {
+export type   withApiHandlerOptions = {
   operation: string;
   /** Validates the full Lambda/API Gateway `event` (runs in HTTP schema middleware). */
   schema?: z.ZodType<unknown>;
@@ -56,12 +57,12 @@ function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
  *
  * `requestParserMiddleware` runs before this adapter so `event.body` is typically already parsed.
  */
-export function createApiHandler<
+export function  withApiHandler<
   TEvent extends MiddlewarePipelineEvent,
   TResult,
   TContext = unknown,
 >(
-  options: CreateApiHandlerOptions,
+  options:   withApiHandlerOptions,
   handler: (req: ReturnType<typeof buildRequestContext>) => Promise<TResult>,
 ): (event: TEvent, context: TContext) => Promise<TResult> {
   const stack = buildApiExecutionPipeline<TResult, TContext>({
@@ -107,7 +108,12 @@ export function createApiHandler<
       await options.validator(req);
     }
 
-    return handler(req);
+    const result = await handler(req);
+
+    const correlationIdFromContext =
+      (req.context as { correlationId?: string }).correlationId ?? 'unknown';
+
+    return successResponse(result, undefined, { correlationId :correlationIdFromContext}) as TResult;
   };
 
   return runMiddlewares(stack, adaptedHandler) as (

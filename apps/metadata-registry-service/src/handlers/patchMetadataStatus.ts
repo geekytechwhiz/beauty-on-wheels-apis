@@ -5,7 +5,7 @@ import {
   patchValueStatus,
   ValidationError,
 } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { patchMetadataStatusSchema } from '../schemas/patchMetadataStatus.schema';
 
 export const main = withLambdaHandler(

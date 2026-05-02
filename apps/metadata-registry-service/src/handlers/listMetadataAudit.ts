@@ -1,5 +1,5 @@
 import { listTypeAudit, listValueAudit, ValidationError } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { listMetadataAuditSchema } from '../schemas/listMetadataAudit.schema';
 
 export const main = withLambdaHandler(

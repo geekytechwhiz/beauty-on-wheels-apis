@@ -1,46 +1,31 @@
-# Metadata Registry — single-table DynamoDB, prefix queries only (no GSI).
-# TODO: Confirm with OpenAPI spec — base path / authorizer / deployment wiring.
 service: metadata-registry-service
-
 frameworkVersion: '3'
-
 plugins:
   - serverless-dotenv-plugin
   - serverless-esbuild
   - serverless-offline
-
 provider:
   name: aws
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  deploymentBucket:
-    name: ${self:custom.deploymentBucket.${self:provider.stage}}
-    serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
-
   tracing:
     lambda: true
     apiGateway: true
-
   logRetentionInDays: 14
-
   environment:
     REGION: ${self:provider.region}
     METADATA_REGISTRY_TABLE: MetadataRegistry-${self:provider.stage}
-    # Optional: METADATA_REGISTRY_PK_ATTR + METADATA_REGISTRY_SK_ATTR (both set) override auto-discovery.
-    # If unset, the Lambda resolves key names via DescribeTable (matches DevOps-created tables).
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
-
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
-
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -59,13 +44,11 @@ provider:
         - xray:PutTraceSegments
         - xray:PutTelemetryRecords
       Resource: '*'
-
 package:
   individually: true
   patterns:
     - '!**/*.test.ts'
     - '!**/*.spec.ts'
-
 custom:
   logLevel:
     dev: debug
@@ -88,13 +71,13 @@ custom:
     keepNames: true
     plugins: esbuild-plugins.js
     resolveExtensions:
-      - '.ts'
-      - '.tsx'
-      - '.js'
-      - '.jsx'
-      - '.json'
+      - .ts
+      - .tsx
+      - .js
+      - .jsx
+      - .json
     loader:
-      '.json': json
+      .json: json
   cors:
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
@@ -103,84 +86,179 @@ custom:
       - Authorization
       - X-Api-Key
       - X-Correlation-Id
-
 functions:
-  health:
-    handler: src/handlers/health.main
+  healthV1:
+    handler: src/handlers/v1/health.main
     events:
       - http:
-          path: health
+          path: v1/health
           method: get
           cors: ${self:custom.cors}
-
-  postMetadata:
-    handler: src/handlers/postMetadata.main
+  postMetadataV1:
+    handler: src/handlers/v1/postMetadata.main
     events:
       - http:
-          path: metadata/{entityType}
+          path: v1/metadata/{entityType}
           method: post
           cors: ${self:custom.cors}
-
-  patchMetadataStatus:
-    handler: src/handlers/patchMetadataStatus.main
+  patchMetadataStatusV1:
+    handler: src/handlers/v1/patchMetadataStatus.main
     events:
       - http:
-          path: metadata/{entityType}/status
+          path: v1/metadata/{entityType}/status
+          method: patch
+          cors: ${self:custom.cors}
+  getMetadataV1:
+    handler: src/handlers/v1/getMetadata.main
+    events:
+      - http:
+          path: v1/metadata/{entityType}
+          method: get
+          cors: ${self:custom.cors}
+  listMetadataV1:
+    handler: src/handlers/v1/listMetadata.main
+    events:
+      - http:
+          path: v1/metadata/{entityType}/list
+          method: get
+          cors: ${self:custom.cors}
+  listMetadataAuditV1:
+    handler: src/handlers/v1/listMetadataAudit.main
+    events:
+      - http:
+          path: v1/metadata/{entityType}/audit
+          method: get
+          cors: ${self:custom.cors}
+  postMetadataRelationV1:
+    handler: src/handlers/v1/postRelation.main
+    events:
+      - http:
+          path: v1/metadata/relations
+          method: post
+          cors: ${self:custom.cors}
+  getMetadataRelationsV1:
+    handler: src/handlers/v1/getRelations.main
+    events:
+      - http:
+          path: v1/metadata/relations
+          method: get
+          cors: ${self:custom.cors}
+  getMetadataRelatedValuesV1:
+    handler: src/handlers/v1/getRelatedValues.main
+    events:
+      - http:
+          path: v1/metadata/values/related
+          method: get
+          cors: ${self:custom.cors}
+  patchMetadataRelationV1:
+    handler: src/handlers/v1/patchRelation.main
+    events:
+      - http:
+          path: v1/metadata/relations/{id}
           method: patch
           cors: ${self:custom.cors}
 
-  getMetadata:
-    handler: src/handlers/getMetadata.main
-    events:
-      - http:
-          path: metadata/{entityType}
-          method: get
-          cors: ${self:custom.cors}
+resources:
+  Resources:
+    MetadataRegistryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: MetadataRegistry-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
 
-  listMetadata:
-    handler: src/handlers/listMetadata.main
-    events:
-      - http:
-          path: metadata/{entityType}/list
-          method: get
-          cors: ${self:custom.cors}
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+          - AttributeName: gsi1pk
+            AttributeType: S
+          - AttributeName: gsi1sk
+            AttributeType: S
+          - AttributeName: entityType
+            AttributeType: S
+          - AttributeName: sk1
+            AttributeType: S
+          - AttributeName: sk2
+            AttributeType: S
+          - AttributeName: sk3
+            AttributeType: S
+          - AttributeName: sk4
+            AttributeType: S
+          - AttributeName: sk5
+            AttributeType: S
 
-  listMetadataAudit:
-    handler: src/handlers/listMetadataAudit.main
-    events:
-      - http:
-          path: metadata/{entityType}/audit
-          method: get
-          cors: ${self:custom.cors}
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
 
-  postMetadataRelation:
-    handler: src/handlers/postRelation.main
-    events:
-      - http:
-          path: metadata/relations
-          method: post
-          cors: ${self:custom.cors}
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: gsi1pk
+                KeyType: HASH
+              - AttributeName: gsi1sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
 
-  getMetadataRelations:
-    handler: src/handlers/getRelations.main
-    events:
-      - http:
-          path: metadata/relations
-          method: get
-          cors: ${self:custom.cors}
+          - IndexName: GSI2
+            KeySchema:
+              - AttributeName: entityType
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
 
-  getMetadataRelatedValues:
-    handler: src/handlers/getRelatedValues.main
-    events:
-      - http:
-          path: metadata/values/related
-          method: get
-          cors: ${self:custom.cors}
+        LocalSecondaryIndexes:
+          - IndexName: pk-sk1-index
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk1
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
 
-  patchMetadataRelation:
-    handler: src/handlers/patchRelation.main
-    events:
-      - http:
-          path: metadata/relations/{id}
-          method: patch
-          cors: ${self:custom.cors}
+          - IndexName: pk-sk2-index
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk2
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: pk-sk3-index
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk3
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: pk-sk4-index
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk4
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: pk-sk5-index
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: sk5
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+
+        SSESpecification:
+          SSEEnabled: true

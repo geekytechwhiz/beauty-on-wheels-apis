@@ -8,7 +8,7 @@ import {
   upsertMetadataValue,
   ValidationError,
 } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { postMetadataSchema } from '../schemas/postMetadata.schema';
 
 export const main = withLambdaHandler(async (req) => {

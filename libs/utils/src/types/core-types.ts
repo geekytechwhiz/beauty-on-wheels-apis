@@ -48,6 +48,7 @@ export interface ErrorHandlerOptions {
     /** When true, {@link handleError} omits its own log line (caller already logged structured error). */
     skipLog?: boolean;
   }
+  
   export interface LambdaRequest<
   Params = Record<string, any>,
   Body = any,

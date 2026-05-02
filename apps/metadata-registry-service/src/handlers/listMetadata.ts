@@ -1,5 +1,5 @@
 import { metadataService, ValidationError } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { listMetadataSchema } from '../schemas/listMetadata.schema';
 
 export const main = withLambdaHandler(async (req) => {

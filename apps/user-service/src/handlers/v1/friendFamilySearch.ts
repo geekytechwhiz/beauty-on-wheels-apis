@@ -7,6 +7,7 @@ import { assignUserRole } from '../../services/role.service';
 import { UserService } from '../../services/user.service';
 import { validateFriendFamilySearch } from '../../validation/request.validators';
 import { buildCreateUserPayloadFromFnfSearch, getUserIdAndOrganizationIdFromToken } from '../../utils/helpers';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const friendFamilyService = new FriendFamilyService();
 const userService = new UserService();

@@ -1,4 +1,5 @@
 import { CapabilityService, withLambdaHandler } from '@api-hub/fhir';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const capabilityService = new CapabilityService({
   profiles: {

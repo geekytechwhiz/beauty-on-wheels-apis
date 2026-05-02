@@ -3,6 +3,7 @@ import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { validateUserOrganizationRequest } from '../validation/request.validators';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new UserService();
 const organizationRepository = new OrganizationRepository();

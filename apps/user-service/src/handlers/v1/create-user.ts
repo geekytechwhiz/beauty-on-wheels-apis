@@ -6,6 +6,7 @@ import { UserValidationService } from "../../validation/user-validation";
 import { getOrganization } from "../../services/organization.service";
 import { UserRepository } from "../../repositories/user.repository";
 import { publishUserCreatedEvent } from "../../events/UserCreated";
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new CreateUserService();
 const userRepository = new UserRepository();

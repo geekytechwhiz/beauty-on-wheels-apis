@@ -3,6 +3,7 @@ import { type LambdaRequest } from '@api-hub/utils';
 import { V2UserListService } from '../../services/v2-user-list.service';
 import { validateV2UserList } from '../../validation/request.validators';
 import type { V2UserListInput } from '../../validation/v2-user-list.validation';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const v2UserListService = new V2UserListService();
 

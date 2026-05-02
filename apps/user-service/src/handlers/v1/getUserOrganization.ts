@@ -1,6 +1,7 @@
 import {   withApiHandler, successResponse } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
-import { UserService } from '../../services/user.service'; 
+import { UserService } from '../../services/user.service';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new UserService();
 

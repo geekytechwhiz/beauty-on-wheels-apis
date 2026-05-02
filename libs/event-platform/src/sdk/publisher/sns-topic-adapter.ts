@@ -3,6 +3,7 @@ import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 import type { BaseEvent } from '../../typings/base-event.types';
 import type { EventPublishAdapter } from './event-publish-adapter';
+import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);

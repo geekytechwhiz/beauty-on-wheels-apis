@@ -19,6 +19,7 @@
     "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build",
     "migrate:handlers-v1": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts",
     "migrate:handlers-v1:metadata-registry": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts metadata-registry-service",
+    "migrate:handlers-v1:organization": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts organization-service",
     "fix:imports": "ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
     "update:version": "ts-node --project tools/update-version/tsconfig.json tools/update-version/update-version.ts",
     "fix:imports:light": "FIX_IMPORTS_SKIP_CLEAN=1 FIX_IMPORTS_SKIP_BUILD=1 ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",

@@ -1,5 +1,6 @@
 import { CapabilityService } from '@api-hub/fhir';
 import { withApiHandler, successResponse } from '@api-hub/middleware';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const capabilityService = new CapabilityService({
   profiles: {

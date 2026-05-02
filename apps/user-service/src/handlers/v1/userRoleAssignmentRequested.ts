@@ -5,6 +5,7 @@ import { userRoleAssignmentRequestedEventSchema } from '../../validation/event.v
 import { UserRepository } from '../../repositories/user.repository';
 import { PackageRepository } from '../../repositories/package.repositrory';
 import { RoleRepository } from '../../repositories/role.repository';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userRepository = new UserRepository();

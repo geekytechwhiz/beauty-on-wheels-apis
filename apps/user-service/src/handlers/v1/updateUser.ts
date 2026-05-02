@@ -21,6 +21,7 @@ import { SchedulePreferences } from '../../models/Schedule';
 import { scheduleServiceClient } from '../../clients/scheduleService.client';
 import { updateUserSchema } from '../../validation/user.validation';
 import { validateUpdateUser } from '../../validation/request.validators';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();

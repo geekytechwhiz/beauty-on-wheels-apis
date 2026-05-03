@@ -9,7 +9,6 @@ export const ENTITY_TYPE_ACTIVITY = 'ACTIVITY' as const;
 export const GSI1_ORG_QUEUE = 'GSI1' as const;
 export const GSI2_USER_QUEUE = 'GSI2' as const;
 export const GSI3_PATIENT = 'GSI3' as const;
-export const GSI4_GROUP = 'GSI4' as const;
 export const GSI5_SLA = 'GSI5' as const;
 
 /** Transact item index for conditional idempotency EVENT Put failures. */

@@ -3,6 +3,7 @@ import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
+import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from './alert-repository';
 
 const TABLE = 'test-alert-table';
@@ -179,7 +180,7 @@ describe('AlertRepository', () => {
   });
 
   describe('queryOrgAlertsPage', () => {
-    it('queries org GSI with state prefix and hydrates', async () => {
+    it('queries org GSI by org+state partition and hydrates', async () => {
       const hydrated: AlertDdbRecord = {
         alertId: 'o1',
         organizationId: 'org-1',
@@ -193,7 +194,7 @@ describe('AlertRepository', () => {
       jest.spyOn(repo as unknown as { batchGet: jest.Mock }, 'batchGet').mockResolvedValue([hydrated]);
 
       const page = await repo.queryOrgAlertsPage('org-1', {
-        state: 'ASSIGNED',
+        state: ALERT_STATE.ASSIGNED,
         unassignedOnly: true,
         limit: 5,
       });
@@ -202,10 +203,9 @@ describe('AlertRepository', () => {
       expect(queryPageSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           IndexName: 'GSI1',
-          KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
+          KeyConditionExpression: 'gsi1pk = :pk',
           ExpressionAttributeValues: {
-            ':o': AlertKeyBuilder.toOrgPartitionKey('org-1'),
-            ':s': 'STATE#ASSIGNED#',
+            ':pk': AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
           },
           Limit: 5,
         }),

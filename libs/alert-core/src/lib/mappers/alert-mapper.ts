@@ -34,8 +34,6 @@ export class AlertMapper {
       gsi2sk: assignment.assignedToUserId ? '' : undefined,
       gsi3pk: '',
       gsi3sk: '',
-      gsi4pk: '',
-      gsi4sk: '',
       gsi5pk: '',
       gsi5sk: '',
     };

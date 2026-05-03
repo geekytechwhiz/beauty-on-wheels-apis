@@ -6,6 +6,7 @@ import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import { AlertKeyBuilder } from './alert-key.builder';
 import { ALERT_METADATA_SK } from '../constants/alert.constants';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
+import { ALERT_STATE } from '../models/types/alert-state.type';
 
 export interface CreateAlertContext {
   alertId: string;
@@ -34,7 +35,7 @@ export class AlertEntityBuilder {
 
     const groupingKey =
       input.groupingKey ??
-      `${input.patientId}|${input.linkedEntityCode ?? 'GENERIC'}|OPEN`;
+      `${input.patientId}|${input.linkedEntityCode ?? 'GENERIC'}|OPEN`; // TODO: for the grouping key it follows the grouping strategy so we need to change this once we have a proper grouping strategy
 
     return {
       alertId,
@@ -81,7 +82,7 @@ export class AlertEntityBuilder {
       evidencePayload: input.evidencePayload,
 
       priority: input.priority ?? 'P2',
-      alertState: 'UNASSIGNED',
+      alertState: ALERT_STATE.UNASSIGNED,
 
       groupingKey,
 
@@ -122,22 +123,14 @@ export class AlertEntityBuilder {
       updatedBy: input.actorUserId,
 
       // 🔹 GSIs
-      gsi1pk: AlertKeyBuilder.toOrgPartitionKey(input.organizationId),
-      gsi1sk: AlertKeyBuilder.buildGsi1Sk(
-        'UNASSIGNED',
-        input.priority ?? 'P2',
-        input.triggerTimestamp,
-        alertId,
-      ),
+      gsi1pk: AlertKeyBuilder.buildGsi1Pk(input.organizationId, ALERT_STATE.UNASSIGNED),
+      gsi1sk: AlertKeyBuilder.buildGsi1Sk(input.triggerTimestamp),
 
       gsi2pk: undefined,
       gsi2sk: undefined,
 
       gsi3pk: AlertKeyBuilder.toPatPartitionKey(input.patientId),
       gsi3sk: AlertKeyBuilder.toTimestampSortKey(now),
-
-      gsi4pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-      gsi4sk: AlertKeyBuilder.toTimestampSortKey(now),
 
       gsi5pk: AlertKeyBuilder.toSlaPartitionKey(now),
       gsi5sk: AlertKeyBuilder.toSlaSortKey(now, alertId),
@@ -170,7 +163,7 @@ export class AlertEntityBuilder {
       activityComment: 'Alert created',
 
       previousState: undefined,
-      newState: 'UNASSIGNED',
+      newState: ALERT_STATE.UNASSIGNED,
 
       previousPriority: undefined,
       newPriority: input.priority ?? 'P2',
@@ -234,7 +227,7 @@ export class AlertEntityBuilder {
     return {
       alertId: ctx.alertId,
       groupingKey: ctx.groupingKey,
-      alertState: 'UNASSIGNED',
+      alertState: ALERT_STATE.UNASSIGNED,
       createdAt: ctx.now,
     };
   }
@@ -267,19 +260,17 @@ export class AlertEntityBuilder {
     if (patch.alertState && patch.alertState !== existing.alertState) {
       setField('alertState', patch.alertState);
       setField('statusUpdatedAt', now);
-  
-      if (existing.priority && existing.triggerTimestamp) {
+
+      setField('gsi1pk', AlertKeyBuilder.buildGsi1Pk(existing.organizationId, patch.alertState));
+      if (existing.triggerTimestamp) {
+        setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(existing.triggerTimestamp));
+      }
+
+      if (existing.assignedToUserId && existing.triggerTimestamp) {
         setField(
-          'gsi1sk',
-          `STATE#${patch.alertState}#PRIORITY#${existing.priority}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
+          'gsi2sk',
+          `STATE#${patch.alertState}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
         );
-  
-        if (existing.assignedToUserId) {
-          setField(
-            'gsi2sk',
-            `STATE#${patch.alertState}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
-          );
-        }
       }
     }
   

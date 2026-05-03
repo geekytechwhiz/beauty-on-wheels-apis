@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
-import type { AlertDdbRecord } from '@api-hub/alert-core';
+import { ALERT_STATE, AlertKeyBuilder, type AlertDdbRecord } from '@api-hub/alert-core';
 
 export function bearerToken(payload: Record<string, unknown>): string {
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -20,12 +20,10 @@ export function minimalAlertRecord(overrides: Partial<AlertDdbRecord> = {}): Ale
     pk: `ALERT#${alertId}`,
     sk: 'METADATA',
     entityType: 'ALERT',
-    gsi1pk: 'ORG#org-1',
-    gsi1sk: 'STATE#UNASSIGNED#PRIORITY#P2#TS#2026-01-15T10:00:00.000Z#alt',
+    gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.UNASSIGNED),
+    gsi1sk: AlertKeyBuilder.buildGsi1Sk('2026-01-15T10:00:00.000Z'),
     gsi3pk: 'PAT#pat-1',
     gsi3sk: 'TS#2026-01-15T10:00:00.000Z',
-    gsi4pk: 'GROUP#pat-1|MISSED_READING|OPEN',
-    gsi4sk: 'TS#2026-01-15T10:00:00.000Z',
     gsi5pk: 'SLA#2026-01-15',
     gsi5sk: 'SLA#2026-01-15T10:00:00.000Z#alt',
     id: alertId,
@@ -39,7 +37,7 @@ export function minimalAlertRecord(overrides: Partial<AlertDdbRecord> = {}): Ale
     triggerSummary: 'No reading',
     evidencePayload: {},
     priority: 'P2',
-    alertState: 'UNASSIGNED',
+    alertState: ALERT_STATE.UNASSIGNED,
     groupingKey: 'pat-1|MISSED_READING|OPEN',
     assignSlaMinutes: 0,
     resolveSlaMinutes: 0,

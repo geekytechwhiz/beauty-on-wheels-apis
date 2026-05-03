@@ -17,7 +17,7 @@ import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
-import type { AlertState } from '../models/types/alert-state.type';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 
 import {
   assertAlertTable,
@@ -140,7 +140,7 @@ export class AlertRepository extends BaseRepository {
 
     if (opts.openOnly) {
       items = items.filter(
-        (a) => a.alertState !== 'RESOLVED' && a.alertState !== 'DISMISSED',
+        (a) => a.alertState !== ALERT_STATE.RESOLVED && a.alertState !== ALERT_STATE.DISMISSED,
       );
     }
 
@@ -178,7 +178,7 @@ export class AlertRepository extends BaseRepository {
 
     if (opts.openOnly) {
       items = items.filter(
-        (a) => a.alertState !== 'RESOLVED' && a.alertState !== 'DISMISSED',
+        (a) => a.alertState !== ALERT_STATE.RESOLVED && a.alertState !== ALERT_STATE.DISMISSED,
       );
     }
 
@@ -194,15 +194,14 @@ export class AlertRepository extends BaseRepository {
     opts: { state?: AlertState; limit?: number; unassignedOnly?: boolean },
   ): Promise<AlertDdbRecord[]> {
     const table = assertAlertTable();
-    const state = opts.state ?? 'UNASSIGNED';
+    const state = opts.state ?? ALERT_STATE.UNASSIGNED;
 
     let items = await this.query<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI1_ORG_QUEUE,
-      KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
+      KeyConditionExpression: 'gsi1pk = :pk',
       ExpressionAttributeValues: {
-        ':o': AlertKeyBuilder.toOrgPartitionKey(organizationId),
-        ':s': `STATE#${state}#`,
+        ':pk': AlertKeyBuilder.buildGsi1Pk(organizationId, state),
       },
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
@@ -227,15 +226,14 @@ export class AlertRepository extends BaseRepository {
     },
   ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const table = assertAlertTable();
-    const state = opts.state ?? 'UNASSIGNED';
+    const state = opts.state ?? ALERT_STATE.UNASSIGNED;
 
     let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI1_ORG_QUEUE,
-      KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
+      KeyConditionExpression: 'gsi1pk = :pk',
       ExpressionAttributeValues: {
-        ':o': AlertKeyBuilder.toOrgPartitionKey(organizationId),
-        ':s': `STATE#${state}#`,
+        ':pk': AlertKeyBuilder.buildGsi1Pk(organizationId, state),
       },
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,

@@ -1,5 +1,4 @@
 import type { AlertState } from '../models/types/alert-state.type';
-import type { PriorityBand } from '../models/types/priority-band.type';
 
 export class AlertKeyBuilder {
   static toAlertPk(alertId: string): string {
@@ -42,13 +41,14 @@ export class AlertKeyBuilder {
     return `Alert#${triggerTimestamp.trim()}#${alertId.trim()}`;
   }
 
-  static buildGsi1Sk(
-    state: AlertState,
-    priority: PriorityBand,
-    triggerTimestamp: string,
-    alertId: string,
-  ): string {
-    return `STATE#${state}#PRIORITY#${priority}#TS#${triggerTimestamp}#${alertId}`;
+  /** GSI1 partition: org + workflow state (team queue). */
+  static buildGsi1Pk(organizationId: string, alertState: AlertState): string {
+    return `${this.toOrgPartitionKey(organizationId)}#STATE#${alertState}`;
+  }
+
+  /** GSI1 sort: time-ordered under `TS#` prefix (uses alert trigger time). */
+  static buildGsi1Sk(triggerTimestamp: string): string {
+    return this.toTimestampSortKey(triggerTimestamp.trim());
   }
 
   static buildGsi2Sk(

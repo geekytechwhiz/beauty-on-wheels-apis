@@ -9,7 +9,7 @@ import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
 import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
-import type { AlertState } from '../models/types/alert-state.type';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 
 import { validatePatientContext } from '../clients/user-service.client';
 import { validateOrganizationContext } from '../clients/organization-service.client';
@@ -78,7 +78,7 @@ export class AlertService extends BaseAlertService {
   ): Promise<{ record: AlertDdbRecord; duplicate: boolean }> {
     const input: CreateAlertRequest = { ...payload };
 
-    const idempotencyKey = input.inputEventId ?? randomUUID();
+    const idempotencyKey = input.inputEventId ?? randomUUID(); // TODO: Remove this once we have a proper idempotency key
     const resolvedSummary = buildTriggerSummary(input);
     const keyed: CreateAlertRequest = {
       ...input,
@@ -186,12 +186,12 @@ export class AlertService extends BaseAlertService {
       let orgState: AlertState;
       if (state) {
         orgState = state;
-      } else if (assignment === 'ASSIGNED') {
-        orgState = 'ASSIGNED';
+      } else if (assignment === ALERT_STATE.ASSIGNED) {
+        orgState = ALERT_STATE.ASSIGNED;
       } else {
-        orgState = 'UNASSIGNED';
+        orgState = ALERT_STATE.UNASSIGNED;
       }
-      const unassignedOnly = assignment === 'UNASSIGNED';
+      const unassignedOnly = assignment === ALERT_STATE.UNASSIGNED;
       const page = await this.repo.queryOrgAlertsPage(organizationId, {
         state: orgState,
         unassignedOnly,
@@ -225,7 +225,7 @@ export class AlertService extends BaseAlertService {
       priority?: string;
       inputType?: string;
       state?: AlertState;
-      assignment?: 'UNASSIGNED' | 'ASSIGNED';
+      assignment?: typeof ALERT_STATE.UNASSIGNED | typeof ALERT_STATE.ASSIGNED;
       dateFrom?: string;
       dateTo?: string;
       search?: string;
@@ -247,7 +247,7 @@ export class AlertService extends BaseAlertService {
       items = items.filter((a) => a.alertState === opts.state);
     }
 
-    if (opts.queue === 'TEAM' && opts.assignment === 'ASSIGNED') {
+    if (opts.queue === 'TEAM' && opts.assignment === ALERT_STATE.ASSIGNED) {
       items = items.filter((a) => !!a.assignedToUserId);
     }
 
@@ -338,8 +338,8 @@ export class AlertService extends BaseAlertService {
         .filter(
           (r: AlertDdbRecord) =>
             organizationIdsMatch(r.organizationId, organizationId) &&
-            r.alertState !== 'RESOLVED' &&
-            r.alertState !== 'DISMISSED',
+            r.alertState !== ALERT_STATE.RESOLVED &&
+            r.alertState !== ALERT_STATE.DISMISSED,
         )
         .map((r: AlertDdbRecord) => ({ id: r.alertId, row: r }));
     } else {

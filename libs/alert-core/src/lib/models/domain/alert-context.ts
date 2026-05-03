@@ -44,8 +44,6 @@ export function  tableName(): string {
     gsi1sk: string;
     gsi3pk: string;
     gsi3sk: string;
-    gsi4pk: string;
-    gsi4sk: string;
     gsi5pk: string;
     gsi5sk: string;
   };

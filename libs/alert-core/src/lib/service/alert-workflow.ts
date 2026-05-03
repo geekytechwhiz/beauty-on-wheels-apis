@@ -1,5 +1,6 @@
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 import { AlertWorkflowAction } from '../constants/alert-workflow-action';
 import type { WorkflowActionValue } from '../models/api/alert-mutation.types';
 
@@ -10,7 +11,7 @@ function invalidTransition(message: string): never {
   throw e;
 }
 
-const terminalStates = new Set(['RESOLVED', 'DISMISSED'] as const);
+const terminalStates = new Set<AlertState>([ALERT_STATE.RESOLVED, ALERT_STATE.DISMISSED]);
 
 /** Context from a workflow mutation request, mapped into an {@link UpdateAlertRequest}. */
 export interface WorkflowPatchContext {
@@ -40,37 +41,37 @@ export function workflowActionToUpdatePatch(
 ): UpdateAlertRequest {
   const state = row.alertState;
 
-  if (terminalStates.has(state as 'RESOLVED' | 'DISMISSED')) {
+  if (terminalStates.has(state)) {
     invalidTransition(`Alert ${row.alertId} is already in a terminal state (${state})`);
   }
 
   switch (action) {
     case AlertWorkflowAction.StartWork: {
-      if (state !== 'UNASSIGNED' && state !== 'ASSIGNED') {
+      if (state !== ALERT_STATE.UNASSIGNED && state !== ALERT_STATE.ASSIGNED) {
         invalidTransition(`START_WORK is not valid from state ${state}`);
       }
-      const patch: UpdateAlertRequest = { alertState: 'IN_PROGRESS' };
-      if (state === 'UNASSIGNED' && ctx.assignToUserId?.trim()) {
+      const patch: UpdateAlertRequest = { alertState: ALERT_STATE.IN_PROGRESS };
+      if (state === ALERT_STATE.UNASSIGNED && ctx.assignToUserId?.trim()) {
         patch.assignedToUserId = ctx.assignToUserId.trim();
       }
       return patch;
     }
     case AlertWorkflowAction.Wait: {
-      if (state !== 'IN_PROGRESS' && state !== 'ASSIGNED') {
+      if (state !== ALERT_STATE.IN_PROGRESS && state !== ALERT_STATE.ASSIGNED) {
         invalidTransition(`WAIT is not valid from state ${state}`);
       }
-      return { alertState: 'WAITING' };
+      return { alertState: ALERT_STATE.WAITING };
     }
     case AlertWorkflowAction.Resume: {
-      if (state !== 'WAITING') {
+      if (state !== ALERT_STATE.WAITING) {
         invalidTransition(`RESUME is not valid from state ${state}`);
       }
-      return { alertState: 'IN_PROGRESS' };
+      return { alertState: ALERT_STATE.IN_PROGRESS };
     }
     case AlertWorkflowAction.Resolve: {
       const rc = ctx.resolutionCode?.trim();
       return {
-        alertState: 'RESOLVED',
+        alertState: ALERT_STATE.RESOLVED,
         closureComment: ctx.closureComment,
         ...(rc ? { resolutionCode: rc } : {}),
       };
@@ -78,7 +79,7 @@ export function workflowActionToUpdatePatch(
     case AlertWorkflowAction.Dismiss: {
       const dr = ctx.dismissReason?.trim();
       return {
-        alertState: 'DISMISSED',
+        alertState: ALERT_STATE.DISMISSED,
         closureComment: ctx.closureComment,
         ...(dr ? { dismissReason: dr } : {}),
       };

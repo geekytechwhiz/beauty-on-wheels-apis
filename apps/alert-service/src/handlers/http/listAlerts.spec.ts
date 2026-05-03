@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
+import { ALERT_STATE } from '@api-hub/alert-core';
 import {
   bearerToken,
   minimalAlertRecord,
@@ -106,8 +107,8 @@ describe('listAlerts HTTP handler', () => {
     const result = await main(
       listEvent({
         queryStringParameters: {
-          state: 'ASSIGNED',
-          assignment: 'UNASSIGNED',
+          state: ALERT_STATE.ASSIGNED,
+          assignment: ALERT_STATE.UNASSIGNED,
         },
       }),
       context,

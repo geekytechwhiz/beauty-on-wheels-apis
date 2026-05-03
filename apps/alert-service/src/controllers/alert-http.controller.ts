@@ -14,6 +14,7 @@ import {
   normalizeAlertServiceError,
   toAlertDetail,
   toPublicAlert,
+  ALERT_STATE,
   type AlertState,
   type CreateAlertPayload,
 } from '@api-hub/alert-core';
@@ -168,7 +169,7 @@ export class AlertHttpController {
     const organizationId = req.pathParameters?.organizationId;
     if (!organizationId) throw Object.assign(new Error('organizationId required'), { statusCode: 400 });
     const qp = req.params as Record<string, string | undefined>;
-    const state = (qp.state as AlertState | undefined) ?? 'UNASSIGNED';
+    const state = (qp.state as AlertState | undefined) ?? ALERT_STATE.UNASSIGNED;
     const unassignedOnly = qp.unassignedOnly === 'true' || qp.unassignedOnly === '1';
     const limit = qp.limit ? Number(qp.limit) : 50;
     const rows = await this.svc.listOrgAlerts(organizationId, { state, unassignedOnly, limit });

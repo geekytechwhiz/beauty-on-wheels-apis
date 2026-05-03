@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
 import type { LambdaRequest } from '@api-hub/utils';
-import type { AlertDdbRecord } from '@api-hub/alert-core';
+import { ALERT_STATE, type AlertDdbRecord } from '@api-hub/alert-core';
 
 import {
   bearerToken,
@@ -326,7 +326,7 @@ describe('AlertHttpController', () => {
 
     const req = baseReq({
       pathParameters: { organizationId: 'org-1' },
-      params: { state: 'UNASSIGNED', unassignedOnly: '1', limit: '5' },
+      params: { state: ALERT_STATE.UNASSIGNED, unassignedOnly: '1', limit: '5' },
     });
 
     const out = await c.handleListOrgAlerts(req);
@@ -347,7 +347,7 @@ describe('AlertHttpController', () => {
 
     const req = baseReq({
       pathParameters: { userId: 'user-1' },
-      params: { state: 'UNASSIGNED', limit: '10' },
+      params: { state: ALERT_STATE.UNASSIGNED, limit: '10' },
     });
 
     const out = await c.handleListUserAlerts(req);
@@ -397,7 +397,7 @@ describe('AlertHttpController', () => {
       alertId: 'a1',
       id: 'a1',
       pk: 'ALERT#a1',
-      alertState: 'ASSIGNED',
+      alertState: ALERT_STATE.ASSIGNED,
       assignedToUserId: 'user-1',
     } as any);
     mockGetAlert.mockResolvedValue(existing);
@@ -405,12 +405,15 @@ describe('AlertHttpController', () => {
 
     const req = baseReq({
       pathParameters: { alertId: 'a1' },
-      body: JSON.stringify({ alertState: 'ASSIGNED', assignedToUserId: 'user-1' }),
+      body: JSON.stringify({ alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-1' }),
     });
 
     const out = await c.handlePatchAlert(req);
-    expect(out.alert).toMatchObject({ alertId: 'a1', orgId: 'org-1', alertState: 'ASSIGNED' });
-    expect(mockUpdateAlert).toHaveBeenCalledWith('a1', expect.objectContaining({ alertState: 'ASSIGNED' }));
+    expect(out.alert).toMatchObject({ alertId: 'a1', orgId: 'org-1', alertState: ALERT_STATE.ASSIGNED });
+    expect(mockUpdateAlert).toHaveBeenCalledWith(
+      'a1',
+      expect.objectContaining({ alertState: ALERT_STATE.ASSIGNED }),
+    );
   });
 
   it('handlePatchAlert throws 404 when update returns null', async () => {
@@ -421,7 +424,7 @@ describe('AlertHttpController', () => {
 
     const req = baseReq({
       pathParameters: { alertId: 'a1' },
-      body: JSON.stringify({ alertState: 'WAITING' }),
+      body: JSON.stringify({ alertState: ALERT_STATE.WAITING }),
     });
 
     await expect(c.handlePatchAlert(req)).rejects.toMatchObject({ statusCode: 404 });

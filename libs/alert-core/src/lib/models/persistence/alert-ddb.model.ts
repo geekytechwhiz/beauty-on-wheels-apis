@@ -18,9 +18,6 @@ export interface AlertDdbRecord extends Alert, AlertAssignment, AlertSla, AlertW
   gsi3pk: string;
   gsi3sk: string;
 
-  gsi4pk: string;
-  gsi4sk: string;
-
   gsi5pk: string;
   gsi5sk: string;
 }

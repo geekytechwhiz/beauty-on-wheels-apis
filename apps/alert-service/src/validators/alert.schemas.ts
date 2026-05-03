@@ -7,7 +7,19 @@
  * client-supplied display names (patient and authenticated caller). **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
  * `evidencePayload` is discriminated by `inputType` and must mirror top-level `inputType` (§5.1.3.1).
  */
+import { ALERT_STATE } from '@api-hub/alert-core';
 import { z } from 'zod';
+
+const ALERT_STATE_ZOD_VALUES = [
+  ALERT_STATE.UNASSIGNED,
+  ALERT_STATE.ASSIGNED,
+  ALERT_STATE.IN_PROGRESS,
+  ALERT_STATE.WAITING,
+  ALERT_STATE.RESOLVED,
+  ALERT_STATE.DISMISSED,
+] as const;
+
+const LIST_ASSIGNMENT_ZOD_VALUES = [ALERT_STATE.UNASSIGNED, ALERT_STATE.ASSIGNED] as const;
 
 /** Allowed `inputType` / `evidencePayload.inputType` for POST `/alerts` (§5.1.3.1). */
 const createAlertInputTypeZ = z.enum(['MISSED_READING', 'MISSING_DEVICE']);
@@ -139,25 +151,16 @@ export const createAlertHttpBodySchema = z
 export type CreateAlertHttpBody = z.infer<typeof createAlertHttpBodySchema>;
 
 export const patchAlertBodySchema = z.object({
-  alertState: z
-    .enum(['UNASSIGNED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'DISMISSED'])
-    .optional(),
+  alertState: z.enum(ALERT_STATE_ZOD_VALUES).optional(),
   assignedToUserId: z.union([z.string().min(1), z.null()]).optional(),
   slaBreachIndicator: z.boolean().optional(),
 });
 
 const listQueueKindZ = z.enum(['TEAM', 'MY', 'PATIENT']);
 
-const listAlertStateFilterZ = z.enum([
-  'UNASSIGNED',
-  'ASSIGNED',
-  'IN_PROGRESS',
-  'WAITING',
-  'RESOLVED',
-  'DISMISSED',
-]);
+const listAlertStateFilterZ = z.enum(ALERT_STATE_ZOD_VALUES);
 
-const listAssignmentFilterZ = z.enum(['UNASSIGNED', 'ASSIGNED']);
+const listAssignmentFilterZ = z.enum(LIST_ASSIGNMENT_ZOD_VALUES);
 
 /** GET /alerts query string — `queue` enum, `patientId` rules in `superRefine`. */
 export const listAlertsQuerySchema = z
@@ -196,8 +199,8 @@ export const listAlertsQuerySchema = z
     if (
       data.state !== undefined &&
       data.assignment !== undefined &&
-      data.state === 'ASSIGNED' &&
-      data.assignment === 'UNASSIGNED'
+      data.state === ALERT_STATE.ASSIGNED &&
+      data.assignment === ALERT_STATE.UNASSIGNED
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -208,8 +211,8 @@ export const listAlertsQuerySchema = z
     if (
       data.state !== undefined &&
       data.assignment !== undefined &&
-      data.state === 'UNASSIGNED' &&
-      data.assignment === 'ASSIGNED'
+      data.state === ALERT_STATE.UNASSIGNED &&
+      data.assignment === ALERT_STATE.ASSIGNED
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

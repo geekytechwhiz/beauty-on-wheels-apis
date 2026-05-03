@@ -3,6 +3,8 @@ import type { Logger } from '@api-hub/logger';
 import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { CreateAlertPayload } from '../models/api/create-alert.types';
+import { AlertKeyBuilder } from '../builder/alert-key.builder';
+import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from '../repositories/alert-repository';
 import { AlertService } from './alert.service';
 
@@ -23,12 +25,10 @@ function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord 
     pk: `ALERT#${alertId}`,
     sk: 'METADATA',
     entityType: 'ALERT',
-    gsi1pk: 'ORG#org-1',
-    gsi1sk: 'STATE#UNASSIGNED#',
+    gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.UNASSIGNED),
+    gsi1sk: AlertKeyBuilder.buildGsi1Sk('2026-01-15T10:00:00.000Z'),
     gsi3pk: 'PAT#pat-1',
     gsi3sk: 'TS#2026-01-15T10:00:00.000Z',
-    gsi4pk: 'GROUP#g1',
-    gsi4sk: 'TS#2026-01-15T10:00:00.000Z',
     gsi5pk: 'SLA#2026-01-15',
     gsi5sk: 'SLA#2026-01-15T10:00:00.000Z',
     alertId,
@@ -41,7 +41,7 @@ function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord 
     triggerSummary: 'No reading',
     evidencePayload: {},
     priority: 'P2',
-    alertState: 'UNASSIGNED',
+    alertState: ALERT_STATE.UNASSIGNED,
     groupingKey: 'g1',
     assignSlaMinutes: 60,
     resolveSlaMinutes: 240,
@@ -215,7 +215,7 @@ describe('AlertService', () => {
       expect(repo.queryOrgAlertsPage).toHaveBeenCalledWith(
         'org-1',
         expect.objectContaining({
-          state: 'UNASSIGNED',
+          state: ALERT_STATE.UNASSIGNED,
           unassignedOnly: false,
           limit: 50,
         }),

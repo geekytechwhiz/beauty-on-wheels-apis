@@ -16,6 +16,9 @@ const recommendationRepository = new RecommendationRepository();
 
 const normalizeFilterValue = (value?: string): string => (value || '').trim().toUpperCase();
 
+/** Org device rows from ORG_DEVICES# partition: only latest assignment sync (isActive true). Legacy rows without isActive are treated as active. */
+const isActiveOrgDeviceAssignment = (d: { isActive?: boolean }): boolean => d.isActive !== false;
+
 const applyListFilters = (devices: any[], category?: string, searchValue?: string): any[] => {
   let filteredDevices = devices;
   const normalizedCategory = normalizeFilterValue(category);
@@ -119,8 +122,11 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
       // Get all devices from DynamoDB
       let allDevices = await globalDeviceRepository.getDevicesByOrganization(organizationID);
       
-      // Filter enabled devices
+      // Filter enabled devices; for org-specific catalogs, only rows from the latest assign (isActive !== false)
       allDevices = allDevices.filter((d) => d.enabled === true);
+      if (organizationID.toUpperCase() !== 'ROOT') {
+        allDevices = allDevices.filter((d) => isActiveOrgDeviceAssignment(d));
+      }
       
       // Apply country filter if provided
       if (countryCode) {
@@ -167,8 +173,9 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
       const orgDevices = await orgDeviceRepository.getOrgDevices(organizationID);
       logger.info({ event: 'deviceList_patient_raw_count', count: orgDevices.length });
       
-      // Filter enabled devices
+      // Filter enabled, active org assignments (isActive !== false)
       let enabledDevices = orgDevices.filter((d) => d.enabled === true);
+      enabledDevices = enabledDevices.filter((d) => isActiveOrgDeviceAssignment(d));
       enabledDevices = applyListFilters(enabledDevices, category, searchValue);
       logger.info({ event: 'deviceList_patient_enabled_count', count: enabledDevices.length });
       

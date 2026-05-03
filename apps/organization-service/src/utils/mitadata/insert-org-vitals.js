@@ -119,7 +119,7 @@ function parseArgs() {
     table: process.env.ORGANIZATION_TABLE || null,
     env: process.env.STAGE || process.env.SERVERLESS_STAGE || DEFAULT_ENV,
     dryRun: false,
-    dataPath: path.join(__dirname, 'data', 'org-vitals.json'),
+    dataPath: path.join(__dirname, 'data', 'organization', 'org-vitals.json'),
   };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--profile' && args[i + 1]) out.profile = args[++i];

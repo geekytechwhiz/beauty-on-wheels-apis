@@ -80,6 +80,15 @@
     },
     {
       "path": "./apps/alert-service"
+    },
+    {
+      "path": "./libs/metadata"
+    },
+    {
+      "path": "./libs/rule-engine"
+    },
+    {
+      "path": "./libs/alert-core"
     }
   ]
 }

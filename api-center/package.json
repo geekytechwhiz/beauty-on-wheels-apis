@@ -6,14 +6,15 @@
   "scripts": {
     "dev": "vite",
     "dev:registry": "VITE_API_BASE_URL=https://mgkys4bnl4.execute-api.us-east-1.amazonaws.com vite",
-    "build": "node ./scripts/generate-spec-index.mjs && tsc -b && vite build",
+    "build": "tsc -b && vite build",
     "preview": "pnpm build && vite preview",
     "typecheck": "tsc -b --noEmit",
     "generate:spec-index": "node ./scripts/generate-spec-index.mjs",
-    "deploy": "pnpm build && aws s3 sync dist/ s3://dev-mvx-developer-hub --delete --profile ci-user"
+    "deploy": "pnpm build"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
+    "@aws-sdk/client-lambda": "^3.967.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@monaco-editor/react": "^4.7.0",

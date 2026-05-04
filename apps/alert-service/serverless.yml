@@ -298,7 +298,7 @@ functions:
     handler: src/handlers/http/updateAlertWorkflow.main
     events:
       - http:
-          path: alerts/{alertId}/workflow
+          path: alerts/workflow
           method: post
           summary: Apply alert workflow command
           description: >
@@ -318,6 +318,28 @@ functions:
             "401": Unauthorized
             "403": Forbidden
             "404": Alert not found
+  addAlertNote:
+    handler: src/handlers/http/addAlertNote.main
+    events:
+      - http:
+          path: alerts/{alertId}/notes
+          method: post
+          summary: Add an operational note
+          description: Add a note to the alert activity timeline. Organization comes from JWT.
+          bodyType: NoteRequest
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "201": Created (NOTE_ADDED activity)
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
             "409": Illegal state transition (ILLEGAL_TRANSITION)
             "422": Validation (body, reason codes, OTHER without comment, MISSING_REASON_CODE)
             "500": Server error

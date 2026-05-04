@@ -97,7 +97,7 @@ export class AlertHttpController {
   }
 
   /**
-   * POST `/alerts/{alertId}/workflow` — body validated by {@link validateWorkflowRequest}; calls
+   * POST `/alerts/workflow` — body validated by {@link validateWorkflowRequest}; calls
    * {@link AlertService.applyWorkflowMutation} and returns updated {@link toAlertDetail}.
    */
   async handleUpdateAlertWorkflow(req: LambdaRequest) {
@@ -114,12 +114,13 @@ export class AlertHttpController {
     const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
 
     const input: WorkflowMutationInput = {
-      alertIds: [v.alertId],
+      alertIds: v.alertIds,
       action: v.action,
       assignToUserId: v.assignToUserId,
       reasonCode: v.reasonCode,
       comment: v.comment,
       closureComment: v.closureComment,
+      applyToGroup: v.applyToGroup,
       performedByUserId: performedByUserId ?? undefined,
     };
 
@@ -265,6 +266,23 @@ export class AlertHttpController {
     const row = await this.svc.updateAlert(alertId, patch);
     if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
     return { alert: toPublicAlert(row) };
+  }
+
+  async handleAddAlertNote(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedNote?: { orgId: string; alertId: string; authHeader?: string; comment: string } }).validatedNote;
+    if (!v) {
+      throw new BaseError('Request was not validated before controller', 500, 'INTERNAL_ERROR', [
+        { message: 'Request was not validated before controller' },
+      ]);
+    }
+
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    // Call core service to add a note. Expect the core to return the created activity record or similar.
+    // Use a best-effort call name `addNote` on the service.
+    const activity = await this.svc.addNote(v.alertId, v.orgId, v.comment, performedByUserId ?? undefined);
+
+    return activity;
   }
 }
 

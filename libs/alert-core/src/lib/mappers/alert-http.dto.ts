@@ -3,8 +3,9 @@ import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 /**
  * Maps a persisted alert row to the public API shape: strips Dynamo/GSI attributes and renames
  * `organizationId` → `orgId`, SLA minute fields → `assignSla` / `resolveSla`.
+ * Accepts optional legacy `TableName` on the row (never returned).
  */
-export function toAlertDetail(r: AlertDdbRecord) {
+export function toAlertDetail(r: AlertDdbRecord & { TableName?: string }) {
   const {
     pk,
     sk,

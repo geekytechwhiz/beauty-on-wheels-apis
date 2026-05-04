@@ -179,21 +179,37 @@ const workflowWireActionZ = z.enum([
 ]);
 
 /**
- * POST `/alerts/{alertId}/workflow` body (strict). Aliases: `ASSIGN` → assign + START_WORK;
- * `MOVE_TO_WAITING` → WAIT; `RESUME_WORK` → RESUME in core.
+ * POST `/alerts/workflow` body (strict). Supports single or bulk operations.
+ * - `alertIds`: required array of 1..100 alert ids for bulk or single requests.
+ * - `applyToGroup`: only valid when a single alert id is supplied and the action is RESOLVE/DISMISS.
+ * Aliases: `ASSIGN` → START_WORK + assignedToUserId; `MOVE_TO_WAITING` → WAIT; `RESUME_WORK` → RESUME.
  */
 export const alertWorkflowBodySchema = z
   .object({
+    alertIds: z
+      .array(z.string().trim().min(1))
+      .min(1, 'At least one alertId is required')
+      .max(100, 'Maximum 100 alertIds per request'),
     action: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), workflowWireActionZ),
     assignedToUserId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
     reasonCode: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), z.string().min(1)).optional(),
     comment: z.string().optional(),
     closureComment: z.string().optional(),
+    applyToGroup: z.boolean().optional(),
     idempotencyKey: z.string().trim().min(1).optional(),
     clientRequestId: z.string().trim().min(1).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
+    // applyToGroup only valid with single alertId
+    if (data.applyToGroup && data.alertIds && data.alertIds.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'applyToGroup is only valid when alertIds contains exactly one id',
+        path: ['applyToGroup'],
+      });
+    }
+
     const nonTerminal = new Set([
       'START_WORK',
       'WAIT',
@@ -350,3 +366,12 @@ export const listAlertsQuerySchema = z
   });
 
 export type ListAlertsQuery = z.infer<typeof listAlertsQuerySchema>;
+
+/** Note request body for POST /alerts/{alertId}/notes */
+export const noteRequestBodySchema = z
+  .object({
+    comment: z.string().trim().min(1),
+  })
+  .strict();
+
+export type NoteRequestBody = z.infer<typeof noteRequestBodySchema>;

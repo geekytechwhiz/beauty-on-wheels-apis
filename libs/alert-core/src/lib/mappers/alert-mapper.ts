@@ -17,7 +17,6 @@ export class AlertMapper {
     const { alert, assignment, sla, workflow } = aggregate;
 
     return {
-      TableName: process.env.ALERT_TABLE!,
       ...alert,
       ...assignment,
       ...sla,

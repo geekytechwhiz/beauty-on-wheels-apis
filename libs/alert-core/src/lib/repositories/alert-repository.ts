@@ -58,7 +58,7 @@ export class AlertRepository extends BaseRepository {
   }
 
   async createAlert(input: CreateAlertRequest): Promise<AlertDdbRecord> {
-    assertAlertTable();
+    const table = assertAlertTable();
 
     const alertId = randomUUID();
     const now = AlertEntityBuilder.nowIso();
@@ -78,9 +78,9 @@ export class AlertRepository extends BaseRepository {
     try {
       await this.transactWrite({
         TransactItems: [
-          { Put: { ...eventPut, Item: eventPut as unknown as Record<string, unknown> } },
-          { Put: { ...alertPut, Item: alertPut as unknown as Record<string, unknown> } },
-          { Put: { ...activityPut, Item: activityPut as unknown as Record<string, unknown> } },
+          { Put: { TableName: table, Item: eventPut as unknown as Record<string, unknown> } },
+          { Put: { TableName: table, Item: alertPut as unknown as Record<string, unknown> } },
+          { Put: { TableName: table, Item: activityPut as unknown as Record<string, unknown> } },
           groupMembershipPut,
         ],
       });
@@ -409,20 +409,53 @@ export class AlertRepository extends BaseRepository {
               ExpressionAttributeValues: updateParams.ExpressionAttributeValues,
             },
           },
-          ...activities.map((raw) => {
-            const row = raw as Record<string, unknown> & { TableName: string };
-            const { TableName, ...item } = row;
-            return {
-              Put: {
-                TableName,
-                Item: item as Record<string, unknown>,
-              },
-            };
-          }),
+          ...activities.map((raw) => ({
+            Put: {
+              TableName: table,
+              Item: raw as Record<string, unknown>,
+            },
+          })),
         ],
       });
     }
 
     return this.getAlertById(alertId);
+  }
+
+  /**
+   * Add a NOTE_ADDED activity row for an alert. Returns the created public activity object.
+   */
+  async addNoteActivity(
+    alertId: string,
+    organizationId: string,
+    comment: string,
+    performedBy: string,
+    performedByDisplayName?: string,
+  ): Promise<AlertActivity> {
+    const existing = await this.getAlertById(alertId);
+    if (!existing) throw Object.assign(new Error('Alert not found'), { statusCode: 404, code: 'NOT_FOUND' });
+    if (!organizationIdsMatch(existing.organizationId, organizationId)) {
+      throw Object.assign(new Error('Alert not found'), { statusCode: 404, code: 'NOT_FOUND' });
+    }
+
+    const now = AlertEntityBuilder.nowIso();
+    const raw = AlertEntityBuilder.buildWorkflowActivityRow({
+      alertId,
+      organizationId,
+      now,
+      activityType: 'NOTE_ADDED',
+      performedBy: performedBy?.trim() || 'SYSTEM',
+      performedByDisplayName: performedByDisplayName,
+      activityComment: comment,
+    });
+
+    // Direct Put for activity only, no alert metadata update
+    const table = assertAlertTable();
+    await this.put(table, raw);
+
+    // Return the public activity representation we just inserted; query latest activities and return first
+    const acts = await this.queryAlertActivities(alertId);
+    if (!acts || acts.length === 0) throw new Error('Activity not found after insert');
+    return acts[0] as AlertActivity;
   }
 }

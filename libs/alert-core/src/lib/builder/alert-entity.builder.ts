@@ -56,7 +56,6 @@ export class AlertEntityBuilder {
 
     return {
       // 🔑 Keys
-      TableName: process.env.ALERT_TABLE!,
       pk,
       sk,
       entityType: 'ALERT',
@@ -144,8 +143,6 @@ export class AlertEntityBuilder {
     const { alertId, now, input } = ctx;
     const activityId = randomUUID();
     return {
-      TableName: process.env.ALERT_TABLE!,
-
       pk: AlertKeyBuilder.toAlertPk(alertId),
       sk: `ACTIVITY#${now}#${activityId}`,
 
@@ -186,8 +183,6 @@ export class AlertEntityBuilder {
     const { input, alertId, now } = ctx;
 
     return {
-      TableName: process.env.ALERT_TABLE!,
-
       pk: `EVENT#${input.inputEventId}`,
       sk: ALERT_METADATA_SK,
 
@@ -418,7 +413,6 @@ export class AlertEntityBuilder {
   }): Record<string, unknown> {
     const activityId = randomUUID();
     return {
-      TableName: process.env.ALERT_TABLE!,
       pk: AlertKeyBuilder.toAlertPk(p.alertId),
       sk: `ACTIVITY#${p.now}#${activityId}`,
       entityType: 'ALERT_ACTIVITY',

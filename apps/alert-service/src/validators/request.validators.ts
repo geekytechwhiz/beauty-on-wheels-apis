@@ -4,9 +4,11 @@ import {
   alertWorkflowBodySchema,
   createAlertHttpBodySchema,
   listAlertsQuerySchema,
+  noteRequestBodySchema,
   type AlertWorkflowHttpBody,
   type CreateAlertHttpBody,
   type ListAlertsQuery,
+  type NoteRequestBody,
 } from './alert.schemas';
 import {
   getActorUserIdForRequest,
@@ -69,7 +71,7 @@ export type CoreWorkflowAction = (typeof AlertWorkflowAction)[keyof typeof Alert
 /** Parsed + normalized POST `/alerts/{alertId}/workflow` input for {@link AlertService.applyWorkflowMutation}. */
 export type ValidatedWorkflow = {
   orgId: string;
-  alertId: string;
+  alertIds: string[];
   authHeader: string | undefined;
   action: CoreWorkflowAction;
   assignToUserId?: string;
@@ -77,9 +79,17 @@ export type ValidatedWorkflow = {
   reasonCode?: string;
   comment?: string;
   closureComment?: string;
+  applyToGroup?: boolean;
 };
 
-function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkflow, 'orgId' | 'alertId' | 'authHeader'> {
+export type ValidatedNote = {
+  orgId: string;
+  alertId: string;
+  authHeader: string | undefined;
+  comment: string;
+};
+
+function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkflow, 'orgId' | 'alertIds' | 'authHeader'> {
   const { comment, closureComment, reasonCode, assignedToUserId } = body;
   switch (body.action) {
     case 'ASSIGN':
@@ -126,12 +136,6 @@ function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkf
 }
 
 export function validateWorkflowRequest(req: LambdaRequest): void {
-  const alertIdRaw = req.pathParameters?.alertId;
-  const alertId = typeof alertIdRaw === 'string' ? alertIdRaw.trim() : '';
-  if (!alertId) {
-    throwVal('alertId is required', 400, 'INVALID_REQUEST');
-  }
-
   const result = alertWorkflowBodySchema.safeParse(req.body);
 
   if (!result.success) {
@@ -154,8 +158,9 @@ export function validateWorkflowRequest(req: LambdaRequest): void {
   const mapped = mapWorkflowHttpToCore(result.data);
   (req as LambdaRequest & { validatedWorkflow: ValidatedWorkflow }).validatedWorkflow = {
     orgId,
-    alertId,
+    alertIds: result.data.alertIds,
     authHeader: req.context.authHeader,
+    applyToGroup: result.data.applyToGroup,
     ...mapped,
   };
 }
@@ -230,4 +235,32 @@ export function parseListAlertsQuery(
   }
 
   return result.data;
+}
+
+export function validateAddNoteRequest(req: LambdaRequest): void {
+  const raw = req.body;
+  const result = noteRequestBodySchema.safeParse(raw);
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      422,
+      'VALIDATION_ERROR',
+      result.error.issues.map((i) => ({ field: i.path.join('.') || undefined, message: i.message })),
+    );
+  }
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const alertId = req.pathParameters?.alertId;
+  if (!alertId) throwVal('alertId required', 400, 'INVALID_REQUEST');
+
+  (req as LambdaRequest & { validatedNote?: ValidatedNote }).validatedNote = {
+    orgId,
+    alertId,
+    authHeader: req.context.authHeader,
+    comment: result.data.comment,
+  };
 }

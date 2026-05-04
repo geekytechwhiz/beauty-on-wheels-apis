@@ -149,6 +149,29 @@ export class AlertService extends BaseAlertService {
     return this.repo.queryAlertActivities(alertId);
   }
 
+  /**
+   * Add an operational note to an alert's activity timeline.
+   */
+  async addNote(
+    alertId: string,
+    organizationId: string,
+    comment: string,
+    performedByUserId?: string,
+    performedByDisplayName?: string,
+  ): Promise<AlertActivityRecord> {
+    const existing = await this.getAlert(alertId, organizationId);
+    if (!existing) {
+      const e = new Error('Alert not found') as Error & { statusCode?: number; code?: string };
+      e.statusCode = 404;
+      e.code = 'NOT_FOUND';
+      throw e;
+    }
+
+    const performer = performedByUserId?.trim() || 'SYSTEM';
+    const activity = await this.repo.addNoteActivity(alertId, organizationId, comment, performer, performedByDisplayName);
+    return activity as AlertActivityRecord;
+  }
+
   async listAlerts(params: ListAlertsParams): Promise<ListAlertsResult> {
     const {
       organizationId,

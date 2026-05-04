@@ -61,12 +61,10 @@ export class AlertRepository extends BaseRepository {
     const table = assertAlertTable();
 
     const alertId = randomUUID();
-    const now = AlertEntityBuilder.nowIso();
     const idempotencyKey = input.inputEventId ?? randomUUID();
 
     const ctx = AlertEntityBuilder.buildCreateContext({
       alertId,
-      now,
       input: { ...input, inputEventId: idempotencyKey },
     });
 
@@ -438,11 +436,11 @@ export class AlertRepository extends BaseRepository {
       throw Object.assign(new Error('Alert not found'), { statusCode: 404, code: 'NOT_FOUND' });
     }
 
-    const now = AlertEntityBuilder.nowIso();
+    const nowMs = Date.now();
     const raw = AlertEntityBuilder.buildWorkflowActivityRow({
       alertId,
       organizationId,
-      now,
+      nowMs,
       activityType: 'NOTE_ADDED',
       performedBy: performedBy?.trim() || 'SYSTEM',
       performedByDisplayName: performedByDisplayName,

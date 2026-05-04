@@ -12,6 +12,7 @@ import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
+import { toEpochMs } from '../utils/alert-time';
 import type { WorkflowMutationInput, WorkflowMutationResult } from '../models/api/alert-mutation.types';
 import {
   assertWorkflowClosureComment,
@@ -58,9 +59,9 @@ function workflowApplyToGroupError(message: string): never {
 }
 
 function compareAlertByTriggerDesc(a: AlertDdbRecord, b: AlertDdbRecord): number {
-  const ta = a.triggerTimestamp ?? '';
-  const tb = b.triggerTimestamp ?? '';
-  if (ta !== tb) return tb.localeCompare(ta);
+  const ta = toEpochMs(a.triggerTimestamp);
+  const tb = toEpochMs(b.triggerTimestamp);
+  if (ta !== tb) return tb - ta;
   return (b.alertId ?? '').localeCompare(a.alertId ?? '');
 }
 
@@ -449,11 +450,11 @@ export class AlertService extends BaseAlertService {
 
     const fromTs = opts.dateFrom ? Date.parse(opts.dateFrom) : NaN;
     if (!Number.isNaN(fromTs)) {
-      items = items.filter((a) => Date.parse(a.triggerTimestamp) >= fromTs);
+      items = items.filter((a) => toEpochMs(a.triggerTimestamp) >= fromTs);
     }
     const toTs = opts.dateTo ? Date.parse(opts.dateTo) : NaN;
     if (!Number.isNaN(toTs)) {
-      items = items.filter((a) => Date.parse(a.triggerTimestamp) <= toTs);
+      items = items.filter((a) => toEpochMs(a.triggerTimestamp) <= toTs);
     }
 
     const q = opts.search?.trim().toLowerCase();
@@ -566,13 +567,13 @@ export class AlertService extends BaseAlertService {
     for (const { id, row } of toProcess) {
       try {
         const patch = workflowActionToUpdatePatch(row, input.action, patchCtx);
-        const now = new Date().toISOString();
+        const nowMs = Date.now();
         const activityItems = AlertEntityBuilder.buildWorkflowActivityItems({
           existing: row,
           patch,
           performedBy: input.performedByUserId?.trim() || 'SYSTEM',
           performedByDisplayName: input.performedByDisplayName,
-          now,
+          nowMs,
         });
         const updated = await this.repo.updateAlert(id, patch, {
           activityItems: activityItems.length > 0 ? activityItems : undefined,

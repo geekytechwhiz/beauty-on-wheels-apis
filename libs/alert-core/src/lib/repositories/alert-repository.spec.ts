@@ -139,6 +139,9 @@ describe('AlertRepository', () => {
       expect(tw).toHaveBeenCalledTimes(1);
       const items = tw.mock.calls[0][0].TransactItems;
       expect(items).toHaveLength(4);
+      for (const op of items.slice(0, 3) as { Put: { Item: Record<string, unknown> } }[]) {
+        expect(op.Put.Item).not.toHaveProperty('TableName');
+      }
     });
 
     it('throws DuplicateEventError on idempotency conditional failure', async () => {

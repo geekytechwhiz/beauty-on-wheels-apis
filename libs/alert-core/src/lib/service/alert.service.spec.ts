@@ -9,6 +9,11 @@ import { AlertRepository } from '../repositories/alert-repository';
 import { encodeTeamMergeListCursor } from '../utils/alert.utils';
 import { AlertService } from './alert.service';
 
+const EPOCH_2026_01_15_T10 = Date.parse('2026-01-15T10:00:00.000Z');
+const EPOCH_2026_01_15_T11 = Date.parse('2026-01-15T11:00:00.000Z');
+const EPOCH_2026_01_15_T12 = Date.parse('2026-01-15T12:00:00.000Z');
+const EPOCH_2026_01_15_T10_01 = Date.parse('2026-01-15T10:00:01.000Z');
+
 function mockLogger(): Logger {
   return {
     info: jest.fn(),
@@ -21,24 +26,24 @@ function mockLogger(): Logger {
 
 function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord {
   const alertId = '11111111-1111-4111-8111-111111111111';
+  const trig = EPOCH_2026_01_15_T10;
   return {
-    TableName: 't',
     pk: `ALERT#${alertId}`,
     sk: 'METADATA',
     entityType: 'ALERT',
     gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.UNASSIGNED),
-    gsi1sk: AlertKeyBuilder.buildGsi1Sk('2026-01-15T10:00:00.000Z'),
+    gsi1sk: AlertKeyBuilder.buildGsi1Sk(trig),
     gsi3pk: 'PAT#pat-1',
-    gsi3sk: 'TS#2026-01-15T10:00:00.000Z',
-    gsi5pk: 'SLA#2026-01-15',
-    gsi5sk: 'SLA#2026-01-15T10:00:00.000Z',
+    gsi3sk: AlertKeyBuilder.toGsi3Sk(trig),
+    gsi5pk: AlertKeyBuilder.toSlaPartitionKey(EPOCH_2026_01_15_T12),
+    gsi5sk: AlertKeyBuilder.toSlaSortKey(EPOCH_2026_01_15_T12, alertId),
     alertId,
     organizationId: 'org-1',
     patientId: 'pat-1',
     inputEventId: 'evt-1',
     inputType: 'MISSED_READING',
     sourceType: 'MONITORING_SERVICE',
-    triggerTimestamp: '2026-01-15T10:00:00.000Z',
+    triggerTimestamp: trig,
     triggerSummary: 'No reading',
     evidencePayload: {},
     priority: 'P2',
@@ -46,12 +51,12 @@ function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord 
     groupingKey: 'g1',
     assignSlaMinutes: 60,
     resolveSlaMinutes: 240,
-    assignSlaDueAt: '2026-01-15T11:00:00.000Z',
-    resolveSlaDueAt: '2026-01-15T12:00:00.000Z',
+    assignSlaDueAt: EPOCH_2026_01_15_T11,
+    resolveSlaDueAt: EPOCH_2026_01_15_T12,
     slaBreachIndicator: false,
-    createdAt: '2026-01-15T10:00:01.000Z',
-    updatedAt: '2026-01-15T10:00:01.000Z',
-    statusUpdatedAt: '2026-01-15T10:00:01.000Z',
+    createdAt: EPOCH_2026_01_15_T10_01,
+    updatedAt: EPOCH_2026_01_15_T10_01,
+    statusUpdatedAt: EPOCH_2026_01_15_T10_01,
     ...overrides,
   } as AlertDdbRecord;
 }
@@ -185,7 +190,7 @@ describe('AlertService', () => {
           activityId: 'act-1',
           alertId: 'aid',
           activityType: 'ALERT_CREATED',
-          activityTimestamp: '2026-01-15T10:00:00.000Z',
+          activityTimestamp: EPOCH_2026_01_15_T10,
           performedBy: 'SYSTEM',
         } as AlertActivity,
       ];
@@ -288,9 +293,13 @@ describe('AlertService', () => {
         alertState: ALERT_STATE.ASSIGNED,
         assignedToUserId: 'user-1',
         gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
-        triggerTimestamp: '2026-01-16T10:00:00.000Z',
+        triggerTimestamp: Date.parse('2026-01-16T10:00:00.000Z'),
       });
-      const lo = minimalRecord({ alertId: 'a', priority: 'P2', triggerTimestamp: '2026-01-15T10:00:00.000Z' });
+      const lo = minimalRecord({
+        alertId: 'a',
+        priority: 'P2',
+        triggerTimestamp: EPOCH_2026_01_15_T10,
+      });
       repo.queryOrgAlertsPage.mockImplementation(async (_org, opts) => {
         if (opts.state === ALERT_STATE.UNASSIGNED) return { items: [lo] };
         return { items: [hi] };
@@ -311,7 +320,7 @@ describe('AlertService', () => {
       repo.queryOrgAlertsPage.mockImplementation(async (_org, opts) => {
         if (opts.state === ALERT_STATE.UNASSIGNED) {
           return {
-            items: [minimalRecord({ alertId: 'u1', triggerTimestamp: '2026-01-10T10:00:00.000Z' })],
+            items: [minimalRecord({ alertId: 'u1', triggerTimestamp: Date.parse('2026-01-10T10:00:00.000Z') })],
             lastEvaluatedKey: lekU,
           };
         }
@@ -322,7 +331,7 @@ describe('AlertService', () => {
               alertState: ALERT_STATE.ASSIGNED,
               assignedToUserId: 'user-1',
               gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
-              triggerTimestamp: '2026-01-20T10:00:00.000Z',
+              triggerTimestamp: Date.parse('2026-01-20T10:00:00.000Z'),
             }),
           ],
           lastEvaluatedKey: lekA,

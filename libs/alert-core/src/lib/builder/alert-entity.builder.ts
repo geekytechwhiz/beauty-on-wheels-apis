@@ -7,10 +7,14 @@ import { AlertKeyBuilder } from './alert-key.builder';
 import { ACTIVITY_TYPE_ALERT_CREATED, ALERT_METADATA_SK } from '../constants/alert.constants';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
+import { parseIsoToEpochMs, toEpochMs } from '../utils/alert-time';
 
 export interface CreateAlertContext {
   alertId: string;
-  now: string;
+  /** Write time, Unix epoch ms (UTC). */
+  nowMs: number;
+  /** Parsed from HTTP `triggerTimestamp` (ISO) → ms. */
+  triggerMs: number;
   input: CreateAlertRequest;
   groupingKey: string;
 }
@@ -19,19 +23,23 @@ export class AlertEntityBuilder {
   // -----------------------------
   // Utilities
   // -----------------------------
+  /** @deprecated Prefer epoch ms; kept for callers that need an ISO string. */
   static nowIso(): string {
     return new Date().toISOString();
+  }
+
+  static nowMs(): number {
+    return Date.now();
   }
 
   // -----------------------------
   // Context Builder
   // -----------------------------
-  static buildCreateContext(params: {
-    alertId: string;
-    now: string;
-    input: CreateAlertRequest;
-  }): CreateAlertContext {
-    const { alertId, now, input } = params;
+  static buildCreateContext(params: { alertId: string; input: CreateAlertRequest }): CreateAlertContext {
+    const { alertId, input } = params;
+
+    const triggerMs = parseIsoToEpochMs(input.triggerTimestamp);
+    const nowMs = Date.now();
 
     const groupingKey =
       input.groupingKey ??
@@ -39,7 +47,8 @@ export class AlertEntityBuilder {
 
     return {
       alertId,
-      now,
+      nowMs,
+      triggerMs,
       input,
       groupingKey,
     };
@@ -49,7 +58,7 @@ export class AlertEntityBuilder {
   // Main Alert Record (DDB)
   // -----------------------------
   static buildAlertRecord(ctx: CreateAlertContext): AlertDdbRecord {
-    const { alertId, now, input, groupingKey } = ctx;
+    const { alertId, nowMs, triggerMs, input, groupingKey } = ctx;
 
     const pk = AlertKeyBuilder.toAlertPk(alertId);
     const sk = ALERT_METADATA_SK;
@@ -72,7 +81,7 @@ export class AlertEntityBuilder {
       inputType: input.inputType,
       sourceType: input.sourceType,
 
-      triggerTimestamp: input.triggerTimestamp,
+      triggerTimestamp: triggerMs,
       triggerSummary: input.triggerSummary ?? '',
 
       triggerSummaryTemplateCode: input.triggerSummaryTemplateCode,
@@ -103,12 +112,12 @@ export class AlertEntityBuilder {
       // 🔹 SLA (basic default, can be enhanced)
       assignSlaMinutes: 0,
       resolveSlaMinutes: 0,
-      assignSlaDueAt: now,
-      resolveSlaDueAt: now,
+      assignSlaDueAt: nowMs,
+      resolveSlaDueAt: nowMs,
       slaBreachIndicator: false,
 
       // 🔹 Workflow
-      statusUpdatedAt: now,
+      statusUpdatedAt: nowMs,
       statusUpdatedBy: input.actorUserId,
 
       closureComment: undefined,
@@ -116,23 +125,23 @@ export class AlertEntityBuilder {
       dismissReason: undefined,
 
       // 🔹 Audit
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowMs,
+      updatedAt: nowMs,
       createdBy: input.actorUserId,
       updatedBy: input.actorUserId,
 
       // 🔹 GSIs
       gsi1pk: AlertKeyBuilder.buildGsi1Pk(input.organizationId, ALERT_STATE.UNASSIGNED),
-      gsi1sk: AlertKeyBuilder.buildGsi1Sk(input.triggerTimestamp),
+      gsi1sk: AlertKeyBuilder.buildGsi1Sk(triggerMs),
 
       gsi2pk: undefined,
       gsi2sk: undefined,
 
       gsi3pk: AlertKeyBuilder.toPatPartitionKey(input.patientId),
-      gsi3sk: AlertKeyBuilder.toTimestampSortKey(now),
+      gsi3sk: AlertKeyBuilder.toGsi3Sk(nowMs),
 
-      gsi5pk: AlertKeyBuilder.toSlaPartitionKey(now),
-      gsi5sk: AlertKeyBuilder.toSlaSortKey(now, alertId),
+      gsi5pk: AlertKeyBuilder.toSlaPartitionKey(nowMs),
+      gsi5sk: AlertKeyBuilder.toSlaSortKey(nowMs, alertId),
     };
   }
 
@@ -140,11 +149,11 @@ export class AlertEntityBuilder {
   // Activity Record
   // -----------------------------
   static buildCreateActivity(ctx: CreateAlertContext) {
-    const { alertId, now, input } = ctx;
+    const { alertId, nowMs, input } = ctx;
     const activityId = randomUUID();
     return {
       pk: AlertKeyBuilder.toAlertPk(alertId),
-      sk: `ACTIVITY#${now}#${activityId}`,
+      sk: AlertKeyBuilder.toActivitySortKey(nowMs, activityId),
 
       entityType: 'ALERT_ACTIVITY',
 
@@ -152,7 +161,7 @@ export class AlertEntityBuilder {
       alertId,
 
       activityType: ACTIVITY_TYPE_ALERT_CREATED,
-      activityTimestamp: now,
+      activityTimestamp: nowMs,
 
       performedBy: input.actorUserId ?? 'SYSTEM',
       performedByDisplayName: input.actorName,
@@ -170,8 +179,8 @@ export class AlertEntityBuilder {
 
       evidencePayload: input.evidencePayload,
 
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowMs,
+      updatedAt: nowMs,
       organizationId: input.organizationId,
     };
   }
@@ -180,7 +189,7 @@ export class AlertEntityBuilder {
   // Event (Idempotency)
   // -----------------------------
   static buildEvent(ctx: CreateAlertContext) {
-    const { input, alertId, now } = ctx;
+    const { input, alertId, nowMs } = ctx;
 
     return {
       pk: `EVENT#${input.inputEventId}`,
@@ -191,25 +200,25 @@ export class AlertEntityBuilder {
       alertId,
       organizationId: input.organizationId,
 
-      createdAt: now,
+      createdAt: nowMs,
     };
   }
 
   /**
-   * Base-table row: `pk = GROUP#<groupingKey>`, `sk = Alert#<triggerTimestamp>#<alertId>`.
+   * Base-table row: `pk = GROUP#<groupingKey>`, `sk = Alert#<paddedEpochMs>#<alertId>`.
    * Written in the same transact as create; use {@link AlertRepository.queryAlertsByGroupingKey} to load alerts.
    */
   static buildGroupMembershipPut(ctx: CreateAlertContext) {
-    const { alertId, now, input, groupingKey } = ctx;
+    const { alertId, nowMs, input, groupingKey } = ctx;
 
     return {
       Put: {
         TableName: process.env.ALERT_TABLE!,
         Item: {
           pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-          sk: AlertKeyBuilder.buildGroupMembershipSk(input.triggerTimestamp, alertId),
+          sk: AlertKeyBuilder.buildGroupMembershipSk(ctx.triggerMs, alertId),
           organizationId: input.organizationId,
-          createdAt: now,
+          createdAt: nowMs,
         },
       },
     };
@@ -223,21 +232,19 @@ export class AlertEntityBuilder {
       alertId: ctx.alertId,
       groupingKey: ctx.groupingKey,
       alertState: ALERT_STATE.UNASSIGNED,
-      createdAt: ctx.now,
+      createdAt: ctx.nowMs,
     };
   }
 
-  static buildUpdateExpression(
-    existing: AlertDdbRecord,
-    patch: UpdateAlertRequest,
-  ) {
-    const now = new Date().toISOString();
-  
+  static buildUpdateExpression(existing: AlertDdbRecord, patch: UpdateAlertRequest) {
+    const nowMs = Date.now();
+    const trig = toEpochMs(existing.triggerTimestamp);
+
     const setExpressions: string[] = [];
     const removeExpressions: string[] = [];
     const expressionAttributeValues: Record<string, unknown> = {};
     const expressionAttributeNames: Record<string, string> = {};
-  
+
     const setField = (key: string, value: unknown) => {
       const nameKey = `#${key}`;
       const valueKey = `:${key}`;
@@ -245,30 +252,25 @@ export class AlertEntityBuilder {
       expressionAttributeValues[valueKey] = value;
       setExpressions.push(`${nameKey} = ${valueKey}`);
     };
-  
+
     const removeField = (key: string) => {
       const nameKey = `#${key}`;
       expressionAttributeNames[nameKey] = key;
       removeExpressions.push(nameKey);
     };
-  
+
     if (patch.alertState && patch.alertState !== existing.alertState) {
       setField('alertState', patch.alertState);
-      setField('statusUpdatedAt', now);
+      setField('statusUpdatedAt', nowMs);
 
       setField('gsi1pk', AlertKeyBuilder.buildGsi1Pk(existing.organizationId, patch.alertState));
-      if (existing.triggerTimestamp) {
-        setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(existing.triggerTimestamp));
-      }
+      setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(trig));
 
-      if (existing.assignedToUserId && existing.triggerTimestamp) {
-        setField(
-          'gsi2sk',
-          `STATE#${patch.alertState}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
-        );
+      if (existing.assignedToUserId) {
+        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(patch.alertState, trig, existing.alertId));
       }
     }
-  
+
     if (patch.assignedToUserId !== undefined) {
       if (patch.assignedToUserId === null) {
         removeField('assignedToUserId');
@@ -278,24 +280,22 @@ export class AlertEntityBuilder {
         removeField('gsi2sk');
       } else {
         setField('assignedToUserId', patch.assignedToUserId);
-        setField('assignedAt', now);
+        setField('assignedAt', nowMs);
         setField('assignedBy', patch.assignedToUserId);
-  
+
         setField('gsi2pk', `USER#${patch.assignedToUserId}`);
-  
-        if (existing.triggerTimestamp) {
-          setField(
-            'gsi2sk',
-            `STATE#${patch.alertState ?? existing.alertState}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
-          );
-        }
+
+        setField(
+          'gsi2sk',
+          AlertKeyBuilder.buildGsi2Sk(patch.alertState ?? existing.alertState, trig, existing.alertId),
+        );
       }
     }
-  
+
     if (patch.slaBreachIndicator !== undefined) {
       setField('slaBreachIndicator', patch.slaBreachIndicator);
     }
-  
+
     if (patch.closureComment !== undefined) {
       setField('closureComment', patch.closureComment);
     }
@@ -307,16 +307,16 @@ export class AlertEntityBuilder {
     if (patch.dismissReason !== undefined) {
       setField('dismissReason', patch.dismissReason);
     }
-  
-    setField('updatedAt', now);
-  
+
+    setField('updatedAt', nowMs);
+
     const UpdateExpression = [
       setExpressions.length ? `SET ${setExpressions.join(', ')}` : '',
       removeExpressions.length ? `REMOVE ${removeExpressions.join(', ')}` : '',
     ]
       .filter(Boolean)
       .join(' ');
-  
+
     return {
       TableName: process.env.ALERT_TABLE!,
       Key: {
@@ -338,9 +338,9 @@ export class AlertEntityBuilder {
     patch: UpdateAlertRequest;
     performedBy: string;
     performedByDisplayName?: string;
-    now: string;
+    nowMs: number;
   }): Record<string, unknown>[] {
-    const { existing, patch, now } = params;
+    const { existing, patch, nowMs } = params;
     const performedBy = params.performedBy?.trim() || 'SYSTEM';
     const performedByDisplayName = params.performedByDisplayName;
 
@@ -360,7 +360,7 @@ export class AlertEntityBuilder {
         AlertEntityBuilder.buildWorkflowActivityRow({
           alertId: existing.alertId,
           organizationId: existing.organizationId,
-          now,
+          nowMs,
           activityType: 'ASSIGNEE_CHANGED',
           performedBy,
           performedByDisplayName,
@@ -384,7 +384,7 @@ export class AlertEntityBuilder {
         AlertEntityBuilder.buildWorkflowActivityRow({
           alertId: existing.alertId,
           organizationId: existing.organizationId,
-          now,
+          nowMs,
           activityType,
           performedBy,
           performedByDisplayName,
@@ -401,7 +401,7 @@ export class AlertEntityBuilder {
   static buildWorkflowActivityRow(p: {
     alertId: string;
     organizationId: string;
-    now: string;
+    nowMs: number;
     activityType: string;
     performedBy: string;
     performedByDisplayName?: string;
@@ -414,12 +414,12 @@ export class AlertEntityBuilder {
     const activityId = randomUUID();
     return {
       pk: AlertKeyBuilder.toAlertPk(p.alertId),
-      sk: `ACTIVITY#${p.now}#${activityId}`,
+      sk: AlertKeyBuilder.toActivitySortKey(p.nowMs, activityId),
       entityType: 'ALERT_ACTIVITY',
       activityId,
       alertId: p.alertId,
       activityType: p.activityType,
-      activityTimestamp: p.now,
+      activityTimestamp: p.nowMs,
       performedBy: p.performedBy,
       ...(p.performedByDisplayName ? { performedByDisplayName: p.performedByDisplayName } : {}),
       ...(p.activityComment ? { activityComment: p.activityComment } : {}),
@@ -427,8 +427,8 @@ export class AlertEntityBuilder {
       ...(p.newState !== undefined ? { newState: p.newState } : {}),
       ...(p.previousAssignee !== undefined ? { previousAssignee: p.previousAssignee } : {}),
       ...(p.newAssignee !== undefined ? { newAssignee: p.newAssignee } : {}),
-      createdAt: p.now,
-      updatedAt: p.now,
+      createdAt: p.nowMs,
+      updatedAt: p.nowMs,
       organizationId: p.organizationId,
     };
   }

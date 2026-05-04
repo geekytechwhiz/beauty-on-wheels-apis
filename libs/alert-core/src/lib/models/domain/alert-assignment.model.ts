@@ -1,5 +1,6 @@
 export interface AlertAssignment {
   assignedToUserId?: string;
-  assignedAt?: string;
+  /** Unix epoch milliseconds (UTC). */
+  assignedAt?: number;
   assignedBy?: string;
 }

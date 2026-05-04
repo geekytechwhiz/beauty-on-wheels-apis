@@ -632,13 +632,12 @@ components:
           $ref: '#/components/schemas/WorkflowAction'
         closureComment:
           type: string
-          description: Required for RESOLVE and DISMISS (terminal closure).
-        resolutionCode:
+          description: Terminal closure text for RESOLVE / DISMISS (required when `reasonCode` is OTHER).
+        reasonCode:
           type: string
-          description: Optional structured code when resolving.
-        dismissReason:
-          type: string
-          description: Optional structured reason when dismissing.
+          description: >
+            Common field for **RESOLVE** and **DISMISS**: allowlisted code (`AlertResolveReasonCode` or
+            `AlertDismissReasonCode`). Mapped server-side to stored `resolutionCode` / `dismissReason`.
         comment:
           type: string
           description: Optional for START_WORK, WAIT, and RESUME.

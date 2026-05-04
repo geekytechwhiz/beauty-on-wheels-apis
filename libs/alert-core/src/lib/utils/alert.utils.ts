@@ -66,3 +66,21 @@ function invalidListAlertsCursor(): never {
   e.code = 'VALIDATION_ERROR';
   throw e;
 }
+
+/** TEAM default list: merged UNASSIGNED + ASSIGNED streams; opaque pagination payload. */
+export const TEAM_MERGE_LIST_CURSOR_V1 = '__teamMergeV1' as const;
+
+export function isTeamMergeListCursor(o: Record<string, unknown>): boolean {
+  return o[TEAM_MERGE_LIST_CURSOR_V1] === 1;
+}
+
+export function encodeTeamMergeListCursor(payload: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+}
+
+export function invalidTeamListCursorForQueue(): never {
+  const e = new Error('Invalid nextToken') as Error & { statusCode: number; code: string };
+  e.statusCode = 400;
+  e.code = 'VALIDATION_ERROR';
+  throw e;
+}

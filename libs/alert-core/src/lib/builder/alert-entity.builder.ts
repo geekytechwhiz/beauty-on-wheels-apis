@@ -4,9 +4,9 @@ import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 
 import { AlertKeyBuilder } from './alert-key.builder';
-import { ALERT_METADATA_SK } from '../constants/alert.constants';
+import { ACTIVITY_TYPE_ALERT_CREATED, ALERT_METADATA_SK } from '../constants/alert.constants';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
-import { ALERT_STATE } from '../models/types/alert-state.type';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 
 export interface CreateAlertContext {
   alertId: string;
@@ -154,7 +154,7 @@ export class AlertEntityBuilder {
       activityId,
       alertId,
 
-      activityType: 'AlertCreated',
+      activityType: ACTIVITY_TYPE_ALERT_CREATED,
       activityTimestamp: now,
 
       performedBy: input.actorUserId ?? 'SYSTEM',
@@ -331,6 +331,111 @@ export class AlertEntityBuilder {
       UpdateExpression,
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
+    };
+  }
+
+  /**
+   * Activity rows for GET alert activity after a workflow {@link UpdateAlertRequest}.
+   * Order: **ASSIGNEE_CHANGED** (if assignee changes), then **ALERT_RESOLVED** / **ALERT_DISMISSED** / **STATE_CHANGED**.
+   */
+  static buildWorkflowActivityItems(params: {
+    existing: AlertDdbRecord;
+    patch: UpdateAlertRequest;
+    performedBy: string;
+    performedByDisplayName?: string;
+    now: string;
+  }): Record<string, unknown>[] {
+    const { existing, patch, now } = params;
+    const performedBy = params.performedBy?.trim() || 'SYSTEM';
+    const performedByDisplayName = params.performedByDisplayName;
+
+    const items: Record<string, unknown>[] = [];
+    const prevAssign = existing.assignedToUserId?.trim() || undefined;
+    const newAssign =
+      patch.assignedToUserId === undefined
+        ? undefined
+        : patch.assignedToUserId === null
+          ? undefined
+          : String(patch.assignedToUserId).trim();
+    const assigneeChanged =
+      patch.assignedToUserId !== undefined && (prevAssign ?? '') !== (newAssign ?? '');
+
+    if (assigneeChanged) {
+      items.push(
+        AlertEntityBuilder.buildWorkflowActivityRow({
+          alertId: existing.alertId,
+          organizationId: existing.organizationId,
+          now,
+          activityType: 'ASSIGNEE_CHANGED',
+          performedBy,
+          performedByDisplayName,
+          previousAssignee: prevAssign,
+          newAssignee: newAssign,
+        }),
+      );
+    }
+
+    if (patch.alertState && patch.alertState !== existing.alertState) {
+      let activityType = 'STATE_CHANGED';
+      if (patch.alertState === ALERT_STATE.RESOLVED) activityType = 'ALERT_RESOLVED';
+      if (patch.alertState === ALERT_STATE.DISMISSED) activityType = 'ALERT_DISMISSED';
+
+      const activityComment =
+        patch.alertState === ALERT_STATE.RESOLVED || patch.alertState === ALERT_STATE.DISMISSED
+          ? patch.closureComment ?? undefined
+          : undefined;
+
+      items.push(
+        AlertEntityBuilder.buildWorkflowActivityRow({
+          alertId: existing.alertId,
+          organizationId: existing.organizationId,
+          now,
+          activityType,
+          performedBy,
+          performedByDisplayName,
+          activityComment,
+          previousState: existing.alertState,
+          newState: patch.alertState,
+        }),
+      );
+    }
+
+    return items;
+  }
+
+  static buildWorkflowActivityRow(p: {
+    alertId: string;
+    organizationId: string;
+    now: string;
+    activityType: string;
+    performedBy: string;
+    performedByDisplayName?: string;
+    activityComment?: string;
+    previousState?: AlertState;
+    newState?: AlertState;
+    previousAssignee?: string;
+    newAssignee?: string;
+  }): Record<string, unknown> {
+    const activityId = randomUUID();
+    return {
+      TableName: process.env.ALERT_TABLE!,
+      pk: AlertKeyBuilder.toAlertPk(p.alertId),
+      sk: `ACTIVITY#${p.now}#${activityId}`,
+      entityType: 'ALERT_ACTIVITY',
+      activityId,
+      alertId: p.alertId,
+      activityType: p.activityType,
+      activityTimestamp: p.now,
+      performedBy: p.performedBy,
+      ...(p.performedByDisplayName ? { performedByDisplayName: p.performedByDisplayName } : {}),
+      ...(p.activityComment ? { activityComment: p.activityComment } : {}),
+      ...(p.previousState !== undefined ? { previousState: p.previousState } : {}),
+      ...(p.newState !== undefined ? { newState: p.newState } : {}),
+      ...(p.previousAssignee !== undefined ? { previousAssignee: p.previousAssignee } : {}),
+      ...(p.newAssignee !== undefined ? { newAssignee: p.newAssignee } : {}),
+      createdAt: p.now,
+      updatedAt: p.now,
+      organizationId: p.organizationId,
     };
   }
 }

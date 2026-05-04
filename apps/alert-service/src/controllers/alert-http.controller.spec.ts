@@ -22,6 +22,8 @@ var mockListUserAlerts: jest.Mock;
 var mockListAlertActivity: jest.Mock;
 // eslint-disable-next-line no-var
 var mockUpdateAlert: jest.Mock;
+// eslint-disable-next-line no-var
+var mockApplyWorkflowMutation: jest.Mock;
 
 jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
@@ -31,6 +33,7 @@ jest.mock('@api-hub/alert-core', () => {
   mockListUserAlerts = jest.fn();
   mockListAlertActivity = jest.fn();
   mockUpdateAlert = jest.fn();
+  mockApplyWorkflowMutation = jest.fn();
 
   const actual = jest.requireActual<typeof import('@api-hub/alert-core')>('@api-hub/alert-core');
   return {
@@ -43,6 +46,7 @@ jest.mock('@api-hub/alert-core', () => {
       listUserAlerts: mockListUserAlerts,
       listAlertActivity: mockListAlertActivity,
       updateAlert: mockUpdateAlert,
+      applyWorkflowMutation: mockApplyWorkflowMutation,
     })),
   };
 });
@@ -101,6 +105,7 @@ describe('AlertHttpController', () => {
     mockListUserAlerts.mockReset();
     mockListAlertActivity.mockReset();
     mockUpdateAlert.mockReset();
+    mockApplyWorkflowMutation.mockReset();
   });
 
   it('handleCreateAlert throws 500 when logger missing', async () => {
@@ -208,6 +213,97 @@ describe('AlertHttpController', () => {
     await expect(c.handleCreateAlert(req)).rejects.toMatchObject({
       statusCode: 409,
       code: 'IDEMPOTENCY_KEY_IN_USE',
+    });
+  });
+
+  it('handleUpdateAlertWorkflow throws 500 when validatedWorkflow missing', async () => {
+    const c = new AlertHttpController();
+    const req = baseReq();
+    await expect(c.handleUpdateAlertWorkflow(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockApplyWorkflowMutation).not.toHaveBeenCalled();
+  });
+
+  it('handleUpdateAlertWorkflow returns alert detail on success', async () => {
+    const c = new AlertHttpController();
+    const record = minimalAlertRecord({ alertState: 'IN_PROGRESS' as any });
+    mockApplyWorkflowMutation.mockResolvedValue({
+      succeeded: [record.alertId],
+      failed: [],
+      primaryAlert: record,
+    });
+
+    const req = baseReq({
+      pathParameters: { alertId: record.alertId },
+      validatedWorkflow: {
+        orgId: 'org-1',
+        alertId: record.alertId,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        action: 'START_WORK',
+      } as any,
+    } as any);
+
+    const out = await c.handleUpdateAlertWorkflow(req);
+    expect(out).toMatchObject({ alertId: record.alertId, orgId: 'org-1' });
+    expect(mockApplyWorkflowMutation).toHaveBeenCalledWith('org-1', {
+      alertIds: [record.alertId],
+      action: 'START_WORK',
+    });
+  });
+
+  it('handleUpdateAlertWorkflow maps NOT_FOUND to 404', async () => {
+    const c = new AlertHttpController();
+    mockApplyWorkflowMutation.mockResolvedValue({
+      succeeded: [],
+      failed: [{ alertId: 'x', code: 'NOT_FOUND', message: 'Alert not found' }],
+    });
+
+    const record = minimalAlertRecord();
+    const req = baseReq({
+      pathParameters: { alertId: record.alertId },
+      validatedWorkflow: {
+        orgId: 'org-1',
+        alertId: record.alertId,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        action: 'WAIT',
+      } as any,
+    } as any);
+
+    await expect(c.handleUpdateAlertWorkflow(req)).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('handleUpdateAlertWorkflow maps ILLEGAL_TRANSITION to 409', async () => {
+    const c = new AlertHttpController();
+    mockApplyWorkflowMutation.mockResolvedValue({
+      succeeded: [],
+      failed: [
+        {
+          alertId: 'x',
+          code: 'ILLEGAL_TRANSITION',
+          message: 'WAIT is not valid from state UNASSIGNED',
+        },
+      ],
+    });
+
+    const record = minimalAlertRecord();
+    const req = baseReq({
+      pathParameters: { alertId: record.alertId },
+      validatedWorkflow: {
+        orgId: 'org-1',
+        alertId: record.alertId,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        action: 'WAIT',
+      } as any,
+    } as any);
+
+    await expect(c.handleUpdateAlertWorkflow(req)).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'ILLEGAL_TRANSITION',
     });
   });
 

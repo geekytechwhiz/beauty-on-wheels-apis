@@ -4,15 +4,13 @@ import type { Logger } from '@api-hub/logger';
 
 import { AlertWorkflowAction } from '../constants/alert-workflow-action';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
+import { AlertEntityBuilder } from '../builder/alert-entity.builder';
 import { AlertRepository } from '../repositories/alert-repository';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
 import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
-
-import { validatePatientContext } from '../clients/user-service.client';
-import { validateOrganizationContext } from '../clients/organization-service.client';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { WorkflowMutationInput, WorkflowMutationResult } from '../models/api/alert-mutation.types';
 import {
@@ -26,7 +24,14 @@ import type {
   ListAlertsQueue,
   ListAlertsResult,
 } from '../models/api/create-alert.types';
-import { decodeListAlertsCursor, encodeListAlertsCursor } from '../utils/alert.utils';
+import {
+  decodeListAlertsCursor,
+  encodeListAlertsCursor,
+  encodeTeamMergeListCursor,
+  invalidTeamListCursorForQueue,
+  isTeamMergeListCursor,
+  TEAM_MERGE_LIST_CURSOR_V1,
+} from '../utils/alert.utils';
 
 /** Persisted alert row (alias for HTTP/service consumers). */
 export type AlertRecord = AlertDdbRecord;
@@ -50,6 +55,13 @@ function workflowApplyToGroupError(message: string): never {
   e.statusCode = 400;
   e.code = 'VALIDATION_ERROR';
   throw e;
+}
+
+function compareAlertByTriggerDesc(a: AlertDdbRecord, b: AlertDdbRecord): number {
+  const ta = a.triggerTimestamp ?? '';
+  const tb = b.triggerTimestamp ?? '';
+  if (ta !== tb) return tb.localeCompare(ta);
+  return (b.alertId ?? '').localeCompare(a.alertId ?? '');
 }
 
 function buildTriggerSummary(input: CreateAlertRequest): string {
@@ -154,13 +166,35 @@ export class AlertService extends BaseAlertService {
       nextToken,
     } = params;
 
-    const exclusiveStartKey = decodeListAlertsCursor(nextToken);
-
     if (queue === 'MY' && !actorUserId?.trim()) {
       const e = new Error('User id could not be resolved for MY queue') as Error & { statusCode: number };
       e.statusCode = 400;
       throw e;
     }
+
+    const decodedCursor = nextToken?.trim() ? decodeListAlertsCursor(nextToken) : undefined;
+    const teamMergeDefault = queue === 'TEAM' && !state && assignment === undefined;
+
+    if (decodedCursor && isTeamMergeListCursor(decodedCursor) && !teamMergeDefault) {
+      invalidTeamListCursorForQueue();
+    }
+    if (teamMergeDefault && decodedCursor && !isTeamMergeListCursor(decodedCursor)) {
+      invalidTeamListCursorForQueue();
+    }
+
+    if (teamMergeDefault) {
+      return this.listAlertsTeamMerge(organizationId, {
+        priority,
+        inputType,
+        dateFrom,
+        dateTo,
+        search,
+        limit,
+        cursor: decodedCursor,
+      });
+    }
+
+    const exclusiveStartKey = decodedCursor;
 
     let rows: AlertDdbRecord[];
     let lastEvaluatedKey: Record<string, unknown> | undefined;
@@ -215,6 +249,145 @@ export class AlertService extends BaseAlertService {
 
     const outNext = encodeListAlertsCursor(lastEvaluatedKey);
     return outNext ? { items, nextToken: outNext } : { items };
+  }
+
+  /**
+   * TEAM queue with no `state` / `assignment`: merge GSI1 UNASSIGNED + ASSIGNED by latest `triggerTimestamp`,
+   * then `alertId`, with composite `nextToken` (two Dynamo streams + unconsumed buffer tails).
+   * Each branch uses Dynamo `Limit` equal to the requested page size.
+   */
+  private async listAlertsTeamMerge(
+    organizationId: string,
+    args: {
+      priority?: string;
+      inputType?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      search?: string;
+      limit: number;
+      cursor?: Record<string, unknown>;
+    },
+  ): Promise<ListAlertsResult> {
+    /** Dynamo `Limit` per GSI branch matches the requested page size. */
+    const dynamoLimit = Math.max(1, args.limit);
+    const c = args.cursor;
+
+    let uBuf: AlertDdbRecord[] = [];
+    let aBuf: AlertDdbRecord[] = [];
+    let uExclusive: Record<string, unknown> | undefined;
+    let aExclusive: Record<string, unknown> | undefined;
+    let uExhausted = false;
+    let aExhausted = false;
+
+    if (c) {
+      if ('nU' in c) {
+        if (c.nU === null) uExhausted = true;
+        else if (typeof c.nU === 'object' && c.nU !== null && !Array.isArray(c.nU)) {
+          uExclusive = c.nU as Record<string, unknown>;
+        } else {
+          invalidTeamListCursorForQueue();
+        }
+      }
+      if ('nA' in c) {
+        if (c.nA === null) aExhausted = true;
+        else if (typeof c.nA === 'object' && c.nA !== null && !Array.isArray(c.nA)) {
+          aExclusive = c.nA as Record<string, unknown>;
+        } else {
+          invalidTeamListCursorForQueue();
+        }
+      }
+
+      const tailU = Array.isArray(c.tailU)
+        ? (c.tailU as unknown[]).filter((x): x is string => typeof x === 'string')
+        : [];
+      const tailA = Array.isArray(c.tailA)
+        ? (c.tailA as unknown[]).filter((x): x is string => typeof x === 'string')
+        : [];
+      if (tailU.length) uBuf = await this.repo.hydrateAlertIdsOrdered(tailU);
+      if (tailA.length) aBuf = await this.repo.hydrateAlertIdsOrdered(tailA);
+    }
+
+    const refillU = async () => {
+      if (uBuf.length > 0 || uExhausted) return;
+      const page = await this.repo.queryOrgAlertsPage(organizationId, {
+        state: ALERT_STATE.UNASSIGNED,
+        unassignedOnly: false,
+        limit: dynamoLimit,
+        ...(uExclusive ? { exclusiveStartKey: uExclusive } : {}),
+      });
+      uBuf.push(...page.items);
+      uExclusive = page.lastEvaluatedKey;
+      if (!page.lastEvaluatedKey) uExhausted = true;
+    };
+
+    const refillA = async () => {
+      if (aBuf.length > 0 || aExhausted) return;
+      const page = await this.repo.queryOrgAlertsPage(organizationId, {
+        state: ALERT_STATE.ASSIGNED,
+        unassignedOnly: false,
+        limit: dynamoLimit,
+        ...(aExclusive ? { exclusiveStartKey: aExclusive } : {}),
+      });
+      aBuf.push(...page.items);
+      aExclusive = page.lastEvaluatedKey;
+      if (!page.lastEvaluatedKey) aExhausted = true;
+    };
+
+    const out: AlertDdbRecord[] = [];
+    const seen = new Set<string>();
+    let guard = 0;
+    const GUARD_MAX = 50_000;
+
+    while (out.length < args.limit && guard++ < GUARD_MAX) {
+      await refillU();
+      await refillA();
+
+      if (uBuf.length === 0 && aBuf.length === 0) {
+        if (uExhausted && aExhausted) break;
+        continue;
+      }
+
+      let takeFromU: boolean;
+      if (uBuf.length === 0) takeFromU = false;
+      else if (aBuf.length === 0) takeFromU = true;
+      else takeFromU = compareAlertByTriggerDesc(uBuf[0]!, aBuf[0]!) <= 0;
+
+      const row = takeFromU ? uBuf.shift()! : aBuf.shift()!;
+      if (seen.has(row.alertId)) continue;
+
+      const filtered = this.applyListPostFilters([row], organizationId, {
+        queue: 'TEAM',
+        priority: args.priority,
+        inputType: args.inputType,
+        dateFrom: args.dateFrom,
+        dateTo: args.dateTo,
+        search: args.search,
+      });
+
+      if (filtered.length === 0) continue;
+      seen.add(row.alertId);
+      out.push(filtered[0]!);
+    }
+
+    const hasMore =
+      out.length >= args.limit &&
+      (uBuf.length > 0 || aBuf.length > 0 || !uExhausted || !aExhausted);
+
+    if (!hasMore) {
+      return { items: out };
+    }
+
+    const payload: Record<string, unknown> = {
+      [TEAM_MERGE_LIST_CURSOR_V1]: 1,
+    };
+    if (uExhausted) payload.nU = null;
+    else if (uExclusive !== undefined) payload.nU = uExclusive;
+    if (aExhausted) payload.nA = null;
+    else if (aExclusive !== undefined) payload.nA = aExclusive;
+    if (uBuf.length) payload.tailU = uBuf.map((r) => r.alertId);
+    if (aBuf.length) payload.tailA = aBuf.map((r) => r.alertId);
+
+    return { items: out, nextToken: encodeTeamMergeListCursor(payload) };
   }
 
   private applyListPostFilters(
@@ -299,7 +472,15 @@ export class AlertService extends BaseAlertService {
     organizationId: string,
     input: WorkflowMutationInput,
   ): Promise<WorkflowMutationResult> {
-    assertWorkflowClosureComment(input.action, input.closureComment, input.comment);
+    const effectiveResolution =
+      input.action === AlertWorkflowAction.Resolve ? input.reasonCode?.trim() : undefined;
+    const effectiveDismiss =
+      input.action === AlertWorkflowAction.Dismiss ? input.reasonCode?.trim() : undefined;
+
+    assertWorkflowClosureComment(input.action, input.closureComment, input.comment, {
+      resolutionCode: effectiveResolution,
+      dismissReason: effectiveDismiss,
+    });
 
     const applyToGroup = input.applyToGroup === true;
     if (applyToGroup && input.alertIds.length !== 1) {
@@ -316,8 +497,12 @@ export class AlertService extends BaseAlertService {
     const failed: { alertId: string; code: string; message: string }[] = [];
     const loaded: { id: string; row: AlertDdbRecord }[] = [];
 
-    for (const id of input.alertIds) {
-      const row = await this.getAlert(id, organizationId);
+    const loadResults = await Promise.all(
+      input.alertIds.map((id) =>
+        this.getAlert(id, organizationId).then((row) => ({ id, row })),
+      ),
+    );
+    for (const { id, row } of loadResults) {
       if (!row) failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found' });
       else loaded.push({ id, row });
     }
@@ -350,20 +535,30 @@ export class AlertService extends BaseAlertService {
     const patchCtx = {
       assignToUserId: input.assignToUserId,
       closureComment: closureText,
-      resolutionCode: input.resolutionCode,
-      dismissReason: input.dismissReason,
+      resolutionCode: effectiveResolution,
+      dismissReason: effectiveDismiss,
     };
     const succeeded: string[] = [];
 
     for (const { id, row } of toProcess) {
       try {
         const patch = workflowActionToUpdatePatch(row, input.action, patchCtx);
-        const updated = await this.repo.updateAlert(id, patch);
+        const now = new Date().toISOString();
+        const activityItems = AlertEntityBuilder.buildWorkflowActivityItems({
+          existing: row,
+          patch,
+          performedBy: input.performedByUserId?.trim() || 'SYSTEM',
+          performedByDisplayName: input.performedByDisplayName,
+          now,
+        });
+        const updated = await this.repo.updateAlert(id, patch, {
+          activityItems: activityItems.length > 0 ? activityItems : undefined,
+        });
         if (updated) succeeded.push(id);
         else failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found during update' });
       } catch (e) {
         const err = e as Error & { statusCode?: number; code?: string };
-        if (err.statusCode === 400 && err.code === 'INVALID_WORKFLOW_TRANSITION') {
+        if (err.statusCode === 409 && err.code === 'ILLEGAL_TRANSITION') {
           failed.push({ alertId: id, code: err.code, message: err.message });
           continue;
         }

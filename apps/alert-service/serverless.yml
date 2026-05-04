@@ -79,8 +79,9 @@ package:
     - '!**/*.spec.ts'
 
 custom:
-  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event)
-  cors:
+  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
+  # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
+  cors: &httpApiCors
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
       - Content-Type
@@ -193,9 +194,7 @@ functions:
           bodyType: CreateAlertRequest
           summary: Create alert
           description: Requires `inputEventId` (client/UI idempotency key), `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, and `evidencePayload`. Organization scope is taken from the JWT only, not the body.
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
+          cors: *httpApiCors
           authorizer:
             name: common_authorizer
             type: token
@@ -259,9 +258,7 @@ functions:
             nextToken:
               required: false
               type: string
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
+          cors: *httpApiCors
           authorizer:
             name: common_authorizer
             type: token
@@ -283,9 +280,7 @@ functions:
           method: get
           summary: Get alert by id
           description: Alert detail for the authenticated organization (tenant from JWT only).
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
+          cors: *httpApiCors
           authorizer:
             name: common_authorizer
             type: token
@@ -299,6 +294,34 @@ functions:
             "404": Not found
             "500": Server error
 
+  updateAlertWorkflow:
+    handler: src/handlers/http/updateAlertWorkflow.main
+    events:
+      - http:
+          path: alerts/{alertId}/workflow
+          method: post
+          summary: Apply alert workflow command
+          description: >
+            Command-style workflow for one alert. Body requires `action` (START_WORK, WAIT, RESUME, RESOLVE, DISMISS,
+            or aliases ASSIGN, MOVE_TO_WAITING, RESUME_WORK). RESOLVE/DISMISS require `reasonCode`; when reasonCode is
+            OTHER, `comment` or `closureComment` is required. ASSIGN requires `assignedToUserId`. Organization from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — updated alert detail in envelope `data`
+            "400": Bad request (e.g. missing path context)
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Alert not found
+            "409": Illegal state transition (ILLEGAL_TRANSITION)
+            "422": Validation (body, reason codes, OTHER without comment, MISSING_REASON_CODE)
+            "500": Server error
+
   getAlertActivity:
     handler: src/handlers/http/getAlertActivity.main
     events:
@@ -307,9 +330,7 @@ functions:
           method: get
           summary: Get alert activity timeline
           description: Full activity / audit list for the alert (newest first; single response, no pagination). Tenant from JWT only.
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
+          cors: *httpApiCors
           authorizer:
             name: common_authorizer
             type: token

@@ -17,9 +17,14 @@ import {
   ALERT_STATE,
   type AlertState,
   type CreateAlertPayload,
+  type WorkflowMutationInput,
 } from '@api-hub/alert-core';
 import { patchAlertBodySchema } from '../validators/alert.schemas';
-import { parseListAlertsQuery, type ValidatedCreateAlert } from '../validators/request.validators';
+import {
+  parseListAlertsQuery,
+  type ValidatedCreateAlert,
+  type ValidatedWorkflow,
+} from '../validators/request.validators';
 import {
   getActorUserIdForRequest,
   getOrganizationIdForRequest,
@@ -89,6 +94,61 @@ export class AlertHttpController {
         logEvent: 'create_alert_error',
       });
     }
+  }
+
+  /**
+   * POST `/alerts/{alertId}/workflow` — body validated by {@link validateWorkflowRequest}; calls
+   * {@link AlertService.applyWorkflowMutation} and returns updated {@link toAlertDetail}.
+   */
+  async handleUpdateAlertWorkflow(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedWorkflow?: ValidatedWorkflow }).validatedWorkflow;
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    const input: WorkflowMutationInput = {
+      alertIds: [v.alertId],
+      action: v.action,
+      assignToUserId: v.assignToUserId,
+      reasonCode: v.reasonCode,
+      comment: v.comment,
+      closureComment: v.closureComment,
+      performedByUserId: performedByUserId ?? undefined,
+    };
+
+    const result = await this.svc.applyWorkflowMutation(v.orgId, input);
+
+    if (result.failed.length > 0 && result.succeeded.length === 0) {
+      const f = result.failed[0];
+      if (f.code === 'NOT_FOUND') {
+        throw Object.assign(new Error(f.message), { statusCode: 404, code: 'NOT_FOUND' });
+      }
+      if (f.code === 'ILLEGAL_TRANSITION') {
+        throw Object.assign(new Error(f.message), { statusCode: 409, code: 'ILLEGAL_TRANSITION' });
+      }
+      throw Object.assign(new Error(f.message), {
+        statusCode: 422,
+        code: f.code || 'WORKFLOW_ERROR',
+      });
+    }
+
+    if (!result.primaryAlert) {
+      throw new BaseError(
+        'Workflow completed but alert detail is unavailable',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'primaryAlert missing after workflow mutation' }],
+      );
+    }
+
+    return toAlertDetail(result.primaryAlert);
   }
 
   async handleGetAlert(req: LambdaRequest) {

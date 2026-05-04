@@ -9,12 +9,15 @@ export interface WorkflowMutationInput {
   action: WorkflowActionValue;
   /** Primary closure note for RESOLVE / DISMISS; persisted as `closureComment`. */
   closureComment?: string;
-  resolutionCode?: string;
-  dismissReason?: string;
+  /** Wire `reasonCode` for **RESOLVE** or **DISMISS** (resolve vs dismiss allowlists); mapped to stored fields in service. */
+  reasonCode?: string;
   /** Alternative to `closureComment` for the same stored field when clients send `comment` only. */
   comment?: string;
   applyToGroup?: boolean;
   assignToUserId?: string;
+  /** Caller id for activity timeline (`performedBy`); defaults to `SYSTEM` if omitted. */
+  performedByUserId?: string;
+  performedByDisplayName?: string;
 }
 
 export interface WorkflowMutationResult {

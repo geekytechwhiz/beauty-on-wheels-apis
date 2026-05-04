@@ -103,6 +103,14 @@ export class AlertRepository extends BaseRepository {
     });
   }
 
+  /** BatchGet full alert rows in the same order as `alertIds` (for TEAM merge pagination tails). */
+  async hydrateAlertIdsOrdered(alertIds: string[]): Promise<AlertDdbRecord[]> {
+    if (alertIds.length === 0) return [];
+    const table = assertAlertTable();
+    const byId = await this.batchGetAlertsById(table, alertIds);
+    return alertIds.map((id) => byId.get(id)).filter((row): row is AlertDdbRecord => row != null);
+  }
+
   async queryAlertActivities(alertId: string): Promise<AlertActivity[]> {
     const table = assertAlertTable();
 
@@ -374,6 +382,7 @@ export class AlertRepository extends BaseRepository {
   async updateAlert(
     alertId: string,
     patch: UpdateAlertRequest,
+    options?: { activityItems?: Record<string, unknown>[] },
   ): Promise<AlertDdbRecord | null> {
     const existing = await this.getAlertById(alertId);
     if (!existing) return null;
@@ -383,7 +392,36 @@ export class AlertRepository extends BaseRepository {
       patch,
     );
 
-    await this.update(updateParams);
+    const activities = options?.activityItems?.filter((x) => x && typeof x === 'object') ?? [];
+
+    if (activities.length === 0) {
+      await this.update(updateParams);
+    } else {
+      const table = updateParams.TableName as string;
+      await this.transactWrite({
+        TransactItems: [
+          {
+            Update: {
+              TableName: table,
+              Key: updateParams.Key,
+              UpdateExpression: updateParams.UpdateExpression,
+              ExpressionAttributeNames: updateParams.ExpressionAttributeNames,
+              ExpressionAttributeValues: updateParams.ExpressionAttributeValues,
+            },
+          },
+          ...activities.map((raw) => {
+            const row = raw as Record<string, unknown> & { TableName: string };
+            const { TableName, ...item } = row;
+            return {
+              Put: {
+                TableName,
+                Item: item as Record<string, unknown>,
+              },
+            };
+          }),
+        ],
+      });
+    }
 
     return this.getAlertById(alertId);
   }

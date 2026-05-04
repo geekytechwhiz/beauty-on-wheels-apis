@@ -6,8 +6,15 @@ import type { WorkflowActionValue } from '../models/api/alert-mutation.types';
 
 function invalidTransition(message: string): never {
   const e = new Error(message) as Error & { statusCode: number; code: string };
-  e.statusCode = 400;
-  e.code = 'INVALID_WORKFLOW_TRANSITION';
+  e.statusCode = 409;
+  e.code = 'ILLEGAL_TRANSITION';
+  throw e;
+}
+
+function workflowRequestError(message: string, statusCode: number, code: string): never {
+  const e = new Error(message) as Error & { statusCode: number; code: string };
+  e.statusCode = statusCode;
+  e.code = code;
   throw e;
 }
 
@@ -26,11 +33,29 @@ export function assertWorkflowClosureComment(
   action: WorkflowActionValue,
   closureComment: string | undefined,
   comment: string | undefined = undefined,
+  meta?: { resolutionCode?: string; dismissReason?: string },
 ): void {
-  if (action === AlertWorkflowAction.Resolve || action === AlertWorkflowAction.Dismiss) {
-    if (!(closureComment?.trim() || comment?.trim())) {
-      invalidTransition('closureComment or comment is required for RESOLVE and DISMISS');
-    }
+  if (action !== AlertWorkflowAction.Resolve && action !== AlertWorkflowAction.Dismiss) {
+    return;
+  }
+
+  const code =
+    action === AlertWorkflowAction.Resolve
+      ? meta?.resolutionCode?.trim()
+      : meta?.dismissReason?.trim();
+
+  if (!code) {
+    workflowRequestError(
+      action === AlertWorkflowAction.Resolve
+        ? 'reasonCode (resolutionCode) is required for RESOLVE'
+        : 'reasonCode (dismissReason) is required for DISMISS',
+      422,
+      'MISSING_REASON_CODE',
+    );
+  }
+
+  if (code === 'OTHER' && !(closureComment?.trim() || comment?.trim())) {
+    workflowRequestError('comment is required when reasonCode is OTHER', 422, 'OTHER_REQUIRES_COMMENT');
   }
 }
 

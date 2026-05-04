@@ -7,7 +7,11 @@
  * client-supplied display names (patient and authenticated caller). **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
  * `evidencePayload` is discriminated by `inputType` and must mirror top-level `inputType` (§5.1.3.1).
  */
-import { ALERT_STATE } from '@api-hub/alert-core';
+import {
+  ALERT_STATE,
+  AlertDismissReasonCode,
+  AlertResolveReasonCode,
+} from '@api-hub/alert-core';
 import { z } from 'zod';
 
 const ALERT_STATE_ZOD_VALUES = [
@@ -155,6 +159,129 @@ export const patchAlertBodySchema = z.object({
   assignedToUserId: z.union([z.string().min(1), z.null()]).optional(),
   slaBreachIndicator: z.boolean().optional(),
 });
+
+/** Re-export for OpenAPI / callers that need the allowlist as an array. */
+export const WORKFLOW_RESOLVE_REASON_CODES = Object.values(AlertResolveReasonCode) as readonly string[];
+export const WORKFLOW_DISMISS_REASON_CODES = Object.values(AlertDismissReasonCode) as readonly string[];
+
+const workflowResolveReasonZ = z.nativeEnum(AlertResolveReasonCode);
+const workflowDismissReasonZ = z.nativeEnum(AlertDismissReasonCode);
+
+const workflowWireActionZ = z.enum([
+  'START_WORK',
+  'WAIT',
+  'RESUME',
+  'RESOLVE',
+  'DISMISS',
+  'ASSIGN',
+  'MOVE_TO_WAITING',
+  'RESUME_WORK',
+]);
+
+/**
+ * POST `/alerts/{alertId}/workflow` body (strict). Aliases: `ASSIGN` → assign + START_WORK;
+ * `MOVE_TO_WAITING` → WAIT; `RESUME_WORK` → RESUME in core.
+ */
+export const alertWorkflowBodySchema = z
+  .object({
+    action: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), workflowWireActionZ),
+    assignedToUserId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    reasonCode: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), z.string().min(1)).optional(),
+    comment: z.string().optional(),
+    closureComment: z.string().optional(),
+    idempotencyKey: z.string().trim().min(1).optional(),
+    clientRequestId: z.string().trim().min(1).optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    const nonTerminal = new Set([
+      'START_WORK',
+      'WAIT',
+      'RESUME',
+      'ASSIGN',
+      'MOVE_TO_WAITING',
+      'RESUME_WORK',
+    ]);
+    if (nonTerminal.has(data.action)) {
+      if (data.reasonCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'reasonCode is only valid for RESOLVE or DISMISS',
+          path: ['reasonCode'],
+        });
+      }
+    }
+
+    if (data.action === 'ASSIGN' && !data.assignedToUserId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assignedToUserId is required for ASSIGN',
+        path: ['assignedToUserId'],
+      });
+    }
+
+    if (data.action === 'RESOLVE') {
+      if (!data.reasonCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'reasonCode is required for RESOLVE',
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      const rc = workflowResolveReasonZ.safeParse(data.reasonCode);
+      if (!rc.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Unknown reasonCode for RESOLVE: ${data.reasonCode}`,
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      if (
+        rc.data === AlertResolveReasonCode.Other &&
+        !(data.comment?.trim() || data.closureComment?.trim())
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'comment (or closureComment) is required when reasonCode is OTHER',
+          path: ['comment'],
+        });
+      }
+    }
+
+    if (data.action === 'DISMISS') {
+      if (!data.reasonCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'reasonCode is required for DISMISS',
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      const dr = workflowDismissReasonZ.safeParse(data.reasonCode);
+      if (!dr.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Unknown reasonCode for DISMISS: ${data.reasonCode}`,
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      if (
+        dr.data === AlertDismissReasonCode.Other &&
+        !(data.comment?.trim() || data.closureComment?.trim())
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'comment (or closureComment) is required when reasonCode is OTHER',
+          path: ['comment'],
+        });
+      }
+    }
+  });
+
+export type AlertWorkflowHttpBody = z.infer<typeof alertWorkflowBodySchema>;
 
 const listQueueKindZ = z.enum(['TEAM', 'MY', 'PATIENT']);
 

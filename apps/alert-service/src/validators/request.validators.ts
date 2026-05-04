@@ -1,7 +1,10 @@
 import type { LambdaRequest } from '@api-hub/utils';
+import { AlertWorkflowAction } from '@api-hub/alert-core';
 import {
+  alertWorkflowBodySchema,
   createAlertHttpBodySchema,
   listAlertsQuerySchema,
+  type AlertWorkflowHttpBody,
   type CreateAlertHttpBody,
   type ListAlertsQuery,
 } from './alert.schemas';
@@ -60,6 +63,102 @@ export type ValidatedCreateAlert = {
   body: CreateAlertHttpBody;
   authHeader: string | undefined;
 };
+
+export type CoreWorkflowAction = (typeof AlertWorkflowAction)[keyof typeof AlertWorkflowAction];
+
+/** Parsed + normalized POST `/alerts/{alertId}/workflow` input for {@link AlertService.applyWorkflowMutation}. */
+export type ValidatedWorkflow = {
+  orgId: string;
+  alertId: string;
+  authHeader: string | undefined;
+  action: CoreWorkflowAction;
+  assignToUserId?: string;
+  /** HTTP `reasonCode` for RESOLVE / DISMISS only. */
+  reasonCode?: string;
+  comment?: string;
+  closureComment?: string;
+};
+
+function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkflow, 'orgId' | 'alertId' | 'authHeader'> {
+  const { comment, closureComment, reasonCode, assignedToUserId } = body;
+  switch (body.action) {
+    case 'ASSIGN':
+      return {
+        action: AlertWorkflowAction.StartWork,
+        assignToUserId: assignedToUserId as string,
+        comment,
+        closureComment,
+      };
+    case 'MOVE_TO_WAITING':
+      return { action: AlertWorkflowAction.Wait, comment, closureComment };
+    case 'RESUME_WORK':
+      return { action: AlertWorkflowAction.Resume, comment, closureComment };
+    case 'START_WORK':
+      return {
+        action: AlertWorkflowAction.StartWork,
+        ...(assignedToUserId ? { assignToUserId: assignedToUserId } : {}),
+        comment,
+        closureComment,
+      };
+    case 'WAIT':
+      return { action: AlertWorkflowAction.Wait, comment, closureComment };
+    case 'RESUME':
+      return { action: AlertWorkflowAction.Resume, comment, closureComment };
+    case 'RESOLVE':
+      return {
+        action: AlertWorkflowAction.Resolve,
+        reasonCode,
+        comment,
+        closureComment,
+      };
+    case 'DISMISS':
+      return {
+        action: AlertWorkflowAction.Dismiss,
+        reasonCode,
+        comment,
+        closureComment,
+      };
+    default: {
+      const _exhaustive: never = body.action;
+      return _exhaustive;
+    }
+  }
+}
+
+export function validateWorkflowRequest(req: LambdaRequest): void {
+  const alertIdRaw = req.pathParameters?.alertId;
+  const alertId = typeof alertIdRaw === 'string' ? alertIdRaw.trim() : '';
+  if (!alertId) {
+    throwVal('alertId is required', 400, 'INVALID_REQUEST');
+  }
+
+  const result = alertWorkflowBodySchema.safeParse(req.body);
+
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      422,
+      'VALIDATION_ERROR',
+      result.error.issues.map((i) => ({
+        field: i.path.join('.') || undefined,
+        message: i.message,
+      })),
+    );
+  }
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const mapped = mapWorkflowHttpToCore(result.data);
+  (req as LambdaRequest & { validatedWorkflow: ValidatedWorkflow }).validatedWorkflow = {
+    orgId,
+    alertId,
+    authHeader: req.context.authHeader,
+    ...mapped,
+  };
+}
 
 export function validateCreateAlertRequest(req: LambdaRequest): void {
   const body = req.body;

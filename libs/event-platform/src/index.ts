@@ -41,4 +41,7 @@ export { createSnsPublishEvent } from './sdk/publisher/create-sns-publish-event'
 export { onEvent } from './lib/define-event-handler';
 export type { EventSchemaMeta } from './core/schema/define-event';
 export { defineEvent } from './core/schema/define-event';
+export { publishEvent } from './dx/publish-event';
+export { configureEventDx } from './dx/configure-event-dx';
+export { EventBridgeAdapter } from './adapters/eventbridge/eventbridge-adapter';
 

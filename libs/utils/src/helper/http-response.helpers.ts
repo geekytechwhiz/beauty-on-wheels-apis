@@ -192,20 +192,19 @@ export class ApiResponse {
     );
   }
 
-  /** 409 with success envelope and populated `data` (e.g. idempotent create replay). */
-  static conflictWithData<T>(
-    data: T,
-    message: Message,
+  static unprocessableEntity(
+    message: any | Message,
     options: ResponseOptions,
+    error?: ErrorBody,
   ): APIGatewayProxyResult {
     return createResponse(
-      409,
+      422,
       {
-        success: true,
-        statusCode: 409,
+        success: false,
+        statusCode: 422,
         message,
-        data: normalizeData(data),
-        error: null,
+        data: null,
+        error: error ?? { code: 'UNPROCESSABLE_ENTITY' },
         meta: buildMeta(options),
       },
       options.headers
@@ -252,21 +251,4 @@ export class ApiResponse {
       options.headers
     );
   }
-}
-
-/**
- * Standard {@link ResponseOptions} for {@link ApiResponse}: `requestId` + correlation / `no-store` headers.
- */
-export function apiGatewayResponseOptions(
-  correlationId: string,
-  extraHeaders?: Record<string, string>,
-): ResponseOptions {
-  return {
-    correlationId: correlationId,
-    headers: {
-      'X-Correlation-Id': correlationId,
-      'Cache-Control': 'no-store',
-      ...extraHeaders,
-    },
-  };
 }

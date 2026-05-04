@@ -8,7 +8,6 @@ import type { BaseEvent } from '../../typings/base-event.types';
 import { createBaseEvent } from '../../core/event-envelope/create-base-event';
 import { resolveSchema } from '../../core/schema/schema-resolver';
 import type { PayloadSchemaRegistry } from '../../typings/consumer.types';
-import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 /** -----------------------------
  * 🔹 Helpers
@@ -130,6 +129,8 @@ export class EventPublisher {
         eventType: event.eventType,
         eventVersion: event.eventVersion,
         eventId: event.eventId,
+        source: event.source,
+        correlationId: event.meta?.correlationId,
       });
     } catch (err) {
       this.log.error({
@@ -137,6 +138,7 @@ export class EventPublisher {
         eventType: event.eventType,
         eventVersion: event.eventVersion,
         eventId: event.eventId,
+        source: event.source,
         correlationId: event.meta.correlationId,
         err: serializeErr(err),
       });

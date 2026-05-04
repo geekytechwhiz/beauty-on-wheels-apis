@@ -1,5 +1,3 @@
-import { createSnsPublishEvent } from "@api-hub/event-platform";
-
 /**
  * EventBridge PutEvents wiring (repo pattern: {@link EventBridgeClient} with `region`).
  */

@@ -4,7 +4,7 @@ import * as path from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
-function consumerPackageJson(name: string) {
+function consumerPackageJson() {
   return {
     name: 'consumer-package-json',
     apply: 'build' as const,
@@ -12,7 +12,7 @@ function consumerPackageJson(name: string) {
       const dir = options.dir;
       if (!dir) return;
       const pkg = {
-        name,
+        name: '@api-hub/event-platform',
         version: '0.0.1',
         private: true,
         type: 'module',
@@ -25,6 +25,11 @@ function consumerPackageJson(name: string) {
             import: './index.js',
             default: './index.js',
           },
+          './dx': {
+            types: './dx/index.d.ts',
+            import: './dx/index.js',
+            default: './dx/index.js',
+          },
         },
       };
       fs.writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
@@ -32,22 +37,28 @@ function consumerPackageJson(name: string) {
   };
 }
 
+function isExternal(id: string): boolean {
+  return (
+    id.startsWith('@api-hub/') ||
+    id.startsWith('@aws-sdk/') ||
+    id.startsWith('@smithy/') ||
+    id === 'zod' ||
+    id === 'tslib' ||
+    id === 'node:crypto' ||
+    id === 'crypto'
+  );
+}
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
-  cacheDir: '../../node_modules/.vite/libs/logger',
+  cacheDir: '../../node_modules/.vite/libs/event-platform',
   plugins: [
     dts({
       entryRoot: 'src',
       tsconfigPath: path.join(import.meta.dirname, 'tsconfig.lib.json'),
     }),
-    consumerPackageJson('@api-hub/logger'),
+    consumerPackageJson(),
   ],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [],
-  // },
-  // Configuration for building your library.
-  // See: https://vite.dev/guide/build.html#library-mode
   build: {
     outDir: './dist',
     emptyOutDir: true,
@@ -56,19 +67,16 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
     lib: {
-      // Could also be a dictionary or array of multiple entry points.
-      entry: 'src/index.ts',
-      name: '@api-hub/logger',
-      fileName: 'index',
-      // Change this to the formats you want to support.
-      // Don't forget to update your package.json as well.
+      entry: {
+        index: path.join(import.meta.dirname, 'src/index.ts'),
+        'dx/index': path.join(import.meta.dirname, 'src/dx/index.ts'),
+      },
+      name: '@api-hub/event-platform',
+      fileName: (format, entryName) => `${entryName}.js`,
       formats: ['es' as const],
     },
     rollupOptions: {
-      // External packages that should not be bundled into your library.
-      // `node:crypto` must be listed explicitly; plain `crypto` does not match `import from 'node:crypto'`,
-      // and Vite would stub it as __vite-browser-external (no randomUUID).
-      external: ['winston', 'crypto', 'node:crypto'],
+      external: isExternal,
     },
   },
 }));

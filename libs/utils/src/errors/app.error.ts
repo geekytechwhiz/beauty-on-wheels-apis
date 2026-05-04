@@ -10,3 +10,11 @@ export interface AppError extends Error {
     retryable?: boolean;
     metadata?: Record<string, unknown>;
   }
+
+  export class ConditionalWriteConflictError extends Error {
+    constructor(cause: unknown) {
+      super("Conditional write failed (possible duplicate)");
+      this.name = "ConditionalWriteConflictError";
+      this.cause = cause;
+    }
+  }

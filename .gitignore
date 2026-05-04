@@ -47,6 +47,7 @@ apps/user-service/swagger/
 apps/order-service/.esbuild/
 apps/device-service/.esbuild/
 apps/organization-service/.esbuild/
+apps/metadata-registry-service/.esbuild/
 
 services/partner-integration/.env
 services/partner-registry/.esbuild

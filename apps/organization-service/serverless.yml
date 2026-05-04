@@ -325,7 +325,7 @@ functions:
       default:
         enabled: true
     timeout: 30
-    memorySize: 256
+    memorySize: 512
     events:
       - http:
           path: organization/{organizationId}

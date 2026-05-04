@@ -29,6 +29,7 @@ provider:
   environment:
     REGION: ${self:provider.region}
     METADATA_REGISTRY_TABLE: MetadataRegistry-${self:provider.stage}
+    USER_TABLE: user-table-${self:provider.stage}
     # Optional: METADATA_REGISTRY_PK_ATTR + METADATA_REGISTRY_SK_ATTR (both set) override auto-discovery.
     # If unset, the Lambda resolves key names via DescribeTable (matches DevOps-created tables).
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
@@ -54,6 +55,7 @@ provider:
         - dynamodb:DescribeTable
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/MetadataRegistry-${self:provider.stage}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-${self:provider.stage}
     - Effect: Allow
       Action:
         - xray:PutTraceSegments

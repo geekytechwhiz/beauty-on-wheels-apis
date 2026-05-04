@@ -1,16 +1,30 @@
-import { metadataService, ValidationError } from '@api-hub/metadata';
+import {
+  metadataService,
+  type MetadataTypeRecord,
+  type MetadataValueApiModel,
+  ValidationError,
+} from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
 import { listMetadataSchema } from '../schemas/listMetadata.schema';
+import {
+  collectUserIdsForEnrichment,
+  enrichMetadataRecordActors,
+  getUsersByIds,
+} from '../services/userLookup.service';
 
 export const main = withLambdaHandler(async (req) => {
   const input = listMetadataSchema.parse(req);
 
   if (input.entityType === 'type') {
-    return metadataService.listTypes(input);
+    const records: MetadataTypeRecord[] = await metadataService.listTypes(input);
+    const userMap = await getUsersByIds(collectUserIdsForEnrichment(records));
+    return records.map((row) => enrichMetadataRecordActors(row, userMap));
   }
 
   if (input.entityType === 'value') {
-    return metadataService.listValues(input);
+    const records: MetadataValueApiModel[] = await metadataService.listValues(input);
+    const userMap = await getUsersByIds(collectUserIdsForEnrichment(records));
+    return records.map((row) => enrichMetadataRecordActors(row, userMap));
   }
 
   throw new ValidationError('entityType must be "type" or "value"', [

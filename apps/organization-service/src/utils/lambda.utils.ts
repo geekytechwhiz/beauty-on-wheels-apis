@@ -1,6 +1,8 @@
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import { createLogger, serializeError } from '@api-hub/logger';
 
 const lambdaClient = new LambdaClient({ region: process.env.REGION || 'us-east-1' });
+const logger = createLogger({ service: 'organization-service', redactPII: true });
 
 /**
  * Invoke Lambda function to get mobile screens/onboarding screens
@@ -24,11 +26,15 @@ export const getMobileScreens = async (
 
     if (result && result.Payload) {
       const response = JSON.parse(Buffer.from(result.Payload).toString());
-      console.log('invoke response', response);
-      
+
       // Check if the response indicates an error
       if (response.success === false || response.statusCode >= 400) {
-        console.error(`Lambda function ${functionName} returned error:`, response.message || response.error);
+        logger.warn({
+          event: 'get_mobile_screens_lambda_non_success',
+          functionName,
+          statusCode: response.statusCode,
+          success: response.success,
+        });
         return null;
       }
       
@@ -39,7 +45,11 @@ export const getMobileScreens = async (
       return null;
     }
   } catch (err) {
-    console.error(`Error invoking Lambda function ${functionName}: `, err);
+    logger.error({
+      event: 'get_mobile_screens_invoke_failed',
+      functionName,
+      err: serializeError(err),
+    });
     return null;
   }
 };

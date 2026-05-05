@@ -146,8 +146,8 @@ export class AppointmentMapper {
   ): RecommendServicesRequest {
     const subdomain = context.integration?.subdomain;
     const tenant = loadTenantDetails(subdomain);
-    console.log("tenant", tenant);
-    console.log("event", event);
+    // console.log("tenant", tenant);
+    // console.log("event", event);
     const organizationID =
     event.doctor.organizationId ||
     event.patient.organizationId ||

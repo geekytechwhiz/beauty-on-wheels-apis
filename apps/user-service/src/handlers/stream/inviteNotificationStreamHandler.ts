@@ -52,12 +52,12 @@ async function processRecord(
   const oldItem = record.dynamodb.OldImage
     ? unmarshall(record.dynamodb.OldImage as Record<string, any>)
     : {};
-    console.log("NEW ITEM",newItem)
-    console.log("OLD ITEM",oldItem)
+    // console.log("NEW ITEM",newItem)
+    // console.log("OLD ITEM",oldItem)
   const newInviteDetails = newItem.inviteDetails as InviteDetails | undefined;
   const oldInviteDetails = oldItem.inviteDetails as InviteDetails | undefined;
-  console.log("NEW INVITE DETAILS",newInviteDetails)
-  console.log("OLD INVITE DETAILS",oldInviteDetails)
+  // console.log("NEW INVITE DETAILS",newInviteDetails)
+  // console.log("OLD INVITE DETAILS",oldInviteDetails)
   // Skip if inviteDetails is not present in the new image or is an empty object
   if (!newInviteDetails || (typeof newInviteDetails === 'object' && Object.keys(newInviteDetails).length === 0)) {
     logger.info({ 
@@ -102,7 +102,7 @@ async function processRecord(
   if (organizationID) {
     try {
       const org = await getOrganizationFromDynamo(organizationID);
-      console.log("ORG RESPONSE : ",org)
+      // console.log("ORG RESPONSE : ",org)
       if (org && typeof org === 'object') {
         const orgData = org as any;
         const orgInfo: any = orgData.organizationInfo || {};
@@ -156,9 +156,9 @@ async function processRecord(
   organizationName = organizationName || 'No Organization';
   organizationAddress = organizationAddress || '';
   organizationInfo = typeof organizationInfo === 'string' ? organizationInfo : String(organizationInfo);
-  console.log("ORGANIZATION NAME : ",organizationName)
-  console.log("ORGANIZATION ADDRESS : ",organizationAddress)
-  console.log("ORGANIZATION INFO : ",organizationInfo)
+  // console.log("ORGANIZATION NAME : ",organizationName)
+  // console.log("ORGANIZATION ADDRESS : ",organizationAddress)
+  // console.log("ORGANIZATION INFO : ",organizationInfo)
   const recordLogger = createChildLogger(baseLogger, { correlationId, userId, organizationID, sequenceNumber });
 
   recordLogger.info({

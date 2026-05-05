@@ -35,7 +35,7 @@ async function putItem(table, item) {
 async function safePut(table, item) {
   try {
     await putItem(table, item);
-    console.log(`✅ Inserted into ${table}:`, item.pk || item.id);
+    // console.log(`✅ Inserted into ${table}:`, item.pk || item.id);
   } catch (err) {
     console.error(`❌ Failed for ${table}`, err.message);
   }
@@ -43,21 +43,21 @@ async function safePut(table, item) {
 
 // ===== MAIN =====
 async function run() {
-  console.log('====================================');
-  console.log(`🚀 Bootstrapping ENV: ${ENV}`);
-  console.log('====================================');
+  // console.log('====================================');
+  // console.log(`🚀 Bootstrapping ENV: ${ENV}`);
+  // console.log('====================================');
 
   try {
     // ============================
     // 1. ROOT ORGANIZATION
     // ============================
-    console.log('\n👉 Creating ROOT organization...');
+    // console.log('\n👉 Creating ROOT organization...');
     await safePut(ORG_TABLE, rootOrg);
 
     // ============================
     // 2. ROOT USER (3 records)
     // ============================
-    console.log('\n👉 Creating ROOT user mappings...');
+    // console.log('\n👉 Creating ROOT user mappings...');
 
     await safePut(USER_TABLE, rootUser);        // main user
     await safePut(USER_TABLE, basicDetail);     // USER_BASIC_DETAILS
@@ -66,12 +66,12 @@ async function run() {
     // ============================
     // 3. ORG VITALS METADATA
     // ============================
-    console.log('\n👉 Inserting org vitals metadata...');
+    // console.log('\n👉 Inserting org vitals metadata...');
     await safePut(ORG_TABLE, orgVitals);
 
-    console.log('\n====================================');
-    console.log('✅ Bootstrap completed successfully!');
-    console.log('====================================');
+    // console.log('\n====================================');
+    // console.log('✅ Bootstrap completed successfully!');
+    // console.log('====================================');
 
   } catch (error) {
     console.error('\n❌ Bootstrap failed:', error);

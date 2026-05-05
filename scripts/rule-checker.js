@@ -23,7 +23,7 @@ if (!projectsArg) {
 
 const projects = projectsArg.split(',').map(p => p.trim());
 
-console.log(blue(`🔍 Running checks for projects: ${projects.join(', ')}`));
+// console.log(blue(`🔍 Running checks for projects: ${projects.join(', ')}`));
 
 // ---------- CONFIG ----------
 const SECRET_NAME_PATTERNS = [
@@ -52,12 +52,12 @@ function parseFile(filePath) {
 }
 
 function fail(ruleId, message, file) {
-  console.log(red(`❌ [${ruleId}] ${message} → ${file}`));
+  // console.log(red(`❌ [${ruleId}] ${message} → ${file}`));
   hasError = true;
 }
 
 function warn(ruleId, message, file) {
-  console.log(yellow(`⚠️ [${ruleId}] ${message} → ${file}`));
+  // console.log(yellow(`⚠️ [${ruleId}] ${message} → ${file}`));
 }
 
 function matchesAnyPattern(value, patterns) {
@@ -226,7 +226,7 @@ function checkTests() {
   if (files.length === 0) {
     fail('TEST-001', 'No test files found', 'GLOBAL');
   } else {
-    console.log(green(`✅ Found ${files.length} test files`));
+    // console.log(green(`✅ Found ${files.length} test files`));
   }
 }
 
@@ -258,7 +258,7 @@ function checkLogging() {
 
 // ---------- RUN ----------
 function run() {
-  console.log(blue('\n🔍 Running Rule Checker...\n'));
+  // console.log(blue('\n🔍 Running Rule Checker...\n'));
 
   checkControllerDBAccess();
   checkControllerBusinessLogic();
@@ -268,13 +268,13 @@ function run() {
   checkErrorHandling();
   checkLogging();
 
-  console.log('\n------------------------');
+  // console.log('\n------------------------');
 
   if (hasError) {
-    console.log(red('🚫 RULE CHECK FAILED'));
+    // console.log(red('🚫 RULE CHECK FAILED'));
     process.exit(1);
   } else {
-    console.log(green('✅ ALL RULES PASSED'));
+    // console.log(green('✅ ALL RULES PASSED'));
   }
 }
 

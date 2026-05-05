@@ -99,7 +99,7 @@ async function migrate() {
     }
     startKey = res.LastEvaluatedKey;
   } while (startKey);
-  console.log(`Done. Migrated ${migrated} template rows (skipped ${skipped} non-legacy or non-template items).`);
+  // console.log(`Done. Migrated ${migrated} template rows (skipped ${skipped} non-legacy or non-template items).`);
 }
 
 migrate().catch((e) => {

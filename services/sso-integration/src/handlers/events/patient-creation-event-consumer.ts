@@ -114,7 +114,7 @@ async function processPatientCreationEvent(
   }
 
   const { patient, doctorId, provider, externalId, organizationID, } = event.data;
-  console.log('event.data in patient-creation-event-consumer', event.data);
+  // console.log('event.data in patient-creation-event-consumer', event.data);
   /**
    * Validate event
    */

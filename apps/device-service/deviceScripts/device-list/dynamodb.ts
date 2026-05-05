@@ -20,7 +20,7 @@ export const batchWriteItems = async (items: DeviceDynamoDBItem[], tableName: st
 	const totalBatches = Math.ceil(items.length / BATCH_SIZE);
 	let written = 0;
 	
-	console.log(`   Writing in batches of ${BATCH_SIZE} items (${totalBatches} batches total)...`);
+	// console.log(`   Writing in batches of ${BATCH_SIZE} items (${totalBatches} batches total)...`);
 	
 	for (let i = 0; i < items.length; i += BATCH_SIZE) {
 		const batch = items.slice(i, i + BATCH_SIZE);
@@ -36,12 +36,12 @@ export const batchWriteItems = async (items: DeviceDynamoDBItem[], tableName: st
 			await ddbDocClient.send(new BatchWriteCommand(request));
 			written += batch.length;
 			const percentage = ((written / items.length) * 100).toFixed(1);
-			console.log(`   ✓ Batch ${batchNumber}/${totalBatches}: Wrote ${batch.length} items (${written}/${items.length} - ${percentage}%)`);
+			// console.log(`   ✓ Batch ${batchNumber}/${totalBatches}: Wrote ${batch.length} items (${written}/${items.length} - ${percentage}%)`);
 		} catch (error) {
 			console.error(`   ❌ Error in batch ${batchNumber}/${totalBatches}:`, error);
 			throw error;
 		}
 	}
 	
-	console.log(`   ✅ All batches completed successfully`);
+	// console.log(`   ✅ All batches completed successfully`);
 };

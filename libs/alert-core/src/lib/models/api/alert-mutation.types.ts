@@ -1,7 +1,7 @@
 import type { AlertDdbRecord } from '../persistence/alert-ddb.model';
 import { AlertWorkflowAction } from '../../constants/alert-workflow-action';
 
-export type WorkflowActionValue = (typeof AlertWorkflowAction)[keyof typeof AlertWorkflowAction];
+export type WorkflowActionValue = AlertWorkflowAction;
 
 /** Orchestration input for POST `/alerts/workflow`. */
 export interface WorkflowMutationInput {
@@ -13,7 +13,6 @@ export interface WorkflowMutationInput {
   reasonCode?: string;
   /** Alternative to `closureComment` for the same stored field when clients send `comment` only. */
   comment?: string;
-  applyToGroup?: boolean;
   assignToUserId?: string;
   /** Caller id for activity timeline (`performedBy`); defaults to `SYSTEM` if omitted. */
   performedByUserId?: string;
@@ -23,6 +22,5 @@ export interface WorkflowMutationInput {
 export interface WorkflowMutationResult {
   succeeded: string[];
   failed: { alertId: string; code: string; message: string }[];
-  affectedCount?: number;
   primaryAlert?: AlertDdbRecord;
 }

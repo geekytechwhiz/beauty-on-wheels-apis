@@ -260,6 +260,15 @@ export class AlertRepository extends BaseRepository {
     });
   }
 
+  /**
+   * Batch-load alert METADATA rows by id. Returns a map of `alertId -> record` for hits only.
+   * Preserves DynamoDB BatchGet 100-key chunking.
+   */
+  async getAlertsById(alertIds: string[]): Promise<Map<string, AlertDdbRecord>> {
+    const table = assertAlertTable();
+    return this.batchGetAlertsById(table, alertIds);
+  }
+
   async queryAlertActivities(
     alertId: string,
     opts?: { notesOnly?: boolean },
@@ -633,6 +642,50 @@ export class AlertRepository extends BaseRepository {
     }
 
     return this.getAlertById(alertId);
+  }
+
+  /**
+   * Transactionally apply many alert updates (and optional activity Put items). All-or-nothing.
+   * Caller must ensure `TransactItems` count stays within DynamoDB limits (max 100).
+   */
+  async updateAlertsTransaction(
+    updates: Array<{
+      existing: AlertDdbRecord;
+      patch: UpdateAlertRequest;
+      activityItems?: Record<string, unknown>[];
+    }>,
+  ): Promise<void> {
+    if (updates.length === 0) return;
+
+    const table = assertAlertTable();
+
+    const transactItems: Array<Record<string, unknown>> = [];
+    for (const u of updates) {
+      const updateParams = AlertEntityBuilder.buildUpdateExpression(u.existing, u.patch);
+      transactItems.push({
+        Update: {
+          TableName: table,
+          Key: updateParams.Key,
+          UpdateExpression: updateParams.UpdateExpression,
+          ExpressionAttributeNames: updateParams.ExpressionAttributeNames,
+          ExpressionAttributeValues: updateParams.ExpressionAttributeValues,
+        },
+      });
+
+      const activities = u.activityItems?.filter((x) => x && typeof x === 'object') ?? [];
+      for (const raw of activities) {
+        transactItems.push({
+          Put: {
+            TableName: table,
+            Item: raw as Record<string, unknown>,
+          },
+        });
+      }
+    }
+
+    await this.transactWrite({
+      TransactItems: transactItems as unknown as any,
+    });
   }
 
   /**

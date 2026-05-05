@@ -24,6 +24,8 @@ var mockListAlertActivity: jest.Mock;
 var mockUpdateAlert: jest.Mock;
 // eslint-disable-next-line no-var
 var mockApplyWorkflowMutation: jest.Mock;
+// eslint-disable-next-line no-var
+var mockApplyAssignment: jest.Mock;
 
 jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
@@ -34,6 +36,7 @@ jest.mock('@api-hub/alert-core', () => {
   mockListAlertActivity = jest.fn();
   mockUpdateAlert = jest.fn();
   mockApplyWorkflowMutation = jest.fn();
+  mockApplyAssignment = jest.fn();
 
   const actual = jest.requireActual<typeof import('@api-hub/alert-core')>('@api-hub/alert-core');
   return {
@@ -47,6 +50,7 @@ jest.mock('@api-hub/alert-core', () => {
       listAlertActivity: mockListAlertActivity,
       updateAlert: mockUpdateAlert,
       applyWorkflowMutation: mockApplyWorkflowMutation,
+      applyAssignment: mockApplyAssignment,
     })),
   };
 });
@@ -106,6 +110,7 @@ describe('AlertHttpController', () => {
     mockListAlertActivity.mockReset();
     mockUpdateAlert.mockReset();
     mockApplyWorkflowMutation.mockReset();
+    mockApplyAssignment.mockReset();
   });
 
   it('handleCreateAlert throws 500 when logger missing', async () => {
@@ -224,6 +229,41 @@ describe('AlertHttpController', () => {
       code: 'INTERNAL_ERROR',
     });
     expect(mockApplyWorkflowMutation).not.toHaveBeenCalled();
+  });
+
+  it('handleUpdateAlertAssignment throws 500 when validatedAssignment missing', async () => {
+    const c = new AlertHttpController();
+    const req = baseReq();
+    await expect(c.handleUpdateAlertAssignment(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockApplyAssignment).not.toHaveBeenCalled();
+  });
+
+  it('handleUpdateAlertAssignment returns alert detail on single-select success', async () => {
+    const c = new AlertHttpController();
+    const record = minimalAlertRecord({ alertState: 'ASSIGNED' as any });
+    mockApplyAssignment.mockResolvedValue({ primaryAlert: record });
+
+    const req = baseReq({
+      validatedAssignment: {
+        orgId: 'org-1',
+        alertIds: [record.alertId],
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
+        action: 'ASSIGN',
+        assignToUserId: 'user-2',
+      } as any,
+    } as any);
+
+    const out = await c.handleUpdateAlertAssignment(req);
+    expect(out).toMatchObject({ alertId: record.alertId, orgId: 'org-1' });
+    expect(mockApplyAssignment).toHaveBeenCalledWith('org-1', {
+      alertIds: [record.alertId],
+      action: 'ASSIGN',
+      assignToUserId: 'user-2',
+      performedByUserId: 'user-1',
+    });
   });
 
   it('handleUpdateAlertWorkflow returns alert detail on success', async () => {

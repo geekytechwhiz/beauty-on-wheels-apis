@@ -38,4 +38,5 @@ export type {
 } from './lib/models/api/create-alert.types';
 export { createAlertPayloadFromHttpBody } from './lib/models/api/create-alert.types';
 export type { WorkflowMutationInput, WorkflowMutationResult } from './lib/models/api/alert-mutation.types';
+export type { AssignmentAction, AssignmentInput, AssignmentResult } from './lib/models/api/alert-assignment.types';
 export { assertWorkflowClosureComment, workflowActionToUpdatePatch, type WorkflowPatchContext } from './lib/service/alert-workflow';

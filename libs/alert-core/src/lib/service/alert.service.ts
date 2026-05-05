@@ -10,9 +10,10 @@ import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
 import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
-import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
+import { type AlertState } from '../models/types/alert-state.type';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { WorkflowMutationInput, WorkflowMutationResult } from '../models/api/alert-mutation.types';
+import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
 import {
   assertWorkflowClosureComment,
   workflowActionToUpdatePatch,
@@ -35,13 +36,6 @@ function bulkHeterogeneousError(): never {
   };
   e.statusCode = 422;
   e.code = 'BULK_HETEROGENEOUS_ALERT_STATE';
-  throw e;
-}
-
-function workflowApplyToGroupError(message: string): never {
-  const e = new Error(message) as Error & { statusCode: number; code: string };
-  e.statusCode = 400;
-  e.code = 'VALIDATION_ERROR';
   throw e;
 }
 
@@ -273,18 +267,6 @@ export class AlertService extends BaseAlertService {
       dismissReason: effectiveDismiss,
     });
 
-    const applyToGroup = input.applyToGroup === true;
-    if (applyToGroup && input.alertIds.length !== 1) {
-      workflowApplyToGroupError('applyToGroup requires exactly one alertId');
-    }
-    if (
-      applyToGroup &&
-      input.action !== AlertWorkflowAction.Resolve &&
-      input.action !== AlertWorkflowAction.Dismiss
-    ) {
-      workflowApplyToGroupError('applyToGroup is only valid with RESOLVE or DISMISS');
-    }
-
     const failed: { alertId: string; code: string; message: string }[] = [];
     const loaded: { id: string; row: AlertDdbRecord }[] = [];
 
@@ -303,24 +285,7 @@ export class AlertService extends BaseAlertService {
       if (states.size > 1) bulkHeterogeneousError();
     }
 
-    let toProcess: { id: string; row: AlertDdbRecord }[];
-    if (applyToGroup) {
-      if (loaded.length !== 1) {
-        workflowApplyToGroupError('applyToGroup requires the primary alert to exist in your organization');
-      }
-      const gk = loaded[0].row.groupingKey;
-      const rows = await this.repo.queryAlertsByGroupingKey(gk);
-      toProcess = rows
-        .filter(
-          (r: AlertDdbRecord) =>
-            organizationIdsMatch(r.organizationId, organizationId) &&
-            r.alertState !== ALERT_STATE.RESOLVED &&
-            r.alertState !== ALERT_STATE.DISMISSED,
-        )
-        .map((r: AlertDdbRecord) => ({ id: r.alertId, row: r }));
-    } else {
-      toProcess = loaded;
-    }
+    const toProcess: { id: string; row: AlertDdbRecord }[] = loaded;
 
     const closureText = input.closureComment?.trim() || input.comment?.trim() || undefined;
     const patchCtx = {
@@ -331,33 +296,39 @@ export class AlertService extends BaseAlertService {
     };
     const succeeded: string[] = [];
 
-    for (const { id, row } of toProcess) {
-      try {
-        const patch = workflowActionToUpdatePatch(row, input.action, patchCtx);
-        const nowMs = Date.now();
-        const activityItems = AlertEntityBuilder.buildWorkflowActivityItems({
-          existing: row,
-          patch,
-          performedBy: input.performedByUserId?.trim() || 'SYSTEM',
-          performedByDisplayName: input.performedByDisplayName,
-          nowMs,
-        });
-        const updated = await this.repo.updateAlert(id, patch, {
-          activityItems: activityItems.length > 0 ? activityItems : undefined,
-        });
-        if (updated) succeeded.push(id);
-        else failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found during update' });
-      } catch (e) {
-        const err = e as Error & { statusCode?: number; code?: string };
-        if (err.statusCode === 409 && err.code === 'ILLEGAL_TRANSITION') {
-          failed.push({ alertId: id, code: err.code, message: err.message });
-          continue;
+    // Apply the mutation to each alert concurrently to reduce end-to-end latency for bulk updates.
+    // Note: `succeeded` / `failed` ordering is not guaranteed when run in parallel.
+    await Promise.all(
+      toProcess.map(async ({ id, row }) => {
+        try {
+          const patch = workflowActionToUpdatePatch(row, input.action, patchCtx);
+          const nowMs = Date.now();
+          const activityItems = AlertEntityBuilder.buildWorkflowActivityItems({
+            existing: row,
+            patch,
+            performedBy: input.performedByUserId?.trim() || 'SYSTEM',
+            performedByDisplayName: input.performedByDisplayName,
+            nowMs,
+          });
+          const updated = await this.repo.updateAlert(id, patch, {
+            activityItems: activityItems.length > 0 ? activityItems : undefined,
+          });
+          if (updated) succeeded.push(id);
+          else failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found during update' });
+        } catch (e) {
+          const err = e as Error & { statusCode?: number; code?: string };
+          if (err.statusCode === 409 && err.code === 'ILLEGAL_TRANSITION') {
+            failed.push({ alertId: id, code: err.code, message: err.message });
+            return;
+          }
+          throw e;
         }
-        throw e;
-      }
-    }
+      }),
+    );
 
     let primaryAlert: AlertDdbRecord | undefined;
+    // Convenience for single-select callers: return the full updated alert record when exactly one id was requested.
+    // For true bulk requests (N>1), callers should use succeeded/failed and refetch details as needed.
     if (input.alertIds.length === 1 && succeeded.includes(input.alertIds[0])) {
       primaryAlert = (await this.getAlert(input.alertIds[0], organizationId)) ?? undefined;
     }
@@ -365,8 +336,78 @@ export class AlertService extends BaseAlertService {
     return {
       succeeded,
       failed,
-      ...(applyToGroup ? { affectedCount: succeeded.length } : {}),
       ...(primaryAlert ? { primaryAlert } : {}),
     };
+  }
+
+  async applyAssignment(
+    organizationId: string,
+    input: AssignmentInput,
+  ): Promise<AssignmentResult> {
+    const assignToUserId = input.assignToUserId?.trim();
+
+    if ((input.action === 'ASSIGN' || input.action === 'REASSIGN') && !assignToUserId) {
+      const e = new Error('assignToUserId is required for ASSIGN and REASSIGN') as Error & {
+        statusCode: number;
+        code: string;
+      };
+      e.statusCode = 422;
+      e.code = 'VALIDATION_ERROR';
+      throw e;
+    }
+
+    const byId = await this.repo.getAlertsById(input.alertIds);
+
+    const loaded: AlertDdbRecord[] = [];
+    for (const id of input.alertIds) {
+      const row = byId.get(id);
+      if (!row || !organizationIdsMatch(row.organizationId, organizationId)) {
+        const e = new Error('Alert not found') as Error & { statusCode: number; code: string };
+        e.statusCode = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      loaded.push(row);
+    }
+
+    for (const row of loaded) {
+      if (row.alertState === 'RESOLVED' || row.alertState === 'DISMISSED') {
+        const e = new Error('Assignment is not allowed from terminal state') as Error & {
+          statusCode: number;
+          code: string;
+        };
+        e.statusCode = 409;
+        e.code = 'TERMINAL_STATE';
+        throw e;
+      }
+    }
+
+    const patch: UpdateAlertRequest =
+      input.action === 'UNASSIGN'
+        ? { assignedToUserId: null }
+        : { assignedToUserId: assignToUserId as string };
+
+    const nowMs = Date.now();
+    const performedBy = input.performedByUserId?.trim() || 'SYSTEM';
+    const performedByDisplayName = input.performedByDisplayName;
+
+    const updates = loaded.map((row) => {
+      const activityItems = AlertEntityBuilder.buildWorkflowActivityItems({
+        existing: row,
+        patch,
+        performedBy,
+        performedByDisplayName,
+        nowMs,
+      });
+      return { existing: row, patch, activityItems };
+    });
+
+    await this.repo.updateAlertsTransaction(updates);
+
+    if (input.alertIds.length === 1) {
+      const primaryAlert = await this.getAlert(input.alertIds[0], organizationId);
+      return primaryAlert ? { primaryAlert } : {};
+    }
+    return {};
   }
 }

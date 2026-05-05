@@ -89,11 +89,13 @@ describe('AlertService', () => {
       | 'resolveInputEventId'
       | 'createAlert'
       | 'getAlertById'
+      | 'getAlertsById'
       | 'queryAlertActivities'
       | 'queryPatientAlertsPage'
       | 'queryOrgAlertsPage'
       | 'queryOrgAlertsGsi4Page'
       | 'queryUserAlertsPage'
+      | 'updateAlertsTransaction'
     >
   >;
   let service: AlertService;
@@ -103,11 +105,13 @@ describe('AlertService', () => {
       resolveInputEventId: jest.fn(),
       createAlert: jest.fn(),
       getAlertById: jest.fn(),
+      getAlertsById: jest.fn(),
       queryAlertActivities: jest.fn(),
       queryPatientAlertsPage: jest.fn(),
       queryOrgAlertsPage: jest.fn(),
       queryOrgAlertsGsi4Page: jest.fn(),
       queryUserAlertsPage: jest.fn(),
+      updateAlertsTransaction: jest.fn(),
     };
     service = new AlertService(repo as unknown as AlertRepository, mockLogger());
   });
@@ -356,6 +360,61 @@ describe('AlertService', () => {
       await expect(
         service.listAlerts({ ...baseListParams(), queue: 'TEAM', nextToken: '%%%' }),
       ).rejects.toMatchObject({ statusCode: 400, code: 'VALIDATION_ERROR' });
+    });
+  });
+
+  describe('applyAssignment', () => {
+    it('updates all alerts in one transaction (ASSIGN)', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      const a2 = minimalRecord({ alertId: 'a2', pk: 'ALERT#a2' });
+      repo.getAlertsById.mockResolvedValue(new Map([
+        ['a1', a1],
+        ['a2', a2],
+      ]));
+      repo.getAlertById.mockResolvedValue(a1);
+
+      const result = await service.applyAssignment('org-1', {
+        alertIds: ['a1', 'a2'],
+        action: 'ASSIGN',
+        assignToUserId: 'user-9',
+        performedByUserId: 'actor-1',
+      });
+
+      expect(result).toEqual({});
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ existing: a1, patch: { assignedToUserId: 'user-9' } }),
+          expect.objectContaining({ existing: a2, patch: { assignedToUserId: 'user-9' } }),
+        ]),
+      );
+    });
+
+    it('returns primaryAlert for single-select', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+      repo.getAlertById.mockResolvedValue(a1);
+
+      const result = await service.applyAssignment('org-1', {
+        alertIds: ['a1'],
+        action: 'UNASSIGN',
+      });
+
+      expect(result.primaryAlert?.alertId).toBe('a1');
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({ patch: { assignedToUserId: null } }),
+      ]);
+    });
+
+    it('fails for terminal state and does not write', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1', alertState: ALERT_STATE.RESOLVED });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+
+      await expect(
+        service.applyAssignment('org-1', { alertIds: ['a1'], action: 'UNASSIGN' }),
+      ).rejects.toMatchObject({ statusCode: 409, code: 'TERMINAL_STATE' });
+
+      expect(repo.updateAlertsTransaction).not.toHaveBeenCalled();
     });
   });
 });

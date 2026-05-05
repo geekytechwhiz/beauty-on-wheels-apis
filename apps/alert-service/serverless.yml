@@ -319,6 +319,32 @@ functions:
             "401": Unauthorized
             "403": Forbidden
             "404": Alert not found
+
+  updateAlertAssignment:
+    handler: src/handlers/http/updateAlertAssignment.main
+    events:
+      - http:
+          path: alerts/assignment
+          method: post
+          summary: Apply alert assignment action
+          description: >
+            Assignment actions for one or many alerts. Body requires `alertIds` and `action` (ASSIGN, REASSIGN, UNASSIGN, ASSIGN_TO_SELF).
+            ASSIGN/REASSIGN require `assignToUserId`. ASSIGN_TO_SELF derives assignee from JWT. **All-or-nothing**: if any alert fails,
+            none are updated. Organization from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Alert not found
+            "409": Not allowed from terminal state
+            "422": Validation error
   addAlertNote:
     handler: src/handlers/http/addAlertNote.main
     events:

@@ -1,14 +1,15 @@
 import type { LambdaRequest } from '@api-hub/utils';
 import { AlertWorkflowAction } from '@api-hub/alert-core';
 import {
+  alertAssignmentBodySchema,
   alertWorkflowBodySchema,
   createAlertHttpBodySchema,
   listAlertsQuerySchema,
   noteRequestBodySchema,
+  type AlertAssignmentHttpBody,
   type AlertWorkflowHttpBody,
   type CreateAlertHttpBody,
   type ListAlertsQuery,
-  type NoteRequestBody,
 } from './alert.schemas';
 import {
   getActorUserIdForRequest,
@@ -66,7 +67,7 @@ export type ValidatedCreateAlert = {
   authHeader: string | undefined;
 };
 
-export type CoreWorkflowAction = (typeof AlertWorkflowAction)[keyof typeof AlertWorkflowAction];
+export type CoreWorkflowAction = AlertWorkflowAction;
 
 /** Parsed + normalized POST `/alerts/{alertId}/workflow` input for {@link AlertService.applyWorkflowMutation}. */
 export type ValidatedWorkflow = {
@@ -79,7 +80,16 @@ export type ValidatedWorkflow = {
   reasonCode?: string;
   comment?: string;
   closureComment?: string;
-  applyToGroup?: boolean;
+};
+
+export type AssignmentAction = AlertAssignmentHttpBody['action'];
+
+export type ValidatedAssignment = {
+  orgId: string;
+  alertIds: string[];
+  authHeader: string | undefined;
+  action: AssignmentAction;
+  assignToUserId?: string;
 };
 
 export type ValidatedNote = {
@@ -94,26 +104,21 @@ function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkf
   switch (body.action) {
     case 'ASSIGN':
       return {
-        action: AlertWorkflowAction.StartWork,
+        action: AlertWorkflowAction.Assign,
         assignToUserId: assignedToUserId as string,
         comment,
         closureComment,
       };
     case 'MOVE_TO_WAITING':
-      return { action: AlertWorkflowAction.Wait, comment, closureComment };
+      return { action: AlertWorkflowAction.MoveToWaiting, comment, closureComment };
     case 'RESUME_WORK':
-      return { action: AlertWorkflowAction.Resume, comment, closureComment };
+      return { action: AlertWorkflowAction.ResumeWork, comment, closureComment };
     case 'START_WORK':
       return {
         action: AlertWorkflowAction.StartWork,
-        ...(assignedToUserId ? { assignToUserId: assignedToUserId } : {}),
         comment,
         closureComment,
       };
-    case 'WAIT':
-      return { action: AlertWorkflowAction.Wait, comment, closureComment };
-    case 'RESUME':
-      return { action: AlertWorkflowAction.Resume, comment, closureComment };
     case 'RESOLVE':
       return {
         action: AlertWorkflowAction.Resolve,
@@ -160,8 +165,47 @@ export function validateWorkflowRequest(req: LambdaRequest): void {
     orgId,
     alertIds: result.data.alertIds,
     authHeader: req.context.authHeader,
-    applyToGroup: result.data.applyToGroup,
     ...mapped,
+  };
+}
+
+export function validateAssignmentRequest(req: LambdaRequest): void {
+  const result = alertAssignmentBodySchema.safeParse(req.body);
+
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      422,
+      'VALIDATION_ERROR',
+      result.error.issues.map((i) => ({
+        field: i.path.join('.') || undefined,
+        message: i.message,
+      })),
+    );
+  }
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const actorUserId = getActorUserIdForRequest(req.event, req.context.authHeader);
+
+  const assignToUserId =
+    result.data.action === 'ASSIGN_TO_SELF'
+      ? actorUserId?.trim()
+      : result.data.assignToUserId?.trim();
+
+  if (result.data.action === 'ASSIGN_TO_SELF' && !assignToUserId) {
+    throwVal('User id could not be resolved for ASSIGN_TO_SELF', 401, 'UNAUTHORIZED');
+  }
+
+  (req as LambdaRequest & { validatedAssignment: ValidatedAssignment }).validatedAssignment = {
+    orgId,
+    alertIds: result.data.alertIds,
+    authHeader: req.context.authHeader,
+    action: result.data.action,
+    ...(assignToUserId ? { assignToUserId } : {}),
   };
 }
 

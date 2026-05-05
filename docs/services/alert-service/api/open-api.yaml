@@ -191,6 +191,14 @@ components:
             data:
               $ref: '#/components/schemas/AlertDetail'
 
+    SuccessResponseAssignmentUpdated:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AssignmentUpdated'
+
     SuccessResponseWorkflowMutationResponse:
       allOf:
         - $ref: '#/components/schemas/SuccessResponse'
@@ -570,7 +578,7 @@ components:
               additionalProperties: true
             groupId:
               type: string
-              description: Operational group for drill-down and applyToGroup actions.
+              description: Operational group for drill-down and bulk actions.
             assignedAt:
               $ref: '#/components/schemas/EpochMillis'
             assignedBy:
@@ -649,9 +657,6 @@ components:
         assignToUserId:
           type: string
           description: Required for ASSIGN and REASSIGN.
-        comment:
-          type: string
-          description: Optional; used with REASSIGN.
 
     AlertIds:
       type: array
@@ -668,8 +673,7 @@ components:
         Applies the same workflow action to every id in `alertIds`. For **multiple** ids,
         **all listed alerts must share the same `alertState`** or the request fails with 422
         (`BULK_HETEROGENEOUS_ALERT_STATE`) and **none** are updated. For a **single** id,
-        normal state-machine rules apply. `applyToGroup` is only valid when `alertIds` has
-        exactly one element.
+        normal state-machine rules apply.
       properties:
         alertIds:
           $ref: '#/components/schemas/AlertIds'
@@ -686,12 +690,6 @@ components:
         comment:
           type: string
           description: Optional for START_WORK, WAIT, and RESUME.
-        applyToGroup:
-          type: boolean
-          default: false
-          description: >
-            Only when `alertIds` contains exactly one id: when true with RESOLVE or DISMISS,
-            applies to all open alerts in the same group. Ignored when multiple ids are present.
 
     NoteRequest:
       type: object
@@ -720,10 +718,17 @@ components:
               $ref: '#/components/schemas/AlertIds'
         - $ref: '#/components/schemas/AssignmentRequest'
 
+    AssignmentUpdated:
+      type: object
+      required: [alertIds]
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+
     AlertMutationResult:
       type: object
       description: >
-        Per-alert outcomes. For workflow with one id and `applyToGroup`, `affectedCount` may be set.
+        Per-alert outcomes.
       properties:
         succeeded:
           type: array
@@ -742,9 +747,6 @@ components:
                 example: NOT_FOUND
               message:
                 type: string
-        affectedCount:
-          type: integer
-          description: Present when `applyToGroup` resolved/dismissed multiple alerts in a group.
 
     WorkflowMutationResponse:
       allOf:
@@ -1067,7 +1069,7 @@ paths:
       description: >
         Same state machine as before, unified: pass **`alertIds`** with one id or many.
         Multiple ids require **identical `alertState`** on every alert or **422**
-        (`BULK_HETEROGENEOUS_ALERT_STATE`). With **one** id, `applyToGroup` may resolve/dismiss the whole group.
+        (`BULK_HETEROGENEOUS_ALERT_STATE`).
       tags: [Alert instances]
       requestBody:
         required: true
@@ -1090,12 +1092,11 @@ paths:
                   action: RESOLVE
                   closureComment: Bulk resolved
               group:
-                summary: One id + apply to group
+                summary: One id
                 value:
                   alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
                   action: RESOLVE
                   closureComment: Stabilized
-                  applyToGroup: true
       responses:
         '200':
           description: Mutation result; optional `primaryAlert` when one alert updated.
@@ -1150,6 +1151,10 @@ paths:
       operationId: updateAlertAssignment
       summary: Assignment actions (single or multi-select)
       tags: [Alert instances]
+      description: >
+        Applies the same assignment action to every id in `alertIds`. **All-or-nothing**: if any alert is missing,
+        out of org scope, or in a terminal state (**RESOLVED** / **DISMISSED**), the request fails and **no** alerts
+        are updated.
       requestBody:
         required: true
         content:
@@ -1166,17 +1171,29 @@ paths:
                   assignToUserId: 5fa85f64-5717-4562-b3fc-2c963f66afa8
       responses:
         '200':
-          description: Per-alert outcomes.
+          description: Success — updated alert detail for single-select, or echo `alertIds` for multi-select.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseAlertMutationResult'
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponseAlertDetail'
+                  - $ref: '#/components/schemas/SuccessResponseAssignmentUpdated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Terminal state (RESOLVED / DISMISSED) or other conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
 
   /alerts/{alertId}:
     parameters:

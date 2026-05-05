@@ -166,21 +166,18 @@ const workflowResolveReasonZ = z.nativeEnum(AlertResolveReasonCode);
 const workflowDismissReasonZ = z.nativeEnum(AlertDismissReasonCode);
 
 const workflowWireActionZ = z.enum([
-  'START_WORK',
-  'WAIT',
-  'RESUME',
-  'RESOLVE',
-  'DISMISS',
   'ASSIGN',
+  'START_WORK',
   'MOVE_TO_WAITING',
   'RESUME_WORK',
+  'RESOLVE',
+  'DISMISS',
 ]);
 
 /**
  * POST `/alerts/workflow` body (strict). Supports single or bulk operations.
  * - `alertIds`: required array of 1..100 alert ids for bulk or single requests.
- * - `applyToGroup`: only valid when a single alert id is supplied and the action is RESOLVE/DISMISS.
- * Aliases: `ASSIGN` → START_WORK + assignedToUserId; `MOVE_TO_WAITING` → WAIT; `RESUME_WORK` → RESUME.
+ * Aliases: `MOVE_TO_WAITING` → WAIT; `RESUME_WORK` → RESUME.
  */
 export const alertWorkflowBodySchema = z
   .object({
@@ -193,29 +190,12 @@ export const alertWorkflowBodySchema = z
     reasonCode: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), z.string().min(1)).optional(),
     comment: z.string().optional(),
     closureComment: z.string().optional(),
-    applyToGroup: z.boolean().optional(),
     idempotencyKey: z.string().trim().min(1).optional(),
     clientRequestId: z.string().trim().min(1).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
-    // applyToGroup only valid with single alertId
-    if (data.applyToGroup && data.alertIds && data.alertIds.length > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'applyToGroup is only valid when alertIds contains exactly one id',
-        path: ['applyToGroup'],
-      });
-    }
-
-    const nonTerminal = new Set([
-      'START_WORK',
-      'WAIT',
-      'RESUME',
-      'ASSIGN',
-      'MOVE_TO_WAITING',
-      'RESUME_WORK',
-    ]);
+    const nonTerminal = new Set(['ASSIGN', 'START_WORK', 'MOVE_TO_WAITING', 'RESUME_WORK']);
     if (nonTerminal.has(data.action)) {
       if (data.reasonCode) {
         ctx.addIssue({
@@ -296,6 +276,36 @@ export const alertWorkflowBodySchema = z
   });
 
 export type AlertWorkflowHttpBody = z.infer<typeof alertWorkflowBodySchema>;
+
+const assignmentActionZ = z.enum(['ASSIGN', 'ASSIGN_TO_SELF', 'REASSIGN', 'UNASSIGN']);
+
+/**
+ * POST `/alerts/assignment` body (strict).
+ *
+ * Note: DynamoDB transactions allow a maximum of 100 items. Because we write **one alert update + one activity row**
+ * per alert, we cap this API at **50 alertIds** to guarantee atomic all-or-nothing behavior.
+ */
+export const alertAssignmentBodySchema = z
+  .object({
+    alertIds: z
+      .array(z.string().trim().min(1))
+      .min(1, 'At least one alertId is required')
+      .max(50, 'Maximum 50 alertIds per request'),
+    action: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), assignmentActionZ),
+    assignToUserId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if ((data.action === 'ASSIGN' || data.action === 'REASSIGN') && !data.assignToUserId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assignToUserId is required for ASSIGN and REASSIGN',
+        path: ['assignToUserId'],
+      });
+    }
+  });
+
+export type AlertAssignmentHttpBody = z.infer<typeof alertAssignmentBodySchema>;
 
 const listQueueKindZ = z.enum(['TEAM', 'MY', 'PATIENT']);
 

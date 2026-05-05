@@ -39,8 +39,8 @@ describe('updateAlertWorkflow HTTP handler', () => {
   function baseEvent(body: Record<string, unknown>, overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayProxyEvent {
     return {
       httpMethod: 'POST',
-      path: `/dev/alerts/${alertId}/workflow`,
-      pathParameters: { alertId },
+      path: `/dev/alerts/workflow`,
+      pathParameters: null,
       queryStringParameters: null,
       headers: {
         Authorization: bearerToken({
@@ -61,7 +61,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
       primaryAlert: row,
     });
 
-    const result = await main(baseEvent({ action: 'START_WORK' }), context);
+    const result = await main(baseEvent({ alertIds: [alertId], action: 'START_WORK' }), context);
 
     expect(result.statusCode).toBe(200);
     const parsed = JSON.parse(result.body ?? '{}') as { success: boolean; data: { alertId: string } };
@@ -76,7 +76,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     );
   });
 
-  it('maps ASSIGN to START_WORK with assignToUserId', async () => {
+  it('maps ASSIGN to ASSIGN with assignToUserId', async () => {
     const row = minimalAlertRecord({ alertState: ALERT_STATE.IN_PROGRESS });
     mockApplyWorkflowMutation.mockResolvedValue({
       succeeded: [alertId],
@@ -86,6 +86,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
 
     await main(
       baseEvent({
+        alertIds: [alertId],
         action: 'ASSIGN',
         assignedToUserId: 'user-assignee-1',
       }),
@@ -95,7 +96,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     expect(mockApplyWorkflowMutation).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({
-        action: 'START_WORK',
+        action: 'ASSIGN',
         assignToUserId: 'user-assignee-1',
       }),
     );
@@ -104,6 +105,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
   it('returns 422 when OTHER resolve without comment', async () => {
     const result = await main(
       baseEvent({
+        alertIds: [alertId],
         action: 'RESOLVE',
         reasonCode: 'OTHER',
       }),
@@ -126,7 +128,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
       ],
     });
 
-    const result = await main(baseEvent({ action: 'RESUME' }), context);
+    const result = await main(baseEvent({ alertIds: [alertId], action: 'RESUME' }), context);
 
     expect(result.statusCode).toBe(409);
     expect(mockApplyWorkflowMutation).toHaveBeenCalled();
@@ -138,21 +140,20 @@ describe('updateAlertWorkflow HTTP handler', () => {
       failed: [{ alertId, code: 'NOT_FOUND', message: 'Alert not found' }],
     });
 
-    const result = await main(baseEvent({ action: 'START_WORK' }), context);
+    const result = await main(baseEvent({ alertIds: [alertId], action: 'START_WORK' }), context);
 
     expect(result.statusCode).toBe(404);
   });
 
-  it('returns 400 when alertId path parameter is missing', async () => {
+  it('returns 422 when alertIds is missing', async () => {
     const result = await main(
       baseEvent(
         { action: 'START_WORK' },
-        { pathParameters: {} },
       ),
       context,
     );
 
-    expect(result.statusCode).toBe(400);
+    expect(result.statusCode).toBe(422);
     expect(mockApplyWorkflowMutation).not.toHaveBeenCalled();
   });
 

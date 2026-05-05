@@ -71,29 +71,45 @@ export function workflowActionToUpdatePatch(
   }
 
   switch (action) {
-    case AlertWorkflowAction.StartWork: {
+    case AlertWorkflowAction.Assign: {
+      const assignee = ctx.assignToUserId?.trim();
+      if (!assignee) {
+        workflowRequestError('assignedToUserId (assignToUserId) is required for ASSIGN', 422, 'MISSING_ASSIGNEE');
+      }
       if (state !== ALERT_STATE.UNASSIGNED && state !== ALERT_STATE.ASSIGNED) {
+        invalidTransition(`ASSIGN is not valid from state ${state}`);
+      }
+      return {
+        alertState: ALERT_STATE.ASSIGNED,
+        assignedToUserId: assignee,
+      };
+    }
+    case AlertWorkflowAction.StartWork: {
+      if (state !== ALERT_STATE.ASSIGNED) {
         invalidTransition(`START_WORK is not valid from state ${state}`);
       }
-      const patch: UpdateAlertRequest = { alertState: ALERT_STATE.IN_PROGRESS };
-      if (state === ALERT_STATE.UNASSIGNED && ctx.assignToUserId?.trim()) {
-        patch.assignedToUserId = ctx.assignToUserId.trim();
-      }
-      return patch;
+      return { alertState: ALERT_STATE.IN_PROGRESS };
     }
-    case AlertWorkflowAction.Wait: {
+    case AlertWorkflowAction.MoveToWaiting: {
       if (state !== ALERT_STATE.IN_PROGRESS && state !== ALERT_STATE.ASSIGNED) {
-        invalidTransition(`WAIT is not valid from state ${state}`);
+        invalidTransition(`MOVE_TO_WAITING is not valid from state ${state}`);
       }
       return { alertState: ALERT_STATE.WAITING };
     }
-    case AlertWorkflowAction.Resume: {
+    case AlertWorkflowAction.ResumeWork: {
       if (state !== ALERT_STATE.WAITING) {
-        invalidTransition(`RESUME is not valid from state ${state}`);
+        invalidTransition(`RESUME_WORK is not valid from state ${state}`);
       }
       return { alertState: ALERT_STATE.IN_PROGRESS };
     }
     case AlertWorkflowAction.Resolve: {
+      if (
+        state !== ALERT_STATE.ASSIGNED &&
+        state !== ALERT_STATE.IN_PROGRESS &&
+        state !== ALERT_STATE.WAITING
+      ) {
+        invalidTransition(`RESOLVE is not valid from state ${state}`);
+      }
       const rc = ctx.resolutionCode?.trim();
       return {
         alertState: ALERT_STATE.RESOLVED,

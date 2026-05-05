@@ -23,6 +23,7 @@ import { patchAlertBodySchema } from '../validators/alert.schemas';
 import {
   parseListAlertsQuery,
   type ValidatedCreateAlert,
+  type ValidatedAssignment,
   type ValidatedWorkflow,
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
@@ -117,7 +118,6 @@ export class AlertHttpController {
       reasonCode: v.reasonCode,
       comment: v.comment,
       closureComment: v.closureComment,
-      applyToGroup: v.applyToGroup,
       performedByUserId: performedByUserId ?? undefined,
     };
 
@@ -147,6 +147,35 @@ export class AlertHttpController {
     }
 
     return toAlertDetail(result.primaryAlert);
+  }
+
+  /**
+   * POST `/alerts/assignment` — body validated by {@link validateAssignmentRequest}; calls
+   * `AlertService.applyAssignment(...)` and returns updated {@link toAlertDetail} when one id was requested.
+   * For multi-select, returns `{ alertIds }` on success (all-or-nothing).
+   */
+  async handleUpdateAlertAssignment(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedAssignment?: ValidatedAssignment }).validatedAssignment;
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    const result = await this.svc.applyAssignment(v.orgId, {
+      alertIds: v.alertIds,
+      action: v.action,
+      ...(v.assignToUserId ? { assignToUserId: v.assignToUserId } : {}),
+      performedByUserId: performedByUserId ?? undefined,
+    });
+
+    if (result.primaryAlert) return toAlertDetail(result.primaryAlert);
+    return { alertIds: v.alertIds };
   }
 
   async handleGetAlert(req: LambdaRequest) {

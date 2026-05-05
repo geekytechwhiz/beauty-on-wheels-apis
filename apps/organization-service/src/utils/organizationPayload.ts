@@ -114,7 +114,7 @@ const normalizeCodeArray = (value: unknown): string[] | undefined => {
   if (!Array.isArray(value)) return undefined;
   const normalizedValues = value
     .filter((item): item is string => typeof item === 'string')
-    .map((item) => item.trim())
+    .map((item) => item.trim().toUpperCase())
     .filter((item) => item.length > 0);
 
   return Array.from(new Set(normalizedValues));

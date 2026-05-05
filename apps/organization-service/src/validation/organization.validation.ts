@@ -19,7 +19,7 @@ const integrationSchema = z
   })
   .optional();
 
-const configCodeSchema = z.string().trim().min(1);
+const configCodeSchema = z.string().min(1).transform((val) => val.trim());
 
 const organizationConfigSchema = z
   .object({

@@ -102,7 +102,22 @@ export function parseListEntityStatusMode(q: Record<string, string | undefined>)
   if (parseQueryIncludeInactive(q)) {
     return 'all';
   }
-  if (q.status === STATUS.INACTIVE) {
+  const raw = q.status;
+  if (raw !== undefined && String(raw).trim() !== '') {
+    const s = String(raw).trim().toUpperCase();
+    if (s === STATUS.INACTIVE) {
+      return 'inactive';
+    }
+  }
+  return 'active';
+}
+
+/** List metadata (types/values): default ACTIVE; `status=INACTIVE` inactive only; `includeInactive` → both (wins over `status`). */
+export function resolveStatusMode(input: ListMetadataInput): ListEntityStatusMode {
+  if (input.includeInactive) {
+    return 'all';
+  }
+  if (input.status === STATUS.INACTIVE) {
     return 'inactive';
   }
   return 'active';
@@ -295,9 +310,7 @@ export async function searchMetadataValues(
 }
 
 async function listMetadataTypesFromService(input: ListMetadataInput): Promise<MetadataTypeRecord[]> {
-  const mode = parseListEntityStatusMode({
-    statusMode: input.statusMode,
-  });
+  const mode = resolveStatusMode(input);
 
   const base = {
     module: input.module,
@@ -315,9 +328,14 @@ async function listMetadataTypesFromService(input: ListMetadataInput): Promise<M
 }
 
 async function listMetadataValuesFromService(input: ListMetadataInput): Promise<MetadataValueApiModel[]> {
-  const filter: ValueSearchFilter = {
-    status: input.status,
-  };
+  const mode = resolveStatusMode(input);
+
+  const filter: ValueSearchFilter = {};
+  if (mode === 'active') {
+    filter.status = STATUS.ACTIVE;
+  } else if (mode === 'inactive') {
+    filter.status = STATUS.INACTIVE;
+  }
 
   if (input.applicableModules?.length) {
     assertEnumTokenArray(input.applicableModules, 'applicableModules');
@@ -344,9 +362,11 @@ async function listMetadataValuesFromService(input: ListMetadataInput): Promise<
     filter.language = input.applicableLanguages;
   }
 
-  const rows = await listValues(input.metadataTypeCode, input.status);
+  const repoStatus = mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
+  const rows = await listValues(input.metadataTypeCode, repoStatus);
 
-  const matched = rows.filter((v) => matchesSearchFilter(v, filter, input.status));
+  const matchDefaultStatus: Status | null = mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
+  const matched = rows.filter((v) => matchesSearchFilter(v, filter, matchDefaultStatus));
 
   return sortValuesForSearch(matched).map(flattenMetadataValueForApi);
 }

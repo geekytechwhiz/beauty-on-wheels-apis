@@ -57,6 +57,7 @@ export {
   parseQueryIncludeInactive,
   parseGetEntityStatusMode,
   parseListEntityStatusMode,
+  resolveStatusMode,
   resolveMetadataTypeGet,
   resolveMetadataValueGetForApi,
   type GetEntityByStatusMode,

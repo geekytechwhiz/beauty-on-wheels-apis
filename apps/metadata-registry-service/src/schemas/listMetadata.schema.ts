@@ -1,4 +1,4 @@
-import { STATUS, type Status } from '@api-hub/metadata';
+import { parseQueryIncludeInactive, STATUS } from '@api-hub/metadata';
 import { z } from 'zod';
 /**
  * Utility: CSV → string[]
@@ -18,14 +18,11 @@ const csvToArray = z
  */
 const entityTypeSchema = z.enum(['type', 'value']);
 
-/**
- * Status handling (default ACTIVE)
- */
-const statusSchema: z.ZodType<Status> = z
-  .string()
-  .optional()
-  .transform((val) => (val ? val.trim().toUpperCase() : STATUS.ACTIVE))
-  .pipe(z.enum([STATUS.ACTIVE, STATUS.INACTIVE]));
+/** Omitted or empty → undefined (service defaults to ACTIVE-only via `resolveStatusMode`). */
+const optionalListStatusSchema = z.preprocess(
+  (v) => (v === undefined || v === '' ? undefined : String(v).trim().toUpperCase()),
+  z.enum([STATUS.ACTIVE, STATUS.INACTIVE]).optional(),
+);
 
 /**
  * Base request extraction
@@ -44,19 +41,19 @@ export const listMetadataSchema = z
 
     const metadataTypeCode = (q.metadataTypeCode ?? p.metadataTypeCode ?? '').trim();
 
+    const queryForInclude = q as Record<string, string | undefined>;
+
     return {
       entityType,
 
       // Common
       metadataTypeCode,
 
-      // TYPE filters
+      // TYPE / VALUE list status (same query params)
       module: q.module,
       valueDataType: q.valueDataType ?? q.datatype,
-      statusMode: q.statusMode, // pass through to service
-
-      // VALUE filters
-      status: statusSchema.parse(q.status),
+      status: optionalListStatusSchema.parse(q.status),
+      includeInactive: parseQueryIncludeInactive(queryForInclude),
 
       applicableModules: csvToArray.parse(q.applicableModules),
       applicableCategories: csvToArray.parse(q.applicableCategories),

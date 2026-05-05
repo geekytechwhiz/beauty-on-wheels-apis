@@ -82,6 +82,13 @@ describe('matchesSearchFilter', () => {
     const inactive = v({ valueCode: 'I', status: STATUS.INACTIVE });
     expect(matchesSearchFilter(inactive, { status: STATUS.INACTIVE })).toBe(true);
   });
+
+  it('with defaultStatus null, does not filter by status when filter omits status', () => {
+    const active = v({ valueCode: 'A', status: STATUS.ACTIVE });
+    const inactive = v({ valueCode: 'B', status: STATUS.INACTIVE });
+    expect(matchesSearchFilter(active, {}, null)).toBe(true);
+    expect(matchesSearchFilter(inactive, {}, null)).toBe(true);
+  });
 });
 
 describe('sortValuesForSearch', () => {

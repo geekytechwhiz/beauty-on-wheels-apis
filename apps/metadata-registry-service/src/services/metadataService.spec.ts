@@ -1,5 +1,6 @@
 import {
   STATUS,
+  resolveStatusMode,
   validateMetadataTypeInput,
   type MetadataTypeInput,
   normalizeMetadataTypeInput,
@@ -108,5 +109,29 @@ describe('parseListEntityStatusMode', () => {
     expect(parseListEntityStatusMode({})).toBe('active');
     expect(parseListEntityStatusMode({ status: 'INACTIVE' })).toBe('inactive');
     expect(parseListEntityStatusMode({ 'include-inactive': 'true' })).toBe('all');
+  });
+
+  it('includeInactive overrides status=ACTIVE', () => {
+    expect(parseListEntityStatusMode({ status: 'ACTIVE', includeInactive: 'true' })).toBe('all');
+  });
+
+  it('accepts lowercase inactive', () => {
+    expect(parseListEntityStatusMode({ status: 'inactive' })).toBe('inactive');
+  });
+});
+
+describe('resolveStatusMode', () => {
+  const base = { entityType: 'type' as const, metadataTypeCode: 'X', includeInactive: false };
+
+  it('active when no status', () => {
+    expect(resolveStatusMode(base)).toBe('active');
+  });
+
+  it('inactive when status INACTIVE', () => {
+    expect(resolveStatusMode({ ...base, status: STATUS.INACTIVE })).toBe('inactive');
+  });
+
+  it('both when includeInactive regardless of status', () => {
+    expect(resolveStatusMode({ ...base, includeInactive: true, status: STATUS.ACTIVE })).toBe('all');
   });
 });

@@ -8,8 +8,9 @@ export interface ListMetadataInput {
   metadataTypeCode: string;
   module?: string;
   valueDataType?: string;
-  statusMode?: string;
-  status: Status;
+  /** Omitted → ACTIVE-only; `INACTIVE` → inactive-only; `includeInactive` wins when true. */
+  status?: Status;
+  includeInactive: boolean;
   applicableModules?: string[];
   applicableCategories?: string[];
   applicableConditions?: string[];

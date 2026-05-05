@@ -23,6 +23,7 @@ import { patchAlertBodySchema } from '../validators/alert.schemas';
 import {
   parseListAlertsQuery,
   type ValidatedCreateAlert,
+  type ValidatedNote,
   type ValidatedAssignment,
   type ValidatedPriority,
   type ValidatedWorkflow,
@@ -116,10 +117,12 @@ export class AlertHttpController {
       alertIds: v.alertIds,
       action: v.action,
       assignToUserId: v.assignToUserId,
+      assigneeDisplayName: v.assigneeDisplayName,
       reasonCode: v.reasonCode,
       comment: v.comment,
       closureComment: v.closureComment,
       performedByUserId: performedByUserId ?? undefined,
+      performedByDisplayName: v.performedByDisplayName,
     };
 
     const result = await this.svc.applyWorkflow(v.orgId, input);
@@ -173,6 +176,8 @@ export class AlertHttpController {
       action: v.action,
       ...(v.assignToUserId ? { assignToUserId: v.assignToUserId } : {}),
       performedByUserId: performedByUserId ?? undefined,
+      performedByDisplayName: v.performedByDisplayName,
+      assigneeDisplayName: v.assigneeDisplayName,
     });
 
     if (result.primaryAlert) return toAlertDetail(result.primaryAlert);
@@ -201,6 +206,7 @@ export class AlertHttpController {
       alertIds: v.alertIds,
       priority: v.priority,
       performedByUserId: performedByUserId ?? undefined,
+      performedByDisplayName: v.performedByDisplayName,
     });
 
     if (result.primaryAlert) return toAlertDetail(result.primaryAlert);
@@ -324,7 +330,7 @@ export class AlertHttpController {
   }
 
   async handleAddAlertNote(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedNote?: { orgId: string; alertId: string; authHeader?: string; comment: string } }).validatedNote;
+    const v = (req as LambdaRequest & { validatedNote?: ValidatedNote }).validatedNote;
     if (!v) {
       throw new BaseError('Request was not validated before controller', 500, 'INTERNAL_ERROR', [
         { message: 'Request was not validated before controller' },
@@ -335,7 +341,13 @@ export class AlertHttpController {
 
     // Call core service to add a note. Expect the core to return the created activity record or similar.
     // Use a best-effort call name `addNote` on the service.
-    const activity = await this.svc.addNote(v.alertId, v.orgId, v.comment, performedByUserId ?? undefined);
+    const activity = await this.svc.addNote(
+      v.alertId,
+      v.orgId,
+      v.comment,
+      performedByUserId ?? undefined,
+      v.performedByDisplayName,
+    );
 
     return activity;
   }

@@ -14,6 +14,8 @@ export interface WorkflowInput {
   /** Alternative to `closureComment` for the same stored field when clients send `comment` only. */
   comment?: string;
   assignToUserId?: string;
+  /** UI-provided display name for `assignToUserId` (ASSIGN only). */
+  assigneeDisplayName?: string;
   /** Caller id for activity timeline (`performedBy`); defaults to `SYSTEM` if omitted. */
   performedByUserId?: string;
   performedByDisplayName?: string;

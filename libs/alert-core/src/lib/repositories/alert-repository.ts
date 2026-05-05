@@ -185,16 +185,6 @@ function buildGsi3PatientFilterParts(opts: QueryPatientAlertsListOpts) {
   };
 }
 
-/** Resolve alert id from a GSI Query row (full item or KEYS_ONLY / INCLUDE projection). */
-function alertIdFromGsiRow(r: AlertDdbRecord): string | undefined {
-  const id = typeof r.alertId === 'string' ? r.alertId.trim() : '';
-  if (id) return id;
-  const pk = typeof r.pk === 'string' ? r.pk : '';
-  const m = /^ALERT#(.+)$/.exec(pk);
-  const fromPk = m?.[1]?.trim();
-  return fromPk || undefined;
-}
-
 export class AlertRepository extends BaseRepository {
   /**
    * Idempotency: EVENT# row exists → same org returns alert row; other org → foreign_org; else missing.
@@ -316,8 +306,6 @@ export class AlertRepository extends BaseRepository {
       ...(filterBuilt.FilterExpression ? { FilterExpression: filterBuilt.FilterExpression } : {}),
     });
 
-    items = await this.hydrateAlertsFromGsiRows(table, items);
-
     return items;
   }
 
@@ -347,8 +335,6 @@ export class AlertRepository extends BaseRepository {
       ...(filterBuilt.FilterExpression ? { FilterExpression: filterBuilt.FilterExpression } : {}),
     });
 
-    items = await this.hydrateAlertsFromGsiRows(table, items);
-
     return { items, lastEvaluatedKey };
   }
 
@@ -369,8 +355,6 @@ export class AlertRepository extends BaseRepository {
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
 
     if (opts.unassignedOnly) {
       items = items.filter((a) => !a.assignedToUserId);
@@ -402,8 +386,6 @@ export class AlertRepository extends BaseRepository {
       Limit: opts.limit ?? 50,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
 
     if (opts.unassignedOnly) {
       items = items.filter((a) => !a.assignedToUserId);
@@ -471,8 +453,7 @@ export class AlertRepository extends BaseRepository {
         ...baseParams,
         ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
       });
-      const hydrated = await this.hydrateAlertsFromGsiRows(table, items);
-      out.push(...hydrated);
+      out.push(...items);
       lastKey = lastEvaluatedKey;
       exclusiveStartKey = lastEvaluatedKey;
       round++;
@@ -502,7 +483,7 @@ export class AlertRepository extends BaseRepository {
       Limit: opts.limit ?? 50,
     });
 
-    return this.hydrateAlertsFromGsiRows(table, items);
+    return items;
   }
 
   async queryUserAlertsPage(
@@ -526,8 +507,6 @@ export class AlertRepository extends BaseRepository {
       Limit: opts.limit ?? 50,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
 
     return { items, lastEvaluatedKey };
   }
@@ -553,28 +532,6 @@ export class AlertRepository extends BaseRepository {
 
     const byId = await this.batchGetAlertsById(table, orderedIds);
     return orderedIds.map((id) => byId.get(id)).filter((row): row is AlertDdbRecord => row != null);
-  }
-
-  private async hydrateAlertsFromGsiRows(table: string, gsiRows: AlertDdbRecord[]): Promise<AlertDdbRecord[]> {
-    if (gsiRows.length === 0) return [];
-
-    const orderedIds = gsiRows.map((r) => alertIdFromGsiRow(r)).filter((id): id is string => !!id);
-    if (orderedIds.length === 0) return gsiRows;
-
-    const byId = await this.batchGetAlertsById(table, orderedIds);
-    const hydrated = orderedIds.map((id) => byId.get(id)).filter((row): row is AlertDdbRecord => row != null);
-
-    if (hydrated.length === orderedIds.length) return hydrated;
-
-    /** BatchGet misses (e.g. race): preserve partial GSI rows that at least had an id. */
-    const fallbackById = new Map<string, AlertDdbRecord>();
-    for (const r of gsiRows) {
-      const id = alertIdFromGsiRow(r);
-      if (id && !byId.has(id)) fallbackById.set(id, r);
-    }
-    return orderedIds
-      .map((id) => byId.get(id) ?? fallbackById.get(id))
-      .filter((row): row is AlertDdbRecord => row != null);
   }
 
   private async batchGetAlertsById(table: string, alertIds: string[]): Promise<Map<string, AlertDdbRecord>> {

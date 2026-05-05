@@ -43,6 +43,14 @@ All item types share the same table and use `pk` / `sk`.
 
 Index **names** in code: `GSI1`, `GSI2`, `GSI3`, `GSI4`, `GSI5` (`libs/alert-core/src/lib/constants/alert.constants.ts`).
 
+### Projection policy (IMPORTANT)
+
+All GSIs used by alert-service MUST be configured with:
+
+- **`ProjectionType: ALL`**
+
+Reason: list endpoints apply filters (for example `state`, `priority`, `inputType`, assignment filters, etc.) via `FilterExpression`. If an index does not project the filtered attributes, DynamoDB rejects the query (e.g. “Secondary index … does not project …”), and the service would otherwise need an extra BatchGet “hydration” pass.
+
 ### GSI1 — organization team queue (by state)
 
 Used for org-scoped lists (e.g. unassigned vs assigned lanes, `queryOrgAlerts` / `queryOrgAlertsPage`).
@@ -95,10 +103,6 @@ Populated on **create** for the alert metadata row (`AlertKeyBuilder.buildGsi4Pk
 **Historical note:** Previously TEAM listings merged two **GSI1** partitions (UNASSIGNED + ASSIGNED). **GSI4** replaces that with one org-wide time stream; narrow by `alertState` via query params when needed.
 
 **Tradeoffs:** state is not in `gsi4pk`; one hot partition per org; `FilterExpression` on state costs read capacity for skipped items at scale; if `triggerTimestamp` becomes mutable on update, refresh `gsi4sk` in the same `UpdateItem` as the domain field.
-
-## Hydration pattern
-
-GSI1 / GSI2 / GSI3 / GSI4 queries may return **projections** or partial items. `AlertRepository.hydrateAlertsFromGsiRows` **BatchGet**s full rows by `ALERT#<alertId>` + `METADATA` where possible.
 
 ## Write patterns (high level)
 

@@ -48,7 +48,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
           'custom:userID': 'user-1',
         }),
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ performedByDisplayName: 'User One', ...body }),
       ...overrides,
     } as unknown as APIGatewayProxyEvent;
   }
@@ -89,6 +89,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
         alertIds: [alertId],
         action: 'ASSIGN',
         assignedToUserId: 'user-assignee-1',
+        assigneeDisplayName: 'Assignee One',
       }),
       context,
     );

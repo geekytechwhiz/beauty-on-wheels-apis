@@ -187,9 +187,11 @@ export const alertWorkflowBodySchema = z
       .max(100, 'Maximum 100 alertIds per request'),
     action: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), workflowWireActionZ),
     assignedToUserId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    assigneeDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
     reasonCode: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), z.string().min(1)).optional(),
     comment: z.string().optional(),
     closureComment: z.string().optional(),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
     idempotencyKey: z.string().trim().min(1).optional(),
     clientRequestId: z.string().trim().min(1).optional(),
   })
@@ -211,6 +213,13 @@ export const alertWorkflowBodySchema = z
         code: z.ZodIssueCode.custom,
         message: 'assignedToUserId is required for ASSIGN',
         path: ['assignedToUserId'],
+      });
+    }
+    if (data.action === 'ASSIGN' && !data.assigneeDisplayName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assigneeDisplayName is required for ASSIGN',
+        path: ['assigneeDisplayName'],
       });
     }
 
@@ -293,6 +302,8 @@ export const alertAssignmentBodySchema = z
       .max(50, 'Maximum 50 alertIds per request'),
     action: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), assignmentActionZ),
     assignToUserId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    assigneeDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -301,6 +312,13 @@ export const alertAssignmentBodySchema = z
         code: z.ZodIssueCode.custom,
         message: 'assignToUserId is required for ASSIGN and REASSIGN',
         path: ['assignToUserId'],
+      });
+    }
+    if (data.action !== 'UNASSIGN' && !data.assigneeDisplayName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assigneeDisplayName is required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF',
+        path: ['assigneeDisplayName'],
       });
     }
   });
@@ -322,6 +340,7 @@ export const alertPriorityBodySchema = z
       .min(1, 'At least one alertId is required')
       .max(50, 'Maximum 50 alertIds per request'),
     priority: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), priorityBandZ),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
   })
   .strict();
 
@@ -379,6 +398,7 @@ export type ListAlertsQuery = z.infer<typeof listAlertsQuerySchema>;
 export const noteRequestBodySchema = z
   .object({
     comment: z.string().trim().min(1),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
   })
   .strict();
 

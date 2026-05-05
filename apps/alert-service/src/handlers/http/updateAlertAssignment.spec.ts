@@ -47,7 +47,7 @@ describe('updateAlertAssignment HTTP handler', () => {
           'custom:userID': 'user-1',
         }),
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ performedByDisplayName: 'User One', ...body }),
       ...overrides,
     } as unknown as APIGatewayProxyEvent;
   }
@@ -57,7 +57,7 @@ describe('updateAlertAssignment HTTP handler', () => {
     mockApplyAssignment.mockResolvedValue({ primaryAlert: row });
 
     const result = await main(
-      baseEvent({ alertIds: [alertId], action: 'ASSIGN', assignToUserId: 'user-2' }),
+      baseEvent({ alertIds: [alertId], action: 'ASSIGN', assignToUserId: 'user-2', assigneeDisplayName: 'User Two' }),
       context,
     );
 
@@ -78,7 +78,7 @@ describe('updateAlertAssignment HTTP handler', () => {
   it('derives assignToUserId for ASSIGN_TO_SELF from token', async () => {
     mockApplyAssignment.mockResolvedValue({});
 
-    await main(baseEvent({ alertIds: [alertId], action: 'ASSIGN_TO_SELF' }), context);
+    await main(baseEvent({ alertIds: [alertId], action: 'ASSIGN_TO_SELF', assigneeDisplayName: 'User One' }), context);
 
     expect(mockApplyAssignment).toHaveBeenCalledWith(
       'org-1',
@@ -90,7 +90,7 @@ describe('updateAlertAssignment HTTP handler', () => {
   });
 
   it('returns 422 when assignToUserId missing for ASSIGN', async () => {
-    const result = await main(baseEvent({ alertIds: [alertId], action: 'ASSIGN' }), context);
+    const result = await main(baseEvent({ alertIds: [alertId], action: 'ASSIGN', assigneeDisplayName: 'User Two' }), context);
     expect(result.statusCode).toBe(422);
     expect(mockApplyAssignment).not.toHaveBeenCalled();
   });

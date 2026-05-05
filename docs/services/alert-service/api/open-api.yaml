@@ -650,13 +650,19 @@ components:
 
     AssignmentRequest:
       type: object
-      required: [action]
+      required: [action, performedByDisplayName]
       properties:
         action:
           $ref: '#/components/schemas/AssignmentAction'
         assignToUserId:
           type: string
           description: Required for ASSIGN and REASSIGN.
+        assigneeDisplayName:
+          type: string
+          description: Required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF. UI-supplied display name for the assignee.
+        performedByDisplayName:
+          type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
 
     AlertIds:
       type: array
@@ -668,7 +674,7 @@ components:
 
     WorkflowRequest:
       type: object
-      required: [alertIds, action]
+      required: [alertIds, action, performedByDisplayName]
       description: >
         Applies the same workflow action to every id in `alertIds`. For **multiple** ids,
         **all listed alerts must share the same `alertState`** or the request fails with 422
@@ -679,6 +685,15 @@ components:
           $ref: '#/components/schemas/AlertIds'
         action:
           $ref: '#/components/schemas/WorkflowAction'
+        performedByDisplayName:
+          type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
+        assignedToUserId:
+          type: string
+          description: Required for ASSIGN.
+        assigneeDisplayName:
+          type: string
+          description: Required for ASSIGN. UI-supplied display name for `assignedToUserId`.
         closureComment:
           type: string
           description: Terminal closure text for RESOLVE / DISMISS (required when `reasonCode` is OTHER).
@@ -693,10 +708,13 @@ components:
 
     NoteRequest:
       type: object
-      required: [comment]
+      required: [comment, performedByDisplayName]
       properties:
         comment:
           type: string
+        performedByDisplayName:
+          type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
 
     AssignmentRequestBody:
       allOf:
@@ -716,12 +734,15 @@ components:
 
     PriorityUpdateRequestBody:
       type: object
-      required: [alertIds, priority]
+      required: [alertIds, priority, performedByDisplayName]
       properties:
         alertIds:
           $ref: '#/components/schemas/AlertIds'
         priority:
           $ref: '#/components/schemas/Priority'
+        performedByDisplayName:
+          type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
 
     PriorityUpdated:
       type: object

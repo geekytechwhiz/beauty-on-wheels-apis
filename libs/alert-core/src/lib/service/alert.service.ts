@@ -291,6 +291,7 @@ export class AlertService extends BaseAlertService {
     const closureText = input.closureComment?.trim() || input.comment?.trim() || undefined;
     const patchCtx = {
       assignToUserId: input.assignToUserId,
+      assignedToDisplayName: input.assigneeDisplayName,
       closureComment: closureText,
       resolutionCode: effectiveResolution,
       dismissReason: effectiveDismiss,
@@ -346,9 +347,20 @@ export class AlertService extends BaseAlertService {
     input: AssignmentInput,
   ): Promise<AssignmentResult> {
     const assignToUserId = input.assignToUserId?.trim();
+    const assigneeDisplayName =
+      input.action === 'UNASSIGN' ? undefined : input.assigneeDisplayName?.trim();
 
     if ((input.action === 'ASSIGN' || input.action === 'REASSIGN') && !assignToUserId) {
       const e = new Error('assignToUserId is required for ASSIGN and REASSIGN') as Error & {
+        statusCode: number;
+        code: string;
+      };
+      e.statusCode = 422;
+      e.code = 'VALIDATION_ERROR';
+      throw e;
+    }
+    if (input.action !== 'UNASSIGN' && !assigneeDisplayName) {
+      const e = new Error('assigneeDisplayName is required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF') as Error & {
         statusCode: number;
         code: string;
       };
@@ -385,8 +397,11 @@ export class AlertService extends BaseAlertService {
 
     const patch: UpdateAlertRequest =
       input.action === 'UNASSIGN'
-        ? { assignedToUserId: null }
-        : { assignedToUserId: assignToUserId as string };
+        ? { assignedToUserId: null, assignedToDisplayName: null }
+        : {
+            assignedToUserId: assignToUserId as string,
+            assignedToDisplayName: assigneeDisplayName,
+          };
 
     const nowMs = Date.now();
     const performedBy = input.performedByUserId?.trim() || 'SYSTEM';

@@ -277,6 +277,7 @@ export class AlertEntityBuilder {
     if (patch.assignedToUserId !== undefined) {
       if (patch.assignedToUserId === null) {
         removeField('assignedToUserId');
+        removeField('assignedToDisplayName');
         removeField('assignedAt');
         removeField('assignedBy');
         removeField('gsi2pk');
@@ -285,11 +286,20 @@ export class AlertEntityBuilder {
         setField('assignedToUserId', patch.assignedToUserId);
         setField('assignedAt', nowMs);
         setField('assignedBy', patch.assignedToUserId);
+        if (patch.assignedToDisplayName !== undefined) {
+          setField('assignedToDisplayName', patch.assignedToDisplayName);
+        }
 
         setField('gsi2pk', AlertKeyBuilder.toUserPartitionKey(patch.assignedToUserId));
 
         setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(trig, existing.alertId));
       }
+    }
+
+    if (patch.assignedToUserId === undefined && patch.assignedToDisplayName !== undefined) {
+      // Allow standalone display-name correction without changing assignee id.
+      if (patch.assignedToDisplayName === null) removeField('assignedToDisplayName');
+      else setField('assignedToDisplayName', patch.assignedToDisplayName);
     }
 
     if (patch.priority !== undefined) {
@@ -370,6 +380,7 @@ export class AlertEntityBuilder {
           performedByDisplayName,
           previousAssignee: prevAssign,
           newAssignee: newAssign,
+          assigneeDisplayName: patch.assignedToDisplayName ?? undefined,
         }),
       );
     }
@@ -416,6 +427,8 @@ export class AlertEntityBuilder {
     newPriority?: string;
     previousAssignee?: string;
     newAssignee?: string;
+    /** Display name corresponding to `newAssignee` for assignment-related activity rows. */
+    assigneeDisplayName?: string;
   }): Record<string, unknown> {
     const activityId = randomUUID();
     return {
@@ -435,6 +448,7 @@ export class AlertEntityBuilder {
       ...(p.newPriority !== undefined ? { newPriority: p.newPriority } : {}),
       ...(p.previousAssignee !== undefined ? { previousAssignee: p.previousAssignee } : {}),
       ...(p.newAssignee !== undefined ? { newAssignee: p.newAssignee } : {}),
+      ...(p.assigneeDisplayName ? { assigneeDisplayName: p.assigneeDisplayName } : {}),
       createdAt: p.nowMs,
       updatedAt: p.nowMs,
       organizationId: p.organizationId,

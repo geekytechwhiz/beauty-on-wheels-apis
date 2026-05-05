@@ -23,6 +23,7 @@ const terminalStates = new Set<AlertState>([ALERT_STATE.RESOLVED, ALERT_STATE.DI
 /** Context from a workflow mutation request, mapped into an {@link UpdateAlertRequest}. */
 export interface WorkflowPatchContext {
   assignToUserId?: string;
+  assignedToDisplayName?: string;
   /** Effective text persisted as `closureComment` (caller should pass `closureComment ?? comment`). */
   closureComment?: string;
   resolutionCode?: string;
@@ -76,12 +77,17 @@ export function workflowActionToUpdatePatch(
       if (!assignee) {
         workflowRequestError('assignedToUserId (assignToUserId) is required for ASSIGN', 422, 'MISSING_ASSIGNEE');
       }
+      const display = ctx.assignedToDisplayName?.trim();
+      if (!display) {
+        workflowRequestError('assigneeDisplayName is required for ASSIGN', 422, 'MISSING_ASSIGNEE_DISPLAY_NAME');
+      }
       if (state !== ALERT_STATE.UNASSIGNED && state !== ALERT_STATE.ASSIGNED) {
         invalidTransition(`ASSIGN is not valid from state ${state}`);
       }
       return {
         alertState: ALERT_STATE.ASSIGNED,
         assignedToUserId: assignee,
+        assignedToDisplayName: display,
       };
     }
     case AlertWorkflowAction.StartWork: {

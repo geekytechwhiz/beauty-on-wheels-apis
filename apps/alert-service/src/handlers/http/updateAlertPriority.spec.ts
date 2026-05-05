@@ -47,7 +47,7 @@ describe('updateAlertPriority HTTP handler', () => {
           'custom:userID': 'user-1',
         }),
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ performedByDisplayName: 'User One', ...body }),
       ...overrides,
     } as unknown as APIGatewayProxyEvent;
   }

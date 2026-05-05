@@ -303,14 +303,16 @@
     },
     "WorkflowRequest": {
       "type": "object",
-      "required": ["alertIds", "action"],
+      "required": ["alertIds", "action", "performedByDisplayName"],
       "properties": {
         "alertIds": { "$ref": "#/definitions/AlertIds" },
         "action": { "$ref": "#/definitions/WorkflowAction" },
         "assignedToUserId": { "type": "string" },
+        "assigneeDisplayName": { "type": "string" },
         "reasonCode": { "type": "string" },
         "comment": { "type": "string" },
-        "closureComment": { "type": "string" }
+        "closureComment": { "type": "string" },
+        "performedByDisplayName": { "type": "string" }
       }
     },
     "AssignmentAction": {
@@ -319,10 +321,12 @@
     },
     "AssignmentRequest": {
       "type": "object",
-      "required": ["action"],
+      "required": ["action", "performedByDisplayName"],
       "properties": {
         "action": { "$ref": "#/definitions/AssignmentAction" },
-        "assignToUserId": { "type": "string", "description": "Required for ASSIGN and REASSIGN." }
+        "assignToUserId": { "type": "string", "description": "Required for ASSIGN and REASSIGN." },
+        "assigneeDisplayName": { "type": "string", "description": "Required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF." },
+        "performedByDisplayName": { "type": "string" }
       }
     },
     "AssignmentRequestBody": {
@@ -337,16 +341,17 @@
     },
     "PriorityUpdateRequestBody": {
       "type": "object",
-      "required": ["alertIds", "priority"],
+      "required": ["alertIds", "priority", "performedByDisplayName"],
       "properties": {
         "alertIds": { "$ref": "#/definitions/AlertIds" },
-        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] }
+        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+        "performedByDisplayName": { "type": "string" }
       }
     },
     "NoteRequest": {
       "type": "object",
-      "required": ["comment"],
-      "properties": { "comment": { "type": "string" } }
+      "required": ["comment", "performedByDisplayName"],
+      "properties": { "comment": { "type": "string" }, "performedByDisplayName": { "type": "string" } }
     },
     "ActivityType": {
       "type": "string",

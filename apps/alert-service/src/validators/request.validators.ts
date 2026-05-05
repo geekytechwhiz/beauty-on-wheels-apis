@@ -78,10 +78,12 @@ export type ValidatedWorkflow = {
   authHeader: string | undefined;
   action: CoreWorkflowAction;
   assignToUserId?: string;
+  assigneeDisplayName?: string;
   /** HTTP `reasonCode` for RESOLVE / DISMISS only. */
   reasonCode?: string;
   comment?: string;
   closureComment?: string;
+  performedByDisplayName: string;
 };
 
 export type AssignmentAction = AlertAssignmentHttpBody['action'];
@@ -92,6 +94,8 @@ export type ValidatedAssignment = {
   authHeader: string | undefined;
   action: AssignmentAction;
   assignToUserId?: string;
+  assigneeDisplayName?: string;
+  performedByDisplayName: string;
 };
 
 export type ValidatedPriority = {
@@ -99,6 +103,7 @@ export type ValidatedPriority = {
   alertIds: string[];
   authHeader: string | undefined;
   priority: AlertPriorityHttpBody['priority'];
+  performedByDisplayName: string;
 };
 
 export type ValidatedNote = {
@@ -106,27 +111,38 @@ export type ValidatedNote = {
   alertId: string;
   authHeader: string | undefined;
   comment: string;
+  performedByDisplayName: string;
 };
 
 function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkflow, 'orgId' | 'alertIds' | 'authHeader'> {
-  const { comment, closureComment, reasonCode, assignedToUserId } = body;
+  const {
+    comment,
+    closureComment,
+    reasonCode,
+    assignedToUserId,
+    performedByDisplayName,
+    assigneeDisplayName,
+  } = body;
   switch (body.action) {
     case 'ASSIGN':
       return {
         action: AlertWorkflowAction.Assign,
         assignToUserId: assignedToUserId as string,
+        assigneeDisplayName,
         comment,
         closureComment,
+        performedByDisplayName,
       };
     case 'MOVE_TO_WAITING':
-      return { action: AlertWorkflowAction.MoveToWaiting, comment, closureComment };
+      return { action: AlertWorkflowAction.MoveToWaiting, comment, closureComment, performedByDisplayName };
     case 'RESUME_WORK':
-      return { action: AlertWorkflowAction.ResumeWork, comment, closureComment };
+      return { action: AlertWorkflowAction.ResumeWork, comment, closureComment, performedByDisplayName };
     case 'START_WORK':
       return {
         action: AlertWorkflowAction.StartWork,
         comment,
         closureComment,
+        performedByDisplayName,
       };
     case 'RESOLVE':
       return {
@@ -134,6 +150,7 @@ function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkf
         reasonCode,
         comment,
         closureComment,
+        performedByDisplayName,
       };
     case 'DISMISS':
       return {
@@ -141,6 +158,7 @@ function mapWorkflowHttpToCore(body: AlertWorkflowHttpBody): Omit<ValidatedWorkf
         reasonCode,
         comment,
         closureComment,
+        performedByDisplayName,
       };
     default: {
       const _exhaustive: never = body.action;
@@ -215,6 +233,8 @@ export function validateAssignmentRequest(req: LambdaRequest): void {
     authHeader: req.context.authHeader,
     action: result.data.action,
     ...(assignToUserId ? { assignToUserId } : {}),
+    assigneeDisplayName: result.data.assigneeDisplayName,
+    performedByDisplayName: result.data.performedByDisplayName,
   };
 }
 
@@ -243,6 +263,7 @@ export function validatePriorityRequest(req: LambdaRequest): void {
     alertIds: result.data.alertIds,
     authHeader: req.context.authHeader,
     priority: result.data.priority,
+    performedByDisplayName: result.data.performedByDisplayName,
   };
 }
 
@@ -343,5 +364,6 @@ export function validateAddNoteRequest(req: LambdaRequest): void {
     alertId,
     authHeader: req.context.authHeader,
     comment: result.data.comment,
+    performedByDisplayName: result.data.performedByDisplayName,
   };
 }

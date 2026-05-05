@@ -8,6 +8,8 @@ export interface AssignmentInput {
   action: AssignmentAction;
   /** Required for ASSIGN / REASSIGN. For ASSIGN_TO_SELF, validators should resolve this before calling core. */
   assignToUserId?: string;
+  /** UI-provided display name for `assignToUserId` (assignment actions that set an assignee). */
+  assigneeDisplayName?: string;
   performedByUserId?: string;
   performedByDisplayName?: string;
 }

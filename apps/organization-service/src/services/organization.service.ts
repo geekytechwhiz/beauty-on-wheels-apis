@@ -276,10 +276,8 @@ export class OrganizationService {
         await this.repository.updateOrganization(organizationId, organizationUpdates);
       }
       
-      console.log('normalizedUserType', userType);
       const normalizedUserType = String(userType ?? '').trim().toUpperCase();
       const canUpdateOrganizationConfig = normalizedUserType === 'ROOT_ADMIN';
-      console.log('canUpdateOrganizationConfig', canUpdateOrganizationConfig);
       let configVersion: number | undefined;
       if (organizationConfig && canUpdateOrganizationConfig) {
         const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {

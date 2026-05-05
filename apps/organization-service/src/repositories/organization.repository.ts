@@ -37,6 +37,12 @@ export type GetLatestOrganizationConfigOptions = {
    * so filtering works). When omitted, all attributes are returned.
    */
   project?: readonly (keyof OrgConfigEntity)[];
+  /**
+   * When true (default), prefer returning the latest ACTIVE config and only fall back to
+   * the newest config of any status when no ACTIVE config exists.
+   * Set false to always return the newest config regardless of status.
+   */
+  preferActive?: boolean;
 };
 
 type OrganizationDBItem = Organization & {
@@ -565,6 +571,7 @@ export class OrganizationRepository {
       let lastEvaluatedKey: Record<string, unknown> | undefined;
       let fallback: OrgConfigEntity | null = null;
 
+      const preferActive = options?.preferActive ?? true;
       do {
         const queryParams: Record<string, unknown> = {
           TableName: ORGANIZATION_TABLE_NAME,
@@ -599,7 +606,7 @@ export class OrganizationRepository {
 
           if (!fallback) fallback = item;
 
-          if (item.status === OrgConfigStatus.ACTIVE) {
+          if (!preferActive || item.status === OrgConfigStatus.ACTIVE) {
             return item;
           }
         }
@@ -621,6 +628,7 @@ export class OrganizationRepository {
     const now = Date.now();
     const previousConfig = await this.getLatestOrganizationConfig(organizationId, {
       project: ['pk', 'sk', 'version', 'status'],
+      preferActive: false,
     });
     const nextVersion = (previousConfig?.version ?? 0) + 1;
 

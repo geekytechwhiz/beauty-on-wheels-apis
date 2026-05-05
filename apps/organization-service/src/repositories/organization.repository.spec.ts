@@ -101,5 +101,109 @@ describe('OrganizationRepository organization config versioning', () => {
       sk: 'CONFIG#v2',
     });
   });
+
+  it('uses latest version even when latest config is not ACTIVE', async () => {
+    mockSend
+      .mockResolvedValueOnce({
+        Items: [
+          {
+            pk: 'ORG#org-1',
+            sk: 'CONFIG#v4',
+            entityType: OrgConfigEntityType.ORG_CONFIG,
+            orgId: 'org-1',
+            version: 4,
+            status: OrgConfigStatus.INACTIVE,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+          {
+            pk: 'ORG#org-1',
+            sk: 'CONFIG#v3',
+            entityType: OrgConfigEntityType.ORG_CONFIG,
+            orgId: 'org-1',
+            version: 3,
+            status: OrgConfigStatus.ACTIVE,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({});
+
+    const result = await repository.createOrganizationConfigVersion('org-1', {
+      supportedCountries: ['IN'],
+      supportedLanguages: ['en'],
+      supportedStates: ['KA'],
+      supportedCategories: ['CAT_A'],
+      supportedConditions: ['COND_A'],
+    });
+
+    expect(result.version).toBe(5);
+
+    const transactionInput = (mockSend.mock.calls[1][0] as TransactWriteCommand).input;
+    expect((transactionInput.TransactItems?.[0] as any).Put.Item.sk).toBe('CONFIG#v5');
+  });
+
+  it('getLatestOrganizationConfig prefers ACTIVE by default', async () => {
+    mockSend.mockResolvedValueOnce({
+      Items: [
+        {
+          pk: 'ORG#org-1',
+          sk: 'CONFIG#v4',
+          entityType: OrgConfigEntityType.ORG_CONFIG,
+          orgId: 'org-1',
+          version: 4,
+          status: OrgConfigStatus.INACTIVE,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          pk: 'ORG#org-1',
+          sk: 'CONFIG#v3',
+          entityType: OrgConfigEntityType.ORG_CONFIG,
+          orgId: 'org-1',
+          version: 3,
+          status: OrgConfigStatus.ACTIVE,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    const latest = await repository.getLatestOrganizationConfig('org-1');
+    expect(latest?.version).toBe(3);
+    expect(latest?.status).toBe(OrgConfigStatus.ACTIVE);
+  });
+
+  it('getLatestOrganizationConfig returns newest when preferActive is false', async () => {
+    mockSend.mockResolvedValueOnce({
+      Items: [
+        {
+          pk: 'ORG#org-1',
+          sk: 'CONFIG#v4',
+          entityType: OrgConfigEntityType.ORG_CONFIG,
+          orgId: 'org-1',
+          version: 4,
+          status: OrgConfigStatus.INACTIVE,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          pk: 'ORG#org-1',
+          sk: 'CONFIG#v3',
+          entityType: OrgConfigEntityType.ORG_CONFIG,
+          orgId: 'org-1',
+          version: 3,
+          status: OrgConfigStatus.ACTIVE,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    const latest = await repository.getLatestOrganizationConfig('org-1', { preferActive: false });
+    expect(latest?.version).toBe(4);
+    expect(latest?.status).toBe(OrgConfigStatus.INACTIVE);
+  });
 });
 

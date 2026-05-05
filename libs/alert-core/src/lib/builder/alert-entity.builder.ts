@@ -140,6 +140,9 @@ export class AlertEntityBuilder {
       gsi3pk: AlertKeyBuilder.toPatPartitionKey(input.patientId),
       gsi3sk: AlertKeyBuilder.toGsi3Sk(nowMs),
 
+      gsi4pk: AlertKeyBuilder.buildGsi4Pk(input.organizationId),
+      gsi4sk: AlertKeyBuilder.buildGsi4Sk(triggerMs, alertId),
+
       gsi5pk: AlertKeyBuilder.toSlaPartitionKey(nowMs),
       gsi5sk: AlertKeyBuilder.toSlaSortKey(nowMs, alertId),
     };
@@ -267,7 +270,7 @@ export class AlertEntityBuilder {
       setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(trig));
 
       if (existing.assignedToUserId) {
-        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(patch.alertState, trig, existing.alertId));
+        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(trig, existing.alertId));
       }
     }
 
@@ -283,12 +286,9 @@ export class AlertEntityBuilder {
         setField('assignedAt', nowMs);
         setField('assignedBy', patch.assignedToUserId);
 
-        setField('gsi2pk', `USER#${patch.assignedToUserId}`);
+        setField('gsi2pk', AlertKeyBuilder.toUserPartitionKey(patch.assignedToUserId));
 
-        setField(
-          'gsi2sk',
-          AlertKeyBuilder.buildGsi2Sk(patch.alertState ?? existing.alertState, trig, existing.alertId),
-        );
+        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(trig, existing.alertId));
       }
     }
 

@@ -34,14 +34,14 @@ All item types share the same table and use `pk` / `sk`.
 
 | Purpose | `pk` | `sk` | Notes |
 |--------|------|------|--------|
-| **Alert metadata** (canonical document) | `ALERT#<alertId>` | `METADATA` | Holds domain fields and GSI key material (`gsi1pk` … `gsi5sk`). |
+| **Alert metadata** (canonical document) | `ALERT#<alertId>` | `METADATA` | Holds domain fields and GSI key material (`gsi1pk` … `gsi4sk`, `gsi5sk`). |
 | **Activity** (timeline / audit) | `ALERT#<alertId>` | `ACTIVITY#<epochMsPadded13>#<activityId>` | `<epochMsPadded13>` = activity time as **padded epoch ms** per **Time** section; query with `begins_with(sk, 'ACTIVITY#')`. |
 | **Idempotency event** | `EVENT#<inputEventId>` | `METADATA` | Create path uses conditional write; maps to `organizationId` + `alertId`. |
 | **Group membership** | `GROUP#<groupingKey>` | `Alert#<epochMsPadded13>#<alertId>` | Time segment = alert’s trigger instant as **padded epoch ms**; prefix `Alert#` = `GROUP_MEMBERSHIP_SK_PREFIX`. |
 
 ## Global secondary indexes (GSIs)
 
-Index **names** in code: `GSI1`, `GSI2`, `GSI3`, `GSI5` (`libs/alert-core/src/lib/constants/alert.constants.ts`).
+Index **names** in code: `GSI1`, `GSI2`, `GSI3`, `GSI4`, `GSI5` (`libs/alert-core/src/lib/constants/alert.constants.ts`).
 
 ### GSI1 — organization team queue (by state)
 
@@ -59,9 +59,9 @@ Present **only when** `assignedToUserId` is set. Removed on unassign (`REMOVE gs
 | Role | Attribute | Format |
 |------|-----------|--------|
 | Partition | `gsi2pk` | `USER#<assignedToUserId>` |
-| Sort | `gsi2sk` | `STATE#<alertState>#TS#<epochMsPadded13>#<alertId>` — time segment = **padded epoch ms** for trigger ordering. |
+| Sort | `gsi2sk` | `TS#<epochMsPadded13>#<alertId>` — same time+id shape as GSI4 sort; **workflow state** is the `alertState` attribute, not a `STATE#` prefix in the key. |
 
-Queries (`queryUserAlerts` / `queryUserAlertsPage`) use `gsi2pk = :u` and optionally `begins_with(gsi2sk, 'STATE#<state>#')`.
+Queries (`queryUserAlerts` / `queryUserAlertsPage`) use `gsi2pk = :u` and, when filtering by state, `FilterExpression: alertState = :state` (not a key prefix).
 
 ### GSI3 — patient-centric list
 
@@ -83,35 +83,22 @@ Populated on the alert metadata row for SLA-oriented access patterns.
 
 On create, resolve SLA due is typically initialized from the same **epoch ms** as other create defaults until business rules extend SLA computation.
 
-### GSI4 — not implemented (optional future design)
+### GSI4 — org-wide time index (written on create)
 
-**Today:** `AlertKeyBuilder` defines `toGsi4Sk` for a possible future shape, but **`gsi4pk` / `gsi4sk` are not** on `AlertDdbRecord` and are **not** queried in `alert-core`. Treat **GSI4 as unused** in the current implementation.
+Populated on **create** for the alert metadata row (`AlertKeyBuilder.buildGsi4Pk` / `buildGsi4Sk`). **TEAM** `listAlerts` uses `AlertRepository.queryOrgAlertsGsi4Page` (`Query` index **GSI4**). Optional filters (`state`, `assignment`, `priority`, dates, etc.) use `FilterExpression` where applicable; the default TEAM request does **not** restrict `alertState` unless the client passes filters.
 
-**Why GSI1 alone forces a merge for TEAM lists:** `gsi1pk` includes **workflow state** (`ORG#<org>#STATE#<AlertState>`). A single chronological “all open team work” view across states (e.g. UNASSIGNED + ASSIGNED) cannot be one `Query`; the service uses **`listAlertsTeamMerge`** — two GSI1 branches (per state) merged by time / `alertId` with a composite cursor.
+| Role | Attribute | Format |
+|------|-----------|--------|
+| Partition | `gsi4pk` | `ORG#<organizationId>` — org only (no `STATE#` segment). |
+| Sort | `gsi4sk` | `TS#<epochMsPadded13>#<alertId>` — **trigger** instant for ordering. |
 
-**Possible GSI4 pattern (design discussion, not in code):**
+**Historical note:** Previously TEAM listings merged two **GSI1** partitions (UNASSIGNED + ASSIGNED). **GSI4** replaces that with one org-wide time stream; narrow by `alertState` via query params when needed.
 
-| Role | Attribute | Example shape |
-|------|-----------|----------------|
-| Partition | `gsi4pk` | `ORG#<organizationId>` — **org only**, no `STATE#` segment. |
-| Sort | `gsi4sk` | `TS#<epochMsPadded13>#<alertId>` — same **epoch** rules as **Time** section. |
-
-**Potential benefits**
-
-- **One `Query` per page** on org + time sort — simpler pagination than the dual-stream TEAM merge and a single Dynamo `LastEvaluatedKey` style cursor.
-- Good for **org-wide “newest first”** dashboards or exports without caring about state partition.
-
-**Tradeoffs**
-
-- **State / assignment filters** — If `alertState` is **not** in `gsi4pk` / `gsi4sk`, DynamoDB cannot cheaply restrict to “only UNASSIGNED”. You read a wider slice and filter in the app, or use **`FilterExpression`** (still bills reads for skipped items — poor at large org volume).
-- **Hot partitions** — Everything for one org shares one `gsi4pk`; GSI1 spreads load across **state-specific** partitions.
-- **Write cost & correctness** — Every create and every transition that affects listing must maintain **GSI4** in sync with truth on the item (alongside GSI1 / GSI2 / GSI3 / GSI5).
-
-**Verdict:** GSI4 is **beneficial** mainly to **simplify TEAM default listing and cursors** if you accept broader reads or encode extra dimensions into **`gsi4sk`** (which then overlaps conceptually with tuning GSI1). For **state-selective org queues at scale**, the current **GSI1** layout remains the usual Dynamo pattern.
+**Tradeoffs:** state is not in `gsi4pk`; one hot partition per org; `FilterExpression` on state costs read capacity for skipped items at scale; if `triggerTimestamp` becomes mutable on update, refresh `gsi4sk` in the same `UpdateItem` as the domain field.
 
 ## Hydration pattern
 
-GSI1 / GSI2 / GSI3 queries may return **projections** or partial items. `AlertRepository.hydrateAlertIdsOrdered` / `hydrateAlertsFromGsiRows` **BatchGet**s full rows by `ALERT#<alertId>` + `METADATA` where possible.
+GSI1 / GSI2 / GSI3 / GSI4 queries may return **projections** or partial items. `AlertRepository.hydrateAlertsFromGsiRows` **BatchGet**s full rows by `ALERT#<alertId>` + `METADATA` where possible.
 
 ## Write patterns (high level)
 

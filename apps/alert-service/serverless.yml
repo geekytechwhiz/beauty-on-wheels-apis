@@ -202,11 +202,11 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "201": Created
-            "200": Duplicate event (idempotent replay on inputEventId)
+            "200": OK — AlertDetail in envelope (new alert or same-org idempotent replay on inputEventId)
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
+            "409": Conflict (e.g. IDEMPOTENCY_KEY_IN_USE for different org)
             "422": Validation or business rule error
             "500": Server error
 
@@ -233,6 +233,7 @@ functions:
             state:
               required: false
               type: string
+              description: Filter by alert workflow/UI state — UNASSIGNED, ASSIGNED, IN_PROGRESS, WAITING, RESOLVED, DISMISSED
             priority:
               required: false
               type: string
@@ -242,7 +243,7 @@ functions:
             assignment:
               required: false
               type: string
-              description: UNASSIGNED or ASSIGNED (Team queue)
+              description: Assignee user id to filter by (persisted assignedToUserId — same id as workflow ASSIGN)
             dateFrom:
               required: false
               type: string
@@ -351,7 +352,9 @@ functions:
           path: alerts/{alertId}/activity
           method: get
           summary: Get alert activity timeline
-          description: Full activity / audit list for the alert (newest first; single response, no pagination). Tenant from JWT only.
+          description: >
+            Activity / audit list for the alert (newest first; no pagination). Tenant from JWT only. Optional query
+            Optional query `notesOnly=true` or `false` (`true` = NOTE_ADDED only). 404 when alert not found for org.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer

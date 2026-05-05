@@ -1,4 +1,4 @@
-import { ALERT_METADATA_SK } from '../constants/alert.constants';
+import { ACTIVITY_TYPE_NOTE_ADDED, ALERT_METADATA_SK } from '../constants/alert.constants';
 import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
@@ -123,6 +123,23 @@ describe('AlertRepository', () => {
         }),
       );
       expect(items[0]).not.toHaveProperty('pk');
+    });
+
+    it('applies FilterExpression when notesOnly is true', async () => {
+      const queryAll = jest.spyOn(repo as unknown as { queryAll: jest.Mock }, 'queryAll').mockResolvedValue([]);
+
+      await repo.queryAlertActivities('a1', { notesOnly: true });
+
+      expect(queryAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          FilterExpression: 'activityType = :noteType',
+          ExpressionAttributeValues: expect.objectContaining({
+            ':pk': AlertKeyBuilder.toAlertPk('a1'),
+            ':act': 'ACTIVITY#',
+            ':noteType': ACTIVITY_TYPE_NOTE_ADDED,
+          }),
+        }),
+      );
     });
   });
 

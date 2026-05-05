@@ -54,16 +54,23 @@ export class AlertKeyBuilder {
     return this.toTimestampSortKey(triggerEpochMs);
   }
 
-  static buildGsi2Sk(state: AlertState, triggerEpochMs: number, alertId: string): string {
-    return `STATE#${state}#TS#${padEpochMs13(triggerEpochMs)}#${alertId}`;
-  }
-
   static toGsi3Sk(epochMs: number): string {
     return this.toTimestampSortKey(epochMs);
   }
 
-  static toGsi4Sk(epochMs: number): string {
-    return this.toTimestampSortKey(epochMs);
+  /** GSI4 partition: org-wide index (no `STATE#` segment). */
+  static buildGsi4Pk(organizationId: string): string {
+    return this.toOrgPartitionKey(organizationId);
+  }
+
+  /** GSI4 sort: trigger instant + `alertId` (newest-first per org when `ScanIndexForward: false`). */
+  static buildGsi4Sk(triggerEpochMs: number, alertId: string): string {
+    return `TS#${padEpochMs13(triggerEpochMs)}#${alertId.trim()}`;
+  }
+
+  /** GSI2 (“my queue”) sort key — same segment shape as {@link buildGsi4Sk}; workflow state is `alertState` on the item. */
+  static buildGsi2Sk(triggerEpochMs: number, alertId: string): string {
+    return this.buildGsi4Sk(triggerEpochMs, alertId);
   }
 
   static toSlaPartitionKey(epochMs: number): string {

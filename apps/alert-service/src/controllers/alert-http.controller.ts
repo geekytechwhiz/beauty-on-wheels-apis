@@ -25,10 +25,7 @@ import {
   type ValidatedCreateAlert,
   type ValidatedWorkflow,
 } from '../validators/request.validators';
-import {
-  getActorUserIdForRequest,
-  getOrganizationIdForRequest,
-} from '../utils/helpers';
+import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
@@ -172,9 +169,9 @@ export class AlertHttpController {
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
-    const items = await this.svc.listAlertActivity(alertId, orgId);
-    if (!items) throw Object.assign(new Error('Alert not found'), { statusCode: 404, code: 'NOT_FOUND' });
+    const notesOnly = (req.params as { notesOnly?: string }).notesOnly === 'true';
 
+    const items = await this.svc.listAlertActivity(alertId, orgId, { notesOnly });
     return { items };
   }
 

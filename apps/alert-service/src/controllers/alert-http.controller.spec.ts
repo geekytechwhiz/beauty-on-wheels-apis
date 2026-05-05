@@ -360,19 +360,34 @@ describe('AlertHttpController', () => {
     await expect(c.handleGetAlertActivity(req)).rejects.toMatchObject({ statusCode: 401, code: 'UNAUTHORIZED' });
   });
 
-  it('handleGetAlertActivity returns 404 when service returns null', async () => {
+  it('handleGetAlertActivity returns 404 when alert not in org', async () => {
     const c = new AlertHttpController();
-    mockListAlertActivity.mockResolvedValue(null);
+    mockGetAlert.mockResolvedValue(null);
     const req = baseReq({ pathParameters: { alertId: 'a1' } });
     await expect(c.handleGetAlertActivity(req)).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+    expect(mockListAlertActivity).not.toHaveBeenCalled();
   });
 
   it('handleGetAlertActivity returns items on success', async () => {
     const c = new AlertHttpController();
     const items = [{ activityId: 'act-1' }];
+    mockGetAlert.mockResolvedValue(minimalAlertRecord({ alertId: 'a1', id: 'a1', pk: 'ALERT#a1' }));
     mockListAlertActivity.mockResolvedValue(items);
     const req = baseReq({ pathParameters: { alertId: 'a1' } });
     await expect(c.handleGetAlertActivity(req)).resolves.toEqual({ items });
+    expect(mockListAlertActivity).toHaveBeenCalledWith('a1', 'org-1', { notesOnly: false });
+  });
+
+  it('handleGetAlertActivity passes notesOnly from query params', async () => {
+    const c = new AlertHttpController();
+    mockGetAlert.mockResolvedValue(minimalAlertRecord({ alertId: 'a1', id: 'a1', pk: 'ALERT#a1' }));
+    mockListAlertActivity.mockResolvedValue([]);
+    const req = baseReq({
+      pathParameters: { alertId: 'a1' },
+      params: { alertId: 'a1', notesOnly: 'true' },
+    });
+    await c.handleGetAlertActivity(req);
+    expect(mockListAlertActivity).toHaveBeenCalledWith('a1', 'org-1', { notesOnly: true });
   });
 
   it('handleListAlerts maps items and includes nextToken', async () => {

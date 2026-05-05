@@ -1,4 +1,4 @@
-import { ALERT_STATE, type AlertState } from '../types/alert-state.type';
+import type { AlertState } from '../types/alert-state.type';
 import type { AlertDdbRecord } from '../persistence/alert-ddb.model';
 import type { CreateAlertRequest } from './create-alert.request';
 
@@ -16,7 +16,8 @@ export type ListAlertsParams = {
   queue: ListAlertsQueue;
   patientId?: string;
   state?: AlertState;
-  assignment?: typeof ALERT_STATE.UNASSIGNED | typeof ALERT_STATE.ASSIGNED;
+  /** Assignee user id from the UI assignment control; filters stored `assignedToUserId`. */
+  assignment?: string;
   priority?: string;
   inputType?: string;
   dateFrom?: string;

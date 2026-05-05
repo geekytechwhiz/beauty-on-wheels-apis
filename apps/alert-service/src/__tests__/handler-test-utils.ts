@@ -27,6 +27,8 @@ export function minimalAlertRecord(overrides: Partial<AlertDdbRecord> = {}): Ale
     gsi1sk: AlertKeyBuilder.buildGsi1Sk(trig),
     gsi3pk: 'PAT#pat-1',
     gsi3sk: AlertKeyBuilder.toGsi3Sk(trig),
+    gsi4pk: AlertKeyBuilder.buildGsi4Pk('org-1'),
+    gsi4sk: AlertKeyBuilder.buildGsi4Sk(trig, alertId),
     gsi5pk: AlertKeyBuilder.toSlaPartitionKey(resolveDue),
     gsi5sk: AlertKeyBuilder.toSlaSortKey(resolveDue, alertId),
     id: alertId,

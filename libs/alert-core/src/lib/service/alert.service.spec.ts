@@ -6,7 +6,6 @@ import type { CreateAlertPayload } from '../models/api/create-alert.types';
 import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from '../repositories/alert-repository';
-import { encodeTeamMergeListCursor } from '../utils/alert.utils';
 import { AlertService } from './alert.service';
 
 const EPOCH_2026_01_15_T10 = Date.parse('2026-01-15T10:00:00.000Z');
@@ -35,6 +34,8 @@ function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord 
     gsi1sk: AlertKeyBuilder.buildGsi1Sk(trig),
     gsi3pk: 'PAT#pat-1',
     gsi3sk: AlertKeyBuilder.toGsi3Sk(trig),
+    gsi4pk: AlertKeyBuilder.buildGsi4Pk('org-1'),
+    gsi4sk: AlertKeyBuilder.buildGsi4Sk(trig, alertId),
     gsi5pk: AlertKeyBuilder.toSlaPartitionKey(EPOCH_2026_01_15_T12),
     gsi5sk: AlertKeyBuilder.toSlaSortKey(EPOCH_2026_01_15_T12, alertId),
     alertId,
@@ -91,8 +92,8 @@ describe('AlertService', () => {
       | 'queryAlertActivities'
       | 'queryPatientAlertsPage'
       | 'queryOrgAlertsPage'
+      | 'queryOrgAlertsGsi4Page'
       | 'queryUserAlertsPage'
-      | 'hydrateAlertIdsOrdered'
     >
   >;
   let service: AlertService;
@@ -105,8 +106,8 @@ describe('AlertService', () => {
       queryAlertActivities: jest.fn(),
       queryPatientAlertsPage: jest.fn(),
       queryOrgAlertsPage: jest.fn(),
+      queryOrgAlertsGsi4Page: jest.fn(),
       queryUserAlertsPage: jest.fn(),
-      hydrateAlertIdsOrdered: jest.fn().mockResolvedValue([]),
     };
     service = new AlertService(repo as unknown as AlertRepository, mockLogger());
   });
@@ -198,7 +199,13 @@ describe('AlertService', () => {
 
       const out = await service.listAlertActivity('aid', 'org-1');
       expect(out).toBe(activities);
-      expect(repo.queryAlertActivities).toHaveBeenCalledWith('aid');
+      expect(repo.queryAlertActivities).toHaveBeenCalledWith('aid', undefined);
+    });
+
+    it('passes notesOnly to repository', async () => {
+      repo.queryAlertActivities.mockResolvedValue([]);
+      await service.listAlertActivity('aid', 'org-1', { notesOnly: true });
+      expect(repo.queryAlertActivities).toHaveBeenCalledWith('aid', { notesOnly: true });
     });
   });
 
@@ -213,7 +220,7 @@ describe('AlertService', () => {
       expect(repo.queryUserAlertsPage).not.toHaveBeenCalled();
     });
 
-    it('merges UNASSIGNED + ASSIGNED org pages for TEAM queue when state and assignment are unset', async () => {
+    it('queries GSI4 for default TEAM in a single call (no default alertState filter)', async () => {
       const unassigned = minimalRecord({ alertId: 'u-1' });
       const assigned = minimalRecord({
         alertId: 'a-1',
@@ -221,49 +228,56 @@ describe('AlertService', () => {
         assignedToUserId: 'user-1',
         gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
       });
-      repo.queryOrgAlertsPage.mockImplementation(async (_org, opts) => {
-        if (opts.state === ALERT_STATE.UNASSIGNED) return { items: [unassigned] };
-        return { items: [assigned] };
-      });
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [unassigned, assigned] });
 
       const result = await service.listAlerts({ ...baseListParams(), queue: 'TEAM' });
 
       expect(result.items.length).toBe(2);
-      expect(repo.queryOrgAlertsPage).toHaveBeenCalledTimes(2);
-      expect(repo.queryOrgAlertsPage).toHaveBeenCalledWith(
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledTimes(1);
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
         'org-1',
         expect.objectContaining({
-          state: ALERT_STATE.UNASSIGNED,
-          unassignedOnly: false,
           limit: 50,
         }),
       );
-      expect(repo.queryOrgAlertsPage).toHaveBeenCalledWith(
-        'org-1',
-        expect.objectContaining({
-          state: ALERT_STATE.ASSIGNED,
-          unassignedOnly: false,
-          limit: 50,
-        }),
-      );
+      expect(repo.queryOrgAlertsPage).not.toHaveBeenCalled();
       const ids = result.items.map((a) => a.alertId);
       expect(ids).toContain('u-1');
       expect(ids).toContain('a-1');
     });
 
-    it('queries org page once for TEAM when assignment is UNASSIGNED', async () => {
-      const row = minimalRecord();
-      repo.queryOrgAlertsPage.mockResolvedValue({ items: [row] });
+    it('passes assignment (assignee user id) to GSI4 for TEAM', async () => {
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [] });
 
-      await service.listAlerts({ ...baseListParams(), queue: 'TEAM', assignment: ALERT_STATE.UNASSIGNED });
+      await service.listAlerts({
+        ...baseListParams(),
+        queue: 'TEAM',
+        assignment: '5fa85f64-5717-4562-b3fc-2c963f66afa8',
+      });
 
-      expect(repo.queryOrgAlertsPage).toHaveBeenCalledTimes(1);
-      expect(repo.queryOrgAlertsPage).toHaveBeenCalledWith(
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
         'org-1',
         expect.objectContaining({
-          state: ALERT_STATE.UNASSIGNED,
-          unassignedOnly: true,
-          limit: 50,
+          assignedToUserId: '5fa85f64-5717-4562-b3fc-2c963f66afa8',
+        }),
+      );
+    });
+
+    it('passes workflow state and assignment filters independently for TEAM', async () => {
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [] });
+
+      await service.listAlerts({
+        ...baseListParams(),
+        queue: 'TEAM',
+        state: ALERT_STATE.IN_PROGRESS,
+        assignment: 'user-1',
+      });
+
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          state: ALERT_STATE.IN_PROGRESS,
+          assignedToUserId: 'user-1',
         }),
       );
     });
@@ -286,7 +300,7 @@ describe('AlertService', () => {
       expect(repo.queryOrgAlertsPage).not.toHaveBeenCalled();
     });
 
-    it('filters TEAM merge results by priority', async () => {
+    it('passes priority to GSI4 query for TEAM', async () => {
       const hi = minimalRecord({
         alertId: 'b',
         priority: 'P1',
@@ -295,15 +309,7 @@ describe('AlertService', () => {
         gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
         triggerTimestamp: Date.parse('2026-01-16T10:00:00.000Z'),
       });
-      const lo = minimalRecord({
-        alertId: 'a',
-        priority: 'P2',
-        triggerTimestamp: EPOCH_2026_01_15_T10,
-      });
-      repo.queryOrgAlertsPage.mockImplementation(async (_org, opts) => {
-        if (opts.state === ALERT_STATE.UNASSIGNED) return { items: [lo] };
-        return { items: [hi] };
-      });
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [hi] });
 
       const result = await service.listAlerts({
         ...baseListParams(),
@@ -311,31 +317,28 @@ describe('AlertService', () => {
         priority: 'P1',
       });
 
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          priority: 'P1',
+        }),
+      );
       expect(result.items.map((a) => a.alertId)).toEqual(['b']);
     });
 
-    it('includes merge nextToken when more work remains on either branch', async () => {
-      const lekU = { pk: 'u', sk: '1' };
-      const lekA = { pk: 'a', sk: '2' };
-      repo.queryOrgAlertsPage.mockImplementation(async (_org, opts) => {
-        if (opts.state === ALERT_STATE.UNASSIGNED) {
-          return {
-            items: [minimalRecord({ alertId: 'u1', triggerTimestamp: Date.parse('2026-01-10T10:00:00.000Z') })],
-            lastEvaluatedKey: lekU,
-          };
-        }
-        return {
-          items: [
-            minimalRecord({
-              alertId: 'a1',
-              alertState: ALERT_STATE.ASSIGNED,
-              assignedToUserId: 'user-1',
-              gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
-              triggerTimestamp: Date.parse('2026-01-20T10:00:00.000Z'),
-            }),
-          ],
-          lastEvaluatedKey: lekA,
-        };
+    it('returns Dynamo LastEvaluatedKey as nextToken for TEAM', async () => {
+      const lek = { gsi4pk: 'ORG#org-1', gsi4sk: 'TS#00001736938200000#x', pk: 'ALERT#a1', sk: 'METADATA' };
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({
+        items: [
+          minimalRecord({
+            alertId: 'a1',
+            alertState: ALERT_STATE.ASSIGNED,
+            assignedToUserId: 'user-1',
+            gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
+            triggerTimestamp: Date.parse('2026-01-20T10:00:00.000Z'),
+          }),
+        ],
+        lastEvaluatedKey: lek,
       });
 
       const result = await service.listAlerts({ ...baseListParams(), queue: 'TEAM', limit: 1 });
@@ -346,31 +349,7 @@ describe('AlertService', () => {
         string,
         unknown
       >;
-      expect(parsed.__teamMergeV1).toBe(1);
-      expect(parsed.nU).toEqual(lekU);
-      expect(parsed.nA).toEqual(lekA);
-      expect(parsed.tailU).toEqual(['u1']);
-    });
-
-    it('rejects legacy single-stream nextToken for default TEAM merge', async () => {
-      const lek = { gsi1pk: 'ORG#org-1#STATE#UNASSIGNED', gsi1sk: 'TS#x' };
-      const legacy = Buffer.from(JSON.stringify(lek), 'utf8').toString('base64url');
-      await expect(service.listAlerts({ ...baseListParams(), queue: 'TEAM', nextToken: legacy })).rejects.toMatchObject({
-        statusCode: 400,
-        code: 'VALIDATION_ERROR',
-      });
-    });
-
-    it('rejects merge nextToken when TEAM uses assignment filter', async () => {
-      const token = encodeTeamMergeListCursor({ __teamMergeV1: 1, nU: null, nA: null });
-      await expect(
-        service.listAlerts({
-          ...baseListParams(),
-          queue: 'TEAM',
-          assignment: ALERT_STATE.UNASSIGNED,
-          nextToken: token,
-        }),
-      ).rejects.toMatchObject({ statusCode: 400, code: 'VALIDATION_ERROR' });
+      expect(parsed.gsi4pk).toBe('ORG#org-1');
     });
 
     it('throws 400 for invalid nextToken', async () => {

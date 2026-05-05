@@ -23,8 +23,6 @@ const ALERT_STATE_ZOD_VALUES = [
   ALERT_STATE.DISMISSED,
 ] as const;
 
-const LIST_ASSIGNMENT_ZOD_VALUES = [ALERT_STATE.UNASSIGNED, ALERT_STATE.ASSIGNED] as const;
-
 /** Allowed `inputType` / `evidencePayload.inputType` for POST `/alerts` (§5.1.3.1). */
 const createAlertInputTypeZ = z.enum(['MISSED_READING', 'MISSING_DEVICE']);
 
@@ -303,8 +301,6 @@ const listQueueKindZ = z.enum(['TEAM', 'MY', 'PATIENT']);
 
 const listAlertStateFilterZ = z.enum(ALERT_STATE_ZOD_VALUES);
 
-const listAssignmentFilterZ = z.enum(LIST_ASSIGNMENT_ZOD_VALUES);
-
 /** GET /alerts query string — `queue` enum, `patientId` rules in `superRefine`. */
 export const listAlertsQuerySchema = z
   .object({
@@ -315,7 +311,13 @@ export const listAlertsQuerySchema = z
     }, listQueueKindZ),
     patientId: z.string().trim().min(1).optional(),
     state: z.string().trim().toUpperCase().pipe(listAlertStateFilterZ).optional(),
-    assignment: z.string().trim().toUpperCase().pipe(listAssignmentFilterZ).optional(),
+    /** Assignee filter: raw user id string (persisted field `assignedToUserId`; not an alert state label). */
+    assignment: z
+      .preprocess((v) => {
+        if (v === undefined || v === null) return undefined;
+        const t = String(v).trim();
+        return t === '' ? undefined : t;
+      }, z.string().min(1).optional()),
     priority: z.string().trim().toUpperCase().pipe(priorityZ).optional(),
     inputType: z.string().trim().min(1).optional(),
     dateFrom: z.string().trim().min(1).optional(),
@@ -337,30 +339,6 @@ export const listAlertsQuerySchema = z
         code: z.ZodIssueCode.custom,
         message: 'patientId is only allowed when queue=PATIENT',
         path: ['patientId'],
-      });
-    }
-    if (
-      data.state !== undefined &&
-      data.assignment !== undefined &&
-      data.state === ALERT_STATE.ASSIGNED &&
-      data.assignment === ALERT_STATE.UNASSIGNED
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'state ASSIGNED conflicts with assignment=UNASSIGNED',
-        path: ['assignment'],
-      });
-    }
-    if (
-      data.state !== undefined &&
-      data.assignment !== undefined &&
-      data.state === ALERT_STATE.UNASSIGNED &&
-      data.assignment === ALERT_STATE.ASSIGNED
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'state UNASSIGNED conflicts with assignment=ASSIGNED',
-        path: ['assignment'],
       });
     }
   });

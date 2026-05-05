@@ -17,6 +17,8 @@ export function toAlertDetail(r: AlertDdbRecord & { TableName?: string }) {
     gsi2sk,
     gsi3pk,
     gsi3sk,
+    gsi4pk,
+    gsi4sk,
     gsi5pk,
     gsi5sk,
     entityType,

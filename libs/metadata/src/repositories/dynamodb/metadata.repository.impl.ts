@@ -142,7 +142,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       description: input.description,
       valueDataType: input.valueDataType as MetadataTypeRecord['valueDataType'],
       multiSelectAllowed: input.multiSelectAllowed!,
-      applicableModules: input.applicableModules!,
+      applicableModules: input.applicableModules ?? [],
       valueApplicabilityConfig: input.valueApplicabilityConfig,
       attributeSchema,
       status,

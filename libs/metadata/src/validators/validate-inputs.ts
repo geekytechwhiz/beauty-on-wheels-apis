@@ -42,12 +42,9 @@ export function validateMetadataTypeInput(input: MetadataTypeInput, isUpdate = f
     if (input.multiSelectAllowed === undefined) {
       throw new ValidationError('multiSelectAllowed is required on create', [{ field: 'multiSelectAllowed', message: 'Required' }]);
     }
-    if (!input.applicableModules?.length) {
-      throw new ValidationError('applicableModules must contain at least one module', [
-        { field: 'applicableModules', message: 'Required' },
-      ]);
+    if (input.applicableModules !== undefined && input.applicableModules.length > 0) {
+      assertEnumTokenArray(input.applicableModules, 'applicableModules');
     }
-    assertEnumTokenArray(input.applicableModules, 'applicableModules');
     if (input.status === undefined || input.status === null || String(input.status).trim() === '') {
       throw new ValidationError('status is required on create', [{ field: 'status', message: 'Required' }]);
     }

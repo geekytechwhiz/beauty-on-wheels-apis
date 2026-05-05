@@ -18,6 +18,15 @@ describe('validateMetadataTypeInput', () => {
     expect(() => validateMetadataTypeInput(validCreate, false)).not.toThrow();
   });
 
+  it('accepts create without applicableModules (optional)', () => {
+    const { applicableModules: _a, ...rest } = validCreate;
+    expect(() => validateMetadataTypeInput(rest as typeof validCreate, false)).not.toThrow();
+  });
+
+  it('accepts create with empty applicableModules', () => {
+    expect(() => validateMetadataTypeInput({ ...validCreate, applicableModules: [] }, false)).not.toThrow();
+  });
+
   it('rejects create without status', () => {
     const { status: _s, ...rest } = validCreate;
     expect(() => validateMetadataTypeInput(rest as typeof validCreate, false)).toThrow(/status is required on create/);

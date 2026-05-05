@@ -17,7 +17,7 @@ export const createMetadataTypeSchema = z.object({
   description: z.string().optional(),
   valueDataType: z.enum(['Enum', 'Numeric', 'Boolean', 'Text']),
   multiSelectAllowed: z.boolean(),
-  applicableModules: z.array(z.string()).min(1),
+  applicableModules: z.array(z.string()).optional(),
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']),
   createdBy: z.string().optional(),

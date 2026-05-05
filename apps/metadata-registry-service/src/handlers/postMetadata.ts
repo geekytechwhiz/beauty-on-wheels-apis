@@ -16,6 +16,7 @@ export const main = withLambdaHandler(async (req) => {
 
   if (input.entityType === 'type') {
     const body = input.body;
+    // applicableModules is optional on metadata type create (persisted as [] when omitted).
     return upsertMetadataType(
       normalizeMetadataTypeInput(body as MetadataTypeInput & Record<string, unknown>),
       input.userId,

@@ -31,12 +31,47 @@ const baseLogger = createLogger({ service: 'organization-service', redactPII: tr
 
 const ORGANIZATION_TABLE_NAME = process.env.ORGANIZATION_TABLE || '';
 
+export type GetLatestOrganizationConfigOptions = {
+  /**
+   * When set, DynamoDB returns only these attributes plus `entityType` and `status` (always included
+   * so filtering works). When omitted, all attributes are returned.
+   */
+  project?: readonly (keyof OrgConfigEntity)[];
+};
+
 type OrganizationDBItem = Organization & {
   pk: string;
   sk: string;
 };
 
 export class OrganizationRepository {
+  private buildLatestOrgConfigQueryProjection(options?: GetLatestOrganizationConfigOptions): {
+    ProjectionExpression?: string;
+    projectionExprNames: Record<string, string>;
+  } {
+    if (options?.project === undefined) {
+      return { projectionExprNames: {} };
+    }
+    const merged = new Set<string>(['entityType', 'status']);
+    for (const key of options.project) {
+      merged.add(key);
+    }
+    const projectionExprNames: Record<string, string> = {};
+    const tokens: string[] = [];
+    for (const attr of merged) {
+      if (attr === 'status') {
+        tokens.push('#status');
+        projectionExprNames['#status'] = 'status';
+      } else {
+        tokens.push(attr);
+      }
+    }
+    return {
+      ProjectionExpression: tokens.join(', '),
+      projectionExprNames,
+    };
+  }
+
   private sanitizeOrganization(item: Organization): Organization {
     const sanitized = { ...(item as unknown as Record<string, unknown>) };
     delete sanitized.pk;
@@ -519,33 +554,61 @@ export class OrganizationRepository {
     }
   }
 
-  async getLatestOrganizationConfig(organizationId: string): Promise<OrgConfigEntity | null> {
+  async getLatestOrganizationConfig(
+    organizationId: string,
+    options?: GetLatestOrganizationConfigOptions,
+  ): Promise<OrgConfigEntity | null> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+
     try {
-      const response = await ddbDocClient.send(
-        new QueryCommand({
+      const { ProjectionExpression, projectionExprNames } = this.buildLatestOrgConfigQueryProjection(options);
+      let lastEvaluatedKey: Record<string, unknown> | undefined;
+      let fallback: OrgConfigEntity | null = null;
+
+      do {
+        const queryParams: Record<string, unknown> = {
           TableName: ORGANIZATION_TABLE_NAME,
           KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :skPrefix)',
           ExpressionAttributeNames: {
             '#pk': 'pk',
             '#sk': 'sk',
+            ...projectionExprNames,
           },
           ExpressionAttributeValues: {
             ':pk': organizationPk(organizationId),
             ':skPrefix': 'CONFIG#v',
           },
           ScanIndexForward: false,
-          Limit: 25,
-        }),
-      );
-      console.log('response', response);
-      const items = (response.Items ?? []) as OrgConfigEntity[];
-      const latestActive = items.find(
-        (item) => item.entityType === OrgConfigEntityType.ORG_CONFIG && item.status === OrgConfigStatus.ACTIVE,
-      );
-      if (latestActive) return latestActive;
-      return items.find((item) => item.entityType === OrgConfigEntityType.ORG_CONFIG) ?? null;
+          Limit: 10,
+        };
+
+        if (ProjectionExpression) {
+          queryParams.ProjectionExpression = ProjectionExpression;
+        }
+
+        if (lastEvaluatedKey) {
+          queryParams.ExclusiveStartKey = lastEvaluatedKey;
+        }
+
+        const response = await ddbDocClient.send(new QueryCommand(queryParams as any));
+
+        const items = (response.Items ?? []) as OrgConfigEntity[];
+
+        for (const item of items) {
+          if (item.entityType !== OrgConfigEntityType.ORG_CONFIG) continue;
+
+          if (!fallback) fallback = item;
+
+          if (item.status === OrgConfigStatus.ACTIVE) {
+            return item;
+          }
+        }
+
+        lastEvaluatedKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+      } while (lastEvaluatedKey);
+
+      return fallback;
     } catch (err) {
-      const logger = createChildLogger(baseLogger, { organizationId });
       logger.error({ event: 'organization_config_get_latest_error', err: serializeError(err) });
       throw err;
     }
@@ -556,7 +619,9 @@ export class OrganizationRepository {
     mergedConfig: Required<OrganizationConfigPatch>,
   ): Promise<OrgConfigEntity> {
     const now = Date.now();
-    const previousConfig = await this.getLatestOrganizationConfig(organizationId);
+    const previousConfig = await this.getLatestOrganizationConfig(organizationId, {
+      project: ['pk', 'sk', 'version', 'status'],
+    });
     const nextVersion = (previousConfig?.version ?? 0) + 1;
 
     const nextItem: OrgConfigEntity = {
@@ -1192,8 +1257,8 @@ export class OrganizationRepository {
   async getOrganizationBySubdomain(subdomain: string, provider?: string): Promise<Organization | null> {
     const normalizedSubdomain = subdomain.trim().toLowerCase();
     if (!normalizedSubdomain) return null;
+    const resolvedProvider = (provider || 'TRU_TECH').toUpperCase();
     try {
-      const resolvedProvider = (provider || 'TRU_TECH').toUpperCase();
       const exprValues: Record<string, unknown> = {
         ':gsi2pk': `PROVIDER#${resolvedProvider}`,
         ':gsi2sk': `LOOKUP#${normalizedSubdomain}#`,

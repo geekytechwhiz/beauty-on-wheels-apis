@@ -204,6 +204,8 @@ custom:
       - Authorization
       - X-Api-Key
       - X-Correlation-Id
+  serverless-offline:
+    noTimeout: true
 
 functions:
   health:

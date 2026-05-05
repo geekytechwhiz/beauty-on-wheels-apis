@@ -10,37 +10,88 @@ const region = process.env.DEFAULT_REGION || process.env.DP_REGION || 'us-east-1
 
 const sns = new SNSClient({ region });
 
-function isNonProdRelaxed(): boolean {
-  const stage = process.env.STAGE || process.env.SERVERLESS_STAGE || process.env.NODE_ENV;
+const CREDENTIAL_OR_AUTH_ERROR_CODES = [
+  'UnrecognizedClientException',
+  'InvalidClientTokenId',
+  'SignatureDoesNotMatch',
+  'AccessDeniedException',
+  'InvalidAccessKeyId',
+  'ExpiredToken',
+  'ExpiredTokenException',
+] as const;
 
-  return (
-    process.env.IS_OFFLINE === 'true' ||
+/**
+ * Non-prod / offline: see serverless.offline.yml (STAGE, IS_OFFLINE).
+ * Do not treat NODE_ENV as deployment stage — bundled handlers often set NODE_ENV=production
+ * while STAGE is still `dev`.
+ */
+function isNonProdRelaxed(): boolean {
+  if (process.env.IS_OFFLINE === 'true') {
+    return true;
+  }
+
+  const stage = String(
+    process.env.STAGE || process.env.SERVERLESS_STAGE || process.env.SLS_STAGE || '',
+  ).toLowerCase();
+
+  if (
     stage === 'local' ||
     stage === 'dev' ||
+    stage === 'development' ||
     stage === 'test' ||
-    !stage
-  );
+    stage === 'offline' ||
+    stage === ''
+  ) {
+    return true;
+  }
+
+  const nodeEnv = String(process.env.NODE_ENV || '').toLowerCase();
+  return nodeEnv === 'development' || nodeEnv === 'test';
+}
+
+function resolvePublishErrorCode(err: unknown): string {
+  const e = err as { name?: string; code?: string; Code?: string; message?: string };
+  const fromMeta = e.code || e.Code;
+  if (fromMeta && String(fromMeta) !== 'Error') return String(fromMeta);
+  if (e.name && e.name !== 'Error') return e.name;
+  const msg = (e.message || '').trim();
+  for (const code of CREDENTIAL_OR_AUTH_ERROR_CODES) {
+    if (msg === code || msg.includes(code)) return code;
+  }
+  return e.name || '';
+}
+
+function isCredentialOrAuthFailure(err: unknown, code: string): boolean {
+  if (CREDENTIAL_OR_AUTH_ERROR_CODES.includes(code as (typeof CREDENTIAL_OR_AUTH_ERROR_CODES)[number])) {
+    return true;
+  }
+  const msg = ((err as Error)?.message || '').trim();
+  return CREDENTIAL_OR_AUTH_ERROR_CODES.some((c) => msg === c || msg.includes(c));
+}
+
+function shouldToleratePublishFailure(err: unknown, code: string): boolean {
+  return isNonProdRelaxed() && isCredentialOrAuthFailure(err, code);
 }
 
 export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: string): Promise<void> {
   const finalCorrelationId = evt.correlationId || correlationId;
   const logger = createChildLogger(baseLogger, { correlationId: finalCorrelationId, eventType: evt.eventType });
 
-  if (!topicArn) {
-    logger.warn({ event: 'events_topic_missing', msg: 'ORGANIZATION_EVENTS_TOPIC_ARN not set' });
-    return;
-  }
-
-  const envelope: EventEnvelope<T> = {
-    ...evt,
-    eventId: evt.eventId || randomUUID(),
-    occurredAt: evt.occurredAt || new Date().toISOString(),
-    correlationId: finalCorrelationId,
-  };
-
-  const message = JSON.stringify(envelope);
-  logger.info({ event: 'sns_publish_attempt', message: 'Publishing event to SNS', eventEnvelope: envelope });
   try {
+    if (!topicArn) {
+      logger.warn({ event: 'events_topic_missing', msg: 'ORGANIZATION_EVENTS_TOPIC_ARN not set' });
+      return;
+    }
+
+    const envelope: EventEnvelope<T> = {
+      ...evt,
+      eventId: evt.eventId || randomUUID(),
+      occurredAt: evt.occurredAt || new Date().toISOString(),
+      correlationId: finalCorrelationId,
+    };
+
+    const message = JSON.stringify(envelope);
+    logger.info({ event: 'sns_publish_attempt', message: 'Publishing event to SNS', eventEnvelope: envelope });
     await sns.send(
       new PublishCommand({
         TopicArn: topicArn,
@@ -53,15 +104,8 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
     );
     logger.info({ event: 'sns_publish_success', message: 'Event published' });
   } catch (err: unknown) {
-    const code = (err as { name?: string; code?: string })?.name || (err as { code?: string })?.code;
-    const credentialErrors = [
-      'UnrecognizedClientException',
-      'InvalidClientTokenId',
-      'SignatureDoesNotMatch',
-      'AccessDeniedException',
-      'InvalidAccessKeyId',
-    ];
-    if (isNonProdRelaxed() && credentialErrors.includes(code || '')) {
+    const code = resolvePublishErrorCode(err);
+    if (shouldToleratePublishFailure(err, code)) {
       logger.warn({
         event: 'sns_publish_skipped_nonprod_invalid_credentials',
         code,
@@ -75,6 +119,5 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
       code,
       message: 'Failed to publish event',
     });
-    throw err;
   }
 }

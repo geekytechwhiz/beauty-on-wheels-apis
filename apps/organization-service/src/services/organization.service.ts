@@ -2,14 +2,30 @@ import { OrganizationRepository } from '../repositories/organization.repository'
 import { UserRepository } from '../repositories/user.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { SecretManagerService } from '@api-hub/service-clients';
-import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationConfigPatch } from '../models';
-import { OrganizationNotFoundError, PermissionDeniedError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
+import {
+  Organization,
+  OrganizationMetadata,
+  OrganizationFile,
+  OrganizationConfigPatch,
+  OrgConfigEntity,
+} from '../models';
+import { OrganizationNotFoundError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { notifyAdminForOrganizationActivated } from './notification.service';
 import { extractSubdomainFromUrl } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
+
+const LATEST_ORG_CONFIG_PATCH_KEYS: readonly (keyof OrgConfigEntity)[] = [
+  'supportedCountries',
+  'supportedLanguages',
+  'supportedStates',
+  'supportedCategories',
+  'supportedConditions',
+];
+
+const LATEST_ORG_CONFIG_PROJECTION_GET: readonly (keyof OrgConfigEntity)[] = ['version', ...LATEST_ORG_CONFIG_PATCH_KEYS];
 
 const areStringArraysEqual = (left: string[], right: string[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index]);
@@ -189,7 +205,9 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
-      const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId);
+      const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
+        project: LATEST_ORG_CONFIG_PROJECTION_GET,
+      });
       const response: Organization =
         latestConfig === null
           ? organization
@@ -258,12 +276,16 @@ export class OrganizationService {
         await this.repository.updateOrganization(organizationId, organizationUpdates);
       }
       
+      console.log('normalizedUserType', userType);
       const normalizedUserType = String(userType ?? '').trim().toUpperCase();
       const canUpdateOrganizationConfig = normalizedUserType === 'ROOT_ADMIN';
-
+      console.log('canUpdateOrganizationConfig', canUpdateOrganizationConfig);
       let configVersion: number | undefined;
       if (organizationConfig && canUpdateOrganizationConfig) {
-        const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId);
+        const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
+          project: LATEST_ORG_CONFIG_PATCH_KEYS,
+        });
+        console.log('latestConfig', latestConfig);
         const mergedConfig: Required<OrganizationConfigPatch> = {
           supportedCountries: organizationConfig.supportedCountries ?? latestConfig?.supportedCountries ?? [],
           supportedLanguages: organizationConfig.supportedLanguages ?? latestConfig?.supportedLanguages ?? [],

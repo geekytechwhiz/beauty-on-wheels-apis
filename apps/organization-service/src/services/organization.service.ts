@@ -283,7 +283,6 @@ export class OrganizationService {
         const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
           project: LATEST_ORG_CONFIG_PATCH_KEYS,
         });
-        console.log('latestConfig', latestConfig);
         const mergedConfig: Required<OrganizationConfigPatch> = {
           supportedCountries: organizationConfig.supportedCountries ?? latestConfig?.supportedCountries ?? [],
           supportedLanguages: organizationConfig.supportedLanguages ?? latestConfig?.supportedLanguages ?? [],

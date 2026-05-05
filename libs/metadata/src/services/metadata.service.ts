@@ -11,6 +11,8 @@ import {
   NotFoundError,
   ValidationError,
   assertMetadataTypeActiveForValueMutation,
+  assertPatchStatusAllowedForInactiveRecord,
+  assertPostUpsertAllowedForLatestStatus,
 } from '../domain/errors';
 import { STATUS } from '../constants';
 import {
@@ -172,6 +174,7 @@ export async function upsertMetadataType(body: MetadataTypeInput, userId?: strin
     validateMetadataTypeInput(body, false);
     return repo.createMetadataType(body, actor);
   }
+  assertPostUpsertAllowedForLatestStatus(existing.status, body.status);
   validateMetadataTypeInput(body, true);
   return repo.updateMetadataType(body, actor);
 }
@@ -182,7 +185,13 @@ export async function patchTypeStatus(
   userId?: string,
 ): Promise<MetadataTypeRecord> {
   assertMetadataTypeCode(metadataTypeCode);
-  return (await getMetadataRepository()).patchMetadataTypeStatus(metadataTypeCode, status, actorFromContext(userId));
+  const repo = await getMetadataRepository();
+  const existing = await repo.getMetadataType(metadataTypeCode);
+  if (!existing) {
+    throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
+  }
+  assertPatchStatusAllowedForInactiveRecord(existing.status, status);
+  return repo.patchMetadataTypeStatus(metadataTypeCode, status, actorFromContext(userId));
 }
 
 /**
@@ -214,6 +223,7 @@ export async function upsertMetadataValue(
     });
     return repo.createMetadataValue(metadataTypeCode, body, actor);
   }
+  assertPostUpsertAllowedForLatestStatus(existing.status, body.status);
   const mergedIsGlobal = body.isGlobal ?? existing.isGlobal;
   validateMetadataValueInput(body, {
     metadataType: type,
@@ -236,6 +246,7 @@ export async function patchValueStatus(
   if (!existing) {
     throw new NotFoundError(`Value ${valueCode} not found`);
   }
+  assertPatchStatusAllowedForInactiveRecord(existing.status, status);
   assertMetadataTypeCode(metadataTypeCode);
   const type = await repo.getMetadataType(metadataTypeCode);
   if (!type) {

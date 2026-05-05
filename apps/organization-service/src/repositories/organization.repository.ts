@@ -626,12 +626,11 @@ export class OrganizationRepository {
     mergedConfig: Required<OrganizationConfigPatch>,
   ): Promise<OrgConfigEntity> {
     const now = Date.now();
-    const previousConfig = await this.getLatestOrganizationConfig(organizationId, {
+    const latestConfig = await this.getLatestOrganizationConfig(organizationId, {
       project: ['pk', 'sk', 'version', 'status'],
       preferActive: false,
     });
-    const nextVersion = (previousConfig?.version ?? 0) + 1;
-
+    const nextVersion = (latestConfig?.version ?? 0) + 1;
     const nextItem: OrgConfigEntity = {
       pk: organizationPk(organizationId),
       sk: `CONFIG#v${nextVersion}`,
@@ -658,13 +657,20 @@ export class OrganizationRepository {
       },
     ];
 
-    if (previousConfig && previousConfig.status === OrgConfigStatus.ACTIVE) {
+    const activeConfigToDeactivate =
+      latestConfig?.status === OrgConfigStatus.ACTIVE
+        ? latestConfig
+        : await this.getLatestOrganizationConfig(organizationId, {
+            project: ['pk', 'sk', 'status'],
+          });
+
+    if (activeConfigToDeactivate && activeConfigToDeactivate.status === OrgConfigStatus.ACTIVE) {
       transactItems.push({
         Update: {
           TableName: ORGANIZATION_TABLE_NAME,
           Key: {
-            pk: previousConfig.pk,
-            sk: previousConfig.sk,
+            pk: activeConfigToDeactivate.pk,
+            sk: activeConfigToDeactivate.sk,
           },
           UpdateExpression: 'SET #status = :inactive, #updatedAt = :updatedAt',
           ConditionExpression: '#status = :active',

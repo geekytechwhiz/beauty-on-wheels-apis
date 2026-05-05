@@ -3,7 +3,7 @@ import { QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { OrganizationRepository } from './organization.repository';
 import { OrgConfigEntityType, OrgConfigStatus } from '../models';
 
-const mockSend = jest.fn();
+const mockSend: jest.Mock = jest.fn();
 
 jest.mock('@api-hub/utils', () => ({
   ddbDocClient: {
@@ -102,7 +102,7 @@ describe('OrganizationRepository organization config versioning', () => {
     });
   });
 
-  it('uses latest version even when latest config is not ACTIVE', async () => {
+  it('uses latest version and deactivates current ACTIVE when latest config is not ACTIVE', async () => {
     mockSend
       .mockResolvedValueOnce({
         Items: [
@@ -128,6 +128,20 @@ describe('OrganizationRepository organization config versioning', () => {
           },
         ],
       })
+      .mockResolvedValueOnce({
+        Items: [
+          {
+            pk: 'ORG#org-1',
+            sk: 'CONFIG#v3',
+            entityType: OrgConfigEntityType.ORG_CONFIG,
+            orgId: 'org-1',
+            version: 3,
+            status: OrgConfigStatus.ACTIVE,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+      })
       .mockResolvedValueOnce({});
 
     const result = await repository.createOrganizationConfigVersion('org-1', {
@@ -139,9 +153,14 @@ describe('OrganizationRepository organization config versioning', () => {
     });
 
     expect(result.version).toBe(5);
+    expect(mockSend).toHaveBeenCalledTimes(3);
 
-    const transactionInput = (mockSend.mock.calls[1][0] as TransactWriteCommand).input;
+    const transactionInput = (mockSend.mock.calls[2][0] as TransactWriteCommand).input;
     expect((transactionInput.TransactItems?.[0] as any).Put.Item.sk).toBe('CONFIG#v5');
+    expect((transactionInput.TransactItems?.[1] as any).Update.Key).toEqual({
+      pk: 'ORG#org-1',
+      sk: 'CONFIG#v3',
+    });
   });
 
   it('getLatestOrganizationConfig prefers ACTIVE by default', async () => {

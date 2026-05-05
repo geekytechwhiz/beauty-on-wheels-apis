@@ -199,21 +199,21 @@ components:
             data:
               $ref: '#/components/schemas/AssignmentUpdated'
 
-    SuccessResponseWorkflowMutationResponse:
+    SuccessResponseWorkflowResult:
       allOf:
         - $ref: '#/components/schemas/SuccessResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/WorkflowMutationResponse'
+              $ref: '#/components/schemas/WorkflowResult'
 
-    SuccessResponseAlertMutationResult:
+    SuccessResponseBulkResult:
       allOf:
         - $ref: '#/components/schemas/SuccessResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/AlertMutationResult'
+              $ref: '#/components/schemas/BulkResult'
 
     SuccessResponseActivityList:
       allOf:
@@ -666,7 +666,7 @@ components:
       minItems: 1
       maxItems: 100
 
-    WorkflowMutationRequest:
+    WorkflowRequest:
       type: object
       required: [alertIds, action]
       description: >
@@ -698,18 +698,7 @@ components:
         comment:
           type: string
 
-    PriorityMutationRequest:
-      type: object
-      required: [alertIds, priority]
-      properties:
-        alertIds:
-          $ref: '#/components/schemas/AlertIds'
-        priority:
-          $ref: '#/components/schemas/Priority'
-        comment:
-          type: string
-
-    AssignmentMutationRequest:
+    AssignmentRequestBody:
       allOf:
         - type: object
           required: [alertIds]
@@ -725,7 +714,31 @@ components:
         alertIds:
           $ref: '#/components/schemas/AlertIds'
 
-    AlertMutationResult:
+    PriorityUpdateRequestBody:
+      type: object
+      required: [alertIds, priority]
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+        priority:
+          $ref: '#/components/schemas/Priority'
+
+    PriorityUpdated:
+      type: object
+      required: [alertIds]
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+
+    SuccessResponsePriorityUpdated:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PriorityUpdated'
+
+    BulkResult:
       type: object
       description: >
         Per-alert outcomes.
@@ -748,9 +761,9 @@ components:
               message:
                 type: string
 
-    WorkflowMutationResponse:
+    WorkflowResult:
       allOf:
-        - $ref: '#/components/schemas/AlertMutationResult'
+        - $ref: '#/components/schemas/BulkResult'
         - type: object
           properties:
             primaryAlert:
@@ -881,6 +894,15 @@ components:
             correlationId: "req-123"
 
 paths:
+  /health:
+    get:
+      operationId: health
+      summary: Health check
+      tags: [Service]
+      responses:
+        '200':
+          description: OK
+
   /alerts:
     get:
       operationId: listAlerts
@@ -1076,7 +1098,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WorkflowMutationRequest'
+              $ref: '#/components/schemas/WorkflowRequest'
             examples:
               single:
                 summary: Single alert
@@ -1099,52 +1121,17 @@ paths:
                   closureComment: Stabilized
       responses:
         '200':
-          description: Mutation result; optional `primaryAlert` when one alert updated.
+          description: Result; optional `primaryAlert` when one alert updated.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseWorkflowMutationResponse'
+                $ref: '#/components/schemas/SuccessResponseWorkflowResult'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
-
-  /alerts/priority:
-    patch:
-      operationId: updateAlertPriority
-      summary: Change priority (single or multi-select)
-      tags: [Alert instances]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PriorityMutationRequest'
-            examples:
-              one:
-                value:
-                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
-                  priority: P1
-              many:
-                value:
-                  alertIds:
-                    - 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                    - 4fa85f64-5717-4562-b3fc-2c963f66afa7
-                  priority: P2
-                  comment: Triage bump
-      responses:
-        '200':
-          description: Per-alert outcomes.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseAlertMutationResult'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
 
   /alerts/assignment:
     post:
@@ -1160,7 +1147,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssignmentMutationRequest'
+              $ref: '#/components/schemas/AssignmentRequestBody'
             examples:
               assignMany:
                 value:
@@ -1192,6 +1179,51 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /alerts/priority:
+    patch:
+      operationId: updateAlertPriority
+      summary: Update priority (single or multi-select)
+      tags: [Alert instances]
+      description: >
+        Updates the `priority` for every id in `alertIds`. **All-or-nothing**: if any alert is missing or out of org
+        scope, the request fails and **no** alerts are updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriorityUpdateRequestBody'
+            examples:
+              one:
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  priority: P1
+              many:
+                value:
+                  alertIds:
+                    - 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    - 4fa85f64-5717-4562-b3fc-2c963f66afa7
+                  priority: P2
+      responses:
+        '200':
+          description: Success — updated alert detail for single-select, or echo `alertIds` for multi-select.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponseAlertDetail'
+                  - $ref: '#/components/schemas/SuccessResponsePriorityUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 

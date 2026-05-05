@@ -12,8 +12,9 @@ import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import { type AlertState } from '../models/types/alert-state.type';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
-import type { WorkflowMutationInput, WorkflowMutationResult } from '../models/api/alert-mutation.types';
+import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
 import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
+import type { PriorityInput, PriorityResult } from '../models/api/alert-priority.types';
 import {
   assertWorkflowClosureComment,
   workflowActionToUpdatePatch,
@@ -253,10 +254,10 @@ export class AlertService extends BaseAlertService {
     return this.repo.updateAlert(alertId, patch);
   }
 
-  async applyWorkflowMutation(
+  async applyWorkflow(
     organizationId: string,
-    input: WorkflowMutationInput,
-  ): Promise<WorkflowMutationResult> {
+    input: WorkflowInput,
+  ): Promise<WorkflowResult> {
     const effectiveResolution =
       input.action === AlertWorkflowAction.Resolve ? input.reasonCode?.trim() : undefined;
     const effectiveDismiss =
@@ -399,6 +400,54 @@ export class AlertService extends BaseAlertService {
         performedByDisplayName,
         nowMs,
       });
+      return { existing: row, patch, activityItems };
+    });
+
+    await this.repo.updateAlertsTransaction(updates);
+
+    if (input.alertIds.length === 1) {
+      const primaryAlert = await this.getAlert(input.alertIds[0], organizationId);
+      return primaryAlert ? { primaryAlert } : {};
+    }
+    return {};
+  }
+
+  async applyPriority(
+    organizationId: string,
+    input: PriorityInput,
+  ): Promise<PriorityResult> {
+    const byId = await this.repo.getAlertsById(input.alertIds);
+
+    const loaded: AlertDdbRecord[] = [];
+    for (const id of input.alertIds) {
+      const row = byId.get(id);
+      if (!row || !organizationIdsMatch(row.organizationId, organizationId)) {
+        const e = new Error('Alert not found') as Error & { statusCode: number; code: string };
+        e.statusCode = 404;
+        e.code = 'NOT_FOUND';
+        throw e;
+      }
+      loaded.push(row);
+    }
+
+    const nowMs = Date.now();
+    const performedBy = input.performedByUserId?.trim() || 'SYSTEM';
+    const performedByDisplayName = input.performedByDisplayName;
+
+    const updates = loaded.map((row) => {
+      const patch: UpdateAlertRequest = { priority: input.priority };
+      const activityItems = [
+        AlertEntityBuilder.buildWorkflowActivityRow({
+          alertId: row.alertId,
+          organizationId: row.organizationId,
+          nowMs,
+          activityType: 'PRIORITY_CHANGED',
+          performedBy,
+          performedByDisplayName,
+          previousPriority: row.priority,
+          newPriority: input.priority,
+        }),
+      ];
       return { existing: row, patch, activityItems };
     });
 

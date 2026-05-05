@@ -2,7 +2,7 @@ import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 import { AlertWorkflowAction } from '../constants/alert-workflow-action';
-import type { WorkflowActionValue } from '../models/api/alert-mutation.types';
+import type { WorkflowActionValue } from '../models/api/alert-workflow.types';
 
 function invalidTransition(message: string): never {
   const e = new Error(message) as Error & { statusCode: number; code: string };

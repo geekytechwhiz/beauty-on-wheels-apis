@@ -292,6 +292,10 @@ export class AlertEntityBuilder {
       }
     }
 
+    if (patch.priority !== undefined) {
+      setField('priority', patch.priority);
+    }
+
     if (patch.slaBreachIndicator !== undefined) {
       setField('slaBreachIndicator', patch.slaBreachIndicator);
     }
@@ -408,6 +412,8 @@ export class AlertEntityBuilder {
     activityComment?: string;
     previousState?: AlertState;
     newState?: AlertState;
+    previousPriority?: string;
+    newPriority?: string;
     previousAssignee?: string;
     newAssignee?: string;
   }): Record<string, unknown> {
@@ -425,6 +431,8 @@ export class AlertEntityBuilder {
       ...(p.activityComment ? { activityComment: p.activityComment } : {}),
       ...(p.previousState !== undefined ? { previousState: p.previousState } : {}),
       ...(p.newState !== undefined ? { newState: p.newState } : {}),
+      ...(p.previousPriority !== undefined ? { previousPriority: p.previousPriority } : {}),
+      ...(p.newPriority !== undefined ? { newPriority: p.newPriority } : {}),
       ...(p.previousAssignee !== undefined ? { previousAssignee: p.previousAssignee } : {}),
       ...(p.newAssignee !== undefined ? { newAssignee: p.newAssignee } : {}),
       createdAt: p.nowMs,

@@ -417,4 +417,47 @@ describe('AlertService', () => {
       expect(repo.updateAlertsTransaction).not.toHaveBeenCalled();
     });
   });
+
+  describe('applyPriority', () => {
+    it('updates all alerts in one transaction', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      const a2 = minimalRecord({ alertId: 'a2', pk: 'ALERT#a2' });
+      repo.getAlertsById.mockResolvedValue(new Map([
+        ['a1', a1],
+        ['a2', a2],
+      ]));
+      repo.getAlertById.mockResolvedValue({ ...a1, priority: 'P1' } as any);
+
+      const result = await service.applyPriority('org-1', {
+        alertIds: ['a1', 'a2'],
+        priority: 'P1',
+        performedByUserId: 'actor-1',
+      });
+
+      expect(result).toEqual({});
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ existing: a1, patch: { priority: 'P1' } }),
+          expect.objectContaining({ existing: a2, patch: { priority: 'P1' } }),
+        ]),
+      );
+    });
+
+    it('returns primaryAlert for single-select', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+      repo.getAlertById.mockResolvedValue({ ...a1, priority: 'P0' } as any);
+
+      const result = await service.applyPriority('org-1', {
+        alertIds: ['a1'],
+        priority: 'P0',
+      });
+
+      expect(result.primaryAlert?.alertId).toBe('a1');
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({ patch: { priority: 'P0' } }),
+      ]);
+    });
+  });
 });

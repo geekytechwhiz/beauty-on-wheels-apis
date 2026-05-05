@@ -307,6 +307,26 @@ export const alertAssignmentBodySchema = z
 
 export type AlertAssignmentHttpBody = z.infer<typeof alertAssignmentBodySchema>;
 
+const priorityBandZ = z.enum(['P0', 'P1', 'P2', 'P3']);
+
+/**
+ * PATCH `/alerts/priority` body (strict).
+ *
+ * DynamoDB transactions allow a maximum of 100 items. Because we write **one alert update + one activity row**
+ * per alert, we cap this API at **50 alertIds** to guarantee atomic all-or-nothing behavior.
+ */
+export const alertPriorityBodySchema = z
+  .object({
+    alertIds: z
+      .array(z.string().trim().min(1))
+      .min(1, 'At least one alertId is required')
+      .max(50, 'Maximum 50 alertIds per request'),
+    priority: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), priorityBandZ),
+  })
+  .strict();
+
+export type AlertPriorityHttpBody = z.infer<typeof alertPriorityBodySchema>;
+
 const listQueueKindZ = z.enum(['TEAM', 'MY', 'PATIENT']);
 
 const listAlertStateFilterZ = z.enum(ALERT_STATE_ZOD_VALUES);

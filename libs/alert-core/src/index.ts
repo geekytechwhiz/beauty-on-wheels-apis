@@ -37,6 +37,7 @@ export type {
   ListAlertsResult,
 } from './lib/models/api/create-alert.types';
 export { createAlertPayloadFromHttpBody } from './lib/models/api/create-alert.types';
-export type { WorkflowMutationInput, WorkflowMutationResult } from './lib/models/api/alert-mutation.types';
+export type { WorkflowInput, WorkflowResult } from './lib/models/api/alert-workflow.types';
 export type { AssignmentAction, AssignmentInput, AssignmentResult } from './lib/models/api/alert-assignment.types';
+export type { PriorityInput, PriorityResult } from './lib/models/api/alert-priority.types';
 export { assertWorkflowClosureComment, workflowActionToUpdatePatch, type WorkflowPatchContext } from './lib/service/alert-workflow';

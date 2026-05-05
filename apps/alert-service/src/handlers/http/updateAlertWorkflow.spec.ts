@@ -9,15 +9,15 @@ import {
 } from '../../__tests__/handler-test-utils';
 
 // eslint-disable-next-line no-var
-var mockApplyWorkflowMutation: jest.Mock;
+var mockApplyWorkflow: jest.Mock;
 
 jest.mock('@api-hub/alert-core', () => {
-  mockApplyWorkflowMutation = jest.fn();
+  mockApplyWorkflow = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/alert-core')>('@api-hub/alert-core');
   return {
     ...actual,
     AlertService: jest.fn().mockImplementation(() => ({
-      applyWorkflowMutation: mockApplyWorkflowMutation,
+      applyWorkflow: mockApplyWorkflow,
     })),
   };
 });
@@ -31,7 +31,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     envCleanup = setupHandlerTestEnv().restore;
   });
   afterAll(() => envCleanup());
-  beforeEach(() => mockApplyWorkflowMutation.mockReset());
+  beforeEach(() => mockApplyWorkflow.mockReset());
 
   const context = testLambdaContext();
   const alertId = minimalAlertRecord().alertId;
@@ -55,7 +55,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
 
   it('returns 200 with updated alert when workflow succeeds', async () => {
     const row = minimalAlertRecord({ alertState: ALERT_STATE.IN_PROGRESS });
-    mockApplyWorkflowMutation.mockResolvedValue({
+    mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
       primaryAlert: row,
@@ -67,7 +67,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     const parsed = JSON.parse(result.body ?? '{}') as { success: boolean; data: { alertId: string } };
     expect(parsed.success).toBe(true);
     expect(parsed.data.alertId).toBe(alertId);
-    expect(mockApplyWorkflowMutation).toHaveBeenCalledWith(
+    expect(mockApplyWorkflow).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({
         alertIds: [alertId],
@@ -78,7 +78,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
 
   it('maps ASSIGN to ASSIGN with assignToUserId', async () => {
     const row = minimalAlertRecord({ alertState: ALERT_STATE.IN_PROGRESS });
-    mockApplyWorkflowMutation.mockResolvedValue({
+    mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
       primaryAlert: row,
@@ -93,7 +93,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
       context,
     );
 
-    expect(mockApplyWorkflowMutation).toHaveBeenCalledWith(
+    expect(mockApplyWorkflow).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({
         action: 'ASSIGN',
@@ -113,11 +113,11 @@ describe('updateAlertWorkflow HTTP handler', () => {
     );
 
     expect(result.statusCode).toBe(422);
-    expect(mockApplyWorkflowMutation).not.toHaveBeenCalled();
+    expect(mockApplyWorkflow).not.toHaveBeenCalled();
   });
 
   it('returns 409 when service reports ILLEGAL_TRANSITION', async () => {
-    mockApplyWorkflowMutation.mockResolvedValue({
+    mockApplyWorkflow.mockResolvedValue({
       succeeded: [],
       failed: [
         {
@@ -131,11 +131,11 @@ describe('updateAlertWorkflow HTTP handler', () => {
     const result = await main(baseEvent({ alertIds: [alertId], action: 'RESUME' }), context);
 
     expect(result.statusCode).toBe(409);
-    expect(mockApplyWorkflowMutation).toHaveBeenCalled();
+    expect(mockApplyWorkflow).toHaveBeenCalled();
   });
 
   it('returns 404 when alert not in org', async () => {
-    mockApplyWorkflowMutation.mockResolvedValue({
+    mockApplyWorkflow.mockResolvedValue({
       succeeded: [],
       failed: [{ alertId, code: 'NOT_FOUND', message: 'Alert not found' }],
     });
@@ -154,13 +154,13 @@ describe('updateAlertWorkflow HTTP handler', () => {
     );
 
     expect(result.statusCode).toBe(422);
-    expect(mockApplyWorkflowMutation).not.toHaveBeenCalled();
+    expect(mockApplyWorkflow).not.toHaveBeenCalled();
   });
 
   it('handles serverless-plugin-warmup', async () => {
     const warmup = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
     const result = await main(warmup, context);
     expect(result.statusCode).toBe(200);
-    expect(mockApplyWorkflowMutation).not.toHaveBeenCalled();
+    expect(mockApplyWorkflow).not.toHaveBeenCalled();
   });
 });

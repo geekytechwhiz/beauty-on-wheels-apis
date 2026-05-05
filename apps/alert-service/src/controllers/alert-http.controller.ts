@@ -17,13 +17,14 @@ import {
   ALERT_STATE,
   type AlertState,
   type CreateAlertPayload,
-  type WorkflowMutationInput,
+  type WorkflowInput,
 } from '@api-hub/alert-core';
 import { patchAlertBodySchema } from '../validators/alert.schemas';
 import {
   parseListAlertsQuery,
   type ValidatedCreateAlert,
   type ValidatedAssignment,
+  type ValidatedPriority,
   type ValidatedWorkflow,
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
@@ -96,7 +97,7 @@ export class AlertHttpController {
 
   /**
    * POST `/alerts/workflow` — body validated by {@link validateWorkflowRequest}; calls
-   * {@link AlertService.applyWorkflowMutation} and returns updated {@link toAlertDetail}.
+   * {@link AlertService.applyWorkflow} and returns updated {@link toAlertDetail}.
    */
   async handleUpdateAlertWorkflow(req: LambdaRequest) {
     const v = (req as LambdaRequest & { validatedWorkflow?: ValidatedWorkflow }).validatedWorkflow;
@@ -111,7 +112,7 @@ export class AlertHttpController {
 
     const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
 
-    const input: WorkflowMutationInput = {
+    const input: WorkflowInput = {
       alertIds: v.alertIds,
       action: v.action,
       assignToUserId: v.assignToUserId,
@@ -121,7 +122,7 @@ export class AlertHttpController {
       performedByUserId: performedByUserId ?? undefined,
     };
 
-    const result = await this.svc.applyWorkflowMutation(v.orgId, input);
+    const result = await this.svc.applyWorkflow(v.orgId, input);
 
     if (result.failed.length > 0 && result.succeeded.length === 0) {
       const f = result.failed[0];
@@ -171,6 +172,34 @@ export class AlertHttpController {
       alertIds: v.alertIds,
       action: v.action,
       ...(v.assignToUserId ? { assignToUserId: v.assignToUserId } : {}),
+      performedByUserId: performedByUserId ?? undefined,
+    });
+
+    if (result.primaryAlert) return toAlertDetail(result.primaryAlert);
+    return { alertIds: v.alertIds };
+  }
+
+  /**
+   * PATCH `/alerts/priority` — body validated by {@link validatePriorityRequest}; calls
+   * `AlertService.applyPriority(...)` and returns updated {@link toAlertDetail} when one id was requested.
+   * For multi-select, returns `{ alertIds }` on success (all-or-nothing).
+   */
+  async handleUpdateAlertPriority(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedPriority?: ValidatedPriority }).validatedPriority;
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    const result = await this.svc.applyPriority(v.orgId, {
+      alertIds: v.alertIds,
+      priority: v.priority,
       performedByUserId: performedByUserId ?? undefined,
     });
 

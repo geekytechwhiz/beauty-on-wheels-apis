@@ -290,6 +290,64 @@
         "slaBreachIndicator": false
       }
     },
+    "AlertIds": {
+      "type": "array",
+      "description": "One or many alert ids (single-select = array of one element).",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "maxItems": 100
+    },
+    "WorkflowAction": {
+      "type": "string",
+      "enum": ["ASSIGN", "START_WORK", "MOVE_TO_WAITING", "RESUME_WORK", "RESOLVE", "DISMISS"]
+    },
+    "WorkflowRequest": {
+      "type": "object",
+      "required": ["alertIds", "action"],
+      "properties": {
+        "alertIds": { "$ref": "#/definitions/AlertIds" },
+        "action": { "$ref": "#/definitions/WorkflowAction" },
+        "assignedToUserId": { "type": "string" },
+        "reasonCode": { "type": "string" },
+        "comment": { "type": "string" },
+        "closureComment": { "type": "string" }
+      }
+    },
+    "AssignmentAction": {
+      "type": "string",
+      "enum": ["ASSIGN", "ASSIGN_TO_SELF", "REASSIGN", "UNASSIGN"]
+    },
+    "AssignmentRequest": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": { "$ref": "#/definitions/AssignmentAction" },
+        "assignToUserId": { "type": "string", "description": "Required for ASSIGN and REASSIGN." }
+      }
+    },
+    "AssignmentRequestBody": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": ["alertIds"],
+          "properties": { "alertIds": { "$ref": "#/definitions/AlertIds" } }
+        },
+        { "$ref": "#/definitions/AssignmentRequest" }
+      ]
+    },
+    "PriorityUpdateRequestBody": {
+      "type": "object",
+      "required": ["alertIds", "priority"],
+      "properties": {
+        "alertIds": { "$ref": "#/definitions/AlertIds" },
+        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] }
+      }
+    },
+    "NoteRequest": {
+      "type": "object",
+      "required": ["comment"],
+      "properties": { "comment": { "type": "string" } }
+    },
     "ActivityType": {
       "type": "string",
       "enum": [
@@ -498,6 +556,80 @@
         "responses": { "200": { "description": "OK" } }
       }
     },
+    "/alerts/workflow": {
+      "post": {
+        "summary": "Apply alert workflow command",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/WorkflowRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail when single-select; otherwise mutation summary",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "409": { "description": "Illegal transition" },
+          "422": { "description": "Validation error" }
+        }
+      }
+    },
+    "/alerts/assignment": {
+      "post": {
+        "summary": "Apply alert assignment action",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AssignmentRequestBody" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "409": { "description": "Terminal state conflict" },
+          "422": { "description": "Validation error" }
+        }
+      }
+    },
+    "/alerts/priority": {
+      "patch": {
+        "summary": "Update alert priority",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/PriorityUpdateRequestBody" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "422": { "description": "Validation error" }
+        }
+      }
+    },
     "/alerts": {
       "get": {
         "summary": "List alerts (Team, My, or Patient)",
@@ -625,25 +757,6 @@
           "403": { "description": "Forbidden" },
           "404": { "description": "Not found" }
         }
-      },
-      "patch": {
-        "summary": "Update assignment / state / SLA flag",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "name": "alertId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "in": "body",
-            "name": "body",
-            "required": false,
-            "schema": { "$ref": "#/definitions/PatchAlertRequest" }
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
       }
     },
     "/alerts/{alertId}/activity": {
@@ -678,64 +791,21 @@
         }
       }
     },
-    "/organizations/{organizationId}/alerts": {
-      "get": {
-        "summary": "Org work queue (GSI2)",
+    "/alerts/{alertId}/notes": {
+      "post": {
+        "summary": "Add an operational note",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          {
-            "name": "organizationId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "state",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "unassignedOnly",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "integer"
-          }
+          { "name": "alertId", "in": "path", "required": true, "type": "string" },
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/NoteRequest" } }
         ],
-        "responses": { "200": { "description": "OK" } }
-      }
-    },
-    "/users/{userId}/alerts": {
-      "get": {
-        "summary": "User queue (GSI3)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "state",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "integer"
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "201": { "description": "Created" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "422": { "description": "Validation error" }
+        }
       }
     }
   }

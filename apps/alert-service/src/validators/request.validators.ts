@@ -2,11 +2,13 @@ import type { LambdaRequest } from '@api-hub/utils';
 import { AlertWorkflowAction } from '@api-hub/alert-core';
 import {
   alertAssignmentBodySchema,
+  alertPriorityBodySchema,
   alertWorkflowBodySchema,
   createAlertHttpBodySchema,
   listAlertsQuerySchema,
   noteRequestBodySchema,
   type AlertAssignmentHttpBody,
+  type AlertPriorityHttpBody,
   type AlertWorkflowHttpBody,
   type CreateAlertHttpBody,
   type ListAlertsQuery,
@@ -90,6 +92,13 @@ export type ValidatedAssignment = {
   authHeader: string | undefined;
   action: AssignmentAction;
   assignToUserId?: string;
+};
+
+export type ValidatedPriority = {
+  orgId: string;
+  alertIds: string[];
+  authHeader: string | undefined;
+  priority: AlertPriorityHttpBody['priority'];
 };
 
 export type ValidatedNote = {
@@ -206,6 +215,34 @@ export function validateAssignmentRequest(req: LambdaRequest): void {
     authHeader: req.context.authHeader,
     action: result.data.action,
     ...(assignToUserId ? { assignToUserId } : {}),
+  };
+}
+
+export function validatePriorityRequest(req: LambdaRequest): void {
+  const result = alertPriorityBodySchema.safeParse(req.body);
+
+  if (!result.success) {
+    throwVal(
+      result.error.issues[0]?.message ?? 'Validation failed',
+      422,
+      'VALIDATION_ERROR',
+      result.error.issues.map((i) => ({
+        field: i.path.join('.') || undefined,
+        message: i.message,
+      })),
+    );
+  }
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  (req as LambdaRequest & { validatedPriority: ValidatedPriority }).validatedPriority = {
+    orgId,
+    alertIds: result.data.alertIds,
+    authHeader: req.context.authHeader,
+    priority: result.data.priority,
   };
 }
 

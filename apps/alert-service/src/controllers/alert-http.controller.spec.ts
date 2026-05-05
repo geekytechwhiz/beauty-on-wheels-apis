@@ -23,9 +23,11 @@ var mockListAlertActivity: jest.Mock;
 // eslint-disable-next-line no-var
 var mockUpdateAlert: jest.Mock;
 // eslint-disable-next-line no-var
-var mockApplyWorkflowMutation: jest.Mock;
+var mockApplyWorkflow: jest.Mock;
 // eslint-disable-next-line no-var
 var mockApplyAssignment: jest.Mock;
+// eslint-disable-next-line no-var
+var mockApplyPriority: jest.Mock;
 
 jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
@@ -35,8 +37,9 @@ jest.mock('@api-hub/alert-core', () => {
   mockListUserAlerts = jest.fn();
   mockListAlertActivity = jest.fn();
   mockUpdateAlert = jest.fn();
-  mockApplyWorkflowMutation = jest.fn();
+  mockApplyWorkflow = jest.fn();
   mockApplyAssignment = jest.fn();
+  mockApplyPriority = jest.fn();
 
   const actual = jest.requireActual<typeof import('@api-hub/alert-core')>('@api-hub/alert-core');
   return {
@@ -49,8 +52,9 @@ jest.mock('@api-hub/alert-core', () => {
       listUserAlerts: mockListUserAlerts,
       listAlertActivity: mockListAlertActivity,
       updateAlert: mockUpdateAlert,
-      applyWorkflowMutation: mockApplyWorkflowMutation,
+      applyWorkflow: mockApplyWorkflow,
       applyAssignment: mockApplyAssignment,
+      applyPriority: mockApplyPriority,
     })),
   };
 });
@@ -109,8 +113,9 @@ describe('AlertHttpController', () => {
     mockListUserAlerts.mockReset();
     mockListAlertActivity.mockReset();
     mockUpdateAlert.mockReset();
-    mockApplyWorkflowMutation.mockReset();
+    mockApplyWorkflow.mockReset();
     mockApplyAssignment.mockReset();
+    mockApplyPriority.mockReset();
   });
 
   it('handleCreateAlert throws 500 when logger missing', async () => {
@@ -228,7 +233,7 @@ describe('AlertHttpController', () => {
       statusCode: 500,
       code: 'INTERNAL_ERROR',
     });
-    expect(mockApplyWorkflowMutation).not.toHaveBeenCalled();
+    expect(mockApplyWorkflow).not.toHaveBeenCalled();
   });
 
   it('handleUpdateAlertAssignment throws 500 when validatedAssignment missing', async () => {
@@ -266,10 +271,43 @@ describe('AlertHttpController', () => {
     });
   });
 
+  it('handleUpdateAlertPriority throws 500 when validatedPriority missing', async () => {
+    const c = new AlertHttpController();
+    const req = baseReq();
+    await expect(c.handleUpdateAlertPriority(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockApplyPriority).not.toHaveBeenCalled();
+  });
+
+  it('handleUpdateAlertPriority returns alert detail on single-select success', async () => {
+    const c = new AlertHttpController();
+    const record = minimalAlertRecord({ priority: 'P1' as any });
+    mockApplyPriority.mockResolvedValue({ primaryAlert: record });
+
+    const req = baseReq({
+      validatedPriority: {
+        orgId: 'org-1',
+        alertIds: [record.alertId],
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
+        priority: 'P1',
+      } as any,
+    } as any);
+
+    const out = await c.handleUpdateAlertPriority(req);
+    expect(out).toMatchObject({ alertId: record.alertId, orgId: 'org-1' });
+    expect(mockApplyPriority).toHaveBeenCalledWith('org-1', {
+      alertIds: [record.alertId],
+      priority: 'P1',
+      performedByUserId: 'user-1',
+    });
+  });
+
   it('handleUpdateAlertWorkflow returns alert detail on success', async () => {
     const c = new AlertHttpController();
     const record = minimalAlertRecord({ alertState: 'IN_PROGRESS' as any });
-    mockApplyWorkflowMutation.mockResolvedValue({
+    mockApplyWorkflow.mockResolvedValue({
       succeeded: [record.alertId],
       failed: [],
       primaryAlert: record,
@@ -287,7 +325,7 @@ describe('AlertHttpController', () => {
 
     const out = await c.handleUpdateAlertWorkflow(req);
     expect(out).toMatchObject({ alertId: record.alertId, orgId: 'org-1' });
-    expect(mockApplyWorkflowMutation).toHaveBeenCalledWith('org-1', {
+    expect(mockApplyWorkflow).toHaveBeenCalledWith('org-1', {
       alertIds: [record.alertId],
       action: 'START_WORK',
     });
@@ -295,7 +333,7 @@ describe('AlertHttpController', () => {
 
   it('handleUpdateAlertWorkflow maps NOT_FOUND to 404', async () => {
     const c = new AlertHttpController();
-    mockApplyWorkflowMutation.mockResolvedValue({
+    mockApplyWorkflow.mockResolvedValue({
       succeeded: [],
       failed: [{ alertId: 'x', code: 'NOT_FOUND', message: 'Alert not found' }],
     });
@@ -319,7 +357,7 @@ describe('AlertHttpController', () => {
 
   it('handleUpdateAlertWorkflow maps ILLEGAL_TRANSITION to 409', async () => {
     const c = new AlertHttpController();
-    mockApplyWorkflowMutation.mockResolvedValue({
+    mockApplyWorkflow.mockResolvedValue({
       succeeded: [],
       failed: [
         {

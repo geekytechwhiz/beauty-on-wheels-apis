@@ -4,7 +4,7 @@ import { AlertWorkflowAction } from '../../constants/alert-workflow-action';
 export type WorkflowActionValue = AlertWorkflowAction;
 
 /** Orchestration input for POST `/alerts/workflow`. */
-export interface WorkflowMutationInput {
+export interface WorkflowInput {
   alertIds: string[];
   action: WorkflowActionValue;
   /** Primary closure note for RESOLVE / DISMISS; persisted as `closureComment`. */
@@ -19,8 +19,9 @@ export interface WorkflowMutationInput {
   performedByDisplayName?: string;
 }
 
-export interface WorkflowMutationResult {
+export interface WorkflowResult {
   succeeded: string[];
   failed: { alertId: string; code: string; message: string }[];
   primaryAlert?: AlertDdbRecord;
 }
+

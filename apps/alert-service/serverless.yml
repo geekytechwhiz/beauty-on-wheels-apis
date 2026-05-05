@@ -345,6 +345,30 @@ functions:
             "404": Alert not found
             "409": Not allowed from terminal state
             "422": Validation error
+
+  updateAlertPriority:
+    handler: src/handlers/http/updateAlertPriority.main
+    events:
+      - http:
+          path: alerts/priority
+          method: patch
+          summary: Update alert priority
+          description: >
+            Priority update for one or many alerts. Body requires `alertIds` and `priority` (P0..P3).
+            **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Alert not found
+            "422": Validation error
   addAlertNote:
     handler: src/handlers/http/addAlertNote.main
     events:

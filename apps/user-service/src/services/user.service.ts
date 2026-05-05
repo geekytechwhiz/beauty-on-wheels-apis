@@ -1243,6 +1243,10 @@ export class UserService {
             updated.fullName ??
             updated.firstName ??
             '';
+          const profileTemplateData: Record<string, unknown> = {};
+          if (notifyEmail && profileChannels.includes('email')) {
+            profileTemplateData.FirstName = notifyName;
+          }
           await notifyUser({
             userId: updated.userID,
             email: notifyEmail || undefined,
@@ -1250,8 +1254,7 @@ export class UserService {
             name: notifyName,
             channels: profileChannels,
             template: 'PROFILE_UPDATED',
-            // PROFILE_UPDATED template in template.registry has no {{placeholders}}; empty is valid.
-            templateData: {},
+            templateData: profileTemplateData,
             correlationId,
           });
         } else {

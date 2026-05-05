@@ -1,0 +1,42 @@
+flowchart TD
+
+%% ===================== INGESTION =====================
+%% Quote labels that contain commas, bullets, or HTML; use ASCII bullets to avoid parse errors.
+
+A["External Data Sources<br/>- Device (BP / Glucose)<br/>- Mobile App<br/>- Care Team Input<br/>- Questionnaire Service"]
+--> B["API Gateway / Ingestion"]
+--> C["Monitoring Service Lambda<br/>1. Identify Instance<br/>2. Validate Input<br/>3. Classify (Qualify/Reject)"]
+
+%% ===================== MAIN PATH =====================
+
+C --> D["Save Observation (DynamoDB)<br/>PK: INSTANCE#id<br/>SK: OBS#timestamp"]
+
+C --> E["Fetch/Create Adherence<br/>PK: INSTANCE#id<br/>SK: ADH#windowStart"]
+
+D --> F["Update Adherence Counters<br/>completedCount++"]
+
+E --> G["Set TTL = windowEnd<br/>status = OPEN"]
+
+F --> H["Real-Time Check<br/>IF completed == expected"]
+
+G --> H
+
+H -->|YES| I["Close Immediately<br/>Emit AdherenceMet<br/>Start New Window"]
+H -->|NO| J["Continue Monitoring"]
+
+I --> K["EventBridge Event Bus<br/>- AdherenceUpdated<br/>- GapDetected<br/>- ObservationAccepted"]
+
+J --> K
+
+%% ===================== TTL FALLBACK =====================
+
+subgraph TTL_Fallback_Path["TTL Fallback Path"]
+L["DynamoDB TTL Expiration<br/>(async, delayed)"]
+--> M["DynamoDB Streams<br/>(REMOVE event)"]
+--> N["Gap Closer Lambda<br/>1. Read OLD_IMAGE<br/>2. If CLOSED then Skip<br/>3. Compute missedCount<br/>4. Re-create CLOSED doc<br/>5. Emit GapDetected"]
+
+N --> O["Downstream Consumers<br/>- Notification Service<br/>- Care Manager Dashboard<br/>- Billing / CCM Engine<br/>- Audit / Reporting"]
+end
+
+%% LINK MAIN FLOW TO TTL PATH
+G -.->|TTL triggers| L

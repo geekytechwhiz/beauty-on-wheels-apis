@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "@aws-lambda-powertools/logger": "^2.x",
-    "@aws-lambda-powertools/metrics": "^2.x"
+    "@aws-lambda-powertools/metrics": "^2.x",
+    "tsup": "8.5.1"
   },
   "devDependencies": {
     "@types/jest": "^29.x",

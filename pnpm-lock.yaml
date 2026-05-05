@@ -543,6 +543,9 @@ importers:
       '@api-hub/utils':
         specifier: workspace:*
         version: link:../utils
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.958.0
+        version: 3.958.0
       '@aws-sdk/client-eventbridge':
         specifier: ^3.958.0
         version: 3.958.0

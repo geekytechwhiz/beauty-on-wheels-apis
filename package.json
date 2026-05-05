@@ -9,7 +9,7 @@
     "fhir-gateway:offline:dev": "cd services/fhir-gateway && FHIR_GATEWAY_LOCAL_DEV=true serverless offline",
     "fhir-gateway:offline:dev:watch": "cd services/fhir-gateway && pnpm run offline:dev:watch",
     "authorizer-service:offline": "cd services/authorizer-service && serverless offline",
-    "build:all": "nx run many --target=build --all",
+ 
     "alert-service:offline": "cd apps/alert-service && npx nodemon --watch src --ext ts,js,yml,json --exec \"serverless offline --stage dev\"",
     "aggregator:backend:dev": "pnpm --filter @api-hub/api-aggregator-backend dev",
     "aggregator:backend:build": "pnpm --filter @api-hub/api-aggregator-backend build",
@@ -23,7 +23,33 @@
     "fix:imports": "ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
     "update:version": "ts-node --project tools/update-version/tsconfig.json tools/update-version/update-version.ts",
     "fix:imports:light": "FIX_IMPORTS_SKIP_CLEAN=1 FIX_IMPORTS_SKIP_BUILD=1 ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
-    "fix:imports:sh": "sh tools/file-import/fix-imports.sh"
+    "fix:imports:sh": "sh tools/file-import/fix-imports.sh",
+    "lint": "nx run-many --target=lint --all --parallel=10",
+    "lint:fix": "nx run-many --target=lint --all --parallel=10 --fix", 
+ 
+    "build:all": "nx run-many --target=build --all --parallel=5",
+    "test:all": "nx run-many --target=test --all --parallel=5 --batch",
+    "lint:all": "nx run-many --target=lint --all --parallel=5 --batch",
+
+    "build:affected": "nx affected --target=build --parallel=5",
+    "test:affected": "nx affected --target=test --parallel=5 --batch",
+    "lint:affected": "nx affected --target=lint --parallel=5 --batch",
+
+    "build:no-cache": "nx build my-app --skip-nx-cache",
+    "build:verbose": "nx build my-app --verbose",
+
+    "graph": "nx graph",
+    "graph:affected": "nx graph --affected",
+
+    "show:projects": "nx show projects",
+    "show:app": "nx show project my-app",
+
+    "deploy": "nx run my-app:deploy",
+
+    "format": "nx format:write",
+    "reset": "nx reset",
+
+    "profile": "NX_PROFILE=profile.json nx build my-app"
   },
   "private": true,
   "dependencies": {

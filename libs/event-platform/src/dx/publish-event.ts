@@ -1,9 +1,8 @@
 import { z } from 'zod';
 
-import { getSchemaMeta } from '../core/schema/schema-meta';
 import type { EventSchemaMeta } from '../core/schema/define-event';
+import { getSchemaMeta } from '../core/schema/schema-meta';
 import type { PublishInput } from '../typings/publisher.types';
-
 import { getDxRuntimeOrThrow } from './context';
 
 export type PublishEventOverrides<Schema extends z.ZodTypeAny & { __meta: EventSchemaMeta }> =
@@ -18,7 +17,7 @@ export async function publishEvent<Schema extends z.ZodTypeAny & { __meta: Event
   payload: z.infer<Schema>,
   overrides?: PublishEventOverrides<Schema>,
 ): Promise<void> {
-  const meta = getSchemaMeta(eventDef);
+  const meta = getSchemaMeta(eventDef); 
   const { version: versionOverride, ...rest } = overrides ?? {};
   const { publisher } = getDxRuntimeOrThrow();
 
@@ -27,6 +26,10 @@ export async function publishEvent<Schema extends z.ZodTypeAny & { __meta: Event
     source: meta.source,
     version: versionOverride ?? meta.eventVersion,
     payload,
+    meta: {
+       ...meta,
+    }, 
     ...rest,
+
   });
 }

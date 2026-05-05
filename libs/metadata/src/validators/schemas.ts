@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const metadataTypeCodeRegex = /^[A-Z][A-Za-z0-9_]*$/;
+const metadataTypeCodeRegex = /^[A-Z][A-Za-z0-9]*$/;
 const metadataValueCodeRegex = /^[A-Z0-9]+(_[A-Z0-9]+)*$/;
 
 const contextSchema = z.object({

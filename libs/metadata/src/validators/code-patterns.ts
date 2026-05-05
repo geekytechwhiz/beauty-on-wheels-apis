@@ -1,6 +1,6 @@
 import { ValidationError } from '../domain/errors';
 
-const METADATA_TYPE_CODE = /^[A-Z][A-Za-z0-9_]*$/;
+const METADATA_TYPE_CODE = /^[A-Z][A-Za-z0-9]*$/;
 const METADATA_VALUE_CODE = /^[A-Z0-9]+(_[A-Z0-9]+)*$/;
 const ENUM_TOKEN = /^[A-Z][A-Z0-9_]*$/;
 
@@ -9,7 +9,7 @@ export function assertMetadataTypeCode(code: unknown, field = 'metadataTypeCode'
     throw new ValidationError(`Invalid metadataTypeCode`, [{ field, message: 'Must be a string' }]);
   }
   if (!METADATA_TYPE_CODE.test(code)) {
-    throw new ValidationError(`Invalid metadataTypeCode`, [{ field, message: 'Must match ^[A-Z][A-Za-z0-9_]*$' }]);
+    throw new ValidationError(`Invalid metadataTypeCode`, [{ field, message: 'Must match ^[A-Z][A-Za-z0-9]*$' }]);
   }
 }
 

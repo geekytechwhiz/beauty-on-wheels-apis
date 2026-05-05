@@ -18,10 +18,10 @@ describe('validateMetadataTypeInput', () => {
     expect(() => validateMetadataTypeInput(validCreate, false)).not.toThrow();
   });
 
-  it('accepts metadataTypeCode containing underscore after leading capital', () => {
+  it('rejects metadataTypeCode containing underscore', () => {
     expect(() =>
       validateMetadataTypeInput({ ...validCreate, metadataTypeCode: 'Sample_Type' }, false),
-    ).not.toThrow();
+    ).toThrow(ValidationError);
   });
 
   it('accepts create without applicableModules (optional)', () => {

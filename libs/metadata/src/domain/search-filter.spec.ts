@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
-import { STATUS } from './constants';
+import { STATUS } from '../constants';
 import { matchesSearchFilter, sortValuesForSearch } from './search-filter';
-import type { MetadataValueRecord } from './types';
+import type { MetadataValueRecord } from '../models/types';
 
 function v(partial: Partial<MetadataValueRecord> & Pick<MetadataValueRecord, 'valueCode'>): MetadataValueRecord {
   return {
@@ -51,6 +51,31 @@ describe('matchesSearchFilter', () => {
     expect(matchesSearchFilter(row, { country: ['DE'] })).toBe(false);
     expect(matchesSearchFilter(row, { module: ['B'], country: ['IN'] })).toBe(false);
     expect(matchesSearchFilter(row, { module: ['A'], country: ['IN'] })).toBe(true);
+  });
+
+  it('filters by language with OR within and AND across dimensions', () => {
+    const row = v({
+      valueCode: 'L',
+      applicability: {
+        module: ['A'],
+        category: [],
+        condition: [],
+        country: [],
+        language: ['EN', 'FR'],
+      },
+    });
+    expect(matchesSearchFilter(row, { language: ['EN'] })).toBe(true);
+    expect(matchesSearchFilter(row, { language: ['DE'] })).toBe(false);
+    expect(matchesSearchFilter(row, { module: ['B'], language: ['EN'] })).toBe(false);
+    expect(matchesSearchFilter(row, { module: ['A'], language: ['FR'] })).toBe(true);
+  });
+
+  it('treats missing value language as empty when filter requests language', () => {
+    const row = v({
+      valueCode: 'N',
+      applicability: { module: ['A'], category: [], condition: [], country: [] },
+    });
+    expect(matchesSearchFilter(row, { language: ['EN'] })).toBe(false);
   });
 
   it('respects explicit status filter', () => {

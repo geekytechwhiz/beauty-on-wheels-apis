@@ -35,7 +35,10 @@
       "path": "../../libs/service-clients/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/utils"
+      "path": "../../libs/fhir/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
       "path": "../../libs/logger/tsconfig.lib.json"

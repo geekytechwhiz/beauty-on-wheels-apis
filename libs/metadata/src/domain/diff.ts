@@ -1,4 +1,4 @@
-import type { Applicability, MetadataTypeInput } from './types';
+import type { Applicability, MetadataTypeInput } from '../models/types';
 
 /**
  * Breaking type change: valueDataType, multiSelect, applicable modules, or non-compatible

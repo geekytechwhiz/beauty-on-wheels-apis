@@ -1,5 +1,5 @@
 import { isApplicabilityRestricting, isMetadataValueStructureBreaking } from './diff';
-import type { Applicability, MetadataValueRecord } from './types';
+import type { Applicability, MetadataValueRecord } from '../models/types';
 
 const APPLIC_DIMS: { key: keyof Applicability; flat: string }[] = [
   { key: 'module', flat: 'applicableModules' },

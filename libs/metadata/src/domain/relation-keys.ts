@@ -1,4 +1,4 @@
-import type { RelationType } from './relation-types';
+import type { RelationType } from '../models/relation-types';
 
 const REL = 'RELATION' as const;
 

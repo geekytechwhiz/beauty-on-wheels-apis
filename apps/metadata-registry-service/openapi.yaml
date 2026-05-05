@@ -154,7 +154,8 @@ paths:
       description: |
         `entityType=type`: `module`, `valueDataType` / `datatype`, and list status mode (`include-inactive` / `status`).
         `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
-        filters: `applicableModules`, `applicableCategories`, `applicableConditions`, `applicableCountries` (comma-separated
+        filters: `applicableModules`, `applicableCategories`, `applicableConditions`, `applicableCountries`,
+        `applicableLanguages` (comma-separated
         tokens, OR within a field, AND across fields; `isGlobal` values always included). The `search` query param is not supported.
       parameters:
         - name: entityType
@@ -209,6 +210,11 @@ paths:
           schema: { type: string }
         - in: query
           name: applicableCountries
+          schema: { type: string }
+        - in: query
+          name: applicableLanguages
+          description: >-
+            When `entityType=value`; comma-separated language tokens (e.g. `EN` or `EN,FR`), same enum-token style as other applicability dimensions.
           schema: { type: string }
       responses:
         '200':

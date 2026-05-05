@@ -18,6 +18,12 @@ describe('validateMetadataTypeInput', () => {
     expect(() => validateMetadataTypeInput(validCreate, false)).not.toThrow();
   });
 
+  it('accepts metadataTypeCode containing underscore after leading capital', () => {
+    expect(() =>
+      validateMetadataTypeInput({ ...validCreate, metadataTypeCode: 'Sample_Type' }, false),
+    ).not.toThrow();
+  });
+
   it('accepts create without applicableModules (optional)', () => {
     const { applicableModules: _a, ...rest } = validCreate;
     expect(() => validateMetadataTypeInput(rest as typeof validCreate, false)).not.toThrow();
@@ -41,6 +47,19 @@ describe('validateMetadataTypeInput', () => {
   it('allows partial update without status', () => {
     expect(() =>
       validateMetadataTypeInput({ metadataTypeCode: 'SampleType', displayName: 'Renamed' }, true),
+    ).not.toThrow();
+  });
+
+  it('allows update with empty applicableModules (no module restriction)', () => {
+    expect(() =>
+      validateMetadataTypeInput(
+        {
+          metadataTypeCode: 'Country',
+          displayName: 'Country',
+          applicableModules: [],
+        },
+        true,
+      ),
     ).not.toThrow();
   });
 

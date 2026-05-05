@@ -71,12 +71,7 @@ export function validateMetadataTypeInput(input: MetadataTypeInput, isUpdate = f
       { field: 'valueDataType', message: 'Invalid enum' },
     ]);
   }
-  if (input.applicableModules !== undefined) {
-    if (!input.applicableModules.length) {
-      throw new ValidationError('applicableModules must contain at least one module', [
-        { field: 'applicableModules', message: 'Invalid' },
-      ]);
-    }
+  if (input.applicableModules !== undefined && input.applicableModules.length > 0) {
     assertEnumTokenArray(input.applicableModules, 'applicableModules');
   }
   if (input.multiSelectAllowed !== undefined && typeof input.multiSelectAllowed !== 'boolean') {

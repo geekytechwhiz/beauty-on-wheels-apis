@@ -194,6 +194,31 @@ export class OrganizationService {
     }
   }
 
+  /**
+   * Loads the latest organizationConfig record and shapes it as
+   * `{ organizationConfig, organizationConfigVersion }`. Returns `null` when no
+   * config exists. Shared by `getOrganization` and `getOrganizationConfig` so
+   * the read-and-shape logic lives in one place.
+   */
+  private async loadLatestConfig(
+    organizationId: string,
+  ): Promise<{ organizationConfig: OrganizationConfigPatch; organizationConfigVersion: number } | null> {
+    const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
+      project: LATEST_ORG_CONFIG_PROJECTION_GET,
+    });
+    if (latestConfig === null) return null;
+    return {
+      organizationConfig: {
+        supportedCountries: latestConfig.supportedCountries,
+        supportedLanguages: latestConfig.supportedLanguages,
+        supportedStates: latestConfig.supportedStates,
+        supportedCategories: latestConfig.supportedCategories,
+        supportedConditions: latestConfig.supportedConditions,
+      },
+      organizationConfigVersion: latestConfig.version,
+    };
+  }
+
   async getOrganization(organizationId: string): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'getOrganization');
     const logger = createChildLogger(baseLogger, { organizationId });
@@ -205,29 +230,49 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
-      const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
-        project: LATEST_ORG_CONFIG_PROJECTION_GET,
-      });
-      const response: Organization =
-        latestConfig === null
-          ? organization
-          : {
-              ...organization,
-              organizationConfig: {
-                supportedCountries: latestConfig.supportedCountries,
-                supportedLanguages: latestConfig.supportedLanguages,
-                supportedStates: latestConfig.supportedStates,
-                supportedCategories: latestConfig.supportedCategories,
-                supportedConditions: latestConfig.supportedConditions,
-              },
-              organizationConfigVersion: latestConfig.version,
-            };
+      const latestConfig = await this.loadLatestConfig(organizationId);
+      const response: Organization = latestConfig === null ? organization : { ...organization, ...latestConfig };
 
       logger.info({ event: 'service_getOrganization_success' });
       timer.end();
       return response;
     } catch (err) {
       logger.error({ event: 'service_getOrganization_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
+  /**
+   * Returns only the latest organizationConfig (no admin enrichment, devices,
+   * mobile screens, etc). Used by `GET /organization/{organizationId}?view=config`.
+   */
+  async getOrganizationConfig(organizationId: string): Promise<{
+    organizationId: string;
+    organizationConfig?: OrganizationConfigPatch;
+    organizationConfigVersion?: number;
+  }> {
+    const timer = createPerformanceTimer(baseLogger, 'getOrganizationConfig');
+    const logger = createChildLogger(baseLogger, { organizationId });
+    logger.info({ event: 'service_getOrganizationConfig_start' });
+
+    try {
+      const organization = await this.repository.getOrganization(organizationId);
+      if (!organization) {
+        throw new OrganizationNotFoundError(organizationId);
+      }
+
+      const latestConfig = await this.loadLatestConfig(organizationId);
+      const response = {
+        organizationId,
+        ...(latestConfig ?? {}),
+      };
+
+      logger.info({ event: 'service_getOrganizationConfig_success' });
+      timer.end();
+      return response;
+    } catch (err) {
+      logger.error({ event: 'service_getOrganizationConfig_error', err: serializeError(err) });
       timer.end();
       throw err;
     }

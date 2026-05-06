@@ -41,10 +41,15 @@ const handler = async (req: LambdaRequest<Params>) => {
   const { organizationId } = req.params;
   const view = String(req.event.queryStringParameters?.view ?? '').toLowerCase();
   const isMinimalView = view === 'minimal';
+  const isConfigView = view === 'config';
   console.log('req from handler', req);
   const authHeader = req.context.authHeader ?? req.event.headers?.Authorization ?? req.event.headers?.authorization ?? req.event.headers?.AUTHORIZATION;
   const { correlationId } = req.context;
   const event = req.event;
+
+  if (isConfigView) {
+    return organizationService.getOrganizationConfig(organizationId);
+  }
 
   const organization = await organizationService.getOrganization(organizationId);
   const orgRecord = organization as unknown as Record<string, unknown>;

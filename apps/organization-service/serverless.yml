@@ -334,7 +334,12 @@ functions:
             resultTtlInSeconds: 0
           documentation:
             summary: Get organization by ID
-            description: Retrieves organization information by organization ID
+            description: |
+              Retrieves organization information by organization ID.
+              Supports an optional `view` query param:
+              - omitted: full organization payload
+              - `minimal`: trimmed organization payload
+              - `config`: only `{ organizationId, organizationConfig, organizationConfigVersion }`
             tags:
               - Organizations
             pathParameters:
@@ -344,6 +349,13 @@ functions:
                 schema:
                   type: string
                   format: uuid
+            queryParams:
+              - name: view
+                description: Response shape selector
+                required: false
+                schema:
+                  type: string
+                  enum: [minimal, config]
             responses:
               200:
                 description: Organization retrieved successfully

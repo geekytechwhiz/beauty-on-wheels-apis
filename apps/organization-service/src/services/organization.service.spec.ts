@@ -168,5 +168,62 @@ describe('OrganizationService organizationConfig updates', () => {
     });
     expect(response.organizationConfigVersion).toBe(4);
   });
+
+  describe('getOrganizationConfig', () => {
+    it('returns wrapped latest organizationConfig when present', async () => {
+      repository.getOrganization.mockResolvedValue({
+        organizationId: 'org-1',
+        name: 'Org 1',
+      });
+      repository.getLatestOrganizationConfig.mockResolvedValue({
+        pk: 'ORG#org-1',
+        sk: 'CONFIG#v4',
+        entityType: OrgConfigEntityType.ORG_CONFIG,
+        orgId: 'org-1',
+        version: 4,
+        supportedCountries: ['IN'],
+        supportedLanguages: ['en'],
+        supportedStates: ['KA'],
+        supportedCategories: ['CARDIO'],
+        supportedConditions: ['STABLE'],
+        status: OrgConfigStatus.ACTIVE,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+
+      const response = await service.getOrganizationConfig('org-1');
+
+      expect(response).toEqual({
+        organizationId: 'org-1',
+        organizationConfig: {
+          supportedCountries: ['IN'],
+          supportedLanguages: ['en'],
+          supportedStates: ['KA'],
+          supportedCategories: ['CARDIO'],
+          supportedConditions: ['STABLE'],
+        },
+        organizationConfigVersion: 4,
+      });
+    });
+
+    it('returns only organizationId when no config record exists', async () => {
+      repository.getOrganization.mockResolvedValue({
+        organizationId: 'org-1',
+        name: 'Org 1',
+      });
+      repository.getLatestOrganizationConfig.mockResolvedValue(null);
+
+      const response = await service.getOrganizationConfig('org-1');
+
+      expect(response).toEqual({ organizationId: 'org-1' });
+    });
+
+    it('throws OrganizationNotFoundError when org does not exist', async () => {
+      repository.getOrganization.mockResolvedValue(null);
+
+      await expect(service.getOrganizationConfig('missing-org')).rejects.toThrow(/missing-org/);
+      expect(repository.getLatestOrganizationConfig).not.toHaveBeenCalled();
+    });
+  });
 });
 

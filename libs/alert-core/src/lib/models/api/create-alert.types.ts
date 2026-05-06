@@ -16,7 +16,8 @@ export type ListAlertsParams = {
   queue: ListAlertsQueue;
   patientId?: string;
   state?: AlertState;
-  assignment?: 'UNASSIGNED' | 'ASSIGNED';
+  /** Assignee user id from the UI assignment control; filters stored `assignedToUserId`. */
+  assignment?: string;
   priority?: string;
   inputType?: string;
   dateFrom?: string;

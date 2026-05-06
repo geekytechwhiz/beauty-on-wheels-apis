@@ -102,19 +102,21 @@ describe('listAlerts HTTP handler', () => {
     expect(mockListAlerts).not.toHaveBeenCalled();
   });
 
-  it('returns 400 for conflicting state and assignment', async () => {
-    const result = await main(
+  it('calls service with assignment user id query when set', async () => {
+    mockListAlerts.mockResolvedValue({ items: [] });
+
+    await main(
       listEvent({
-        queryStringParameters: {
-          state: 'ASSIGNED',
-          assignment: 'UNASSIGNED',
-        },
+        queryStringParameters: { assignment: '5fa85f64-5717-4562-b3fc-2c963f66afa8' },
       }),
       context,
     );
 
-    expect(result.statusCode).toBe(400);
-    expect(mockListAlerts).not.toHaveBeenCalled();
+    expect(mockListAlerts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignment: '5fa85f64-5717-4562-b3fc-2c963f66afa8',
+      }),
+    );
   });
 
   it('returns 401 without organization in token', async () => {

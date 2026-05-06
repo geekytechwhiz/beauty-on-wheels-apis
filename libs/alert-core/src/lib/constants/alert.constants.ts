@@ -9,7 +9,7 @@ export const ENTITY_TYPE_ACTIVITY = 'ACTIVITY' as const;
 export const GSI1_ORG_QUEUE = 'GSI1' as const;
 export const GSI2_USER_QUEUE = 'GSI2' as const;
 export const GSI3_PATIENT = 'GSI3' as const;
-export const GSI4_GROUP = 'GSI4' as const;
+export const GSI4_ORG_WIDE = 'GSI4' as const;
 export const GSI5_SLA = 'GSI5' as const;
 
 /** Transact item index for conditional idempotency EVENT Put failures. */
@@ -26,5 +26,6 @@ export const DEFAULT_ASSIGN_SLA_MINUTES = 60;
 export const DEFAULT_RESOLVE_SLA_MINUTES = 240;
 
 export const ACTIVITY_TYPE_ALERT_CREATED = 'ALERT_CREATED' as const;
+export const ACTIVITY_TYPE_NOTE_ADDED = 'NOTE_ADDED' as const;
 
 export const ACTOR_SYSTEM = 'SYSTEM' as const;

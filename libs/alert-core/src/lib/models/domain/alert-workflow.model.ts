@@ -2,7 +2,8 @@ import { AlertState } from '../types/alert-state.type';
 
 export interface AlertWorkflow {
   alertState: AlertState;
-  statusUpdatedAt: string;
+  /** Unix epoch milliseconds (UTC). */
+  statusUpdatedAt: number;
   statusUpdatedBy?: string;
 
   closureComment?: string;

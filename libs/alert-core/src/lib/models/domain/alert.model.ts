@@ -14,7 +14,8 @@ export interface Alert extends BaseEntity {
   inputType: string;
   sourceType: string;
 
-  triggerTimestamp: string;
+  /** Unix epoch milliseconds (UTC) — clinical / business trigger instant. */
+  triggerTimestamp: number;
 
   triggerSummary: string;
   triggerSummaryTemplateCode?: string;

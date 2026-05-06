@@ -7,9 +7,7 @@
     "emitDeclarationOnly": false,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "declaration": true,
     /* Override base `paths`: listing only deps used by this package avoids TS including
        unrelated workspace libs (e.g. alert-core) as compilation roots under `rootDir: src`. */
@@ -22,19 +20,13 @@
       "@api-hub/event-platform/dx": ["libs/event-platform/src/dx/index.ts"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
     {
-      "path": "../utils/tsconfig.lib.json"
-    },
-    {
-      "path": "../middleware/tsconfig.lib.json"
-    },
-    {
       "path": "../logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../utils/tsconfig.lib.json"
     },
     {
       "path": "../observability/tsconfig.lib.json"

@@ -52,9 +52,6 @@
       "path": "../../libs/logger/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/middleware/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/utils/tsconfig.lib.json"
     },
     {

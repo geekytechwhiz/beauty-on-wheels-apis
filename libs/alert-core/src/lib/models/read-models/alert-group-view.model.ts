@@ -10,7 +10,8 @@ export interface AlertGroupView {
   openRecordCount: number;
   breachedRecordCount: number;
 
-  latestAlertTimestamp: string;
+  /** Unix epoch milliseconds (UTC). */
+  latestAlertTimestamp: number;
 
   assignedToUserId?: string;
 

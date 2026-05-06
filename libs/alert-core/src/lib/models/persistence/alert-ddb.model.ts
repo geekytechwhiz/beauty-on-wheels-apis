@@ -7,7 +7,6 @@ export interface AlertDdbRecord extends Alert, AlertAssignment, AlertSla, AlertW
   pk: string;
   sk: string;
   entityType: 'ALERT';
-  TableName: string;
 
   gsi1pk: string;
   gsi1sk: string;

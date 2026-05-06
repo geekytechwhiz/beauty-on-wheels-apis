@@ -1,3 +1,4 @@
+/* eslint-disable no-warning-comments */
 import { Command } from 'commander';
 import { ConfigParser } from '../core/config-parser.js';
 import { readFileSync } from 'fs';

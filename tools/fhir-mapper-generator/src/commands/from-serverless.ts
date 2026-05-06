@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-warning-comments */
 import { Command } from 'commander';
 import { ServerlessParser, type ServerlessFunction } from '../core/serverless-parser.js';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -301,7 +303,8 @@ ${stringify(config)}`;
   // console.log('   2. Update apiEndpoint for each to match your microservice API');
   // console.log('   3. Add field mappings based on your API response structure');
   // console.log('   4. Generate code for each:');
-  generatedFiles.forEach((file) => {
+  // eslint-disable-next-line no-unused-vars
+  generatedFiles.forEach(() => {
     // console.log(`      fhir-mapper generate -c ${file}`);
   });
 }

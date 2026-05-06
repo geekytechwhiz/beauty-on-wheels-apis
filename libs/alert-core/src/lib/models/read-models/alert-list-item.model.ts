@@ -9,10 +9,12 @@ export interface AlertListItem {
   alertState: AlertState;
 
   triggerSummary: string;
-  triggerTimestamp: string;
+  /** Unix epoch milliseconds (UTC). */
+  triggerTimestamp: number;
 
   assignedToUserId?: string;
 
-  slaDueAt?: string;
+  /** Unix epoch milliseconds (UTC). */
+  slaDueAt?: number;
   slaBreachIndicator?: boolean;
 }

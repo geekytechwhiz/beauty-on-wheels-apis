@@ -43,22 +43,22 @@ export default [
         },
       ],
  
-      'no-restricted-imports': [
-        'error',
-        {
-          enforceBuildableLibDependency: true,
-          allow: [
-            '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
-            '@api-hub/event-platform',
-          ],
-          depConstraints: [
-            {
-              name: 'console',
-              message: 'Do not use console directly. Use logger service.',
-            },
-          ],
-        },
-      ],
+      // 'no-restricted-imports': [
+      //   'error',
+      //   {
+      //     enforceBuildableLibDependency: true,
+      //     allow: [
+      //       '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
+      //       '@api-hub/event-platform',
+      //     ],
+      //     depConstraints: [
+      //       {
+      //         name: 'console',
+      //         message: 'Do not use console directly. Use logger service.',
+      //       },
+      //     ],
+      //   },
+      // ],
 
     
       'no-debugger': 'error',

@@ -9,6 +9,8 @@ import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { AlertListItem } from '../models/read-models/alert-list-item.model';
 import type { AlertGroupView } from '../models/read-models/alert-group-view.model';
 
+import { toEpochMs } from '../utils/alert-time';
+
 export class AlertMapper {
   /**
    * Domain → Persistence
@@ -17,7 +19,6 @@ export class AlertMapper {
     const { alert, assignment, sla, workflow } = aggregate;
 
     return {
-      TableName: process.env.ALERT_TABLE!,
       ...alert,
       ...assignment,
       ...sla,
@@ -133,11 +134,11 @@ export class AlertMapper {
       alertState: alert.alertState,
 
       triggerSummary: alert.triggerSummary,
-      triggerTimestamp: alert.triggerTimestamp,
+      triggerTimestamp: toEpochMs(alert.triggerTimestamp),
 
       assignedToUserId: assignment.assignedToUserId,
 
-      slaDueAt: sla.resolveSlaDueAt,
+      slaDueAt: sla.resolveSlaDueAt != null ? toEpochMs(sla.resolveSlaDueAt) : undefined,
       slaBreachIndicator: sla.slaBreachIndicator,
     };
   }
@@ -154,11 +155,11 @@ export class AlertMapper {
       alertState: record.alertState,
 
       triggerSummary: record.triggerSummary,
-      triggerTimestamp: record.triggerTimestamp,
+      triggerTimestamp: toEpochMs(record.triggerTimestamp),
 
       assignedToUserId: record.assignedToUserId,
 
-      slaDueAt: record.resolveSlaDueAt,
+      slaDueAt: record.resolveSlaDueAt != null ? toEpochMs(record.resolveSlaDueAt) : undefined,
       slaBreachIndicator: record.slaBreachIndicator,
     };
   }
@@ -171,9 +172,7 @@ export class AlertMapper {
       throw new Error('Cannot build group view from empty records');
     }
 
-    const sorted = [...records].sort(
-      (a, b) => new Date(b.triggerTimestamp).getTime() - new Date(a.triggerTimestamp).getTime(),
-    );
+    const sorted = [...records].sort((a, b) => toEpochMs(b.triggerTimestamp) - toEpochMs(a.triggerTimestamp));
 
     const highestPriority = records.reduce((acc, r) => {
       return r.priority < acc ? r.priority : acc;
@@ -190,7 +189,7 @@ export class AlertMapper {
       openRecordCount: records.length,
       breachedRecordCount: breachedCount,
 
-      latestAlertTimestamp: sorted[0].triggerTimestamp,
+      latestAlertTimestamp: toEpochMs(sorted[0].triggerTimestamp),
 
       assignedToUserId: records[0].assignedToUserId,
 

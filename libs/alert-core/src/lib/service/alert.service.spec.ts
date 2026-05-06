@@ -3,8 +3,15 @@ import type { Logger } from '@api-hub/logger';
 import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { CreateAlertPayload } from '../models/api/create-alert.types';
+import { AlertKeyBuilder } from '../builder/alert-key.builder';
+import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from '../repositories/alert-repository';
 import { AlertService } from './alert.service';
+
+const EPOCH_2026_01_15_T10 = Date.parse('2026-01-15T10:00:00.000Z');
+const EPOCH_2026_01_15_T11 = Date.parse('2026-01-15T11:00:00.000Z');
+const EPOCH_2026_01_15_T12 = Date.parse('2026-01-15T12:00:00.000Z');
+const EPOCH_2026_01_15_T10_01 = Date.parse('2026-01-15T10:00:01.000Z');
 
 function mockLogger(): Logger {
   return {
@@ -18,39 +25,40 @@ function mockLogger(): Logger {
 
 function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord {
   const alertId = '11111111-1111-4111-8111-111111111111';
+  const trig = EPOCH_2026_01_15_T10;
+  const created = EPOCH_2026_01_15_T10_01;
   return {
-    TableName: 't',
     pk: `ALERT#${alertId}`,
     sk: 'METADATA',
     entityType: 'ALERT',
-    gsi1pk: 'ORG#org-1',
-    gsi1sk: 'STATE#UNASSIGNED#',
+    gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.UNASSIGNED),
+    gsi1sk: AlertKeyBuilder.buildGsi1Sk(created),
     gsi3pk: 'PAT#pat-1',
-    gsi3sk: 'TS#2026-01-15T10:00:00.000Z',
-    gsi4pk: 'GROUP#g1',
-    gsi4sk: 'TS#2026-01-15T10:00:00.000Z',
-    gsi5pk: 'SLA#2026-01-15',
-    gsi5sk: 'SLA#2026-01-15T10:00:00.000Z',
+    gsi3sk: AlertKeyBuilder.toGsi3Sk(created),
+    gsi4pk: AlertKeyBuilder.buildGsi4Pk('org-1'),
+    gsi4sk: AlertKeyBuilder.buildGsi4Sk(created, alertId),
+    gsi5pk: AlertKeyBuilder.toSlaPartitionKey(EPOCH_2026_01_15_T12),
+    gsi5sk: AlertKeyBuilder.toSlaSortKey(EPOCH_2026_01_15_T12, alertId),
     alertId,
     organizationId: 'org-1',
     patientId: 'pat-1',
     inputEventId: 'evt-1',
     inputType: 'MISSED_READING',
     sourceType: 'MONITORING_SERVICE',
-    triggerTimestamp: '2026-01-15T10:00:00.000Z',
+    triggerTimestamp: trig,
     triggerSummary: 'No reading',
     evidencePayload: {},
     priority: 'P2',
-    alertState: 'UNASSIGNED',
+    alertState: ALERT_STATE.UNASSIGNED,
     groupingKey: 'g1',
     assignSlaMinutes: 60,
     resolveSlaMinutes: 240,
-    assignSlaDueAt: '2026-01-15T11:00:00.000Z',
-    resolveSlaDueAt: '2026-01-15T12:00:00.000Z',
+    assignSlaDueAt: EPOCH_2026_01_15_T11,
+    resolveSlaDueAt: EPOCH_2026_01_15_T12,
     slaBreachIndicator: false,
-    createdAt: '2026-01-15T10:00:01.000Z',
-    updatedAt: '2026-01-15T10:00:01.000Z',
-    statusUpdatedAt: '2026-01-15T10:00:01.000Z',
+    createdAt: EPOCH_2026_01_15_T10_01,
+    updatedAt: EPOCH_2026_01_15_T10_01,
+    statusUpdatedAt: EPOCH_2026_01_15_T10_01,
     ...overrides,
   } as AlertDdbRecord;
 }
@@ -82,10 +90,13 @@ describe('AlertService', () => {
       | 'resolveInputEventId'
       | 'createAlert'
       | 'getAlertById'
+      | 'getAlertsById'
       | 'queryAlertActivities'
       | 'queryPatientAlertsPage'
       | 'queryOrgAlertsPage'
+      | 'queryOrgAlertsGsi4Page'
       | 'queryUserAlertsPage'
+      | 'updateAlertsTransaction'
     >
   >;
   let service: AlertService;
@@ -95,10 +106,13 @@ describe('AlertService', () => {
       resolveInputEventId: jest.fn(),
       createAlert: jest.fn(),
       getAlertById: jest.fn(),
+      getAlertsById: jest.fn(),
       queryAlertActivities: jest.fn(),
       queryPatientAlertsPage: jest.fn(),
       queryOrgAlertsPage: jest.fn(),
+      queryOrgAlertsGsi4Page: jest.fn(),
       queryUserAlertsPage: jest.fn(),
+      updateAlertsTransaction: jest.fn(),
     };
     service = new AlertService(repo as unknown as AlertRepository, mockLogger());
   });
@@ -182,7 +196,7 @@ describe('AlertService', () => {
           activityId: 'act-1',
           alertId: 'aid',
           activityType: 'ALERT_CREATED',
-          activityTimestamp: '2026-01-15T10:00:00.000Z',
+          activityTimestamp: EPOCH_2026_01_15_T10,
           performedBy: 'SYSTEM',
         } as AlertActivity,
       ];
@@ -190,7 +204,13 @@ describe('AlertService', () => {
 
       const out = await service.listAlertActivity('aid', 'org-1');
       expect(out).toBe(activities);
-      expect(repo.queryAlertActivities).toHaveBeenCalledWith('aid');
+      expect(repo.queryAlertActivities).toHaveBeenCalledWith('aid', undefined);
+    });
+
+    it('passes notesOnly to repository', async () => {
+      repo.queryAlertActivities.mockResolvedValue([]);
+      await service.listAlertActivity('aid', 'org-1', { notesOnly: true });
+      expect(repo.queryAlertActivities).toHaveBeenCalledWith('aid', { notesOnly: true });
     });
   });
 
@@ -205,19 +225,64 @@ describe('AlertService', () => {
       expect(repo.queryUserAlertsPage).not.toHaveBeenCalled();
     });
 
-    it('queries org page for TEAM queue with default UNASSIGNED state', async () => {
-      const row = minimalRecord();
-      repo.queryOrgAlertsPage.mockResolvedValue({ items: [row] });
+    it('queries GSI4 for default TEAM in a single call (no default alertState filter)', async () => {
+      const unassigned = minimalRecord({ alertId: 'u-1' });
+      const assigned = minimalRecord({
+        alertId: 'a-1',
+        alertState: ALERT_STATE.ASSIGNED,
+        assignedToUserId: 'user-1',
+        gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
+      });
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [unassigned, assigned] });
 
       const result = await service.listAlerts({ ...baseListParams(), queue: 'TEAM' });
 
-      expect(result.items).toEqual([row]);
-      expect(repo.queryOrgAlertsPage).toHaveBeenCalledWith(
+      expect(result.items.length).toBe(2);
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledTimes(1);
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
         'org-1',
         expect.objectContaining({
-          state: 'UNASSIGNED',
-          unassignedOnly: false,
           limit: 50,
+        }),
+      );
+      expect(repo.queryOrgAlertsPage).not.toHaveBeenCalled();
+      const ids = result.items.map((a) => a.alertId);
+      expect(ids).toContain('u-1');
+      expect(ids).toContain('a-1');
+    });
+
+    it('passes assignment (assignee user id) to GSI4 for TEAM', async () => {
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [] });
+
+      await service.listAlerts({
+        ...baseListParams(),
+        queue: 'TEAM',
+        assignment: '5fa85f64-5717-4562-b3fc-2c963f66afa8',
+      });
+
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          assignedToUserId: '5fa85f64-5717-4562-b3fc-2c963f66afa8',
+        }),
+      );
+    });
+
+    it('passes workflow state and assignment filters independently for TEAM', async () => {
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [] });
+
+      await service.listAlerts({
+        ...baseListParams(),
+        queue: 'TEAM',
+        state: ALERT_STATE.IN_PROGRESS,
+        assignment: 'user-1',
+      });
+
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          state: ALERT_STATE.IN_PROGRESS,
+          assignedToUserId: 'user-1',
         }),
       );
     });
@@ -240,10 +305,16 @@ describe('AlertService', () => {
       expect(repo.queryOrgAlertsPage).not.toHaveBeenCalled();
     });
 
-    it('filters TEAM results by priority', async () => {
-      const hi = minimalRecord({ alertId: '1', priority: 'P1' });
-      const lo = minimalRecord({ alertId: '2', priority: 'P2' });
-      repo.queryOrgAlertsPage.mockResolvedValue({ items: [hi, lo] });
+    it('passes priority to GSI4 query for TEAM', async () => {
+      const hi = minimalRecord({
+        alertId: 'b',
+        priority: 'P1',
+        alertState: ALERT_STATE.ASSIGNED,
+        assignedToUserId: 'user-1',
+        gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
+        triggerTimestamp: Date.parse('2026-01-16T10:00:00.000Z'),
+      });
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({ items: [hi] });
 
       const result = await service.listAlerts({
         ...baseListParams(),
@@ -251,25 +322,151 @@ describe('AlertService', () => {
         priority: 'P1',
       });
 
-      expect(result.items.map((a) => a.alertId)).toEqual(['1']);
+      expect(repo.queryOrgAlertsGsi4Page).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          priority: 'P1',
+        }),
+      );
+      expect(result.items.map((a) => a.alertId)).toEqual(['b']);
     });
 
-    it('includes nextToken when DynamoDB returns LastEvaluatedKey', async () => {
-      const lek = { pk: 'x', sk: 'y' };
-      repo.queryOrgAlertsPage.mockResolvedValue({
-        items: [minimalRecord()],
+    it('returns Dynamo LastEvaluatedKey as nextToken for TEAM', async () => {
+      const lek = { gsi4pk: 'ORG#org-1', gsi4sk: 'TS#00001736938200000#x', pk: 'ALERT#a1', sk: 'METADATA' };
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({
+        items: [
+          minimalRecord({
+            alertId: 'a1',
+            alertState: ALERT_STATE.ASSIGNED,
+            assignedToUserId: 'user-1',
+            gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
+            triggerTimestamp: Date.parse('2026-01-20T10:00:00.000Z'),
+          }),
+        ],
         lastEvaluatedKey: lek,
       });
 
-      const result = await service.listAlerts({ ...baseListParams(), queue: 'TEAM' });
+      const result = await service.listAlerts({ ...baseListParams(), queue: 'TEAM', limit: 1 });
 
-      expect(result.nextToken).toBe(Buffer.from(JSON.stringify(lek), 'utf8').toString('base64url'));
+      expect(result.items.map((a) => a.alertId)).toEqual(['a1']);
+      expect(result.nextToken).toBeDefined();
+      const parsed = JSON.parse(Buffer.from(result.nextToken!, 'base64url').toString('utf8')) as Record<
+        string,
+        unknown
+      >;
+      expect(parsed.gsi4pk).toBe('ORG#org-1');
     });
 
     it('throws 400 for invalid nextToken', async () => {
       await expect(
         service.listAlerts({ ...baseListParams(), queue: 'TEAM', nextToken: '%%%' }),
       ).rejects.toMatchObject({ statusCode: 400, code: 'VALIDATION_ERROR' });
+    });
+  });
+
+  describe('applyAssignment', () => {
+    it('updates all alerts in one transaction (ASSIGN)', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      const a2 = minimalRecord({ alertId: 'a2', pk: 'ALERT#a2' });
+      repo.getAlertsById.mockResolvedValue(new Map([
+        ['a1', a1],
+        ['a2', a2],
+      ]));
+      repo.getAlertById.mockResolvedValue(a1);
+
+      const result = await service.applyAssignment('org-1', {
+        alertIds: ['a1', 'a2'],
+        action: 'ASSIGN',
+        assignToUserId: 'user-9',
+        performedByUserId: 'actor-1',
+      });
+
+      expect(result).toEqual({});
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            existing: a1,
+            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9' },
+            performedByUserId: 'actor-1',
+          }),
+          expect.objectContaining({
+            existing: a2,
+            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9' },
+            performedByUserId: 'actor-1',
+          }),
+        ]),
+      );
+    });
+
+    it('returns primaryAlert for single-select', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+      repo.getAlertById.mockResolvedValue(a1);
+
+      const result = await service.applyAssignment('org-1', {
+        alertIds: ['a1'],
+        action: 'UNASSIGN',
+      });
+
+      expect(result.primaryAlert?.alertId).toBe('a1');
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({ patch: { alertState: ALERT_STATE.UNASSIGNED, assignedToUserId: null } }),
+      ]);
+    });
+
+    it('fails for terminal state and does not write', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1', alertState: ALERT_STATE.RESOLVED });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+
+      await expect(
+        service.applyAssignment('org-1', { alertIds: ['a1'], action: 'UNASSIGN' }),
+      ).rejects.toMatchObject({ statusCode: 409, code: 'TERMINAL_STATE' });
+
+      expect(repo.updateAlertsTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('applyPriority', () => {
+    it('updates all alerts in one transaction', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      const a2 = minimalRecord({ alertId: 'a2', pk: 'ALERT#a2' });
+      repo.getAlertsById.mockResolvedValue(new Map([
+        ['a1', a1],
+        ['a2', a2],
+      ]));
+      repo.getAlertById.mockResolvedValue({ ...a1, priority: 'P1' } as any);
+
+      const result = await service.applyPriority('org-1', {
+        alertIds: ['a1', 'a2'],
+        priority: 'P1',
+        performedByUserId: 'actor-1',
+      });
+
+      expect(result).toEqual({});
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ existing: a1, patch: { priority: 'P1' } }),
+          expect.objectContaining({ existing: a2, patch: { priority: 'P1' } }),
+        ]),
+      );
+    });
+
+    it('returns primaryAlert for single-select', async () => {
+      const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+      repo.getAlertById.mockResolvedValue({ ...a1, priority: 'P0' } as any);
+
+      const result = await service.applyPriority('org-1', {
+        alertIds: ['a1'],
+        priority: 'P0',
+      });
+
+      expect(result.primaryAlert?.alertId).toBe('a1');
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({ patch: { priority: 'P0' } }),
+      ]);
     });
   });
 });

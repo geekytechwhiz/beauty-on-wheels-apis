@@ -7,7 +7,8 @@ export interface AlertActivity extends BaseEntity {
   alertId: string;
 
   activityType: string;
-  activityTimestamp: string;
+  /** Unix epoch milliseconds (UTC). */
+  activityTimestamp: number;
 
   performedBy: string;
   performedByDisplayName?: string;
@@ -22,6 +23,8 @@ export interface AlertActivity extends BaseEntity {
 
   previousAssignee?: string;
   newAssignee?: string;
+  previousAssigneeDisplayName?: string;
+  newAssigneeDisplayName?: string;
 
   evidencePayload?: Record<string, unknown>;
 }

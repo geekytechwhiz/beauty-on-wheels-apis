@@ -5,8 +5,7 @@
   "projectType": "library",
   "tags": [
     "type:lib",
-    "allowed-for-app"
-  ],
+ "type:shared"],
   "// targets": "to see all targets run: nx show project utils --web",
   "targets": {
     "test": {

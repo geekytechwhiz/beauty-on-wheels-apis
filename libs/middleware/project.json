@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/middleware/src",
   "projectType": "library",
-  "tags": ["type:lib", "allowed-for-app"],
+  "tags": ["type:lib","type:shared"],
   "// targets": "to see all targets run: nx show project middleware --web",
   "targets": {}
 }

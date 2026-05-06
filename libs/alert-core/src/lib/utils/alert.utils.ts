@@ -24,6 +24,7 @@ export function  isTransactionCanceled(
       sk: _sk,
       entityType: _entityType,
       organizationId: _organizationId,
+      updatedAt: _updatedAt,
       ...rest
     } = raw;
     return rest as unknown as AlertActivity;

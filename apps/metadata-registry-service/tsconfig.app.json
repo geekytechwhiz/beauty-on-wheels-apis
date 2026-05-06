@@ -39,7 +39,7 @@
   "exclude": ["src/**/*.spec.ts"],
   "references": [
     {
-      "path": "../../libs/middleware/tsconfig.lib.json"
+      "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
       "path": "../../libs/metadata/tsconfig.lib.json"

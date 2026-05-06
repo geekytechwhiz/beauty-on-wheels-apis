@@ -4,5 +4,6 @@ export interface CreateAlertResponse {
   alertId: string;
   groupingKey: string;
   alertState: AlertState;
-  createdAt: string;
+  /** Unix epoch milliseconds (UTC). */
+  createdAt: number;
 }

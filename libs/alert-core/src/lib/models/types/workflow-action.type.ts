@@ -1,6 +1,7 @@
 export type AlertWorkflowAction =
+  | 'ASSIGN'
   | 'START_WORK'
-  | 'WAIT'
-  | 'RESUME'
+  | 'MOVE_TO_WAITING'
+  | 'RESUME_WORK'
   | 'RESOLVE'
   | 'DISMISS';

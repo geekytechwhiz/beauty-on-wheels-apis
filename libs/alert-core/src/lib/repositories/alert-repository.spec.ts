@@ -1,8 +1,9 @@
-import { ALERT_METADATA_SK } from '../constants/alert.constants';
+import { ACTIVITY_TYPE_NOTE_ADDED, ALERT_METADATA_SK } from '../constants/alert.constants';
 import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
+import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from './alert-repository';
 
 const TABLE = 'test-alert-table';
@@ -123,6 +124,23 @@ describe('AlertRepository', () => {
       );
       expect(items[0]).not.toHaveProperty('pk');
     });
+
+    it('applies FilterExpression when notesOnly is true', async () => {
+      const queryAll = jest.spyOn(repo as unknown as { queryAll: jest.Mock }, 'queryAll').mockResolvedValue([]);
+
+      await repo.queryAlertActivities('a1', { notesOnly: true });
+
+      expect(queryAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          FilterExpression: 'activityType = :noteType',
+          ExpressionAttributeValues: expect.objectContaining({
+            ':pk': AlertKeyBuilder.toAlertPk('a1'),
+            ':act': 'ACTIVITY#',
+            ':noteType': ACTIVITY_TYPE_NOTE_ADDED,
+          }),
+        }),
+      );
+    });
   });
 
   describe('createAlert', () => {
@@ -138,6 +156,9 @@ describe('AlertRepository', () => {
       expect(tw).toHaveBeenCalledTimes(1);
       const items = tw.mock.calls[0][0].TransactItems;
       expect(items).toHaveLength(4);
+      for (const op of items.slice(0, 3) as { Put: { Item: Record<string, unknown> } }[]) {
+        expect(op.Put.Item).not.toHaveProperty('TableName');
+      }
     });
 
     it('throws DuplicateEventError on idempotency conditional failure', async () => {
@@ -179,7 +200,7 @@ describe('AlertRepository', () => {
   });
 
   describe('queryOrgAlertsPage', () => {
-    it('queries org GSI with state prefix and hydrates', async () => {
+    it('queries org GSI by org+state partition and hydrates', async () => {
       const hydrated: AlertDdbRecord = {
         alertId: 'o1',
         organizationId: 'org-1',
@@ -193,7 +214,7 @@ describe('AlertRepository', () => {
       jest.spyOn(repo as unknown as { batchGet: jest.Mock }, 'batchGet').mockResolvedValue([hydrated]);
 
       const page = await repo.queryOrgAlertsPage('org-1', {
-        state: 'ASSIGNED',
+        state: ALERT_STATE.ASSIGNED,
         unassignedOnly: true,
         limit: 5,
       });
@@ -202,10 +223,9 @@ describe('AlertRepository', () => {
       expect(queryPageSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           IndexName: 'GSI1',
-          KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
+          KeyConditionExpression: 'gsi1pk = :pk',
           ExpressionAttributeValues: {
-            ':o': AlertKeyBuilder.toOrgPartitionKey('org-1'),
-            ':s': 'STATE#ASSIGNED#',
+            ':pk': AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.ASSIGNED),
           },
           Limit: 5,
         }),

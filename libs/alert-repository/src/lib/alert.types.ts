@@ -26,7 +26,7 @@ export interface AlertRecord {
   evidencePayload: Record<string, unknown>;
   slaBreachIndicator: boolean;
   groupingKey: string;
-  /** GSI-1 Team queue (org): ORG#… / STATE#…#PRIORITY#…#TS#… */
+  /** GSI-1 Team queue: ORG#<orgId>#STATE#<alertState> / TS#<triggerTimestamp> */
   gsi1pk: string;
   gsi1sk: string;
   /** GSI-2 My queue (user) — only when assigned */
@@ -35,9 +35,6 @@ export interface AlertRecord {
   /** GSI-3 Patient: PAT#… / TS#… */
   gsi3pk: string;
   gsi3sk: string;
-  /** GSI-4 Group: GROUP#… / TS#… */
-  gsi4pk: string;
-  gsi4sk: string;
   /** GSI-5 SLA: SLA#dateBucket / TS#due… */
   gsi5pk: string;
   gsi5sk: string;

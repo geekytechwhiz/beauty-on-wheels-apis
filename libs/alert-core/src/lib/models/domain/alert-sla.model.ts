@@ -2,11 +2,13 @@ export interface AlertSla {
   assignSlaMinutes: number;
   resolveSlaMinutes: number;
 
-  assignSlaDueAt: string;
-  resolveSlaDueAt: string;
+  /** Unix epoch milliseconds (UTC). */
+  assignSlaDueAt: number;
+  /** Unix epoch milliseconds (UTC). */
+  resolveSlaDueAt: number;
 
   slaBreachIndicator: boolean;
 
-  assignSlaBreachedAt?: string;
-  resolveSlaBreachedAt?: string;
+  assignSlaBreachedAt?: number;
+  resolveSlaBreachedAt?: number;
 }

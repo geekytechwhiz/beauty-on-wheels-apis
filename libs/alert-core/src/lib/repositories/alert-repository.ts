@@ -9,7 +9,9 @@ import {
   GSI1_ORG_QUEUE,
   GSI2_USER_QUEUE,
   GSI3_PATIENT,
+  GSI4_ORG_WIDE,
   GROUP_MEMBERSHIP_SK_PREFIX,
+  ACTIVITY_TYPE_NOTE_ADDED,
 } from '../constants/alert.constants';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 
@@ -17,7 +19,7 @@ import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
-import type { AlertState } from '../models/types/alert-state.type';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 
 import {
   assertAlertTable,
@@ -25,15 +27,162 @@ import {
   toPublicActivity,
 } from '../utils/alert.utils';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
+import { padEpochMs13 } from '../utils/alert-time';
 
-/** Resolve alert id from a GSI Query row (full item or KEYS_ONLY / INCLUDE projection). */
-function alertIdFromGsiRow(r: AlertDdbRecord): string | undefined {
-  const id = typeof r.alertId === 'string' ? r.alertId.trim() : '';
-  if (id) return id;
-  const pk = typeof r.pk === 'string' ? r.pk : '';
-  const m = /^ALERT#(.+)$/.exec(pk);
-  const fromPk = m?.[1]?.trim();
-  return fromPk || undefined;
+/** Filters shared by TEAM (GSI4), MY (GSI2), and PATIENT (GSI3) list queries (HTTP list semantics). */
+export type AlertListStructuredFilters = {
+  state?: AlertState;
+  priority?: string;
+  inputType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  assignedToUserId?: string;
+};
+
+/** MY queue (GSI2): structured filters + optional substring `search` (`contains` on alert id / patient id). */
+export type QueryUserAlertsListOpts = AlertListStructuredFilters & { search?: string };
+
+/** PATIENT (GSI3): structured filters; dates use `triggerTimestamp` (GSI3 sort key is not clinical trigger). */
+export type QueryPatientAlertsListOpts = AlertListStructuredFilters & {
+  openOnly?: boolean;
+};
+
+/** GSI2 / GSI4: constrain sort key to `[dateFrom, dateTo]` using `TS#…#` segment (**creation** time as stored on SK). */
+function appendSortKeyTriggerTimeBounds(
+  expressionAttributeValues: Record<string, unknown>,
+  keyCondition: string,
+  sortKeyAttr: 'gsi2sk' | 'gsi4sk',
+  opts: Pick<AlertListStructuredFilters, 'dateFrom' | 'dateTo'>,
+): string {
+  let kc = keyCondition;
+  const fromMs = opts.dateFrom?.trim() ? Date.parse(opts.dateFrom.trim()) : NaN;
+  const toMs = opts.dateTo?.trim() ? Date.parse(opts.dateTo.trim()) : NaN;
+  if (!Number.isNaN(fromMs)) {
+    expressionAttributeValues[':skLo'] = `TS#${padEpochMs13(fromMs)}#`;
+    kc += ` AND ${sortKeyAttr} >= :skLo`;
+  }
+  if (!Number.isNaN(toMs)) {
+    expressionAttributeValues[':skHiEx'] = `TS#${padEpochMs13(toMs + 1)}#`;
+    kc += ` AND ${sortKeyAttr} < :skHiEx`;
+  }
+  return kc;
+}
+
+/** State / priority / inputType — common `FilterExpression` fragments for list queries. */
+function appendStatePriorityInputTypeFilters(
+  expressionAttributeValues: Record<string, unknown>,
+  filterParts: string[],
+  opts: Pick<AlertListStructuredFilters, 'state' | 'priority' | 'inputType'>,
+): void {
+  if (opts.state) {
+    expressionAttributeValues[':listSt'] = opts.state;
+    filterParts.push('(alertState = :listSt)');
+  }
+  if (opts.priority?.trim()) {
+    expressionAttributeValues[':prio'] = opts.priority.trim();
+    filterParts.push('(priority = :prio)');
+  }
+  if (opts.inputType?.trim()) {
+    expressionAttributeValues[':inType'] = opts.inputType.trim();
+    filterParts.push('(inputType = :inType)');
+  }
+}
+
+/** GSI3: clinical trigger range on the attribute (not on `gsi3sk`). */
+function appendTriggerTimestampIsoRangeFilters(
+  expressionAttributeValues: Record<string, unknown>,
+  filterParts: string[],
+  opts: Pick<AlertListStructuredFilters, 'dateFrom' | 'dateTo'>,
+): void {
+  const fromMs = opts.dateFrom?.trim() ? Date.parse(opts.dateFrom.trim()) : NaN;
+  if (!Number.isNaN(fromMs)) {
+    expressionAttributeValues[':trFrom'] = fromMs;
+    filterParts.push('(triggerTimestamp >= :trFrom)');
+  }
+  const toMs = opts.dateTo?.trim() ? Date.parse(opts.dateTo.trim()) : NaN;
+  if (!Number.isNaN(toMs)) {
+    expressionAttributeValues[':trTo'] = toMs;
+    filterParts.push('(triggerTimestamp <= :trTo)');
+  }
+}
+
+function appendUnassignedOnlyFilter(
+  expressionAttributeValues: Record<string, unknown>,
+  filterParts: string[],
+): void {
+  expressionAttributeValues[':emptyAssignee'] = '';
+  filterParts.push(
+    '(attribute_not_exists(assignedToUserId) OR assignedToUserId = :emptyAssignee)',
+  );
+}
+
+function appendAssignedToUserIdListFilter(
+  expressionAttributeValues: Record<string, unknown>,
+  filterParts: string[],
+  assignedToUserId?: string,
+): void {
+  const uid = assignedToUserId?.trim();
+  if (!uid) return;
+  expressionAttributeValues[':listAssignedToUid'] = uid;
+  filterParts.push('(assignedToUserId = :listAssignedToUid)');
+}
+
+function appendPatientOpenOnlyFilter(
+  expressionAttributeValues: Record<string, unknown>,
+  filterParts: string[],
+): void {
+  expressionAttributeValues[':stRes'] = ALERT_STATE.RESOLVED;
+  expressionAttributeValues[':stDis'] = ALERT_STATE.DISMISSED;
+  filterParts.push('(alertState <> :stRes AND alertState <> :stDis)');
+}
+
+/**
+ * TEAM / MY only: Dynamo `contains` on alert id and patient id (case-sensitive; `Limit` applies before filter).
+ */
+function appendListSearchContainsFilter(
+  expressionAttributeValues: Record<string, unknown>,
+  filterParts: string[],
+  search?: string,
+): void {
+  const q = search?.trim();
+  if (!q) return;
+  expressionAttributeValues[':qSrch'] = q;
+  filterParts.push('(contains(alertId, :qSrch) OR contains(patientId, :qSrch))');
+}
+
+function buildGsi2UserListParams(userId: string, opts: QueryUserAlertsListOpts) {
+  const eav: Record<string, unknown> = {
+    ':u': AlertKeyBuilder.toUserPartitionKey(userId),
+  };
+  const keyCondition = appendSortKeyTriggerTimeBounds(eav, 'gsi2pk = :u', 'gsi2sk', opts);
+
+  const filterParts: string[] = [];
+  appendStatePriorityInputTypeFilters(eav, filterParts, opts);
+  appendAssignedToUserIdListFilter(eav, filterParts, opts.assignedToUserId);
+  appendListSearchContainsFilter(eav, filterParts, opts.search);
+
+  return {
+    KeyConditionExpression: keyCondition,
+    ExpressionAttributeValues: eav,
+    ...(filterParts.length ? { FilterExpression: filterParts.join(' AND ') } : {}),
+  };
+}
+
+function buildGsi3PatientFilterParts(opts: QueryPatientAlertsListOpts) {
+  const eav: Record<string, unknown> = {};
+  const filterParts: string[] = [];
+
+  appendStatePriorityInputTypeFilters(eav, filterParts, opts);
+  appendAssignedToUserIdListFilter(eav, filterParts, opts.assignedToUserId);
+  appendTriggerTimestampIsoRangeFilters(eav, filterParts, opts);
+  if (opts.openOnly) {
+    appendPatientOpenOnlyFilter(eav, filterParts);
+  }
+
+  return {
+    ExpressionAttributeValues: eav,
+    ...(filterParts.length ? { FilterExpression: filterParts.join(' AND ') } : {}),
+  };
 }
 
 export class AlertRepository extends BaseRepository {
@@ -58,15 +207,13 @@ export class AlertRepository extends BaseRepository {
   }
 
   async createAlert(input: CreateAlertRequest): Promise<AlertDdbRecord> {
-    assertAlertTable();
+    const table = assertAlertTable();
 
     const alertId = randomUUID();
-    const now = AlertEntityBuilder.nowIso();
     const idempotencyKey = input.inputEventId ?? randomUUID();
 
     const ctx = AlertEntityBuilder.buildCreateContext({
       alertId,
-      now,
       input: { ...input, inputEventId: idempotencyKey },
     });
 
@@ -78,9 +225,9 @@ export class AlertRepository extends BaseRepository {
     try {
       await this.transactWrite({
         TransactItems: [
-          { Put: { ...eventPut, Item: eventPut as unknown as Record<string, unknown> } },
-          { Put: { ...alertPut, Item: alertPut as unknown as Record<string, unknown> } },
-          { Put: { ...activityPut, Item: activityPut as unknown as Record<string, unknown> } },
+          { Put: { TableName: table, Item: eventPut as unknown as Record<string, unknown> } },
+          { Put: { TableName: table, Item: alertPut as unknown as Record<string, unknown> } },
+          { Put: { TableName: table, Item: activityPut as unknown as Record<string, unknown> } },
           groupMembershipPut,
         ],
       });
@@ -103,17 +250,35 @@ export class AlertRepository extends BaseRepository {
     });
   }
 
-  async queryAlertActivities(alertId: string): Promise<AlertActivity[]> {
+  /**
+   * Batch-load alert METADATA rows by id. Returns a map of `alertId -> record` for hits only.
+   * Preserves DynamoDB BatchGet 100-key chunking.
+   */
+  async getAlertsById(alertIds: string[]): Promise<Map<string, AlertDdbRecord>> {
     const table = assertAlertTable();
+    return this.batchGetAlertsById(table, alertIds);
+  }
+
+  async queryAlertActivities(
+    alertId: string,
+    opts?: { notesOnly?: boolean },
+  ): Promise<AlertActivity[]> {
+    const table = assertAlertTable();
+
+    const expressionAttributeValues: Record<string, unknown> = {
+      ':pk': AlertKeyBuilder.toAlertPk(alertId),
+      ':act': 'ACTIVITY#',
+    };
+    if (opts?.notesOnly) {
+      expressionAttributeValues[':noteType'] = ACTIVITY_TYPE_NOTE_ADDED;
+    }
 
     const rows = await this.queryAll<Record<string, unknown>>({
       TableName: table,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :act)',
-      ExpressionAttributeValues: {
-        ':pk': AlertKeyBuilder.toAlertPk(alertId),
-        ':act': 'ACTIVITY#',
-      },
+      ExpressionAttributeValues: expressionAttributeValues,
       ScanIndexForward: false,
+      ...(opts?.notesOnly ? { FilterExpression: 'activityType = :noteType' } : {}),
     });
 
     return rows.map((r) => toPublicActivity(r));
@@ -121,70 +286,54 @@ export class AlertRepository extends BaseRepository {
 
   async queryPatientAlerts(
     patientId: string,
-    opts: { openOnly?: boolean; inputType?: string; limit?: number },
+    opts: QueryPatientAlertsListOpts & { limit?: number },
   ): Promise<AlertDdbRecord[]> {
     const table = assertAlertTable();
+
+    const filterBuilt = buildGsi3PatientFilterParts(opts);
+    const expressionAttributeValues: Record<string, unknown> = {
+      ':p': AlertKeyBuilder.toPatPartitionKey(patientId),
+      ...filterBuilt.ExpressionAttributeValues,
+    };
 
     let items = await this.query<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI3_PATIENT,
       KeyConditionExpression: 'gsi3pk = :p',
-      ExpressionAttributeValues: {
-        ':p': AlertKeyBuilder.toPatPartitionKey(patientId),
-      },
+      ExpressionAttributeValues: expressionAttributeValues,
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
+      ...(filterBuilt.FilterExpression ? { FilterExpression: filterBuilt.FilterExpression } : {}),
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
-
-    if (opts.openOnly) {
-      items = items.filter(
-        (a) => a.alertState !== 'RESOLVED' && a.alertState !== 'DISMISSED',
-      );
-    }
-
-    if (opts.inputType) {
-      items = items.filter((a) => a.inputType === opts.inputType);
-    }
 
     return items;
   }
 
   async queryPatientAlertsPage(
     patientId: string,
-    opts: {
-      openOnly?: boolean;
-      inputType?: string;
+    opts: QueryPatientAlertsListOpts & {
       limit?: number;
       exclusiveStartKey?: Record<string, unknown>;
     },
   ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const table = assertAlertTable();
 
+    const filterBuilt = buildGsi3PatientFilterParts(opts);
+    const expressionAttributeValues: Record<string, unknown> = {
+      ':p': AlertKeyBuilder.toPatPartitionKey(patientId),
+      ...filterBuilt.ExpressionAttributeValues,
+    };
+
     let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI3_PATIENT,
       KeyConditionExpression: 'gsi3pk = :p',
-      ExpressionAttributeValues: {
-        ':p': AlertKeyBuilder.toPatPartitionKey(patientId),
-      },
+      ExpressionAttributeValues: expressionAttributeValues,
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
+      ...(filterBuilt.FilterExpression ? { FilterExpression: filterBuilt.FilterExpression } : {}),
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
-
-    if (opts.openOnly) {
-      items = items.filter(
-        (a) => a.alertState !== 'RESOLVED' && a.alertState !== 'DISMISSED',
-      );
-    }
-
-    if (opts.inputType) {
-      items = items.filter((a) => a.inputType === opts.inputType);
-    }
 
     return { items, lastEvaluatedKey };
   }
@@ -194,21 +343,18 @@ export class AlertRepository extends BaseRepository {
     opts: { state?: AlertState; limit?: number; unassignedOnly?: boolean },
   ): Promise<AlertDdbRecord[]> {
     const table = assertAlertTable();
-    const state = opts.state ?? 'UNASSIGNED';
+    const state = opts.state ?? ALERT_STATE.UNASSIGNED;
 
     let items = await this.query<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI1_ORG_QUEUE,
-      KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
+      KeyConditionExpression: 'gsi1pk = :pk',
       ExpressionAttributeValues: {
-        ':o': AlertKeyBuilder.toOrgPartitionKey(organizationId),
-        ':s': `STATE#${state}#`,
+        ':pk': AlertKeyBuilder.buildGsi1Pk(organizationId, state),
       },
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
 
     if (opts.unassignedOnly) {
       items = items.filter((a) => !a.assignedToUserId);
@@ -227,22 +373,19 @@ export class AlertRepository extends BaseRepository {
     },
   ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const table = assertAlertTable();
-    const state = opts.state ?? 'UNASSIGNED';
+    const state = opts.state ?? ALERT_STATE.UNASSIGNED;
 
     let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI1_ORG_QUEUE,
-      KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
+      KeyConditionExpression: 'gsi1pk = :pk',
       ExpressionAttributeValues: {
-        ':o': AlertKeyBuilder.toOrgPartitionKey(organizationId),
-        ':s': `STATE#${state}#`,
+        ':pk': AlertKeyBuilder.buildGsi1Pk(organizationId, state),
       },
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
 
     if (opts.unassignedOnly) {
       items = items.filter((a) => !a.assignedToUserId);
@@ -251,55 +394,119 @@ export class AlertRepository extends BaseRepository {
     return { items, lastEvaluatedKey };
   }
 
+  /**
+   * Org-wide alert list (GSI4): `gsi4pk` = org, `gsi4sk` = **creation**-time order (`createdAt` segment).
+   * Filters use DynamoDB `FilterExpression` where possible; optional `search` uses `contains` (TEAM queue).
+   */
+  async queryOrgAlertsGsi4Page(
+    organizationId: string,
+    opts: {
+      limit: number;
+      exclusiveStartKey?: Record<string, unknown>;
+      state?: AlertState;
+      /** Internal: post-filter alerts with no assignee (legacy org list callers). */
+      unassignedOnly?: boolean;
+      search?: string;
+    } & AlertListStructuredFilters,
+  ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertAlertTable();
+    const pkVal = AlertKeyBuilder.buildGsi4Pk(organizationId);
+
+    const expressionAttributeValues: Record<string, unknown> = { ':pk': pkVal };
+    const keyCondition = appendSortKeyTriggerTimeBounds(
+      expressionAttributeValues,
+      'gsi4pk = :pk',
+      'gsi4sk',
+      opts,
+    );
+
+    const filterParts: string[] = [];
+    appendStatePriorityInputTypeFilters(expressionAttributeValues, filterParts, opts);
+    if (opts.unassignedOnly) {
+      appendUnassignedOnlyFilter(expressionAttributeValues, filterParts);
+    }
+    appendAssignedToUserIdListFilter(expressionAttributeValues, filterParts, opts.assignedToUserId);
+    appendListSearchContainsFilter(expressionAttributeValues, filterParts, opts.search);
+
+    const targetCount = Math.max(1, opts.limit ?? 50);
+    const maxRounds = 5;
+
+    const baseParams = {
+      TableName: table,
+      IndexName: GSI4_ORG_WIDE,
+      KeyConditionExpression: keyCondition,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ScanIndexForward: false,
+      Limit: targetCount,
+      ...(filterParts.length
+        ? { FilterExpression: filterParts.join(' AND ') }
+        : {}),
+    };
+
+    const out: AlertDdbRecord[] = [];
+    let exclusiveStartKey: Record<string, unknown> | undefined = opts.exclusiveStartKey;
+    let lastKey: Record<string, unknown> | undefined;
+    let round = 0;
+
+    do {
+      const { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
+        ...baseParams,
+        ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+      });
+      out.push(...items);
+      lastKey = lastEvaluatedKey;
+      exclusiveStartKey = lastEvaluatedKey;
+      round++;
+    } while (out.length < targetCount && lastKey != null && round < maxRounds);
+
+    return {
+      items: out.slice(0, targetCount),
+      lastEvaluatedKey: lastKey,
+    };
+  }
+
   async queryUserAlerts(
     userId: string,
-    opts: { state?: AlertState; limit?: number },
+    opts: QueryUserAlertsListOpts & { limit?: number },
   ): Promise<AlertDdbRecord[]> {
     const table = assertAlertTable();
+
+    const built = buildGsi2UserListParams(userId, opts);
 
     const items = await this.query<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI2_USER_QUEUE,
-      KeyConditionExpression: opts.state
-        ? 'gsi2pk = :u AND begins_with(gsi2sk, :st)'
-        : 'gsi2pk = :u',
-      ExpressionAttributeValues: {
-        ':u': AlertKeyBuilder.toUserPartitionKey(userId),
-        ...(opts.state ? { ':st': `STATE#${opts.state}#` } : {}),
-      },
+      KeyConditionExpression: built.KeyConditionExpression,
+      ExpressionAttributeValues: built.ExpressionAttributeValues,
+      ...(built.FilterExpression ? { FilterExpression: built.FilterExpression } : {}),
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
     });
 
-    return this.hydrateAlertsFromGsiRows(table, items);
+    return items;
   }
 
   async queryUserAlertsPage(
     userId: string,
-    opts: {
-      state?: AlertState;
+    opts: QueryUserAlertsListOpts & {
       limit?: number;
       exclusiveStartKey?: Record<string, unknown>;
     },
   ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const table = assertAlertTable();
 
+    const built = buildGsi2UserListParams(userId, opts);
+
     let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI2_USER_QUEUE,
-      KeyConditionExpression: opts.state
-        ? 'gsi2pk = :u AND begins_with(gsi2sk, :st)'
-        : 'gsi2pk = :u',
-      ExpressionAttributeValues: {
-        ':u': AlertKeyBuilder.toUserPartitionKey(userId),
-        ...(opts.state ? { ':st': `STATE#${opts.state}#` } : {}),
-      },
+      KeyConditionExpression: built.KeyConditionExpression,
+      ExpressionAttributeValues: built.ExpressionAttributeValues,
+      ...(built.FilterExpression ? { FilterExpression: built.FilterExpression } : {}),
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
     });
-
-    items = await this.hydrateAlertsFromGsiRows(table, items);
 
     return { items, lastEvaluatedKey };
   }
@@ -325,28 +532,6 @@ export class AlertRepository extends BaseRepository {
 
     const byId = await this.batchGetAlertsById(table, orderedIds);
     return orderedIds.map((id) => byId.get(id)).filter((row): row is AlertDdbRecord => row != null);
-  }
-
-  private async hydrateAlertsFromGsiRows(table: string, gsiRows: AlertDdbRecord[]): Promise<AlertDdbRecord[]> {
-    if (gsiRows.length === 0) return [];
-
-    const orderedIds = gsiRows.map((r) => alertIdFromGsiRow(r)).filter((id): id is string => !!id);
-    if (orderedIds.length === 0) return gsiRows;
-
-    const byId = await this.batchGetAlertsById(table, orderedIds);
-    const hydrated = orderedIds.map((id) => byId.get(id)).filter((row): row is AlertDdbRecord => row != null);
-
-    if (hydrated.length === orderedIds.length) return hydrated;
-
-    /** BatchGet misses (e.g. race): preserve partial GSI rows that at least had an id. */
-    const fallbackById = new Map<string, AlertDdbRecord>();
-    for (const r of gsiRows) {
-      const id = alertIdFromGsiRow(r);
-      if (id && !byId.has(id)) fallbackById.set(id, r);
-    }
-    return orderedIds
-      .map((id) => byId.get(id) ?? fallbackById.get(id))
-      .filter((row): row is AlertDdbRecord => row != null);
   }
 
   private async batchGetAlertsById(table: string, alertIds: string[]): Promise<Map<string, AlertDdbRecord>> {
@@ -376,6 +561,7 @@ export class AlertRepository extends BaseRepository {
   async updateAlert(
     alertId: string,
     patch: UpdateAlertRequest,
+    options?: { activityItems?: Record<string, unknown>[]; performedByUserId?: string },
   ): Promise<AlertDdbRecord | null> {
     const existing = await this.getAlertById(alertId);
     if (!existing) return null;
@@ -383,10 +569,122 @@ export class AlertRepository extends BaseRepository {
     const updateParams = AlertEntityBuilder.buildUpdateExpression(
       existing,
       patch,
+      options?.performedByUserId ? { performedByUserId: options.performedByUserId } : undefined,
     );
 
-    await this.update(updateParams);
+    const activities = options?.activityItems?.filter((x) => x && typeof x === 'object') ?? [];
+
+    if (activities.length === 0) {
+      await this.update(updateParams);
+    } else {
+      const table = updateParams.TableName as string;
+      await this.transactWrite({
+        TransactItems: [
+          {
+            Update: {
+              TableName: table,
+              Key: updateParams.Key,
+              UpdateExpression: updateParams.UpdateExpression,
+              ExpressionAttributeNames: updateParams.ExpressionAttributeNames,
+              ExpressionAttributeValues: updateParams.ExpressionAttributeValues,
+            },
+          },
+          ...activities.map((raw) => ({
+            Put: {
+              TableName: table,
+              Item: raw as Record<string, unknown>,
+            },
+          })),
+        ],
+      });
+    }
 
     return this.getAlertById(alertId);
+  }
+
+  /**
+   * Transactionally apply many alert updates (and optional activity Put items). All-or-nothing.
+   * Caller must ensure `TransactItems` count stays within DynamoDB limits (max 100).
+   */
+  async updateAlertsTransaction(
+    updates: Array<{
+      existing: AlertDdbRecord;
+      patch: UpdateAlertRequest;
+      activityItems?: Record<string, unknown>[];
+      performedByUserId?: string;
+    }>,
+  ): Promise<void> {
+    if (updates.length === 0) return;
+
+    const table = assertAlertTable();
+
+    const transactItems: Array<Record<string, unknown>> = [];
+    for (const u of updates) {
+      const updateParams = AlertEntityBuilder.buildUpdateExpression(
+        u.existing,
+        u.patch,
+        u.performedByUserId ? { performedByUserId: u.performedByUserId } : undefined,
+      );
+      transactItems.push({
+        Update: {
+          TableName: table,
+          Key: updateParams.Key,
+          UpdateExpression: updateParams.UpdateExpression,
+          ExpressionAttributeNames: updateParams.ExpressionAttributeNames,
+          ExpressionAttributeValues: updateParams.ExpressionAttributeValues,
+        },
+      });
+
+      const activities = u.activityItems?.filter((x) => x && typeof x === 'object') ?? [];
+      for (const raw of activities) {
+        transactItems.push({
+          Put: {
+            TableName: table,
+            Item: raw as Record<string, unknown>,
+          },
+        });
+      }
+    }
+
+    await this.transactWrite({
+      TransactItems: transactItems as unknown as any,
+    });
+  }
+
+  /**
+   * Add a NOTE_ADDED activity row for an alert. Returns the created public activity object.
+   */
+  async addNoteActivity(
+    alertId: string,
+    organizationId: string,
+    comment: string,
+    performedBy: string,
+    performedByDisplayName?: string,
+  ): Promise<AlertActivity> {
+    const existing = await this.getAlertById(alertId);
+    if (!existing) throw Object.assign(new Error('Alert not found'), { statusCode: 404, code: 'NOT_FOUND' });
+    if (!organizationIdsMatch(existing.organizationId, organizationId)) {
+      throw Object.assign(new Error('Alert not found'), { statusCode: 404, code: 'NOT_FOUND' });
+    }
+
+    const nowMs = Date.now();
+    const raw = AlertEntityBuilder.buildWorkflowActivityRow({
+      alertId,
+      organizationId,
+      nowMs,
+      activityType: ACTIVITY_TYPE_NOTE_ADDED,
+      performedBy: performedBy?.trim() || 'SYSTEM',
+      performedByDisplayName: performedByDisplayName,
+      activityComment: comment,
+    });
+
+    // Direct Put for activity only, no alert metadata update
+    const table = assertAlertTable();
+    await this.put(table, raw);
+
+    // Return the public activity representation we just inserted; query latest activities and return first
+    const acts = await this.queryAlertActivities(alertId);
+    if (!acts || acts.length === 0) throw new Error('Activity not found after insert');
+    return acts[0] as AlertActivity;
   }
 }

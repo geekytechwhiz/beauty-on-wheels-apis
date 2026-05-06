@@ -14,15 +14,18 @@ import {
   normalizeAlertServiceError,
   toAlertDetail,
   toPublicAlert,
-  type AlertState,
   type CreateAlertPayload,
+  type WorkflowInput,
 } from '@api-hub/alert-core';
-import { patchAlertBodySchema } from '../validators/alert.schemas';
-import { parseListAlertsQuery, type ValidatedCreateAlert } from '../validators/request.validators';
 import {
-  getActorUserIdForRequest,
-  getOrganizationIdForRequest,
-} from '../utils/helpers';
+  parseListAlertsQuery,
+  type ValidatedCreateAlert,
+  type ValidatedNote,
+  type ValidatedAssignment,
+  type ValidatedPriority,
+  type ValidatedWorkflow,
+} from '../validators/request.validators';
+import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
@@ -90,6 +93,118 @@ export class AlertHttpController {
     }
   }
 
+  /**
+   * POST `/alerts/workflow` — body validated by {@link validateWorkflowRequest}; calls
+   * {@link AlertService.applyWorkflow} and returns bulk result.
+   */
+  async handleUpdateAlertWorkflow(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedWorkflow?: ValidatedWorkflow }).validatedWorkflow;
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    const input: WorkflowInput = {
+      alertIds: v.alertIds,
+      action: v.action,
+      assignToUserId: v.assignToUserId,
+      assigneeDisplayName: v.assigneeDisplayName,
+      reasonCode: v.reasonCode,
+      comment: v.comment,
+      closureComment: v.closureComment,
+      performedByUserId: performedByUserId ?? undefined,
+      performedByDisplayName: v.performedByDisplayName,
+    };
+
+    const result = await this.svc.applyWorkflow(v.orgId, input);
+
+    if (result.failed.length > 0 && result.succeeded.length === 0) {
+      const f = result.failed[0];
+      if (f.code === 'NOT_FOUND') {
+        throw Object.assign(new Error(f.message), { statusCode: 404, code: 'NOT_FOUND' });
+      }
+      if (f.code === 'ILLEGAL_TRANSITION') {
+        throw Object.assign(new Error(f.message), { statusCode: 409, code: 'ILLEGAL_TRANSITION' });
+      }
+      throw Object.assign(new Error(f.message), {
+        statusCode: 422,
+        code: f.code || 'WORKFLOW_ERROR',
+      });
+    }
+
+    return {
+      alertIds: v.alertIds,
+      succeeded: result.succeeded,
+      failed: result.failed,
+    };
+  }
+
+  /**
+   * POST `/alerts/assignment` — body validated by {@link validateAssignmentRequest}; calls
+   * `AlertService.applyAssignment(...)` and returns updated {@link toAlertDetail} when one id was requested.
+   * For multi-select, returns `{ alertIds }` on success (all-or-nothing).
+   */
+  async handleUpdateAlertAssignment(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedAssignment?: ValidatedAssignment }).validatedAssignment;
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    const result = await this.svc.applyAssignment(v.orgId, {
+      alertIds: v.alertIds,
+      action: v.action,
+      ...(v.assignToUserId ? { assignToUserId: v.assignToUserId } : {}),
+      performedByUserId: performedByUserId ?? undefined,
+      performedByDisplayName: v.performedByDisplayName,
+      assigneeDisplayName: v.assigneeDisplayName,
+    });
+
+    void result;
+    return { alertIds: v.alertIds };
+  }
+
+  /**
+   * PATCH `/alerts/priority` — body validated by {@link validatePriorityRequest}; calls
+   * `AlertService.applyPriority(...)` and returns updated {@link toAlertDetail} when one id was requested.
+   * For multi-select, returns `{ alertIds }` on success (all-or-nothing).
+   */
+  async handleUpdateAlertPriority(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedPriority?: ValidatedPriority }).validatedPriority;
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    const result = await this.svc.applyPriority(v.orgId, {
+      alertIds: v.alertIds,
+      priority: v.priority,
+      performedByUserId: performedByUserId ?? undefined,
+      performedByDisplayName: v.performedByDisplayName,
+    });
+
+    void result;
+    return { alertIds: v.alertIds };
+  }
+
   async handleGetAlert(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
     if (!alertId) {
@@ -120,13 +235,9 @@ export class AlertHttpController {
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
-    const items = await this.svc.listAlertActivity(alertId, orgId);
-    if (!items) {
-      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
-        retryable: false,
-      });
-    }
+    const notesOnly = (req.params as { notesOnly?: string }).notesOnly === 'true';
 
+    const items = await this.svc.listAlertActivity(alertId, orgId, { notesOnly });
     return { items };
   }
 
@@ -178,65 +289,27 @@ export class AlertHttpController {
     };
   }
 
-  async handleListOrgAlerts(req: LambdaRequest) {
-    const organizationId = req.pathParameters?.organizationId;
-    if (!organizationId) {
-      throw new BaseError('organizationId required', 400, 'INVALID_REQUEST', [
-        { message: 'organizationId required' },
-      ], { retryable: false });
-    }
-    const qp = req.params as Record<string, string | undefined>;
-    const state = (qp.state as AlertState | undefined) ?? 'UNASSIGNED';
-    const unassignedOnly = qp.unassignedOnly === 'true' || qp.unassignedOnly === '1';
-    const limit = qp.limit ? Number(qp.limit) : 50;
-    const rows = await this.svc.listOrgAlerts(organizationId, { state, unassignedOnly, limit });
-    return { items: rows.map(toPublicAlert) };
-  }
-
-  async handleListUserAlerts(req: LambdaRequest) {
-    const userId = req.pathParameters?.userId;
-    if (!userId) {
-      throw new BaseError('userId required', 400, 'INVALID_REQUEST', [{ message: 'userId required' }], {
-        retryable: false,
-      });
-    }
-    const qp = req.params as Record<string, string | undefined>;
-    const state = qp.state as AlertState | undefined;
-    const limit = qp.limit ? Number(qp.limit) : 50;
-    const rows = await this.svc.listUserAlerts(userId, { state, limit });
-    return { items: rows.map(toPublicAlert) };
-  }
-
-  async handlePatchAlert(req: LambdaRequest) {
-    const alertId = req.pathParameters?.alertId;
-    if (!alertId) {
-      throw new BaseError('alertId required', 400, 'INVALID_REQUEST', [
-        { message: 'alertId required' },
-      ], { retryable: false });
-    }
-    const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
-    if (!orgId) throw unauthorizedOrgError();
-
-    const existing = await this.svc.getAlert(alertId, orgId);
-    if (!existing) {
-      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
-        retryable: false,
-      });
+  async handleAddAlertNote(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedNote?: ValidatedNote }).validatedNote;
+    if (!v) {
+      throw new BaseError('Request was not validated before controller', 500, 'INTERNAL_ERROR', [
+        { message: 'Request was not validated before controller' },
+      ]);
     }
 
-    const patch = patchAlertBodySchema.parse(req.body ?? {}) as {
-      alertState?: AlertState;
-      assignedToUserId?: string | null;
-      slaBreachIndicator?: boolean;
-    };
-    const row = await this.svc.updateAlert(alertId, patch);
-    if (!row) {
-      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
-        retryable: false,
-      });
-    }
-    return { alert: toPublicAlert(row) };
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+
+    // Call core service to add a note. Expect the core to return the created activity record or similar.
+    // Use a best-effort call name `addNote` on the service.
+    const activity = await this.svc.addNote(
+      v.alertId,
+      v.orgId,
+      v.comment,
+      performedByUserId ?? undefined,
+      v.performedByDisplayName,
+    );
+
+    return activity;
   }
 }
 

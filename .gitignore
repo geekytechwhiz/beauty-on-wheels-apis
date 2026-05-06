@@ -132,13 +132,13 @@ apps/template-service/docs/OKR-master.json
 apps/template-service/docs/single-table-migration.md
 apps/template-service/docs/template-library-tester-guide.md
 apps/template-service/scripts/migrate-single-table-aux-data.mjs
+apps/alert-service/esbuild-plugins.js
+apps/alert-service/tsconfig.app.json
 
 apps/metadata-registry-service.zip
 apps/metadata-registry-service/*.zip
 
 apps/metadata-registry-service/.esbuild/
-apps/alert-service/esbuild-plugins.js
-apps/alert-service/tsconfig.app.json
 apps/alert-service/.esbuild/.build/src/handlers/http/createAlert.js
 apps/alert-service/.esbuild/.build/src/handlers/http/createAlert.js.map
 apps/alert-service/.esbuild/.build/src/handlers/http/getAlert.js
@@ -166,4 +166,4 @@ apps/alert-service/src/utils/alert-http-errors.ts
 apps/alert-service/src/utils/helpers.ts
 apps/alert-service/src/utils/index.ts
 apps/alert-service/src/validation/request.validators.ts
-apps/alert-service/src/validators/request.validators.ts 
+apps/alert-service/src/validators/request.validators.ts

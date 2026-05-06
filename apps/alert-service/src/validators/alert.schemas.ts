@@ -7,7 +7,21 @@
  * client-supplied display names (patient and authenticated caller). **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
  * `evidencePayload` is discriminated by `inputType` and must mirror top-level `inputType` (§5.1.3.1).
  */
+import {
+  ALERT_STATE,
+  AlertDismissReasonCode,
+  AlertResolveReasonCode,
+} from '@api-hub/alert-core';
 import { z } from 'zod';
+
+const ALERT_STATE_ZOD_VALUES = [
+  ALERT_STATE.UNASSIGNED,
+  ALERT_STATE.ASSIGNED,
+  ALERT_STATE.IN_PROGRESS,
+  ALERT_STATE.WAITING,
+  ALERT_STATE.RESOLVED,
+  ALERT_STATE.DISMISSED,
+] as const;
 
 /** Allowed `inputType` / `evidencePayload.inputType` for POST `/alerts` (§5.1.3.1). */
 const createAlertInputTypeZ = z.enum(['MISSED_READING', 'MISSING_DEVICE']);
@@ -138,26 +152,197 @@ export const createAlertHttpBodySchema = z
 
 export type CreateAlertHttpBody = z.infer<typeof createAlertHttpBodySchema>;
 
-export const patchAlertBodySchema = z.object({
-  alertState: z
-    .enum(['UNASSIGNED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'DISMISSED'])
-    .optional(),
-  assignedToUserId: z.union([z.string().min(1), z.null()]).optional(),
-  slaBreachIndicator: z.boolean().optional(),
-});
+/** Re-export for OpenAPI / callers that need the allowlist as an array. */
+export const WORKFLOW_RESOLVE_REASON_CODES = Object.values(AlertResolveReasonCode) as readonly string[];
+export const WORKFLOW_DISMISS_REASON_CODES = Object.values(AlertDismissReasonCode) as readonly string[];
+
+const workflowResolveReasonZ = z.nativeEnum(AlertResolveReasonCode);
+const workflowDismissReasonZ = z.nativeEnum(AlertDismissReasonCode);
+
+const workflowWireActionZ = z.enum([
+  'ASSIGN',
+  'START_WORK',
+  'MOVE_TO_WAITING',
+  'RESUME_WORK',
+  'RESOLVE',
+  'DISMISS',
+]);
+
+/**
+ * POST `/alerts/workflow` body (strict). Supports single or bulk operations.
+ * - `alertIds`: required array of 1..100 alert ids for bulk or single requests.
+ * Aliases: `MOVE_TO_WAITING` → WAIT; `RESUME_WORK` → RESUME.
+ */
+export const alertWorkflowBodySchema = z
+  .object({
+    alertIds: z
+      .array(z.string().trim().min(1))
+      .min(1, 'At least one alertId is required')
+      .max(100, 'Maximum 100 alertIds per request'),
+    action: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), workflowWireActionZ),
+    assignedToUserId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    assigneeDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    reasonCode: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), z.string().min(1)).optional(),
+    comment: z.string().optional(),
+    closureComment: z.string().optional(),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+    idempotencyKey: z.string().trim().min(1).optional(),
+    clientRequestId: z.string().trim().min(1).optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    const nonTerminal = new Set(['ASSIGN', 'START_WORK', 'MOVE_TO_WAITING', 'RESUME_WORK']);
+    if (nonTerminal.has(data.action)) {
+      if (data.reasonCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'reasonCode is only valid for RESOLVE or DISMISS',
+          path: ['reasonCode'],
+        });
+      }
+    }
+
+    if (data.action === 'ASSIGN' && !data.assignedToUserId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assignedToUserId is required for ASSIGN',
+        path: ['assignedToUserId'],
+      });
+    }
+    if (data.action === 'ASSIGN' && !data.assigneeDisplayName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assigneeDisplayName is required for ASSIGN',
+        path: ['assigneeDisplayName'],
+      });
+    }
+
+    if (data.action === 'RESOLVE') {
+      if (!data.reasonCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'reasonCode is required for RESOLVE',
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      const rc = workflowResolveReasonZ.safeParse(data.reasonCode);
+      if (!rc.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Unknown reasonCode for RESOLVE: ${data.reasonCode}`,
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      if (
+        rc.data === AlertResolveReasonCode.Other &&
+        !(data.comment?.trim() || data.closureComment?.trim())
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'comment (or closureComment) is required when reasonCode is OTHER',
+          path: ['comment'],
+        });
+      }
+    }
+
+    if (data.action === 'DISMISS') {
+      if (!data.reasonCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'reasonCode is required for DISMISS',
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      const dr = workflowDismissReasonZ.safeParse(data.reasonCode);
+      if (!dr.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Unknown reasonCode for DISMISS: ${data.reasonCode}`,
+          path: ['reasonCode'],
+        });
+        return;
+      }
+      if (
+        dr.data === AlertDismissReasonCode.Other &&
+        !(data.comment?.trim() || data.closureComment?.trim())
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'comment (or closureComment) is required when reasonCode is OTHER',
+          path: ['comment'],
+        });
+      }
+    }
+  });
+
+export type AlertWorkflowHttpBody = z.infer<typeof alertWorkflowBodySchema>;
+
+const assignmentActionZ = z.enum(['ASSIGN', 'ASSIGN_TO_SELF', 'REASSIGN', 'UNASSIGN']);
+
+/**
+ * POST `/alerts/assignment` body (strict).
+ *
+ * Note: DynamoDB transactions allow a maximum of 100 items. Because we write **one alert update + one activity row**
+ * per alert, we cap this API at **50 alertIds** to guarantee atomic all-or-nothing behavior.
+ */
+export const alertAssignmentBodySchema = z
+  .object({
+    alertIds: z
+      .array(z.string().trim().min(1))
+      .min(1, 'At least one alertId is required')
+      .max(50, 'Maximum 50 alertIds per request'),
+    action: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), assignmentActionZ),
+    assignToUserId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    assigneeDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)).optional(),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if ((data.action === 'ASSIGN' || data.action === 'REASSIGN') && !data.assignToUserId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assignToUserId is required for ASSIGN and REASSIGN',
+        path: ['assignToUserId'],
+      });
+    }
+    if (data.action !== 'UNASSIGN' && !data.assigneeDisplayName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'assigneeDisplayName is required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF',
+        path: ['assigneeDisplayName'],
+      });
+    }
+  });
+
+export type AlertAssignmentHttpBody = z.infer<typeof alertAssignmentBodySchema>;
+
+const priorityBandZ = z.enum(['P0', 'P1', 'P2', 'P3']);
+
+/**
+ * PATCH `/alerts/priority` body (strict).
+ *
+ * DynamoDB transactions allow a maximum of 100 items. Because we write **one alert update + one activity row**
+ * per alert, we cap this API at **50 alertIds** to guarantee atomic all-or-nothing behavior.
+ */
+export const alertPriorityBodySchema = z
+  .object({
+    alertIds: z
+      .array(z.string().trim().min(1))
+      .min(1, 'At least one alertId is required')
+      .max(50, 'Maximum 50 alertIds per request'),
+    priority: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), priorityBandZ),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  })
+  .strict();
+
+export type AlertPriorityHttpBody = z.infer<typeof alertPriorityBodySchema>;
 
 const listQueueKindZ = z.enum(['TEAM', 'MY', 'PATIENT']);
 
-const listAlertStateFilterZ = z.enum([
-  'UNASSIGNED',
-  'ASSIGNED',
-  'IN_PROGRESS',
-  'WAITING',
-  'RESOLVED',
-  'DISMISSED',
-]);
-
-const listAssignmentFilterZ = z.enum(['UNASSIGNED', 'ASSIGNED']);
+const listAlertStateFilterZ = z.enum(ALERT_STATE_ZOD_VALUES);
 
 /** GET /alerts query string — `queue` enum, `patientId` rules in `superRefine`. */
 export const listAlertsQuerySchema = z
@@ -169,7 +354,13 @@ export const listAlertsQuerySchema = z
     }, listQueueKindZ),
     patientId: z.string().trim().min(1).optional(),
     state: z.string().trim().toUpperCase().pipe(listAlertStateFilterZ).optional(),
-    assignment: z.string().trim().toUpperCase().pipe(listAssignmentFilterZ).optional(),
+    /** Assignee filter: raw user id string (persisted field `assignedToUserId`; not an alert state label). */
+    assignment: z
+      .preprocess((v) => {
+        if (v === undefined || v === null) return undefined;
+        const t = String(v).trim();
+        return t === '' ? undefined : t;
+      }, z.string().min(1).optional()),
     priority: z.string().trim().toUpperCase().pipe(priorityZ).optional(),
     inputType: z.string().trim().min(1).optional(),
     dateFrom: z.string().trim().min(1).optional(),
@@ -193,30 +384,16 @@ export const listAlertsQuerySchema = z
         path: ['patientId'],
       });
     }
-    if (
-      data.state !== undefined &&
-      data.assignment !== undefined &&
-      data.state === 'ASSIGNED' &&
-      data.assignment === 'UNASSIGNED'
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'state ASSIGNED conflicts with assignment=UNASSIGNED',
-        path: ['assignment'],
-      });
-    }
-    if (
-      data.state !== undefined &&
-      data.assignment !== undefined &&
-      data.state === 'UNASSIGNED' &&
-      data.assignment === 'ASSIGNED'
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'state UNASSIGNED conflicts with assignment=ASSIGNED',
-        path: ['assignment'],
-      });
-    }
   });
 
 export type ListAlertsQuery = z.infer<typeof listAlertsQuerySchema>;
+
+/** Note request body for POST /alerts/{alertId}/notes */
+export const noteRequestBodySchema = z
+  .object({
+    comment: z.string().trim().min(1),
+    performedByDisplayName: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  })
+  .strict();
+
+export type NoteRequestBody = z.infer<typeof noteRequestBodySchema>;

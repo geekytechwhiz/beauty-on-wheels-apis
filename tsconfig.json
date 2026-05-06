@@ -73,34 +73,28 @@
       "path": "./libs/service-clients"
     },
     {
-      "path": "./apps/template-service"
-    },
-    {
-      "path": "./libs/template"
-    },
-    {
-      "path": "./libs/event-platform"
-    },
-    {
-      "path": "./libs/middleware"
-    },
-    {
-      "path": "./libs/observability"
-    },
-    {
-      "path": "./libs/rule-engine"
+      "path": "./apps/alert-service"
     },
     {
       "path": "./libs/metadata"
     },
     {
-      "path": "./apps/alert-service"
+      "path": "./libs/rule-engine"
     },
     {
       "path": "./libs/alert-core"
     },
     {
       "path": "./tools/eslint-mavrix"
+    },
+    {
+      "path": "./libs/event-platform"
+    },
+    {
+      "path": "./libs/observability"
+    },
+    {
+      "path": "./libs/middleware"
     }
   ]
 }

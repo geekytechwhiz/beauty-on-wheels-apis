@@ -1,5 +1,6 @@
 import type { AlertState } from '../models/types/alert-state.type';
-import type { PriorityBand } from '../models/types/priority-band.type';
+
+import { padEpochMs13, slaDateBucketUtcFromMs } from '../utils/alert-time';
 
 export class AlertKeyBuilder {
   static toAlertPk(alertId: string): string {
@@ -29,54 +30,55 @@ export class AlertKeyBuilder {
     return id.startsWith('USER#') ? id : `USER#${id}`;
   }
 
-  static toTimestampSortKey(ts: string): string {
-    return `TS#${ts}`;
+  /** Sort-key segment: `TS#` + zero-padded epoch ms (string order = time order). */
+  static toTimestampSortKey(epochMs: number): string {
+    return `TS#${padEpochMs13(epochMs)}`;
   }
 
-  static toActivitySortKey(ts: string, activityId: string): string {
-    return `ACTIVITY#${ts}#${activityId}`;
+  static toActivitySortKey(epochMs: number, activityId: string): string {
+    return `ACTIVITY#${padEpochMs13(epochMs)}#${activityId}`;
   }
 
-  /** Base-table sort key: `GROUP#<groupingKey>` partition member linking to an alert. */
-  static buildGroupMembershipSk(triggerTimestamp: string, alertId: string): string {
-    return `Alert#${triggerTimestamp.trim()}#${alertId.trim()}`;
+  /** Base-table sort key: `GROUP#<groupingKey>` partition member linking to an alert (creation instant). */
+  static buildGroupMembershipSk(createEpochMs: number, alertId: string): string {
+    return `Alert#${padEpochMs13(createEpochMs)}#${alertId.trim()}`;
   }
 
-  static buildGsi1Sk(
-    state: AlertState,
-    priority: PriorityBand,
-    triggerTimestamp: string,
-    alertId: string,
-  ): string {
-    return `STATE#${state}#PRIORITY#${priority}#TS#${triggerTimestamp}#${alertId}`;
+  /** GSI1 partition: org + workflow state (team queue). */
+  static buildGsi1Pk(organizationId: string, alertState: AlertState): string {
+    return `${this.toOrgPartitionKey(organizationId)}#STATE#${alertState}`;
   }
 
-  static buildGsi2Sk(
-    state: AlertState,
-    triggerTimestamp: string,
-    alertId: string,
-  ): string {
-    return `STATE#${state}#TS#${triggerTimestamp}#${alertId}`;
+  /** GSI1 sort: time-ordered under `TS#` prefix (alert **creation** instant, epoch ms). */
+  static buildGsi1Sk(createEpochMs: number): string {
+    return this.toTimestampSortKey(createEpochMs);
   }
 
-  static toGsi3Sk(triggerTimestamp: string): string {
-    return this.toTimestampSortKey(triggerTimestamp);
+  static toGsi3Sk(epochMs: number): string {
+    return this.toTimestampSortKey(epochMs);
   }
 
-  static toGsi4Sk(triggerTimestamp: string): string {
-    return this.toTimestampSortKey(triggerTimestamp);
+  /** GSI4 partition: org-wide index (no `STATE#` segment). */
+  static buildGsi4Pk(organizationId: string): string {
+    return this.toOrgPartitionKey(organizationId);
   }
 
-  static toSlaPartitionKey(iso: string): string {
-    return `SLA#${this.slaDateBucketUtc(iso)}`;
+  /** GSI4 sort: **creation** instant + `alertId` (newest-first per org when `ScanIndexForward: false`). */
+  static buildGsi4Sk(createEpochMs: number, alertId: string): string {
+    return `TS#${padEpochMs13(createEpochMs)}#${alertId.trim()}`;
   }
 
-  static toSlaSortKey(dueAt: string, alertId: string): string {
-    return `TS#${dueAt}#${alertId}`;
+  /** GSI2 (“my queue”) sort key — same segment shape as {@link buildGsi4Sk}; workflow state is `alertState` on the item. */
+  static buildGsi2Sk(createEpochMs: number, alertId: string): string {
+    return this.buildGsi4Sk(createEpochMs, alertId);
   }
 
-  static slaDateBucketUtc(iso: string): string {
-    return iso.slice(0, 10);
+  static toSlaPartitionKey(epochMs: number): string {
+    return `SLA#${slaDateBucketUtcFromMs(epochMs)}`;
+  }
+
+  static toSlaSortKey(dueEpochMs: number, alertId: string): string {
+    return `TS#${padEpochMs13(dueEpochMs)}#${alertId}`;
   }
 
   static buildDefaultGroupingKey(params: {

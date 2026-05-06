@@ -4,12 +4,18 @@ import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 
 import { AlertKeyBuilder } from './alert-key.builder';
-import { ALERT_METADATA_SK } from '../constants/alert.constants';
+import { ACTIVITY_TYPE_ALERT_CREATED, ALERT_METADATA_SK } from '../constants/alert.constants';
+import { AlertActivityType } from '../constants/alert-activity-type';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
+import { parseIsoToEpochMs, toEpochMs } from '../utils/alert-time';
 
 export interface CreateAlertContext {
   alertId: string;
-  now: string;
+  /** Write time, Unix epoch ms (UTC). */
+  nowMs: number;
+  /** Parsed from HTTP `triggerTimestamp` (ISO) → ms. */
+  triggerMs: number;
   input: CreateAlertRequest;
   groupingKey: string;
 }
@@ -18,27 +24,32 @@ export class AlertEntityBuilder {
   // -----------------------------
   // Utilities
   // -----------------------------
+  /** @deprecated Prefer epoch ms; kept for callers that need an ISO string. */
   static nowIso(): string {
     return new Date().toISOString();
+  }
+
+  static nowMs(): number {
+    return Date.now();
   }
 
   // -----------------------------
   // Context Builder
   // -----------------------------
-  static buildCreateContext(params: {
-    alertId: string;
-    now: string;
-    input: CreateAlertRequest;
-  }): CreateAlertContext {
-    const { alertId, now, input } = params;
+  static buildCreateContext(params: { alertId: string; input: CreateAlertRequest }): CreateAlertContext {
+    const { alertId, input } = params;
+
+    const triggerMs = parseIsoToEpochMs(input.triggerTimestamp);
+    const nowMs = Date.now();
 
     const groupingKey =
       input.groupingKey ??
-      `${input.patientId}|${input.linkedEntityCode ?? 'GENERIC'}|OPEN`;
+      `${input.patientId}|${input.linkedEntityCode ?? 'GENERIC'}|OPEN`; // TODO: for the grouping key it follows the grouping strategy so we need to change this once we have a proper grouping strategy
 
     return {
       alertId,
-      now,
+      nowMs,
+      triggerMs,
       input,
       groupingKey,
     };
@@ -48,14 +59,13 @@ export class AlertEntityBuilder {
   // Main Alert Record (DDB)
   // -----------------------------
   static buildAlertRecord(ctx: CreateAlertContext): AlertDdbRecord {
-    const { alertId, now, input, groupingKey } = ctx;
+    const { alertId, nowMs, triggerMs, input, groupingKey } = ctx;
 
     const pk = AlertKeyBuilder.toAlertPk(alertId);
     const sk = ALERT_METADATA_SK;
 
     return {
       // 🔑 Keys
-      TableName: process.env.ALERT_TABLE!,
       pk,
       sk,
       entityType: 'ALERT',
@@ -72,7 +82,7 @@ export class AlertEntityBuilder {
       inputType: input.inputType,
       sourceType: input.sourceType,
 
-      triggerTimestamp: input.triggerTimestamp,
+      triggerTimestamp: triggerMs,
       triggerSummary: input.triggerSummary ?? '',
 
       triggerSummaryTemplateCode: input.triggerSummaryTemplateCode,
@@ -81,7 +91,7 @@ export class AlertEntityBuilder {
       evidencePayload: input.evidencePayload,
 
       priority: input.priority ?? 'P2',
-      alertState: 'UNASSIGNED',
+      alertState: ALERT_STATE.UNASSIGNED,
 
       groupingKey,
 
@@ -103,12 +113,12 @@ export class AlertEntityBuilder {
       // 🔹 SLA (basic default, can be enhanced)
       assignSlaMinutes: 0,
       resolveSlaMinutes: 0,
-      assignSlaDueAt: now,
-      resolveSlaDueAt: now,
+      assignSlaDueAt: nowMs,
+      resolveSlaDueAt: nowMs,
       slaBreachIndicator: false,
 
       // 🔹 Workflow
-      statusUpdatedAt: now,
+      statusUpdatedAt: nowMs,
       statusUpdatedBy: input.actorUserId,
 
       closureComment: undefined,
@@ -116,31 +126,26 @@ export class AlertEntityBuilder {
       dismissReason: undefined,
 
       // 🔹 Audit
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowMs,
+      updatedAt: nowMs,
       createdBy: input.actorUserId,
       updatedBy: input.actorUserId,
 
       // 🔹 GSIs
-      gsi1pk: AlertKeyBuilder.toOrgPartitionKey(input.organizationId),
-      gsi1sk: AlertKeyBuilder.buildGsi1Sk(
-        'UNASSIGNED',
-        input.priority ?? 'P2',
-        input.triggerTimestamp,
-        alertId,
-      ),
+      gsi1pk: AlertKeyBuilder.buildGsi1Pk(input.organizationId, ALERT_STATE.UNASSIGNED),
+      gsi1sk: AlertKeyBuilder.buildGsi1Sk(nowMs),
 
       gsi2pk: undefined,
       gsi2sk: undefined,
 
       gsi3pk: AlertKeyBuilder.toPatPartitionKey(input.patientId),
-      gsi3sk: AlertKeyBuilder.toTimestampSortKey(now),
+      gsi3sk: AlertKeyBuilder.toGsi3Sk(nowMs),
 
-      gsi4pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-      gsi4sk: AlertKeyBuilder.toTimestampSortKey(now),
+      gsi4pk: AlertKeyBuilder.buildGsi4Pk(input.organizationId),
+      gsi4sk: AlertKeyBuilder.buildGsi4Sk(nowMs, alertId),
 
-      gsi5pk: AlertKeyBuilder.toSlaPartitionKey(now),
-      gsi5sk: AlertKeyBuilder.toSlaSortKey(now, alertId),
+      gsi5pk: AlertKeyBuilder.toSlaPartitionKey(nowMs),
+      gsi5sk: AlertKeyBuilder.toSlaSortKey(nowMs, alertId),
     };
   }
 
@@ -148,21 +153,19 @@ export class AlertEntityBuilder {
   // Activity Record
   // -----------------------------
   static buildCreateActivity(ctx: CreateAlertContext) {
-    const { alertId, now, input } = ctx;
+    const { alertId, nowMs, input } = ctx;
     const activityId = randomUUID();
     return {
-      TableName: process.env.ALERT_TABLE!,
-
       pk: AlertKeyBuilder.toAlertPk(alertId),
-      sk: `ACTIVITY#${now}#${activityId}`,
+      sk: AlertKeyBuilder.toActivitySortKey(nowMs, activityId),
 
       entityType: 'ALERT_ACTIVITY',
 
       activityId,
       alertId,
 
-      activityType: 'AlertCreated',
-      activityTimestamp: now,
+      activityType: ACTIVITY_TYPE_ALERT_CREATED,
+      activityTimestamp: nowMs,
 
       performedBy: input.actorUserId ?? 'SYSTEM',
       performedByDisplayName: input.actorName,
@@ -170,7 +173,7 @@ export class AlertEntityBuilder {
       activityComment: 'Alert created',
 
       previousState: undefined,
-      newState: 'UNASSIGNED',
+      newState: ALERT_STATE.UNASSIGNED,
 
       previousPriority: undefined,
       newPriority: input.priority ?? 'P2',
@@ -180,8 +183,7 @@ export class AlertEntityBuilder {
 
       evidencePayload: input.evidencePayload,
 
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowMs,
       organizationId: input.organizationId,
     };
   }
@@ -190,11 +192,9 @@ export class AlertEntityBuilder {
   // Event (Idempotency)
   // -----------------------------
   static buildEvent(ctx: CreateAlertContext) {
-    const { input, alertId, now } = ctx;
+    const { input, alertId, nowMs } = ctx;
 
     return {
-      TableName: process.env.ALERT_TABLE!,
-
       pk: `EVENT#${input.inputEventId}`,
       sk: ALERT_METADATA_SK,
 
@@ -203,25 +203,25 @@ export class AlertEntityBuilder {
       alertId,
       organizationId: input.organizationId,
 
-      createdAt: now,
+      createdAt: nowMs,
     };
   }
 
   /**
-   * Base-table row: `pk = GROUP#<groupingKey>`, `sk = Alert#<triggerTimestamp>#<alertId>`.
+   * Base-table row: `pk = GROUP#<groupingKey>`, `sk = Alert#<paddedEpochMs>#<alertId>` (`paddedEpochMs` = create time).
    * Written in the same transact as create; use {@link AlertRepository.queryAlertsByGroupingKey} to load alerts.
    */
   static buildGroupMembershipPut(ctx: CreateAlertContext) {
-    const { alertId, now, input, groupingKey } = ctx;
+    const { alertId, nowMs, input, groupingKey } = ctx;
 
     return {
       Put: {
         TableName: process.env.ALERT_TABLE!,
         Item: {
           pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-          sk: AlertKeyBuilder.buildGroupMembershipSk(input.triggerTimestamp, alertId),
+          sk: AlertKeyBuilder.buildGroupMembershipSk(ctx.nowMs, alertId),
           organizationId: input.organizationId,
-          createdAt: now,
+          createdAt: nowMs,
         },
       },
     };
@@ -234,22 +234,31 @@ export class AlertEntityBuilder {
     return {
       alertId: ctx.alertId,
       groupingKey: ctx.groupingKey,
-      alertState: 'UNASSIGNED',
-      createdAt: ctx.now,
+      alertState: ALERT_STATE.UNASSIGNED,
+      createdAt: ctx.nowMs,
     };
   }
 
   static buildUpdateExpression(
     existing: AlertDdbRecord,
     patch: UpdateAlertRequest,
+    opts?: {
+      /**
+       * Actor who performed the assignment mutation (not the assignee).
+       * Used to populate `assignedBy` when `assignedToUserId` is set.
+       */
+      performedByUserId?: string;
+    },
   ) {
-    const now = new Date().toISOString();
-  
+    const nowMs = Date.now();
+    /** Sort-key segment matches {@link buildAlertRecord}: creation instant, not clinical trigger. */
+    const sortEpochMs = toEpochMs(existing.createdAt);
+
     const setExpressions: string[] = [];
     const removeExpressions: string[] = [];
     const expressionAttributeValues: Record<string, unknown> = {};
     const expressionAttributeNames: Record<string, string> = {};
-  
+
     const setField = (key: string, value: unknown) => {
       const nameKey = `#${key}`;
       const valueKey = `:${key}`;
@@ -257,59 +266,63 @@ export class AlertEntityBuilder {
       expressionAttributeValues[valueKey] = value;
       setExpressions.push(`${nameKey} = ${valueKey}`);
     };
-  
+
     const removeField = (key: string) => {
       const nameKey = `#${key}`;
       expressionAttributeNames[nameKey] = key;
       removeExpressions.push(nameKey);
     };
-  
+
     if (patch.alertState && patch.alertState !== existing.alertState) {
       setField('alertState', patch.alertState);
-      setField('statusUpdatedAt', now);
-  
-      if (existing.priority && existing.triggerTimestamp) {
-        setField(
-          'gsi1sk',
-          `STATE#${patch.alertState}#PRIORITY#${existing.priority}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
-        );
-  
-        if (existing.assignedToUserId) {
-          setField(
-            'gsi2sk',
-            `STATE#${patch.alertState}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
-          );
-        }
+      setField('statusUpdatedAt', nowMs);
+
+      setField('gsi1pk', AlertKeyBuilder.buildGsi1Pk(existing.organizationId, patch.alertState));
+      setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(sortEpochMs));
+
+      // If assignment is being updated in the same call, the assignment block will manage GSI2 keys.
+      if (existing.assignedToUserId && patch.assignedToUserId === undefined) {
+        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(sortEpochMs, existing.alertId));
       }
     }
-  
+
     if (patch.assignedToUserId !== undefined) {
       if (patch.assignedToUserId === null) {
         removeField('assignedToUserId');
+        removeField('assignedToDisplayName');
         removeField('assignedAt');
         removeField('assignedBy');
         removeField('gsi2pk');
         removeField('gsi2sk');
       } else {
         setField('assignedToUserId', patch.assignedToUserId);
-        setField('assignedAt', now);
-        setField('assignedBy', patch.assignedToUserId);
-  
-        setField('gsi2pk', `USER#${patch.assignedToUserId}`);
-  
-        if (existing.triggerTimestamp) {
-          setField(
-            'gsi2sk',
-            `STATE#${patch.alertState ?? existing.alertState}#TS#${existing.triggerTimestamp}#${existing.alertId}`,
-          );
+        setField('assignedAt', nowMs);
+        // `assignedBy` should represent the actor who performed the assignment (JWT actor), not the assignee.
+        setField('assignedBy', opts?.performedByUserId?.trim() || patch.assignedToUserId);
+        if (patch.assignedToDisplayName !== undefined) {
+          setField('assignedToDisplayName', patch.assignedToDisplayName);
         }
+
+        setField('gsi2pk', AlertKeyBuilder.toUserPartitionKey(patch.assignedToUserId));
+
+        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(sortEpochMs, existing.alertId));
       }
     }
-  
+
+    if (patch.assignedToUserId === undefined && patch.assignedToDisplayName !== undefined) {
+      // Allow standalone display-name correction without changing assignee id.
+      if (patch.assignedToDisplayName === null) removeField('assignedToDisplayName');
+      else setField('assignedToDisplayName', patch.assignedToDisplayName);
+    }
+
+    if (patch.priority !== undefined) {
+      setField('priority', patch.priority);
+    }
+
     if (patch.slaBreachIndicator !== undefined) {
       setField('slaBreachIndicator', patch.slaBreachIndicator);
     }
-  
+
     if (patch.closureComment !== undefined) {
       setField('closureComment', patch.closureComment);
     }
@@ -321,16 +334,16 @@ export class AlertEntityBuilder {
     if (patch.dismissReason !== undefined) {
       setField('dismissReason', patch.dismissReason);
     }
-  
-    setField('updatedAt', now);
-  
+
+    setField('updatedAt', nowMs);
+
     const UpdateExpression = [
       setExpressions.length ? `SET ${setExpressions.join(', ')}` : '',
       removeExpressions.length ? `REMOVE ${removeExpressions.join(', ')}` : '',
     ]
       .filter(Boolean)
       .join(' ');
-  
+
     return {
       TableName: process.env.ALERT_TABLE!,
       Key: {
@@ -340,6 +353,132 @@ export class AlertEntityBuilder {
       UpdateExpression,
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
+    };
+  }
+
+  /**
+   * Activity rows for GET alert activity after a workflow {@link UpdateAlertRequest}.
+   * Order: assignment change (if any), then terminal/state activity.
+   */
+  static buildWorkflowActivityItems(params: {
+    existing: AlertDdbRecord;
+    patch: UpdateAlertRequest;
+    performedBy: string;
+    performedByDisplayName?: string;
+    nowMs: number;
+  }): Record<string, unknown>[] {
+    const { existing, patch } = params;
+    let nowMs = params.nowMs;
+    const performedBy = params.performedBy?.trim() || 'SYSTEM';
+    const performedByDisplayName = params.performedByDisplayName;
+
+    const items: Record<string, unknown>[] = [];
+    const prevAssign = existing.assignedToUserId?.trim() || undefined;
+    const newAssign =
+      patch.assignedToUserId === undefined
+        ? undefined
+        : patch.assignedToUserId === null
+          ? undefined
+          : String(patch.assignedToUserId).trim();
+    const assigneeChanged =
+      patch.assignedToUserId !== undefined && (prevAssign ?? '') !== (newAssign ?? '');
+
+    if (assigneeChanged) {
+      const activityType =
+        prevAssign == null ? AlertActivityType.AlertAssigned : AlertActivityType.AlertReassigned;
+      items.push(
+        AlertEntityBuilder.buildWorkflowActivityRow({
+          alertId: existing.alertId,
+          organizationId: existing.organizationId,
+          nowMs: nowMs,
+          activityType,
+          performedBy,
+          performedByDisplayName,
+          previousAssignee: prevAssign,
+          newAssignee: newAssign,
+          previousAssigneeDisplayName: existing.assignedToDisplayName,
+          newAssigneeDisplayName: patch.assignedToDisplayName ?? undefined,
+        }),
+      );
+    }
+
+    if (patch.alertState && patch.alertState !== existing.alertState) {
+      // For ASSIGN, we emit only the assignment activity (ALERT_ASSIGNED / ALERT_REASSIGNED).
+      // The UNASSIGNED -> ASSIGNED state change is implicit in assignment and should not create a second activity row.
+      const isImplicitAssignStateChange =
+        assigneeChanged &&
+        existing.alertState === ALERT_STATE.UNASSIGNED &&
+        patch.alertState === ALERT_STATE.ASSIGNED;
+      if (isImplicitAssignStateChange) {
+        return items;
+      }
+
+      let activityType: AlertActivityType = AlertActivityType.AlertStateChanged;
+      if (patch.alertState === ALERT_STATE.RESOLVED) activityType = AlertActivityType.AlertResolved;
+      if (patch.alertState === ALERT_STATE.DISMISSED) activityType = AlertActivityType.AlertDismissed;
+
+      const activityComment =
+        patch.alertState === ALERT_STATE.RESOLVED || patch.alertState === ALERT_STATE.DISMISSED
+          ? patch.closureComment ?? undefined
+          : undefined;
+
+      items.push(
+        AlertEntityBuilder.buildWorkflowActivityRow({
+          alertId: existing.alertId,
+          organizationId: existing.organizationId,
+          nowMs: nowMs,
+          activityType,
+          performedBy,
+          performedByDisplayName,
+          activityComment,
+          previousState: existing.alertState,
+          newState: patch.alertState,
+        }),
+      );
+    }
+
+    return items;
+  }
+
+  static buildWorkflowActivityRow(p: {
+    alertId: string;
+    organizationId: string;
+    nowMs: number;
+    activityType: string;
+    performedBy: string;
+    performedByDisplayName?: string;
+    activityComment?: string;
+    previousState?: AlertState;
+    newState?: AlertState;
+    previousPriority?: string;
+    newPriority?: string;
+    previousAssignee?: string;
+    newAssignee?: string;
+    previousAssigneeDisplayName?: string;
+    newAssigneeDisplayName?: string;
+  }): Record<string, unknown> {
+    const activityId = randomUUID();
+    return {
+      pk: AlertKeyBuilder.toAlertPk(p.alertId),
+      sk: AlertKeyBuilder.toActivitySortKey(p.nowMs, activityId),
+      entityType: 'ALERT_ACTIVITY',
+      activityId,
+      alertId: p.alertId,
+      activityType: p.activityType,
+      activityTimestamp: p.nowMs,
+      performedBy: p.performedBy,
+      ...(p.performedByDisplayName ? { performedByDisplayName: p.performedByDisplayName } : {}),
+      ...(p.activityComment ? { activityComment: p.activityComment } : {}),
+      ...(p.previousState !== undefined ? { previousState: p.previousState } : {}),
+      ...(p.newState !== undefined ? { newState: p.newState } : {}),
+      ...(p.previousPriority !== undefined ? { previousPriority: p.previousPriority } : {}),
+      ...(p.newPriority !== undefined ? { newPriority: p.newPriority } : {}),
+      ...(p.previousAssignee !== undefined ? { previousAssignee: p.previousAssignee } : {}),
+      ...(p.newAssignee !== undefined ? { newAssignee: p.newAssignee } : {}),
+      ...(p.previousAssigneeDisplayName ? { previousAssigneeDisplayName: p.previousAssigneeDisplayName } : {}),
+      ...(p.newAssigneeDisplayName ? { newAssigneeDisplayName: p.newAssigneeDisplayName } : {}),
+      createdAt: p.nowMs,
+      organizationId: p.organizationId,
     };
   }
 }

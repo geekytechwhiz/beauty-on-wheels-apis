@@ -9,10 +9,17 @@ info:
     Workflow, priority, and assignment use unified endpoints with `alertIds` (one or many).
 
     **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header).
-    No optional tracing header is required; correlation may appear in responses (`ProblemDetails.correlationId`, `SuccessResponse.requestId`).
+
+    **Success JSON envelope** (handlers using `@api-hub/utils` `withLambdaHandler` + `ApiResponse.ok`): `success` (boolean),
+    `statusCode` (matches HTTP status), `message` (`title`, `description`, `severity`), `data` (operation-specific),
+    `error` (null on success), `meta` (`requestId`, `timestamp` ISO string, `version`: `v1`). Problem responses use
+    `application/problem+json` where applicable.
+
+    **Alert instants in `data`:** `toAlertDetail` returns **Unix epoch milliseconds** (JSON integers) for
+    `triggerTimestamp`, `createdAt`, `updatedAt`, assignment/SLA timestamps, etc. — not ISO-8601 strings.
 
     **Deployed Swagger UI** uses `apps/alert-service/swagger.json` (merged by `serverless-auto-swagger`), not this OpenAPI
-    file. For **Try it out** / model examples in that UI, duplicate samples there as Swagger 2 `example` or `x-example`.
+    file. Keep both files in sync when changing public contracts.
 
 servers:
   - url: https://api.example.com
@@ -45,35 +52,77 @@ components:
       schema:
         type: string
 
+    notesOnly:
+      name: notesOnly
+      in: query
+      required: false
+      description: >
+        Literal string **`true`** — return only **`NOTE_ADDED`** rows. String **`false`** or omit — full activity timeline.
+      schema:
+        type: string
+        enum: ['true', 'false']
+      example: 'true'
+
   schemas:
+    EpochMillis:
+      type: integer
+      format: int64
+      description: Unix epoch milliseconds (UTC), as returned for alert and SLA instants in `AlertDetail` / list items.
+
     SuccessResponse:
       type: object
+      description: >
+        Standard success body from `ApiResponse.ok` / `withLambdaHandler`. Operation-specific schemas below refine `data`.
+      required:
+        - success
+        - statusCode
+        - message
+        - data
+        - error
+        - meta
       properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          description: Mirrors the HTTP status code (e.g. 200).
+          example: 200
+        message:
+          type: object
+          required: [title, description, severity]
+          properties:
+            title:
+              type: string
+              example: SUCCESS
+            description:
+              type: string
+              example: Request processed successfully
+            severity:
+              type: string
+              enum: [SUCCESS, INFO, WARNING, ERROR]
+              example: SUCCESS
         data:
-          description: Response data (can be object, array, or null)
+          description: Operation-specific payload; nullable when the handler returns nothing meaningful.
           nullable: true
-          oneOf:
-            - type: object
-            - type: array
+        error:
+          type: object
+          nullable: true
+          description: Always null on success.
         meta:
           type: object
-          description: Additional metadata (optional)
-          additionalProperties: true
-        links:
-          type: object
-          description: Related resource links (optional)
-          additionalProperties:
-            type: string
-        requestId:
-          type: string
-          description: Request correlation ID
-          example: "req-123"
-        message:
-          type: string
-          description: Success message (optional)
-          example: "Operation completed successfully"
-      required:
-        - data
+          required: [requestId, timestamp, version]
+          properties:
+            requestId:
+              type: string
+              description: Correlation / request identifier.
+            timestamp:
+              type: string
+              format: date-time
+              description: Server time when the response was built (ISO-8601).
+            version:
+              type: string
+              enum: ['v1']
 
     ProblemDetails:
       type: object
@@ -142,21 +191,29 @@ components:
             data:
               $ref: '#/components/schemas/AlertDetail'
 
-    SuccessResponseWorkflowMutationResponse:
+    SuccessResponseAssignmentUpdated:
       allOf:
         - $ref: '#/components/schemas/SuccessResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/WorkflowMutationResponse'
+              $ref: '#/components/schemas/AssignmentUpdated'
 
-    SuccessResponseAlertMutationResult:
+    SuccessResponseWorkflowResult:
       allOf:
         - $ref: '#/components/schemas/SuccessResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/AlertMutationResult'
+              $ref: '#/components/schemas/WorkflowResult'
+
+    SuccessResponseBulkResult:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/BulkResult'
 
     SuccessResponseActivityList:
       allOf:
@@ -357,14 +414,20 @@ components:
     AlertListAssignmentFilter:
       type: string
       description: >
-        When present, narrows the list by assignee presence. Omit this parameter entirely when the client does not
-        want to filter by assignment status (return both assigned and unassigned according to other filters).
-        `UNASSIGNED` — only alerts with no assignee. `ASSIGNED` — only alerts that have a current assignee.
-      enum: [UNASSIGNED, ASSIGNED]
+        **Assignee user id** — the same persisted value as workflow ASSIGN / PATCH **`assignedToUserId`**.
+        When provided, returns only alerts currently assigned to that user. Omit the parameter when the UI should list
+        all assignees (subject to **`state`** and other filters).
+      example: 5fa85f64-5717-4562-b3fc-2c963f66afa8
 
     AssignmentAction:
       type: string
       enum: [ASSIGN, ASSIGN_TO_SELF, REASSIGN, UNASSIGN]
+      description: >
+        Assignment-only mutation. State retention rules:
+        `ASSIGN` / `REASSIGN` / `ASSIGN_TO_SELF` from `UNASSIGNED` transitions the alert to `ASSIGNED`;
+        from `ASSIGNED` / `IN_PROGRESS` / `WAITING` the alert keeps its current state and only the assignee changes.
+        `UNASSIGN` clears the assignee while keeping the current state. All actions are rejected from terminal
+        states (`RESOLVED` / `DISMISSED`).
 
     WorkflowAction:
       type: string
@@ -462,6 +525,9 @@ components:
 
     AlertSummary:
       type: object
+      description: >
+        Summary fields included in **`AlertDetail`** (GET/create responses). Temporal fields match **`toAlertDetail`**:
+        epoch milliseconds, not ISO strings.
       properties:
         alertId:
           type: string
@@ -476,8 +542,7 @@ components:
         triggerSummary:
           type: string
         triggerTimestamp:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/EpochMillis'
         groupingKey:
           type: string
         patientId:
@@ -496,14 +561,11 @@ components:
           type: boolean
           description: True when assignment or resolution SLA is breached.
         assignSlaDueAt:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/EpochMillis'
         resolveSlaDueAt:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/EpochMillis'
         createdAt:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/EpochMillis'
 
     AlertDetail:
       allOf:
@@ -522,15 +584,13 @@ components:
               additionalProperties: true
             groupId:
               type: string
-              description: Operational group for drill-down and applyToGroup actions.
+              description: Operational group for drill-down and bulk actions.
             assignedAt:
-              type: string
-              format: date-time
+              $ref: '#/components/schemas/EpochMillis'
             assignedBy:
               type: string
             statusUpdatedAt:
-              type: string
-              format: date-time
+              $ref: '#/components/schemas/EpochMillis'
             statusUpdatedBy:
               type: string
             closureComment:
@@ -546,11 +606,9 @@ components:
               type: integer
               description: Resolution SLA window in minutes (from assignment).
             assignSlaBreachedAt:
-              type: string
-              format: date-time
+              $ref: '#/components/schemas/EpochMillis'
             resolveSlaBreachedAt:
-              type: string
-              format: date-time
+              $ref: '#/components/schemas/EpochMillis'
             carePlanInstanceId:
               type: string
             packageAssignmentId:
@@ -559,6 +617,8 @@ components:
               type: string
             thresholdTemplateVersionId:
               type: string
+            updatedAt:
+              $ref: '#/components/schemas/EpochMillis'
 
     ActivityRecord:
       type: object
@@ -570,8 +630,7 @@ components:
         activityType:
           $ref: '#/components/schemas/ActivityType'
         activityTimestamp:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/EpochMillis'
         performedBy:
           type: string
           description: User ID or SYSTEM.
@@ -591,22 +650,34 @@ components:
           type: string
         newAssignee:
           type: string
+        previousAssigneeDisplayName:
+          type: string
+        newAssigneeDisplayName:
+          type: string
         evidencePayload:
           type: object
           additionalProperties: true
 
     AssignmentRequest:
       type: object
-      required: [action]
+      required: [action, performedByDisplayName]
+      description: >
+        Assignment mutation. The alert's `alertState` is preserved unless the action is
+        `ASSIGN` / `REASSIGN` / `ASSIGN_TO_SELF` and the alert is currently `UNASSIGNED`,
+        in which case it transitions to `ASSIGNED`. From any other non-terminal state, only the
+        assignee fields change. `UNASSIGN` clears the assignee while retaining the current state.
       properties:
         action:
           $ref: '#/components/schemas/AssignmentAction'
         assignToUserId:
           type: string
           description: Required for ASSIGN and REASSIGN.
-        comment:
+        assigneeDisplayName:
           type: string
-          description: Optional; used with REASSIGN.
+          description: Required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF. UI-supplied display name for the assignee.
+        performedByDisplayName:
+          type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
 
     AlertIds:
       type: array
@@ -616,58 +687,50 @@ components:
       minItems: 1
       maxItems: 100
 
-    WorkflowMutationRequest:
+    WorkflowRequest:
       type: object
-      required: [alertIds, action]
+      required: [alertIds, action, performedByDisplayName]
       description: >
-        Applies the same workflow action to every id in `alertIds`. For **multiple** ids,
-        **all listed alerts must share the same `alertState`** or the request fails with 422
-        (`BULK_HETEROGENEOUS_ALERT_STATE`) and **none** are updated. For a **single** id,
-        normal state-machine rules apply. `applyToGroup` is only valid when `alertIds` has
-        exactly one element.
+        Applies the same workflow action to every id in `alertIds`.
+        Each alert is validated against the state machine independently; some ids may fail (e.g. `ILLEGAL_TRANSITION`)
+        while others succeed.
       properties:
         alertIds:
           $ref: '#/components/schemas/AlertIds'
         action:
           $ref: '#/components/schemas/WorkflowAction'
+        performedByDisplayName:
+          type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
+        assignedToUserId:
+          type: string
+          description: Required for ASSIGN.
+        assigneeDisplayName:
+          type: string
+          description: Required for ASSIGN. UI-supplied display name for `assignedToUserId`.
         closureComment:
           type: string
-          description: Required for RESOLVE and DISMISS (terminal closure).
-        resolutionCode:
+          description: Terminal closure text for RESOLVE / DISMISS (required when `reasonCode` is OTHER).
+        reasonCode:
           type: string
-          description: Optional structured code when resolving.
-        dismissReason:
-          type: string
-          description: Optional structured reason when dismissing.
+          description: >
+            Common field for **RESOLVE** and **DISMISS**: allowlisted code (`AlertResolveReasonCode` or
+            `AlertDismissReasonCode`). Mapped server-side to stored `resolutionCode` / `dismissReason`.
         comment:
           type: string
           description: Optional for START_WORK, WAIT, and RESUME.
-        applyToGroup:
-          type: boolean
-          default: false
-          description: >
-            Only when `alertIds` contains exactly one id: when true with RESOLVE or DISMISS,
-            applies to all open alerts in the same group. Ignored when multiple ids are present.
 
     NoteRequest:
       type: object
-      required: [comment]
+      required: [comment, performedByDisplayName]
       properties:
         comment:
           type: string
-
-    PriorityMutationRequest:
-      type: object
-      required: [alertIds, priority]
-      properties:
-        alertIds:
-          $ref: '#/components/schemas/AlertIds'
-        priority:
-          $ref: '#/components/schemas/Priority'
-        comment:
+        performedByDisplayName:
           type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
 
-    AssignmentMutationRequest:
+    AssignmentRequestBody:
       allOf:
         - type: object
           required: [alertIds]
@@ -676,10 +739,44 @@ components:
               $ref: '#/components/schemas/AlertIds'
         - $ref: '#/components/schemas/AssignmentRequest'
 
-    AlertMutationResult:
+    AssignmentUpdated:
+      type: object
+      required: [alertIds]
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+
+    PriorityUpdateRequestBody:
+      type: object
+      required: [alertIds, priority, performedByDisplayName]
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        performedByDisplayName:
+          type: string
+          description: Required. UI-supplied display name for the actor (stored in activity as `performedByDisplayName`).
+
+    PriorityUpdated:
+      type: object
+      required: [alertIds]
+      properties:
+        alertIds:
+          $ref: '#/components/schemas/AlertIds'
+
+    SuccessResponsePriorityUpdated:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PriorityUpdated'
+
+    BulkResult:
       type: object
       description: >
-        Per-alert outcomes. For workflow with one id and `applyToGroup`, `affectedCount` may be set.
+        Per-alert outcomes.
       properties:
         succeeded:
           type: array
@@ -698,29 +795,24 @@ components:
                 example: NOT_FOUND
               message:
                 type: string
-        affectedCount:
-          type: integer
-          description: Present when `applyToGroup` resolved/dismissed multiple alerts in a group.
 
-    WorkflowMutationResponse:
+    WorkflowResult:
       allOf:
-        - $ref: '#/components/schemas/AlertMutationResult'
+        - $ref: '#/components/schemas/BulkResult'
         - type: object
-          properties:
-            primaryAlert:
-              $ref: '#/components/schemas/AlertDetail'
-              description: Optional; when a single alert was updated, full detail may be returned.
+          properties: {}
 
     PaginatedAlerts:
       type: object
+      description: GET `/alerts` — each `data.items[]` element is **`AlertDetail`** (`toAlertDetail` / same mapper as GET by id).
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/AlertSummary'
+            $ref: '#/components/schemas/AlertDetail'
         nextToken:
           type: string
-          description: Opaque cursor for the next page.
+          description: Opaque cursor for the next page (Dynamo `LastEvaluatedKey`).
 
     ActivityList:
       type: object
@@ -834,24 +926,34 @@ components:
             correlationId: "req-123"
 
 paths:
+  /health:
+    get:
+      operationId: health
+      summary: Health check
+      tags: [Service]
+      responses:
+        '200':
+          description: OK
+
   /alerts:
     get:
       operationId: listAlerts
       summary: List alerts (Team, My, or patient scope)
       description: >
         Single list API with **`queue`** selecting the view:
-        - **`TEAM`** (default) — org Team Queue. Optional filters: `state`, `priority`, `inputType`, `assignment`,
-          `dateFrom` / `dateTo`, `search`, pagination.
-        - **`MY`** — same filters as Team, but only alerts **assigned to the current user**.
-        - **`PATIENT`** — alerts for **one patient** only. You **must** pass **`patientId`**. Do not use **`MY`**
-          semantics here; Team/My assignment filters are for operational queues only. Other filters (e.g. `state`,
-          `openOnly`-style behavior if applicable, `inputType`) may still apply per product rules.
+        - **`TEAM`** (default) — org Team Queue. Optional filters: `state`, `priority`, `inputType`, **`assignment`**
+          (assignee **user id**), `dateFrom` / `dateTo`, `search`, pagination.
+        - **`MY`** — alerts for **the authenticated user** (their queue); same optional filters as Team, including **`assignment`**
+          if you need an explicit **`assignedToUserId`** subset.
+        - **`PATIENT`** — alerts for **one patient** only. You **must** pass **`patientId`**. Other filters (`state`,
+          `assignment` as assignee user id when applicable, `inputType`) follow server rules per queue.
 
         **Validation:** **`patientId` is required when `queue=PATIENT`**. Omit **`patientId`** (or leave empty) for
         **`TEAM`** and **`MY`**. Sending **`queue=PATIENT`** without **`patientId`** (or **`patientId`** with **`TEAM`/`MY`**
         if the server rejects mixed mode) yields **400**.
 
         Paginate with **`pageSize`** and **`nextToken`** where supported. Sort order is implementation-defined.
+        Response `data.items[]` use **`toAlertDetail`** (same public shape as GET `/alerts/{alertId}`) after repository hydration.
       tags: [Alert instances]
       parameters:
         - name: queue
@@ -887,19 +989,24 @@ paths:
         - name: assignment
           in: query
           description: >
-            **Team / My queues only** — omit when not filtering by assignee presence, or when `queue=PATIENT` if not applicable.
-            `UNASSIGNED` or `ASSIGNED`.
+            Optional **assignee user id** (persisted **`assignedToUserId`** — same identifier the ASSIGN workflow accepts).
+            When set, narrows results to alerts assigned to that user. Omit when not filtering by assignee.
           schema:
             $ref: '#/components/schemas/AlertListAssignmentFilter'
         - name: dateFrom
           in: query
-          description: Start of **By date range** (inclusive, ISO-8601).
+          description: >
+            Start of **By date range** (inclusive, ISO-8601). For **`TEAM`** and **`MY`**, this bounds the list index
+            sort key, which is based on **alert creation** time. For **`PATIENT`**, the same query params filter
+            **`triggerTimestamp`** (see service implementation).
           schema:
             type: string
             format: date-time
         - name: dateTo
           in: query
-          description: End of **By date range** (inclusive, ISO-8601).
+          description: >
+            End of **By date range** (inclusive, ISO-8601). For **`TEAM`** / **`MY`**, applies to **creation**-time
+            ordering on the index; for **`PATIENT`**, filters **`triggerTimestamp`**.
           schema:
             type: string
             format: date-time
@@ -987,13 +1094,10 @@ paths:
                     missedDuration: P3D
                     readingType: BLOOD_PRESSURE
       responses:
-        '201':
-          description: Alert created.
-          headers:
-            Location:
-              description: URL of the new alert (`/alerts/{alertId}`).
-              schema:
-                type: string
+        '200':
+          description: >
+            Success — new alert **or** same-org idempotent replay on `inputEventId`. The handler uses HTTP **200** with
+            `AlertDetail` in `data` for both cases (`withLambdaHandler` without `useCreated`).
           content:
             application/json:
               schema:
@@ -1005,11 +1109,13 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          description: Idempotent replay — `inputEventId` already processed; returns existing alert in `data`.
+          description: >
+            Conflict — typically **`IDEMPOTENCY_KEY_IN_USE`** when `inputEventId` is already bound to another organization.
+            Idempotent **same-org** replay succeeds with **200**, not 409.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseAlertDetail'
+                $ref: '#/components/schemas/ProblemDetails'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
@@ -1022,20 +1128,21 @@ paths:
       description: >
         Same state machine as before, unified: pass **`alertIds`** with one id or many.
         Multiple ids require **identical `alertState`** on every alert or **422**
-        (`BULK_HETEROGENEOUS_ALERT_STATE`). With **one** id, `applyToGroup` may resolve/dismiss the whole group.
+        (`BULK_HETEROGENEOUS_ALERT_STATE`).
       tags: [Alert instances]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WorkflowMutationRequest'
+              $ref: '#/components/schemas/WorkflowRequest'
             examples:
               single:
                 summary: Single alert
                 value:
                   alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
                   action: START_WORK
+                  performedByDisplayName: Nurse Lee
               multi:
                 summary: Same transition for many alerts (homogeneous state)
                 value:
@@ -1043,21 +1150,32 @@ paths:
                     - 3fa85f64-5717-4562-b3fc-2c963f66afa6
                     - 4fa85f64-5717-4562-b3fc-2c963f66afa7
                   action: RESOLVE
+                  reasonCode: PATIENT_CONTACTED
                   closureComment: Bulk resolved
+                  performedByDisplayName: Nurse Lee
               group:
-                summary: One id + apply to group
+                summary: One id
                 value:
                   alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
                   action: RESOLVE
+                  reasonCode: EDUCATION_PROVIDED
                   closureComment: Stabilized
-                  applyToGroup: true
+                  performedByDisplayName: Nurse Lee
+              assign:
+                summary: Assign (UNASSIGNED → ASSIGNED; otherwise state retained)
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  action: ASSIGN
+                  assignedToUserId: 5fa85f64-5717-4562-b3fc-2c963f66afa8
+                  assigneeDisplayName: Dr Smith
+                  performedByDisplayName: Nurse Lee
       responses:
         '200':
-          description: Mutation result; optional `primaryAlert` when one alert updated.
+          description: Result (bulk-style).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseWorkflowMutationResponse'
+                $ref: '#/components/schemas/SuccessResponseWorkflowResult'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1065,52 +1183,25 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 
-  /alerts/priority:
-    patch:
-      operationId: updateAlertPriority
-      summary: Change priority (single or multi-select)
-      tags: [Alert instances]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PriorityMutationRequest'
-            examples:
-              one:
-                value:
-                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
-                  priority: P1
-              many:
-                value:
-                  alertIds:
-                    - 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                    - 4fa85f64-5717-4562-b3fc-2c963f66afa7
-                  priority: P2
-                  comment: Triage bump
-      responses:
-        '200':
-          description: Per-alert outcomes.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseAlertMutationResult'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
   /alerts/assignment:
     post:
       operationId: updateAlertAssignment
       summary: Assignment actions (single or multi-select)
       tags: [Alert instances]
+      description: >
+        Applies the same assignment action to every id in `alertIds`. **All-or-nothing**: if any alert is missing,
+        out of org scope, or in a terminal state (**RESOLVED** / **DISMISSED**), the request fails and **no** alerts
+        are updated.
+
+        **State retention:** The alert's `alertState` is preserved across assignment changes — only `UNASSIGNED`
+        alerts transition to `ASSIGNED` when an assignee is set via `ASSIGN` / `REASSIGN` / `ASSIGN_TO_SELF`.
+        `UNASSIGN` clears the assignee but keeps the current state (e.g. `IN_PROGRESS` stays `IN_PROGRESS`).
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssignmentMutationRequest'
+              $ref: '#/components/schemas/AssignmentRequestBody'
             examples:
               assignMany:
                 value:
@@ -1119,19 +1210,83 @@ paths:
                     - 4fa85f64-5717-4562-b3fc-2c963f66afa7
                   action: ASSIGN
                   assignToUserId: 5fa85f64-5717-4562-b3fc-2c963f66afa8
+                  assigneeDisplayName: Dr Smith
+                  performedByDisplayName: Nurse Lee
+              unassignOne:
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  action: UNASSIGN
+                  performedByDisplayName: Nurse Lee
       responses:
         '200':
-          description: Per-alert outcomes.
+          description: Success — echo `alertIds`.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseAlertMutationResult'
+                $ref: '#/components/schemas/SuccessResponseAssignmentUpdated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Terminal state (RESOLVED / DISMISSED) or other conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /alerts/priority:
+    patch:
+      operationId: updateAlertPriority
+      summary: Update priority (single or multi-select)
+      tags: [Alert instances]
+      description: >
+        Updates the `priority` for every id in `alertIds`. **All-or-nothing**: if any alert is missing or out of org
+        scope, the request fails and **no** alerts are updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriorityUpdateRequestBody'
+            examples:
+              one:
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  priority: P1
+                  performedByDisplayName: Nurse Lee
+              many:
+                value:
+                  alertIds:
+                    - 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    - 4fa85f64-5717-4562-b3fc-2c963f66afa7
+                  priority: P2
+                  performedByDisplayName: Nurse Lee
+      responses:
+        '200':
+          description: Success — updated alert detail for single-select, or echo `alertIds` for multi-select.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponseAlertDetail'
+                  - $ref: '#/components/schemas/SuccessResponsePriorityUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
 
   /alerts/{alertId}:
     parameters:
@@ -1139,7 +1294,9 @@ paths:
     get:
       operationId: getAlert
       summary: Get alert detail
-      description: Full alert context including evidence, SLA, assignment, and closure fields.
+      description: >
+        Full alert context including evidence, SLA, assignment, and closure fields. Payload is `AlertDetail` inside the
+        standard success envelope; instants are epoch milliseconds.
       tags: [Alert instances]
       responses:
         '200':
@@ -1158,12 +1315,14 @@ paths:
   /alerts/{alertId}/activity:
     parameters:
       - $ref: '#/components/parameters/alertId'
+      - $ref: '#/components/parameters/notesOnly'
     get:
       operationId: getAlertActivity
       summary: Get activity / audit timeline for an alert
       description: >
-        Returns **all** activity rows for this alert in **one response** (newest first). Organization scope comes from the **JWT** only
-        (same tenant rule as GET `/alerts/{alertId}`). No query filters or pagination.
+        Returns activity rows for this alert in **one response** (newest first). **`404`** when the alert is missing or
+        not in the caller’s organization (same check as GET `/alerts/{alertId}`).         Query **`notesOnly`** is the string **`true`** or **`false`** (`true` → **`NOTE_ADDED`** only). No pagination. **`activityTimestamp`** is epoch milliseconds.
+        `data.items` may be empty when there are no matching rows.
       tags: [Alert instances]
       responses:
         '200':
@@ -1192,6 +1351,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NoteRequest'
+            examples:
+              one:
+                value:
+                  comment: Reviewed alert; will follow up.
+                  performedByDisplayName: Nurse Lee
       responses:
         '201':
           description: NOTE_ADDED activity created.

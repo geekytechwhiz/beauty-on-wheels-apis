@@ -1,3 +1,4 @@
+/* eslint-disable no-warning-comments */
 import { Command } from 'commander';
 import { PatternAnalyzer, MappingPattern } from '../core/pattern-analyzer.js';
 

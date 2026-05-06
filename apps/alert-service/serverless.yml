@@ -79,8 +79,9 @@ package:
     - '!**/*.spec.ts'
 
 custom:
-  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event)
-  cors:
+  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
+  # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
+  cors: &httpApiCors
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
       - Content-Type
@@ -129,7 +130,7 @@ custom:
 
   autoswagger:
     title: Alert Service API
-    description: Operational alert HTTP API (create, get, list, patch). Swagger 2 merge file for serverless-auto-swagger.
+    description: Operational alert HTTP API (create, get, list, workflow, assignment). Swagger 2 merge file for serverless-auto-swagger.
     version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
@@ -193,31 +194,21 @@ functions:
           bodyType: CreateAlertRequest
           summary: Create alert
           description: Requires `inputEventId` (client/UI idempotency key), `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, and `evidencePayload`. Organization scope is taken from the JWT only, not the body.
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          # authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-          #   resultTtlInSeconds: 0
-          documentation:
-            responses:
-              201:
-                description: Created
-              200:
-                description: Duplicate event (idempotent replay on inputEventId)
-              400:
-                description: Bad request
-              401:
-                description: Unauthorized
-              403:
-                description: Forbidden
-              422:
-                description: Validation or business rule error
-              500:
-                description: Server error
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — AlertDetail in envelope (new alert or same-org idempotent replay on inputEventId)
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "409": Conflict (e.g. IDEMPOTENCY_KEY_IN_USE for different org)
+            "422": Validation or business rule error
+            "500": Server error
 
   listAlerts:
     handler: src/handlers/http/listAlerts.main
@@ -242,6 +233,7 @@ functions:
             state:
               required: false
               type: string
+              description: Filter by alert workflow/UI state — UNASSIGNED, ASSIGNED, IN_PROGRESS, WAITING, RESOLVED, DISMISSED
             priority:
               required: false
               type: string
@@ -251,7 +243,7 @@ functions:
             assignment:
               required: false
               type: string
-              description: UNASSIGNED or ASSIGNED (Team queue)
+              description: Assignee user id to filter by (persisted assignedToUserId — same id as workflow ASSIGN)
             dateFrom:
               required: false
               type: string
@@ -267,27 +259,19 @@ functions:
             nextToken:
               required: false
               type: string
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          # authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-          #   resultTtlInSeconds: 0
-          documentation:
-            responses:
-              200:
-                description: OK
-              400:
-                description: Bad request
-              401:
-                description: Unauthorized
-              403:
-                description: Forbidden
-              500:
-                description: Server error
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
 
   getAlert:
     handler: src/handlers/http/getAlert.main
@@ -297,27 +281,119 @@ functions:
           method: get
           summary: Get alert by id
           description: Alert detail for the authenticated organization (tenant from JWT only).
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          # authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-          #   resultTtlInSeconds: 0
-          documentation:
-            responses:
-              200:
-                description: OK
-              401:
-                description: Unauthorized
-              403:
-                description: Forbidden
-              404:
-                description: Not found
-              500:
-                description: Server error
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "500": Server error
+
+  updateAlertWorkflow:
+    handler: src/handlers/http/updateAlertWorkflow.main
+    events:
+      - http:
+          path: alerts/workflow
+          method: post
+          summary: Apply alert workflow command
+          description: >
+            Command-style workflow for one alert. Body requires `action` (START_WORK, WAIT, RESUME, RESOLVE, DISMISS,
+            or aliases ASSIGN, MOVE_TO_WAITING, RESUME_WORK). RESOLVE/DISMISS require `reasonCode`; when reasonCode is
+            OTHER, `comment` or `closureComment` is required. ASSIGN requires `assignedToUserId`. Organization from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — updated alert detail in envelope `data`
+            "400": Bad request (e.g. missing path context)
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Alert not found
+
+  updateAlertAssignment:
+    handler: src/handlers/http/updateAlertAssignment.main
+    events:
+      - http:
+          path: alerts/assignment
+          method: post
+          summary: Apply alert assignment action
+          description: >
+            Assignment actions for one or many alerts. Body requires `alertIds` and `action` (ASSIGN, REASSIGN, UNASSIGN, ASSIGN_TO_SELF).
+            ASSIGN/REASSIGN require `assignToUserId`. ASSIGN_TO_SELF derives assignee from JWT. **All-or-nothing**: if any alert fails,
+            none are updated. Organization from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Alert not found
+            "409": Not allowed from terminal state
+            "422": Validation error
+
+  updateAlertPriority:
+    handler: src/handlers/http/updateAlertPriority.main
+    events:
+      - http:
+          path: alerts/priority
+          method: patch
+          summary: Update alert priority
+          description: >
+            Priority update for one or many alerts. Body requires `alertIds` and `priority` (P0..P3).
+            **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Alert not found
+            "422": Validation error
+  addAlertNote:
+    handler: src/handlers/http/addAlertNote.main
+    events:
+      - http:
+          path: alerts/{alertId}/notes
+          method: post
+          summary: Add an operational note
+          description: Add a note to the alert activity timeline. Organization comes from JWT.
+          bodyType: NoteRequest
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "201": Created (NOTE_ADDED activity)
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "409": Illegal state transition (ILLEGAL_TRANSITION)
+            "422": Validation (body, reason codes, OTHER without comment, MISSING_REASON_CODE)
+            "500": Server error
 
   getAlertActivity:
     handler: src/handlers/http/getAlertActivity.main
@@ -326,236 +402,19 @@ functions:
           path: alerts/{alertId}/activity
           method: get
           summary: Get alert activity timeline
-          description: Full activity / audit list for the alert (newest first; single response, no pagination). Tenant from JWT only.
-          cors:
-            origin: ${self:custom.cors.origin}
-            headers: ${self:custom.cors.headers}
-          # authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-          #   resultTtlInSeconds: 0
-          documentation:
-            responses:
-              200:
-                description: OK
-              401:
-                description: Unauthorized
-              403:
-                description: Forbidden
-              404:
-                description: Not found
-              500:
-                description: Server error
-
-resources:
-  Resources:
-    AlertServiceTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: alert-service-dev
-        BillingMode: PAY_PER_REQUEST
-
-        AttributeDefinitions:
-          - AttributeName: pk
-            AttributeType: S
-          - AttributeName: sk
-            AttributeType: S
-
-          - AttributeName: gsi1pk
-            AttributeType: S
-          - AttributeName: gsi1sk
-            AttributeType: S
-
-          - AttributeName: gsi2pk
-            AttributeType: S
-          - AttributeName: gsi2sk
-            AttributeType: S
-
-          - AttributeName: gsi3pk
-            AttributeType: S
-          - AttributeName: gsi3sk
-            AttributeType: S
-
-          - AttributeName: gsi4pk
-            AttributeType: S
-          - AttributeName: gsi4sk
-            AttributeType: S
-
-          - AttributeName: gsi5pk
-            AttributeType: S
-          - AttributeName: gsi5sk
-            AttributeType: S
-
-          - AttributeName: sk1
-            AttributeType: S
-          - AttributeName: sk2
-            AttributeType: S
-          - AttributeName: sk3
-            AttributeType: S
-
-        KeySchema:
-          - AttributeName: pk
-            KeyType: HASH
-          - AttributeName: sk
-            KeyType: RANGE
-
-        GlobalSecondaryIndexes:
-          - IndexName: GSI1
-            KeySchema:
-              - AttributeName: gsi1pk
-                KeyType: HASH
-              - AttributeName: gsi1sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - alertId
-
-          - IndexName: GSI2
-            KeySchema:
-              - AttributeName: gsi2pk
-                KeyType: HASH
-              - AttributeName: gsi2sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - alertId
-
-          - IndexName: GSI3
-            KeySchema:
-              - AttributeName: gsi3pk
-                KeyType: HASH
-              - AttributeName: gsi3sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - alertId
-
-          - IndexName: GSI4
-            KeySchema:
-              - AttributeName: gsi4pk
-                KeyType: HASH
-              - AttributeName: gsi4sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - alertId
-
-          - IndexName: GSI5
-            KeySchema:
-              - AttributeName: gsi5pk
-                KeyType: HASH
-              - AttributeName: gsi5sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - alertId
-
-          - IndexName: pk-sk1
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk1
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - patientId
-                - triggerTimestamp
-                - assignedToUserID
-                - alertState
-                - orgId
-                - priority
-                - triggerSummary
-                - alertId
-                - groupingKey
-
-          - IndexName: pk-sk2-index
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk2
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - patientId
-                - triggerTimestamp
-                - assignedToUserID
-                - alertState
-                - orgId
-                - priority
-                - triggerSummary
-                - alertId
-                - groupingKey
-
-          - IndexName: pk-sk3-index
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk3
-                KeyType: RANGE
-            Projection:
-              ProjectionType: INCLUDE
-              NonKeyAttributes:
-                - patientId
-                - triggerTimestamp
-                - assignedToUserID
-                - alertState
-                - orgId
-                - priority
-                - triggerSummary
-                - alertId
-                - groupingKey
-
-  # --- Other HTTP APIs: uncomment when ready ---
-  # listOrgAlerts:
-  #   handler: src/handlers/http/listOrgAlerts.main
-  #   events:
-  #     - http:
-  #         path: /organizations/{organizationId}/alerts
-  #         method: get
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #
-  # listUserAlerts:
-  #   handler: src/handlers/http/listUserAlerts.main
-  #   events:
-  #     - http:
-  #         path: /users/{userId}/alerts
-  #         method: get
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #
-  # patchAlert:
-  #   handler: src/handlers/http/patchAlert.main
-  #   events:
-  #     - http:
-  #         path: /alerts/{alertId}
-  #         method: patch
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
+          description: >
+            Activity / audit list for the alert (newest first; no pagination). Tenant from JWT only. Optional query
+            Optional query `notesOnly=true` or `false` (`true` = NOTE_ADDED only). 404 when alert not found for org.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "500": Server error

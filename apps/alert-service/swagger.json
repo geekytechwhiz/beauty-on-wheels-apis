@@ -290,6 +290,89 @@
         "slaBreachIndicator": false
       }
     },
+    "AlertIds": {
+      "type": "array",
+      "description": "One or many alert ids (single-select = array of one element).",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "maxItems": 100
+    },
+    "WorkflowAction": {
+      "type": "string",
+      "enum": ["ASSIGN", "START_WORK", "MOVE_TO_WAITING", "RESUME_WORK", "RESOLVE", "DISMISS"]
+    },
+    "WorkflowRequest": {
+      "type": "object",
+      "required": ["alertIds", "action", "performedByDisplayName"],
+      "properties": {
+        "alertIds": { "$ref": "#/definitions/AlertIds" },
+        "action": { "$ref": "#/definitions/WorkflowAction" },
+        "assignedToUserId": { "type": "string" },
+        "assigneeDisplayName": { "type": "string" },
+        "reasonCode": { "type": "string" },
+        "comment": { "type": "string" },
+        "closureComment": { "type": "string" },
+        "performedByDisplayName": { "type": "string" }
+      },
+      "example": {
+        "alertIds": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        "action": "START_WORK",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
+    "AssignmentAction": {
+      "type": "string",
+      "enum": ["ASSIGN", "ASSIGN_TO_SELF", "REASSIGN", "UNASSIGN"]
+    },
+    "AssignmentRequest": {
+      "type": "object",
+      "required": ["action", "performedByDisplayName"],
+      "properties": {
+        "action": { "$ref": "#/definitions/AssignmentAction" },
+        "assignToUserId": { "type": "string", "description": "Required for ASSIGN and REASSIGN." },
+        "assigneeDisplayName": { "type": "string", "description": "Required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF." },
+        "performedByDisplayName": { "type": "string" }
+      },
+      "example": {
+        "action": "ASSIGN",
+        "assignToUserId": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+        "assigneeDisplayName": "Dr Smith",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
+    "AssignmentRequestBody": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": ["alertIds"],
+          "properties": { "alertIds": { "$ref": "#/definitions/AlertIds" } }
+        },
+        { "$ref": "#/definitions/AssignmentRequest" }
+      ]
+    },
+    "PriorityUpdateRequestBody": {
+      "type": "object",
+      "required": ["alertIds", "priority", "performedByDisplayName"],
+      "properties": {
+        "alertIds": { "$ref": "#/definitions/AlertIds" },
+        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+        "performedByDisplayName": { "type": "string" }
+      },
+      "example": {
+        "alertIds": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        "priority": "P1",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
+    "NoteRequest": {
+      "type": "object",
+      "required": ["comment", "performedByDisplayName"],
+      "properties": { "comment": { "type": "string" }, "performedByDisplayName": { "type": "string" } },
+      "example": {
+        "comment": "Reviewed alert; will follow up.",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
     "ActivityType": {
       "type": "string",
       "enum": [
@@ -306,6 +389,113 @@
         "PRIORITY_CHANGED"
       ]
     },
+    "EpochMillis": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Unix epoch milliseconds (UTC) for alert SLA instants and activity rows."
+    },
+    "PaginatedAlerts": {
+      "type": "object",
+      "description": "`data` for GET /alerts — items are AlertDetail (`toAlertDetail`).",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AlertDetail" }
+        },
+        "nextToken": { "type": "string", "description": "Opaque pagination cursor." }
+      }
+    },
+    "AlertSummary": {
+      "type": "object",
+      "description": "Subset of persisted alert fields exposed on detail; instants are epoch ms (`toAlertDetail`).",
+      "properties": {
+        "alertId": { "type": "string" },
+        "priority": { "type": "string" },
+        "alertState": { "type": "string" },
+        "inputType": { "type": "string" },
+        "sourceType": { "type": "string" },
+        "triggerSummary": { "type": "string" },
+        "triggerTimestamp": { "$ref": "#/definitions/EpochMillis" },
+        "groupingKey": { "type": "string" },
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "actorName": { "type": "string" },
+        "assignedToUserId": { "type": "string", "x-nullable": true },
+        "assignedToDisplayName": { "type": "string" },
+        "slaBreachIndicator": { "type": "boolean" },
+        "assignSlaDueAt": { "$ref": "#/definitions/EpochMillis" },
+        "resolveSlaDueAt": { "$ref": "#/definitions/EpochMillis" },
+        "createdAt": { "$ref": "#/definitions/EpochMillis" }
+      }
+    },
+    "AlertDetail": {
+      "allOf": [
+        { "$ref": "#/definitions/AlertSummary" },
+        {
+          "type": "object",
+          "properties": {
+            "inputEventId": { "type": "string" },
+            "orgId": { "type": "string" },
+            "evidencePayload": { "type": "object", "additionalProperties": true },
+            "groupId": { "type": "string" },
+            "assignedAt": { "$ref": "#/definitions/EpochMillis" },
+            "assignedBy": { "type": "string" },
+            "statusUpdatedAt": { "$ref": "#/definitions/EpochMillis" },
+            "statusUpdatedBy": { "type": "string" },
+            "closureComment": { "type": "string" },
+            "resolutionCode": { "type": "string" },
+            "dismissReason": { "type": "string" },
+            "assignSla": { "type": "integer" },
+            "resolveSla": { "type": "integer" },
+            "assignSlaBreachedAt": { "$ref": "#/definitions/EpochMillis" },
+            "resolveSlaBreachedAt": { "$ref": "#/definitions/EpochMillis" },
+            "updatedAt": { "$ref": "#/definitions/EpochMillis" },
+            "carePlanInstanceId": { "type": "string" },
+            "packageAssignmentId": { "type": "string" },
+            "alertPolicyTemplateVersionId": { "type": "string" },
+            "thresholdTemplateVersionId": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "SuccessEnvelopeAlertDetail": {
+      "type": "object",
+      "description": "ApiResponse.ok body with AlertDetail in `data` (POST /alerts, GET /alerts/{id}).",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "message": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "severity": { "type": "string" }
+          }
+        },
+        "data": { "$ref": "#/definitions/AlertDetail" },
+        "error": { "type": "object", "x-nullable": true },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "requestId": { "type": "string" },
+            "timestamp": { "type": "string", "format": "date-time" },
+            "version": { "type": "string", "enum": ["v1"] }
+          }
+        }
+      }
+    },
+    "SuccessEnvelopePaginatedAlerts": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /alerts.",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "message": { "type": "object" },
+        "data": { "$ref": "#/definitions/PaginatedAlerts" },
+        "error": { "type": "object", "x-nullable": true },
+        "meta": { "type": "object" }
+      }
+    },
     "ActivityRecord": {
       "type": "object",
       "description": "One audit / timeline row for an alert.",
@@ -313,10 +503,19 @@
         "activityId": { "type": "string" },
         "alertId": { "type": "string" },
         "activityType": { "$ref": "#/definitions/ActivityType" },
-        "activityTimestamp": { "type": "string", "format": "date-time" },
+        "activityTimestamp": { "$ref": "#/definitions/EpochMillis" },
         "performedBy": { "type": "string" },
         "performedByDisplayName": { "type": "string" },
-        "activityComment": { "type": "string" }
+        "activityComment": { "type": "string" },
+        "previousState": { "type": "string" },
+        "newState": { "type": "string" },
+        "previousPriority": { "type": "string" },
+        "newPriority": { "type": "string" },
+        "previousAssignee": { "type": "string" },
+        "newAssignee": { "type": "string" },
+        "previousAssigneeDisplayName": { "type": "string" },
+        "newAssigneeDisplayName": { "type": "string" },
+        "evidencePayload": { "type": "object", "additionalProperties": true }
       }
     },
     "ActivityList": {
@@ -335,7 +534,7 @@
             "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
             "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
             "activityType": "ALERT_CREATED",
-            "activityTimestamp": "2026-04-17T10:05:00.000Z",
+            "activityTimestamp": 1735890300000,
             "performedBy": "SYSTEM"
           }
         ]
@@ -361,7 +560,7 @@
               "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
               "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
               "activityType": "ALERT_CREATED",
-              "activityTimestamp": "2026-04-17T10:05:00.000Z",
+              "activityTimestamp": 1735890300000,
               "performedBy": "SYSTEM"
             }
           ]
@@ -382,6 +581,80 @@
         "summary": "Health check",
         "security": [],
         "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/alerts/workflow": {
+      "post": {
+        "summary": "Apply alert workflow command",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/WorkflowRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail when single-select; otherwise mutation summary",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "409": { "description": "Illegal transition" },
+          "422": { "description": "Validation error" }
+        }
+      }
+    },
+    "/alerts/assignment": {
+      "post": {
+        "summary": "Apply alert assignment action",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AssignmentRequestBody" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "409": { "description": "Terminal state conflict" },
+          "422": { "description": "Validation error" }
+        }
+      }
+    },
+    "/alerts/priority": {
+      "patch": {
+        "summary": "Update alert priority",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/PriorityUpdateRequestBody" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "422": { "description": "Validation error" }
+        }
       }
     },
     "/alerts": {
@@ -407,7 +680,14 @@
             "x-example": "pat-123",
             "description": "Required when queue=PATIENT; must be omitted for TEAM and MY."
           },
-          { "name": "state", "in": "query", "required": false, "type": "string" },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": ["UNASSIGNED", "ASSIGNED", "IN_PROGRESS", "WAITING", "RESOLVED", "DISMISSED"],
+            "description": "Filter by alert workflow / UI status (same as alertState)."
+          },
           { "name": "priority", "in": "query", "required": false, "type": "string" },
           { "name": "inputType", "in": "query", "required": false, "type": "string" },
           {
@@ -415,8 +695,8 @@
             "in": "query",
             "required": false,
             "type": "string",
-            "enum": ["UNASSIGNED", "ASSIGNED"],
-            "description": "Primarily for the Team queue (`queue=TEAM`)."
+            "x-example": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+            "description": "Assignee user id; returns alerts whose assignedToUserId matches (omit to not filter by assignee)."
           },
           {
             "name": "dateFrom",
@@ -444,7 +724,8 @@
         ],
         "responses": {
           "200": {
-            "description": "OK — list payload in standard success envelope (`data.items`)"
+            "description": "OK — list payload in standard success envelope (`data.items` are AlertDetail)",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopePaginatedAlerts" }
           },
           "400": {
             "description": "Bad request — e.g. `queue=PATIENT` without `patientId`, or `patientId` with `TEAM`/`MY`"
@@ -467,15 +748,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK — alert detail in standard success envelope (new alert or idempotent replay on inputEventId)"
+            "description": "OK — AlertDetail in `data` for new alert or same-org idempotent replay (HTTP 200 for both)",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
           },
-          "422": { "description": "Validation or business rule error" }
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "409": {
+            "description": "Conflict — e.g. IDEMPOTENCY_KEY_IN_USE (different org owns inputEventId); same-org replay uses 200"
+          },
+          "422": { "description": "Validation or business rule error" },
+          "500": { "description": "Server error" }
         }
       }
     },
     "/alerts/{alertId}": {
       "get": {
         "summary": "Get alert by id",
+        "description": "Returns AlertDetail with epoch-ms instants in the standard success envelope.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -486,34 +776,20 @@
           }
         ],
         "responses": {
-          "200": { "description": "OK" },
+          "200": {
+            "description": "OK",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeAlertDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
           "404": { "description": "Not found" }
         }
-      },
-      "patch": {
-        "summary": "Update assignment / state / SLA flag",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "name": "alertId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "in": "body",
-            "name": "body",
-            "required": false,
-            "schema": { "$ref": "#/definitions/PatchAlertRequest" }
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
       }
     },
     "/alerts/{alertId}/activity": {
       "get": {
         "summary": "Get alert activity timeline",
-        "description": "Full activity / audit list for the alert (newest first, single response). Tenant from JWT.",
+        "description": "Activity list for the alert (newest first). Query `notesOnly=true`|`false` (`true` = NOTE_ADDED only).",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -522,6 +798,14 @@
             "required": true,
             "type": "string",
             "x-example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+          },
+          {
+            "name": "notesOnly",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": ["true", "false"],
+            "description": "`true` — NOTE_ADDED only; `false` or omit — full timeline."
           }
         ],
         "responses": {
@@ -534,64 +818,21 @@
         }
       }
     },
-    "/organizations/{organizationId}/alerts": {
-      "get": {
-        "summary": "Org work queue (GSI2)",
+    "/alerts/{alertId}/notes": {
+      "post": {
+        "summary": "Add an operational note",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          {
-            "name": "organizationId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "state",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "unassignedOnly",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "integer"
-          }
+          { "name": "alertId", "in": "path", "required": true, "type": "string" },
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/NoteRequest" } }
         ],
-        "responses": { "200": { "description": "OK" } }
-      }
-    },
-    "/users/{userId}/alerts": {
-      "get": {
-        "summary": "User queue (GSI3)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "state",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "integer"
-          }
-        ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "201": { "description": "Created" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" },
+          "422": { "description": "Validation error" }
+        }
       }
     }
   }

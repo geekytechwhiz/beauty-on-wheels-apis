@@ -330,17 +330,9 @@ export class AlertService extends BaseAlertService {
       }),
     );
 
-    let primaryAlert: AlertDdbRecord | undefined;
-    // Convenience for single-select callers: return the full updated alert record when exactly one id was requested.
-    // For true bulk requests (N>1), callers should use succeeded/failed and refetch details as needed.
-    if (input.alertIds.length === 1 && succeeded.includes(input.alertIds[0])) {
-      primaryAlert = (await this.getAlert(input.alertIds[0], organizationId)) ?? undefined;
-    }
-
     return {
       succeeded,
       failed,
-      ...(primaryAlert ? { primaryAlert } : {}),
     };
   }
 
@@ -423,10 +415,6 @@ export class AlertService extends BaseAlertService {
 
     await this.repo.updateAlertsTransaction(updates);
 
-    if (input.alertIds.length === 1) {
-      const primaryAlert = await this.getAlert(input.alertIds[0], organizationId);
-      return primaryAlert ? { primaryAlert } : {};
-    }
     return {};
   }
 
@@ -471,10 +459,6 @@ export class AlertService extends BaseAlertService {
 
     await this.repo.updateAlertsTransaction(updates);
 
-    if (input.alertIds.length === 1) {
-      const primaryAlert = await this.getAlert(input.alertIds[0], organizationId);
-      return primaryAlert ? { primaryAlert } : {};
-    }
     return {};
   }
 }

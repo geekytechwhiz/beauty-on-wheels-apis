@@ -1,7 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
 import type { LambdaRequest } from '@api-hub/utils';
-import { ALERT_STATE, type AlertDdbRecord } from '@api-hub/alert-core';
-
 import {
   bearerToken,
   minimalAlertRecord,
@@ -15,13 +13,7 @@ var mockGetAlert: jest.Mock;
 // eslint-disable-next-line no-var
 var mockListAlerts: jest.Mock;
 // eslint-disable-next-line no-var
-var mockListOrgAlerts: jest.Mock;
-// eslint-disable-next-line no-var
-var mockListUserAlerts: jest.Mock;
-// eslint-disable-next-line no-var
 var mockListAlertActivity: jest.Mock;
-// eslint-disable-next-line no-var
-var mockUpdateAlert: jest.Mock;
 // eslint-disable-next-line no-var
 var mockApplyWorkflow: jest.Mock;
 // eslint-disable-next-line no-var
@@ -33,10 +25,7 @@ jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
   mockGetAlert = jest.fn();
   mockListAlerts = jest.fn();
-  mockListOrgAlerts = jest.fn();
-  mockListUserAlerts = jest.fn();
   mockListAlertActivity = jest.fn();
-  mockUpdateAlert = jest.fn();
   mockApplyWorkflow = jest.fn();
   mockApplyAssignment = jest.fn();
   mockApplyPriority = jest.fn();
@@ -48,10 +37,7 @@ jest.mock('@api-hub/alert-core', () => {
       createAlert: mockCreateAlert,
       getAlert: mockGetAlert,
       listAlerts: mockListAlerts,
-      listOrgAlerts: mockListOrgAlerts,
-      listUserAlerts: mockListUserAlerts,
       listAlertActivity: mockListAlertActivity,
-      updateAlert: mockUpdateAlert,
       applyWorkflow: mockApplyWorkflow,
       applyAssignment: mockApplyAssignment,
       applyPriority: mockApplyPriority,
@@ -109,10 +95,7 @@ describe('AlertHttpController', () => {
     mockCreateAlert.mockReset();
     mockGetAlert.mockReset();
     mockListAlerts.mockReset();
-    mockListOrgAlerts.mockReset();
-    mockListUserAlerts.mockReset();
     mockListAlertActivity.mockReset();
-    mockUpdateAlert.mockReset();
     mockApplyWorkflow.mockReset();
     mockApplyAssignment.mockReset();
     mockApplyPriority.mockReset();
@@ -506,117 +489,6 @@ describe('AlertHttpController', () => {
       event: baseEvent({ headers: { Authorization: bearerToken({ sub: 'u' }) } }),
     });
     await expect(c.handleListAlerts(req)).rejects.toMatchObject({ statusCode: 401, code: 'UNAUTHORIZED' });
-  });
-
-  it('handleListOrgAlerts maps toPublicAlert', async () => {
-    const c = new AlertHttpController();
-    const r = minimalAlertRecord({ alertId: 'o1', id: 'o1', pk: 'ALERT#o1' });
-    mockListOrgAlerts.mockResolvedValue([r]);
-
-    const req = baseReq({
-      pathParameters: { organizationId: 'org-1' },
-      params: { state: ALERT_STATE.UNASSIGNED, unassignedOnly: '1', limit: '5' },
-    });
-
-    const out = await c.handleListOrgAlerts(req);
-    expect(out.items).toHaveLength(1);
-    expect(out.items[0]).toMatchObject({ alertId: 'o1', orgId: 'org-1' });
-  });
-
-  it('handleListOrgAlerts throws 400 when organizationId missing', async () => {
-    const c = new AlertHttpController();
-    const req = baseReq({ pathParameters: {} });
-    await expect(c.handleListOrgAlerts(req)).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it('handleListUserAlerts maps toPublicAlert', async () => {
-    const c = new AlertHttpController();
-    const r = minimalAlertRecord({ alertId: 'u1', id: 'u1', pk: 'ALERT#u1' });
-    mockListUserAlerts.mockResolvedValue([r]);
-
-    const req = baseReq({
-      pathParameters: { userId: 'user-1' },
-      params: { state: ALERT_STATE.UNASSIGNED, limit: '10' },
-    });
-
-    const out = await c.handleListUserAlerts(req);
-    expect(out.items).toHaveLength(1);
-    expect(out.items[0]).toMatchObject({ alertId: 'u1', orgId: 'org-1' });
-  });
-
-  it('handleListUserAlerts throws 400 when userId missing', async () => {
-    const c = new AlertHttpController();
-    const req = baseReq({ pathParameters: {} });
-    await expect(c.handleListUserAlerts(req)).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it('handlePatchAlert throws 404 when existing alert missing', async () => {
-    const c = new AlertHttpController();
-    mockGetAlert.mockResolvedValue(null);
-
-    const req = baseReq({
-      pathParameters: { alertId: 'missing' },
-    });
-
-    await expect(c.handlePatchAlert(req)).rejects.toMatchObject({ statusCode: 404 });
-    expect(mockUpdateAlert).not.toHaveBeenCalled();
-  });
-
-  it('handlePatchAlert throws 400 when alertId missing', async () => {
-    const c = new AlertHttpController();
-    const req = baseReq({ pathParameters: {} });
-    await expect(c.handlePatchAlert(req)).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it('handlePatchAlert throws 401 when org missing', async () => {
-    const c = new AlertHttpController();
-    const req = baseReq({
-      event: baseEvent({
-        headers: { Authorization: bearerToken({ sub: 'user-only' }) },
-        pathParameters: { alertId: 'a1' },
-      }),
-    });
-    await expect(c.handlePatchAlert(req)).rejects.toMatchObject({ statusCode: 401, code: 'UNAUTHORIZED' });
-  });
-
-  it('handlePatchAlert updates and returns mapped alert', async () => {
-    const c = new AlertHttpController();
-    const existing = minimalAlertRecord({ alertId: 'a1', id: 'a1', pk: 'ALERT#a1' });
-    const updated: AlertDdbRecord = minimalAlertRecord({
-      alertId: 'a1',
-      id: 'a1',
-      pk: 'ALERT#a1',
-      alertState: ALERT_STATE.ASSIGNED,
-      assignedToUserId: 'user-1',
-    } as any);
-    mockGetAlert.mockResolvedValue(existing);
-    mockUpdateAlert.mockResolvedValue(updated);
-
-    const req = baseReq({
-      pathParameters: { alertId: 'a1' },
-      body: JSON.stringify({ alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-1' }),
-    });
-
-    const out = await c.handlePatchAlert(req);
-    expect(out.alert).toMatchObject({ alertId: 'a1', orgId: 'org-1', alertState: ALERT_STATE.ASSIGNED });
-    expect(mockUpdateAlert).toHaveBeenCalledWith(
-      'a1',
-      expect.objectContaining({ alertState: ALERT_STATE.ASSIGNED }),
-    );
-  });
-
-  it('handlePatchAlert throws 404 when update returns null', async () => {
-    const c = new AlertHttpController();
-    const existing = minimalAlertRecord({ alertId: 'a1', id: 'a1', pk: 'ALERT#a1' });
-    mockGetAlert.mockResolvedValue(existing);
-    mockUpdateAlert.mockResolvedValue(null);
-
-    const req = baseReq({
-      pathParameters: { alertId: 'a1' },
-      body: JSON.stringify({ alertState: ALERT_STATE.WAITING }),
-    });
-
-    await expect(c.handlePatchAlert(req)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('getAlertHttpController caches controller instance', () => {

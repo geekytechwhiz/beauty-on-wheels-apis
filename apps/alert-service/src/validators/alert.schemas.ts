@@ -152,12 +152,6 @@ export const createAlertHttpBodySchema = z
 
 export type CreateAlertHttpBody = z.infer<typeof createAlertHttpBodySchema>;
 
-export const patchAlertBodySchema = z.object({
-  alertState: z.enum(ALERT_STATE_ZOD_VALUES).optional(),
-  assignedToUserId: z.union([z.string().min(1), z.null()]).optional(),
-  slaBreachIndicator: z.boolean().optional(),
-});
-
 /** Re-export for OpenAPI / callers that need the allowlist as an array. */
 export const WORKFLOW_RESOLVE_REASON_CODES = Object.values(AlertResolveReasonCode) as readonly string[];
 export const WORKFLOW_DISMISS_REASON_CODES = Object.values(AlertDismissReasonCode) as readonly string[];

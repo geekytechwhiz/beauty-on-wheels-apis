@@ -14,12 +14,9 @@ import {
   normalizeAlertServiceError,
   toAlertDetail,
   toPublicAlert,
-  ALERT_STATE,
-  type AlertState,
   type CreateAlertPayload,
   type WorkflowInput,
 } from '@api-hub/alert-core';
-import { patchAlertBodySchema } from '../validators/alert.schemas';
 import {
   parseListAlertsQuery,
   type ValidatedCreateAlert,
@@ -285,48 +282,6 @@ export class AlertHttpController {
       items: items.map(toPublicAlert),
       ...(nextPageToken ? { nextToken: nextPageToken } : {}),
     };
-  }
-
-  async handleListOrgAlerts(req: LambdaRequest) {
-    const organizationId = req.pathParameters?.organizationId;
-    if (!organizationId) throw Object.assign(new Error('organizationId required'), { statusCode: 400 });
-    const qp = req.params as Record<string, string | undefined>;
-    const state = (qp.state as AlertState | undefined) ?? ALERT_STATE.UNASSIGNED;
-    const unassignedOnly = qp.unassignedOnly === 'true' || qp.unassignedOnly === '1';
-    const limit = qp.limit ? Number(qp.limit) : 50;
-    const rows = await this.svc.listOrgAlerts(organizationId, { state, unassignedOnly, limit });
-    return { items: rows.map(toPublicAlert) };
-  }
-
-  async handleListUserAlerts(req: LambdaRequest) {
-    const userId = req.pathParameters?.userId;
-    if (!userId) throw Object.assign(new Error('userId required'), { statusCode: 400 });
-    const qp = req.params as Record<string, string | undefined>;
-    const state = qp.state as AlertState | undefined;
-    const limit = qp.limit ? Number(qp.limit) : 50;
-    const rows = await this.svc.listUserAlerts(userId, { state, limit });
-    return { items: rows.map(toPublicAlert) };
-  }
-
-  async handlePatchAlert(req: LambdaRequest) {
-    const alertId = req.pathParameters?.alertId;
-    if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
-    const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
-    if (!orgId) throw unauthorizedOrgError();
-
-    const existing = await this.svc.getAlert(alertId, orgId);
-    if (!existing) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
-
-    const raw = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {};
-    const patch = patchAlertBodySchema.parse(raw) as {
-      alertState?: AlertState;
-      assignedToUserId?: string | null;
-      slaBreachIndicator?: boolean;
-    };
-    const row = await this.svc.updateAlert(alertId, patch);
-    if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
-    return { alert: toPublicAlert(row) };
   }
 
   async handleAddAlertNote(req: LambdaRequest) {

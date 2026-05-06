@@ -130,7 +130,7 @@ custom:
 
   autoswagger:
     title: Alert Service API
-    description: Operational alert HTTP API (create, get, list, patch). Swagger 2 merge file for serverless-auto-swagger.
+    description: Operational alert HTTP API (create, get, list, workflow, assignment). Swagger 2 merge file for serverless-auto-swagger.
     version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
@@ -418,49 +418,3 @@ functions:
             "403": Forbidden
             "404": Not found
             "500": Server error
-
-  # --- Other HTTP APIs: uncomment when ready ---
-  # listOrgAlerts:
-  #   handler: src/handlers/http/listOrgAlerts.main
-  #   events:
-  #     - http:
-  #         path: /organizations/{organizationId}/alerts
-  #         method: get
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #
-  # listUserAlerts:
-  #   handler: src/handlers/http/listUserAlerts.main
-  #   events:
-  #     - http:
-  #         path: /users/{userId}/alerts
-  #         method: get
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false
-  #
-  # patchAlert:
-  #   handler: src/handlers/http/patchAlert.main
-  #   events:
-  #     - http:
-  #         path: /alerts/{alertId}
-  #         method: patch
-  #         cors:
-  #           origin: '*'
-  #           headers:
-  #             - Content-Type
-  #             - Authorization
-  #             - X-Correlation-Id
-  #             - X-Request-Id
-  #           allowCredentials: false

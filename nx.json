@@ -53,7 +53,8 @@
       "plugin": "@nx/jest/plugin",
       "options": {
         "targetName": "test"
-      }
+      },
+      "exclude": ["apps/alert-service-e2e/**/*"]
     }
   ],
   "targetDefaults": {
@@ -64,8 +65,12 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "@nx/js:tsc": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     }
   },
   "analytics": true
-   
 }

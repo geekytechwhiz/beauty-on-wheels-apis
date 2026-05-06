@@ -132,6 +132,8 @@ apps/template-service/docs/OKR-master.json
 apps/template-service/docs/single-table-migration.md
 apps/template-service/docs/template-library-tester-guide.md
 apps/template-service/scripts/migrate-single-table-aux-data.mjs
+apps/alert-service/esbuild-plugins.js
+apps/alert-service/tsconfig.app.json
 
 apps/metadata-registry-service.zip
 apps/metadata-registry-service/*.zip
@@ -147,3 +149,21 @@ apps/alert-service/.esbuild/.build/src/handlers/http/health.js
 apps/alert-service/.esbuild/.build/src/handlers/http/health.js.map
 apps/alert-service/.esbuild/.build/src/handlers/http/listAlerts.js
 apps/alert-service/.esbuild/.build/src/handlers/http/listAlerts.js.map
+apps/alert-service/src/index.ts
+apps/alert-service/src/adapters/index.ts
+apps/alert-service/src/clients/index.ts
+apps/alert-service/src/config/env.ts
+apps/alert-service/src/controllers/alert-http.controller.ts
+apps/alert-service/src/core/index.ts
+apps/alert-service/src/handlers/http/createAlert.ts
+apps/alert-service/src/mappers/alert-public.mapper.ts
+apps/alert-service/src/mappers/index.ts
+apps/alert-service/src/middleware/index.ts
+apps/alert-service/src/services/alert-app.service.ts
+apps/alert-service/src/services/index.ts
+apps/alert-service/src/types/index.ts
+apps/alert-service/src/utils/alert-http-errors.ts
+apps/alert-service/src/utils/helpers.ts
+apps/alert-service/src/utils/index.ts
+apps/alert-service/src/validation/request.validators.ts
+apps/alert-service/src/validators/request.validators.ts

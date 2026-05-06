@@ -28,6 +28,7 @@ export {
 export * from './validators/code-patterns';
 export * from './validators/metric-code.schema';
 export * from './validators/question-code.schema';
+export * from './validators/attribute-schema.validator';
 export * from './validators/schemas';
 export * from './validators/validate-inputs';
 export * from './validators/relation';

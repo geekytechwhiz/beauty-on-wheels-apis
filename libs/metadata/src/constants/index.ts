@@ -29,6 +29,9 @@ export const ENTITY_TYPE = {
  */
 export const METADATA_TYPES_WITH_ATTRIBUTE_SCHEMA = ['MetricCode', 'QuestionCode'] as const;
 
+/** Metadata type whose value codes define allowed `questionType` on QuestionCode values. */
+export const QUESTION_TYPE_METADATA_CODE = 'QuestionType' as const;
+
 export function metadataTypeUsesSeparateSchemaItem(metadataTypeCode: string): boolean {
   return (METADATA_TYPES_WITH_ATTRIBUTE_SCHEMA as readonly string[]).includes(metadataTypeCode);
 }

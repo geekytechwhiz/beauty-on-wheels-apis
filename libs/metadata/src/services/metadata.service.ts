@@ -14,7 +14,9 @@ import {
   assertPatchStatusAllowedForInactiveRecord,
   assertPostUpsertAllowedForLatestStatus,
 } from '../domain/errors';
-import { STATUS } from '../constants';
+import { QUESTION_TYPE_METADATA_CODE, STATUS } from '../constants';
+import { isAttributeSchemaCompatibleExtension } from '../domain/diff';
+import { attributeSchemaFieldMapForCompatibility } from '../validators/attribute-schema.validator';
 import {
   validateMetadataTypeInput,
   validateMetadataValueInput,
@@ -37,6 +39,25 @@ import { getMetadataRepository } from '../dynamodb/dynamodb.client';
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
+}
+
+/**
+ * Active QuestionType value codes when the catalog type exists and is ACTIVE; otherwise `undefined`
+ * (skip enum enforcement so greenfield envs without a seeded QuestionType type keep working).
+ */
+async function resolveActiveQuestionTypeValueCodes(): Promise<string[] | undefined> {
+  const repo = await getMetadataRepository();
+  const qtType = await repo.getMetadataType(QUESTION_TYPE_METADATA_CODE);
+  if (!qtType || qtType.status !== STATUS.ACTIVE) {
+    return undefined;
+  }
+  const rows = await repo.listMetadataValues(QUESTION_TYPE_METADATA_CODE, STATUS.ACTIVE);
+  if (rows.length === 0) {
+    throw new ValidationError('QuestionType metadata has no active values; cannot validate questionType', [
+      { field: 'attributes.questionType', message: 'Catalog empty' },
+    ]);
+  }
+  return rows.map((v) => v.valueCode);
 }
 
 const PATCH_STATUS_INVALID =
@@ -176,6 +197,20 @@ export async function upsertMetadataType(body: MetadataTypeInput, userId?: strin
   }
   assertPostUpsertAllowedForLatestStatus(existing.status, body.status);
   validateMetadataTypeInput(body, true);
+  const mergedSchema =
+    body.attributeSchema !== undefined ? body.attributeSchema : existing.attributeSchema;
+  const oldMap = attributeSchemaFieldMapForCompatibility(
+    existing.attributeSchema as Record<string, unknown> | undefined,
+  );
+  const newMap = attributeSchemaFieldMapForCompatibility(mergedSchema as Record<string, unknown> | undefined);
+  if (!isAttributeSchemaCompatibleExtension(oldMap, newMap)) {
+    throw new ValidationError('attributeSchema is not a compatible extension of the existing schema', [
+      {
+        field: 'attributeSchema',
+        message: 'Cannot remove or change existing attribute definitions; only additive extensions are allowed',
+      },
+    ]);
+  }
   return repo.updateMetadataType(body, actor);
 }
 
@@ -215,11 +250,14 @@ export async function upsertMetadataValue(
     throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
   }
   assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
+  const allowedQuestionTypeCodes =
+    metadataTypeCode === 'QuestionCode' ? await resolveActiveQuestionTypeValueCodes() : undefined;
   if (!existing) {
     validateMetadataValueInput(body, {
       metadataType: type,
       mode: 'create',
       mergedIsGlobal: body.isGlobal!,
+      allowedQuestionTypeCodes,
     });
     return repo.createMetadataValue(metadataTypeCode, body, actor);
   }
@@ -230,6 +268,7 @@ export async function upsertMetadataValue(
     mode: 'update',
     mergedIsGlobal,
     expectedValueCode: existing.valueCode,
+    allowedQuestionTypeCodes,
   });
   return repo.updateMetadataValue(metadataTypeCode, body, actor, existing);
 }

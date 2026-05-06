@@ -10,6 +10,10 @@ import {
 import { STATUS } from '../constants';
 import { ValidationError } from '../domain/errors';
 import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from './code-patterns';
+import {
+  resolveValueAttributeSchemaForValidation,
+  validateAttributesAgainstSchema,
+} from './attribute-schema.validator';
 import { validateMetricCodeAttributes } from './metric-code.schema';
 import { validateQuestionCodeAttributes } from './question-code.schema';
 import {
@@ -141,6 +145,8 @@ export function validateMetadataValueInput(
     mergedIsGlobal: boolean;
     /** On update, must match the stored code (immutability). */
     expectedValueCode?: string;
+    /** Active QuestionType value codes (QuestionCode only); from registry when available. */
+    allowedQuestionTypeCodes?: readonly string[];
   },
 ): void {
   assertMetadataValueCode(input.valueCode);
@@ -182,10 +188,21 @@ export function validateMetadataValueInput(
   validateMetadataValueApplicabilityRules(effectiveGlobal, input.applicability);
   validateMetadataValueConditionalApplicability(opts.metadataType, effectiveGlobal, input.applicability);
   const { metadataTypeCode } = opts.metadataType;
+
+  const resolvedAttrSchema = resolveValueAttributeSchemaForValidation(
+    metadataTypeCode,
+    opts.metadataType.attributeSchema as Record<string, unknown> | undefined,
+  );
+  if (resolvedAttrSchema) {
+    validateAttributesAgainstSchema(input.attributes ?? {}, resolvedAttrSchema);
+  }
+
   if (metadataTypeCode === 'MetricCode') {
     validateMetricCodeAttributes(input.attributes ?? {});
   } else if (metadataTypeCode === 'QuestionCode') {
-    validateQuestionCodeAttributes(input.attributes ?? {});
+    validateQuestionCodeAttributes(input.attributes ?? {}, {
+      allowedQuestionTypeCodes: opts.allowedQuestionTypeCodes,
+    });
   }
 }
 

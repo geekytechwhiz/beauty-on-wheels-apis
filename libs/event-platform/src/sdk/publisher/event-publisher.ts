@@ -8,6 +8,7 @@ import type { BaseEvent } from '../../typings/base-event.types';
 import { createBaseEvent } from '../../core/event-envelope/create-base-event';
 import { resolveSchema } from '../../core/schema/schema-resolver';
 import type { PayloadSchemaRegistry } from '../../typings/consumer.types';
+import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 /** -----------------------------
  * 🔹 Helpers

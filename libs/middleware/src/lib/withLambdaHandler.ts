@@ -34,7 +34,7 @@ export interface LambdaHandlerOptions {
    */
   operation?: string;
   /**
-   * Optional Zod schema for the raw API Gateway / Lambda `event` (use {@link createApiHandler} for new code).
+   * Optional Zod schema for the raw API Gateway / Lambda `event` (use {@link   withApiHandler} for new code).
    */
   schema?: z.ZodType<unknown>;
   validator?: (request: any) => void | Promise<void>;

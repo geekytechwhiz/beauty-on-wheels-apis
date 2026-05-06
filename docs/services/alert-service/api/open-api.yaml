@@ -375,7 +375,8 @@ components:
       description: >
         **Required:** `inputEventId`, `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, `evidencePayload`.
         `inputEventId` is provided by the client (e.g. care UI) for idempotent creates.
-        **Optional:** `carePlanInstanceId`, `packageAssignmentId`, `severityHint`, `priority`,
+        **Optional:** `patientName`, `actorName` (display names from the client; not from JWT),
+        `carePlanInstanceId`, `packageAssignmentId`, `severityHint`, `priority`,
         `alertPolicyTemplateVersionId`, `thresholdTemplateVersionId`, `groupingKey`, `triggerSummary`,
         `triggerSummaryTemplateCode`, `triggerSummaryParams` (required when `triggerSummaryTemplateCode` is set; may be `{}`).
 
@@ -408,6 +409,16 @@ components:
         patientId:
           type: string
           description: Required.
+        patientName:
+          type: string
+          description: >
+            Optional. Patient display name as shown in the UI (e.g. chart name); stored on the alert for list/detail.
+            Not inferred from user-service or JWT.
+        actorName:
+          type: string
+          description: >
+            Optional. Display name of the authenticated user calling this API (actor); not derived from the token.
+            Pair with `actorUserId` from JWT for create audit context.
         carePlanInstanceId:
           type: string
           description: Optional. When tied to an active care plan.
@@ -473,6 +484,9 @@ components:
           type: string
         patientName:
           type: string
+        actorName:
+          type: string
+          description: Display name of the user who created the alert (from create payload when supplied).
         assignedToUserId:
           type: string
           nullable: true
@@ -943,6 +957,8 @@ paths:
                   inputType: MISSING_DEVICE
                   sourceType: DEVICE_WORKFLOW
                   patientId: pat-456
+                  patientName: 'Alex Johnson'
+                  actorName: 'Dr. Smith'
                   triggerTimestamp: '2026-04-17T10:00:00.000Z'
                   evidencePayload:
                     eventTimestamp: '2026-04-17T10:00:00.000Z'
@@ -956,12 +972,14 @@ paths:
                 value:
                   inputEventId: ui-missed-reading-001
                   inputType: MISSED_READING
-                  sourceType: DEVICE_MONITORING
+                  sourceType: MONITORING_SERVICE
                   patientId: pat-123
+                  patientName: 'Jane Doe'
+                  actorName: 'Nurse Lee'
                   triggerTimestamp: '2026-04-17T10:00:00.000Z'
                   evidencePayload:
                     eventTimestamp: '2026-04-17T10:00:00.000Z'
-                    source: DEVICE_MONITORING
+                    source: MONITORING_SERVICE
                     inputType: MISSED_READING
                     appliesToType: VITAL_SIGN
                     linkedEntityCode: BP_SYSTOLIC

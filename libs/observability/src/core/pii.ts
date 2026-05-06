@@ -1,4 +1,4 @@
-import type { ObservabilityConfig } from '../config/config.js';
+import type { ObservabilityConfig } from '../config/config';
 
 const KEY_REDACT = new Set([
   'password',

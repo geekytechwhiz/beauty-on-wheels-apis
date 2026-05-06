@@ -1,12 +1,10 @@
-import { NotFoundError, STATUS, ValidationError } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/middleware';
-import { flattenMetadataValueForApi, getType, getValue, parseGetEntityStatusMode } from '../services/metadataService';
+ 
 import {
   resolveMetadataTypeGet,
   resolveMetadataValueGetForApi,
   ValidationError,
 } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { getMetadataSchema } from '../schemas/getMetadata.schema';
 
 export const main = withLambdaHandler(async (req) => {

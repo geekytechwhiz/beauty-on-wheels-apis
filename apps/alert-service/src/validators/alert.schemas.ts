@@ -3,7 +3,8 @@
  * @see `Alert-Service.yaml` CreateAlertRequest / evidencePayload (per-`inputType` shapes).
  *
  * **HTTP create-alert:** `inputEventId` (idempotency — supplied by the client UI), `inputType`, and `sourceType`
- * are required in the body; `organizationId` comes from the JWT. **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
+ * are required in the body; `organizationId` comes from the JWT. Optional `patientName` and `actorName` are
+ * client-supplied display names (patient and authenticated caller). **Create HTTP** supports only `MISSED_READING` and `MISSING_DEVICE`;
  * `evidencePayload` is discriminated by `inputType` and must mirror top-level `inputType` (§5.1.3.1).
  */
 import { z } from 'zod';
@@ -23,20 +24,6 @@ const sourceTypeZ = z.enum([
 const appliesToTypeZ = z.enum(['VITAL_SIGN', 'DEVICE', 'SYMPTOM', 'ENGAGEMENT']);
 const severityHintZ = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 const priorityZ = z.enum(['P0', 'P1', 'P2', 'P3']);
-
-function preprocessTrimmedStringOptional(): z.ZodType<string | undefined> {
-  return z.preprocess((v) => {
-    if (v === undefined || v === null || v === '') return undefined;
-    return typeof v === 'string' ? v.trim() : v;
-  }, z.string().min(1).optional());
-}
-
-function preprocessTrimmedOptionalNonEmpty(): z.ZodType<string | undefined> {
-  return z.preprocess((v) => {
-    if (v === undefined || v === null || v === '') return undefined;
-    return typeof v === 'string' ? v.trim() : v;
-  }, z.string().min(1).optional());
-}
 
 const evEventTimestamp = z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1));
 const evSource = z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ);
@@ -94,21 +81,18 @@ export const createAlertHttpBodySchema = z
     inputType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), createAlertInputTypeZ),
     sourceType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ),
     patientId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
-    carePlanInstanceId: preprocessTrimmedStringOptional(),
-    packageAssignmentId: preprocessTrimmedStringOptional(),
+    patientName: z.string().trim().min(1).optional(),
+    actorName: z.string().trim().min(1).optional(),
+    carePlanInstanceId: z.string().trim().min(1).optional(),
+    packageAssignmentId: z.string().trim().min(1).optional(),
     triggerTimestamp: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
-    severityHint: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), severityHintZ).optional(),
-    priority: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), priorityZ).optional(),
-    alertPolicyTemplateVersionId: preprocessTrimmedStringOptional(),
-    thresholdTemplateVersionId: preprocessTrimmedStringOptional(),
-    groupingKey: preprocessTrimmedOptionalNonEmpty(),
-    triggerSummary: z.preprocess((v) => {
-      if (v === undefined || v === null) return undefined;
-      if (typeof v !== 'string') return v;
-      const t = v.trim();
-      return t === '' ? undefined : t;
-    }, z.string().optional()),
-    triggerSummaryTemplateCode: preprocessTrimmedOptionalNonEmpty(),
+    severityHint: z.string().trim().pipe(severityHintZ).optional(),
+    priority: z.string().trim().pipe(priorityZ).optional(),
+    alertPolicyTemplateVersionId: z.string().trim().min(1).optional(),
+    thresholdTemplateVersionId: z.string().trim().min(1).optional(),
+    groupingKey: z.string().trim().min(1).optional(),
+    triggerSummary: z.string().trim().optional(),
+    triggerSummaryTemplateCode: z.string().trim().min(1).optional(),
     triggerSummaryParams: z.record(z.string(), z.unknown()).optional(),
     evidencePayload: evidencePayloadSchema,
   })
@@ -183,35 +167,16 @@ export const listAlertsQuerySchema = z
       const s = typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
       return s === '' ? 'TEAM' : s;
     }, listQueueKindZ),
-    patientId: z.preprocess((v) => {
-      if (v === undefined || v === null || v === '') return undefined;
-      const s = typeof v === 'string' ? v.trim() : String(v).trim();
-      return s === '' ? undefined : s;
-    }, z.string().min(1).optional()),
-    state: z.preprocess((v) => {
-      if (v === undefined || v === null || v === '') return undefined;
-      const s = typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
-      return s === '' ? undefined : s;
-    }, listAlertStateFilterZ.optional()),
-    assignment: z.preprocess((v) => {
-      if (v === undefined || v === null || v === '') return undefined;
-      const s = typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
-      return s === '' ? undefined : s;
-    }, listAssignmentFilterZ.optional()),
-    priority: z.preprocess((v) => {
-      if (v === undefined || v === null || v === '') return undefined;
-      return typeof v === 'string' ? v.trim().toUpperCase() : String(v).trim().toUpperCase();
-    }, priorityZ.optional()),
-    inputType: preprocessTrimmedStringOptional(),
-    dateFrom: preprocessTrimmedStringOptional(),
-    dateTo: preprocessTrimmedStringOptional(),
-    search: preprocessTrimmedStringOptional(),
-    pageSize: z.preprocess((v) => {
-      if (v === undefined || v === null || v === '') return undefined;
-      const n = Number(typeof v === 'string' ? v.trim() : v);
-      return Number.isFinite(n) ? n : NaN;
-    }, z.number().finite().int().min(1).max(100).optional()),
-    nextToken: preprocessTrimmedStringOptional(),
+    patientId: z.string().trim().min(1).optional(),
+    state: z.string().trim().toUpperCase().pipe(listAlertStateFilterZ).optional(),
+    assignment: z.string().trim().toUpperCase().pipe(listAssignmentFilterZ).optional(),
+    priority: z.string().trim().toUpperCase().pipe(priorityZ).optional(),
+    inputType: z.string().trim().min(1).optional(),
+    dateFrom: z.string().trim().min(1).optional(),
+    dateTo: z.string().trim().min(1).optional(),
+    search: z.string().trim().min(1).optional(),
+    pageSize: z.coerce.number().int().min(1).max(100).optional(),
+    nextToken: z.string().trim().min(1).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.queue === 'PATIENT' && !data.patientId) {
@@ -226,6 +191,30 @@ export const listAlertsQuerySchema = z
         code: z.ZodIssueCode.custom,
         message: 'patientId is only allowed when queue=PATIENT',
         path: ['patientId'],
+      });
+    }
+    if (
+      data.state !== undefined &&
+      data.assignment !== undefined &&
+      data.state === 'ASSIGNED' &&
+      data.assignment === 'UNASSIGNED'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'state ASSIGNED conflicts with assignment=UNASSIGNED',
+        path: ['assignment'],
+      });
+    }
+    if (
+      data.state !== undefined &&
+      data.assignment !== undefined &&
+      data.state === 'UNASSIGNED' &&
+      data.assignment === 'ASSIGNED'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'state UNASSIGNED conflicts with assignment=ASSIGNED',
+        path: ['assignment'],
       });
     }
   });

@@ -10,6 +10,7 @@ import {
 } from '../utils/helpers';
 import { scheduleServiceClient } from '../clients/scheduleService.client';
 import { packageServiceClient } from '../clients/packageService.client';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new UserService();
 

@@ -151,11 +151,12 @@ export class AlertHttpController {
       dateTo,
       search,
       pageSize,
+      nextToken,
     } = parseListAlertsQuery(req.params as Record<string, string | string[] | undefined>);
     const limit = Math.min(100, Math.max(1, pageSize ?? 20));
     const actorUserId = getActorUserIdForRequest(event, authHeader);
 
-    const rows = await this.svc.listAlerts({
+    const { items, nextToken: nextPageToken } = await this.svc.listAlerts({
       organizationId: orgId,
       actorUserId,
       queue,
@@ -168,9 +169,13 @@ export class AlertHttpController {
       dateTo,
       search,
       limit,
+      nextToken,
     });
 
-    return { items: rows.map(toPublicAlert) };
+    return {
+      items: items.map(toPublicAlert),
+      ...(nextPageToken ? { nextToken: nextPageToken } : {}),
+    };
   }
 
   async handleListOrgAlerts(req: LambdaRequest) {

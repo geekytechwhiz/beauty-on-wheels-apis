@@ -1,6 +1,7 @@
 import { generateIdempotencyKey } from '../../core/idempotency/generate-idempotency-key';
 import { buildPublishEnvelope } from './build-publish-envelope';
 import { EventPublisher } from './event-publisher';
+import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 describe('buildPublishEnvelope', () => {
   it('produces a structurally correct BaseEvent', () => {

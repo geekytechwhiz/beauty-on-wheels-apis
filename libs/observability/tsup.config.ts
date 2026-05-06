@@ -9,7 +9,7 @@ export default defineConfig({
   target: 'node18',
   clean: true,
   outDir: 'dist',
-  tsconfig: 'tsconfig.lib.json',
+  tsconfig: 'tsconfig.tsup.json',
   outExtension({ format }) {
     return { js: format === 'esm' ? '.js' : '.cjs' };
   },

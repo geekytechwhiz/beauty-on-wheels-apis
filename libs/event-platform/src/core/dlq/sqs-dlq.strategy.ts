@@ -1,7 +1,3 @@
-import {
-    SQSClient,
-    SendMessageCommand,
-  } from '@aws-sdk/client-sqs';
   import {
     DlqStrategy,
     DlqMessage,

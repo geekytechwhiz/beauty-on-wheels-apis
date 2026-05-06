@@ -33,6 +33,7 @@ export type {
   CreateAlertInput,
   ListAlertsParams,
   ListAlertsQueue,
+  ListAlertsResult,
 } from './lib/models/api/create-alert.types';
 export { createAlertPayloadFromHttpBody } from './lib/models/api/create-alert.types';
 export type { WorkflowMutationInput, WorkflowMutationResult } from './lib/models/api/alert-mutation.types';

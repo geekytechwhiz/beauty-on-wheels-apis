@@ -10,6 +10,7 @@ import {
   serializeBaseEvent,
   SqsMessageParseError,
 } from './message-serialization';
+import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 function sampleEvent(): BaseEvent<{ n: number }> {
   return {

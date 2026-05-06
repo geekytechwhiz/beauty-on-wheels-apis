@@ -1,16 +1,8 @@
 import {
-  STATUS,
-  ValidationError,
-  assertEnumTokenArray,
-  matchesSearchFilter,
-  sortValuesForSearch,
-  type Status,
-  type ValueSearchFilter,
+  metadataService,
+  ValidationError
 } from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/middleware';
-import { flattenMetadataValueForApi, listTypes, listValues, parseListEntityStatusMode } from '../services/metadataService';
-import { metadataService, ValidationError } from '@api-hub/metadata';
-import { withLambdaHandler } from '@api-hub/utils';
 import { listMetadataSchema } from '../schemas/listMetadata.schema';
 
 export const main = withLambdaHandler(async (req) => {

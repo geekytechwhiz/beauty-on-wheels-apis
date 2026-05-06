@@ -9,7 +9,7 @@ export interface Message {
 }
 
 export interface Meta {
-  requestId: string;
+  correlationId: string;
   timestamp: string;
   version: 'v1';
 }
@@ -35,7 +35,7 @@ export interface ApiResponseBody<T = unknown> {
 }
 
 export interface ResponseOptions {
-  requestId: string;
+  correlationId: string;
   headers?: Record<string, string>;
   /** Optional event passthrough for error handlers (e.g. API Gateway event). */
   event?: unknown;
@@ -48,6 +48,7 @@ export interface ErrorHandlerOptions {
     /** When true, {@link handleError} omits its own log line (caller already logged structured error). */
     skipLog?: boolean;
   }
+  
   export interface LambdaRequest<
   Params = Record<string, any>,
   Body = any,

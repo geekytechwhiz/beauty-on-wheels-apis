@@ -65,6 +65,8 @@ export class AlertEntityBuilder {
       alertId,
       organizationId: input.organizationId,
       patientId: input.patientId,
+      patientName: input.patientName,
+      actorName: input.actorName,
 
       inputEventId: input.inputEventId!,
       inputType: input.inputType,
@@ -121,7 +123,12 @@ export class AlertEntityBuilder {
 
       // 🔹 GSIs
       gsi1pk: AlertKeyBuilder.toOrgPartitionKey(input.organizationId),
-      gsi1sk: AlertKeyBuilder.buildGsi2Sk('UNASSIGNED', input.priority ?? 'P2', now),
+      gsi1sk: AlertKeyBuilder.buildGsi1Sk(
+        'UNASSIGNED',
+        input.priority ?? 'P2',
+        input.triggerTimestamp,
+        alertId,
+      ),
 
       gsi2pk: undefined,
       gsi2sk: undefined,
@@ -142,23 +149,23 @@ export class AlertEntityBuilder {
   // -----------------------------
   static buildCreateActivity(ctx: CreateAlertContext) {
     const { alertId, now, input } = ctx;
-
+    const activityId = randomUUID();
     return {
       TableName: process.env.ALERT_TABLE!,
 
       pk: AlertKeyBuilder.toAlertPk(alertId),
-      sk: `ACTIVITY#${now}#${randomUUID()}`,
+      sk: `ACTIVITY#${now}#${activityId}`,
 
       entityType: 'ALERT_ACTIVITY',
 
-      activityId: randomUUID(),
+      activityId,
       alertId,
 
       activityType: 'AlertCreated',
       activityTimestamp: now,
 
       performedBy: input.actorUserId ?? 'SYSTEM',
-      performedByDisplayName: undefined,
+      performedByDisplayName: input.actorName,
 
       activityComment: 'Alert created',
 
@@ -200,51 +207,25 @@ export class AlertEntityBuilder {
     };
   }
 
-  // -----------------------------
-  // Group (PUT)
-  // -----------------------------
-  static buildGroupPut(ctx: CreateAlertContext) {
-    const { groupingKey, input, now } = ctx;
-  
+  /**
+   * Base-table row: `pk = GROUP#<groupingKey>`, `sk = Alert#<triggerTimestamp>#<alertId>`.
+   * Written in the same transact as create; use {@link AlertRepository.queryAlertsByGroupingKey} to load alerts.
+   */
+  static buildGroupMembershipPut(ctx: CreateAlertContext) {
+    const { alertId, now, input, groupingKey } = ctx;
+
     return {
       Put: {
         TableName: process.env.ALERT_TABLE!,
         Item: {
           pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-          sk: ALERT_METADATA_SK,
-          entityType: 'ALERT_GROUP',
-          groupingKey,
+          sk: AlertKeyBuilder.buildGroupMembershipSk(input.triggerTimestamp, alertId),
           organizationId: input.organizationId,
           createdAt: now,
-          updatedAt: now,
-        },
-        ConditionExpression: 'attribute_not_exists(pk)',
-      },
-    };
-  }
-
-  // -----------------------------
-  // Group (UPDATE)
-  // -----------------------------
-  static buildGroupUpdate(ctx: CreateAlertContext) {
-    const { groupingKey, now } = ctx;
-  
-    return {
-      Update: {
-        TableName: process.env.ALERT_TABLE!,
-        Key: {
-          pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-          sk: ALERT_METADATA_SK,
-        },
-        UpdateExpression: 'SET updatedAt = :now',
-        ExpressionAttributeValues: {
-          ':now': now,
         },
       },
     };
   }
-
-  
 
   // -----------------------------
   // Return clean response object

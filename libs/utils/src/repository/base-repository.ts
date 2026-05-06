@@ -140,6 +140,29 @@ export abstract class BaseRepository {
 
   }
 
+  /** Single DynamoDB Query page; preserves {@link QueryCommandOutput.LastEvaluatedKey} for pagination. */
+  protected async queryPage<T>(
+    params: QueryCommandInput
+  ): Promise<{ items: T[]; lastEvaluatedKey?: Record<string, unknown> }> {
+
+    this.logger.debug({
+      event: "dynamodb_query_page",
+      table: params?.TableName,
+      index: params?.IndexName,
+    });
+
+    const result = await sendDoc<QueryCommandOutput>(
+      ddbDocClient,
+      new QueryCommand(params)
+    );
+
+    return {
+      items: (result.Items as T[]) || [],
+      lastEvaluatedKey: result.LastEvaluatedKey as Record<string, unknown> | undefined,
+    };
+
+  }
+
   protected async queryAll<T>(
     params: QueryCommandInput
   ): Promise<T[]> {

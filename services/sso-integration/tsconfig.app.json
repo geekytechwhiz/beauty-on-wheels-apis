@@ -2,15 +2,91 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
     "composite": false,
     "declaration": false,
     "declarationMap": false,
-    "emitDeclarationOnly": false
+    "emitDeclarationOnly": false,
+    "paths": {
+      "@api-hub/access-audit": [
+        "libs/access-audit/src/index.ts"
+      ],
+      "@api-hub/alert-core": [
+        "libs/alert-core/src/index.ts"
+      ],
+      "@api-hub/auth": [
+        "libs/auth/src/index.ts"
+      ],
+      "@api-hub/canonical": [
+        "libs/canonical/src/index.ts"
+      ],
+      "@api-hub/capability": [
+        "libs/capability/src/index.ts"
+      ],
+      "@api-hub/consent": [
+        "libs/consent/src/index.ts"
+      ],
+      "@api-hub/event-platform": [
+        "libs/event-platform/src/index.ts"
+      ],
+      "@api-hub/fhir": [
+        "libs/fhir/src/index.ts"
+      ],
+      "@api-hub/integration-events": [
+        "libs/integration-events/src/index.ts"
+      ],
+      "@api-hub/lab-integration": [
+        "libs/lab-integration/src/index.ts"
+      ],
+      "@api-hub/logger": [
+        "libs/logger/src/index.ts"
+      ],
+      "@api-hub/metadata": [
+        "libs/metadata/src/index.ts"
+      ],
+      "@api-hub/middleware": [
+        "libs/middleware/src/index.ts"
+      ],
+      "@api-hub/observability": [
+        "libs/observability/src/index.ts"
+      ],
+      "@api-hub/partners": [
+        "libs/partners/src/index.ts"
+      ],
+      "@api-hub/rule-engine": [
+        "libs/rule-engine/src/index.ts"
+      ],
+      "@api-hub/scope-mapping": [
+        "libs/scope-mapping/src/index.ts"
+      ],
+      "@api-hub/service-clients": [
+        "libs/service-clients/src/index.ts"
+      ],
+      "@api-hub/template": [
+        "libs/template/src/index.ts"
+      ],
+      "@api-hub/tenant-guard": [
+        "libs/tenant-guard/src/index.ts"
+      ],
+      "@api-hub/terminology": [
+        "libs/terminology/src/index.ts"
+      ],
+      "@api-hub/utils": [
+        "libs/utils/src/index.ts"
+      ]
+    }
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "eslint.config.js",
+    "eslint.config.cjs",
+    "eslint.config.mjs"
+  ],
   "references": [
     {
       "path": "../../libs/utils/tsconfig.lib.json"

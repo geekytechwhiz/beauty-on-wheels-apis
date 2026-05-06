@@ -17,13 +17,13 @@ export const successResponse = <T>(
   },
   options: ResponseOptions = {}
 ): APIGatewayProxyResult => {
-
+ 
   const requestId = options.correlationId ?? 'unknown';
 
   return ApiResponse.ok<T>(
     data,
     message,
-    { requestId }
+    { correlationId:requestId }
   );
 };
 
@@ -45,7 +45,7 @@ export const createdResponse = <T>(
   return ApiResponse.created<T>(
     data,
     message,
-    { requestId }
+    { correlationId:requestId }
   );
 };
 

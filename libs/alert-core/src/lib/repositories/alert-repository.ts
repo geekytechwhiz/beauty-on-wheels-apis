@@ -9,7 +9,7 @@ import {
   GSI1_ORG_QUEUE,
   GSI2_USER_QUEUE,
   GSI3_PATIENT,
-  GSI4_GROUP,
+  GROUP_MEMBERSHIP_SK_PREFIX,
 } from '../constants/alert.constants';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 
@@ -22,10 +22,19 @@ import type { AlertState } from '../models/types/alert-state.type';
 import {
   assertAlertTable,
   isEventConditionalFailure,
-  isGroupPutConditionalRace,
   toPublicActivity,
 } from '../utils/alert.utils';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
+
+/** Resolve alert id from a GSI Query row (full item or KEYS_ONLY / INCLUDE projection). */
+function alertIdFromGsiRow(r: AlertDdbRecord): string | undefined {
+  const id = typeof r.alertId === 'string' ? r.alertId.trim() : '';
+  if (id) return id;
+  const pk = typeof r.pk === 'string' ? r.pk : '';
+  const m = /^ALERT#(.+)$/.exec(pk);
+  const fromPk = m?.[1]?.trim();
+  return fromPk || undefined;
+}
 
 export class AlertRepository extends BaseRepository {
   /**
@@ -64,39 +73,25 @@ export class AlertRepository extends BaseRepository {
     const alertPut = AlertEntityBuilder.buildAlertRecord(ctx);
     const activityPut = AlertEntityBuilder.buildCreateActivity(ctx);
     const eventPut = AlertEntityBuilder.buildEvent(ctx);
+    const groupMembershipPut = AlertEntityBuilder.buildGroupMembershipPut(ctx);
 
-    const groupExists = await this.getGroupMetadataExists(ctx.groupingKey);
-    let useGroupPut = !groupExists;
+    try {
+      await this.transactWrite({
+        TransactItems: [
+          { Put: { ...eventPut, Item: eventPut as unknown as Record<string, unknown> } },
+          { Put: { ...alertPut, Item: alertPut as unknown as Record<string, unknown> } },
+          { Put: { ...activityPut, Item: activityPut as unknown as Record<string, unknown> } },
+          groupMembershipPut,
+        ],
+      });
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const groupItem = useGroupPut
-        ? AlertEntityBuilder.buildGroupPut(ctx)
-        : AlertEntityBuilder.buildGroupUpdate(ctx);
-
-      try {
-        await this.transactWrite({
-          TransactItems: [
-            { Put: { ...eventPut, Item: eventPut as unknown as Record<string, unknown> } },
-            { Put: { ...alertPut, Item: alertPut as unknown as Record<string, unknown> } },
-            { Put: { ...activityPut, Item: activityPut as unknown as Record<string, unknown> } },
-            groupItem,
-          ],
-        });
-
-        return alertPut;
-      } catch (err: unknown) {
-        if (useGroupPut && isGroupPutConditionalRace(err) && attempt === 0) {
-          useGroupPut = false;
-          continue;
-        }
-        if (isEventConditionalFailure(err)) {
-          throw new DuplicateEventError(idempotencyKey);
-        }
-        throw err;
+      return alertPut;
+    } catch (err: unknown) {
+      if (isEventConditionalFailure(err)) {
+        throw new DuplicateEventError(idempotencyKey);
       }
+      throw err;
     }
-
-    throw new Error('createAlert: unexpected group transaction retry exhaustion');
   }
 
   async getAlertById(alertId: string): Promise<AlertDdbRecord | null> {
@@ -141,6 +136,8 @@ export class AlertRepository extends BaseRepository {
       Limit: opts.limit ?? 50,
     });
 
+    items = await this.hydrateAlertsFromGsiRows(table, items);
+
     if (opts.openOnly) {
       items = items.filter(
         (a) => a.alertState !== 'RESOLVED' && a.alertState !== 'DISMISSED',
@@ -152,6 +149,44 @@ export class AlertRepository extends BaseRepository {
     }
 
     return items;
+  }
+
+  async queryPatientAlertsPage(
+    patientId: string,
+    opts: {
+      openOnly?: boolean;
+      inputType?: string;
+      limit?: number;
+      exclusiveStartKey?: Record<string, unknown>;
+    },
+  ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertAlertTable();
+
+    let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
+      TableName: table,
+      IndexName: GSI3_PATIENT,
+      KeyConditionExpression: 'gsi3pk = :p',
+      ExpressionAttributeValues: {
+        ':p': AlertKeyBuilder.toPatPartitionKey(patientId),
+      },
+      ScanIndexForward: false,
+      Limit: opts.limit ?? 50,
+      ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
+    });
+
+    items = await this.hydrateAlertsFromGsiRows(table, items);
+
+    if (opts.openOnly) {
+      items = items.filter(
+        (a) => a.alertState !== 'RESOLVED' && a.alertState !== 'DISMISSED',
+      );
+    }
+
+    if (opts.inputType) {
+      items = items.filter((a) => a.inputType === opts.inputType);
+    }
+
+    return { items, lastEvaluatedKey };
   }
 
   async queryOrgAlerts(
@@ -173,11 +208,47 @@ export class AlertRepository extends BaseRepository {
       Limit: opts.limit ?? 50,
     });
 
+    items = await this.hydrateAlertsFromGsiRows(table, items);
+
     if (opts.unassignedOnly) {
       items = items.filter((a) => !a.assignedToUserId);
     }
 
     return items;
+  }
+
+  async queryOrgAlertsPage(
+    organizationId: string,
+    opts: {
+      state?: AlertState;
+      limit?: number;
+      unassignedOnly?: boolean;
+      exclusiveStartKey?: Record<string, unknown>;
+    },
+  ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertAlertTable();
+    const state = opts.state ?? 'UNASSIGNED';
+
+    let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
+      TableName: table,
+      IndexName: GSI1_ORG_QUEUE,
+      KeyConditionExpression: 'gsi1pk = :o AND begins_with(gsi1sk, :s)',
+      ExpressionAttributeValues: {
+        ':o': AlertKeyBuilder.toOrgPartitionKey(organizationId),
+        ':s': `STATE#${state}#`,
+      },
+      ScanIndexForward: false,
+      Limit: opts.limit ?? 50,
+      ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
+    });
+
+    items = await this.hydrateAlertsFromGsiRows(table, items);
+
+    if (opts.unassignedOnly) {
+      items = items.filter((a) => !a.assignedToUserId);
+    }
+
+    return { items, lastEvaluatedKey };
   }
 
   async queryUserAlerts(
@@ -186,7 +257,7 @@ export class AlertRepository extends BaseRepository {
   ): Promise<AlertDdbRecord[]> {
     const table = assertAlertTable();
 
-    return this.query<AlertDdbRecord>({
+    const items = await this.query<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI2_USER_QUEUE,
       KeyConditionExpression: opts.state
@@ -199,20 +270,107 @@ export class AlertRepository extends BaseRepository {
       ScanIndexForward: false,
       Limit: opts.limit ?? 50,
     });
+
+    return this.hydrateAlertsFromGsiRows(table, items);
   }
 
+  async queryUserAlertsPage(
+    userId: string,
+    opts: {
+      state?: AlertState;
+      limit?: number;
+      exclusiveStartKey?: Record<string, unknown>;
+    },
+  ): Promise<{ items: AlertDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertAlertTable();
+
+    let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
+      TableName: table,
+      IndexName: GSI2_USER_QUEUE,
+      KeyConditionExpression: opts.state
+        ? 'gsi2pk = :u AND begins_with(gsi2sk, :st)'
+        : 'gsi2pk = :u',
+      ExpressionAttributeValues: {
+        ':u': AlertKeyBuilder.toUserPartitionKey(userId),
+        ...(opts.state ? { ':st': `STATE#${opts.state}#` } : {}),
+      },
+      ScanIndexForward: false,
+      Limit: opts.limit ?? 50,
+      ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
+    });
+
+    items = await this.hydrateAlertsFromGsiRows(table, items);
+
+    return { items, lastEvaluatedKey };
+  }
+
+  /**
+   * Base-table `GROUP#<groupingKey>` + `Alert#<triggerTs>#<alertId>` membership rows, then BatchGet alert METADATA.
+   */
   async queryAlertsByGroupingKey(groupingKey: string): Promise<AlertDdbRecord[]> {
     const table = assertAlertTable();
 
-    return this.query<AlertDdbRecord>({
+    const members = await this.queryAll<{ alertId?: string }>({
       TableName: table,
-      IndexName: GSI4_GROUP,
-      KeyConditionExpression: 'gsi4pk = :g',
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :pref)',
       ExpressionAttributeValues: {
-        ':g': AlertKeyBuilder.toGroupPartitionKey(groupingKey),
+        ':pk': AlertKeyBuilder.toGroupPartitionKey(groupingKey),
+        ':pref': GROUP_MEMBERSHIP_SK_PREFIX,
       },
       ScanIndexForward: false,
     });
+
+    const orderedIds = members.map((m) => m.alertId).filter((id): id is string => typeof id === 'string' && id.length > 0);
+    if (orderedIds.length === 0) return [];
+
+    const byId = await this.batchGetAlertsById(table, orderedIds);
+    return orderedIds.map((id) => byId.get(id)).filter((row): row is AlertDdbRecord => row != null);
+  }
+
+  private async hydrateAlertsFromGsiRows(table: string, gsiRows: AlertDdbRecord[]): Promise<AlertDdbRecord[]> {
+    if (gsiRows.length === 0) return [];
+
+    const orderedIds = gsiRows.map((r) => alertIdFromGsiRow(r)).filter((id): id is string => !!id);
+    if (orderedIds.length === 0) return gsiRows;
+
+    const byId = await this.batchGetAlertsById(table, orderedIds);
+    const hydrated = orderedIds.map((id) => byId.get(id)).filter((row): row is AlertDdbRecord => row != null);
+
+    if (hydrated.length === orderedIds.length) return hydrated;
+
+    /** BatchGet misses (e.g. race): preserve partial GSI rows that at least had an id. */
+    const fallbackById = new Map<string, AlertDdbRecord>();
+    for (const r of gsiRows) {
+      const id = alertIdFromGsiRow(r);
+      if (id && !byId.has(id)) fallbackById.set(id, r);
+    }
+    return orderedIds
+      .map((id) => byId.get(id) ?? fallbackById.get(id))
+      .filter((row): row is AlertDdbRecord => row != null);
+  }
+
+  private async batchGetAlertsById(table: string, alertIds: string[]): Promise<Map<string, AlertDdbRecord>> {
+    const map = new Map<string, AlertDdbRecord>();
+    const unique = [...new Set(alertIds)];
+
+    for (let i = 0; i < unique.length; i += 100) {
+      const chunk = unique.slice(i, i + 100);
+      const items = await this.batchGet<AlertDdbRecord>({
+        RequestItems: {
+          [table]: {
+            Keys: chunk.map((id) => ({
+              pk: AlertKeyBuilder.toAlertPk(id),
+              sk: ALERT_METADATA_SK,
+            })),
+          },
+        },
+      });
+      for (const item of items) {
+        if (item?.alertId) map.set(item.alertId, item);
+      }
+    }
+
+    return map;
   }
 
   async updateAlert(
@@ -230,16 +388,5 @@ export class AlertRepository extends BaseRepository {
     await this.update(updateParams);
 
     return this.getAlertById(alertId);
-  }
-
-  private async getGroupMetadataExists(groupingKey: string): Promise<boolean> {
-    const table = assertAlertTable();
-
-    const res = await this.get<{ pk?: string }>(table, {
-      pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-      sk: ALERT_METADATA_SK,
-    });
-
-    return !!res;
   }
 }

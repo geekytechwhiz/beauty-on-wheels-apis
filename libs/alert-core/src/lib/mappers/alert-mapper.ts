@@ -55,6 +55,8 @@ export class AlertMapper {
 
       alertId: record.alertId,
       patientId: record.patientId,
+      patientName: record.patientName,
+      actorName: record.actorName,
 
       inputEventId: record.inputEventId,
       inputType: record.inputType,

@@ -7,6 +7,7 @@ import type {
 } from '../events/event.types';
 import { UserRepository } from '../repositories/user.repository';
 import { NotificationPayload } from '../types/api-types';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const logger = createLogger({ service: 'notification-consumer', redactPII: true });
 const userRepository = new UserRepository();

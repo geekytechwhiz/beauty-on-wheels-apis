@@ -11,6 +11,7 @@ import {
 import type { BaseEvent } from '../../typings/base-event.types';
 import type { SqsAdapterConfig } from './sqs-adapter-config';
 import { parseMessageBody, serializeBaseEvent } from './message-serialization';
+import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 export type SqsSubscribeMeta = {
   messageId: string;

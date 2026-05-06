@@ -20,7 +20,13 @@ import {
   workflowActionToUpdatePatch,
 } from './alert-workflow';
 import { BaseAlertService } from './base-alert.service';
-import type { CreateAlertPayload, ListAlertsParams, ListAlertsQueue } from '../models/api/create-alert.types';
+import type {
+  CreateAlertPayload,
+  ListAlertsParams,
+  ListAlertsQueue,
+  ListAlertsResult,
+} from '../models/api/create-alert.types';
+import { decodeListAlertsCursor, encodeListAlertsCursor } from '../utils/alert.utils';
 
 /** Persisted alert row (alias for HTTP/service consumers). */
 export type AlertRecord = AlertDdbRecord;
@@ -133,12 +139,10 @@ export class AlertService extends BaseAlertService {
   }
 
   async listAlertActivity(alertId: string, organizationId: string): Promise<AlertActivity[] | null> {
-    const alert = await this.getAlert(alertId, organizationId);
-    if (!alert) return null;
     return this.repo.queryAlertActivities(alertId);
   }
 
-  async listAlerts(params: ListAlertsParams): Promise<AlertDdbRecord[]> {
+  async listAlerts(params: ListAlertsParams): Promise<ListAlertsResult> {
     const {
       organizationId,
       actorUserId,
@@ -152,7 +156,10 @@ export class AlertService extends BaseAlertService {
       dateTo,
       search,
       limit,
+      nextToken,
     } = params;
+
+    const exclusiveStartKey = decodeListAlertsCursor(nextToken);
 
     if (queue === 'MY' && !actorUserId?.trim()) {
       const e = new Error('User id could not be resolved for MY queue') as Error & { statusCode: number };
@@ -161,15 +168,25 @@ export class AlertService extends BaseAlertService {
     }
 
     let rows: AlertDdbRecord[];
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
 
     if (queue === 'PATIENT') {
-      rows = await this.listPatientAlerts(patientId!, {
+      const page = await this.repo.queryPatientAlertsPage(patientId!, {
         inputType,
         limit,
         openOnly: false,
+        exclusiveStartKey,
       });
+      rows = page.items;
+      lastEvaluatedKey = page.lastEvaluatedKey;
     } else if (queue === 'MY') {
-      rows = await this.listUserAlerts(actorUserId!, { state, limit });
+      const page = await this.repo.queryUserAlertsPage(actorUserId!, {
+        state,
+        limit,
+        exclusiveStartKey,
+      });
+      rows = page.items;
+      lastEvaluatedKey = page.lastEvaluatedKey;
     } else {
       let orgState: AlertState;
       if (state) {
@@ -180,14 +197,17 @@ export class AlertService extends BaseAlertService {
         orgState = 'UNASSIGNED';
       }
       const unassignedOnly = assignment === 'UNASSIGNED';
-      rows = await this.listOrgAlerts(organizationId, {
+      const page = await this.repo.queryOrgAlertsPage(organizationId, {
         state: orgState,
         unassignedOnly,
         limit,
+        exclusiveStartKey,
       });
+      rows = page.items;
+      lastEvaluatedKey = page.lastEvaluatedKey;
     }
 
-    return this.applyListPostFilters(rows, organizationId, {
+    const items = this.applyListPostFilters(rows, organizationId, {
       queue,
       priority,
       inputType,
@@ -197,6 +217,9 @@ export class AlertService extends BaseAlertService {
       dateTo,
       search,
     });
+
+    const outNext = encodeListAlertsCursor(lastEvaluatedKey);
+    return outNext ? { items, nextToken: outNext } : { items };
   }
 
   private applyListPostFilters(

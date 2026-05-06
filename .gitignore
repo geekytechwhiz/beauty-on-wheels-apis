@@ -166,6 +166,4 @@ apps/alert-service/src/utils/alert-http-errors.ts
 apps/alert-service/src/utils/helpers.ts
 apps/alert-service/src/utils/index.ts
 apps/alert-service/src/validation/request.validators.ts
-apps/alert-service/src/validators/request.validators.ts
-
-vitest.config.*.timestamp*
+apps/alert-service/src/validators/request.validators.ts 

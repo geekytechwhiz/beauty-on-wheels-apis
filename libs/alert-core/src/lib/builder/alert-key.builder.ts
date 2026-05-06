@@ -37,6 +37,11 @@ export class AlertKeyBuilder {
     return `ACTIVITY#${ts}#${activityId}`;
   }
 
+  /** Base-table sort key: `GROUP#<groupingKey>` partition member linking to an alert. */
+  static buildGroupMembershipSk(triggerTimestamp: string, alertId: string): string {
+    return `Alert#${triggerTimestamp.trim()}#${alertId.trim()}`;
+  }
+
   static buildGsi1Sk(
     state: AlertState,
     priority: PriorityBand,

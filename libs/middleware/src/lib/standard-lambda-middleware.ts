@@ -5,7 +5,7 @@ import { buildApiExecutionPipeline } from './http-pipeline';
 import type { Handler, Middleware, MiddlewarePipelineEvent } from './types';
 
 /**
- * @deprecated Prefer {@link createApiHandler} for HTTP, or `createEventHandler` from `@api-hub/event-platform` for async consumers.
+ * @deprecated Prefer {@link   withApiHandler} for HTTP, or `createEventHandler` from `@api-hub/event-platform` for async consumers.
  */
 export function createStandardLambdaHttpMiddlewares<
   TResult = unknown,

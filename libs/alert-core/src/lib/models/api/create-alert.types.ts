@@ -1,4 +1,5 @@
 import type { AlertState } from '../types/alert-state.type';
+import type { AlertDdbRecord } from '../persistence/alert-ddb.model';
 import type { CreateAlertRequest } from './create-alert.request';
 
 export type CreateAlertPayload = CreateAlertRequest;
@@ -22,6 +23,14 @@ export type ListAlertsParams = {
   dateTo?: string;
   search?: string;
   limit: number;
+  /** DynamoDB query continuation; opaque string from the prior response `nextToken`. */
+  nextToken?: string;
+};
+
+/** Result of {@link AlertService.listAlerts}. */
+export type ListAlertsResult = {
+  items: AlertDdbRecord[];
+  nextToken?: string;
 };
 
 /**

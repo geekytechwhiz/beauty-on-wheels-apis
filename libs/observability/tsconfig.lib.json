@@ -1,24 +1,23 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "outDir": "dist",
     "rootDir": "src",
-    "outDir": "dist/libs/observability",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
-    "declaration": true,
-    "emitDeclarationOnly": false,
     "composite": true,
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [],
   "exclude": [
     "jest.config.ts",
     "jest.config.cts",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
     "test/**/*"
-  ]
+  ],
+  "references": []
 }

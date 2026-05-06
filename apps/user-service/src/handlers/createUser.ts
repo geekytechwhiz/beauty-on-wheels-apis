@@ -7,6 +7,7 @@ import { publishUserCreatedEvent } from '../events/UserCreated';
 import { publishUserRoleAssignmentRequestedEvent } from '../events/UserRoleAssignmentRequested';
 import { validateCreateUser } from '../validation/request.validators';
 import { ExternalIdentity } from '../models';
+import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new UserService();
 const userRepository = new UserRepository();

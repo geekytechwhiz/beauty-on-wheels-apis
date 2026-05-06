@@ -1,12 +1,8 @@
-import {
-  EventBridgeClient,
-  PutEventsCommand,
-} from '@aws-sdk/client-eventbridge';
-
 import type { BaseEvent } from '../../typings/base-event.types';
 import { serializeBaseEvent } from '../../core/event-envelope/serialize-base-event';
 import { EventBridgeAdapter } from './eventbridge-adapter';
 import { toPutEventsEntry } from './eventbridge-put-events';
+import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 function sampleEvent(): BaseEvent<{ n: number }> {
   return {

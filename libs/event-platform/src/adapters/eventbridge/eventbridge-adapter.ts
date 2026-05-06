@@ -1,11 +1,7 @@
-import {
-  EventBridgeClient,
-  PutEventsCommand,
-} from '@aws-sdk/client-eventbridge';
-
 import type { BaseEvent } from '../../typings/base-event.types';
 import type { EventBridgeAdapterConfig } from './eventbridge-adapter-config';
 import { toPutEventsEntry } from './eventbridge-put-events';
+import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 export class EventBridgeAdapter {
   private readonly client: EventBridgeClient;

@@ -280,7 +280,8 @@ export class AlertEntityBuilder {
       setField('gsi1pk', AlertKeyBuilder.buildGsi1Pk(existing.organizationId, patch.alertState));
       setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(sortEpochMs));
 
-      if (existing.assignedToUserId) {
+      // If assignment is being updated in the same call, the assignment block will manage GSI2 keys.
+      if (existing.assignedToUserId && patch.assignedToUserId === undefined) {
         setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(sortEpochMs, existing.alertId));
       }
     }

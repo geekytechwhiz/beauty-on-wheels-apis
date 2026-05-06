@@ -790,10 +790,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/BulkResult'
         - type: object
-          properties:
-            primaryAlert:
-              $ref: '#/components/schemas/AlertDetail'
-              description: Optional; when a single alert was updated, full detail may be returned.
+          properties: {}
 
     PaginatedAlerts:
       type: object
@@ -1164,7 +1161,7 @@ paths:
                   performedByDisplayName: Nurse Lee
       responses:
         '200':
-          description: Result; optional `primaryAlert` when one alert updated.
+          description: Result (bulk-style).
           content:
             application/json:
               schema:
@@ -1208,13 +1205,11 @@ paths:
                   performedByDisplayName: Nurse Lee
       responses:
         '200':
-          description: Success — updated alert detail for single-select, or echo `alertIds` for multi-select.
+          description: Success — echo `alertIds`.
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: '#/components/schemas/SuccessResponseAlertDetail'
-                  - $ref: '#/components/schemas/SuccessResponseAssignmentUpdated'
+                $ref: '#/components/schemas/SuccessResponseAssignmentUpdated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

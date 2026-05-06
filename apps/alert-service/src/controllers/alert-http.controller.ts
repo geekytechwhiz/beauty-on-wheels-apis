@@ -95,7 +95,7 @@ export class AlertHttpController {
 
   /**
    * POST `/alerts/workflow` — body validated by {@link validateWorkflowRequest}; calls
-   * {@link AlertService.applyWorkflow} and returns updated {@link toAlertDetail}.
+   * {@link AlertService.applyWorkflow} and returns bulk result.
    */
   async handleUpdateAlertWorkflow(req: LambdaRequest) {
     const v = (req as LambdaRequest & { validatedWorkflow?: ValidatedWorkflow }).validatedWorkflow;
@@ -138,16 +138,11 @@ export class AlertHttpController {
       });
     }
 
-    if (!result.primaryAlert) {
-      throw new BaseError(
-        'Workflow completed but alert detail is unavailable',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'primaryAlert missing after workflow mutation' }],
-      );
-    }
-
-    return toAlertDetail(result.primaryAlert);
+    return {
+      alertIds: v.alertIds,
+      succeeded: result.succeeded,
+      failed: result.failed,
+    };
   }
 
   /**
@@ -177,7 +172,7 @@ export class AlertHttpController {
       assigneeDisplayName: v.assigneeDisplayName,
     });
 
-    if (result.primaryAlert) return toAlertDetail(result.primaryAlert);
+    void result;
     return { alertIds: v.alertIds };
   }
 
@@ -206,7 +201,7 @@ export class AlertHttpController {
       performedByDisplayName: v.performedByDisplayName,
     });
 
-    if (result.primaryAlert) return toAlertDetail(result.primaryAlert);
+    void result;
     return { alertIds: v.alertIds };
   }
 

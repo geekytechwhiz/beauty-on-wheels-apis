@@ -1,4 +1,3 @@
-import type { AlertDdbRecord } from '../persistence/alert-ddb.model';
 import type { PriorityBand } from '../types/priority-band.type';
 
 export interface PriorityInput {
@@ -9,6 +8,7 @@ export interface PriorityInput {
 }
 
 export interface PriorityResult {
-  primaryAlert?: AlertDdbRecord;
+  // Intentionally empty result shape; mutation endpoints return ids/results at the HTTP layer.
+  // (Kept as an interface for forward-compatible extension.)
 }
 

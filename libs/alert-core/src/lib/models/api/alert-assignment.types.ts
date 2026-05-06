@@ -1,5 +1,3 @@
-import type { AlertDdbRecord } from '../persistence/alert-ddb.model';
-
 export type AssignmentAction = 'ASSIGN' | 'REASSIGN' | 'UNASSIGN' | 'ASSIGN_TO_SELF';
 
 /** Orchestration input for POST `/alerts/assignment`. */
@@ -15,7 +13,7 @@ export interface AssignmentInput {
 }
 
 export interface AssignmentResult {
-  /** Convenience: return full alert detail for single-select calls. */
-  primaryAlert?: AlertDdbRecord;
+  // Intentionally empty result shape; mutation endpoints return ids/results at the HTTP layer.
+  // (Kept as an interface for forward-compatible extension.)
 }
 

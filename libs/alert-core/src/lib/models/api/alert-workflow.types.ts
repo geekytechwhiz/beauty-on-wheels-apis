@@ -1,4 +1,3 @@
-import type { AlertDdbRecord } from '../persistence/alert-ddb.model';
 import { AlertWorkflowAction } from '../../constants/alert-workflow-action';
 
 export type WorkflowActionValue = AlertWorkflowAction;
@@ -24,6 +23,5 @@ export interface WorkflowInput {
 export interface WorkflowResult {
   succeeded: string[];
   failed: { alertId: string; code: string; message: string }[];
-  primaryAlert?: AlertDdbRecord;
 }
 

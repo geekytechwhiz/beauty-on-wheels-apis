@@ -422,6 +422,12 @@ components:
     AssignmentAction:
       type: string
       enum: [ASSIGN, ASSIGN_TO_SELF, REASSIGN, UNASSIGN]
+      description: >
+        Assignment-only mutation. State retention rules:
+        `ASSIGN` / `REASSIGN` / `ASSIGN_TO_SELF` from `UNASSIGNED` transitions the alert to `ASSIGNED`;
+        from `ASSIGNED` / `IN_PROGRESS` / `WAITING` the alert keeps its current state and only the assignee changes.
+        `UNASSIGN` clears the assignee while keeping the current state. All actions are rejected from terminal
+        states (`RESOLVED` / `DISMISSED`).
 
     WorkflowAction:
       type: string
@@ -655,6 +661,11 @@ components:
     AssignmentRequest:
       type: object
       required: [action, performedByDisplayName]
+      description: >
+        Assignment mutation. The alert's `alertState` is preserved unless the action is
+        `ASSIGN` / `REASSIGN` / `ASSIGN_TO_SELF` and the alert is currently `UNASSIGNED`,
+        in which case it transitions to `ASSIGNED`. From any other non-terminal state, only the
+        assignee fields change. `UNASSIGN` clears the assignee while retaining the current state.
       properties:
         action:
           $ref: '#/components/schemas/AssignmentAction'
@@ -680,10 +691,9 @@ components:
       type: object
       required: [alertIds, action, performedByDisplayName]
       description: >
-        Applies the same workflow action to every id in `alertIds`. For **multiple** ids,
-        **all listed alerts must share the same `alertState`** or the request fails with 422
-        (`BULK_HETEROGENEOUS_ALERT_STATE`) and **none** are updated. For a **single** id,
-        normal state-machine rules apply.
+        Applies the same workflow action to every id in `alertIds`.
+        Each alert is validated against the state machine independently; some ids may fail (e.g. `ILLEGAL_TRANSITION`)
+        while others succeed.
       properties:
         alertIds:
           $ref: '#/components/schemas/AlertIds'
@@ -1152,7 +1162,7 @@ paths:
                   closureComment: Stabilized
                   performedByDisplayName: Nurse Lee
               assign:
-                summary: Assign (UNASSIGNED or ASSIGNED → ASSIGNED)
+                summary: Assign (UNASSIGNED → ASSIGNED; otherwise state retained)
                 value:
                   alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
                   action: ASSIGN
@@ -1182,6 +1192,10 @@ paths:
         Applies the same assignment action to every id in `alertIds`. **All-or-nothing**: if any alert is missing,
         out of org scope, or in a terminal state (**RESOLVED** / **DISMISSED**), the request fails and **no** alerts
         are updated.
+
+        **State retention:** The alert's `alertState` is preserved across assignment changes — only `UNASSIGNED`
+        alerts transition to `ASSIGNED` when an assignee is set via `ASSIGN` / `REASSIGN` / `ASSIGN_TO_SELF`.
+        `UNASSIGN` clears the assignee but keeps the current state (e.g. `IN_PROGRESS` stays `IN_PROGRESS`).
       requestBody:
         required: true
         content:

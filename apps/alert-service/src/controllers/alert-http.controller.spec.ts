@@ -229,10 +229,10 @@ describe('AlertHttpController', () => {
     expect(mockApplyAssignment).not.toHaveBeenCalled();
   });
 
-  it('handleUpdateAlertAssignment returns alert detail on single-select success', async () => {
+  it('handleUpdateAlertAssignment returns { alertIds } on single-select success', async () => {
     const c = new AlertHttpController();
     const record = minimalAlertRecord({ alertState: 'ASSIGNED' as any });
-    mockApplyAssignment.mockResolvedValue({ primaryAlert: record });
+    mockApplyAssignment.mockResolvedValue({});
 
     const req = baseReq({
       validatedAssignment: {
@@ -245,13 +245,30 @@ describe('AlertHttpController', () => {
     } as any);
 
     const out = await c.handleUpdateAlertAssignment(req);
-    expect(out).toMatchObject({ alertId: record.alertId, orgId: 'org-1' });
+    expect(out).toEqual({ alertIds: [record.alertId] });
     expect(mockApplyAssignment).toHaveBeenCalledWith('org-1', {
       alertIds: [record.alertId],
       action: 'ASSIGN',
       assignToUserId: 'user-2',
       performedByUserId: 'user-1',
     });
+  });
+
+  it('handleUpdateAlertAssignment returns { alertIds } on multi-select success', async () => {
+    const c = new AlertHttpController();
+    mockApplyAssignment.mockResolvedValue({});
+
+    const req = baseReq({
+      validatedAssignment: {
+        orgId: 'org-1',
+        alertIds: ['a1', 'a2'],
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
+        action: 'UNASSIGN',
+        performedByDisplayName: 'User One',
+      } as any,
+    } as any);
+
+    await expect(c.handleUpdateAlertAssignment(req)).resolves.toEqual({ alertIds: ['a1', 'a2'] });
   });
 
   it('handleUpdateAlertPriority throws 500 when validatedPriority missing', async () => {
@@ -264,10 +281,10 @@ describe('AlertHttpController', () => {
     expect(mockApplyPriority).not.toHaveBeenCalled();
   });
 
-  it('handleUpdateAlertPriority returns alert detail on single-select success', async () => {
+  it('handleUpdateAlertPriority returns { alertIds } on single-select success', async () => {
     const c = new AlertHttpController();
     const record = minimalAlertRecord({ priority: 'P1' as any });
-    mockApplyPriority.mockResolvedValue({ primaryAlert: record });
+    mockApplyPriority.mockResolvedValue({});
 
     const req = baseReq({
       validatedPriority: {
@@ -279,7 +296,7 @@ describe('AlertHttpController', () => {
     } as any);
 
     const out = await c.handleUpdateAlertPriority(req);
-    expect(out).toMatchObject({ alertId: record.alertId, orgId: 'org-1' });
+    expect(out).toEqual({ alertIds: [record.alertId] });
     expect(mockApplyPriority).toHaveBeenCalledWith('org-1', {
       alertIds: [record.alertId],
       priority: 'P1',
@@ -287,30 +304,100 @@ describe('AlertHttpController', () => {
     });
   });
 
-  it('handleUpdateAlertWorkflow returns alert detail on success', async () => {
+  it('handleUpdateAlertPriority returns { alertIds } on multi-select success', async () => {
+    const c = new AlertHttpController();
+    mockApplyPriority.mockResolvedValue({});
+
+    const req = baseReq({
+      validatedPriority: {
+        orgId: 'org-1',
+        alertIds: ['a1', 'a2'],
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
+        priority: 'P1',
+        performedByDisplayName: 'User One',
+      } as any,
+    } as any);
+
+    await expect(c.handleUpdateAlertPriority(req)).resolves.toEqual({ alertIds: ['a1', 'a2'] });
+  });
+
+  it('handleUpdateAlertWorkflow returns succeeded/failed on success', async () => {
     const c = new AlertHttpController();
     const record = minimalAlertRecord({ alertState: 'IN_PROGRESS' as any });
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [record.alertId],
       failed: [],
-      primaryAlert: record,
     });
 
     const req = baseReq({
       pathParameters: { alertId: record.alertId },
       validatedWorkflow: {
         orgId: 'org-1',
-        alertId: record.alertId,
+        alertIds: [record.alertId],
         authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
         action: 'START_WORK',
+        performedByDisplayName: 'User One',
       } as any,
     } as any);
 
     const out = await c.handleUpdateAlertWorkflow(req);
-    expect(out).toMatchObject({ alertId: record.alertId, orgId: 'org-1' });
-    expect(mockApplyWorkflow).toHaveBeenCalledWith('org-1', {
-      alertIds: [record.alertId],
-      action: 'START_WORK',
+    expect(out).toEqual({ alertIds: [record.alertId], succeeded: [record.alertId], failed: [] });
+    expect(mockApplyWorkflow).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({
+        alertIds: [record.alertId],
+        action: 'START_WORK',
+      }),
+    );
+  });
+
+  it('handleUpdateAlertWorkflow includes performedByUserId when present in token', async () => {
+    const c = new AlertHttpController();
+    mockApplyWorkflow.mockResolvedValue({
+      succeeded: ['a1'],
+      failed: [],
+    });
+
+    const req = baseReq({
+      validatedWorkflow: {
+        orgId: 'org-1',
+        alertIds: [record.alertId],
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
+        action: 'START_WORK',
+        performedByDisplayName: 'User One',
+      } as any,
+    } as any);
+
+    await c.handleUpdateAlertWorkflow(req);
+    expect(mockApplyWorkflow).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({
+        performedByUserId: 'user-1',
+      }),
+    );
+  });
+
+  it('handleUpdateAlertWorkflow maps unknown workflow error to 422', async () => {
+    const c = new AlertHttpController();
+    mockApplyWorkflow.mockResolvedValue({
+      succeeded: [],
+      failed: [{ alertId: 'x', code: 'SOME_WORKFLOW_ERROR', message: 'boom' }],
+    });
+
+    const record = minimalAlertRecord();
+    const req = baseReq({
+      validatedWorkflow: {
+        orgId: 'org-1',
+        alertIds: [record.alertId],
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        action: 'START_WORK',
+        performedByDisplayName: 'User One',
+      } as any,
+    } as any);
+
+    await expect(c.handleUpdateAlertWorkflow(req)).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'SOME_WORKFLOW_ERROR',
     });
   });
 
@@ -326,9 +413,33 @@ describe('AlertHttpController', () => {
       pathParameters: { alertId: record.alertId },
       validatedWorkflow: {
         orgId: 'org-1',
-        alertId: record.alertId,
+        alertIds: [record.alertId],
         authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
-        action: 'WAIT',
+        action: 'MOVE_TO_WAITING',
+        performedByDisplayName: 'User One',
+      } as any,
+    } as any);
+
+    await expect(c.handleUpdateAlertWorkflow(req)).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('handleUpdateAlertWorkflow takes NOT_FOUND branch when first failure is NOT_FOUND', async () => {
+    const c = new AlertHttpController();
+    mockApplyWorkflow.mockResolvedValue({
+      succeeded: [],
+      failed: [{ alertId: 'a1', code: 'NOT_FOUND', message: 'nope' }],
+    });
+
+    const req = baseReq({
+      validatedWorkflow: {
+        orgId: 'org-1',
+        alertIds: ['a1'],
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        action: 'START_WORK',
+        performedByDisplayName: 'User One',
       } as any,
     } as any);
 
@@ -356,9 +467,10 @@ describe('AlertHttpController', () => {
       pathParameters: { alertId: record.alertId },
       validatedWorkflow: {
         orgId: 'org-1',
-        alertId: record.alertId,
+        alertIds: [record.alertId],
         authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
-        action: 'WAIT',
+        action: 'MOVE_TO_WAITING',
+        performedByDisplayName: 'User One',
       } as any,
     } as any);
 
@@ -466,6 +578,35 @@ describe('AlertHttpController', () => {
       items: [expect.objectContaining({ alertId: 'a1', orgId: 'org-1' })],
       nextToken: 'next-1',
     });
+  });
+
+  it('handleListAlerts passes actorUserId from token to service', async () => {
+    const c = new AlertHttpController();
+    mockListAlerts.mockResolvedValue({ items: [] });
+
+    await c.handleListAlerts(
+      baseReq({
+        params: { queue: 'TEAM' },
+        event: baseEvent({
+          httpMethod: 'GET',
+          path: '/dev/alerts',
+          queryStringParameters: { queue: 'TEAM' },
+          headers: {
+            Authorization: bearerToken({
+              'custom:organizationID': 'org-1',
+              'custom:userID': 'user-1',
+            }),
+          },
+        }),
+      }),
+    );
+
+    expect(mockListAlerts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        actorUserId: 'user-1',
+      }),
+    );
   });
 
   it('handleListAlerts omits nextToken when service does not return it', async () => {

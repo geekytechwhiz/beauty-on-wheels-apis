@@ -81,11 +81,11 @@ export function workflowActionToUpdatePatch(
       if (!display) {
         workflowRequestError('assigneeDisplayName is required for ASSIGN', 422, 'MISSING_ASSIGNEE_DISPLAY_NAME');
       }
-      if (state !== ALERT_STATE.UNASSIGNED && state !== ALERT_STATE.ASSIGNED) {
-        invalidTransition(`ASSIGN is not valid from state ${state}`);
-      }
+      // Only transition state on the forward edge UNASSIGNED -> ASSIGNED.
+      // From ASSIGNED / IN_PROGRESS / WAITING, retain the current state and only update the assignee.
+      const isForwardFromUnassigned = state === ALERT_STATE.UNASSIGNED;
       return {
-        alertState: ALERT_STATE.ASSIGNED,
+        ...(isForwardFromUnassigned ? { alertState: ALERT_STATE.ASSIGNED } : {}),
         assignedToUserId: assignee,
         assignedToDisplayName: display,
       };

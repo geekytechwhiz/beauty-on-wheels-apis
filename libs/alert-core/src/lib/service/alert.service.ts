@@ -31,16 +31,6 @@ export type UpdateAlertInput = UpdateAlertRequest;
 /** Activity row returned from {@link AlertService.listAlertActivity}. */
 export type AlertActivityRecord = AlertActivity;
 
-function bulkHeterogeneousError(): never {
-  const e = new Error('All listed alerts must share the same alertState') as Error & {
-    statusCode: number;
-    code: string;
-  };
-  e.statusCode = 422;
-  e.code = 'BULK_HETEROGENEOUS_ALERT_STATE';
-  throw e;
-}
-
 function buildTriggerSummary(input: CreateAlertRequest): string {
   if (input.triggerSummary?.trim()) return input.triggerSummary.trim();
 
@@ -282,11 +272,6 @@ export class AlertService extends BaseAlertService {
       else loaded.push({ id, row });
     }
 
-    if (input.alertIds.length > 1 && loaded.length === input.alertIds.length) {
-      const states = new Set(loaded.map((x) => x.row.alertState));
-      if (states.size > 1) bulkHeterogeneousError();
-    }
-
     const toProcess: { id: string; row: AlertDdbRecord }[] = loaded;
 
     const closureText = input.closureComment?.trim() || input.comment?.trim() || undefined;
@@ -389,20 +374,28 @@ export class AlertService extends BaseAlertService {
       }
     }
 
-    const patch: UpdateAlertRequest =
-      input.action === 'UNASSIGN'
-        ? { alertState: ALERT_STATE.UNASSIGNED, assignedToUserId: null, assignedToDisplayName: null }
-        : {
-            alertState: ALERT_STATE.ASSIGNED,
-            assignedToUserId: assignToUserId as string,
-            assignedToDisplayName: assigneeDisplayName,
-          };
-
     const nowMs = Date.now();
     const performedBy = input.performedByUserId?.trim() || 'SYSTEM';
     const performedByDisplayName = input.performedByDisplayName;
 
     const updates = loaded.map((row) => {
+      // Per-row patch: only transition state on the forward edge UNASSIGNED -> ASSIGNED for assignment actions.
+      // UNASSIGN clears the assignee but retains the current state; ASSIGN/REASSIGN/ASSIGN_TO_SELF from
+      // ASSIGNED / IN_PROGRESS / WAITING also retains state and only updates assignee fields.
+      const patch: UpdateAlertRequest =
+        input.action === 'UNASSIGN'
+          ? { assignedToUserId: null, assignedToDisplayName: null }
+          : row.alertState === ALERT_STATE.UNASSIGNED
+            ? {
+                alertState: ALERT_STATE.ASSIGNED,
+                assignedToUserId: assignToUserId as string,
+                assignedToDisplayName: assigneeDisplayName,
+              }
+            : {
+                assignedToUserId: assignToUserId as string,
+                assignedToDisplayName: assigneeDisplayName,
+              };
+
       const activityItems = AlertEntityBuilder.buildWorkflowActivityItems({
         existing: row,
         patch,

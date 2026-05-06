@@ -7,4 +7,6 @@ packages:
   - 'api-center'
   - 'data-access'
   - 'event-platform'
+  - 'packages/eslint-mavrix'
+  - 'tools'
 autoInstallPeers: true

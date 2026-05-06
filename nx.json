@@ -55,6 +55,14 @@
         "targetName": "test"
       },
       "exclude": ["apps/alert-service-e2e/**/*"]
+    },
+    {
+      "plugin": "@nx/vitest",
+      "options": {
+        "testTargetName": "test",
+        "ciTargetName": "test-ci",
+        "testMode": "watch"
+      }
     }
   ],
   "targetDefaults": {
@@ -72,5 +80,10 @@
       "inputs": ["production", "^production"]
     }
   },
-  "analytics": true
+  "analytics": true,
+  "release": {
+    "version": {
+      "preVersionCommand": "pnpm dlx nx run-many -t build"
+    }
+  }
 }

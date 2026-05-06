@@ -98,6 +98,15 @@
     },
     {
       "path": "./libs/alert-core"
+    },
+    {
+      "path": "./packages/eslint-mavrix"
+    },
+    {
+      "path": "./tools"
+    },
+    {
+      "path": "./tools/eslint-mavrix"
     }
   ]
 }

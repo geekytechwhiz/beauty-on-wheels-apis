@@ -4,9 +4,17 @@ export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
+
   {
-    ignores: ['**/dist', '**/out-tsc', '**/vite.config.*.timestamp*'],
+    ignores: [
+      '**/dist',
+      '**/out-tsc',
+      '**/vite.config.*.timestamp*',
+      '**/vitest.config.*.timestamp*',
+    ],
   },
+
+  // NX Module Boundary Rules
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     rules: {
@@ -16,7 +24,6 @@ export default [
           enforceBuildableLibDependency: true,
           allow: [
             '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
-            // Workspace packages: resolver can miss tags on inferred graph nodes; keep explicit allow.
             '@api-hub/event-platform',
           ],
           depConstraints: [
@@ -35,6 +42,8 @@ export default [
       ],
     },
   },
+
+  // ✅ Global baseline (allow only warn + error everywhere)
   {
     files: [
       '**/*.ts',
@@ -46,7 +55,31 @@ export default [
       '**/*.cjs',
       '**/*.mjs',
     ],
-    // Override or add rules here
-    rules: {},
+    rules: {
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
+  },
+
+  // ✅ Strict rule for Serverless APIs / Services
+  {
+    files: [
+      'apps/api/**/*.ts',
+      'apps/api/**/*.js',
+      'services/**/*.ts',
+      'services/**/*.js',
+    ],
+    rules: {
+      // Completely block console usage
+      'no-console': 'error',
+
+      // Enforce logger usage instead of console
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[object.name='console']",
+          message: 'Use logger instead of console in serverless APIs/services',
+        },
+      ],
+    },
   },
 ];

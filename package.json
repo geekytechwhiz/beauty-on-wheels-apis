@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+      "cleanup:eslint": "node tools/scripts/cleanup-eslint.js",
     "user-service:offline": "cd apps/user-service && npx nodemon --watch src --ext ts,js,yml,json --exec \"serverless offline --stage dev --aws-profile ci-user\"",
     "deploy:fhir-gateway": "cd services/fhir-gateway && serverless deploy",
     "fhir-gateway:offline": "cd services/fhir-gateway && serverless offline",
@@ -16,7 +17,28 @@
     "aggregator:backend:start": "pnpm --filter @api-hub/api-aggregator-backend start",
     "aggregator:frontend:dev": "pnpm --filter @api-hub/api-aggregator-frontend dev",
     "aggregator:frontend:dev:registry": "pnpm --filter @api-hub/api-aggregator-frontend dev:registry",
-    "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build"
+    "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build", 
+    "test:all": "nx run-many --target=test --all --parallel=5 --batch",
+    "lint:all": "nx run-many --target=lint --all --parallel=5 --batch",
+
+    "build:affected": "nx affected --target=build --parallel=5",
+    "test:affected": "nx affected --target=test --parallel=5 --batch",
+
+    "build:no-cache": "nx build --skip-nx-cache",
+    "build:verbose": "nx build --verbose",
+
+    "graph": "nx graph",
+    "graph:affected": "nx graph --affected",
+
+    "show:projects": "nx show projects",
+    "show:app": "nx show project ",
+
+    "deploy": "nx run :deploy",
+
+    "format": "nx format:write",
+    "reset": "nx reset",
+
+    "profile": "NX_PROFILE=profile.json nx build "
   },
   "private": true,
   "dependencies": {

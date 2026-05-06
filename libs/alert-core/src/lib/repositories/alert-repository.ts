@@ -47,7 +47,7 @@ export type QueryPatientAlertsListOpts = AlertListStructuredFilters & {
   openOnly?: boolean;
 };
 
-/** GSI2 / GSI4: constrain sort key to `[dateFrom, dateTo]` using `TS#…#` segment (same as {@link queryOrgAlertsGsi4Page}). */
+/** GSI2 / GSI4: constrain sort key to `[dateFrom, dateTo]` using `TS#…#` segment (**creation** time as stored on SK). */
 function appendSortKeyTriggerTimeBounds(
   expressionAttributeValues: Record<string, unknown>,
   keyCondition: string,
@@ -395,7 +395,7 @@ export class AlertRepository extends BaseRepository {
   }
 
   /**
-   * Org-wide alert list (GSI4): `gsi4pk` = org, `gsi4sk` = trigger-time order.
+   * Org-wide alert list (GSI4): `gsi4pk` = org, `gsi4sk` = **creation**-time order (`createdAt` segment).
    * Filters use DynamoDB `FilterExpression` where possible; optional `search` uses `contains` (TEAM queue).
    */
   async queryOrgAlertsGsi4Page(

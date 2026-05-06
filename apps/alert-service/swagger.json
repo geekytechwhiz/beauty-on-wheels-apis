@@ -313,6 +313,11 @@
         "comment": { "type": "string" },
         "closureComment": { "type": "string" },
         "performedByDisplayName": { "type": "string" }
+      },
+      "example": {
+        "alertIds": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        "action": "START_WORK",
+        "performedByDisplayName": "Nurse Lee"
       }
     },
     "AssignmentAction": {
@@ -327,6 +332,12 @@
         "assignToUserId": { "type": "string", "description": "Required for ASSIGN and REASSIGN." },
         "assigneeDisplayName": { "type": "string", "description": "Required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF." },
         "performedByDisplayName": { "type": "string" }
+      },
+      "example": {
+        "action": "ASSIGN",
+        "assignToUserId": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+        "assigneeDisplayName": "Dr Smith",
+        "performedByDisplayName": "Nurse Lee"
       }
     },
     "AssignmentRequestBody": {
@@ -346,12 +357,21 @@
         "alertIds": { "$ref": "#/definitions/AlertIds" },
         "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
         "performedByDisplayName": { "type": "string" }
+      },
+      "example": {
+        "alertIds": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        "priority": "P1",
+        "performedByDisplayName": "Nurse Lee"
       }
     },
     "NoteRequest": {
       "type": "object",
       "required": ["comment", "performedByDisplayName"],
-      "properties": { "comment": { "type": "string" }, "performedByDisplayName": { "type": "string" } }
+      "properties": { "comment": { "type": "string" }, "performedByDisplayName": { "type": "string" } },
+      "example": {
+        "comment": "Reviewed alert; will follow up.",
+        "performedByDisplayName": "Nurse Lee"
+      }
     },
     "ActivityType": {
       "type": "string",
@@ -493,6 +513,8 @@
         "newPriority": { "type": "string" },
         "previousAssignee": { "type": "string" },
         "newAssignee": { "type": "string" },
+        "previousAssigneeDisplayName": { "type": "string" },
+        "newAssigneeDisplayName": { "type": "string" },
         "evidencePayload": { "type": "object", "additionalProperties": true }
       }
     },

@@ -5,6 +5,7 @@ import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 
 import { AlertKeyBuilder } from './alert-key.builder';
 import { ACTIVITY_TYPE_ALERT_CREATED, ALERT_METADATA_SK } from '../constants/alert.constants';
+import { AlertActivityType } from '../constants/alert-activity-type';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 import { parseIsoToEpochMs, toEpochMs } from '../utils/alert-time';
@@ -132,7 +133,7 @@ export class AlertEntityBuilder {
 
       // 🔹 GSIs
       gsi1pk: AlertKeyBuilder.buildGsi1Pk(input.organizationId, ALERT_STATE.UNASSIGNED),
-      gsi1sk: AlertKeyBuilder.buildGsi1Sk(triggerMs),
+      gsi1sk: AlertKeyBuilder.buildGsi1Sk(nowMs),
 
       gsi2pk: undefined,
       gsi2sk: undefined,
@@ -141,7 +142,7 @@ export class AlertEntityBuilder {
       gsi3sk: AlertKeyBuilder.toGsi3Sk(nowMs),
 
       gsi4pk: AlertKeyBuilder.buildGsi4Pk(input.organizationId),
-      gsi4sk: AlertKeyBuilder.buildGsi4Sk(triggerMs, alertId),
+      gsi4sk: AlertKeyBuilder.buildGsi4Sk(nowMs, alertId),
 
       gsi5pk: AlertKeyBuilder.toSlaPartitionKey(nowMs),
       gsi5sk: AlertKeyBuilder.toSlaSortKey(nowMs, alertId),
@@ -183,7 +184,6 @@ export class AlertEntityBuilder {
       evidencePayload: input.evidencePayload,
 
       createdAt: nowMs,
-      updatedAt: nowMs,
       organizationId: input.organizationId,
     };
   }
@@ -208,7 +208,7 @@ export class AlertEntityBuilder {
   }
 
   /**
-   * Base-table row: `pk = GROUP#<groupingKey>`, `sk = Alert#<paddedEpochMs>#<alertId>`.
+   * Base-table row: `pk = GROUP#<groupingKey>`, `sk = Alert#<paddedEpochMs>#<alertId>` (`paddedEpochMs` = create time).
    * Written in the same transact as create; use {@link AlertRepository.queryAlertsByGroupingKey} to load alerts.
    */
   static buildGroupMembershipPut(ctx: CreateAlertContext) {
@@ -219,7 +219,7 @@ export class AlertEntityBuilder {
         TableName: process.env.ALERT_TABLE!,
         Item: {
           pk: AlertKeyBuilder.toGroupPartitionKey(groupingKey),
-          sk: AlertKeyBuilder.buildGroupMembershipSk(ctx.triggerMs, alertId),
+          sk: AlertKeyBuilder.buildGroupMembershipSk(ctx.nowMs, alertId),
           organizationId: input.organizationId,
           createdAt: nowMs,
         },
@@ -241,7 +241,8 @@ export class AlertEntityBuilder {
 
   static buildUpdateExpression(existing: AlertDdbRecord, patch: UpdateAlertRequest) {
     const nowMs = Date.now();
-    const trig = toEpochMs(existing.triggerTimestamp);
+    /** Sort-key segment matches {@link buildAlertRecord}: creation instant, not clinical trigger. */
+    const sortEpochMs = toEpochMs(existing.createdAt);
 
     const setExpressions: string[] = [];
     const removeExpressions: string[] = [];
@@ -267,10 +268,10 @@ export class AlertEntityBuilder {
       setField('statusUpdatedAt', nowMs);
 
       setField('gsi1pk', AlertKeyBuilder.buildGsi1Pk(existing.organizationId, patch.alertState));
-      setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(trig));
+      setField('gsi1sk', AlertKeyBuilder.buildGsi1Sk(sortEpochMs));
 
       if (existing.assignedToUserId) {
-        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(trig, existing.alertId));
+        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(sortEpochMs, existing.alertId));
       }
     }
 
@@ -292,7 +293,7 @@ export class AlertEntityBuilder {
 
         setField('gsi2pk', AlertKeyBuilder.toUserPartitionKey(patch.assignedToUserId));
 
-        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(trig, existing.alertId));
+        setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(sortEpochMs, existing.alertId));
       }
     }
 
@@ -345,7 +346,7 @@ export class AlertEntityBuilder {
 
   /**
    * Activity rows for GET alert activity after a workflow {@link UpdateAlertRequest}.
-   * Order: **ASSIGNEE_CHANGED** (if assignee changes), then **ALERT_RESOLVED** / **ALERT_DISMISSED** / **STATE_CHANGED**.
+   * Order: assignment change (if any), then terminal/state activity.
    */
   static buildWorkflowActivityItems(params: {
     existing: AlertDdbRecord;
@@ -354,7 +355,8 @@ export class AlertEntityBuilder {
     performedByDisplayName?: string;
     nowMs: number;
   }): Record<string, unknown>[] {
-    const { existing, patch, nowMs } = params;
+    const { existing, patch } = params;
+    let nowMs = params.nowMs;
     const performedBy = params.performedBy?.trim() || 'SYSTEM';
     const performedByDisplayName = params.performedByDisplayName;
 
@@ -370,25 +372,38 @@ export class AlertEntityBuilder {
       patch.assignedToUserId !== undefined && (prevAssign ?? '') !== (newAssign ?? '');
 
     if (assigneeChanged) {
+      const activityType =
+        prevAssign == null ? AlertActivityType.AlertAssigned : AlertActivityType.AlertReassigned;
       items.push(
         AlertEntityBuilder.buildWorkflowActivityRow({
           alertId: existing.alertId,
           organizationId: existing.organizationId,
-          nowMs,
-          activityType: 'ASSIGNEE_CHANGED',
+          nowMs: nowMs,
+          activityType,
           performedBy,
           performedByDisplayName,
           previousAssignee: prevAssign,
           newAssignee: newAssign,
-          assigneeDisplayName: patch.assignedToDisplayName ?? undefined,
+          previousAssigneeDisplayName: existing.assignedToDisplayName,
+          newAssigneeDisplayName: patch.assignedToDisplayName ?? undefined,
         }),
       );
     }
 
     if (patch.alertState && patch.alertState !== existing.alertState) {
-      let activityType = 'STATE_CHANGED';
-      if (patch.alertState === ALERT_STATE.RESOLVED) activityType = 'ALERT_RESOLVED';
-      if (patch.alertState === ALERT_STATE.DISMISSED) activityType = 'ALERT_DISMISSED';
+      // For ASSIGN, we emit only the assignment activity (ALERT_ASSIGNED / ALERT_REASSIGNED).
+      // The UNASSIGNED -> ASSIGNED state change is implicit in assignment and should not create a second activity row.
+      const isImplicitAssignStateChange =
+        assigneeChanged &&
+        existing.alertState === ALERT_STATE.UNASSIGNED &&
+        patch.alertState === ALERT_STATE.ASSIGNED;
+      if (isImplicitAssignStateChange) {
+        return items;
+      }
+
+      let activityType: AlertActivityType = AlertActivityType.AlertStateChanged;
+      if (patch.alertState === ALERT_STATE.RESOLVED) activityType = AlertActivityType.AlertResolved;
+      if (patch.alertState === ALERT_STATE.DISMISSED) activityType = AlertActivityType.AlertDismissed;
 
       const activityComment =
         patch.alertState === ALERT_STATE.RESOLVED || patch.alertState === ALERT_STATE.DISMISSED
@@ -399,7 +414,7 @@ export class AlertEntityBuilder {
         AlertEntityBuilder.buildWorkflowActivityRow({
           alertId: existing.alertId,
           organizationId: existing.organizationId,
-          nowMs,
+          nowMs: nowMs,
           activityType,
           performedBy,
           performedByDisplayName,
@@ -427,8 +442,8 @@ export class AlertEntityBuilder {
     newPriority?: string;
     previousAssignee?: string;
     newAssignee?: string;
-    /** Display name corresponding to `newAssignee` for assignment-related activity rows. */
-    assigneeDisplayName?: string;
+    previousAssigneeDisplayName?: string;
+    newAssigneeDisplayName?: string;
   }): Record<string, unknown> {
     const activityId = randomUUID();
     return {
@@ -448,9 +463,9 @@ export class AlertEntityBuilder {
       ...(p.newPriority !== undefined ? { newPriority: p.newPriority } : {}),
       ...(p.previousAssignee !== undefined ? { previousAssignee: p.previousAssignee } : {}),
       ...(p.newAssignee !== undefined ? { newAssignee: p.newAssignee } : {}),
-      ...(p.assigneeDisplayName ? { assigneeDisplayName: p.assigneeDisplayName } : {}),
+      ...(p.previousAssigneeDisplayName ? { previousAssigneeDisplayName: p.previousAssigneeDisplayName } : {}),
+      ...(p.newAssigneeDisplayName ? { newAssigneeDisplayName: p.newAssigneeDisplayName } : {}),
       createdAt: p.nowMs,
-      updatedAt: p.nowMs,
       organizationId: p.organizationId,
     };
   }

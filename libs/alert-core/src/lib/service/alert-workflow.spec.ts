@@ -38,22 +38,35 @@ describe('alert-workflow', () => {
       const row = minimalRow({ alertState: ALERT_STATE.UNASSIGNED });
       const patch = workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, {
         assignToUserId: 'user-1',
+        assignedToDisplayName: 'User One',
       });
-      expect(patch).toEqual({ alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-1' });
+      expect(patch).toEqual({
+        alertState: ALERT_STATE.ASSIGNED,
+        assignedToUserId: 'user-1',
+        assignedToDisplayName: 'User One',
+      });
     });
 
     it('ASSIGNED -> ASSIGNED (reassignment)', () => {
       const row = minimalRow({ alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-old' });
       const patch = workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, {
         assignToUserId: 'user-new',
+        assignedToDisplayName: 'User New',
       });
-      expect(patch).toEqual({ alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-new' });
+      expect(patch).toEqual({
+        alertState: ALERT_STATE.ASSIGNED,
+        assignedToUserId: 'user-new',
+        assignedToDisplayName: 'User New',
+      });
     });
 
     it('rejects IN_PROGRESS', () => {
       const row = minimalRow({ alertState: ALERT_STATE.IN_PROGRESS });
       expect(() =>
-        workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, { assignToUserId: 'user-1' }),
+        workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, {
+          assignToUserId: 'user-1',
+          assignedToDisplayName: 'User One',
+        }),
       ).toMatchObject({ statusCode: 409, code: 'ILLEGAL_TRANSITION' });
     });
   });

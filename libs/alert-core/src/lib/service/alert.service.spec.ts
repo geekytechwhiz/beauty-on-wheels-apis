@@ -26,16 +26,17 @@ function mockLogger(): Logger {
 function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord {
   const alertId = '11111111-1111-4111-8111-111111111111';
   const trig = EPOCH_2026_01_15_T10;
+  const created = EPOCH_2026_01_15_T10_01;
   return {
     pk: `ALERT#${alertId}`,
     sk: 'METADATA',
     entityType: 'ALERT',
     gsi1pk: AlertKeyBuilder.buildGsi1Pk('org-1', ALERT_STATE.UNASSIGNED),
-    gsi1sk: AlertKeyBuilder.buildGsi1Sk(trig),
+    gsi1sk: AlertKeyBuilder.buildGsi1Sk(created),
     gsi3pk: 'PAT#pat-1',
-    gsi3sk: AlertKeyBuilder.toGsi3Sk(trig),
+    gsi3sk: AlertKeyBuilder.toGsi3Sk(created),
     gsi4pk: AlertKeyBuilder.buildGsi4Pk('org-1'),
-    gsi4sk: AlertKeyBuilder.buildGsi4Sk(trig, alertId),
+    gsi4sk: AlertKeyBuilder.buildGsi4Sk(created, alertId),
     gsi5pk: AlertKeyBuilder.toSlaPartitionKey(EPOCH_2026_01_15_T12),
     gsi5sk: AlertKeyBuilder.toSlaSortKey(EPOCH_2026_01_15_T12, alertId),
     alertId,

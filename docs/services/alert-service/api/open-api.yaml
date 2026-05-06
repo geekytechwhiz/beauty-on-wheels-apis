@@ -644,6 +644,10 @@ components:
           type: string
         newAssignee:
           type: string
+        previousAssigneeDisplayName:
+          type: string
+        newAssigneeDisplayName:
+          type: string
         evidencePayload:
           type: object
           additionalProperties: true
@@ -984,13 +988,18 @@ paths:
             $ref: '#/components/schemas/AlertListAssignmentFilter'
         - name: dateFrom
           in: query
-          description: Start of **By date range** (inclusive, ISO-8601).
+          description: >
+            Start of **By date range** (inclusive, ISO-8601). For **`TEAM`** and **`MY`**, this bounds the list index
+            sort key, which is based on **alert creation** time. For **`PATIENT`**, the same query params filter
+            **`triggerTimestamp`** (see service implementation).
           schema:
             type: string
             format: date-time
         - name: dateTo
           in: query
-          description: End of **By date range** (inclusive, ISO-8601).
+          description: >
+            End of **By date range** (inclusive, ISO-8601). For **`TEAM`** / **`MY`**, applies to **creation**-time
+            ordering on the index; for **`PATIENT`**, filters **`triggerTimestamp`**.
           schema:
             type: string
             format: date-time
@@ -1126,6 +1135,7 @@ paths:
                 value:
                   alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
                   action: START_WORK
+                  performedByDisplayName: Nurse Lee
               multi:
                 summary: Same transition for many alerts (homogeneous state)
                 value:
@@ -1133,13 +1143,25 @@ paths:
                     - 3fa85f64-5717-4562-b3fc-2c963f66afa6
                     - 4fa85f64-5717-4562-b3fc-2c963f66afa7
                   action: RESOLVE
+                  reasonCode: PATIENT_CONTACTED
                   closureComment: Bulk resolved
+                  performedByDisplayName: Nurse Lee
               group:
                 summary: One id
                 value:
                   alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
                   action: RESOLVE
+                  reasonCode: EDUCATION_PROVIDED
                   closureComment: Stabilized
+                  performedByDisplayName: Nurse Lee
+              assign:
+                summary: Assign (UNASSIGNED or ASSIGNED → ASSIGNED)
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  action: ASSIGN
+                  assignedToUserId: 5fa85f64-5717-4562-b3fc-2c963f66afa8
+                  assigneeDisplayName: Dr Smith
+                  performedByDisplayName: Nurse Lee
       responses:
         '200':
           description: Result; optional `primaryAlert` when one alert updated.
@@ -1177,6 +1199,13 @@ paths:
                     - 4fa85f64-5717-4562-b3fc-2c963f66afa7
                   action: ASSIGN
                   assignToUserId: 5fa85f64-5717-4562-b3fc-2c963f66afa8
+                  assigneeDisplayName: Dr Smith
+                  performedByDisplayName: Nurse Lee
+              unassignOne:
+                value:
+                  alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+                  action: UNASSIGN
+                  performedByDisplayName: Nurse Lee
       responses:
         '200':
           description: Success — updated alert detail for single-select, or echo `alertIds` for multi-select.
@@ -1222,12 +1251,14 @@ paths:
                 value:
                   alertIds: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
                   priority: P1
+                  performedByDisplayName: Nurse Lee
               many:
                 value:
                   alertIds:
                     - 3fa85f64-5717-4562-b3fc-2c963f66afa6
                     - 4fa85f64-5717-4562-b3fc-2c963f66afa7
                   priority: P2
+                  performedByDisplayName: Nurse Lee
       responses:
         '200':
           description: Success — updated alert detail for single-select, or echo `alertIds` for multi-select.
@@ -1311,6 +1342,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NoteRequest'
+            examples:
+              one:
+                value:
+                  comment: Reviewed alert; will follow up.
+                  performedByDisplayName: Nurse Lee
       responses:
         '201':
           description: NOTE_ADDED activity created.

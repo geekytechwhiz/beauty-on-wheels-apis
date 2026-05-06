@@ -39,9 +39,9 @@ export class AlertKeyBuilder {
     return `ACTIVITY#${padEpochMs13(epochMs)}#${activityId}`;
   }
 
-  /** Base-table sort key: `GROUP#<groupingKey>` partition member linking to an alert. */
-  static buildGroupMembershipSk(triggerEpochMs: number, alertId: string): string {
-    return `Alert#${padEpochMs13(triggerEpochMs)}#${alertId.trim()}`;
+  /** Base-table sort key: `GROUP#<groupingKey>` partition member linking to an alert (creation instant). */
+  static buildGroupMembershipSk(createEpochMs: number, alertId: string): string {
+    return `Alert#${padEpochMs13(createEpochMs)}#${alertId.trim()}`;
   }
 
   /** GSI1 partition: org + workflow state (team queue). */
@@ -49,9 +49,9 @@ export class AlertKeyBuilder {
     return `${this.toOrgPartitionKey(organizationId)}#STATE#${alertState}`;
   }
 
-  /** GSI1 sort: time-ordered under `TS#` prefix (trigger instant, epoch ms). */
-  static buildGsi1Sk(triggerEpochMs: number): string {
-    return this.toTimestampSortKey(triggerEpochMs);
+  /** GSI1 sort: time-ordered under `TS#` prefix (alert **creation** instant, epoch ms). */
+  static buildGsi1Sk(createEpochMs: number): string {
+    return this.toTimestampSortKey(createEpochMs);
   }
 
   static toGsi3Sk(epochMs: number): string {
@@ -63,14 +63,14 @@ export class AlertKeyBuilder {
     return this.toOrgPartitionKey(organizationId);
   }
 
-  /** GSI4 sort: trigger instant + `alertId` (newest-first per org when `ScanIndexForward: false`). */
-  static buildGsi4Sk(triggerEpochMs: number, alertId: string): string {
-    return `TS#${padEpochMs13(triggerEpochMs)}#${alertId.trim()}`;
+  /** GSI4 sort: **creation** instant + `alertId` (newest-first per org when `ScanIndexForward: false`). */
+  static buildGsi4Sk(createEpochMs: number, alertId: string): string {
+    return `TS#${padEpochMs13(createEpochMs)}#${alertId.trim()}`;
   }
 
   /** GSI2 (“my queue”) sort key — same segment shape as {@link buildGsi4Sk}; workflow state is `alertState` on the item. */
-  static buildGsi2Sk(triggerEpochMs: number, alertId: string): string {
-    return this.buildGsi4Sk(triggerEpochMs, alertId);
+  static buildGsi2Sk(createEpochMs: number, alertId: string): string {
+    return this.buildGsi4Sk(createEpochMs, alertId);
   }
 
   static toSlaPartitionKey(epochMs: number): string {

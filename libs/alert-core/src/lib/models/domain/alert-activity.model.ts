@@ -23,6 +23,8 @@ export interface AlertActivity extends BaseEntity {
 
   previousAssignee?: string;
   newAssignee?: string;
+  previousAssigneeDisplayName?: string;
+  newAssigneeDisplayName?: string;
 
   evidencePayload?: Record<string, unknown>;
 }

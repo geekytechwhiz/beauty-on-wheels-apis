@@ -1,6 +1,7 @@
 export * from './lib/builder/alert-entity.builder';
 export * from './lib/builder/alert-key.builder';
 export * from './lib/constants/alert.constants';
+export * from './lib/constants/alert-activity-type';
 export * from './lib/constants/alert-workflow-action';
 export * from './lib/constants/alert-workflow-reason-codes';
 export * from './lib/errors/duplicate-event.error';

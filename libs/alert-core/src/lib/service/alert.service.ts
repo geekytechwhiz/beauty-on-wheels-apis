@@ -15,6 +15,7 @@ import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
 import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
 import type { PriorityInput, PriorityResult } from '../models/api/alert-priority.types';
+import { AlertActivityType } from '../constants/alert-activity-type';
 import {
   assertWorkflowClosureComment,
   workflowActionToUpdatePatch,
@@ -456,7 +457,7 @@ export class AlertService extends BaseAlertService {
           alertId: row.alertId,
           organizationId: row.organizationId,
           nowMs,
-          activityType: 'PRIORITY_CHANGED',
+          activityType: AlertActivityType.PriorityChanged,
           performedBy,
           performedByDisplayName,
           previousPriority: row.priority,

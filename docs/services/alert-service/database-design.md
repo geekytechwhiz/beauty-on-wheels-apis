@@ -37,7 +37,7 @@ All item types share the same table and use `pk` / `sk`.
 | **Alert metadata** (canonical document) | `ALERT#<alertId>` | `METADATA` | Holds domain fields and GSI key material (`gsi1pk` … `gsi4sk`, `gsi5sk`). |
 | **Activity** (timeline / audit) | `ALERT#<alertId>` | `ACTIVITY#<epochMsPadded13>#<activityId>` | `<epochMsPadded13>` = activity time as **padded epoch ms** per **Time** section; query with `begins_with(sk, 'ACTIVITY#')`. |
 | **Idempotency event** | `EVENT#<inputEventId>` | `METADATA` | Create path uses conditional write; maps to `organizationId` + `alertId`. |
-| **Group membership** | `GROUP#<groupingKey>` | `Alert#<epochMsPadded13>#<alertId>` | Time segment = alert’s trigger instant as **padded epoch ms**; prefix `Alert#` = `GROUP_MEMBERSHIP_SK_PREFIX`. |
+| **Group membership** | `GROUP#<groupingKey>` | `Alert#<epochMsPadded13>#<alertId>` | Time segment = alert **creation** instant as **padded epoch ms**; prefix `Alert#` = `GROUP_MEMBERSHIP_SK_PREFIX`. |
 
 ## Global secondary indexes (GSIs)
 
@@ -58,7 +58,7 @@ Used for org-scoped lists (e.g. unassigned vs assigned lanes, `queryOrgAlerts` /
 | Role | Attribute | Format |
 |------|-----------|--------|
 | Partition | `gsi1pk` | `ORG#<organizationId>#STATE#<AlertState>` — org id is normalized with an `ORG#` prefix when missing. |
-| Sort | `gsi1sk` | `TS#<epochMsPadded13>` — trigger instant for ordering; newest-first uses `ScanIndexForward: false`. |
+| Sort | `gsi1sk` | `TS#<epochMsPadded13>` — **creation** instant for ordering; newest-first uses `ScanIndexForward: false`. |
 
 ### GSI2 — assignee (“my queue”)
 
@@ -67,7 +67,7 @@ Present **only when** `assignedToUserId` is set. Removed on unassign (`REMOVE gs
 | Role | Attribute | Format |
 |------|-----------|--------|
 | Partition | `gsi2pk` | `USER#<assignedToUserId>` |
-| Sort | `gsi2sk` | `TS#<epochMsPadded13>#<alertId>` — same time+id shape as GSI4 sort; **workflow state** is the `alertState` attribute, not a `STATE#` prefix in the key. |
+| Sort | `gsi2sk` | `TS#<epochMsPadded13>#<alertId>` — **creation** instant + id (same shape as GSI4); **workflow state** is the `alertState` attribute, not a `STATE#` prefix in the key. |
 
 Queries (`queryUserAlerts` / `queryUserAlertsPage`) use `gsi2pk = :u` and, when filtering by state, `FilterExpression: alertState = :state` (not a key prefix).
 
@@ -98,11 +98,11 @@ Populated on **create** for the alert metadata row (`AlertKeyBuilder.buildGsi4Pk
 | Role | Attribute | Format |
 |------|-----------|--------|
 | Partition | `gsi4pk` | `ORG#<organizationId>` — org only (no `STATE#` segment). |
-| Sort | `gsi4sk` | `TS#<epochMsPadded13>#<alertId>` — **trigger** instant for ordering. |
+| Sort | `gsi4sk` | `TS#<epochMsPadded13>#<alertId>` — **creation** instant for ordering (same ms as `createdAt` at write). |
 
 **Historical note:** Previously TEAM listings merged two **GSI1** partitions (UNASSIGNED + ASSIGNED). **GSI4** replaces that with one org-wide time stream; narrow by `alertState` via query params when needed.
 
-**Tradeoffs:** state is not in `gsi4pk`; one hot partition per org; `FilterExpression` on state costs read capacity for skipped items at scale; if `triggerTimestamp` becomes mutable on update, refresh `gsi4sk` in the same `UpdateItem` as the domain field.
+**Tradeoffs:** state is not in `gsi4pk`; one hot partition per org; `FilterExpression` on state costs read capacity for skipped items at scale. Listing **`dateFrom` / `dateTo`** on TEAM/MY constrain this **creation-time** sort key; filter clinical time via **`triggerTimestamp`** in `FilterExpression` when needed.
 
 ## Write patterns (high level)
 

@@ -1,6 +1,7 @@
 import type {
   AuditRecord,
   MetadataTypeInput,
+  MetadataTypeListItem,
   MetadataTypeRecord,
   MetadataValueInput,
   MetadataValueRecord,
@@ -359,7 +360,7 @@ export async function searchMetadataValues(
   return (await getMetadataRepository()).searchMetadataValues(metadataTypeCode, filter);
 }
 
-async function listMetadataTypesFromService(input: ListMetadataInput): Promise<MetadataTypeRecord[]> {
+async function listMetadataTypesFromService(input: ListMetadataInput): Promise<MetadataTypeListItem[]> {
   const mode = resolveStatusMode(input);
 
   const base = {
@@ -367,14 +368,23 @@ async function listMetadataTypesFromService(input: ListMetadataInput): Promise<M
     valueDataType: input.valueDataType,
   };
 
-  if (mode === 'all') {
-    return listTypes(base);
-  }
+  const types =
+    mode === 'all'
+      ? await listTypes(base)
+      : await listTypes({
+          ...base,
+          status: mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE,
+        });
 
-  return listTypes({
-    ...base,
-    status: mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE,
-  });
+  const valueListStatus: Status | null =
+    mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
+
+  const counts = await Promise.all(types.map((t) => listValues(t.metadataTypeCode, valueListStatus)));
+
+  return types.map((t, i) => ({
+    ...t,
+    metadataValueCount: counts[i]!.length,
+  }));
 }
 
 async function listMetadataValuesFromService(input: ListMetadataInput): Promise<MetadataValueApiModel[]> {

@@ -1,6 +1,6 @@
 import {
   metadataService,
-  type MetadataTypeRecord,
+  type MetadataTypeListItem,
   type MetadataValueApiModel,
   ValidationError,
 } from '@api-hub/metadata';
@@ -16,7 +16,7 @@ export const main = withLambdaHandler(async (req) => {
   const input = listMetadataSchema.parse(req);
 
   if (input.entityType === 'type') {
-    const records: MetadataTypeRecord[] = await metadataService.listTypes(input);
+    const records: MetadataTypeListItem[] = await metadataService.listTypes(input);
     const userMap = await getUsersByIds(collectUserIdsForEnrichment(records));
     return records.map((row) => enrichMetadataRecordActors(row, userMap));
   }

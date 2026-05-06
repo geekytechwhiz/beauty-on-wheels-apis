@@ -153,7 +153,8 @@ paths:
       summary: List metadata types or values for a type
       description: |
         `entityType=type`: `module`, `valueDataType` / `datatype`, and list status mode (`include-inactive` / `status`).
-        `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
+        Each type includes `metadataValueCount` (latest-version values for that type, using the same active/inactive/all
+        rule as below). `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
         filters: `applicableModules`, `applicableCategories`, `applicableConditions`, `applicableCountries`,
         `applicableLanguages` (comma-separated
         tokens, OR within a field, AND across fields; `isGlobal` values always included). The `search` query param is not supported.

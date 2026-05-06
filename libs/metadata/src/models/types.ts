@@ -80,6 +80,12 @@ export interface MetadataTypeRecord {
   lastModifiedBy?: string;
 }
 
+/** Type row returned by list metadata when `entityType=type`, including value totals per type. */
+export type MetadataTypeListItem = MetadataTypeRecord & {
+  /** Latest-version values for this type; filtered like `GET .../list?entityType=value` (active / inactive / all). */
+  metadataValueCount: number;
+};
+
 export interface MetadataValueInput {
   /** Immutable after first write; API alias `metadataValueCode`. */
   valueCode: string;

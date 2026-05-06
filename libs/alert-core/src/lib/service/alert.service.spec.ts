@@ -385,8 +385,16 @@ describe('AlertService', () => {
       expect(repo.updateAlertsTransaction).toHaveBeenCalledTimes(1);
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ existing: a1, patch: { assignedToUserId: 'user-9' } }),
-          expect.objectContaining({ existing: a2, patch: { assignedToUserId: 'user-9' } }),
+          expect.objectContaining({
+            existing: a1,
+            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9' },
+            performedByUserId: 'actor-1',
+          }),
+          expect.objectContaining({
+            existing: a2,
+            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9' },
+            performedByUserId: 'actor-1',
+          }),
         ]),
       );
     });
@@ -403,7 +411,7 @@ describe('AlertService', () => {
 
       expect(result.primaryAlert?.alertId).toBe('a1');
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
-        expect.objectContaining({ patch: { assignedToUserId: null } }),
+        expect.objectContaining({ patch: { alertState: ALERT_STATE.UNASSIGNED, assignedToUserId: null } }),
       ]);
     });
 

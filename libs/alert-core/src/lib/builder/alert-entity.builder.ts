@@ -239,7 +239,17 @@ export class AlertEntityBuilder {
     };
   }
 
-  static buildUpdateExpression(existing: AlertDdbRecord, patch: UpdateAlertRequest) {
+  static buildUpdateExpression(
+    existing: AlertDdbRecord,
+    patch: UpdateAlertRequest,
+    opts?: {
+      /**
+       * Actor who performed the assignment mutation (not the assignee).
+       * Used to populate `assignedBy` when `assignedToUserId` is set.
+       */
+      performedByUserId?: string;
+    },
+  ) {
     const nowMs = Date.now();
     /** Sort-key segment matches {@link buildAlertRecord}: creation instant, not clinical trigger. */
     const sortEpochMs = toEpochMs(existing.createdAt);
@@ -286,7 +296,8 @@ export class AlertEntityBuilder {
       } else {
         setField('assignedToUserId', patch.assignedToUserId);
         setField('assignedAt', nowMs);
-        setField('assignedBy', patch.assignedToUserId);
+        // `assignedBy` should represent the actor who performed the assignment (JWT actor), not the assignee.
+        setField('assignedBy', opts?.performedByUserId?.trim() || patch.assignedToUserId);
         if (patch.assignedToDisplayName !== undefined) {
           setField('assignedToDisplayName', patch.assignedToDisplayName);
         }

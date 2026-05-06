@@ -10,7 +10,7 @@ import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
 import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
-import { type AlertState } from '../models/types/alert-state.type';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
 import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
@@ -315,6 +315,7 @@ export class AlertService extends BaseAlertService {
           });
           const updated = await this.repo.updateAlert(id, patch, {
             activityItems: activityItems.length > 0 ? activityItems : undefined,
+            performedByUserId: input.performedByUserId?.trim() || 'SYSTEM',
           });
           if (updated) succeeded.push(id);
           else failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found during update' });
@@ -398,8 +399,9 @@ export class AlertService extends BaseAlertService {
 
     const patch: UpdateAlertRequest =
       input.action === 'UNASSIGN'
-        ? { assignedToUserId: null, assignedToDisplayName: null }
+        ? { alertState: ALERT_STATE.UNASSIGNED, assignedToUserId: null, assignedToDisplayName: null }
         : {
+            alertState: ALERT_STATE.ASSIGNED,
             assignedToUserId: assignToUserId as string,
             assignedToDisplayName: assigneeDisplayName,
           };
@@ -416,7 +418,7 @@ export class AlertService extends BaseAlertService {
         performedByDisplayName,
         nowMs,
       });
-      return { existing: row, patch, activityItems };
+      return { existing: row, patch, activityItems, performedByUserId: performedBy };
     });
 
     await this.repo.updateAlertsTransaction(updates);

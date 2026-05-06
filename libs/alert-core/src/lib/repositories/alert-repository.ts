@@ -561,7 +561,7 @@ export class AlertRepository extends BaseRepository {
   async updateAlert(
     alertId: string,
     patch: UpdateAlertRequest,
-    options?: { activityItems?: Record<string, unknown>[] },
+    options?: { activityItems?: Record<string, unknown>[]; performedByUserId?: string },
   ): Promise<AlertDdbRecord | null> {
     const existing = await this.getAlertById(alertId);
     if (!existing) return null;
@@ -569,6 +569,7 @@ export class AlertRepository extends BaseRepository {
     const updateParams = AlertEntityBuilder.buildUpdateExpression(
       existing,
       patch,
+      options?.performedByUserId ? { performedByUserId: options.performedByUserId } : undefined,
     );
 
     const activities = options?.activityItems?.filter((x) => x && typeof x === 'object') ?? [];
@@ -610,6 +611,7 @@ export class AlertRepository extends BaseRepository {
       existing: AlertDdbRecord;
       patch: UpdateAlertRequest;
       activityItems?: Record<string, unknown>[];
+      performedByUserId?: string;
     }>,
   ): Promise<void> {
     if (updates.length === 0) return;
@@ -618,7 +620,11 @@ export class AlertRepository extends BaseRepository {
 
     const transactItems: Array<Record<string, unknown>> = [];
     for (const u of updates) {
-      const updateParams = AlertEntityBuilder.buildUpdateExpression(u.existing, u.patch);
+      const updateParams = AlertEntityBuilder.buildUpdateExpression(
+        u.existing,
+        u.patch,
+        u.performedByUserId ? { performedByUserId: u.performedByUserId } : undefined,
+      );
       transactItems.push({
         Update: {
           TableName: table,

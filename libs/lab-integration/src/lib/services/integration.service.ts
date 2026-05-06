@@ -20,9 +20,9 @@ export async function createOrder(
     const cached =
       await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
     if (cached) {
-      console.log(
-        `Returning cached result for idempotency key: ${idempotencyKey}`
-      );
+      // console.log(
+        // `Returning cached result for idempotency key: ${idempotencyKey}`
+      // );
       return cached;
     }
   }
@@ -51,9 +51,9 @@ export async function rescheduleOrder(
     const cached =
       await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
     if (cached) {
-      console.log(
-        `Returning cached result for idempotency key: ${idempotencyKey}`
-      );
+      // console.log(
+        // `Returning cached result for idempotency key: ${idempotencyKey}`
+      // );
       return cached;
     }
   }
@@ -82,9 +82,9 @@ export async function cancelOrder(
     const cached =
       await idempotencyService.getResult<IntegrationResult>(idempotencyKey);
     if (cached) {
-      console.log(
-        `Returning cached result for idempotency key: ${idempotencyKey}`
-      );
+      // console.log(
+        // `Returning cached result for idempotency key: ${idempotencyKey}`
+      // );
       return cached;
     }
   }

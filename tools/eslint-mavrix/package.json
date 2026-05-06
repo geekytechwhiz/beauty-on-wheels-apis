@@ -18,7 +18,7 @@
     "!**/*.tsbuildinfo"
   ],
   "peerDependencies": {
-    "eslint": "^9"
+    "tslib": "^2.3.0"
   },
    
   "dependencies": { 

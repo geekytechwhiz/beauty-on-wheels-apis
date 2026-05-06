@@ -1,6 +1,6 @@
 import { ZodError } from 'zod';
 
-import { BaseError } from '../../../../utils/src/errors/base.error';
+import { BaseError } from '@api-hub/utils';
 
 import type { DlqConfig } from '../dlq/dlq-config';
 

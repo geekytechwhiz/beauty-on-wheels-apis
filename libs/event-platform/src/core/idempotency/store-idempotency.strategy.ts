@@ -1,7 +1,12 @@
 // core/idempotency/store-idempotency.strategy.ts
-
+ 
 import type { IdempotencyStrategy } from './idempotency-strategy';
 import type { IdempotencyContext, IdempotencyResult } from './types';
+import {getLogger} from '@api-hub/observability';
+
+const logger = getLogger({
+  service: 'StoreIdempotencyStrategy',
+});
 
 export interface IdempotencyStore {
   claim(key: string): Promise<'ACQUIRED' | 'DUPLICATE' | 'IN_PROGRESS'>;
@@ -22,7 +27,7 @@ export class StoreIdempotencyStrategy implements IdempotencyStrategy {
       result = await this.store.claim(context.eventId);
     } catch (err) {
       // 🔥 Infrastructure failure → retry
-      console.error('Idempotency claim failed', {
+      logger.error('Idempotency claim failed', {
         eventId: context.eventId,
         error: err,
       });
@@ -34,20 +39,20 @@ export class StoreIdempotencyStrategy implements IdempotencyStrategy {
         return 'PROCEED';
 
       case 'DUPLICATE':
-        console.info('Duplicate event detected', {
+        logger.info('Duplicate event detected', {
           eventId: context.eventId,
         });
         return 'DUPLICATE';
 
       case 'IN_PROGRESS':
-        console.warn('Event already in progress', {
+        logger.warn('Event already in progress', {
           eventId: context.eventId,
         });
         return 'RETRY';
 
       default:
         // 🔥 Defensive programming
-        console.error('Unknown idempotency state', {
+        logger.error('Unknown idempotency state', {
           eventId: context.eventId,
           result,
         });

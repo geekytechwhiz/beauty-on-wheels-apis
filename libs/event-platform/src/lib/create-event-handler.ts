@@ -49,8 +49,8 @@ function mergeTracingForDispatchLog(
   if (!existing) {
     return {
       onEventReceived: dispatchInfo,
-      onEventProcessed: () => {},
-      onEventFailed: () => {},
+      onEventProcessed: () => { /* empty */ },
+      onEventFailed: () => { /* empty */ },
     };
   }
 

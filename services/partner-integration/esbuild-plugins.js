@@ -26,7 +26,7 @@ module.exports = [
           if (existsSync(packagePath)) {
             return { path: packagePath };
           }
-          console.error(`Error: Workspace package ${packageName} not found at ${packagePath}`);
+          logger.error(`Error: Workspace package ${packageName} not found at ${packagePath}`);
           return undefined;
         }
         return undefined;

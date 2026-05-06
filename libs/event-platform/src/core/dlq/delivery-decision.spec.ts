@@ -73,7 +73,7 @@ describe('resolveDeliveryDecision', () => {
     const d = resolveDeliveryDecision({
       effectiveAttempt: 1,
       maxAttempts: 5,
-      dlq: { enabled: true, strategy: { send: async () => {} } },
+      dlq: { enabled: true, strategy: { send: async () => { /* empty */ } } },
       error: new ZodError([]),
       allowTransportRetry: true,
     });

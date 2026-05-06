@@ -3,7 +3,7 @@ import { evaluateDeliveryPolicy } from './delivery-policy';
 import { ZodError } from 'zod';
 
 describe('evaluateDeliveryPolicy', () => {
-  const dlqOn: DlqConfig = { enabled: true, strategy: { send: async () => {} } };
+  const dlqOn: DlqConfig = { enabled: true, strategy: { send: async () => { /* empty */ } } };
 
   it('returns retry for sqs-native params same as default when attempts remain', () => {
     const d = evaluateDeliveryPolicy({

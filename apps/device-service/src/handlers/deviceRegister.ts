@@ -33,7 +33,7 @@ const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Conte
 
   // Extract user context from authorizer (Cognito)
   const authorizer = (event.requestContext as any)?.authorizer;
-  console.log('AUTHORIZER ', authorizer);
+  // console.log('AUTHORIZER ', authorizer);
 
   // For Cognito, claims are usually under authorizer.claims
   const claims = (authorizer as any)?.claims || authorizer || {};
@@ -55,8 +55,8 @@ const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Conte
     (body as any).organizationId ||
     (body as any).organizationID;
 
-  console.log('USER ID ', userId);
-  console.log('ORGANIZATION ID ', organizationId);
+  // console.log('USER ID ', userId);
+  // console.log('ORGANIZATION ID ', organizationId);
 
   // Basic validation - check required fields
   if (!userId || !organizationId) {

@@ -1,5 +1,8 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "sync": {
+    "applyChanges": true
+  },
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
@@ -55,15 +58,8 @@
         "targetName": "test"
       },
       "exclude": ["apps/alert-service-e2e/**/*"]
-    },
-    {
-      "plugin": "@nx/vitest",
-      "options": {
-        "testTargetName": "test",
-        "ciTargetName": "test-ci",
-        "testMode": "watch"
-      }
     }
+   
   ],
   "targetDefaults": {
     "@nx/esbuild:esbuild": {

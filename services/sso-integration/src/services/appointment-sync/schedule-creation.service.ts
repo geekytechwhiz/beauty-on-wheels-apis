@@ -236,15 +236,15 @@ export class ScheduleCreationService {
     organizationId: string,
     context: SSORequestContext,
   ): Promise<void> {
-    console.log(
-      'updateServiceStatusWithRetry: start',
-      JSON.stringify({
-        addonId,
-        userId,
-        organizationId,
-        correlationId: context.correlationId,
-      }),
-    );
+    // console.log(
+      // 'updateServiceStatusWithRetry: start',
+      // JSON.stringify({
+        // addonId,
+        // userId,
+        // organizationId,
+        // correlationId: context.correlationId,
+      // }),
+    // );
     await retryWithBackoff(async () => {
       const payload = {
         addonId,
@@ -254,19 +254,19 @@ export class ScheduleCreationService {
         scheduleStatus: 'confirmed' as const,
         paymentStatus: 'completed' as const,
       };
-      console.log(
-        'updateServiceStatusWithRetry: calling updateServiceStatus',
-        JSON.stringify({ payload, correlationId: context.correlationId }),
-      );
+      // console.log(
+        // 'updateServiceStatusWithRetry: calling updateServiceStatus',
+        // JSON.stringify({ payload, correlationId: context.correlationId }),
+      // );
       try {
         const response = await this.scheduleClient.updateServiceStatus(
           payload,
           context,
         );
-        console.log(
-          'updateServiceStatusWithRetry: updateServiceStatus response',
-          JSON.stringify({ response, correlationId: context.correlationId }),
-        );
+        // console.log(
+          // 'updateServiceStatusWithRetry: updateServiceStatus response',
+          // JSON.stringify({ response, correlationId: context.correlationId }),
+        // );
       } catch (err) {
         console.error(
           'updateServiceStatusWithRetry: updateServiceStatus error',
@@ -281,14 +281,14 @@ export class ScheduleCreationService {
         throw err;
       }
     }, this.retryOptions);
-    console.log(
-      'updateServiceStatusWithRetry: complete',
-      JSON.stringify({
-        addonId,
-        userId,
-        organizationId,
-        correlationId: context.correlationId,
-      }),
-    );
+    // console.log(
+      // 'updateServiceStatusWithRetry: complete',
+      // JSON.stringify({
+        // addonId,
+        // userId,
+        // organizationId,
+        // correlationId: context.correlationId,
+      // }),
+    // );
   }
 }

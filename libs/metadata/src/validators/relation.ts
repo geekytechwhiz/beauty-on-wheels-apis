@@ -1,7 +1,7 @@
-import type { IMetadataRegistryRepository } from '../repository/metadata-registry.repository.interface';
+import type { IMetadataRegistryRepository } from '../repositories/metadata-registry.repository.interface';
 import { NotFoundError, ValidationError } from '../domain/errors';
-import type { CreateMetadataRelationInput, RelationType } from '../domain/relation-types';
-import { RELATION_TYPES } from '../domain/relation-types';
+import type { CreateMetadataRelationInput, RelationType } from '../models/relation-types';
+import { RELATION_TYPES } from '../models/relation-types';
 import { assertMetadataTypeCode, assertMetadataValueCode } from './code-patterns';
 import { skPrefixForRelationType } from '../domain/relation-keys';
 

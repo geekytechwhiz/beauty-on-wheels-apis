@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/service-clients/src",
   "projectType": "library",
-  "tags": ["type:lib", "allowed-for-app"],
+  "tags": ["type:lib", "type:shared"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint",

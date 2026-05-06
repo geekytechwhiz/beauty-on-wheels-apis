@@ -7,9 +7,10 @@ frameworkVersion: '3'
 configValidationMode: warn
 
 plugins:
+  - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
-  - serverless-auto-swagger
+  # - serverless-auto-swagger
   - serverless-offline
 
 provider:
@@ -157,6 +158,7 @@ custom:
       - '.tsx'
       - '.js'
       - '.jsx'
+      - '.mjs'
       - '.json'
     # Ensure .json (e.g. org-vitals.json) is inlined so health handler has default vitals in the bundle
     loader:
@@ -197,6 +199,10 @@ custom:
     stg: info
     nvstg: info
     prd: warn
+
+  # serverless-plugin-warmup: declare default warmer
+  warmup:
+    default: {}
 
   cors:
     origin: ${env:CORS_ORIGIN, '*'}
@@ -317,8 +323,11 @@ functions:
 
   getOrganization:
     handler: src/handlers/getOrganization.main
+    warmup:
+      default:
+        enabled: true
     timeout: 30
-    memorySize: 256
+    memorySize: 512
     events:
       - http:
           path: organization/{organizationId}

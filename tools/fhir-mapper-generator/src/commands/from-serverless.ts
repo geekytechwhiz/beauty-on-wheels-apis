@@ -21,7 +21,7 @@ export function registerFromServerlessCommand(program: Command) {
       interactive?: boolean;
     }) => {
       try {
-        console.log(`📋 Parsing serverless.yml: ${options.serverless}`);
+        // console.log(`📋 Parsing serverless.yml: ${options.serverless}`);
         
         const parser = new ServerlessParser();
         const serverlessConfig = parser.parseServerlessFile(options.serverless);
@@ -29,21 +29,21 @@ export function registerFromServerlessCommand(program: Command) {
 
         if (getFunctions.length === 0) {
           console.warn('⚠️  No GET functions with path parameters found in serverless.yml');
-          console.log('   Functions need to have HTTP GET events with path parameters (e.g., /user/{userId})');
+          // console.log('   Functions need to have HTTP GET events with path parameters (e.g., /user/{userId})');
           process.exit(0);
         }
 
-        console.log(`\n📊 Found ${getFunctions.length} GET function(s) with path parameters:\n`);
+        // console.log(`\n📊 Found ${getFunctions.length} GET function(s) with path parameters:\n`);
 
         // Display available functions
         getFunctions.forEach((func, index) => {
-          console.log(`${index + 1}. ${func.name}`);
-          console.log(`   Path: ${func.path}`);
-          console.log(`   Handler: ${func.handler}`);
+          // console.log(`${index + 1}. ${func.name}`);
+          // console.log(`   Path: ${func.path}`);
+          // console.log(`   Handler: ${func.handler}`);
           if (func.pathParameters?.length) {
-            console.log(`   Parameters: ${func.pathParameters.map(p => p.name).join(', ')}`);
+            // console.log(`   Parameters: ${func.pathParameters.map(p => p.name).join(', ')}`);
           }
-          console.log('');
+          // console.log('');
         });
 
         // Handle --all option: generate configs for all functions
@@ -85,7 +85,7 @@ export function registerFromServerlessCommand(program: Command) {
         } else {
           // Use first function by default
           selectedFunction = getFunctions[0];
-          console.log(`\n✅ Using first function: ${selectedFunction.name}`);
+          // console.log(`\n✅ Using first function: ${selectedFunction.name}`);
         }
 
         if (!selectedFunction) {
@@ -193,12 +193,12 @@ ${stringify(config)}`;
   const finalOutputPath = outputPath || `${serviceName}-mapping.yaml`;
   writeFileSync(finalOutputPath, yamlContent, 'utf-8');
 
-  console.log(`\n✅ Configuration generated: ${finalOutputPath}`);
-  console.log('\n📝 Next steps:');
-  console.log('   1. Review the generated configuration');
-  console.log('   2. Update apiEndpoint to match your microservice API');
-  console.log('   3. Add field mappings based on your API response');
-  console.log(`   4. Run: fhir-mapper generate -c ${finalOutputPath}`);
+  // console.log(`\n✅ Configuration generated: ${finalOutputPath}`);
+  // console.log('\n📝 Next steps:');
+  // console.log('   1. Review the generated configuration');
+  // console.log('   2. Update apiEndpoint to match your microservice API');
+  // console.log('   3. Add field mappings based on your API response');
+  // console.log(`   4. Run: fhir-mapper generate -c ${finalOutputPath}`);
 }
 
 /**
@@ -221,7 +221,7 @@ async function generateAllConfigurations(
     mkdirSync(outputDirectory, { recursive: true });
   }
 
-  console.log(`\n🔨 Generating configurations for ${functions.length} function(s)...\n`);
+  // console.log(`\n🔨 Generating configurations for ${functions.length} function(s)...\n`);
 
   const { stringify } = await import('yaml');
   const generatedFiles: string[] = [];
@@ -292,17 +292,17 @@ ${stringify(config)}`;
     writeFileSync(filePath, yamlContent, 'utf-8');
     generatedFiles.push(filePath);
 
-    console.log(`   ✅ ${func.name} → ${filePath}`);
+    // console.log(`   ✅ ${func.name} → ${filePath}`);
   }
 
-  console.log(`\n✅ Generated ${generatedFiles.length} configuration file(s) in: ${outputDirectory}`);
-  console.log('\n📝 Next steps:');
-  console.log('   1. Review each configuration file');
-  console.log('   2. Update apiEndpoint for each to match your microservice API');
-  console.log('   3. Add field mappings based on your API response structure');
-  console.log('   4. Generate code for each:');
+  // console.log(`\n✅ Generated ${generatedFiles.length} configuration file(s) in: ${outputDirectory}`);
+  // console.log('\n📝 Next steps:');
+  // console.log('   1. Review each configuration file');
+  // console.log('   2. Update apiEndpoint for each to match your microservice API');
+  // console.log('   3. Add field mappings based on your API response structure');
+  // console.log('   4. Generate code for each:');
   generatedFiles.forEach((file) => {
-    console.log(`      fhir-mapper generate -c ${file}`);
+    // console.log(`      fhir-mapper generate -c ${file}`);
   });
 }
 

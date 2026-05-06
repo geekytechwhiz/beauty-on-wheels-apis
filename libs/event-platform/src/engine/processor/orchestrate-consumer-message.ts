@@ -8,8 +8,8 @@ import {
   recordConsumerRetry,
 } from '@api-hub/observability';
 
-import { BaseError } from '../../../../utils/src/errors/base.error';
-import { errorCodeFromUnknown, toBaseError } from '../../../../utils/src/errors/normalize-error';
+import { BaseError } from '@api-hub/utils';
+import { errorCodeFromUnknown, toBaseError } from '@api-hub/utils';
 
 import { handleDlq } from '../../core/dlq/dlq.executor';
 import type { DeliveryDecision } from '../../core/policy/delivery-policy';

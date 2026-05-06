@@ -1,11 +1,10 @@
 import { DescribeTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import {
-  DynamoDbMetadataRegistryRepository,
-  DynamoDbRelationRepository,
-  type IMetadataRegistryRepository,
-  type IRelationRepository,
-} from '@api-hub/metadata';
+
+import { DynamoDbMetadataRegistryRepository } from '../repositories/dynamodb/metadata.repository.impl';
+import { DynamoDbRelationRepository } from '../repositories/dynamodb/dynamodb-relation.repository';
+import type { IMetadataRegistryRepository } from '../repositories/metadata-registry.repository.interface';
+import type { IRelationRepository } from '../repositories/relation.repository.interface';
 
 let dynamoContextPromise: Promise<{
   doc: ReturnType<typeof DynamoDBDocumentClient.from>;

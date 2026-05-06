@@ -18,7 +18,7 @@ async function cleanup() {
 
   for (const fn of functions.Functions || []) {
     const functionName = fn?.FunctionName;
-    console.log(`\nProcessing: ${functionName}`);
+    // console.log(`\nProcessing: ${functionName}`);
 
     // Get aliases
     const aliasesRes = await client.send(
@@ -42,7 +42,7 @@ async function cleanup() {
 
     for (const version of versionsToDelete) {
       if (protectedVersions.has(version)) {
-        console.log(`Skipping alias version: ${version}`);
+        // console.log(`Skipping alias version: ${version}`);
         continue;
       }
 
@@ -53,9 +53,9 @@ async function cleanup() {
             Qualifier: version,
           })
         );
-        console.log(`Deleted version: ${version}`);
+        // console.log(`Deleted version: ${version}`);
       } catch (err) {
-        console.log(`Error deleting ${version}:`, err.message);
+        // console.log(`Error deleting ${version}:`, err.message);
       }
     }
   }

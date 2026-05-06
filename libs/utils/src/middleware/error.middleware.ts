@@ -106,6 +106,7 @@ export async function handleError(
     description: localDescription,
     severity: 'ERROR' as const,
   }));
+  // console.log("CDN ERROR MESSAGE : ",cdnMessage);
   // For INTERNAL_SERVER_ERROR, prefer the thrown error message so AWS/DynamoDB details are not replaced by CDN copy.
   const descriptionForClient =
     errorCode === 'INTERNAL_SERVER_ERROR' ? localDescription : cdnMessage.description;

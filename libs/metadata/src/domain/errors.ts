@@ -1,7 +1,7 @@
 import { BaseError } from '@api-hub/utils';
 
-import { STATUS } from './constants';
-import type { MetadataTypeRecord } from './types';
+import { STATUS } from '../constants';
+import type { MetadataTypeRecord } from '../models/types';
 
 /** Stable public shape for HTTP mapping and tests (subclasses inherit this via {@link MetadataRegistryError}). */
 export interface MetadataHttpErrorShape {

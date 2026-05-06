@@ -1,6 +1,6 @@
-import { STATUS } from './constants';
+import { STATUS } from '../constants';
 import { getMetadataValueDelta, valueCreateAuditNewValue, resolveValueUpdateAction } from './value-audit-delta';
-import type { MetadataValueRecord } from './types';
+import type { MetadataValueRecord } from '../models/types';
 
 const base: Omit<MetadataValueRecord, 'version' | 'valueCode' | 'label'> = {
   metadataTypeCode: 'MetricCode',

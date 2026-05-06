@@ -23,7 +23,7 @@ export class CircuitBreaker {
       if (Date.now() - this.lastFailureTime >= this.resetTimeoutMs) {
         this.state = 'HALF_OPEN';
         this.successCount = 0;
-        console.log('Circuit breaker entering HALF_OPEN state');
+        // console.log('Circuit breaker entering HALF_OPEN state');
       } else {
         throw new CircuitBreakerOpenError(
           `Circuit breaker is OPEN. Next retry in ${Math.ceil(
@@ -49,7 +49,7 @@ export class CircuitBreaker {
       if (this.successCount >= this.halfOpenMaxAttempts) {
         this.state = 'CLOSED';
         this.failureCount = 0;
-        console.log('Circuit breaker CLOSED after successful recovery');
+        // console.log('Circuit breaker CLOSED after successful recovery');
       }
     } else if (this.state === 'CLOSED') {
       this.failureCount = 0;
@@ -62,10 +62,10 @@ export class CircuitBreaker {
 
     if (this.state === 'HALF_OPEN') {
       this.state = 'OPEN';
-      console.log('Circuit breaker OPEN after failure in HALF_OPEN state');
+      // console.log('Circuit breaker OPEN after failure in HALF_OPEN state');
     } else if (this.failureCount >= this.failureThreshold) {
       this.state = 'OPEN';
-      console.log(`Circuit breaker OPEN after ${this.failureCount} failures`);
+      // console.log(`Circuit breaker OPEN after ${this.failureCount} failures`);
     }
   }
 

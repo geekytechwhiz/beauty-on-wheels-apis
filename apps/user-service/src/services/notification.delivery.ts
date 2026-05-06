@@ -183,8 +183,8 @@ export async function sendSms(options: {
   try {
     const phone = resolvePhoneNumber({ phone: options.phone });
     const formattedPhone = normalizeIndianPhone(phone);
-    console.log('FINAL TEMPLATE DATA : ', options.templateData);
-    console.log('FINAL TEMPLATE : ', options.template);
+    // console.log('FINAL TEMPLATE DATA : ', options.templateData);
+    // console.log('FINAL TEMPLATE : ', options.template);
 
     // try {
     //   if (options.template) {
@@ -266,7 +266,7 @@ export async function sendSms(options: {
       console.error('TEMPLATE / TEMPLATE DATA ERROR : ', err);
     }
 
-    console.log('PAYLOAD : ', payload);
+    // console.log('PAYLOAD : ', payload);
     try {
       await axios({
         method: 'POST',

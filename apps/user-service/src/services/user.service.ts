@@ -514,18 +514,18 @@ export class UserService {
         const templateData: Record<string, unknown> = { ...baseTemplateData };
 
         if (userTypeUpper === 'STAFF') {
-          console.log("USER TYPE STAFF")
-          console.log("TEMPLATE DATA: STAFF", templateData);
-          console.log("TEMPLATE: STAFF", template);
+          // console.log("USER TYPE STAFF")
+          // console.log("TEMPLATE DATA: STAFF", templateData);
+          // console.log("TEMPLATE: STAFF", template);
           Object.assign(templateData, {
             STAFF_FIRST_NAME: user.firstName,
             PORTAL_LINK: process.env.PORTAL_LINK || '',
             ORG_ADDRESS: orgAddress,
           });
         } else if (userTypeUpper === 'FNF') {
-          console.log("USER TYPE FNF")
-          console.log("TEMPLATE DATA: FNF", templateData);
-          console.log("TEMPLATE: FNF", template);
+          // console.log("USER TYPE FNF")
+          // console.log("TEMPLATE DATA: FNF", templateData);
+          // console.log("TEMPLATE: FNF", template);
           Object.assign(templateData, {
             WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
             HOSPITAL_ID: orgDetails?.organizationID || '',
@@ -536,9 +536,9 @@ export class UserService {
             USER_NAME: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
           });
         } else {
-          console.log("USER TYPE NOT STAFF AND FNF")
-          console.log("TEMPLATE DATA: 123", templateData);
-          console.log("TEMPLATE: 123", template);
+          // console.log("USER TYPE NOT STAFF AND FNF")
+          // console.log("TEMPLATE DATA: 123", templateData);
+          // console.log("TEMPLATE: 123", template);
           // default USER and others
           Object.assign(templateData, {
             WEB_DNS_URL: process.env.WEB_URL || process.env.WEB_DNS_URL || '',
@@ -572,8 +572,8 @@ export class UserService {
             template,
             message: 'Publishing UserCreatedNotificationRequested to SNS',
           });
-          console.log("TEMPLATE DATA: ", templateData);
-          console.log("TEMPLATE: ", template);
+          // console.log("TEMPLATE DATA: ", templateData);
+          // console.log("TEMPLATE: ", template);
           await notifyUser({
             userId: user.userID,
             email: user.emailAddress,
@@ -1205,7 +1205,7 @@ export class UserService {
       // Set modifiedDate
       updates.modifiedDate = Date.now();
       updates.generalSetting = updates.generalSetting ?? existing.generalSetting;
-       console.log("UPDATES: ", JSON.stringify(updates));
+       // console.log("UPDATES: ", JSON.stringify(updates));
       await this.repository.updateUser(userId, organizationId, updates);
       const updated = await this.repository.getUser(userId, organizationId);
       if (!updated) {
@@ -1243,6 +1243,10 @@ export class UserService {
             updated.fullName ??
             updated.firstName ??
             '';
+          const profileTemplateData: Record<string, unknown> = {};
+          if (notifyEmail && profileChannels.includes('email')) {
+            profileTemplateData.FirstName = notifyName;
+          }
           await notifyUser({
             userId: updated.userID,
             email: notifyEmail || undefined,
@@ -1250,8 +1254,7 @@ export class UserService {
             name: notifyName,
             channels: profileChannels,
             template: 'PROFILE_UPDATED',
-            // PROFILE_UPDATED template in template.registry has no {{placeholders}}; empty is valid.
-            templateData: {},
+            templateData: profileTemplateData,
             correlationId,
           });
         } else {
@@ -1292,9 +1295,9 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
     try {
       // Verify user exists
-      console.log("PATIENT ID : ",patientId)
+      // console.log("PATIENT ID : ",patientId)
       const existing = await this.repository.getUser(patientId, organizationId);
-      console.log("EXISTING : ",existing)
+      // console.log("EXISTING : ",existing)
       if (!existing) {
         throw new UserNotFoundError(patientId);
       }
@@ -1544,7 +1547,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
     }
 
     const doctor = await this.repository.getUser(doctorId, organizationId);
-    console.log("DOCTOR: ", doctor);
+    // console.log("DOCTOR: ", doctor);
     const doctorName = doctor
       ? `${(doctor as any).namePrefix || ''} ${(doctor as any).fullName || (doctor as any).firstName || ''}`.trim()
       : '';
@@ -1554,7 +1557,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
       const orgId = patientOrgId || organizationId;
       const user = await this.repository.getUser(patientId, orgId);
       if (!user) continue;
-      console.log("USER: ", user);
+      // console.log("USER: ", user);
       const u = user as unknown as Record<string, unknown>;
       users.push({
         city: u.city || '',

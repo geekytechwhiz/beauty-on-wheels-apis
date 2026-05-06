@@ -19,7 +19,7 @@ export const getRoleDetails = async (
     return [];
   }
   try {
-    console.log("URL DATA :", `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/roles/${roleId}/permissions`);
+    // console.log("URL DATA :", `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/roles/${roleId}/permissions`);
     const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/roles/${roleId}/permissions`;
 
     logger.info({ event: 'get_role_api_start', url });
@@ -43,7 +43,7 @@ export const getUserPermissions = async (
   authHeader?: string,
 ) => {
   const baseUrl = process.env.ROLE_API_URL;
-  console.log('BASE URL :', baseUrl);
+  // console.log('BASE URL :', baseUrl);
   const logger = createChildLogger(baseLogger, { userId, organizationId });
   if (!baseUrl) {
     logger.warn({ event: 'user_permissions_api_missing' });
@@ -58,11 +58,11 @@ export const getUserPermissions = async (
   }
   try {
     const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/users/${userId}/permissions`;
-    console.log('URL :', url);
+    // console.log('URL :', url);
     logger.info({ event: 'get_user_permissions_api_start', url });
 
     const response = await fetch(url, { headers: buildHeaders(authHeader) });
-    console.log('RESPONSE STATUS :', response.status);
+    // console.log('RESPONSE STATUS :', response.status);
     if (!response.ok) {
       const errorText = await response.text();
       logger.warn({ event: 'get_user_permissions_api_non_ok', status: response.status, body: errorText });
@@ -77,7 +77,7 @@ export const getUserPermissions = async (
     }
 
     const body = (await response.json()) as any;
-    console.log('BODY :', JSON.stringify(body).slice(0, 500));
+    // console.log('BODY :', JSON.stringify(body).slice(0, 500));
     logger.info({ event: 'get_user_permissions_api_success' });
 
     // From your sample the shape is: { data: { items: [ { roleId, roleName, roleType, definedRoleCode, isDefault, features: [...] } ] } }
@@ -103,7 +103,7 @@ export const getUserPermissions = async (
       featureArray = Object.values(features);
     }
 
-    console.log('EXTRACTED FEATURES COUNT :', featureArray.length);
+    // console.log('EXTRACTED FEATURES COUNT :', featureArray.length);
 
     return {
       roleId: firstRole.roleId || firstRole.roleID || null,
@@ -114,7 +114,7 @@ export const getUserPermissions = async (
       features: Array.isArray(featureArray) ? featureArray : [],
     };
   } catch (error) {
-    console.log('ERROR from permissions api:', error);
+    // console.log('ERROR from permissions api:', error);
     logger.error({ event: 'get_user_permissions_api_failed', err: serializeError(error) });
     return {
       roleId: null,
@@ -162,13 +162,13 @@ export const assignUserRole = async (
     const defaultProfilePic = 'https://d3ihgxc81ym0ss.cloudfront.net/default-avatar.png';
     const finalProfilePic = profilePic && profilePic.trim() !== '' ? profilePic : defaultProfilePic;
     
-    console.log('BODY :', JSON.stringify({
-      roleId,
-      name: fullName,
-      emailAddress: emailAddress || '',
-      phoneNumber: phoneNumber || ''  ,
-      profilePic: finalProfilePic,
-    }));
+    // console.log('BODY :', JSON.stringify({
+      // roleId,
+      // name: fullName,
+      // emailAddress: emailAddress || '',
+      // phoneNumber: phoneNumber || ''  ,
+      // profilePic: finalProfilePic,
+    // }));
     
     const response = await fetch(url, {
       method: 'POST',
@@ -182,12 +182,12 @@ export const assignUserRole = async (
       }),
     });
     
-    console.log('RESPONSE STATUS:', response.status);
-    console.log('RESPONSE OK:', response.ok);
+    // console.log('RESPONSE STATUS:', response.status);
+    // console.log('RESPONSE OK:', response.ok);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.log('ERROR RESPONSE BODY:', errorText);
+      // console.log('ERROR RESPONSE BODY:', errorText);
       logger.warn({ 
         event: 'assign_user_role_api_non_ok', 
         status: response.status,
@@ -198,7 +198,7 @@ export const assignUserRole = async (
     }
     
     const body = (await response.json()) as any;
-    console.log('SUCCESS RESPONSE BODY:', JSON.stringify(body));
+    // console.log('SUCCESS RESPONSE BODY:', JSON.stringify(body));
     logger.info({ event: 'assign_user_role_api_success', organizationId, userId, roleId });
     return body?.data || body || { success: true };
   } catch (error) {

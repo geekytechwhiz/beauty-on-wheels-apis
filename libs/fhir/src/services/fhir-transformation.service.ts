@@ -41,7 +41,7 @@ export class FhirTransformationService {
   ): Promise<any> {
 
     // console.log('transformCanonicalToFhir', JSON.stringify(canonical, null, 2));
-    console.log('resourceType', resourceType);
+    // console.log('resourceType', resourceType);
 
     const mapping: ResourceMappingConfig | undefined =
       this.mappingResolver.resolve(resourceType, clientId ?? '');

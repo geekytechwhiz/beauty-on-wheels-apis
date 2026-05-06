@@ -4,8 +4,7 @@ import type {
   MiddlewarePipelineEvent,
 } from '@api-hub/middleware';
 import {
-  buildEventExecutionPipeline,
-  ensureObservabilityInitialized,
+  buildEventExecutionPipeline, 
   runMiddlewares,
 } from '@api-hub/middleware';
 
@@ -19,7 +18,7 @@ import type { EventTracingHooks } from '../core/tracing/event-tracing-hooks';
 import type { TraceContext } from '../core/tracing/trace-context';
 import { consumeEvent } from './event-platform';
 
-ensureObservabilityInitialized();
+ 
 
 const logger = getLogger();
 

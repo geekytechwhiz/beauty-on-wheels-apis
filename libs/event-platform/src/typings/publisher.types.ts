@@ -12,9 +12,8 @@ export type PublishInput<T> = {
     eventId?: string;
     timestamp?: string;
     idempotencyKey?: string;
-   
-    correlationId?: string; 
-    meta?: Partial<EventMeta>;
+    
+    meta: Partial<EventMeta>;
   };
 
    

@@ -39,7 +39,11 @@
     "fix:imports": "ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
     "update:version": "ts-node --project tools/update-version/tsconfig.json tools/update-version/update-version.ts",
     "fix:imports:light": "FIX_IMPORTS_SKIP_CLEAN=1 FIX_IMPORTS_SKIP_BUILD=1 ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
-    "fix:imports:sh": "sh tools/file-import/fix-imports.sh"
+    "fix:imports:sh": "sh tools/file-import/fix-imports.sh",
+    "lint": "nx run-many --target=lint --all --parallel=10",
+    "lint:fix": "nx run-many --target=lint --all --parallel=10 --fix"
+ 
+     
   },
   "private": true,
   "dependencies": {
@@ -67,6 +71,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "ajv": "^8.17.1",
     "aws-lambda": "^1.0.7",
+    "aws-xray-sdk-core": "^3.12.0",
     "axios": "^1.6.0",
     "axios-retry": "^4.5.0",
     "chalk": "^5.6.2",

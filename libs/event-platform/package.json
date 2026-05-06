@@ -12,6 +12,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./dx": {
+      "@api-hub/source": "./src/dx/index.ts",
+      "types": "./dist/dx/index.d.ts",
+      "import": "./dist/dx/index.js",
+      "default": "./dist/dx/index.js"
     }
   },
   "nx": {
@@ -22,11 +28,13 @@
     "@api-hub/middleware": "workspace:*",
     "@api-hub/observability": "workspace:*",
     "@api-hub/utils": "workspace:*",
+    "@aws-sdk/client-dynamodb": "^3.958.0",
+    "@aws-sdk/client-eventbridge": "^3.958.0",
     "@aws-sdk/client-sns": "^3.958.0",
     "@aws-sdk/client-sqs": "^3.1001.0",
-    "@smithy/node-http-handler": "^4.0.0",
     "zod": "^4.2.1",
-    "@aws-sdk/client-dynamodb": "^3.958.0",
-    "aws-lambda": "^1.0.7"
+    "aws-lambda": "^1.0.7",
+    "vite": "^7.0.0",
+    "vite-plugin-dts": "~4.5.0"
   }
 }

@@ -16,6 +16,13 @@ export { EventConsumer } from './sdk/consumer/event-consumer';
 export { DomainIdempotencyStrategy } from './core/idempotency/domain-idempotency.strategy';
 export { StoreIdempotencyStrategy } from './core/idempotency/store-idempotency.strategy';
 export type { IdempotencyStore } from './core/idempotency/store-idempotency.strategy';
+export { DynamoDbIdempotencyStore } from './infra/dynamodb-idempotency-store';
+export { InMemoryIdempotencyStore } from './infra/in-memory-idempotency-store';
+export { recommendedSqsRedriveMaxReceiveCount } from './infra/recommended-sqs-redrive-max-receive-count';
+export {
+  createIdempotencyStrategy,
+  type CreateIdempotencyStrategyOptions,
+} from './core/idempotency/idempotency-factory';
 
 export { assertVersionCompatible } from './core/versioning/version-compatibility';
 export { parseInboundEvent } from './sdk/consumer/parse-inbound-event';
@@ -41,4 +48,7 @@ export { createSnsPublishEvent } from './sdk/publisher/create-sns-publish-event'
 export { onEvent } from './lib/define-event-handler';
 export type { EventSchemaMeta } from './core/schema/define-event';
 export { defineEvent } from './core/schema/define-event';
+export { publishEvent } from './dx/publish-event';
+export { configureEventDx } from './dx/configure-event-dx';
+export { EventBridgeAdapter } from './adapters/eventbridge/eventbridge-adapter';
 

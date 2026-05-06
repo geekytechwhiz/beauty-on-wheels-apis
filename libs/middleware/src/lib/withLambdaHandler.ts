@@ -97,7 +97,7 @@ function buildWithLambdaHandlerInner<TRequest, TResult>(
         correlationId,
       );
 
-      const responseOptions = { requestId: correlationId, event };
+      const responseOptions = { correlationId: correlationId ?? 'unknown', event };
 
       if (options.successMessageKey) {
         const messageKey = options.successMessageKey as unknown as Message;

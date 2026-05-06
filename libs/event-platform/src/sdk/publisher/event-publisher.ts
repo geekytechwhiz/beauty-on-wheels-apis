@@ -8,7 +8,6 @@ import type { BaseEvent } from '../../typings/base-event.types';
 import { createBaseEvent } from '../../core/event-envelope/create-base-event';
 import { resolveSchema } from '../../core/schema/schema-resolver';
 import type { PayloadSchemaRegistry } from '../../typings/consumer.types';
-import { createSnsPublishEvent } from "@api-hub/event-platform";
 
 /** -----------------------------
  * 🔹 Helpers
@@ -53,6 +52,13 @@ export class EventPublisher {
     /** -----------------------------
      * 🔹 Build Event (single source of truth)
      * ----------------------------- */
+    const correlationId =
+    input.meta?.correlationId ||
+    getLoggerContext()?.correlationId;
+  
+  if (!correlationId) {
+    throw new Error('Missing correlationId in publisher');
+  }
     const event: BaseEvent<T> = createBaseEvent({
       eventType: input.eventType,
       eventVersion: input.version ?? '1.0.0',
@@ -64,8 +70,7 @@ export class EventPublisher {
       idempotencyKey: input.idempotencyKey,
 
       meta: {
-        correlationId:
-          input.correlationId ?? getLoggerContext().correlationId,
+        correlationId:correlationId,
 
         tenantId: input.meta?.tenantId,
         userId: input.meta?.userId,
@@ -75,7 +80,7 @@ export class EventPublisher {
         traceId: input.meta?.traceId,
         spanId: input.meta?.spanId,
 
-        causationId: input.meta?.causationId,
+        causationId: input.meta?.causationId?? getLoggerContext()?.eventId,
         publishedAt:   new Date().toISOString(),
 
         schemaRef: `${input.eventType}@${input.version ?? '1.0.0'}`,
@@ -130,6 +135,7 @@ export class EventPublisher {
         eventType: event.eventType,
         eventVersion: event.eventVersion,
         eventId: event.eventId,
+        correlationId: event.meta?.correlationId,
       });
     } catch (err) {
       this.log.error({

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 import { resolveSchema as resolveSchemaFromCore } from '../core/schema/schema-resolver';
@@ -78,7 +79,7 @@ export function buildInternalMapper(
 }
 
 export function generateEventId(): string {
-  return crypto.randomUUID();
+  return randomUUID();
 }
 
 export function nowIso(): string {

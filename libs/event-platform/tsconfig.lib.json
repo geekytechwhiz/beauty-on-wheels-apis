@@ -10,7 +10,17 @@
     "types": [
       "node"
     ],
-    "declaration": true
+    "declaration": true,
+    /* Override base `paths`: listing only deps used by this package avoids TS including
+       unrelated workspace libs (e.g. alert-core) as compilation roots under `rootDir: src`. */
+    "paths": {
+      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/middleware": ["libs/middleware/src/index.ts"],
+      "@api-hub/observability": ["libs/observability/src/index.ts"],
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
+      "@api-hub/event-platform/dx": ["libs/event-platform/src/dx/index.ts"]
+    }
   },
   "include": [
     "src/**/*.ts",

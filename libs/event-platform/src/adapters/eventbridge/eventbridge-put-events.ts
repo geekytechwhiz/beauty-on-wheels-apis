@@ -1,3 +1,5 @@
+import type { PutEventsRequestEntry } from '@aws-sdk/client-eventbridge';
+
 import type { BaseEvent } from '../../typings/base-event.types';
 import { serializeBaseEvent } from '../../core/event-envelope/serialize-base-event';
 import type { EventBridgeAdapterConfig } from './eventbridge-adapter-config';

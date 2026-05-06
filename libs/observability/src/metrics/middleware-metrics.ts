@@ -11,7 +11,7 @@ function createMetricsInstance(): Metrics {
 }
 
 function metricsPublishFailed(context: string, err: unknown): void {
-  // eslint-disable-next-line no-console
+   
   console.error(
     JSON.stringify({
       event: 'metrics_publish_failed',

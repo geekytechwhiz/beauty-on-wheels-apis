@@ -104,6 +104,9 @@
       "@api-hub/event-platform": [
         "libs/event-platform/src/index.ts"
       ],
+      "@api-hub/event-platform/dx": [
+        "libs/event-platform/src/dx/index.ts"
+      ],
       "@api-hub/metadata": [
         "libs/metadata/src/index.ts"
       ],

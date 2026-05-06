@@ -121,7 +121,7 @@ export async function handleError(
     details: resolved.details ?? [{ message: rawDescription }],
   };
 
-  const optionsPayload = { requestId };
+  const optionsPayload = { correlationId: correlationId ?? 'unknown' };
 
   switch (statusCode) {
 

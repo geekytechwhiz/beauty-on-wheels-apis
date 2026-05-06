@@ -309,8 +309,8 @@ export class CognitoService {
    */
   async generateToken(username: string, password: string, _role?: string) {
     try {
-      console.log("USERNAME: ", username);
-      console.log("ROLE: ", _role);
+      // console.log("USERNAME: ", username);
+      // console.log("ROLE: ", _role);
       const authUsername = username.trim();
       const authPassword = password;
 

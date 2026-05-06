@@ -72,8 +72,8 @@ export function registerGenerateCommand(program: Command) {
         const outputDir = options.output ? resolve(options.output) : workspaceRoot;
         
         if (options.verbose) {
-          console.log(`📁 Workspace root: ${workspaceRoot}`);
-          console.log(`📁 Output directory: ${outputDir}`);
+          // console.log(`📁 Workspace root: ${workspaceRoot}`);
+          // console.log(`📁 Output directory: ${outputDir}`);
         }
         // CodeGenerator will auto-detect template directory
         const codeGenerator = new CodeGenerator();
@@ -89,36 +89,36 @@ export function registerGenerateCommand(program: Command) {
         const helperGenerator = new HelperGenerator(templateDir);
         const fileMerger = new FileMerger();
 
-        console.log('📋 Configuration loaded successfully');
-        console.log(`   Service: ${config.service.name}`);
-        console.log(`   FHIR Resource: ${config.fhirResource.resourceType}`);
+        // console.log('📋 Configuration loaded successfully');
+        // console.log(`   Service: ${config.service.name}`);
+        // console.log(`   FHIR Resource: ${config.fhirResource.resourceType}`);
 
         // Generate service client
         if (config.generation?.generateFiles?.includes('service-client') !== false) {
-          console.log('\n🔨 Generating service client...');
+          // console.log('\n🔨 Generating service client...');
           const serviceClientCode = codeGenerator.generateServiceClient(config);
           
           if (options.dryRun) {
-            console.log('\n=== Service Client ===');
-            console.log(serviceClientCode);
+            // console.log('\n=== Service Client ===');
+            // console.log(serviceClientCode);
           } else {
             const serviceClientPath = join(
               outputDir,
               `apps/fhir-gateway/src/services/${config.service.name}.client.ts`
             );
             await fileWriter.writeFile(serviceClientPath, serviceClientCode);
-            console.log(`   ✅ Generated: ${serviceClientPath}`);
+            // console.log(`   ✅ Generated: ${serviceClientPath}`);
           }
         }
 
         // Generate adapter
         if (config.generation?.generateFiles?.includes('adapter') !== false) {
-          console.log('\n🔨 Generating adapter...');
+          // console.log('\n🔨 Generating adapter...');
           const adapterCode = codeGenerator.generateAdapter(config);
           
           if (options.dryRun) {
-            console.log('\n=== Adapter ===');
-            console.log(adapterCode);
+            // console.log('\n=== Adapter ===');
+            // console.log(adapterCode);
           } else {
             const category = config.fhirResource.category || 'identity';
             const resourceName = config.fhirResource.resourceType.toLowerCase();
@@ -127,18 +127,18 @@ export function registerGenerateCommand(program: Command) {
               `libs/fhir/src/adapters/${category}/${resourceName}.adapter.ts`
             );
             await fileWriter.writeFile(adapterPath, adapterCode);
-            console.log(`   ✅ Generated: ${adapterPath}`);
+            // console.log(`   ✅ Generated: ${adapterPath}`);
           }
         }
 
         // Generate handler
         if (config.generation?.generateFiles?.includes('handler') !== false) {
-          console.log('\n🔨 Generating handler...');
+          // console.log('\n🔨 Generating handler...');
           const handlerCode = codeGenerator.generateHandler(config);
           
           if (options.dryRun) {
-            console.log('\n=== Handler ===');
-            console.log(handlerCode);
+            // console.log('\n=== Handler ===');
+            // console.log(handlerCode);
           } else {
             const resourceName = config.fhirResource.resourceType.toLowerCase();
             const handlerPath = join(
@@ -146,57 +146,57 @@ export function registerGenerateCommand(program: Command) {
               `apps/fhir-gateway/src/handlers/${resourceName}.ts`
             );
             await fileWriter.writeFile(handlerPath, handlerCode);
-            console.log(`   ✅ Generated: ${handlerPath}`);
+            // console.log(`   ✅ Generated: ${handlerPath}`);
           }
         }
 
         // Generate DTO type
         if (config.generation?.generateFiles?.includes('dto-type') !== false) {
-          console.log('\n🔨 Generating DTO type...');
+          // console.log('\n🔨 Generating DTO type...');
           const dtoCode = dtoGenerator.generate(config);
           const dtoType = config.service.responseType || `${config.fhirResource.resourceType}DTO`;
           
           if (options.dryRun) {
-            console.log('\n=== DTO Type ===');
-            console.log(dtoCode);
+            // console.log('\n=== DTO Type ===');
+            // console.log(dtoCode);
           } else {
             const dtoPath = join(outputDir, 'libs/fhir/src/types/internal.ts');
             const result = fileMerger.mergeDTO(dtoPath, dtoCode, dtoType);
             
             if (result.merged) {
               writeFileSync(dtoPath, result.content, 'utf-8');
-              console.log(`   ✅ Added DTO type: ${dtoType}`);
+              // console.log(`   ✅ Added DTO type: ${dtoType}`);
             } else {
-              console.log(`   ⏭️  Skipped (already exists): ${dtoType}`);
+              // console.log(`   ⏭️  Skipped (already exists): ${dtoType}`);
             }
           }
         }
 
         // Generate FHIR model
         if (config.generation?.generateFiles?.includes('fhir-model') !== false) {
-          console.log('\n🔨 Generating FHIR model...');
+          // console.log('\n🔨 Generating FHIR model...');
           const modelCode = fhirModelGenerator.generate(config);
           
           if (options.dryRun) {
-            console.log('\n=== FHIR Model ===');
-            console.log(modelCode);
+            // console.log('\n=== FHIR Model ===');
+            // console.log(modelCode);
           } else {
             const resourceName = config.fhirResource.resourceType.toLowerCase();
             const modelPath = join(outputDir, `libs/fhir/src/models/r4/${resourceName}.ts`);
             await fileWriter.writeFile(modelPath, modelCode);
-            console.log(`   ✅ Generated: ${modelPath}`);
+            // console.log(`   ✅ Generated: ${modelPath}`);
           }
         }
 
         // Generate helper methods
         if (config.generation?.generateFiles?.includes('helper-methods') !== false) {
-          console.log('\n🔨 Generating helper methods...');
+          // console.log('\n🔨 Generating helper methods...');
           const helperCode = helperGenerator.generate(config);
           const functionName = helperCode.match(/function (\w+)/)?.[1] || '';
           
           if (options.dryRun) {
-            console.log('\n=== Helper Method ===');
-            console.log(helperCode);
+            // console.log('\n=== Helper Method ===');
+            // console.log(helperCode);
           } else {
             const category = config.fhirResource.category || 'reference';
             const helperPath = join(outputDir, helperGenerator.getUtilityFilePath(category));
@@ -204,16 +204,16 @@ export function registerGenerateCommand(program: Command) {
             
             if (result.merged) {
               writeFileSync(helperPath, result.content, 'utf-8');
-              console.log(`   ✅ Added helper method: ${functionName}`);
+              // console.log(`   ✅ Added helper method: ${functionName}`);
             } else {
-              console.log(`   ⏭️  Skipped (already exists): ${functionName}`);
+              // console.log(`   ⏭️  Skipped (already exists): ${functionName}`);
             }
           }
         }
 
         // Update index.ts exports
         if (!options.dryRun) {
-          console.log('\n📝 Updating index.ts exports...');
+          // console.log('\n📝 Updating index.ts exports...');
           const indexPath = join(outputDir, 'libs/fhir/src/index.ts');
           const resourceName = config.fhirResource.resourceType.toLowerCase();
           const category = config.fhirResource.category || 'identity';
@@ -226,18 +226,18 @@ export function registerGenerateCommand(program: Command) {
           
           if (result.updated) {
             writeFileSync(indexPath, result.content, 'utf-8');
-            console.log(`   ✅ Updated exports in index.ts`);
+            // console.log(`   ✅ Updated exports in index.ts`);
           } else {
-            console.log(`   ⏭️  Exports already present`);
+            // console.log(`   ⏭️  Exports already present`);
           }
         }
 
         if (!options.dryRun) {
-          console.log('\n✅ Code generation completed successfully!');
-          console.log('\n📝 Next steps:');
-          console.log('   1. Review the generated code');
-          console.log('   2. Update serverless.yml with the new function');
-          console.log('   3. Run TypeScript compilation to verify');
+          // console.log('\n✅ Code generation completed successfully!');
+          // console.log('\n📝 Next steps:');
+          // console.log('   1. Review the generated code');
+          // console.log('   2. Update serverless.yml with the new function');
+          // console.log('   3. Run TypeScript compilation to verify');
         }
       } catch (error) {
         console.error('❌ Error generating code:', error);

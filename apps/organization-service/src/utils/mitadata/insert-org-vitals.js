@@ -142,13 +142,13 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('AWS profile:', opts.profile);
-  console.log('Table:', opts.table);
-  console.log('Item keys: pk=%s, sk=%s', payload.pk, payload.sk);
-  console.log('Attributes count:', Array.isArray(payload.attributes) ? payload.attributes.length : 0);
+  // console.log('AWS profile:', opts.profile);
+  // console.log('Table:', opts.table);
+  // console.log('Item keys: pk=%s, sk=%s', payload.pk, payload.sk);
+  // console.log('Attributes count:', Array.isArray(payload.attributes) ? payload.attributes.length : 0);
 
   if (opts.dryRun) {
-    console.log('\n[DRY-RUN] Would put item');
+    // console.log('\n[DRY-RUN] Would put item');
     return;
   }
 
@@ -158,7 +158,7 @@ async function main() {
     region: process.env.AWS_REGION || 'us-east-1',
   });
 
-  console.log('Inserted SUPPORTED_VITALS metadata into', opts.table);
+  // console.log('Inserted SUPPORTED_VITALS metadata into', opts.table);
 }
 
 if (require.main === module) {

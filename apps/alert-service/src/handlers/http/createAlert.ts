@@ -1,16 +1,20 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withApiHandler, type LambdaRequest } from '@api-hub/middleware';
 
 import { getAlertHttpController } from '../../controllers/alert-http.controller';
 import { createAlertHttpBodySchema } from '../../validators/alert.schemas';
 import { validateCreateAlertRequest } from '../../validators/request.validators';
 
-const controller = getAlertHttpController();
- 
+const c = getAlertHttpController();
+
+const handler = async (req: LambdaRequest) => c.handleCreateAlert(req);
+
 export const main = withApiHandler(
   {
     operation: 'alert.create',
     bodySchema: createAlertHttpBodySchema,
     validator: validateCreateAlertRequest,
   },
-  controller.handleCreateAlert
+  handler,
 );
+
+export default main;

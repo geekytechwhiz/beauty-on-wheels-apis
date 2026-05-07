@@ -1,8 +1,12 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withApiHandler, type LambdaRequest } from '@api-hub/middleware';
 import { getAlertHttpController } from '../../controllers/alert-http.controller';
 
 const c = getAlertHttpController();
 
 const handler = async (req: LambdaRequest) => c.handleGetAlertMetadata(req);
 
-export const main = withLambdaHandler(handler);
+export const main = withApiHandler({
+  operation: 'alert.getMetadata',
+}, handler);
+
+export default main;

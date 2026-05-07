@@ -8,3 +8,5 @@ const handler = async (req: LambdaRequest) => c.handleGetAlert(req);
 export const main = withApiHandler({
   operation: 'alert.get',
 }, handler);
+
+export default main;

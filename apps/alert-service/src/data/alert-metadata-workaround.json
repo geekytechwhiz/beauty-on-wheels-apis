@@ -32,5 +32,13 @@
     { "value": "ALERT_NO_LONGER_APPLICABLE", "label": "Alert no longer applicable" },
     { "value": "FALSE_POSITIVE", "label": "False positive" },
     { "value": "OTHER", "label": "Other" }
+  ],
+  "workflowActions": [
+    { "value": "ASSIGN", "label": "Assign" },
+    { "value": "START_WORK", "label": "Start work" },
+    { "value": "MOVE_TO_WAITING", "label": "Move to waiting" },
+    { "value": "RESUME_WORK", "label": "Resume work" },
+    { "value": "RESOLVE", "label": "Resolve" },
+    { "value": "DISMISS", "label": "Dismiss" }
   ]
 }

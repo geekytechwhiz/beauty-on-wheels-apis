@@ -1,13 +1,13 @@
 /**
  * HTTP controllers for alert-service.
  *
- * **Flow:** `withLambdaHandler` builds context + optional schema validation → controller (authz, orchestration) →
+ * **Flow:** `withApiHandler` builds context + optional schema validation → controller (authz, orchestration) →
  * {@link AlertService} (`@api-hub/alert-core`) → {@link AlertRepository}.
  *
- * **Responses:** shared `withLambdaHandler` success / {@link handleError} error envelopes (`@api-hub/utils`).
+ * **Responses:** shared `withApiHandler` success / {@link handleError} error envelopes (`@api-hub/utils`).
  */
-import type { LambdaRequest } from '@api-hub/utils';
-import { BaseError } from '@api-hub/utils';
+import type { LambdaRequest }  from '@api-hub/middleware';
+import { BaseError }  from '@api-hub/middleware';
 import {
   AlertService,
   createAlertPayloadFromHttpBody,
@@ -49,7 +49,7 @@ export class AlertHttpController {
   private readonly svc = getAlertService();
 
   /**
-   * POST /alerts — body validated by {@link validateCreateAlertRequest} in `withLambdaHandler`; tenant + actor
+   * POST /alerts — body validated by {@link validateCreateAlertRequest} in `withApiHandler`; tenant + actor
    * attached there as {@link ValidatedCreateAlert}.
    */
   async handleCreateAlert(req: LambdaRequest) {

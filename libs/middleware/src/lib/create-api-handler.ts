@@ -16,12 +16,19 @@ import type {
   RequestBuildEvent,
 } from './types';
 import { successResponse } from './response.middleware';
+import { LambdaRequest } from '@api-hub/utils';
 
 const baseLogger = createLogger({
   service: 'api-service',
   redactPII: true,
 });
+export type ApiHandler<TReq, TResult> = (
+  req: TReq
+) => Promise<TResult>;
+type RequestValidator = (
+  req: LambdaRequest
 
+) => void | Promise<void>;
 export type   withApiHandlerOptions = {
   operation: string;
   /** Validates the full Lambda/API Gateway `event` (runs in HTTP schema middleware). */
@@ -34,9 +41,7 @@ export type   withApiHandlerOptions = {
   /**
    * Optional request-level validation (e.g. tenant resolution) after body parsing.
    */
-  validator?: (
-    req: ReturnType<typeof buildRequestContext>,
-  ) => void | Promise<void>;
+  validator?:RequestValidator
 };
 
 function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
@@ -57,14 +62,17 @@ function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
  *
  * `requestParserMiddleware` runs before this adapter so `event.body` is typically already parsed.
  */
-export function  withApiHandler<
+export function withApiHandler<
   TEvent extends MiddlewarePipelineEvent,
   TResult,
   TContext = unknown,
 >(
-  options:   withApiHandlerOptions,
-  handler: (req: ReturnType<typeof buildRequestContext>) => Promise<TResult>,
-): (event: TEvent, context: TContext) => Promise<TResult> {
+  options: withApiHandlerOptions,
+  handler: ApiHandler<
+    ReturnType<typeof buildRequestContext>,
+    TResult
+  >,
+) {
   const stack = buildApiExecutionPipeline<TResult, TContext>({
     operation: options.operation,
     schema: options.schema,
@@ -90,14 +98,14 @@ export function  withApiHandler<
 
     const req = buildRequestContext(event as unknown as RequestBuildEvent);
     const ctxFields = {
-      ...(req.context as Record<string, unknown>),
+      ...(req.context as unknown as Record<string, unknown>),
       logger,
       correlationId,
       awsRequestId,
       traceId: std?.traceId,
       operation: std?.operation,
     };
-    (req as { context: Record<string, unknown> }).context =
+    (req as unknown as { context: Record<string, unknown> }).context =
       Object.freeze(ctxFields);
 
     if (options.bodySchema !== undefined) {
@@ -108,7 +116,10 @@ export function  withApiHandler<
       await options.validator(req);
     }
 
-    const result = await handler(req);
+    const handleHandler = async (req: ReturnType<typeof buildRequestContext>) => {
+      return await handler(req);
+    };
+    const result = await handleHandler(req);
 
     const correlationIdFromContext =
       (req.context as { correlationId?: string }).correlationId ?? 'unknown';
@@ -116,8 +127,5 @@ export function  withApiHandler<
     return successResponse(result, undefined, { correlationId :correlationIdFromContext}) as TResult;
   };
 
-  return runMiddlewares(stack, adaptedHandler) as (
-    event: TEvent,
-    context: TContext
-  ) => Promise<TResult>;
+  return runMiddlewares(stack, adaptedHandler) 
 }

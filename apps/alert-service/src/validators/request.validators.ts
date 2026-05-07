@@ -1,4 +1,4 @@
-import type { LambdaRequest } from '@api-hub/utils';
+import type { LambdaRequest }  from '@api-hub/middleware';
 import { AlertWorkflowAction } from '@api-hub/alert-core';
 import {
   alertAssignmentBodySchema,

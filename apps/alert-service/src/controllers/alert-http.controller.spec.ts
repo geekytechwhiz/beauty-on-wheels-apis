@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
-import type { LambdaRequest } from '@api-hub/utils';
+import type { LambdaRequest }  from '@api-hub/middleware';
 import {
   bearerToken,
   minimalAlertRecord,

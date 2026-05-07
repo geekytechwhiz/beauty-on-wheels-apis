@@ -1,10 +1,13 @@
 import {
   BaseError,
   decodeJwtPayload,
+  LambdaRequest,
   pickOrganizationIdFromJwtPayload,
+  UserContext,
 } from '@api-hub/utils';
 
 import type { Middleware, MiddlewarePipelineEvent, RequestBuildEvent } from './types';
+import { APIGatewayProxyEvent } from 'aws-lambda';
 
 function parseEventBody(body: RequestBuildEvent['body']): unknown {
   if (body === undefined || body === null) {
@@ -26,7 +29,7 @@ function parseEventBody(body: RequestBuildEvent['body']): unknown {
   }
 }
 
-export const buildRequestContext = (event: RequestBuildEvent) => {
+export const buildRequestContext = (event: RequestBuildEvent): LambdaRequest => {
   const authHeader =
     event.headers?.Authorization || event.headers?.authorization;
 
@@ -62,16 +65,19 @@ export const buildRequestContext = (event: RequestBuildEvent) => {
     event.queryStringParameters ?? undefined;
 
   return {
-    event,
+    event: event as unknown as APIGatewayProxyEvent,
     params: {
       ...(normalizedPathParameters ?? {}),
       ...(normalizedQueryParameters ?? {}),
     },
-    pathParameters: normalizedPathParameters,
+    pathParameters: normalizedPathParameters as Record<string, string> | undefined,
     body: parseEventBody(event.body),
     context: {
+      correlationId: (event.requestContext as { correlationId?: string }).correlationId ?? '',
+      awsRequestId: (event.requestContext as { awsRequestId?: string }).awsRequestId ?? '',
+      logger: (event.requestContext as { logger?: any }).logger ?? {},
       authHeader,
-      userContext: user,
+      userContext: user as UserContext,
     },
   };
 };

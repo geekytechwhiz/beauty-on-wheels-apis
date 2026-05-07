@@ -6,7 +6,7 @@ export * from './lib/http-pipeline';
 export * from './lib/create-api-handler';
 export * from './lib/withLambdaHandler';
 export * from './lib/request-context.middleware';
-export * from './lib/response.middleware';
+// export * from './lib/response.middleware';
 export * from './lib/error.middleware';
 export * from './lib/logger.middleware';
 export * from './lib/performance.middleware';

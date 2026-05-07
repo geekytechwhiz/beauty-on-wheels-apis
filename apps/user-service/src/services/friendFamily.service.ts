@@ -15,7 +15,7 @@ import {
 } from '../errors';
 import { getOrganization } from './organization.service';
 import { sendSms } from './notification.delivery';
-import { PORTAL_LINK } from '../utils/constants';
+import { WEB_DNS_URL } from '../utils/constants';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userRepository = new UserRepository();
@@ -213,7 +213,41 @@ export class FriendFamilyService {
               orgAny?.name ??
               '',
           ).trim() || organizationID;
-        const invitationLink = process.env.PORTAL_LINK || PORTAL_LINK || '';
+
+        let orgAddress = '';
+        if (orgInfo.address && typeof orgInfo.address === 'object') {
+          const addr = orgInfo.address as Record<string, unknown>;
+          orgAddress = [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
+            .filter(Boolean)
+            .map(String)
+            .join(', ');
+        }
+        if (!orgAddress) {
+          orgAddress = [orgAny.address, orgAny.city, orgAny.state, orgAny.country, orgAny.postalCode]
+            .filter(Boolean)
+            .map(String)
+            .join(', ');
+        }
+
+        const baseInviteUrl = (process.env.WEB_URL || WEB_DNS_URL || '').trim();
+        let invitationLink = baseInviteUrl;
+        if (baseInviteUrl) {
+          try {
+            const inviteUrl = new URL(baseInviteUrl);
+            inviteUrl.searchParams.set('referrer', organizationID);
+            inviteUrl.searchParams.set('referrer_name', orgName);
+            inviteUrl.searchParams.set('referrer_address', orgAddress);
+            invitationLink = inviteUrl.toString();
+          } catch {
+            const sep = baseInviteUrl.includes('?') ? '&' : '?';
+            const qs = new URLSearchParams({
+              referrer: organizationID,
+              referrer_name: orgName,
+              referrer_address: orgAddress,
+            }).toString();
+            invitationLink = `${baseInviteUrl}${sep}${qs}`;
+          }
+        }
 
         await sendSms({
           phone: inviteePhone,

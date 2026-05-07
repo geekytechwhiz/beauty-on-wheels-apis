@@ -194,7 +194,7 @@ export class ScheduleServiceClient {
     });
 
     try {
-      console.log('getAvailableServices payload', JSON.stringify(payload));
+      // console.log('getAvailableServices payload', JSON.stringify(payload));
       const response =
         await this.packageServiceClient.post<GetAvailableServicesResponse>(
           '/services/get-available-services',
@@ -255,7 +255,7 @@ export class ScheduleServiceClient {
         organizationId: tenant.organizationId,
         organizationID: tenant.organizationId,
       };
-      console.log('recommendServices payload', JSON.stringify(request));
+      // console.log('recommendServices payload', JSON.stringify(request));
       const response =
         await this.packageServiceClient.post<RecommendServicesResponse>(
           '/services/recommend-services',
@@ -277,7 +277,7 @@ export class ScheduleServiceClient {
         }
         addonId = userAddonDetails[0]?.userAddonId as string;
       }
-      console.log('recommendServices response', JSON.stringify(response.data));
+      // console.log('recommendServices response', JSON.stringify(response.data));
       return { userAddonId: addonId };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -319,8 +319,8 @@ export class ScheduleServiceClient {
       action: 'recommended',
     };
     try {
-      console.log('getUserAddonDetails request', JSON.stringify(request));
-      console.log('getUserAddonDetails headers', JSON.stringify(buildHeaders(context)));
+      // console.log('getUserAddonDetails request', JSON.stringify(request));
+      // console.log('getUserAddonDetails headers', JSON.stringify(buildHeaders(context)));
       const response =
         await this.packageServiceClient.post<GetAvailableServicesResponse>(
           '/services/get-user-addon-service',
@@ -329,7 +329,7 @@ export class ScheduleServiceClient {
         headers: buildHeaders(context),
           },
         );
-      console.log('getUserAddonDetails response', JSON.stringify(response.data));
+      // console.log('getUserAddonDetails response', JSON.stringify(response.data));
       const items = response.data?.data?.items ?? [];
       return items ?? [];
     } catch (error) {

@@ -100,11 +100,11 @@ ai:
 `;
 
         writeFileSync(outputPath, template, 'utf-8');
-        console.log(`✅ Configuration template created: ${outputPath}`);
-        console.log('\n📝 Next steps:');
-        console.log('   1. Edit the configuration file with your service details');
-        console.log('   2. Define field mappings');
-        console.log('   3. Run: fhir-mapper generate -c mapping-config.yaml');
+        // console.log(`✅ Configuration template created: ${outputPath}`);
+        // console.log('\n📝 Next steps:');
+        // console.log('   1. Edit the configuration file with your service details');
+        // console.log('   2. Define field mappings');
+        // console.log('   3. Run: fhir-mapper generate -c mapping-config.yaml');
       } catch (error) {
         console.error('❌ Error creating template:', error);
         if (error instanceof Error) {

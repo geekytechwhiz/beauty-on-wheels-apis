@@ -57,8 +57,8 @@ export class V2UserListService {
     queryFn: (pagination: { limit: number; cursor?: string | null }) => Promise<T>,
     requestedLimit: number | undefined,
     currentCursor?: string | null,
-    maxFetchLimit: number = 1000,
-    maxIterations: number = 1000,
+    maxFetchLimit = 1000,
+    maxIterations = 1000,
   ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const allFilteredItems: Record<string, unknown>[] = [];
     let currentPaginationCursor: string | null | undefined = currentCursor;
@@ -527,7 +527,7 @@ export class V2UserListService {
     context: UserListContext,
   ): Promise<V2UserListResponse<UserItem>> {
 
-    console.log('params', JSON.stringify(params));
+    // console.log('params', JSON.stringify(params));
     const { organizationId, requestId, authHeader } = params;
     const logger = createChildLogger(baseLogger, { correlationId: requestId, organizationId });
 
@@ -556,7 +556,7 @@ export class V2UserListService {
         organizationId,
         authHeader,
       );
-      console.log('appointmentInfo', JSON.stringify(appointmentInfo));
+      // console.log('appointmentInfo', JSON.stringify(appointmentInfo));
       logger.info({
         event: 'v2_active_consultations_appointments_fetched',
         count: appointmentInfo.length,
@@ -586,7 +586,7 @@ export class V2UserListService {
           else if (appt.userPackageId) req.userPackageId = appt.userPackageId;
           return req;
         });
-        console.log('serviceRequests', JSON.stringify(serviceRequests));
+        // console.log('serviceRequests', JSON.stringify(serviceRequests));
 
         userServices = await packageServiceClient.getServicesByList(serviceRequests, authHeader);
 
@@ -607,7 +607,7 @@ export class V2UserListService {
             });
           }
         });
-        console.log('userServices updated', JSON.stringify(userServices));
+        // console.log('userServices updated', JSON.stringify(userServices));
       } catch (serviceErr) {
         logger.warn({
           event: 'v2_active_consultations_services_fetch_warning',
@@ -636,7 +636,7 @@ export class V2UserListService {
       }
     });
 
-    console.log('activeServiceMap', JSON.stringify(activeServiceMap));
+    // console.log('activeServiceMap', JSON.stringify(activeServiceMap));
 
     // Fetch user data for each appointment's patient
     const patientList = await Promise.all(

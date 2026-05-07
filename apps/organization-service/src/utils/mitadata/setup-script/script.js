@@ -11,7 +11,7 @@ export const setupScript = async () => {
         console.error(stderr);
         return;
       }
-      console.log('Script output:', stdout);
+      // console.log('Script output:', stdout);
     });
   } catch (error) {
     console.error('Script failed:', error);

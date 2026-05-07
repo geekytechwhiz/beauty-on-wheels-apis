@@ -1,0 +1,24 @@
+{
+  "name": "alert-core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/alert-core/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:alert-service", "allowed-for-app"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/libs/alert-core",
+        "main": "libs/alert-core/src/index.ts",
+        "tsConfig": "libs/alert-core/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/alert-core/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

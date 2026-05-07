@@ -9,23 +9,23 @@ export function registerAnalyzeCommand(program: Command) {
     .option('--verbose', 'Verbose output')
     .action(async (options: { output?: string; verbose?: boolean }) => {
       try {
-        console.log('🔍 Analyzing existing adapter patterns...');
+        // console.log('🔍 Analyzing existing adapter patterns...');
         
         const analyzer = new PatternAnalyzer();
         const patternsPromise = analyzer.analyzeExistingAdapters();
         const patterns = await patternsPromise;
 
-        console.log(`\n📊 Found ${patterns.length} mapping patterns`);
+        // console.log(`\n📊 Found ${patterns.length} mapping patterns`);
 
         if (options.verbose) {
-          console.log('\nPatterns:');
+          // console.log('\nPatterns:');
           patterns.forEach((pattern: MappingPattern, index: number) => {
-            console.log(`\n${index + 1}. ${pattern.sourceField} → ${pattern.targetField}`);
+            // console.log(`\n${index + 1}. ${pattern.sourceField} → ${pattern.targetField}`);
             if (pattern.transformation) {
-              console.log(`   Transformation: ${pattern.transformation}`);
+              // console.log(`   Transformation: ${pattern.transformation}`);
             }
             if (pattern.utilityFunctions?.length) {
-              console.log(`   Utilities: ${pattern.utilityFunctions.join(', ')}`);
+              // console.log(`   Utilities: ${pattern.utilityFunctions.join(', ')}`);
             }
           });
         }
@@ -33,7 +33,7 @@ export function registerAnalyzeCommand(program: Command) {
         if (options.output) {
           const { writeFileSync } = await import('fs');
           writeFileSync(options.output, JSON.stringify(patterns, null, 2));
-          console.log(`\n✅ Analysis results saved to: ${options.output}`);
+          // console.log(`\n✅ Analysis results saved to: ${options.output}`);
         }
       } catch (error) {
         console.error('❌ Error analyzing patterns:', error);

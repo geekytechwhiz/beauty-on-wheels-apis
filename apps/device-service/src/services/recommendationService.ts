@@ -25,7 +25,7 @@ export class RecommendationService {
     devices: Array<{ deviceId: string; category: string; name: string; displayName?: string }>,
     correlationId?: string,
   ): Promise<void> {
-    console.log("RECOMMEND DEVICES ", patientUserId, doctorId, doctorName, organizationId, devices, correlationId);
+    // console.log("RECOMMEND DEVICES ", patientUserId, doctorId, doctorName, organizationId, devices, correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, patientUserId, doctorId, count: devices.length });
     logger.info({ event: 'service_recommendDevices_start' });
 

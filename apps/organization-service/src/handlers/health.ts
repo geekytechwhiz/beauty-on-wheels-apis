@@ -2,7 +2,7 @@ import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
 import { setupScript } from '../utils/mitadata/setup-script/script';
 
-const defaultOrgVitals = require('../utils/mitadata/data/org-vitals.json') as { attributes?: unknown[] };
+const defaultOrgVitals = require('../utils/mitadata/data/organization/org-vitals.json') as { attributes?: unknown[] };
 const ORGANIZATION_TABLE = process.env.ORGANIZATION_TABLE;
 
 interface Params {

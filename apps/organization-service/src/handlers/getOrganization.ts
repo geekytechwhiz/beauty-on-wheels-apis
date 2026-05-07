@@ -38,11 +38,15 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
+  if ((req.event as { source?: string })?.source === 'serverless-plugin-warmup') {
+    return { message: 'WarmUp - Lambda is warm!' };
+  }
+
   const { organizationId } = req.params;
   const view = String(req.event.queryStringParameters?.view ?? '').toLowerCase();
   const isMinimalView = view === 'minimal';
   const isConfigView = view === 'config';
-  console.log('req from handler', req);
+  // console.log('req from handler', req);
   const authHeader = req.context.authHeader ?? req.event.headers?.Authorization ?? req.event.headers?.authorization ?? req.event.headers?.AUTHORIZATION;
   const { correlationId } = req.context;
   const event = req.event;
@@ -96,10 +100,35 @@ const handler = async (req: LambdaRequest<Params>) => {
   }
 
   const transformed: Record<string, unknown> = {};
+  const linkedOrganizationsPromise = !isRootOrg
+    ? organizationService.getLinkedOrganizations(organizationId, {}, correlationId).catch(() => ({ items: [] }))
+    : Promise.resolve({ items: [] as unknown[] });
+  const deviceItemsPromise = !isRootOrg
+    ? fetchOrganizationDevices(organizationId, authHeader, 'organization').catch(() => [])
+    : Promise.resolve([] as unknown[]);
+  const mobileScreensPromise = (async () => {
+    let mobileScreensValue = orgRecord.mobileScreens;
+    if (mobileScreensValue === undefined || mobileScreensValue === null) {
+      const orgInfoRecord = organization.organizationInfo as Record<string, unknown> | undefined;
+      if (orgInfoRecord?.mobileScreens !== undefined && orgInfoRecord.mobileScreens !== null) mobileScreensValue = orgInfoRecord.mobileScreens;
+    }
+    if ((mobileScreensValue === undefined || mobileScreensValue === null || Object.keys((mobileScreensValue as Record<string, unknown>) || {}).length === 0)) {
+      const functionName = process.env.GET_ONBOARDING_SCREENS_LAMBDA || 'dev_global_get_onboarding_screens';
+      if (functionName) {
+        const locale = event.headers?.['Accept-Language']?.split(',')[0]?.split('-')[0]?.toLowerCase() || 'en';
+        const authorizer = (event.requestContext as any)?.authorizer;
+        const userId = authorizer?.userID || authorizer?.userId;
+        const lambdaParams = { body: { organizationId, ...(userId && { userId }) }, locale };
+        const lambdaResult = await getMobileScreens(functionName, lambdaParams);
+        if (lambdaResult) mobileScreensValue = lambdaResult;
+      }
+    }
+    return mobileScreensValue;
+  })();
 
   if (!isRootOrg) {
     transformed.accountAlias = organization.organizationId;
-    console.log('authHeader', authHeader);
+    // console.log('authHeader', authHeader);
     const adminDetails = Array.isArray(organization.adminDetails) ? organization.adminDetails : [];
     let enrichedAdminDetails: unknown = null;
     if (adminDetails.length > 0) {
@@ -221,37 +250,15 @@ const handler = async (req: LambdaRequest<Params>) => {
     ];
   }
 
-  if (!isRootOrg) {
-    const linkedOrgs = await organizationService.getLinkedOrganizations(organizationId, {}, correlationId).catch(() => ({ items: [] }));
-    transformed.linkedOrganizations = linkedOrgs.items || [];
-  } else {
-    transformed.linkedOrganizations = [];
-  }
-
-  if (!isRootOrg) {
-    const deviceItems = await fetchOrganizationDevices(organizationId, authHeader, 'organization').catch(() => []);
-    const uniqueVitals = Array.from(new Set(deviceItems?.flatMap((d: any) => d.supportedVitals ?? []) ?? []));
-    transformed.supportedVitals = buildSupportedVitalsArray(uniqueVitals);
-  } else {
-    transformed.supportedVitals = [];
-  }
-
-  let mobileScreensValue = orgRecord.mobileScreens;
-  if (mobileScreensValue === undefined || mobileScreensValue === null) {
-    const orgInfoRecord = organization.organizationInfo as Record<string, unknown> | undefined;
-    if (orgInfoRecord?.mobileScreens !== undefined && orgInfoRecord.mobileScreens !== null) mobileScreensValue = orgInfoRecord.mobileScreens;
-  }
-  if ((mobileScreensValue === undefined || mobileScreensValue === null || Object.keys((mobileScreensValue as Record<string, unknown>) || {}).length === 0)) {
-    const functionName = process.env.GET_ONBOARDING_SCREENS_LAMBDA || 'dev_global_get_onboarding_screens';
-    if (functionName) {
-      const locale = event.headers?.['Accept-Language']?.split(',')[0]?.split('-')[0]?.toLowerCase() || 'en';
-      const authorizer = (event.requestContext as any)?.authorizer;
-      const userId = authorizer?.userID || authorizer?.userId;
-      const lambdaParams = { body: { organizationId, ...(userId && { userId }) }, locale };
-      const lambdaResult = await getMobileScreens(functionName, lambdaParams);
-      if (lambdaResult) mobileScreensValue = lambdaResult;
-    }
-  }
+  const [linkedOrgs, deviceItems, mobileScreensValue] = await Promise.all([
+    linkedOrganizationsPromise,
+    deviceItemsPromise,
+    mobileScreensPromise,
+  ]);
+  transformed.linkedOrganizations = linkedOrgs.items || [];
+  const deviceVitals = (deviceItems as Array<{ supportedVitals?: unknown[] }>).flatMap((device) => device.supportedVitals ?? []);
+  const uniqueVitals = Array.from(new Set(deviceVitals.filter((vital): vital is string => typeof vital === 'string')));
+  transformed.supportedVitals = buildSupportedVitalsArray(uniqueVitals);
 
   const orgDetails = transformed as Record<string, unknown>;
   const orgInfo = orgDetails?.organizationInfo as Record<string, unknown> | undefined;

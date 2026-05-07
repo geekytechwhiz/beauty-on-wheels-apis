@@ -60,7 +60,7 @@ export class PackageServiceClient {
         },
         timeout: this.timeoutMs,
       });
-      console.log('response.data', JSON.stringify(response.data));
+      // console.log('response.data', JSON.stringify(response.data));
 
       const data = response.data?.data?.items ?? response.data?.items ?? [];
       return Array.isArray(data) ? data : [];

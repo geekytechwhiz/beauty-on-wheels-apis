@@ -235,9 +235,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
   //    (includes non-primary: care queue, consultation, chat transfer)
   // ============================================================
   
-  export interface DoctorDashboardPatientItem extends PatientUser {
-    // No extra fields beyond PatientUser
-  }
+  export type DoctorDashboardPatientItem = PatientUser
   
   export interface DoctorDashboardPatientListData {
     users: DoctorDashboardPatientItem[];
@@ -510,9 +508,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
   //    Use case: Get list of doctors while creating lab test / prescription
   // ============================================================
   
-  export interface PatientDetailsDoctorItem extends StaffItem {
-    // All fields from StaffItem apply
-  }
+  export type PatientDetailsDoctorItem = StaffItem
 
   export interface PatientDetailsDoctorListData {
     items: PatientDetailsDoctorItem[];

@@ -24,9 +24,9 @@ vi.mock('@aws-sdk/client-secrets-manager', async () => {
 });
 
 // Mock delivery methods with delegating wrappers so we can control mocks in tests
-let sendEmailMock = vi.fn().mockResolvedValue({ success: true });
-let sendSmsMock = vi.fn().mockResolvedValue({ success: true });
-let sendPushMock = vi.fn().mockResolvedValue({ success: true });
+const sendEmailMock = vi.fn().mockResolvedValue({ success: true });
+const sendSmsMock = vi.fn().mockResolvedValue({ success: true });
+const sendPushMock = vi.fn().mockResolvedValue({ success: true });
 vi.mock('../../services/notification.delivery', () => ({
   sendEmail: (...args: any[]) => sendEmailMock(...args),
   sendSms: (...args: any[]) => sendSmsMock(...args),

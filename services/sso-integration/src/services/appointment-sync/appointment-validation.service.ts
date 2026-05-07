@@ -25,12 +25,12 @@ export class AppointmentValidationService {
   ): AppointmentValidationResult {
     const validAppointments: Appointment[] = [];
     const invalidAppointments: InvalidAppointmentInfo[] = [];
-    console.log("appointments received in validateAppointments", JSON.stringify(appointments))
+    // console.log("appointments received in validateAppointments", JSON.stringify(appointments))
     for (const appointment of appointments) {
-    console.log("appointment received inside for", JSON.stringify(appointment))
+    // console.log("appointment received inside for", JSON.stringify(appointment))
         
       const result = validateHmsAppointment(appointment);
-      console.log("validateHmsAppointment", result)
+      // console.log("validateHmsAppointment", result)
       if (!result.valid) {
         invalidAppointments.push({
           appointmentId: appointment.appointmentId,

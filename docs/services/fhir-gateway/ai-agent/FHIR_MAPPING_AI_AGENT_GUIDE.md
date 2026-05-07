@@ -756,14 +756,14 @@ export function registerGenerateCommand(program: Command) {
         const fileWriter = new FileWriter();
 
         // Generate mappings
-        console.log('Analyzing existing patterns...');
+        // console.log('Analyzing existing patterns...');
         const mappings = await fieldMapper.generateMapping(
           config.sourceSchema,
           config.fhirResource.resourceType
         );
 
         // Generate code
-        console.log('Generating code...');
+        // console.log('Generating code...');
         const serviceClientCode = codeGenerator.generateServiceClient({
           serviceName: config.service.name,
           // ... other config
@@ -784,12 +784,12 @@ export function registerGenerateCommand(program: Command) {
 
         // Write files
         if (options.dryRun) {
-          console.log('=== Service Client ===');
-          console.log(serviceClientCode);
-          console.log('\n=== Adapter ===');
-          console.log(adapterCode);
-          console.log('\n=== Handler ===');
-          console.log(handlerCode);
+          // console.log('=== Service Client ===');
+          // console.log(serviceClientCode);
+          // console.log('\n=== Adapter ===');
+          // console.log(adapterCode);
+          // console.log('\n=== Handler ===');
+          // console.log(handlerCode);
         } else {
           const outputDir = options.output || process.cwd();
           
@@ -824,7 +824,7 @@ export function registerGenerateCommand(program: Command) {
             [`export * from './adapters/${config.fhirResource.category}/${config.fhirResource.resourceType.toLowerCase()}.adapter';`]
           );
 
-          console.log('✅ Code generation completed successfully!');
+          // console.log('✅ Code generation completed successfully!');
         }
       } catch (error) {
         console.error('❌ Error generating code:', error);

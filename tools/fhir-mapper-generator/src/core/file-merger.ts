@@ -21,7 +21,7 @@ export class FileMerger {
       return { merged: true, content: header + newDTO + '\n' };
     }
 
-    let content = readFileSync(filePath, 'utf-8');
+    const content = readFileSync(filePath, 'utf-8');
     
     // Check if DTO already exists
     const itemTypeMatch = newDTO.match(/export interface (\w+)/);
@@ -147,7 +147,7 @@ export function createReference(
       return { merged: false, content: '' };
     }
 
-    let content = readFileSync(filePath, 'utf-8');
+    const content = readFileSync(filePath, 'utf-8');
     
     // Check if method already exists
     const methodPattern = new RegExp(`async\\s+${methodName}\\s*\\(`);

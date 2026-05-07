@@ -50,10 +50,10 @@ export class ConsentGuard {
       ((req as any).fhir?.scopes as string[] | undefined) ??
       this.extractScopesFromAuthHeader(req.context.authHeader);
 
-      console.log('scopes', scopes);
-      console.log('resourceType', resourceType);
-      console.log('action', action);
-      console.log('isScopeAllowed', isScopeAllowed(scopes, resourceType, action));
+      // console.log('scopes', scopes);
+      // console.log('resourceType', resourceType);
+      // console.log('action', action);
+      // console.log('isScopeAllowed', isScopeAllowed(scopes, resourceType, action));
 
     if (!scopes || !isScopeAllowed(scopes, resourceType, action)) {
       throw new BaseError(

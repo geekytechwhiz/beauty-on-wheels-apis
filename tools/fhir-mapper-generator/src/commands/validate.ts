@@ -12,15 +12,15 @@ export function registerValidateCommand(program: Command) {
     .action(async (options: { config?: string; file?: string }) => {
       try {
         if (options.config) {
-          console.log(`📋 Validating configuration: ${options.config}`);
+          // console.log(`📋 Validating configuration: ${options.config}`);
           const configParser = new ConfigParser();
           const config = configParser.parseConfig(options.config);
-          console.log('✅ Configuration is valid');
-          console.log(`   Service: ${config.service.name}`);
-          console.log(`   FHIR Resource: ${config.fhirResource.resourceType}`);
-          console.log(`   Mappings: ${config.mappings.length}`);
+          // console.log('✅ Configuration is valid');
+          // console.log(`   Service: ${config.service.name}`);
+          // console.log(`   FHIR Resource: ${config.fhirResource.resourceType}`);
+          // console.log(`   Mappings: ${config.mappings.length}`);
         } else if (options.file) {
-          console.log(`🔍 Validating TypeScript file: ${options.file}`);
+          // console.log(`🔍 Validating TypeScript file: ${options.file}`);
           const sourceCode = readFileSync(options.file, 'utf-8');
           
           const result = ts.transpileModule(sourceCode, {
@@ -40,7 +40,7 @@ export function registerValidateCommand(program: Command) {
             });
             process.exit(1);
           } else {
-            console.log('✅ TypeScript file is valid');
+            // console.log('✅ TypeScript file is valid');
           }
         } else {
           console.error('❌ Please specify either --config or --file');

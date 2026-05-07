@@ -26,6 +26,7 @@ import {
   type ValidatedWorkflow,
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
+import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
@@ -239,6 +240,16 @@ export class AlertHttpController {
 
     const items = await this.svc.listAlertActivity(alertId, orgId, { notesOnly });
     return { items };
+  }
+
+  /**
+   * GET `/alerts/metadata` — static UI option lists until metadata registry exists (`alert-metadata-workaround.json`).
+   */
+  async handleGetAlertMetadata(req: LambdaRequest) {
+    const authHeader = req.context.authHeader;
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    if (!orgId) throw unauthorizedOrgError();
+    return alertMetadataWorkaround;
   }
 
   /**

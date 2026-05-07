@@ -273,6 +273,29 @@ functions:
             "403": Forbidden
             "500": Server error
 
+  getAlertMetadata:
+    handler: src/handlers/http/getAlertMetadata.main
+    events:
+      - http:
+          path: alerts/metadata
+          method: get
+          summary: Alert UI metadata (workaround)
+          description: >
+            Static lists for priorities, workflow statuses, resolve reasons, and dismiss reasons until a metadata
+            registry is available. Organization scope from JWT; response is the same for all tenants.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+
   getAlert:
     handler: src/handlers/http/getAlert.main
     events:

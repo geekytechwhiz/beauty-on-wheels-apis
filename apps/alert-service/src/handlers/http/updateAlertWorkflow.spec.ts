@@ -1,5 +1,4 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
-import { ALERT_STATE } from '@api-hub/alert-core';
 
 import {
   bearerToken,
@@ -53,20 +52,23 @@ describe('updateAlertWorkflow HTTP handler', () => {
     } as unknown as APIGatewayProxyEvent;
   }
 
-  it('returns 200 with updated alert when workflow succeeds', async () => {
-    const row = minimalAlertRecord({ alertState: ALERT_STATE.IN_PROGRESS });
+  it('returns 200 with succeeded/failed when workflow succeeds', async () => {
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
-      primaryAlert: row,
     });
 
     const result = await main(baseEvent({ alertIds: [alertId], action: 'START_WORK' }), context);
 
     expect(result.statusCode).toBe(200);
-    const parsed = JSON.parse(result.body ?? '{}') as { success: boolean; data: { alertId: string } };
+    const parsed = JSON.parse(result.body ?? '{}') as {
+      success: boolean;
+      data: { alertIds: string[]; succeeded: string[]; failed: unknown[] };
+    };
     expect(parsed.success).toBe(true);
-    expect(parsed.data.alertId).toBe(alertId);
+    expect(parsed.data.alertIds).toEqual([alertId]);
+    expect(parsed.data.succeeded).toEqual([alertId]);
+    expect(parsed.data.failed).toEqual([]);
     expect(mockApplyWorkflow).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({
@@ -77,11 +79,9 @@ describe('updateAlertWorkflow HTTP handler', () => {
   });
 
   it('maps ASSIGN to ASSIGN with assignToUserId', async () => {
-    const row = minimalAlertRecord({ alertState: ALERT_STATE.IN_PROGRESS });
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
-      primaryAlert: row,
     });
 
     await main(
@@ -129,7 +129,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
       ],
     });
 
-    const result = await main(baseEvent({ alertIds: [alertId], action: 'RESUME' }), context);
+    const result = await main(baseEvent({ alertIds: [alertId], action: 'RESUME_WORK' }), context);
 
     expect(result.statusCode).toBe(409);
     expect(mockApplyWorkflow).toHaveBeenCalled();

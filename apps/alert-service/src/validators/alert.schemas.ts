@@ -109,6 +109,8 @@ export const createAlertHttpBodySchema = z
     triggerSummaryTemplateCode: z.string().trim().min(1).optional(),
     triggerSummaryParams: z.record(z.string(), z.unknown()).optional(),
     evidencePayload: evidencePayloadSchema,
+    assignSlaMinutes: z.number().int().nonnegative().optional(),
+    resolveSlaMinutes: z.number().int().nonnegative().optional(),
   })
   .strict()
   .superRefine((val, ctx) => {

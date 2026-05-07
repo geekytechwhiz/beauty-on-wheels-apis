@@ -52,9 +52,8 @@ describe('updateAlertPriority HTTP handler', () => {
     } as unknown as APIGatewayProxyEvent;
   }
 
-  it('returns 200 with updated alert detail for single-select', async () => {
-    const row = minimalAlertRecord({ priority: 'P1' } as any);
-    mockApplyPriority.mockResolvedValue({ primaryAlert: row });
+  it('returns 200 with alertIds for single-select', async () => {
+    mockApplyPriority.mockResolvedValue({});
 
     const result = await main(
       baseEvent({ alertIds: [alertId], priority: 'P1' }),
@@ -62,9 +61,9 @@ describe('updateAlertPriority HTTP handler', () => {
     );
 
     expect(result.statusCode).toBe(200);
-    const parsed = JSON.parse(result.body ?? '{}') as { success: boolean; data: { alertId: string } };
+    const parsed = JSON.parse(result.body ?? '{}') as { success: boolean; data: { alertIds: string[] } };
     expect(parsed.success).toBe(true);
-    expect(parsed.data.alertId).toBe(alertId);
+    expect(parsed.data.alertIds).toEqual([alertId]);
     expect(mockApplyPriority).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({

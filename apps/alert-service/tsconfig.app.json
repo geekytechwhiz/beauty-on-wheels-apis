@@ -11,7 +11,6 @@
     "baseUrl": "../..",
     "paths": {
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
-      "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],
       "@api-hub/auth": ["libs/auth/src/index.ts"],
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
       "@api-hub/capability": ["libs/capability/src/index.ts"],
@@ -31,10 +30,12 @@
       "@api-hub/template": ["libs/template/src/index.ts"],
       "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
       "@api-hub/terminology": ["libs/terminology/src/index.ts"],
-      "@api-hub/utils": ["libs/utils/src/index.ts"]
-    }
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/alert-core": ["libs/alert-core/src/index.ts"]
+    },
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.json"],
   "exclude": [
     "out-tsc",
     "dist",

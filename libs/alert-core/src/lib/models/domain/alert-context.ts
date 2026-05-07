@@ -39,7 +39,7 @@ export function  tableName(): string {
     assignSlaMinutes: number;
     resolveSlaMinutes: number;
     assignSlaDueAt: string;
-    resolveSlaDueAt: string;
+    resolveSlaDueAt?: string;
     gsi1pk: string;
     gsi1sk: string;
     gsi3pk: string;

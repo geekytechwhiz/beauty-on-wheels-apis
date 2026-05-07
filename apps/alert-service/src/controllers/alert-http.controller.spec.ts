@@ -357,6 +357,7 @@ describe('AlertHttpController', () => {
       succeeded: ['a1'],
       failed: [],
     });
+    const record = minimalAlertRecord();
 
     const req = baseReq({
       validatedWorkflow: {

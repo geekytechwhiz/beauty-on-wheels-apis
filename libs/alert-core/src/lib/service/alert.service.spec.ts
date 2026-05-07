@@ -6,6 +6,7 @@ import type { CreateAlertPayload } from '../models/api/create-alert.types';
 import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from '../repositories/alert-repository';
+import { DuplicateEventError } from '../errors/duplicate-event.error';
 import { AlertService } from './alert.service';
 
 const EPOCH_2026_01_15_T10 = Date.parse('2026-01-15T10:00:00.000Z');
@@ -100,8 +101,10 @@ describe('AlertService', () => {
     >
   >;
   let service: AlertService;
+  let log: ReturnType<typeof mockLogger>;
 
   beforeEach(() => {
+    log = mockLogger();
     repo = {
       resolveInputEventId: jest.fn(),
       createAlert: jest.fn(),
@@ -114,7 +117,7 @@ describe('AlertService', () => {
       queryUserAlertsPage: jest.fn(),
       updateAlertsTransaction: jest.fn(),
     };
-    service = new AlertService(repo as unknown as AlertRepository, mockLogger());
+    service = new AlertService(repo as unknown as AlertRepository, log);
   });
 
   describe('createAlert', () => {
@@ -144,6 +147,7 @@ describe('AlertService', () => {
       expect(result.duplicate).toBe(true);
       expect(result.record).toBe(record);
       expect(repo.createAlert).not.toHaveBeenCalled();
+      expect(log.info).toHaveBeenCalled();
     });
 
     it('throws 409 when idempotency key belongs to another organization', async () => {
@@ -168,6 +172,19 @@ describe('AlertService', () => {
       expect(result.record).toBe(record);
       expect(repo.createAlert).toHaveBeenCalledTimes(1);
       expect(repo.resolveInputEventId).toHaveBeenCalledTimes(2);
+      expect(log.warn).toHaveBeenCalled();
+    });
+
+    it('replays idempotently after DuplicateEventError when row appears', async () => {
+      const record = minimalRecord();
+      repo.resolveInputEventId.mockResolvedValueOnce('missing');
+      repo.createAlert.mockRejectedValueOnce(new DuplicateEventError('evt-dup-err'));
+      repo.resolveInputEventId.mockResolvedValueOnce(record);
+
+      const result = await service.createAlert(createPayload({ inputEventId: 'evt-dup-err' }));
+
+      expect(result.duplicate).toBe(true);
+      expect(result.record).toBe(record);
     });
   });
 
@@ -362,6 +379,50 @@ describe('AlertService', () => {
         service.listAlerts({ ...baseListParams(), queue: 'TEAM', nextToken: '%%%' }),
       ).rejects.toMatchObject({ statusCode: 400, code: 'VALIDATION_ERROR' });
     });
+
+    it('delegates PATIENT, MY, and TEAM and maps nextToken where applicable', async () => {
+      const patRow = minimalRecord({ alertId: 'p1' });
+      const teamRow = minimalRecord({ alertId: 't1' });
+      const myRow = minimalRecord({ alertId: 'm1' });
+      repo.queryPatientAlertsPage.mockResolvedValue({
+        items: [patRow],
+        lastEvaluatedKey: { k: 1 },
+      });
+      repo.queryOrgAlertsGsi4Page.mockResolvedValue({
+        items: [teamRow],
+        lastEvaluatedKey: { k: 2 },
+      });
+      repo.queryUserAlertsPage.mockResolvedValue({
+        items: [myRow],
+        lastEvaluatedKey: undefined,
+      });
+
+      const patient = await service.listAlerts({
+        organizationId: 'org-1',
+        queue: 'PATIENT',
+        patientId: 'pat-1',
+        limit: 2,
+      });
+      expect(patient.items[0].alertId).toBe('p1');
+      expect(patient).toHaveProperty('nextToken');
+
+      const my = await service.listAlerts({
+        organizationId: 'org-1',
+        queue: 'MY',
+        actorUserId: 'u1',
+        limit: 2,
+      });
+      expect(my.items[0].alertId).toBe('m1');
+      expect(my).not.toHaveProperty('nextToken');
+
+      const team = await service.listAlerts({
+        organizationId: 'org-1',
+        queue: 'TEAM',
+        limit: 2,
+      });
+      expect(team.items[0].alertId).toBe('t1');
+      expect(team).toHaveProperty('nextToken');
+    });
   });
 
   describe('applyAssignment', () => {
@@ -378,6 +439,7 @@ describe('AlertService', () => {
         alertIds: ['a1', 'a2'],
         action: 'ASSIGN',
         assignToUserId: 'user-9',
+        assigneeDisplayName: 'User Nine',
         performedByUserId: 'actor-1',
       });
 
@@ -387,19 +449,21 @@ describe('AlertService', () => {
         expect.arrayContaining([
           expect.objectContaining({
             existing: a1,
-            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9' },
+            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9', assignedToDisplayName: 'User Nine' },
+            activityItems: expect.any(Array),
             performedByUserId: 'actor-1',
           }),
           expect.objectContaining({
             existing: a2,
-            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9' },
+            patch: { alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-9', assignedToDisplayName: 'User Nine' },
+            activityItems: expect.any(Array),
             performedByUserId: 'actor-1',
           }),
         ]),
       );
     });
 
-    it('returns primaryAlert for single-select', async () => {
+    it('returns empty result for single-select', async () => {
       const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
       repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
       repo.getAlertById.mockResolvedValue(a1);
@@ -409,9 +473,112 @@ describe('AlertService', () => {
         action: 'UNASSIGN',
       });
 
-      expect(result.primaryAlert?.alertId).toBe('a1');
+      expect(result).toEqual({});
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
-        expect.objectContaining({ patch: { alertState: ALERT_STATE.UNASSIGNED, assignedToUserId: null } }),
+        expect.objectContaining({
+          existing: a1,
+          patch: { assignedToUserId: null, assignedToDisplayName: null },
+          activityItems: expect.any(Array),
+          performedByUserId: 'SYSTEM',
+        }),
+      ]);
+    });
+
+    it('ASSIGN from IN_PROGRESS retains state and only updates assignee', async () => {
+      const a1 = minimalRecord({
+        alertId: 'a1',
+        pk: 'ALERT#a1',
+        alertState: ALERT_STATE.IN_PROGRESS,
+        assignedToUserId: 'user-old',
+        assignedToDisplayName: 'User Old',
+      });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+
+      await service.applyAssignment('org-1', {
+        alertIds: ['a1'],
+        action: 'ASSIGN',
+        assignToUserId: 'user-new',
+        assigneeDisplayName: 'User New',
+      });
+
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({
+          existing: a1,
+          patch: { assignedToUserId: 'user-new', assignedToDisplayName: 'User New' },
+        }),
+      ]);
+    });
+
+    it('REASSIGN from WAITING retains state and only updates assignee', async () => {
+      const a1 = minimalRecord({
+        alertId: 'a1',
+        pk: 'ALERT#a1',
+        alertState: ALERT_STATE.WAITING,
+        assignedToUserId: 'user-old',
+        assignedToDisplayName: 'User Old',
+      });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+
+      await service.applyAssignment('org-1', {
+        alertIds: ['a1'],
+        action: 'REASSIGN',
+        assignToUserId: 'user-new',
+        assigneeDisplayName: 'User New',
+      });
+
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({
+          existing: a1,
+          patch: { assignedToUserId: 'user-new', assignedToDisplayName: 'User New' },
+        }),
+      ]);
+    });
+
+    it('ASSIGN_TO_SELF from IN_PROGRESS retains state', async () => {
+      const a1 = minimalRecord({
+        alertId: 'a1',
+        pk: 'ALERT#a1',
+        alertState: ALERT_STATE.IN_PROGRESS,
+        assignedToUserId: 'user-old',
+        assignedToDisplayName: 'User Old',
+      });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+
+      await service.applyAssignment('org-1', {
+        alertIds: ['a1'],
+        action: 'ASSIGN_TO_SELF',
+        assignToUserId: 'user-self',
+        assigneeDisplayName: 'User Self',
+      });
+
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({
+          existing: a1,
+          patch: { assignedToUserId: 'user-self', assignedToDisplayName: 'User Self' },
+        }),
+      ]);
+    });
+
+    it('UNASSIGN from IN_PROGRESS retains state and clears assignee', async () => {
+      const a1 = minimalRecord({
+        alertId: 'a1',
+        pk: 'ALERT#a1',
+        alertState: ALERT_STATE.IN_PROGRESS,
+        assignedToUserId: 'user-old',
+        assignedToDisplayName: 'User Old',
+      });
+      repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
+
+      await service.applyAssignment('org-1', {
+        alertIds: ['a1'],
+        action: 'UNASSIGN',
+      });
+
+      expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
+        expect.objectContaining({
+          existing: a1,
+          patch: { assignedToUserId: null, assignedToDisplayName: null },
+        }),
       ]);
     });
 
@@ -424,6 +591,28 @@ describe('AlertService', () => {
       ).rejects.toMatchObject({ statusCode: 409, code: 'TERMINAL_STATE' });
 
       expect(repo.updateAlertsTransaction).not.toHaveBeenCalled();
+    });
+
+    it('throws 422 when assignToUserId missing for ASSIGN', async () => {
+      await expect(
+        service.applyAssignment('org-1', {
+          action: 'ASSIGN',
+          alertIds: ['a1'],
+          assigneeDisplayName: 'X',
+        } as never),
+      ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
+      expect(repo.getAlertsById).not.toHaveBeenCalled();
+    });
+
+    it('throws 422 when assigneeDisplayName missing for ASSIGN_TO_SELF', async () => {
+      await expect(
+        service.applyAssignment('org-1', {
+          action: 'ASSIGN_TO_SELF',
+          alertIds: ['a1'],
+          assignToUserId: 'u1',
+        } as never),
+      ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
+      expect(repo.getAlertsById).not.toHaveBeenCalled();
     });
   });
 
@@ -453,7 +642,7 @@ describe('AlertService', () => {
       );
     });
 
-    it('returns primaryAlert for single-select', async () => {
+    it('returns empty result for single-select', async () => {
       const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
       repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
       repo.getAlertById.mockResolvedValue({ ...a1, priority: 'P0' } as any);
@@ -463,10 +652,74 @@ describe('AlertService', () => {
         priority: 'P0',
       });
 
-      expect(result.primaryAlert?.alertId).toBe('a1');
+      expect(result).toEqual({});
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
         expect.objectContaining({ patch: { priority: 'P0' } }),
       ]);
+    });
+  });
+
+  describe('addNote', () => {
+    it('throws 404 when alert not found', async () => {
+      repo.getAlertById.mockResolvedValue(null);
+
+      await expect(service.addNote('a1', 'org-1', 'hello')).rejects.toMatchObject({
+        statusCode: 404,
+        code: 'NOT_FOUND',
+      });
+    });
+  });
+
+  describe('applyWorkflow', () => {
+    it('processes bulk with mixed states per-alert (no heterogeneous bulk error)', async () => {
+      const row1 = minimalRecord({ alertId: 'a1', alertState: ALERT_STATE.ASSIGNED });
+      const row2 = minimalRecord({ alertId: 'a2', alertState: ALERT_STATE.UNASSIGNED });
+      repo.getAlertById.mockImplementation(async (id: string) => {
+        if (id === 'a1') return row1;
+        if (id === 'a2') return row2;
+        return null;
+      });
+      (repo as any).updateAlert = jest.fn().mockResolvedValue(row1);
+
+      const out = await service.applyWorkflow('org-1', {
+        alertIds: ['a1', 'a2'],
+        action: 'START_WORK' as any,
+        performedByDisplayName: 'User',
+      } as any);
+
+      expect(out.succeeded).toEqual(['a1']);
+      expect(out.failed).toHaveLength(1);
+      expect(out.failed[0]).toMatchObject({ alertId: 'a2', code: 'ILLEGAL_TRANSITION' });
+    });
+
+    it('maps ILLEGAL_TRANSITION into failed[] and does not throw', async () => {
+      const row = minimalRecord({ alertId: 'a1', alertState: ALERT_STATE.UNASSIGNED });
+      repo.getAlertById.mockResolvedValue(row);
+      (repo as any).updateAlert = jest.fn();
+
+      const out = await service.applyWorkflow('org-1', {
+        alertIds: ['a1'],
+        action: 'START_WORK' as any, // invalid from UNASSIGNED
+        performedByDisplayName: 'User',
+      } as any);
+
+      expect(out.succeeded).toEqual([]);
+      expect(out.failed[0]).toMatchObject({ alertId: 'a1', code: 'ILLEGAL_TRANSITION' });
+    });
+
+    it('records NOT_FOUND when update returns null', async () => {
+      const row = minimalRecord({ alertId: 'a1', alertState: ALERT_STATE.ASSIGNED });
+      repo.getAlertById.mockResolvedValue(row);
+      (repo as any).updateAlert = jest.fn().mockResolvedValue(null);
+
+      const out = await service.applyWorkflow('org-1', {
+        alertIds: ['a1'],
+        action: 'START_WORK' as any,
+        performedByDisplayName: 'User',
+      } as any);
+
+      expect(out.succeeded).toEqual([]);
+      expect(out.failed[0]).toMatchObject({ alertId: 'a1', code: 'NOT_FOUND' });
     });
   });
 });

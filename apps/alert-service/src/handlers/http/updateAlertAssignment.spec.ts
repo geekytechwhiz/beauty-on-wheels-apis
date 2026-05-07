@@ -52,9 +52,8 @@ describe('updateAlertAssignment HTTP handler', () => {
     } as unknown as APIGatewayProxyEvent;
   }
 
-  it('returns 200 with updated alert detail for single-select', async () => {
-    const row = minimalAlertRecord();
-    mockApplyAssignment.mockResolvedValue({ primaryAlert: row });
+  it('returns 200 with alertIds for single-select', async () => {
+    mockApplyAssignment.mockResolvedValue({});
 
     const result = await main(
       baseEvent({ alertIds: [alertId], action: 'ASSIGN', assignToUserId: 'user-2', assigneeDisplayName: 'User Two' }),
@@ -62,9 +61,9 @@ describe('updateAlertAssignment HTTP handler', () => {
     );
 
     expect(result.statusCode).toBe(200);
-    const parsed = JSON.parse(result.body ?? '{}') as { success: boolean; data: { alertId: string } };
+    const parsed = JSON.parse(result.body ?? '{}') as { success: boolean; data: { alertIds: string[] } };
     expect(parsed.success).toBe(true);
-    expect(parsed.data.alertId).toBe(alertId);
+    expect(parsed.data.alertIds).toEqual([alertId]);
     expect(mockApplyAssignment).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({

@@ -2,14 +2,33 @@ import { OrganizationRepository } from '../repositories/organization.repository'
 import { UserRepository } from '../repositories/user.repository';
 import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
 import { SecretManagerService } from '@api-hub/service-clients';
-import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser } from '../models';
-import { OrganizationNotFoundError, PermissionDeniedError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
+import {
+  Organization,
+  OrganizationMetadata,
+  OrganizationFile,
+  OrganizationConfigPatch,
+  OrgConfigEntity,
+} from '../models';
+import { OrganizationNotFoundError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { notifyAdminForOrganizationActivated } from './notification.service';
 import { extractSubdomainFromUrl } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
+
+const LATEST_ORG_CONFIG_PATCH_KEYS: readonly (keyof OrgConfigEntity)[] = [
+  'supportedCountries',
+  'supportedLanguages',
+  'supportedStates',
+  'supportedCategories',
+  'supportedConditions',
+];
+
+const LATEST_ORG_CONFIG_PROJECTION_GET: readonly (keyof OrgConfigEntity)[] = ['version', ...LATEST_ORG_CONFIG_PATCH_KEYS];
+
+const areStringArraysEqual = (left: string[], right: string[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
 
 export class OrganizationService {
   private repository: OrganizationRepository;
@@ -175,6 +194,31 @@ export class OrganizationService {
     }
   }
 
+  /**
+   * Loads the latest organizationConfig record and shapes it as
+   * `{ organizationConfig, organizationConfigVersion }`. Returns `null` when no
+   * config exists. Shared by `getOrganization` and `getOrganizationConfig` so
+   * the read-and-shape logic lives in one place.
+   */
+  private async loadLatestConfig(
+    organizationId: string,
+  ): Promise<{ organizationConfig: OrganizationConfigPatch; organizationConfigVersion: number } | null> {
+    const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
+      project: LATEST_ORG_CONFIG_PROJECTION_GET,
+    });
+    if (latestConfig === null) return null;
+    return {
+      organizationConfig: {
+        supportedCountries: latestConfig.supportedCountries,
+        supportedLanguages: latestConfig.supportedLanguages,
+        supportedStates: latestConfig.supportedStates,
+        supportedCategories: latestConfig.supportedCategories,
+        supportedConditions: latestConfig.supportedConditions,
+      },
+      organizationConfigVersion: latestConfig.version,
+    };
+  }
+
   async getOrganization(organizationId: string): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'getOrganization');
     const logger = createChildLogger(baseLogger, { organizationId });
@@ -186,9 +230,12 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
+      const latestConfig = await this.loadLatestConfig(organizationId);
+      const response: Organization = latestConfig === null ? organization : { ...organization, ...latestConfig };
+
       logger.info({ event: 'service_getOrganization_success' });
       timer.end();
-      return organization;
+      return response;
     } catch (err) {
       logger.error({ event: 'service_getOrganization_error', err: serializeError(err) });
       timer.end();
@@ -196,10 +243,46 @@ export class OrganizationService {
     }
   }
 
+  /**
+   * Returns only the latest organizationConfig (no admin enrichment, devices,
+   * mobile screens, etc). Used by `GET /organization/{organizationId}?view=config`.
+   */
+  async getOrganizationConfig(organizationId: string): Promise<{
+    organizationId: string;
+    organizationConfig?: OrganizationConfigPatch;
+    organizationConfigVersion?: number;
+  }> {
+    const timer = createPerformanceTimer(baseLogger, 'getOrganizationConfig');
+    const logger = createChildLogger(baseLogger, { organizationId });
+    logger.info({ event: 'service_getOrganizationConfig_start' });
+
+    try {
+      const organization = await this.repository.getOrganization(organizationId);
+      if (!organization) {
+        throw new OrganizationNotFoundError(organizationId);
+      }
+
+      const latestConfig = await this.loadLatestConfig(organizationId);
+      const response = {
+        organizationId,
+        ...(latestConfig ?? {}),
+      };
+
+      logger.info({ event: 'service_getOrganizationConfig_success' });
+      timer.end();
+      return response;
+    } catch (err) {
+      logger.error({ event: 'service_getOrganizationConfig_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
   async updateOrganization(
     organizationId: string,
-    updates: Partial<Organization>,
+    updates: Partial<Organization> & { organizationConfig?: OrganizationConfigPatch },
     correlationId?: string,
+    userType?: string,
   ): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'updateOrganization', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
@@ -211,50 +294,93 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
+      const { organizationConfig, ...organizationUpdates } = updates;
       const resolvedSubdomain =
-        updates.subdomain ?? extractSubdomainFromUrl(updates.integration?.apiBaseUrl) ?? existing.subdomain;
-      if (resolvedSubdomain && !updates.subdomain) {
-        updates.subdomain = resolvedSubdomain;
+        organizationUpdates.subdomain ?? extractSubdomainFromUrl(organizationUpdates.integration?.apiBaseUrl) ?? existing.subdomain;
+      if (resolvedSubdomain && !organizationUpdates.subdomain) {
+        organizationUpdates.subdomain = resolvedSubdomain;
       }
-      const updateIntegrationApiKey = updates.integration?.apiKey?.trim();
+      const updateIntegrationApiKey = organizationUpdates.integration?.apiKey?.trim();
       const generatedApiKeyRef = resolvedSubdomain ? `${resolvedSubdomain.toLowerCase()}apikey` : undefined;
       if (updateIntegrationApiKey && generatedApiKeyRef) {
         await this.secretManagerService.addApiKey(generatedApiKeyRef, updateIntegrationApiKey);
       }
-      if (updates.integration) {
-        const resolvedProvider = (updates.integration.provider || existing.integration?.provider || 'TRU_TECH').toUpperCase();
-        updates.integration = {
+      if (organizationUpdates.integration) {
+        const resolvedProvider = (organizationUpdates.integration.provider || existing.integration?.provider || 'TRU_TECH').toUpperCase();
+        organizationUpdates.integration = {
           ...(existing.integration || {}),
-          ...updates.integration,
+          ...organizationUpdates.integration,
           provider: resolvedProvider,
-          apiKeyRef: generatedApiKeyRef ?? updates.integration.apiKeyRef ?? existing.integration?.apiKeyRef,
+          apiKeyRef: generatedApiKeyRef ?? organizationUpdates.integration.apiKeyRef ?? existing.integration?.apiKeyRef,
           apiKey: undefined,
         };
       }
 
-      await this.repository.updateOrganization(organizationId, updates);
+      const hasOrganizationFieldUpdates = Object.values(organizationUpdates).some((value) => value !== undefined);
+      if (hasOrganizationFieldUpdates) {
+        await this.repository.updateOrganization(organizationId, organizationUpdates);
+      }
+      
+      const normalizedUserType = String(userType ?? '').trim().toUpperCase();
+      const canUpdateOrganizationConfig = normalizedUserType === 'ROOT_ADMIN';
+      let configVersion: number | undefined;
+      if (organizationConfig && canUpdateOrganizationConfig) {
+        const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
+          project: LATEST_ORG_CONFIG_PATCH_KEYS,
+        });
+        const mergedConfig: Required<OrganizationConfigPatch> = {
+          supportedCountries: organizationConfig.supportedCountries ?? latestConfig?.supportedCountries ?? [],
+          supportedLanguages: organizationConfig.supportedLanguages ?? latestConfig?.supportedLanguages ?? [],
+          supportedStates: organizationConfig.supportedStates ?? latestConfig?.supportedStates ?? [],
+          supportedCategories: organizationConfig.supportedCategories ?? latestConfig?.supportedCategories ?? [],
+          supportedConditions: organizationConfig.supportedConditions ?? latestConfig?.supportedConditions ?? [],
+        };
+        const isSameAsLatest =
+          latestConfig !== null &&
+          areStringArraysEqual(mergedConfig.supportedCountries, latestConfig.supportedCountries) &&
+          areStringArraysEqual(mergedConfig.supportedLanguages, latestConfig.supportedLanguages) &&
+          areStringArraysEqual(mergedConfig.supportedStates, latestConfig.supportedStates) &&
+          areStringArraysEqual(mergedConfig.supportedCategories, latestConfig.supportedCategories) &&
+          areStringArraysEqual(mergedConfig.supportedConditions, latestConfig.supportedConditions);
+
+        if (!isSameAsLatest) {
+          const configRecord = await this.repository.createOrganizationConfigVersion(organizationId, mergedConfig);
+          configVersion = configRecord.version;
+        }
+      } else if (organizationConfig && !canUpdateOrganizationConfig) {
+        logger.warn({
+          event: 'service_updateOrganization_config_update_skipped',
+          reason: 'organizationConfig update requires ROOT_ADMIN',
+          userType: normalizedUserType || 'UNKNOWN',
+        });
+      }
+
       const updated = await this.repository.getOrganization(organizationId);
       if (!updated) {
         throw new OrganizationNotFoundError(organizationId);
       }
 
       const updatedFields: Record<string, unknown> = {};
-      if (updates.name !== undefined) updatedFields.name = updates.name;
-      if (updates.email !== undefined) updatedFields.email = updates.email;
-      if (updates.phone !== undefined) updatedFields.phone = updates.phone;
-      if (updates.address !== undefined) updatedFields.address = updates.address;
-      if (updates.city !== undefined) updatedFields.city = updates.city;
-      if (updates.state !== undefined) updatedFields.state = updates.state;
-      if (updates.country !== undefined) updatedFields.country = updates.country;
-      if (updates.postalCode !== undefined) updatedFields.postalCode = updates.postalCode;
-      if (updates.status !== undefined) updatedFields.status = updates.status;
-      if (updates.website !== undefined) updatedFields.website = updates.website;
-      if (updates.taxId !== undefined) updatedFields.taxId = updates.taxId;
-      if (updates.registrationNumber !== undefined) updatedFields.registrationNumber = updates.registrationNumber;
-      if (updates.description !== undefined) updatedFields.description = updates.description;
-      if (updates.industry !== undefined) updatedFields.industry = updates.industry;
-      if (updates.size !== undefined) updatedFields.size = updates.size;
-      if (updates.adminDetails !== undefined) updatedFields.adminDetails = updates.adminDetails;
+      if (organizationUpdates.name !== undefined) updatedFields.name = organizationUpdates.name;
+      if (organizationUpdates.email !== undefined) updatedFields.email = organizationUpdates.email;
+      if (organizationUpdates.phone !== undefined) updatedFields.phone = organizationUpdates.phone;
+      if (organizationUpdates.address !== undefined) updatedFields.address = organizationUpdates.address;
+      if (organizationUpdates.city !== undefined) updatedFields.city = organizationUpdates.city;
+      if (organizationUpdates.state !== undefined) updatedFields.state = organizationUpdates.state;
+      if (organizationUpdates.country !== undefined) updatedFields.country = organizationUpdates.country;
+      if (organizationUpdates.postalCode !== undefined) updatedFields.postalCode = organizationUpdates.postalCode;
+      if (organizationUpdates.status !== undefined) updatedFields.status = organizationUpdates.status;
+      if (organizationUpdates.website !== undefined) updatedFields.website = organizationUpdates.website;
+      if (organizationUpdates.taxId !== undefined) updatedFields.taxId = organizationUpdates.taxId;
+      if (organizationUpdates.registrationNumber !== undefined) updatedFields.registrationNumber = organizationUpdates.registrationNumber;
+      if (organizationUpdates.description !== undefined) updatedFields.description = organizationUpdates.description;
+      if (organizationUpdates.industry !== undefined) updatedFields.industry = organizationUpdates.industry;
+      if (organizationUpdates.size !== undefined) updatedFields.size = organizationUpdates.size;
+      if (organizationUpdates.adminDetails !== undefined) updatedFields.adminDetails = organizationUpdates.adminDetails;
+      if (organizationConfig !== undefined && canUpdateOrganizationConfig) {
+        updatedFields.organizationConfig = organizationConfig;
+      }
+      if (configVersion !== undefined) updatedFields.organizationConfigVersion = configVersion;
 
       await publishEvent(
         {

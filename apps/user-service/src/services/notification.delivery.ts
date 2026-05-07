@@ -183,8 +183,8 @@ export async function sendSms(options: {
   try {
     const phone = resolvePhoneNumber({ phone: options.phone });
     const formattedPhone = normalizeIndianPhone(phone);
-    // console.log('FINAL TEMPLATE DATA : ', options.templateData);
-    // console.log('FINAL TEMPLATE : ', options.template);
+    console.log('FINAL TEMPLATE DATA : ', options.templateData);
+    console.log('FINAL TEMPLATE : ', options.template);
 
     // try {
     //   if (options.template) {
@@ -223,6 +223,29 @@ export async function sendSms(options: {
               (options.templateData?.ORG_NAME as string) ||
               (options.templateData?.orgName as string) ||
               '',
+          },
+        };
+      } else if (options.template === 'FNF_INVITE_SENT') {
+        payload = {
+          ...payload,
+          templateKey: 'FNF_INVITE_SENT',
+          language: 'en',
+          variables: {
+            inviterName: String(
+              options.templateData?.inviterName ??
+                options.templateData?.INVITER_NAME ??
+                '',
+            ),
+            orgName: String(
+              options.templateData?.orgName ??
+                options.templateData?.ORG_NAME ??
+                '',
+            ),
+            invitationLink: String(
+              options.templateData?.invitationLink ??
+                options.templateData?.PORTAL_LINK ??
+                '',
+            ),
           },
         };
       } else if (
@@ -266,7 +289,7 @@ export async function sendSms(options: {
       console.error('TEMPLATE / TEMPLATE DATA ERROR : ', err);
     }
 
-    // console.log('PAYLOAD : ', payload);
+    console.log('PAYLOAD : ', payload);
     try {
       await axios({
         method: 'POST',

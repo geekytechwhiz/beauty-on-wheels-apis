@@ -32,7 +32,7 @@ describe('normalizeMetadataTypeInput', () => {
       ...base,
       applicableModules: ['CarePlan', 'OKR', 'Alert'],
       status: 'Active',
-    } as MetadataTypeInput & Record<string, unknown>);
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
 
     expect(normalized.status).toBe(STATUS.ACTIVE);
     expect(normalized.applicableModules).toEqual(['CARE_PLAN', 'OKR', 'ALERT']);
@@ -44,7 +44,7 @@ describe('normalizeMetadataTypeInput', () => {
       ...base,
       applicableModules: ['OKR'],
       status: 'inactive',
-    } as MetadataTypeInput & Record<string, unknown>);
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
     expect(normalized.status).toBe(STATUS.INACTIVE);
     expect(() => validateMetadataTypeInput(normalized, false)).not.toThrow();
   });
@@ -54,7 +54,7 @@ describe('normalizeMetadataTypeInput', () => {
       ...base,
       applicableModules: ['CARE_PLAN', 'OKR'],
       status: 'ACTIVE',
-    } as MetadataTypeInput & Record<string, unknown>);
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
     expect(normalized.applicableModules).toEqual(['CARE_PLAN', 'OKR']);
   });
 });

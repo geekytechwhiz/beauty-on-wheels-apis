@@ -1,8 +1,4 @@
-import {
-  resolveMetadataTypeGet,
-  resolveMetadataValueGetForApi,
-  ValidationError,
-} from '@api-hub/metadata';
+import { resolveMetadataTypeGet, resolveMetadataValueGetForApi } from '@api-hub/metadata';
 import { withLambdaHandler } from '@api-hub/utils';
 import { getMetadataSchema } from '../schemas/getMetadata.schema';
 import {
@@ -20,13 +16,7 @@ export const main = withLambdaHandler(async (req) => {
     return enrichMetadataRecordActors(record, userMap);
   }
 
-  if (input.entityType === 'value') {
-    const record = await resolveMetadataValueGetForApi(input.metadataTypeCode, input.valueCode, input.mode);
-    const userMap = await getUsersByIds(collectUserIdsForEnrichment(record));
-    return enrichMetadataRecordActors(record, userMap);
-  }
-
-  throw new ValidationError('entityType must be "type" or "value"', [
-    { field: 'entityType', message: 'Must be "type" or "value"' },
-  ]);
+  const record = await resolveMetadataValueGetForApi(input.metadataTypeCode, input.valueCode, input.mode);
+  const userMap = await getUsersByIds(collectUserIdsForEnrichment(record));
+  return enrichMetadataRecordActors(record, userMap);
 });

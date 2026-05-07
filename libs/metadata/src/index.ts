@@ -32,6 +32,7 @@ export * from './validators/attribute-schema.validator';
 export * from './validators/schemas';
 export * from './validators/validate-inputs';
 export * from './validators/relation';
+export * from './validators/registry-route.validation';
 
 export * from './mappers/metadata-value-request';
 export {

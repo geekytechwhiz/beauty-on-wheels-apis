@@ -713,14 +713,18 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     const latestMap = new Map<string, number>();
     const chunks = chunk(valueCodes, BATCH_GET_SIZE);
     for (const part of chunks) {
-      const keys = part.map((code) => this.key(pk, valueLatestSk(code)));
-      const res = (await this.doc.send(
-        new BatchGetCommand({ RequestItems: { [this.tableName]: { Keys: keys } } }),
-      )) as { Responses?: Record<string, Record<string, unknown>[]> };
-      const items = res.Responses?.[this.tableName] ?? [];
-      for (const it of items) {
-        const code = it.valueCode as string;
-        latestMap.set(code, it.latestVersion as number);
+      try {
+        const keys = part.map((code) => this.key(pk, valueLatestSk(code)));
+        const res = (await this.doc.send(
+          new BatchGetCommand({ RequestItems: { [this.tableName]: { Keys: keys } } }),
+        )) as { Responses?: Record<string, Record<string, unknown>[]> };
+        const items = res.Responses?.[this.tableName] ?? [];
+        for (const it of items) {
+          const code = it.valueCode as string;
+          latestMap.set(code, it.latestVersion as number);
+        }
+      } catch (e: unknown) {
+        this.rethrowDynamo('BatchGetItem', e);
       }
     }
 
@@ -731,14 +735,18 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
 
     const values: MetadataValueRecord[] = [];
     for (const part of chunk(valueKeys, BATCH_GET_SIZE)) {
-      const res = (await this.doc.send(
-        new BatchGetCommand({
-          RequestItems: { [this.tableName]: { Keys: part.map((k) => this.key(k.pk, k.sk)) } },
-        }),
-      )) as { Responses?: Record<string, Record<string, unknown>[]> };
-      const items = res.Responses?.[this.tableName] ?? [];
-      for (const it of items) {
-        values.push(this.unmarshalValue(it as Record<string, unknown>));
+      try {
+        const res = (await this.doc.send(
+          new BatchGetCommand({
+            RequestItems: { [this.tableName]: { Keys: part.map((k) => this.key(k.pk, k.sk)) } },
+          }),
+        )) as { Responses?: Record<string, Record<string, unknown>[]> };
+        const items = res.Responses?.[this.tableName] ?? [];
+        for (const it of items) {
+          values.push(this.unmarshalValue(it as Record<string, unknown>));
+        }
+      } catch (e: unknown) {
+        this.rethrowDynamo('BatchGetItem', e);
       }
     }
     return values;
@@ -756,7 +764,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
           },
         },
       }));
-      await this.doc.send(new BatchWriteCommand({ RequestItems: { [this.tableName]: requests } }));
+      try {
+        await this.doc.send(new BatchWriteCommand({ RequestItems: { [this.tableName]: requests } }));
+      } catch (e: unknown) {
+        this.rethrowDynamo('BatchWriteItem', e);
+      }
     }
   }
 
@@ -765,7 +777,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       const requests = part.map((sk) => ({
         DeleteRequest: { Key: this.key(pk, sk) },
       }));
-      await this.doc.send(new BatchWriteCommand({ RequestItems: { [this.tableName]: requests } }));
+      try {
+        await this.doc.send(new BatchWriteCommand({ RequestItems: { [this.tableName]: requests } }));
+      } catch (e: unknown) {
+        this.rethrowDynamo('BatchWriteItem', e);
+      }
     }
   }
 

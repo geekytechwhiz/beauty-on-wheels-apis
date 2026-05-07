@@ -1,4 +1,5 @@
 import type { CreateMetadataRelationInput } from '@api-hub/metadata';
+import { validateRelationRequestShape } from '@api-hub/metadata';
 import { z } from 'zod';
 
 export const postRelationSchema = z
@@ -16,6 +17,9 @@ export const postRelationSchema = z
       body,
       userId: req.context?.userContext?.userId,
     };
+  })
+  .superRefine((data) => {
+    validateRelationRequestShape(data.body);
   });
 
 export type PostRelationInput = z.infer<typeof postRelationSchema>;

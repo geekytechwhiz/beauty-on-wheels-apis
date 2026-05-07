@@ -1,5 +1,8 @@
-import { ValidationError } from '@api-hub/metadata';
-import { z } from 'zod';
+import {
+  assertMetadataTypeCodePresentOnBody,
+  assertRegistryEntityKind,
+  assertValueCodePresentOnPatchBody,
+} from '@api-hub/metadata';import { z } from 'zod';
 
 export const patchMetadataStatusSchema = z
   .object({
@@ -23,36 +26,17 @@ export const patchMetadataStatusSchema = z
     return { entityTypeRaw: entityType, kind, userId, body };
   })
   .superRefine((data) => {
-    if (!data.entityTypeRaw) {
-      throw new ValidationError('entityType is required in path', [{ field: 'entityType', message: 'Required' }]);
-    }
-    const b = data.body;
-    if (data.kind === 'type') {
-      const code = b?.metadataTypeCode;
-      if (code === undefined || code === null || String(code).trim() === '') {
-        throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
-      }
+    const kind = assertRegistryEntityKind(data.entityTypeRaw);
+    const b = (data.body ?? {}) as Record<string, unknown>;
+    if (kind === 'type') {
+      assertMetadataTypeCodePresentOnBody(b);
       return;
     }
-    if (data.kind === 'value') {
-      const metadataTypeCode = b?.metadataTypeCode;
-      if (metadataTypeCode === undefined || metadataTypeCode === null || String(metadataTypeCode).trim() === '') {
-        throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
-      }
-      const valueCode = (b?.valueCode ?? b?.metadataValueCode) as string | undefined;
-      if (valueCode === undefined || valueCode === null || String(valueCode).trim() === '') {
-        throw new ValidationError('metadataTypeCode and metadataValueCode are required', [
-          { field: 'metadataValueCode', message: 'valueCode or metadataValueCode is required' },
-        ]);
-      }
-      return;
-    }
-    throw new ValidationError('entityType must be "type" or "value"', [
-      { field: 'entityType', message: 'Must be "type" or "value"' },
-    ]);
+    assertMetadataTypeCodePresentOnBody(b);
+    assertValueCodePresentOnPatchBody(b);
   })
   .transform((data) => {
-    const b = data.body!;
+    const b = (data.body ?? {}) as Record<string, unknown>;
     if (data.kind === 'type') {
       return {
         entityType: 'type' as const,

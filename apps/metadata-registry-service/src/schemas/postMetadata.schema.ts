@@ -1,4 +1,4 @@
-import { STATUS, ValidationError } from '@api-hub/metadata';
+import { STATUS, ValidationError, assertMetadataTypeCodePresentOnBody, assertRegistryEntityKind } from '@api-hub/metadata';
 import { z } from 'zod';
 
 const APPLICABILITY_KEYS = [
@@ -75,47 +75,13 @@ export const postMetadataSchema = z
     return { entityTypeRaw, kind, userId, body };
   })
   .superRefine((data) => {
-    if (!data.entityTypeRaw) {
-      throw new ValidationError('entityType is required in path', [{ field: 'entityType', message: 'Required' }]);
-    }
-    if (data.kind === 'type') {
-      const code = data.body?.metadataTypeCode;
-      if (code === undefined || code === null || typeof code !== 'string' || code.trim() === '') {
-        throw new ValidationError('metadataTypeCode is required', [
-          {
-            field: 'metadataTypeCode',
-            message:
-              code !== undefined && code !== null && typeof code !== 'string' ? 'Must be a string' : 'Required',
-          },
-        ]);
-      }
+    const kind = assertRegistryEntityKind(data.entityTypeRaw);
+    if (kind === 'type') {
+      assertMetadataTypeCodePresentOnBody(data.body as Record<string, unknown>);
       return;
     }
-    if (data.kind === 'value') {
-      const raw = data.body;
-      const typeCodeRaw = raw.metadataTypeCode;
-      if (
-        typeCodeRaw === undefined ||
-        typeCodeRaw === null ||
-        typeof typeCodeRaw !== 'string' ||
-        typeCodeRaw.trim() === ''
-      ) {
-        throw new ValidationError('metadataTypeCode is required', [
-          {
-            field: 'metadataTypeCode',
-            message:
-              typeCodeRaw !== undefined && typeCodeRaw !== null && typeof typeCodeRaw !== 'string'
-                ? 'Must be a string'
-                : 'Required',
-          },
-        ]);
-      }
-      refinePostMetadataValueBody(raw);
-      return;
-    }
-    throw new ValidationError('entityType must be "type" or "value"', [
-      { field: 'entityType', message: 'Must be "type" or "value"' },
-    ]);
+    assertMetadataTypeCodePresentOnBody(data.body as Record<string, unknown>);
+    refinePostMetadataValueBody(data.body as Record<string, unknown>);
   })
   .transform((data) => {
     if (data.kind === 'type') {

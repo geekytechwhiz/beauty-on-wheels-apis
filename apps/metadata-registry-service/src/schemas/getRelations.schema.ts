@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { normalizeRelationListQueryParams } from './relationListQuery.shared';
+
 /**
  * GET relations list: mirrors prior handler resolution (params + pathParameters), including
  * `fromTypeCode` / `fromValueCode` aliases on query or path.
@@ -17,6 +19,7 @@ export const getRelationsSchema = z
     const relationType = q.relationType ?? p.relationType;
     const toType = q.toType ?? q.toMetadataTypeCode ?? p.toType ?? p.toMetadataTypeCode;
     return { fromType, fromValue, relationType, toType };
-  });
+  })
+  .transform((raw) => normalizeRelationListQueryParams(raw));
 
 export type GetRelationsInput = z.infer<typeof getRelationsSchema>;

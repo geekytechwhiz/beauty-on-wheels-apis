@@ -49,7 +49,7 @@ export interface AlertRecord {
   triggerSummaryParams?: Record<string, unknown>;
   assignedToUserId?: string;
   assignSlaDueAt: string;
-  resolveSlaDueAt: string;
+  resolveSlaDueAt?: string;
   assignSlaMinutes: number;
   resolveSlaMinutes: number;
   createdAt: string;

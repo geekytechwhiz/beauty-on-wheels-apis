@@ -238,6 +238,53 @@ describe('createAlert HTTP handler', () => {
     expect(mockCreateAlert).not.toHaveBeenCalled();
   });
 
+  it('accepts optional assignSlaMinutes / resolveSlaMinutes and forwards them to the service', async () => {
+    const record = minimalAlertRecord();
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+
+    const body = {
+      ...validMissedReadingBody(),
+      assignSlaMinutes: 30,
+      resolveSlaMinutes: 120,
+    };
+    const result = await main(baseEvent({ body: JSON.stringify(body) }), context);
+
+    expect(result.statusCode).toBe(200);
+    expect(mockCreateAlert).toHaveBeenCalledTimes(1);
+    const payload = mockCreateAlert.mock.calls[0][0] as {
+      assignSlaMinutes?: number;
+      resolveSlaMinutes?: number;
+    };
+    expect(payload.assignSlaMinutes).toBe(30);
+    expect(payload.resolveSlaMinutes).toBe(120);
+  });
+
+  it('omitting SLA minutes leaves them undefined on the payload (builder applies defaults)', async () => {
+    const record = minimalAlertRecord();
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+
+    const result = await main(baseEvent(), context);
+
+    expect(result.statusCode).toBe(200);
+    const payload = mockCreateAlert.mock.calls[0][0] as {
+      assignSlaMinutes?: number;
+      resolveSlaMinutes?: number;
+    };
+    expect(payload.assignSlaMinutes).toBeUndefined();
+    expect(payload.resolveSlaMinutes).toBeUndefined();
+  });
+
+  it('returns 422 when assignSlaMinutes is negative or non-integer', async () => {
+    const cases = [{ assignSlaMinutes: -5 }, { assignSlaMinutes: 12.5 }];
+    for (const overrides of cases) {
+      mockCreateAlert.mockReset();
+      const body = { ...validMissedReadingBody(), ...overrides };
+      const result = await main(baseEvent({ body: JSON.stringify(body) }), context);
+      expect(result.statusCode).toBe(422);
+      expect(mockCreateAlert).not.toHaveBeenCalled();
+    }
+  });
+
   it('handles serverless-plugin-warmup payload with 200', async () => {
     const warmupEvent = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
     const result = await main(warmupEvent, context);

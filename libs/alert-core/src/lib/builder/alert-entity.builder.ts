@@ -8,7 +8,10 @@ import { ACTIVITY_TYPE_ALERT_CREATED, ALERT_METADATA_SK } from '../constants/ale
 import { AlertActivityType } from '../constants/alert-activity-type';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
+import { defaultAssignSlaMinutes, defaultResolveSlaMinutes } from '../models/domain/alert-context';
 import { parseIsoToEpochMs, toEpochMs } from '../utils/alert-time';
+
+const MS_PER_MINUTE = 60_000;
 
 export interface CreateAlertContext {
   alertId: string;
@@ -64,6 +67,12 @@ export class AlertEntityBuilder {
     const pk = AlertKeyBuilder.toAlertPk(alertId);
     const sk = ALERT_METADATA_SK;
 
+    // SLA minutes: caller-provided wins, otherwise env (`ENV_*_SLA_MINUTES`) → constants (`DEFAULT_*_SLA_MINUTES`).
+    // `0` means "no SLA tracked": store the value as-is and skip due-at math (assignSlaDueAt = createdAt sentinel).
+    const assignSlaMinutes = input.assignSlaMinutes ?? defaultAssignSlaMinutes();
+    const resolveSlaMinutes = input.resolveSlaMinutes ?? defaultResolveSlaMinutes();
+    const assignSlaDueAt = assignSlaMinutes > 0 ? nowMs + assignSlaMinutes * MS_PER_MINUTE : nowMs;
+
     return {
       // 🔑 Keys
       pk,
@@ -110,11 +119,10 @@ export class AlertEntityBuilder {
       assignedAt: undefined,
       assignedBy: undefined,
 
-      // 🔹 SLA (basic default, can be enhanced)
-      assignSlaMinutes: 0,
-      resolveSlaMinutes: 0,
-      assignSlaDueAt: nowMs,
-      resolveSlaDueAt: nowMs,
+      // 🔹 SLA — assign clock starts at creation; resolve clock starts at first assignment.
+      assignSlaMinutes,
+      resolveSlaMinutes,
+      assignSlaDueAt,
       slaBreachIndicator: false,
 
       // 🔹 Workflow
@@ -306,6 +314,20 @@ export class AlertEntityBuilder {
         setField('gsi2pk', AlertKeyBuilder.toUserPartitionKey(patch.assignedToUserId));
 
         setField('gsi2sk', AlertKeyBuilder.buildGsi2Sk(sortEpochMs, existing.alertId));
+
+        // First-assignment only: start the resolve-SLA clock and re-key GSI5 to the resolve due date.
+        // Subsequent reassignments do NOT reset resolveSlaDueAt or rewrite GSI5.
+        const isFirstAssignment = !existing.assignedToUserId;
+        if (isFirstAssignment) {
+          const minutes = existing.resolveSlaMinutes ?? defaultResolveSlaMinutes();
+          if (minutes > 0) {
+            const due = toEpochMs(existing.createdAt) + minutes * MS_PER_MINUTE;
+            if (existing.resolveSlaMinutes == null) setField('resolveSlaMinutes', minutes);
+            setField('resolveSlaDueAt', due);
+            setField('gsi5pk', AlertKeyBuilder.toSlaPartitionKey(due));
+            setField('gsi5sk', AlertKeyBuilder.toSlaSortKey(due, existing.alertId));
+          }
+        }
       }
     }
 

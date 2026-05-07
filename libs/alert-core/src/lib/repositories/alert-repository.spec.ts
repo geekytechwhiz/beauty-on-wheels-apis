@@ -1,10 +1,17 @@
-import { ACTIVITY_TYPE_NOTE_ADDED, ALERT_METADATA_SK } from '../constants/alert.constants';
+import {
+  ACTIVITY_TYPE_NOTE_ADDED,
+  ALERT_METADATA_SK,
+  DEFAULT_ASSIGN_SLA_MINUTES,
+  DEFAULT_RESOLVE_SLA_MINUTES,
+} from '../constants/alert.constants';
 import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from './alert-repository';
+
+const MS_PER_MINUTE = 60_000;
 
 const TABLE = 'test-alert-table';
 
@@ -170,6 +177,44 @@ describe('AlertRepository', () => {
       await expect(repo.createAlert(createRequest({ inputEventId: 'evt-dup' }))).rejects.toBeInstanceOf(
         DuplicateEventError,
       );
+    });
+
+    it('uses DEFAULT_*_SLA_MINUTES when input omits SLA fields and starts assign-SLA at creation', async () => {
+      jest.spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite').mockResolvedValue(undefined);
+
+      const out = await repo.createAlert(createRequest({ inputEventId: 'evt-sla-default' }));
+
+      expect(out.assignSlaMinutes).toBe(DEFAULT_ASSIGN_SLA_MINUTES);
+      expect(out.resolveSlaMinutes).toBe(DEFAULT_RESOLVE_SLA_MINUTES);
+      expect(out.assignSlaDueAt).toBe((out.createdAt as number) + DEFAULT_ASSIGN_SLA_MINUTES * MS_PER_MINUTE);
+      expect(out.resolveSlaDueAt).toBeUndefined();
+      expect(out.gsi5pk).toBe(AlertKeyBuilder.toSlaPartitionKey(out.assignSlaDueAt as number));
+      expect(out.gsi5sk).toBe(AlertKeyBuilder.toSlaSortKey(out.assignSlaDueAt as number, out.alertId));
+    });
+
+    it('honors caller-provided assignSlaMinutes / resolveSlaMinutes', async () => {
+      jest.spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite').mockResolvedValue(undefined);
+
+      const out = await repo.createAlert(
+        createRequest({ inputEventId: 'evt-sla-custom', assignSlaMinutes: 15, resolveSlaMinutes: 90 }),
+      );
+
+      expect(out.assignSlaMinutes).toBe(15);
+      expect(out.resolveSlaMinutes).toBe(90);
+      expect(out.assignSlaDueAt).toBe((out.createdAt as number) + 15 * MS_PER_MINUTE);
+    });
+
+    it('treats 0 minutes as "no SLA tracked" (no due-at math; sentinel = createdAt)', async () => {
+      jest.spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite').mockResolvedValue(undefined);
+
+      const out = await repo.createAlert(
+        createRequest({ inputEventId: 'evt-sla-zero', assignSlaMinutes: 0, resolveSlaMinutes: 0 }),
+      );
+
+      expect(out.assignSlaMinutes).toBe(0);
+      expect(out.resolveSlaMinutes).toBe(0);
+      expect(out.assignSlaDueAt).toBe(out.createdAt as number);
+      expect(out.gsi5pk).toBe(AlertKeyBuilder.toSlaPartitionKey(out.createdAt as number));
     });
   });
 

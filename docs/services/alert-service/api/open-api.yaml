@@ -522,6 +522,20 @@ components:
             Optional unless `triggerSummaryTemplateCode` is set; then required (may be `{}`). Omit both when using only `triggerSummary`.
         evidencePayload:
           $ref: '#/components/schemas/EvidencePayload'
+        assignSlaMinutes:
+          type: integer
+          minimum: 0
+          nullable: false
+          description: >
+            Optional. Minutes allowed from alert creation to first assignment. When omitted, the service falls back to
+            `ENV_ASSIGN_SLA_MINUTES`, then `DEFAULT_ASSIGN_SLA_MINUTES`. `0` means \"no SLA tracked\".
+        resolveSlaMinutes:
+          type: integer
+          minimum: 0
+          nullable: false
+          description: >
+            Optional. Minutes allowed from first assignment to closure (RESOLVED / DISMISSED). When omitted, the service
+            falls back to `ENV_RESOLVE_SLA_MINUTES`, then `DEFAULT_RESOLVE_SLA_MINUTES`. `0` means \"no SLA tracked\".
 
     AlertSummary:
       type: object
@@ -562,8 +576,14 @@ components:
           description: True when assignment or resolution SLA is breached.
         assignSlaDueAt:
           $ref: '#/components/schemas/EpochMillis'
+          description: >
+            Assignment SLA due timestamp (epoch ms). Set at alert creation when `assignSlaMinutes` > 0; otherwise equals
+            `createdAt` as a sentinel meaning \"no SLA tracked\".
         resolveSlaDueAt:
           $ref: '#/components/schemas/EpochMillis'
+          description: >
+            Resolution SLA due timestamp (epoch ms). Set only on the **first assignment** when `resolveSlaMinutes` > 0;
+            before the first assignment it equals `createdAt` as a sentinel meaning \"not started yet\" (or \"no SLA tracked\").
         createdAt:
           $ref: '#/components/schemas/EpochMillis'
 

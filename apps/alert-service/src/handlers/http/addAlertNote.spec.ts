@@ -21,6 +21,7 @@ jest.mock('@api-hub/alert-core', () => {
 });
 
 import { main } from './addAlertNote';
+import mainDefault from './addAlertNote';
 
 describe('addAlertNote HTTP handler', () => {
   let envCleanup: () => void;
@@ -65,7 +66,7 @@ describe('addAlertNote HTTP handler', () => {
       activityComment: 'hello',
     });
 
-    const result = await main(baseEvent('a-1', { comment: 'hello' }), context);
+    const result = await mainDefault(baseEvent('a-1', { comment: 'hello' }), context);
 
     expect(result.statusCode).toBe(200);
     expect(mockAddNote).toHaveBeenCalledWith(

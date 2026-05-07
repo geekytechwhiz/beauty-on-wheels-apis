@@ -48,7 +48,7 @@ describe('getAlertActivity HTTP handler', () => {
         performedAt: '2026-01-15T10:00:00.000Z',
       },
     ];
-    mockGetAlert.mockResolvedValue({ alertId: 'alt-1', organizationId: 'org-1' });
+    mockGetAlert.mockResolvedValue({ alertId: 'alt-1', organizationId: 'org-1' } as any);
     mockListAlertActivity.mockResolvedValue(items);
 
     const result = await main(baseGetEvent({ pathParameters: { alertId: 'alt-1' } }), context);
@@ -89,7 +89,7 @@ describe('getAlertActivity HTTP handler', () => {
   });
 
   it('passes notesOnly=true when query string set', async () => {
-    mockGetAlert.mockResolvedValue({ alertId: 'alt-1', organizationId: 'org-1' });
+    mockGetAlert.mockResolvedValue({ alertId: 'alt-1', organizationId: 'org-1' } as any);
     mockListAlertActivity.mockResolvedValue([]);
     const event = baseGetEvent({
       pathParameters: { alertId: 'alt-1' },

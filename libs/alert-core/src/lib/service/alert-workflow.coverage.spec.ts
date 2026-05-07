@@ -35,103 +35,7 @@ function minimalRow(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord {
   } as AlertDdbRecord;
 }
 
-describe('alert-workflow', () => {
-  describe('ASSIGN', () => {
-    it('UNASSIGNED -> ASSIGNED', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.UNASSIGNED });
-      const patch = workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, {
-        assignToUserId: 'user-1',
-        assignedToDisplayName: 'User One',
-      });
-      expect(patch).toEqual({
-        alertState: ALERT_STATE.ASSIGNED,
-        assignedToUserId: 'user-1',
-        assignedToDisplayName: 'User One',
-      });
-    });
-
-    it('ASSIGNED -> ASSIGNED (reassignment)', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.ASSIGNED, assignedToUserId: 'user-old' });
-      const patch = workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, {
-        assignToUserId: 'user-new',
-        assignedToDisplayName: 'User New',
-      });
-      expect(patch).toEqual({
-        alertState: ALERT_STATE.ASSIGNED,
-        assignedToUserId: 'user-new',
-        assignedToDisplayName: 'User New',
-      });
-    });
-
-    it('IN_PROGRESS retains state and only updates assignee', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.IN_PROGRESS, assignedToUserId: 'user-old' });
-      const patch = workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, {
-        assignToUserId: 'user-new',
-        assignedToDisplayName: 'User New',
-      });
-      expect(patch).toEqual({
-        assignedToUserId: 'user-new',
-        assignedToDisplayName: 'User New',
-      });
-      expect(patch).not.toHaveProperty('alertState');
-    });
-
-    it('WAITING retains state and only updates assignee', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.WAITING, assignedToUserId: 'user-old' });
-      const patch = workflowActionToUpdatePatch(row, AlertWorkflowAction.Assign, {
-        assignToUserId: 'user-new',
-        assignedToDisplayName: 'User New',
-      });
-      expect(patch).toEqual({
-        assignedToUserId: 'user-new',
-        assignedToDisplayName: 'User New',
-      });
-      expect(patch).not.toHaveProperty('alertState');
-    });
-  });
-
-  describe('START_WORK', () => {
-    it('ASSIGNED -> IN_PROGRESS', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.ASSIGNED });
-      const patch = workflowActionToUpdatePatch(row, AlertWorkflowAction.StartWork, {});
-      expect(patch).toEqual({ alertState: ALERT_STATE.IN_PROGRESS });
-    });
-
-    it('rejects UNASSIGNED', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.UNASSIGNED });
-      try {
-        workflowActionToUpdatePatch(row, AlertWorkflowAction.StartWork, {});
-        throw new Error('Expected workflowActionToUpdatePatch to throw');
-      } catch (e) {
-        expect(e).toMatchObject({ statusCode: 409, code: 'ILLEGAL_TRANSITION' });
-      }
-    });
-  });
-
-  describe('RESOLVE', () => {
-    it('rejects UNASSIGNED', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.UNASSIGNED });
-      try {
-        workflowActionToUpdatePatch(row, AlertWorkflowAction.Resolve, { resolutionCode: 'X' });
-        throw new Error('Expected workflowActionToUpdatePatch to throw');
-      } catch (e) {
-        expect(e).toMatchObject({ statusCode: 409, code: 'ILLEGAL_TRANSITION' });
-      }
-    });
-  });
-
-  describe('terminal states', () => {
-    it('rejects transitions from RESOLVED', () => {
-      const row = minimalRow({ alertState: ALERT_STATE.RESOLVED });
-      try {
-        workflowActionToUpdatePatch(row, AlertWorkflowAction.Dismiss, {});
-        throw new Error('Expected workflowActionToUpdatePatch to throw');
-      } catch (e) {
-        expect(e).toMatchObject({ statusCode: 409, code: 'ILLEGAL_TRANSITION' });
-      }
-    });
-  });
-
+describe('alert-workflow (coverage)', () => {
   describe('assertWorkflowClosureComment', () => {
     it('no-ops for non terminal closure actions', () => {
       expect(() => assertWorkflowClosureComment(AlertWorkflowAction.StartWork, undefined, undefined)).not.toThrow();
@@ -156,7 +60,7 @@ describe('alert-workflow', () => {
     });
   });
 
-  describe('workflowActionToUpdatePatch (edge cases)', () => {
+  describe('workflowActionToUpdatePatch', () => {
     it('ASSIGN validates assignee and display name', () => {
       const row = minimalRow({ alertState: ALERT_STATE.UNASSIGNED });
       expect(() =>

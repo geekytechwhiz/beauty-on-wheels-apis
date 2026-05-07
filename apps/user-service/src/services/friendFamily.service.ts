@@ -231,23 +231,23 @@ export class FriendFamilyService {
 
         const baseInviteUrl = (process.env.WEB_URL || WEB_DNS_URL || '').trim();
         let invitationLink = baseInviteUrl;
-        if (baseInviteUrl) {
-          try {
-            const inviteUrl = new URL(baseInviteUrl);
-            inviteUrl.searchParams.set('referrer', organizationID);
-            inviteUrl.searchParams.set('referrer_name', orgName);
-            inviteUrl.searchParams.set('referrer_address', orgAddress);
-            invitationLink = inviteUrl.toString();
-          } catch {
-            const sep = baseInviteUrl.includes('?') ? '&' : '?';
-            const qs = new URLSearchParams({
-              referrer: organizationID,
-              referrer_name: orgName,
-              referrer_address: orgAddress,
-            }).toString();
-            invitationLink = `${baseInviteUrl}${sep}${qs}`;
-          }
-        }
+        // if (baseInviteUrl) {
+        //   try {
+        //     const inviteUrl = new URL(baseInviteUrl);
+        //     inviteUrl.searchParams.set('referrer', organizationID);
+        //     inviteUrl.searchParams.set('referrer_name', orgName);
+        //     inviteUrl.searchParams.set('referrer_address', orgAddress);
+        //     invitationLink = inviteUrl.toString();
+        //   } catch {
+        //     const sep = baseInviteUrl.includes('?') ? '&' : '?';
+        //     const qs = new URLSearchParams({
+        //       referrer: organizationID,
+        //       referrer_name: orgName,
+        //       referrer_address: orgAddress,
+        //     }).toString();
+        //     invitationLink = `${baseInviteUrl}${sep}${qs}`;
+        //   }
+        // }
 
         await sendSms({
           phone: inviteePhone,

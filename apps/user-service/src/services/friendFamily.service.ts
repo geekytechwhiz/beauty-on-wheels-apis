@@ -14,6 +14,8 @@ import {
   FnfDoesNotExistError,
 } from '../errors';
 import { getOrganization } from './organization.service';
+import { sendSms } from './notification.delivery';
+import { PORTAL_LINK } from '../utils/constants';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userRepository = new UserRepository();
@@ -191,6 +193,48 @@ export class FriendFamilyService {
       manageHealth,
     });
 
+    const phoneCodeRaw = String((memberDetails as any).phoneCode ?? '').trim();
+    const phoneNumberRaw = String((memberDetails as any).phoneNumber ?? '')
+      .replace(/\s/g, '')
+      .trim();
+    const inviteePhone =
+      phoneCodeRaw && phoneNumberRaw
+        ? `${phoneCodeRaw}${phoneNumberRaw}`
+        : phoneNumberRaw;
+
+    if (inviteePhone) {
+      try {
+        const orgAny = org as Record<string, unknown>;
+        const orgInfo = (orgAny?.organizationInfo as Record<string, unknown>) || {};
+        const orgName =
+          String(
+            orgInfo.organizationName ??
+              orgInfo.name ??
+              orgAny?.name ??
+              '',
+          ).trim() || organizationID;
+        const invitationLink = process.env.PORTAL_LINK || PORTAL_LINK || '';
+
+        await sendSms({
+          phone: inviteePhone,
+          template: 'FNF_INVITE_SENT',
+          templateData: {
+            inviterName: userName,
+            orgName,
+            invitationLink,
+          },
+        });
+      } catch (smsErr) {
+        logger.warn({
+          event: 'friend_family_add_member_sms_failed',
+          memberId,
+          err: smsErr instanceof Error ? smsErr.message : String(smsErr),
+        });
+      }
+    } else {
+      logger.info({ event: 'friend_family_add_member_sms_skipped_no_phone', memberId });
+    }
+    
     logger.info({ event: 'friend_family_add_member_success' });
     return {
       userId,

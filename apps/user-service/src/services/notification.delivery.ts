@@ -225,7 +225,30 @@ export async function sendSms(options: {
               '',
           },
         };
-      } else if (
+      } else if (options.template === 'FNF_INVITE_SENT') {
+        payload = {
+          ...payload,
+          templateKey: 'FNF_INVITE_SENT',
+          language: 'en',
+          variables: {
+            inviterName: String(
+              options.templateData?.inviterName ??
+                options.templateData?.INVITER_NAME ??
+                '',
+            ),
+            orgName: String(
+              options.templateData?.orgName ??
+                options.templateData?.ORG_NAME ??
+                '',
+            ),
+            invitationLink: String(
+              options.templateData?.invitationLink ??
+                options.templateData?.PORTAL_LINK ??
+                '',
+            ),
+          },
+        };
+      }else if (
         options.template &&
         options.templateData &&
         Object.keys(options.templateData).length > 0

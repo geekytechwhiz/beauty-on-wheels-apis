@@ -18,5 +18,3 @@ export * from './lib/tracer-singleton';
 export * from './lib/tracer.middleware';
 export * from './lib/event-schema/validate';
 export * from './lib/event-schema/event-schema-error';
-export type { LambdaRequest } from '@api-hub/utils';
-export { ApiResponse, BaseError, decodeJwtPayload } from '@api-hub/utils';

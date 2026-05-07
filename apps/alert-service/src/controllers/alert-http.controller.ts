@@ -6,8 +6,8 @@
  *
  * **Responses:** shared `withApiHandler` success / {@link handleError} error envelopes (`@api-hub/utils`).
  */
-import type { LambdaRequest }  from '@api-hub/middleware';
-import { BaseError }  from '@api-hub/middleware';
+import type { LambdaRequest }  from '@api-hub/utils';
+import { BaseError }  from '@api-hub/utils';
 import {
   AlertService,
   createAlertPayloadFromHttpBody,

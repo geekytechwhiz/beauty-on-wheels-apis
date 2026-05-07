@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/logger';
-import { ApiResponse }  from '@api-hub/middleware';
+import { ApiResponse }  from '@api-hub/utils';
 
 const logger = createLogger({ service: 'alert-service', redactPII: false });
 

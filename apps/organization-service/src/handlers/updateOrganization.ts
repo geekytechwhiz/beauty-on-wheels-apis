@@ -47,6 +47,8 @@ const handler = async (req: LambdaRequest<Params>) => {
   const { organizationId } = req.params;
   const body = req.body ?? {};
   const { correlationId } = req.context;
+  const requestAuthorizer = req.event?.requestContext?.authorizer as Record<string, unknown> | undefined;
+  const userType = typeof requestAuthorizer?.userType === 'string' ? requestAuthorizer.userType : undefined;
 
   const normalized = normalizeOrganizationPayload(body);
   const hasAdminDetails = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body as Record<string, unknown>, 'adminDetails');
@@ -94,7 +96,7 @@ const handler = async (req: LambdaRequest<Params>) => {
     throw err;
   }
 
-  return organizationService.updateOrganization(organizationId, validationResult.data, correlationId);
+  return organizationService.updateOrganization(organizationId, validationResult.data, correlationId, userType);
 };
 
 export const main = withLambdaHandler(handler, {

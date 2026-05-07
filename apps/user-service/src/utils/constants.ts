@@ -13,7 +13,7 @@ export const PATH_V2_USER_LIST = '/v2/user/list';
 export const WEB_DNS_URL = process.env.WEB_URL; 
 export const WELCOME_DLT_CONTENT_ID = "1207176414422859894";
 export const WELCOME_MESSAGE = 'Welcome to {{ORG_NAME}}! To get started and access our services, please sign in using this link: {{PORTAL_LINK}}. Powered by MyVitalRx.';
-export const PORTAL_LINK = "https://prd-deeplink.myvitalrx.com/download-dev.html"; 
+// export const PORTAL_LINK = "https://prd-deeplink.myvitalrx.com/download-dev.html"; 
 // Email templates and messages
 
 export const INVITE_EMAIL_SUBJECT = 'Welcome to {{ORG_NAME}}, {{USER_FIRST_NAME}}!';

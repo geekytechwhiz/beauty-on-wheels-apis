@@ -50,7 +50,7 @@ apps/user-service/swagger/
 apps/order-service/.esbuild/
 apps/device-service/.esbuild/
 apps/organization-service/.esbuild/
-
+apps/*/.esbuild/
 services/partner-integration/.env
 services/partner-registry/.esbuild
 services/partner-integration/.esbuild

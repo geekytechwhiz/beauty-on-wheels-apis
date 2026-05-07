@@ -46,10 +46,15 @@ const handler = async (req: LambdaRequest<Params>) => {
   const { organizationId } = req.params;
   const view = String(req.event.queryStringParameters?.view ?? '').toLowerCase();
   const isMinimalView = view === 'minimal';
+  const isConfigView = view === 'config';
   // console.log('req from handler', req);
   const authHeader = req.context.authHeader ?? req.event.headers?.Authorization ?? req.event.headers?.authorization ?? req.event.headers?.AUTHORIZATION;
   const { correlationId } = req.context;
   const event = req.event;
+
+  if (isConfigView) {
+    return organizationService.getOrganizationConfig(organizationId);
+  }
 
   const organization = await organizationService.getOrganization(organizationId);
   const orgRecord = organization as unknown as Record<string, unknown>;
@@ -87,6 +92,10 @@ const handler = async (req: LambdaRequest<Params>) => {
       name: organization.name,
       status: organization.status,
       organizationType: organization.organizationType,
+      ...(organization.organizationConfig ? { organizationConfig: organization.organizationConfig } : {}),
+      ...(organization.organizationConfigVersion !== undefined
+        ? { organizationConfigVersion: organization.organizationConfigVersion }
+        : {}),
       organizationInfo: minimalOrgInfo,
     };
   }
@@ -224,6 +233,10 @@ const handler = async (req: LambdaRequest<Params>) => {
 
   if (!isRootOrg && organization.searchFields && typeof organization.searchFields === 'object') {
     transformed.searchFields = organization.searchFields;
+  }
+  if (organization.organizationConfig) transformed.organizationConfig = organization.organizationConfig;
+  if (organization.organizationConfigVersion !== undefined) {
+    transformed.organizationConfigVersion = organization.organizationConfigVersion;
   }
   if (!isRootOrg) transformed.status = organization.status;
   if (!isRootOrg && organization.traceId) transformed.traceId = organization.traceId;

@@ -14,6 +14,8 @@ import {
   FnfDoesNotExistError,
 } from '../errors';
 import { getOrganization } from './organization.service';
+import { sendSms } from './notification.delivery';
+import { WEB_DNS_URL } from '../utils/constants';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userRepository = new UserRepository();
@@ -191,6 +193,82 @@ export class FriendFamilyService {
       manageHealth,
     });
 
+    const phoneCodeRaw = String((memberDetails as any).phoneCode ?? '').trim();
+    const phoneNumberRaw = String((memberDetails as any).phoneNumber ?? '')
+      .replace(/\s/g, '')
+      .trim();
+    const inviteePhone =
+      phoneCodeRaw && phoneNumberRaw
+        ? `${phoneCodeRaw}${phoneNumberRaw}`
+        : phoneNumberRaw;
+
+    if (inviteePhone) {
+      try {
+        const orgAny = org as Record<string, unknown>;
+        const orgInfo = (orgAny?.organizationInfo as Record<string, unknown>) || {};
+        const orgName =
+          String(
+            orgInfo.organizationName ??
+              orgInfo.name ??
+              orgAny?.name ??
+              '',
+          ).trim() || organizationID;
+
+        let orgAddress = '';
+        if (orgInfo.address && typeof orgInfo.address === 'object') {
+          const addr = orgInfo.address as Record<string, unknown>;
+          orgAddress = [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
+            .filter(Boolean)
+            .map(String)
+            .join(', ');
+        }
+        if (!orgAddress) {
+          orgAddress = [orgAny.address, orgAny.city, orgAny.state, orgAny.country, orgAny.postalCode]
+            .filter(Boolean)
+            .map(String)
+            .join(', ');
+        }
+
+        const baseInviteUrl = (process.env.WEB_URL || WEB_DNS_URL || '').trim();
+        let invitationLink = baseInviteUrl;
+        if (baseInviteUrl) {
+          try {
+            const inviteUrl = new URL(baseInviteUrl);
+            inviteUrl.searchParams.set('referrer', organizationID);
+            inviteUrl.searchParams.set('referrer_name', orgName);
+            inviteUrl.searchParams.set('referrer_address', orgAddress);
+            invitationLink = inviteUrl.toString();
+          } catch {
+            const sep = baseInviteUrl.includes('?') ? '&' : '?';
+            const qs = new URLSearchParams({
+              referrer: organizationID,
+              referrer_name: orgName,
+              referrer_address: orgAddress,
+            }).toString();
+            invitationLink = `${baseInviteUrl}${sep}${qs}`;
+          }
+        }
+
+        await sendSms({
+          phone: inviteePhone,
+          template: 'FNF_INVITE_SENT',
+          templateData: {
+            inviterName: userName,
+            orgName,
+            invitationLink,
+          },
+        });
+      } catch (smsErr) {
+        logger.warn({
+          event: 'friend_family_add_member_sms_failed',
+          memberId,
+          err: smsErr instanceof Error ? smsErr.message : String(smsErr),
+        });
+      }
+    } else {
+      logger.info({ event: 'friend_family_add_member_sms_skipped_no_phone', memberId });
+    }
+    
     logger.info({ event: 'friend_family_add_member_success' });
     return {
       userId,

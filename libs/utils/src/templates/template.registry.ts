@@ -41,8 +41,14 @@ export const templates: Record<TemplateKey, NotificationTemplate> = {
   },
 
   PROFILE_UPDATED: {
-    subject: 'Your profile has been updated',
-    body: 'Your profile has been updated successfully.',
+    subject: 'Your Profile Has Been Updated',
+    body: `Hello {{FirstName}},
+    <br><br>Your MyVitalRx profile details have been successfully updated.
+    <br><br>If you made these changes, no further action is required.
+    <br><br>If you did not make these changes, please contact us immediately so we can assist you.
+    <br><br>If you have questions, please contact us at support@myvitalrx.com.
+    <br><br>Thank you,
+    <br><br>MyVitalRx Support Team`,
     sms: 'Your profile has been updated successfully.',
   },
 

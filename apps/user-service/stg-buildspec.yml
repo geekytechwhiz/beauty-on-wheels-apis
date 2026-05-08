@@ -69,8 +69,12 @@ phases:
           | awk '{print $2}' \
           | while read key; do
               name=$(basename "$key")
-              echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
-              aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+              if [ -f ".serverless/$name" ]; then
+                echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
+                aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+              else
+                echo "WARN: local artifact missing (.serverless/$name), skipping upload for $key"
+              fi
             done
 
       - echo "➤ Verifying upload…"

@@ -1,0 +1,324 @@
+{
+  "mcpServers": {
+    "aws-mcp": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--metadata",
+        "AWS_REGION=ap-south-1"
+      ]
+    },
+
+    "awslabs.aws-documentation-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-documentation-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+
+    "awslabs.cdk-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.cdk-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.terraform-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.terraform-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.aws-pricing-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-pricing-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.cost-analysis-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.cost-analysis-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.cloudwatch-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.cloudwatch-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.lambda-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.lambda-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.dynamodb-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.dynamodb-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.eventbridge-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.eventbridge-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.apigateway-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.apigateway-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.s3-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.s3-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.sqs-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.sqs-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.sns-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.sns-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.stepfunctions-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.stepfunctions-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.iam-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.iam-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.bedrock-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.bedrock-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.ecs-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.ecs-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.eks-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.eks-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.rds-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.rds-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.secretsmanager-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.secretsmanager-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.cognito-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.cognito-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.opensearch-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.opensearch-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.kinesis-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.kinesis-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.glue-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.glue-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.redshift-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.redshift-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.codepipeline-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.codepipeline-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.codebuild-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.codebuild-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.github-actions-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.github-actions-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.serverless-framework-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.serverless-framework-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.powertools-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.powertools-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.well-architected-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.well-architected-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.securityhub-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.securityhub-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.xray-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.xray-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.localstack-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.localstack-mcp-server@latest"
+      ]
+    },
+
+    "awslabs.sam-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.sam-mcp-server@latest"
+      ]
+    },
+ 
+
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Applications/Utilities/projects"
+      ]
+    },
+
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://username:password@localhost:5432/dbname"
+      ]
+    },
+
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sqlite",
+        "/tmp/database.db"
+      ]
+    },
+ 
+
+    "google-drive": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-gdrive"
+      ]
+    },
+
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+
+    
+
+    "fetch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-fetch"
+      ]
+    }, 
+  }
+}

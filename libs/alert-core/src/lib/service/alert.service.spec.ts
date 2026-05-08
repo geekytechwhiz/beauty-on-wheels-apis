@@ -8,6 +8,11 @@ import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from '../repositories/alert-repository';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 import { AlertService } from './alert.service';
+import { publishAlertStateChangedEvent } from '../../events/outbound/publish-alert-state-changed.event';
+
+jest.mock('../../events/outbound/publish-alert-state-changed.event', () => ({
+  publishAlertStateChangedEvent: jest.fn(),
+}));
 
 const EPOCH_2026_01_15_T10 = Date.parse('2026-01-15T10:00:00.000Z');
 const EPOCH_2026_01_15_T11 = Date.parse('2026-01-15T11:00:00.000Z');
@@ -118,6 +123,7 @@ describe('AlertService', () => {
       updateAlertsTransaction: jest.fn(),
     };
     service = new AlertService(repo as unknown as AlertRepository, log);
+    jest.mocked(publishAlertStateChangedEvent).mockReset();
   });
 
   describe('createAlert', () => {
@@ -461,6 +467,16 @@ describe('AlertService', () => {
           }),
         ]),
       );
+      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledTimes(2);
+      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          alertId: 'a1',
+          previousState: ALERT_STATE.UNASSIGNED,
+          newState: ALERT_STATE.ASSIGNED,
+        }),
+        'a1',
+      );
     });
 
     it('returns empty result for single-select', async () => {
@@ -482,6 +498,7 @@ describe('AlertService', () => {
           performedByUserId: 'SYSTEM',
         }),
       ]);
+      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
     });
 
     it('ASSIGN from IN_PROGRESS retains state and only updates assignee', async () => {
@@ -507,6 +524,7 @@ describe('AlertService', () => {
           patch: { assignedToUserId: 'user-new', assignedToDisplayName: 'User New' },
         }),
       ]);
+      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
     });
 
     it('REASSIGN from WAITING retains state and only updates assignee', async () => {
@@ -671,6 +689,34 @@ describe('AlertService', () => {
   });
 
   describe('applyWorkflow', () => {
+    it('publishes alert-state-changed when workflow transition succeeds', async () => {
+      const row = minimalRecord({ alertId: 'a1', alertState: ALERT_STATE.ASSIGNED });
+      repo.getAlertById.mockResolvedValue(row);
+      (repo as any).updateAlert = jest.fn().mockResolvedValue({
+        ...row,
+        alertState: ALERT_STATE.IN_PROGRESS,
+      });
+
+      await service.applyWorkflow('org-1', {
+        alertIds: ['a1'],
+        action: 'START_WORK' as any,
+        performedByUserId: 'actor-1',
+        performedByDisplayName: 'Actor One',
+      } as any);
+
+      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          alertId: 'a1',
+          organizationId: 'org-1',
+          previousState: ALERT_STATE.ASSIGNED,
+          newState: ALERT_STATE.IN_PROGRESS,
+          performedBy: 'actor-1',
+        }),
+        'a1',
+      );
+    });
+
     it('processes bulk with mixed states per-alert (no heterogeneous bulk error)', async () => {
       const row1 = minimalRecord({ alertId: 'a1', alertState: ALERT_STATE.ASSIGNED });
       const row2 = minimalRecord({ alertId: 'a2', alertState: ALERT_STATE.UNASSIGNED });
@@ -690,6 +736,7 @@ describe('AlertService', () => {
       expect(out.succeeded).toEqual(['a1']);
       expect(out.failed).toHaveLength(1);
       expect(out.failed[0]).toMatchObject({ alertId: 'a2', code: 'ILLEGAL_TRANSITION' });
+      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledTimes(1);
     });
 
     it('maps ILLEGAL_TRANSITION into failed[] and does not throw', async () => {
@@ -705,6 +752,7 @@ describe('AlertService', () => {
 
       expect(out.succeeded).toEqual([]);
       expect(out.failed[0]).toMatchObject({ alertId: 'a1', code: 'ILLEGAL_TRANSITION' });
+      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
     });
 
     it('records NOT_FOUND when update returns null', async () => {
@@ -720,6 +768,7 @@ describe('AlertService', () => {
 
       expect(out.succeeded).toEqual([]);
       expect(out.failed[0]).toMatchObject({ alertId: 'a1', code: 'NOT_FOUND' });
+      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
     });
   });
 });

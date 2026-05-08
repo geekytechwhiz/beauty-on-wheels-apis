@@ -1,7 +1,7 @@
 // libs/event-platform/src/index.ts
 
 export { consumeEvent } from './lib/event-platform';
-export { createEventHandler } from './lib/create-event-handler';
+export { onEvent } from './lib/define-event-handler';
 export { createStreamHandler } from './lib/create-stream-handler';
 export { normalizeTransportToPayloadCandidate } from './sdk/consumer/transport-normalize';
 export type { EventConsumerDeps, RetryOptions, RetryContext, RetryOnBeforeRetryInfo, RetryLogger, RetryBackoffStrategy, RetryJitter } from "./typings/consumer.types";
@@ -45,7 +45,6 @@ export type {
 export type { IdempotencyStrategy } from './core/idempotency/idempotency-strategy';
 export { IdempotencyState, idempotencyBeforeResultToState } from './core/idempotency/idempotency-state';
 export { createSnsPublishEvent } from './sdk/publisher/create-sns-publish-event';
-export { onEvent } from './lib/define-event-handler';
 export type { EventSchemaMeta } from './core/schema/define-event';
 export { defineEvent } from './core/schema/define-event';
 export { publishEvent } from './dx/publish-event';

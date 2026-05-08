@@ -39,7 +39,7 @@ export async function main(
     response,
     { title: 'OK', description: 'Alert service is healthy', severity: 'INFO' },
     {
-      requestId: correlationId,
+      correlationId,
       headers: {
         'X-Correlation-Id': correlationId,
         'Cache-Control': 'no-cache',

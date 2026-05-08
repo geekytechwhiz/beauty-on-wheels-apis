@@ -30,6 +30,9 @@
     },
     {
       "path": "../observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../middleware/tsconfig.lib.json"
     }
   ],
   "exclude": [

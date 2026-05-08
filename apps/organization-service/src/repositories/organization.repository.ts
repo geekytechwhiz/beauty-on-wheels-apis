@@ -1,7 +1,18 @@
-import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
-import { Organization, OrganizationMetadata, OrganizationFile, OrganizationUser, OrganizationLink, OrganizationUpdate } from '../models';
+import {
+  Organization,
+  OrganizationMetadata,
+  OrganizationFile,
+  OrganizationUser,
+  OrganizationLink,
+  OrganizationUpdate,
+  OrgConfigEntity,
+  OrganizationConfigPatch,
+  OrgConfigEntityType,
+  OrgConfigStatus,
+} from '../models';
 import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
 import {
   organizationPk,
@@ -20,12 +31,53 @@ const baseLogger = createLogger({ service: 'organization-service', redactPII: tr
 
 const ORGANIZATION_TABLE_NAME = process.env.ORGANIZATION_TABLE || '';
 
+export type GetLatestOrganizationConfigOptions = {
+  /**
+   * When set, DynamoDB returns only these attributes plus `entityType` and `status` (always included
+   * so filtering works). When omitted, all attributes are returned.
+   */
+  project?: readonly (keyof OrgConfigEntity)[];
+  /**
+   * When true (default), prefer returning the latest ACTIVE config and only fall back to
+   * the newest config of any status when no ACTIVE config exists.
+   * Set false to always return the newest config regardless of status.
+   */
+  preferActive?: boolean;
+};
+
 type OrganizationDBItem = Organization & {
   pk: string;
   sk: string;
 };
 
 export class OrganizationRepository {
+  private buildLatestOrgConfigQueryProjection(options?: GetLatestOrganizationConfigOptions): {
+    ProjectionExpression?: string;
+    projectionExprNames: Record<string, string>;
+  } {
+    if (options?.project === undefined) {
+      return { projectionExprNames: {} };
+    }
+    const merged = new Set<string>(['entityType', 'status']);
+    for (const key of options.project) {
+      merged.add(key);
+    }
+    const projectionExprNames: Record<string, string> = {};
+    const tokens: string[] = [];
+    for (const attr of merged) {
+      if (attr === 'status') {
+        tokens.push('#status');
+        projectionExprNames['#status'] = 'status';
+      } else {
+        tokens.push(attr);
+      }
+    }
+    return {
+      ProjectionExpression: tokens.join(', '),
+      projectionExprNames,
+    };
+  }
+
   private sanitizeOrganization(item: Organization): Organization {
     const sanitized = { ...(item as unknown as Record<string, unknown>) };
     delete sanitized.pk;
@@ -504,6 +556,149 @@ export class OrganizationRepository {
         throw new OrganizationNotFoundError(organizationId);
       }
       logger.error({ event: 'organization_status_update_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async getLatestOrganizationConfig(
+    organizationId: string,
+    options?: GetLatestOrganizationConfigOptions,
+  ): Promise<OrgConfigEntity | null> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+
+    try {
+      const { ProjectionExpression, projectionExprNames } = this.buildLatestOrgConfigQueryProjection(options);
+      let lastEvaluatedKey: Record<string, unknown> | undefined;
+      let fallback: OrgConfigEntity | null = null;
+
+      const preferActive = options?.preferActive ?? true;
+      do {
+        const queryParams: Record<string, unknown> = {
+          TableName: ORGANIZATION_TABLE_NAME,
+          KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :skPrefix)',
+          ExpressionAttributeNames: {
+            '#pk': 'pk',
+            '#sk': 'sk',
+            ...projectionExprNames,
+          },
+          ExpressionAttributeValues: {
+            ':pk': organizationPk(organizationId),
+            ':skPrefix': 'CONFIG#v',
+          },
+          ScanIndexForward: false,
+          Limit: 10,
+        };
+
+        if (ProjectionExpression) {
+          queryParams.ProjectionExpression = ProjectionExpression;
+        }
+
+        if (lastEvaluatedKey) {
+          queryParams.ExclusiveStartKey = lastEvaluatedKey;
+        }
+
+        const response = await ddbDocClient.send(new QueryCommand(queryParams as any));
+
+        const items = (response.Items ?? []) as OrgConfigEntity[];
+
+        for (const item of items) {
+          if (item.entityType !== OrgConfigEntityType.ORG_CONFIG) continue;
+
+          if (!fallback) fallback = item;
+
+          if (!preferActive || item.status === OrgConfigStatus.ACTIVE) {
+            return item;
+          }
+        }
+
+        lastEvaluatedKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+      } while (lastEvaluatedKey);
+
+      return fallback;
+    } catch (err) {
+      logger.error({ event: 'organization_config_get_latest_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async createOrganizationConfigVersion(
+    organizationId: string,
+    mergedConfig: Required<OrganizationConfigPatch>,
+  ): Promise<OrgConfigEntity> {
+    const now = Date.now();
+    const latestConfig = await this.getLatestOrganizationConfig(organizationId, {
+      project: ['pk', 'sk', 'version', 'status'],
+      preferActive: false,
+    });
+    const nextVersion = (latestConfig?.version ?? 0) + 1;
+    const nextItem: OrgConfigEntity = {
+      pk: organizationPk(organizationId),
+      sk: `CONFIG#v${nextVersion}`,
+      entityType: OrgConfigEntityType.ORG_CONFIG,
+      orgId: organizationId,
+      version: nextVersion,
+      supportedCountries: mergedConfig.supportedCountries,
+      supportedLanguages: mergedConfig.supportedLanguages,
+      supportedStates: mergedConfig.supportedStates,
+      supportedCategories: mergedConfig.supportedCategories,
+      supportedConditions: mergedConfig.supportedConditions,
+      status: OrgConfigStatus.ACTIVE,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const transactItems: Array<Record<string, unknown>> = [
+      {
+        Put: {
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: nextItem,
+          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+        },
+      },
+    ];
+
+    const activeConfigToDeactivate =
+      latestConfig?.status === OrgConfigStatus.ACTIVE
+        ? latestConfig
+        : await this.getLatestOrganizationConfig(organizationId, {
+            project: ['pk', 'sk', 'status'],
+          });
+
+    if (activeConfigToDeactivate && activeConfigToDeactivate.status === OrgConfigStatus.ACTIVE) {
+      transactItems.push({
+        Update: {
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: activeConfigToDeactivate.pk,
+            sk: activeConfigToDeactivate.sk,
+          },
+          UpdateExpression: 'SET #status = :inactive, #updatedAt = :updatedAt',
+          ConditionExpression: '#status = :active',
+          ExpressionAttributeNames: {
+            '#status': 'status',
+            '#updatedAt': 'updatedAt',
+          },
+          ExpressionAttributeValues: {
+            ':inactive': OrgConfigStatus.INACTIVE,
+            ':active': OrgConfigStatus.ACTIVE,
+            ':updatedAt': now,
+          },
+        },
+      });
+    }
+
+    try {
+      await ddbDocClient.send(
+        new TransactWriteCommand({
+          TransactItems: transactItems as any,
+        }),
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
+      logger.info({ event: 'organization_config_version_created' });
+      return nextItem;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
+      logger.error({ event: 'organization_config_version_create_error', err: serializeError(err) });
       throw err;
     }
   }
@@ -1076,8 +1271,8 @@ export class OrganizationRepository {
   async getOrganizationBySubdomain(subdomain: string, provider?: string): Promise<Organization | null> {
     const normalizedSubdomain = subdomain.trim().toLowerCase();
     if (!normalizedSubdomain) return null;
+    const resolvedProvider = (provider || 'TRU_TECH').toUpperCase();
     try {
-      const resolvedProvider = (provider || 'TRU_TECH').toUpperCase();
       const exprValues: Record<string, unknown> = {
         ':gsi2pk': `PROVIDER#${resolvedProvider}`,
         ':gsi2sk': `LOOKUP#${normalizedSubdomain}#`,

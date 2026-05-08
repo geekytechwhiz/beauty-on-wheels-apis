@@ -321,7 +321,7 @@ export class AlertEntityBuilder {
         if (isFirstAssignment) {
           const minutes = existing.resolveSlaMinutes ?? defaultResolveSlaMinutes();
           if (minutes > 0) {
-            const due = toEpochMs(existing.createdAt) + minutes * MS_PER_MINUTE;
+            const due = nowMs + minutes * MS_PER_MINUTE;
             if (existing.resolveSlaMinutes == null) setField('resolveSlaMinutes', minutes);
             setField('resolveSlaDueAt', due);
             setField('gsi5pk', AlertKeyBuilder.toSlaPartitionKey(due));

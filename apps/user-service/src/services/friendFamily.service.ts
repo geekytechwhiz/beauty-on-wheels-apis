@@ -15,7 +15,7 @@ import {
 } from '../errors';
 import { getOrganization } from './organization.service';
 import { sendSms } from './notification.delivery';
-import { PORTAL_LINK } from '../utils/constants';
+import { WEB_DNS_URL } from '../utils/constants';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userRepository = new UserRepository();
@@ -213,7 +213,9 @@ export class FriendFamilyService {
               orgAny?.name ??
               '',
           ).trim() || organizationID;
-        const invitationLink = process.env.PORTAL_LINK || PORTAL_LINK || '';
+          
+          const baseInviteUrl = (process.env.WEB_URL || WEB_DNS_URL || '').trim();
+          let invitationLink = baseInviteUrl;
 
         await sendSms({
           phone: inviteePhone,

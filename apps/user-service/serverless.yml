@@ -15,9 +15,8 @@ plugins:
 provider:
   name: aws
   runtime: nodejs22.x
-  stage: ${opt:stage, 'dev'}
-
   region: us-east-1
+  stage: ${opt:stage, 'dev'}
   deploymentBucket:
     name: ${self:provider.stage}-mvx-user-service-bucket
     serverSideEncryption: AES256

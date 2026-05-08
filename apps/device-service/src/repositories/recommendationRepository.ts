@@ -38,7 +38,7 @@ export class RecommendationRepository {
     const logger = createChildLogger(baseLogger, { patientUserId: data.patientUserId, deviceId: data.deviceId });
     const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
     const now = Date.now();
-console.log("NORMALIZED DEVICE ID ", normalizedDeviceId);
+// console.log("NORMALIZED DEVICE ID ", normalizedDeviceId);
     const item: DeviceRecommendation = {
       pk: 'RECOMMEND',
       sk: `${normalizedDeviceId}#${data.patientUserId}`,
@@ -106,7 +106,7 @@ console.log("NORMALIZED DEVICE ID ", normalizedDeviceId);
    */
   async getPatientRecommendations(patientUserId: string): Promise<DeviceRecommendation[]> {
     const logger = createChildLogger(baseLogger, { patientUserId });
-    console.log("GET PATIENT RECOMMENDATIONS ", patientUserId);
+    // console.log("GET PATIENT RECOMMENDATIONS ", patientUserId);
     try {
       // Query all recommendations
       const result = await this.docClient.send(

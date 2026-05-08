@@ -117,11 +117,11 @@ async function removeDevicesFromOrganization(
   logger.info({ event: 'fetching_current_org_devices', orgId });
   const currentDevices = await orgDeviceRepository.getOrgDevices(orgId);
   
-  console.log('=== CURRENT DEVICES IN ORGANIZATION ===');
-  console.log('Organization ID:', orgId);
-  console.log('Current device count:', currentDevices.length);
-  console.log('Current device IDs:', currentDevices.map(d => d.deviceId));
-  console.log('Current devices:', JSON.stringify(currentDevices, null, 2));
+  // console.log('=== CURRENT DEVICES IN ORGANIZATION ===');
+  // console.log('Organization ID:', orgId);
+  // console.log('Current device count:', currentDevices.length);
+  // console.log('Current device IDs:', currentDevices.map(d => d.deviceId));
+  // console.log('Current devices:', JSON.stringify(currentDevices, null, 2));
   
   logger.info({ 
     event: 'current_devices_fetched', 
@@ -133,8 +133,8 @@ async function removeDevicesFromOrganization(
   // Step 2: Extract device IDs from the payload (devices to keep)
   const devicesToKeep = new Set(data.devices.map(d => d.deviceId));
   
-  console.log('=== DEVICES TO KEEP (FROM PAYLOAD) ===');
-  console.log('Devices to keep:', Array.from(devicesToKeep));
+  // console.log('=== DEVICES TO KEEP (FROM PAYLOAD) ===');
+  // console.log('Devices to keep:', Array.from(devicesToKeep));
   
   logger.info({ 
     event: 'devices_to_keep', 
@@ -146,9 +146,9 @@ async function removeDevicesFromOrganization(
   // Step 3: Identify devices to remove (current devices NOT in the payload)
   const devicesToRemove = currentDevices.filter(device => !devicesToKeep.has(device.deviceId));
   
-  console.log('=== DEVICES TO REMOVE ===');
-  console.log('Remove device count:', devicesToRemove.length);
-  console.log('Remove device IDs:', devicesToRemove.map(d => d.deviceId));
+  // console.log('=== DEVICES TO REMOVE ===');
+  // console.log('Remove device count:', devicesToRemove.length);
+  // console.log('Remove device IDs:', devicesToRemove.map(d => d.deviceId));
   
   logger.info({ 
     event: 'devices_to_remove_identified', 

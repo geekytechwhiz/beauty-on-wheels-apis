@@ -121,16 +121,16 @@ export class FileWriter {
   ): Promise<void> {
     // This would require a YAML parser to properly update the file
     // For now, we'll just log what needs to be added
-    console.log(`\n📝 Update ${serverlessPath} with:`);
-    console.log(`functions:`);
-    console.log(`  ${newFunction.name}:`);
-    console.log(`    handler: ${newFunction.handler}`);
-    console.log(`    timeout: 10`);
-    console.log(`    memorySize: 256`);
-    console.log(`    events:`);
-    console.log(`      - http:`);
-    console.log(`          path: ${newFunction.path}`);
-    console.log(`          method: ${newFunction.method || 'get'}`);
+    // console.log(`\n📝 Update ${serverlessPath} with:`);
+    // console.log(`functions:`);
+    // console.log(`  ${newFunction.name}:`);
+    // console.log(`    handler: ${newFunction.handler}`);
+    // console.log(`    timeout: 10`);
+    // console.log(`    memorySize: 256`);
+    // console.log(`    events:`);
+    // console.log(`      - http:`);
+    // console.log(`          path: ${newFunction.path}`);
+    // console.log(`          method: ${newFunction.method || 'get'}`);
   }
 
   /**
@@ -143,9 +143,9 @@ export class FileWriter {
   ): Promise<void> {
     // This would require AST manipulation to properly update the file
     // For now, we'll just log what needs to be added
-    console.log(`\n📝 Add to ${indexPath}:`);
+    // console.log(`\n📝 Add to ${indexPath}:`);
     newExports.forEach((exportStatement) => {
-      console.log(`  ${exportStatement}`);
+      // console.log(`  ${exportStatement}`);
     });
   }
 }

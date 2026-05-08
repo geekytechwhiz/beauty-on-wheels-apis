@@ -51,9 +51,9 @@ export async function requestWithRetry<T = unknown>(
         maxDelay
       );
 
-      console.log(
-        `Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`
-      );
+      // console.log(
+        // `Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`
+      // );
       await sleep(delay);
     }
   }

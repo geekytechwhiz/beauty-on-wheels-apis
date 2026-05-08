@@ -44,7 +44,7 @@ const handler = async (req: LambdaRequest<any>) => {
 
   await friendFamilyService.checkFriendFamilyLimit(userID);
   const userData = buildCreateUserPayloadFromFnfSearch(body, organizationID, userID) as any;
-  console.log("USERDATA >>>",userData)
+  // console.log("USERDATA >>>",userData)
   const roleIds = Array.isArray(userData.userRole) ? userData.userRole.map((r: string) => String(r)) : [];
   if (roleIds.length > 0) {
     const rolePermissions = await userRepository

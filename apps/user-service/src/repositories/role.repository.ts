@@ -14,7 +14,7 @@ export class RoleRepository {
     const baseUrl = process.env.ROLE_API_URL;
     const logger = createChildLogger(baseLogger, { organizationId });
 
-  console.log("paylaod", JSON.stringify({ isOnboarding: false,orgId: organizationId, roleId: roleId, roleName: roleName, roleDescription: roleDescription, roleType: roleType}));
+  // console.log("paylaod", JSON.stringify({ isOnboarding: false,orgId: organizationId, roleId: roleId, roleName: roleName, roleDescription: roleDescription, roleType: roleType}));
     if (!baseUrl) {
       logger.warn({ event: 'organization_roles_api_missing' });
       return false;

@@ -5,6 +5,9 @@ env:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-user-service-bucket'
     STACK_NAME: 'dev-user-service'
+    # Prevent esbuild "The service was stopped" / "write EPIPE" (OOM) during serverless package.
+    # Use CodeBuild MEDIUM (7GB) or LARGE (15GB). serverless.yml limits esbuild concurrency and disables sourcemaps for nvstg.
+    NODE_OPTIONS: '--max-old-space-size=4096'
 
 phases:
   install:
@@ -17,8 +20,7 @@ phases:
   build:
     commands:
       - cd apps/user-service
-      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
-      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
+      - npx serverless package --stage "$STAGE" --package .serverless
 
       # 2) select create vs update s3 keys
       - |

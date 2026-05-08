@@ -85,11 +85,11 @@ export class SSOUserServiceClient extends BaseClient {
       } as unknown as User;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        console.log('findUserByExternalId error', serializeError(error as Error));
+        // console.log('findUserByExternalId error', serializeError(error as Error));
         return null;
       }
 
-      console.log('findUserByExternalId error', serializeError(error as Error));
+      // console.log('findUserByExternalId error', serializeError(error as Error));
 
       throw SSOError.userServiceError(
         'User service doctor lookup failed',
@@ -102,15 +102,15 @@ export class SSOUserServiceClient extends BaseClient {
     payload: DoctorCreationPayload,
     context: SSORequestContext,
   ): Promise<CreatedUserInfo> {
-    console.log('createDoctor payload', JSON.stringify(payload));
+    // console.log('createDoctor payload', JSON.stringify(payload));
 
     const response = await this.client.post<unknown>('/user', payload, {
       headers: buildHeaders(context),
     });
 
-    console.log('createDoctor response', response);
+    // console.log('createDoctor response', response);
     const body:any = response?.data ?? response;
-    console.log('createDoctor body', body);
+    // console.log('createDoctor body', body);
     const invitedUser: string | undefined =
       body?.data?.invitedUser ??
       body?.data?.id ??
@@ -223,7 +223,7 @@ export class SSOUserServiceClient extends BaseClient {
     const externalUserId = payload.externalIdentity?.externalUserId;
     const organizationId = getOrganizationId(subdomain);
 
-    console.log('createPatient payload', JSON.stringify(payload));
+    // console.log('createPatient payload', JSON.stringify(payload));
     const patientCreationPayload = {
       ...payload,
       organizationId: organizationId,
@@ -235,7 +235,7 @@ export class SSOUserServiceClient extends BaseClient {
     });
 
     const user = response.data.data;
-    console.log('createPatient user', user);
+    // console.log('createPatient user', user);
 
     return {
       userId: String(user?.invitedUser),

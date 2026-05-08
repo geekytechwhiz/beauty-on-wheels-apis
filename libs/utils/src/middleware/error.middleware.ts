@@ -97,11 +97,14 @@ export async function handleError(
     title: localTitle,
     description: localDescription,
     severity: 'ERROR' as const,
-  }));
-  console.log("CDN ERROR MESSAGE : ",cdnMessage);
+  }  ));
+  // console.log("CDN ERROR MESSAGE : ",cdnMessage);
+  // For INTERNAL_SERVER_ERROR, prefer the thrown error message so AWS/DynamoDB details are not replaced by CDN copy.
+  const descriptionForClient =
+    errorCode === 'INTERNAL_SERVER_ERROR' ? localDescription : cdnMessage.description;
   const message: Message = {
     title: errorCode === 'INVITE_UPDATE_TOO_SOON' ? cdnMessage.description : cdnMessage.title,
-    description: cdnMessage.description,
+    description: descriptionForClient,
     severity: cdnMessage.severity,
   };
 

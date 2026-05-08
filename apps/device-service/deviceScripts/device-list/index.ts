@@ -51,8 +51,8 @@ function transformDevicesToDynamoDBItems(devicesData: DevicesData): DeviceDynamo
 	const items: DeviceDynamoDBItem[] = [];
 	let totalDevices = 0;
 
-	console.log('📦 Starting transformation of devices data...');
-	console.log(`   Found ${devicesData.categories.length} categories`);
+	// console.log('📦 Starting transformation of devices data...');
+	// console.log(`   Found ${devicesData.categories.length} categories`);
 
 	for (const category of devicesData.categories) {
 		const categoryName = category.categoryName;
@@ -101,16 +101,16 @@ function transformDevicesToDynamoDBItems(devicesData: DevicesData): DeviceDynamo
 			}
 		}
 		
-		console.log(`   ✓ Category "${categoryName}": ${categoryDeviceCount} devices`);
+		// console.log(`   ✓ Category "${categoryName}": ${categoryDeviceCount} devices`);
 	}
 
-	console.log(`✅ Transformation complete: ${totalDevices} total devices processed`);
+	// console.log(`✅ Transformation complete: ${totalDevices} total devices processed`);
 	return items;
 }
 
 const start = async (): Promise<void> => {
-	console.log('🚀 Device List Seeding Script Started');
-	console.log('=====================================');
+	// console.log('🚀 Device List Seeding Script Started');
+	// console.log('=====================================');
 	
 	try {
 		const { tableName, uploadToS3, dryRun } = parseArgs();
@@ -125,7 +125,7 @@ const start = async (): Promise<void> => {
 		const deviceServiceRoot = getDeviceServiceRoot();
 		const devicesJsonPath = path.resolve(deviceServiceRoot, 'src/utils/devices.json');
 		
-		console.log(`📂 Reading devices.json from: ${devicesJsonPath}`);
+		// console.log(`📂 Reading devices.json from: ${devicesJsonPath}`);
 		
 		if (!require('fs').existsSync(devicesJsonPath)) {
 			console.error(`❌ Error: Devices JSON file not found at: ${devicesJsonPath}`);
@@ -135,7 +135,7 @@ const start = async (): Promise<void> => {
 		const devicesJson = await readFileAsync(devicesJsonPath, 'utf8');
 		const devicesData: DevicesData = JSON.parse(devicesJson);
 		
-		console.log(`✅ Successfully loaded devices.json (${(devicesJson.length / 1024).toFixed(2)} KB)`);
+		// console.log(`✅ Successfully loaded devices.json (${(devicesJson.length / 1024).toFixed(2)} KB)`);
 
 		// Transform hierarchical structure to DynamoDB items
 		const items = transformDevicesToDynamoDBItems(devicesData);
@@ -145,32 +145,32 @@ const start = async (): Promise<void> => {
 			process.exit(1);
 		}
 
-		console.log('\n📊 Configuration:');
-		console.log(`   Table: ${tableName}`);
-		console.log(`   Total Items: ${items.length}`);
-		console.log(`   Dry Run: ${dryRun ? 'YES' : 'NO'}`);
-		console.log(`   Upload to S3: ${uploadToS3 ? 'YES' : 'NO'}`);
+		// console.log('\n📊 Configuration:');
+		// console.log(`   Table: ${tableName}`);
+		// console.log(`   Total Items: ${items.length}`);
+		// console.log(`   Dry Run: ${dryRun ? 'YES' : 'NO'}`);
+		// console.log(`   Upload to S3: ${uploadToS3 ? 'YES' : 'NO'}`);
 
 		if (dryRun) {
-			console.log('\n🔍 [DRY-RUN MODE] Preview:');
-			console.log(`   Would write ${items.length} items to ${tableName}`);
-			console.log(`   Sample item: ${items[0]?.name} (${items[0]?.deviceId})`);
-			console.log('✅ Dry run completed - no changes made');
+			// console.log('\n🔍 [DRY-RUN MODE] Preview:');
+			// console.log(`   Would write ${items.length} items to ${tableName}`);
+			// console.log(`   Sample item: ${items[0]?.name} (${items[0]?.deviceId})`);
+			// console.log('✅ Dry run completed - no changes made');
 			return;
 		}
 
 		// Batch write items to DynamoDB
-		console.log('\n💾 Writing items to DynamoDB...');
+		// console.log('\n💾 Writing items to DynamoDB...');
 		const startTime = Date.now();
 		await batchWriteItems(items, tableName);
 		const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 		
-		console.log(`✅ Successfully inserted ${items.length} device list items into ${tableName}`);
-		console.log(`   Duration: ${duration}s`);
+		// console.log(`✅ Successfully inserted ${items.length} device list items into ${tableName}`);
+		// console.log(`   Duration: ${duration}s`);
 
 		// Upload devices.json to S3 (optional)
 		if (uploadToS3 && S3_BUCKET) {
-			console.log('\n☁️  Uploading devices.json to S3...');
+			// console.log('\n☁️  Uploading devices.json to S3...');
 			try {
 				const fileData = await readFileAsync(devicesJsonPath);
 				const s3Key = `${S3_KEY}${FILE_KEY}`;
@@ -182,7 +182,7 @@ const start = async (): Promise<void> => {
 				};
 				const command = new PutObjectCommand(params);
 				await s3Client.send(command);
-				console.log(`✅ File uploaded successfully to S3: s3://${S3_BUCKET}/${s3Key}`);
+				// console.log(`✅ File uploaded successfully to S3: s3://${S3_BUCKET}/${s3Key}`);
 			} catch (error) {
 				console.error('⚠️  Warning: Error while uploading file to S3:', error);
 				console.error('   Script will continue - S3 upload is optional');
@@ -190,9 +190,9 @@ const start = async (): Promise<void> => {
 			}
 		}
 
-		console.log('\n' + '='.repeat(50));
-		console.log(`✅ ${SCRIPT_EXECUTE_COMPLETED}`);
-		console.log('='.repeat(50));
+		// console.log('\n' + '='.repeat(50));
+		// console.log(`✅ ${SCRIPT_EXECUTE_COMPLETED}`);
+		// console.log('='.repeat(50));
 	} catch (error) {
 		console.error('\n' + '='.repeat(50));
 		console.error(`❌ ${ERROR}`);

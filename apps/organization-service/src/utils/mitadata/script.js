@@ -131,7 +131,7 @@ class MigrationLogger {
         console.error(stderr);
         return;
       }
-      console.log('Script output:', stdout);
+      // console.log('Script output:', stdout);
     });
     await fs.writeFile(this.logFile, `Migration Log - ${new Date().toISOString()}\n${'='.repeat(80)}\n\n`, 'utf8');
   }

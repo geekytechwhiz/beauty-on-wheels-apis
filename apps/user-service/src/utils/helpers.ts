@@ -21,7 +21,7 @@ export const generateFileId = (): string => randomUUID();
  */
 export function getAuthorizerUserId(event: APIGatewayProxyEvent): string | undefined {
   const authorizer = (event.requestContext as any)?.authorizer;
-  console.log('authorizer', authorizer);
+  // console.log('authorizer', authorizer);
   return (authorizer?.userID ?? authorizer?.userId ?? authorizer?.claims?.['custom:userID']) as string | undefined;
 }
 
@@ -31,7 +31,7 @@ export function getAuthorizerUserId(event: APIGatewayProxyEvent): string | undef
  */
 export function getAuthorizerOrganizationId(event: APIGatewayProxyEvent): string | undefined {
   const authorizer = (event.requestContext as any)?.authorizer;
-  console.log('authorizer', authorizer);
+  // console.log('authorizer', authorizer);
   return (authorizer?.organizationID ?? authorizer?.organizationId ?? authorizer?.claims?.['custom:organizationID']) as string | undefined;
 }
 

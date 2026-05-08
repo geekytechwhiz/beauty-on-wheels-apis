@@ -11,8 +11,8 @@ export class PackageRepository {
  
     async getOrgFeatures(organizationId: string, authHeader?: string): Promise<any> {
       const baseUrl = process.env.PACKAGE_API_URL;
-      console.log("PACKAGE API URL :", baseUrl);
-      console.log("orgId :", organizationId);
+      // console.log("PACKAGE API URL :", baseUrl);
+      // console.log("orgId :", organizationId);
 
       const logger = createChildLogger(baselogger, { organizationId });
       if (!baseUrl) {
@@ -20,7 +20,7 @@ export class PackageRepository {
         return false;
       }
       const url = `${baseUrl.replace(/\/$/, '')}/org/${organizationId}/features`;
-      console.log("URL :", url);
+      // console.log("URL :", url);
       try {
         logger.info({ event: 'organization_roles_api_start', url });
         const response = await fetch(url, {

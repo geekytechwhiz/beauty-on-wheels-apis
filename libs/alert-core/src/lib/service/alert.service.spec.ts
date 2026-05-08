@@ -9,6 +9,14 @@ import { AlertRepository } from '../repositories/alert-repository';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 import { AlertService } from './alert.service';
 
+jest.mock('crypto', () => {
+  const actual = jest.requireActual('crypto');
+  return {
+    ...actual,
+    randomUUID: jest.fn(() => 'evt-generated-1'),
+  };
+});
+
 const EPOCH_2026_01_15_T10 = Date.parse('2026-01-15T10:00:00.000Z');
 const EPOCH_2026_01_15_T11 = Date.parse('2026-01-15T11:00:00.000Z');
 const EPOCH_2026_01_15_T12 = Date.parse('2026-01-15T12:00:00.000Z');
@@ -185,6 +193,28 @@ describe('AlertService', () => {
 
       expect(result.duplicate).toBe(true);
       expect(result.record).toBe(record);
+    });
+
+    it('generates an idempotency key when inputEventId is omitted', async () => {
+      const record = minimalRecord();
+      repo.resolveInputEventId.mockResolvedValueOnce('missing');
+      repo.createAlert.mockResolvedValueOnce(record);
+
+      const result = await service.createAlert(createPayload({ inputEventId: undefined }));
+
+      expect(result.duplicate).toBe(false);
+      expect(repo.resolveInputEventId).toHaveBeenCalledWith('evt-generated-1', 'org-1');
+      expect(repo.createAlert).toHaveBeenCalledWith(expect.objectContaining({ inputEventId: 'evt-generated-1' }));
+    });
+
+    it('rethrows when createAlert fails with transaction race but idempotency row is still missing', async () => {
+      repo.resolveInputEventId.mockResolvedValueOnce('missing');
+      repo.createAlert.mockRejectedValueOnce({ name: 'TransactionCanceledException' });
+      repo.resolveInputEventId.mockResolvedValueOnce('missing');
+
+      await expect(service.createAlert(createPayload({ inputEventId: 'evt-race-miss' }))).rejects.toMatchObject({
+        name: 'TransactionCanceledException',
+      });
     });
   });
 
@@ -423,6 +453,12 @@ describe('AlertService', () => {
       expect(team.items[0].alertId).toBe('t1');
       expect(team).toHaveProperty('nextToken');
     });
+
+    it('throws for unsupported queue', async () => {
+      await expect(
+        service.listAlerts({ ...baseListParams(), queue: 'NOPE' as any }),
+      ).rejects.toThrow('Unsupported queue');
+    });
   });
 
   describe('applyAssignment', () => {
@@ -614,6 +650,18 @@ describe('AlertService', () => {
       ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
       expect(repo.getAlertsById).not.toHaveBeenCalled();
     });
+
+    it('throws 422 when assigneeDisplayName missing for ASSIGN', async () => {
+      await expect(
+        service.applyAssignment('org-1', {
+          action: 'ASSIGN',
+          alertIds: ['a1'],
+          assignToUserId: 'u1',
+          assigneeDisplayName: '   ',
+        } as never),
+      ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
+      expect(repo.getAlertsById).not.toHaveBeenCalled();
+    });
   });
 
   describe('applyPriority', () => {
@@ -657,6 +705,14 @@ describe('AlertService', () => {
         expect.objectContaining({ patch: { priority: 'P0' } }),
       ]);
     });
+
+    it('throws 404 when an alert id is missing or in another org', async () => {
+      repo.getAlertsById.mockResolvedValue(new Map());
+
+      await expect(
+        service.applyPriority('org-1', { alertIds: ['missing'], priority: 'P2' }),
+      ).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+    });
   });
 
   describe('addNote', () => {
@@ -667,6 +723,23 @@ describe('AlertService', () => {
         statusCode: 404,
         code: 'NOT_FOUND',
       });
+    });
+
+    it('writes note activity when alert exists', async () => {
+      const row = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
+      repo.getAlertById.mockResolvedValue(row);
+      const activity: AlertActivity = {
+        activityId: 'act-1',
+        alertId: 'a1',
+        activityType: 'NOTE_ADDED' as any,
+        activityTimestamp: EPOCH_2026_01_15_T10,
+        performedBy: 'SYSTEM',
+      } as AlertActivity;
+      (repo as any).addNoteActivity = jest.fn().mockResolvedValue(activity);
+
+      const out = await service.addNote('a1', 'org-1', 'hello', '   ', 'User One');
+      expect(out).toBe(activity);
+      expect((repo as any).addNoteActivity).toHaveBeenCalledWith('a1', 'org-1', 'hello', 'SYSTEM', 'User One');
     });
   });
 
@@ -720,6 +793,20 @@ describe('AlertService', () => {
 
       expect(out.succeeded).toEqual([]);
       expect(out.failed[0]).toMatchObject({ alertId: 'a1', code: 'NOT_FOUND' });
+    });
+
+    it('throws for unexpected errors during update (not ILLEGAL_TRANSITION)', async () => {
+      const row = minimalRecord({ alertId: 'a1', alertState: ALERT_STATE.ASSIGNED });
+      repo.getAlertById.mockResolvedValue(row);
+      (repo as any).updateAlert = jest.fn().mockRejectedValue(new Error('boom'));
+
+      await expect(
+        service.applyWorkflow('org-1', {
+          alertIds: ['a1'],
+          action: 'START_WORK' as any,
+          performedByDisplayName: 'User',
+        } as any),
+      ).rejects.toThrow('boom');
     });
   });
 });

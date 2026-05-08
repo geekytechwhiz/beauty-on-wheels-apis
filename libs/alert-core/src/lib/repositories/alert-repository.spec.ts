@@ -188,8 +188,9 @@ describe('AlertRepository', () => {
       expect(out.resolveSlaMinutes).toBe(DEFAULT_RESOLVE_SLA_MINUTES);
       expect(out.assignSlaDueAt).toBe((out.createdAt as number) + DEFAULT_ASSIGN_SLA_MINUTES * MS_PER_MINUTE);
       expect(out.resolveSlaDueAt).toBeUndefined();
-      expect(out.gsi5pk).toBe(AlertKeyBuilder.toSlaPartitionKey(out.assignSlaDueAt as number));
-      expect(out.gsi5sk).toBe(AlertKeyBuilder.toSlaSortKey(out.assignSlaDueAt as number, out.alertId));
+      // At creation, GSI5 is keyed to the start of the assign SLA clock (createdAt).
+      expect(out.gsi5pk).toBe(AlertKeyBuilder.toSlaPartitionKey(out.createdAt as number));
+      expect(out.gsi5sk).toBe(AlertKeyBuilder.toSlaSortKey(out.createdAt as number, out.alertId));
     });
 
     it('honors caller-provided assignSlaMinutes / resolveSlaMinutes', async () => {

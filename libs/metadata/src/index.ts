@@ -62,8 +62,17 @@ export {
   resolveStatusMode,
   resolveMetadataTypeGet,
   resolveMetadataValueGetForApi,
+  orchestrateRegistryGet,
+  orchestrateRegistryList,
+  orchestrateRegistryPost,
+  orchestrateRegistryPatchStatus,
+  orchestrateRegistryListAudit,
   type GetEntityByStatusMode,
   type ListEntityStatusMode,
+  type RegistryGetMetadataInput,
+  type RegistryPostMetadataInput,
+  type RegistryPatchMetadataStatusInput,
+  type RegistryListMetadataAuditInput,
 } from './services/metadata.service';
 
 export { MetadataRegistryService } from './services/metadata-registry.service';

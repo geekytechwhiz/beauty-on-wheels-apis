@@ -1,5 +1,5 @@
 import {
-  metadataService,
+  orchestrateRegistryList,
   type MetadataTypeListItem,
   type MetadataValueApiModel,
 } from '@api-hub/metadata';
@@ -13,14 +13,9 @@ import {
 
 export const main = withLambdaHandler(async (req) => {
   const input = listMetadataSchema.parse(req);
-
-  if (input.entityType === 'type') {
-    const records: MetadataTypeListItem[] = await metadataService.listTypes(input);
-    const userMap = await getUsersByIds(collectUserIdsForEnrichment(records));
-    return records.map((row) => enrichMetadataRecordActors(row, userMap));
-  }
-
-  const records: MetadataValueApiModel[] = await metadataService.listValues(input);
+  const records = await orchestrateRegistryList(input);
   const userMap = await getUsersByIds(collectUserIdsForEnrichment(records));
-  return records.map((row) => enrichMetadataRecordActors(row, userMap));
+  return records.map((row: MetadataTypeListItem | MetadataValueApiModel) =>
+    enrichMetadataRecordActors(row, userMap),
+  );
 });

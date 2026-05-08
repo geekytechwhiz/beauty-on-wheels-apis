@@ -34,6 +34,8 @@ import type { ListMetadataInput } from '../types/list-metadata-input';
 
 import {
   flattenMetadataValueForApi,
+  normalizeMetadataTypeInput,
+  normalizeMetadataValueInput,
   type MetadataValueApiModel,
 } from '../mappers/metadata-request.mapper';
 import { getMetadataRepository } from '../dynamodb/dynamodb.client';
@@ -435,3 +437,94 @@ export const metadataService = {
   listTypes: listMetadataTypesFromService,
   listValues: listMetadataValuesFromService,
 };
+
+/** Parsed `GET /metadata/:entityType` input (host validates via Zod). */
+export type RegistryGetMetadataInput =
+  | { entityType: 'type'; metadataTypeCode: string; mode: GetEntityByStatusMode }
+  | { entityType: 'value'; metadataTypeCode: string; valueCode: string; mode: GetEntityByStatusMode };
+
+/** Parsed `POST /metadata/:entityType` input (host validates via Zod). */
+export type RegistryPostMetadataInput =
+  | { entityType: 'type'; userId?: string; body: Record<string, unknown> }
+  | { entityType: 'value'; userId?: string; body: Record<string, unknown> };
+
+/** Parsed `PATCH .../status` input (host validates via Zod). */
+export type RegistryPatchMetadataStatusInput =
+  | { entityType: 'type'; userId?: string; metadataTypeCode: string; rawStatus: unknown }
+  | {
+      entityType: 'value';
+      userId?: string;
+      metadataTypeCode: string;
+      valueCode: string;
+      rawStatus: unknown;
+    };
+
+/** Parsed `GET .../audit` input (host validates via Zod). */
+export type RegistryListMetadataAuditInput =
+  | { entityType: 'type'; metadataTypeCode: string }
+  | { entityType: 'value'; metadataTypeCode: string; valueCode: string };
+
+export async function orchestrateRegistryGet(
+  input: RegistryGetMetadataInput,
+): Promise<MetadataTypeRecord | MetadataValueApiModel> {
+  if (input.entityType === 'type') {
+    return resolveMetadataTypeGet(input.metadataTypeCode, input.mode);
+  }
+  return resolveMetadataValueGetForApi(input.metadataTypeCode, input.valueCode, input.mode);
+}
+
+export async function orchestrateRegistryList(
+  input: ListMetadataInput,
+): Promise<MetadataTypeListItem[] | MetadataValueApiModel[]> {
+  if (input.entityType === 'type') {
+    return metadataService.listTypes(input);
+  }
+  return metadataService.listValues(input);
+}
+
+export async function orchestrateRegistryPost(
+  input: RegistryPostMetadataInput,
+): Promise<MetadataTypeRecord | MetadataValueApiModel> {
+  if (input.entityType === 'type') {
+    return upsertMetadataType(
+      normalizeMetadataTypeInput(input.body as MetadataTypeInput & Record<string, unknown>),
+      input.userId,
+    );
+  }
+  const raw = input.body as MetadataValueInput & Record<string, unknown>;
+  const metadataTypeCode = String(raw.metadataTypeCode).trim();
+  const valueCode = (raw.valueCode ?? raw.metadataValueCode) as string;
+  const existing = await getValue(metadataTypeCode, valueCode);
+  const normalized = normalizeMetadataValueInput(
+    { ...raw, valueCode, metadataValueCode: valueCode } as MetadataValueInput & Record<string, unknown>,
+    existing,
+  );
+  const record = await upsertMetadataValue(metadataTypeCode, normalized, input.userId, existing);
+  return flattenMetadataValueForApi(record);
+}
+
+export async function orchestrateRegistryPatchStatus(
+  input: RegistryPatchMetadataStatusInput,
+): Promise<MetadataTypeRecord | MetadataValueApiModel> {
+  if (input.entityType === 'type') {
+    const status = parsePatchStatusBody(input.rawStatus);
+    return patchTypeStatus(input.metadataTypeCode, status, input.userId);
+  }
+  const status = parsePatchStatusBody(input.rawStatus);
+  const record = await patchValueStatus(
+    input.metadataTypeCode,
+    input.valueCode,
+    status,
+    input.userId,
+  );
+  return flattenMetadataValueForApi(record);
+}
+
+export async function orchestrateRegistryListAudit(
+  input: RegistryListMetadataAuditInput,
+): Promise<AuditRecord[]> {
+  if (input.entityType === 'type') {
+    return listTypeAudit(input.metadataTypeCode);
+  }
+  return listValueAudit(input.metadataTypeCode, input.valueCode);
+}

@@ -3,15 +3,13 @@ import {
   BatchWriteCommand,
   GetCommand,
   QueryCommand,
-  ScanCommand,
   TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { monotonicFactory } from 'ulid';
 
 import {
   ENTITY_TYPE,
-  LEGACY_CATALOG_PK,
-  LEGACY_CATALOG_SK_PREFIX,
+  TYPE_INDEX_PK,
   metadataTypeUsesSeparateSchemaItem,
   resolveAttributeSchemaForMetadataType,
   STATUS,
@@ -31,7 +29,6 @@ import {
   auditTypePartitionKey,
   auditValuePartitionKey,
   buildApplSortKeys,
-  catalogPartitionKey,
   extractValueCodeFromApplSk,
   LEGACY_TYPE_ENTITY_SK_V1,
   schemaSk,
@@ -49,12 +46,23 @@ import {
 } from '../../domain/value-audit-delta';
 import { matchesSearchFilter, sortValuesForSearch } from '../../domain/search-filter';
 import { MetadataKeyBuilder } from '../../builders/metadata-key.builder';
-import type { IMetadataRegistryRepository, ListTypesFilter } from '../metadata-registry.repository.interface';
+import type {
+  IMetadataRegistryRepository,
+  ListMetadataTypesPaginatedOptions,
+  ListMetadataValuesPaginatedOptions,
+  ListTypesFilter,
+  MetadataTypeListEntry,
+} from '../metadata-registry.repository.interface';
 
 const ulid = monotonicFactory();
 
 const BATCH_GET_SIZE = 25;
 const BATCH_WRITE_SIZE = 25;
+const TYPE_LIST_FETCH_SIZE = 40;
+const VALUE_LIST_FETCH_SIZE = 40;
+const LISTING_COUNTERS_LIST_ATTR = 'activeValueCount';
+const LISTING_COUNTERS_INACTIVE_ATTR = 'inactiveValueCount';
+const MAX_PAGE_ROUNDS = 12;
 
 export interface DynamoDbMetadataRepositoryOptions {
   /** Partition key attribute name; must match the DynamoDB table (default `PK`). */
@@ -120,6 +128,266 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     }
   }
 
+  private listingsPartition(): string {
+    return TYPE_INDEX_PK;
+  }
+
+  private listingSortKey(metadataTypeCode: string): string {
+    return MetadataKeyBuilder.catalogSortKey(metadataTypeCode);
+  }
+
+  private dynamoKeyFromItem(item: Record<string, unknown>): Record<string, unknown> {
+    const pk = item[this.pkAttr];
+    const sk = item[this.skAttr];
+    if (typeof pk !== 'string' || typeof sk !== 'string') {
+      return {};
+    }
+    return { [this.pkAttr]: pk, [this.skAttr]: sk };
+  }
+
+  /**
+   * `METADATA_TYPES` index row: pointers + value counts only. All type fields come from BatchGet on canonical keys.
+   * `metadataTypeCode` is omitted; derive from `SK` (`TYPE#<code>`).
+   */
+  private marshalTypeListingItem(
+    metadataTypeCode: string,
+    canonicalPk: string,
+    canonicalSk: string,
+  ): Record<string, unknown> {
+    return {
+      ...this.key(this.listingsPartition(), this.listingSortKey(metadataTypeCode)),
+      canonicalPk,
+      canonicalSk,
+      [LISTING_COUNTERS_LIST_ATTR]: 0,
+      [LISTING_COUNTERS_INACTIVE_ATTR]: 0,
+    };
+  }
+
+  private typeListingTransactUpdate(
+    metadataTypeCode: string,
+    canonicalPk: string,
+    canonicalSk: string,
+  ): unknown {
+    return {
+      Update: {
+        TableName: this.tableName,
+        Key: this.key(this.listingsPartition(), this.listingSortKey(metadataTypeCode)),
+        UpdateExpression: 'SET #cpk = :cpk, #csk = :csk',
+        ConditionExpression: 'attribute_exists(#pk)',
+        ExpressionAttributeNames: {
+          '#cpk': 'canonicalPk',
+          '#csk': 'canonicalSk',
+          '#pk': this.pkAttr,
+        },
+        ExpressionAttributeValues: {
+          ':cpk': canonicalPk,
+          ':csk': canonicalSk,
+        },
+      },
+    };
+  }
+
+  /** Prefer `SK` = `TYPE#<code>`; fall back to legacy `metadataTypeCode` attr or `canonicalPk`. */
+  private listingMetadataTypeCodeFromRow(row: Record<string, unknown>): string | null {
+    const sk = row[this.skAttr] as string | undefined;
+    const prefix = MetadataKeyBuilder.catalogTypeEntrySortKeyPrefix();
+    if (sk && sk.startsWith(prefix) && sk.length > prefix.length) {
+      return sk.slice(prefix.length);
+    }
+    const legacy = row.metadataTypeCode;
+    if (typeof legacy === 'string' && legacy.trim() !== '') {
+      return legacy.trim();
+    }
+    const cpk = row.canonicalPk as string | undefined;
+    const typePkPrefix = typePartitionKey('');
+    if (cpk && cpk.startsWith(typePkPrefix) && cpk.length > typePkPrefix.length) {
+      return cpk.slice(typePkPrefix.length);
+    }
+    return null;
+  }
+
+  private valueCounterDeltaTransact(metadataTypeCode: string, dActive: number, dInactive: number): unknown | null {
+    if (dActive === 0 && dInactive === 0) {
+      return null;
+    }
+    return {
+      Update: {
+        TableName: this.tableName,
+        Key: this.key(this.listingsPartition(), this.listingSortKey(metadataTypeCode)),
+        UpdateExpression: `ADD #a :da, #i :di`,
+        ConditionExpression: 'attribute_exists(#pk)',
+        ExpressionAttributeNames: {
+          '#a': LISTING_COUNTERS_LIST_ATTR,
+          '#i': LISTING_COUNTERS_INACTIVE_ATTR,
+          '#pk': this.pkAttr,
+        },
+        ExpressionAttributeValues: {
+          ':da': dActive,
+          ':di': dInactive,
+        },
+      },
+    };
+  }
+
+  private valueCountDeltasOnCreate(status: Status): { da: number; di: number } {
+    return status === STATUS.ACTIVE ? { da: 1, di: 0 } : { da: 0, di: 1 };
+  }
+
+  private valueCountDeltasOnStatusChange(before: Status, after: Status): { da: number; di: number } {
+    if (before === after) {
+      return { da: 0, di: 0 };
+    }
+    if (before === STATUS.ACTIVE && after === STATUS.INACTIVE) {
+      return { da: -1, di: 1 };
+    }
+    if (before === STATUS.INACTIVE && after === STATUS.ACTIVE) {
+      return { da: 1, di: -1 };
+    }
+    return { da: 0, di: 0 };
+  }
+
+  private readListingCounts(listingRow: Record<string, unknown>): { active: number; inactive: number } {
+    const a = listingRow[LISTING_COUNTERS_LIST_ATTR];
+    const i = listingRow[LISTING_COUNTERS_INACTIVE_ATTR];
+    return {
+      active: typeof a === 'number' ? a : Number(a ?? 0) || 0,
+      inactive: typeof i === 'number' ? i : Number(i ?? 0) || 0,
+    };
+  }
+
+  private passesTypeListFilters(t: MetadataTypeRecord, filter: ListTypesFilter): boolean {
+    if (filter.status && t.status !== filter.status) {
+      return false;
+    }
+    if (filter.module && !t.applicableModules?.includes(filter.module)) {
+      return false;
+    }
+    if (filter.valueDataType && t.valueDataType !== filter.valueDataType) {
+      return false;
+    }
+    return true;
+  }
+
+  private async queryListingPage(
+    exclusiveStartKey: Record<string, unknown> | undefined,
+    limit: number,
+  ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    try {
+      const res = (await this.doc.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :prefix)',
+          ExpressionAttributeNames: { '#pk': this.pkAttr, '#sk': this.skAttr },
+          ExpressionAttributeValues: {
+            ':pk': this.listingsPartition(),
+            ':prefix': MetadataKeyBuilder.catalogTypeEntrySortKeyPrefix(),
+          },
+          ExclusiveStartKey: exclusiveStartKey,
+          Limit: limit,
+        }),
+      )) as { Items?: Record<string, unknown>[]; LastEvaluatedKey?: Record<string, unknown> };
+      return { items: res.Items ?? [], lastEvaluatedKey: res.LastEvaluatedKey };
+    } catch (e: unknown) {
+      this.rethrowDynamo('Query', e);
+    }
+  }
+
+  private async hydrateListingRowsToEntries(
+    listingRows: Record<string, unknown>[],
+  ): Promise<(MetadataTypeListEntry | null)[]> {
+    if (listingRows.length === 0) {
+      return [];
+    }
+    const keys: Record<string, string>[] = [];
+    const schemaTargets: { code: string; pk: string; schemaSkStr: string }[] = [];
+    for (const row of listingRows) {
+      const cpk = row.canonicalPk as string | undefined;
+      const csk = row.canonicalSk as string | undefined;
+      const code = this.listingMetadataTypeCodeFromRow(row);
+      if (!cpk || !csk || !code) {
+        continue;
+      }
+      keys.push(this.key(cpk, csk));
+      if (metadataTypeUsesSeparateSchemaItem(code)) {
+        const vm = /^TYPE#METADATA#v(\d+)$/.exec(csk);
+        const legacy = csk === LEGACY_TYPE_ENTITY_SK_V1;
+        const ver = legacy ? 1 : vm ? parseInt(vm[1]!, 10) : null;
+        if (ver !== null) {
+          schemaTargets.push({ code, pk: cpk, schemaSkStr: schemaSk(ver) });
+        }
+      }
+    }
+    const typeByComposite = new Map<string, Record<string, unknown>>();
+    for (const part of chunk(keys, BATCH_GET_SIZE)) {
+      try {
+        const res = (await this.doc.send(
+          new BatchGetCommand({
+            RequestItems: { [this.tableName]: { Keys: part } },
+          }),
+        )) as { Responses?: Record<string, Record<string, unknown>[]> };
+        for (const it of res.Responses?.[this.tableName] ?? []) {
+          const pk = it[this.pkAttr] as string;
+          const sk = it[this.skAttr] as string;
+          typeByComposite.set(`${pk}||${sk}`, it);
+        }
+      } catch (e: unknown) {
+        this.rethrowDynamo('BatchGetItem', e);
+      }
+    }
+    const schemaByComposite = new Map<string, Record<string, unknown>>();
+    const schemaKeySet = new Set<string>();
+    const schemaKeysUnique: Record<string, string>[] = [];
+    for (const t of schemaTargets) {
+      const comp = `${t.pk}||${t.schemaSkStr}`;
+      if (schemaKeySet.has(comp)) {
+        continue;
+      }
+      schemaKeySet.add(comp);
+      schemaKeysUnique.push(this.key(t.pk, t.schemaSkStr));
+    }
+    for (const part of chunk(schemaKeysUnique, BATCH_GET_SIZE)) {
+      try {
+        const res = (await this.doc.send(
+          new BatchGetCommand({
+            RequestItems: { [this.tableName]: { Keys: part } },
+          }),
+        )) as { Responses?: Record<string, Record<string, unknown>[]> };
+        for (const it of res.Responses?.[this.tableName] ?? []) {
+          const pk = it[this.pkAttr] as string;
+          const sk = it[this.skAttr] as string;
+          schemaByComposite.set(`${pk}||${sk}`, it);
+        }
+      } catch (e: unknown) {
+        this.rethrowDynamo('BatchGetItem', e);
+      }
+    }
+
+    return listingRows.map((row): MetadataTypeListEntry | null => {
+      const cpk = row.canonicalPk as string | undefined;
+      const csk = row.canonicalSk as string | undefined;
+      const code = this.listingMetadataTypeCodeFromRow(row);
+      if (!cpk || !csk || !code) {
+        return null;
+      }
+      const typeItem = typeByComposite.get(`${cpk}||${csk}`);
+      if (!typeItem) {
+        return null;
+      }
+      let sch: Record<string, unknown> | null = null;
+      if (metadataTypeUsesSeparateSchemaItem(code)) {
+        const vm = /^TYPE#METADATA#v(\d+)$/.exec(csk);
+        const legacy = csk === LEGACY_TYPE_ENTITY_SK_V1;
+        const ver = legacy ? 1 : vm ? parseInt(vm[1]!, 10) : null;
+        if (ver !== null) {
+          sch = schemaByComposite.get(`${cpk}||${schemaSk(ver)}`) ?? null;
+        }
+      }
+      const type = this.unmarshalType(typeItem, sch);
+      const c = this.readListingCounts(row);
+      return { type, activeValueCount: c.active, inactiveValueCount: c.inactive };
+    });
+  }
+
   async createMetadataType(input: MetadataTypeInput, actor?: string): Promise<MetadataTypeRecord> {
     const pk = typePartitionKey(input.metadataTypeCode);
     const existing = await this.getItem(pk, typeEntitySk(1));
@@ -168,9 +436,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       newValue: typeCreateAuditNewValue(record),
     });
 
+    const listingItem = this.marshalTypeListingItem(input.metadataTypeCode, pk, typeEntitySk(version));
     const transactItems = [
       { Put: { TableName: this.tableName, Item: typeItem } },
       { Put: { TableName: this.tableName, Item: auditItem } },
+      { Put: { TableName: this.tableName, Item: listingItem } },
     ];
     if (schemaItem) {
       transactItems.splice(1, 0, { Put: { TableName: this.tableName, Item: schemaItem } });
@@ -236,6 +506,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
           }),
         },
       },
+      this.typeListingTransactUpdate(input.metadataTypeCode, pk, typeEntitySk(newVersion)),
     ]);
 
     return record;
@@ -278,6 +549,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
           }),
         },
       },
+      this.typeListingTransactUpdate(metadataTypeCode, pk, typeEntitySk(newVersion)),
     ]);
 
     return record;
@@ -301,34 +573,80 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return this.unmarshalType(typeItem, schemaItem);
   }
 
-  async listMetadataTypes(filter: ListTypesFilter): Promise<MetadataTypeRecord[]> {
-    const indexRows = await this.queryAll(catalogPartitionKey(), MetadataKeyBuilder.catalogTypeEntrySortKeyPrefix());
-    const legacyRows = await this.queryAll(LEGACY_CATALOG_PK, LEGACY_CATALOG_SK_PREFIX);
-    const fromIndexAndLegacy = [...indexRows, ...legacyRows]
-      .filter((r) => r.entityType === ENTITY_TYPE.CATALOG_ENTRY)
-      .map((r) => r.metadataTypeCode as string)
-      .filter(Boolean);
-    const fromPartitions = await this.discoverMetadataTypeCodesOnPartitions();
-    const uniqueCodes = [...new Set([...fromIndexAndLegacy, ...fromPartitions])];
+  async listMetadataTypes(filter: ListTypesFilter): Promise<MetadataTypeListEntry[]> {
+    const results: MetadataTypeListEntry[] = [];
+    let eks: Record<string, unknown> | undefined;
+    do {
+      const page = await this.queryListingPage(eks, TYPE_LIST_FETCH_SIZE);
+      eks = page.lastEvaluatedKey;
+      if (page.items.length === 0) {
+        continue;
+      }
+      const hydrated = await this.hydrateListingRowsToEntries(page.items);
+      for (const entry of hydrated) {
+        if (!entry || !this.passesTypeListFilters(entry.type, filter)) {
+          continue;
+        }
+        results.push(entry);
+      }
+    } while (eks);
+    return results.sort((a, b) =>
+      a.type.metadataTypeCode.localeCompare(b.type.metadataTypeCode),
+    );
+  }
 
-    const results: MetadataTypeRecord[] = [];
-    for (const code of uniqueCodes) {
-      const t = await this.getMetadataType(code);
-      if (!t) {
+  async listMetadataTypesPaginated(
+    filter: ListTypesFilter,
+    options: ListMetadataTypesPaginatedOptions,
+  ): Promise<{ entries: MetadataTypeListEntry[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const out: MetadataTypeListEntry[] = [];
+    let resumeDynamoKey: Record<string, unknown> | undefined = options.exclusiveStartKey;
+    let nextClientKey: Record<string, unknown> | undefined;
+
+    for (let rounds = 0; rounds < MAX_PAGE_ROUNDS && out.length < options.limit; rounds++) {
+      const page = await this.queryListingPage(resumeDynamoKey, TYPE_LIST_FETCH_SIZE);
+
+      if (page.items.length === 0) {
+        resumeDynamoKey = page.lastEvaluatedKey;
+        if (!resumeDynamoKey) {
+          break;
+        }
         continue;
       }
-      if (filter.status && t.status !== filter.status) {
-        continue;
+
+      const hydrated = await this.hydrateListingRowsToEntries(page.items);
+      for (let i = 0; i < hydrated.length; i++) {
+        const entry = hydrated[i];
+        const listingRow = page.items[i];
+        if (!entry || !listingRow || !this.passesTypeListFilters(entry.type, filter)) {
+          continue;
+        }
+        out.push(entry);
+        if (out.length >= options.limit) {
+          nextClientKey = this.dynamoKeyFromItem(listingRow);
+          break;
+        }
       }
-      if (filter.module && !t.applicableModules?.includes(filter.module)) {
-        continue;
+
+      if (out.length >= options.limit) {
+        break;
       }
-      if (filter.valueDataType && t.valueDataType !== filter.valueDataType) {
-        continue;
+
+      resumeDynamoKey = page.lastEvaluatedKey;
+      if (!resumeDynamoKey) {
+        break;
       }
-      results.push(t);
     }
-    return results.sort((a, b) => a.metadataTypeCode.localeCompare(b.metadataTypeCode));
+
+    return {
+      entries: out,
+      lastEvaluatedKey:
+        out.length === options.limit &&
+        nextClientKey &&
+        Object.keys(nextClientKey).length > 0
+          ? nextClientKey
+          : undefined,
+    };
   }
 
   async createMetadataValue(metadataTypeCode: string, input: MetadataValueInput, actor?: string): Promise<MetadataValueRecord> {
@@ -378,10 +696,13 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       newValue: valueCreateAuditNewValue(record),
     });
 
+    const { da, di } = this.valueCountDeltasOnCreate(status);
+    const ctr = this.valueCounterDeltaTransact(metadataTypeCode, da, di);
     await this.sendTx([
       { Put: { TableName: this.tableName, Item: valueItem } },
       { Put: { TableName: this.tableName, Item: latestPointer } },
       { Put: { TableName: this.tableName, Item: auditItem } },
+      ...(ctr ? [ctr] : []),
     ]);
 
     await this.writeApplRows(pk, applKeys, metadataTypeCode, input.valueCode);
@@ -428,6 +749,8 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       latestVersion: newVersion,
     };
 
+    const { da, di } = this.valueCountDeltasOnStatusChange(existing.status, record.status);
+    const ctr = this.valueCounterDeltaTransact(metadataTypeCode, da, di);
     await this.sendTx([
       { Put: { TableName: this.tableName, Item: valueItem } },
       { Put: { TableName: this.tableName, Item: latestPointer } },
@@ -442,6 +765,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
           }),
         },
       },
+      ...(ctr ? [ctr] : []),
     ]);
 
     await this.syncApplRows(pk, existing.applSkKeys, record.applSkKeys, metadataTypeCode, input.valueCode);
@@ -476,6 +800,8 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       latestVersion: newVersion,
     };
 
+    const { da, di } = this.valueCountDeltasOnStatusChange(existing.status, record.status);
+    const ctr = this.valueCounterDeltaTransact(metadataTypeCode, da, di);
     await this.sendTx([
       { Put: { TableName: this.tableName, Item: valueItem } },
       { Put: { TableName: this.tableName, Item: latestPointer } },
@@ -490,6 +816,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
           }),
         },
       },
+      ...(ctr ? [ctr] : []),
     ]);
 
     return record;
@@ -524,6 +851,65 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     const defaultStatus = STATUS.ACTIVE;
     const effective = statusFilter ?? defaultStatus;
     return values.filter((v) => v.status === effective);
+  }
+
+  async listMetadataValuesPaginated(
+    metadataTypeCode: string,
+    statusFilter: Status | null,
+    options: ListMetadataValuesPaginatedOptions,
+  ): Promise<{ records: MetadataValueRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const pk = typePartitionKey(metadataTypeCode);
+    const out: MetadataValueRecord[] = [];
+    let resumeDynamoKey: Record<string, unknown> | undefined = options.exclusiveStartKey;
+    let nextClientKey: Record<string, unknown> | undefined;
+
+    for (let rounds = 0; rounds < MAX_PAGE_ROUNDS && out.length < options.limit; rounds++) {
+      const page = await this.queryValueLatestPage(pk, resumeDynamoKey, VALUE_LIST_FETCH_SIZE);
+
+      const pointers = (page.items ?? []).filter(
+        (r) => r.entityType === 'VALUE_LATEST' && typeof r.valueCode === 'string',
+      );
+      if (pointers.length === 0) {
+        resumeDynamoKey = page.lastEvaluatedKey;
+        if (!resumeDynamoKey) {
+          break;
+        }
+        continue;
+      }
+
+      const codes = pointers.map((r) => r.valueCode as string);
+      const vals = await this.batchLoadValues(pk, codes);
+      for (let i = 0; i < vals.length; i++) {
+        const v = vals[i]!;
+        if (!this.valuePassesLatestStatus(v, statusFilter)) {
+          continue;
+        }
+        out.push(v);
+        if (out.length >= options.limit) {
+          nextClientKey = this.dynamoKeyFromItem(pointers[i]!);
+          break;
+        }
+      }
+
+      if (out.length >= options.limit) {
+        break;
+      }
+
+      resumeDynamoKey = page.lastEvaluatedKey;
+      if (!resumeDynamoKey) {
+        break;
+      }
+    }
+
+    return {
+      records: out,
+      lastEvaluatedKey:
+        out.length === options.limit &&
+        nextClientKey &&
+        Object.keys(nextClientKey).length > 0
+          ? nextClientKey
+          : undefined,
+    };
   }
 
   async searchMetadataValues(metadataTypeCode: string, filter: ValueSearchFilter): Promise<MetadataValueRecord[]> {
@@ -666,46 +1052,6 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return out;
   }
 
-  /**
-   * Collects `metadataTypeCode` values from `METADATA_TYPE#<code>` partitions by scanning for type-entity
-   * rows only (`TYPE#METADATA#v*` and legacy `TYPE#METADATA`). Used for listing when catalog
-   * items under `METADATA_TYPES` / `TYPE#<code>` are not written.
-   */
-  private async discoverMetadataTypeCodesOnPartitions(): Promise<string[]> {
-    const pkPrefix = typePartitionKey('');
-    const typeEntitySkPrefix = MetadataKeyBuilder.typeMetadataVersionedSkPrefix();
-    const codes = new Set<string>();
-    let startKey: Record<string, unknown> | undefined;
-    do {
-      try {
-        const res = (await this.doc.send(
-          new ScanCommand({
-            TableName: this.tableName,
-            FilterExpression: 'begins_with(#pk, :p) AND (begins_with(#sk, :t) OR #sk = :leg)',
-            ExpressionAttributeNames: { '#pk': this.pkAttr, '#sk': this.skAttr },
-            ExpressionAttributeValues: {
-              ':p': pkPrefix,
-              ':t': typeEntitySkPrefix,
-              ':leg': LEGACY_TYPE_ENTITY_SK_V1,
-            },
-            ProjectionExpression: '#pk',
-            ExclusiveStartKey: startKey,
-          }),
-        )) as { Items?: Record<string, unknown>[]; LastEvaluatedKey?: Record<string, unknown> };
-        for (const it of res.Items ?? []) {
-          const pk = it[this.pkAttr] as string;
-          if (typeof pk === 'string' && pk.startsWith(pkPrefix) && pk.length > pkPrefix.length) {
-            codes.add(pk.slice(pkPrefix.length));
-          }
-        }
-        startKey = res.LastEvaluatedKey;
-      } catch (e: unknown) {
-        this.rethrowDynamo('Scan', e);
-      }
-    } while (startKey);
-    return [...codes];
-  }
-
   private async batchLoadValues(pk: string, valueCodes: string[]): Promise<MetadataValueRecord[]> {
     if (valueCodes.length === 0) {
       return [];
@@ -728,12 +1074,15 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       }
     }
 
-    const valueKeys: { pk: string; sk: string }[] = [];
-    for (const [code, ver] of latestMap) {
-      valueKeys.push({ pk, sk: valueSk(code, ver) });
+    const valueKeys: { pk: string; sk: string; code: string }[] = [];
+    for (const code of valueCodes) {
+      const ver = latestMap.get(code);
+      if (ver !== undefined) {
+        valueKeys.push({ pk, sk: valueSk(code, ver), code });
+      }
     }
 
-    const values: MetadataValueRecord[] = [];
+    const byCode = new Map<string, MetadataValueRecord>();
     for (const part of chunk(valueKeys, BATCH_GET_SIZE)) {
       try {
         const res = (await this.doc.send(
@@ -743,13 +1092,43 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
         )) as { Responses?: Record<string, Record<string, unknown>[]> };
         const items = res.Responses?.[this.tableName] ?? [];
         for (const it of items) {
-          values.push(this.unmarshalValue(it as Record<string, unknown>));
+          const rec = this.unmarshalValue(it as Record<string, unknown>);
+          byCode.set(rec.valueCode, rec);
         }
       } catch (e: unknown) {
         this.rethrowDynamo('BatchGetItem', e);
       }
     }
-    return values;
+    return valueCodes.map((c) => byCode.get(c)).filter((v): v is MetadataValueRecord => v !== undefined);
+  }
+
+  private valuePassesLatestStatus(v: MetadataValueRecord, statusFilter: Status | null): boolean {
+    if (statusFilter === null) {
+      return true;
+    }
+    return v.status === statusFilter;
+  }
+
+  private async queryValueLatestPage(
+    pk: string,
+    exclusiveStartKey: Record<string, unknown> | undefined,
+    limit: number,
+  ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    try {
+      const res = (await this.doc.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :prefix)',
+          ExpressionAttributeNames: { '#pk': this.pkAttr, '#sk': this.skAttr },
+          ExpressionAttributeValues: { ':pk': pk, ':prefix': MetadataKeyBuilder.valueLatestSortKeyPrefix() },
+          ExclusiveStartKey: exclusiveStartKey,
+          Limit: limit,
+        }),
+      )) as { Items?: Record<string, unknown>[]; LastEvaluatedKey?: Record<string, unknown> };
+      return { items: res.Items ?? [], lastEvaluatedKey: res.LastEvaluatedKey };
+    } catch (e: unknown) {
+      this.rethrowDynamo('Query', e);
+    }
   }
 
   private async writeApplRows(pk: string, keys: string[], metadataTypeCode: string, valueCode: string): Promise<void> {

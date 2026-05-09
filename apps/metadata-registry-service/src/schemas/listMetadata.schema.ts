@@ -34,6 +34,25 @@ function normalizeListStatus(raw: string | undefined): Status | undefined {
   ]);
 }
 
+function parseOptionalLimit(raw: string | undefined): number | undefined {
+  if (raw === undefined || raw === '') return undefined;
+  const trimmed = String(raw).trim();
+  if (trimmed === '') return undefined;
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 1 || n > 100) {
+    throw new ValidationError('limit must be a positive integer from 1 to 100', [
+      { field: 'limit', message: 'Must be an integer between 1 and 100' },
+    ]);
+  }
+  return n;
+}
+
+function parseOptionalNextPaginationKey(raw: string | undefined): string | undefined {
+  if (raw === undefined || raw === '') return undefined;
+  const s = String(raw).trim();
+  return s === '' ? undefined : s;
+}
+
 /**
  * Base request extraction
  */
@@ -63,6 +82,9 @@ export const listMetadataSchema = z
       applicableLanguages: q.applicableLanguages,
 
       search: q.search,
+
+      rawLimit: q.limit,
+      rawNextPaginationKey: q.nextPaginationKey,
     };
   })
   .superRefine((data) => {
@@ -99,6 +121,9 @@ export const listMetadataSchema = z
     applicableLanguages: parseCsvToArray(data.applicableLanguages),
 
     search: data.search,
+
+    limit: parseOptionalLimit(data.rawLimit),
+    nextPaginationKey: parseOptionalNextPaginationKey(data.rawNextPaginationKey),
   }));
 
-export type ListMetadataInput = z.infer<typeof listMetadataSchema>;
+export type RegistryListMetadataRequest = z.infer<typeof listMetadataSchema>;

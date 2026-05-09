@@ -31,6 +31,8 @@ import {
 import { matchesSearchFilter, sortValuesForSearch } from '../domain/search-filter';
 
 import type { ListMetadataInput } from '../types/list-metadata-input';
+import type { ListTypesFilter, MetadataTypeListEntry } from '../repositories/metadata-registry.repository.interface';
+import { decodePaginationKey, encodePaginationKey } from '../lib/pagination-key';
 
 import {
   flattenMetadataValueForApi,
@@ -38,7 +40,7 @@ import {
   normalizeMetadataValueInput,
   type MetadataValueApiModel,
 } from '../mappers/metadata-request.mapper';
-import { getMetadataRepository } from '../dynamodb/dynamodb.client';
+import { getMetadataRepository, getMetadataRegistryDynamoContext } from '../dynamodb/dynamodb.client';
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
@@ -149,6 +151,37 @@ export function resolveStatusMode(input: ListMetadataInput): ListEntityStatusMod
   return 'active';
 }
 
+function registryListPaginationRequested(input: ListMetadataInput): boolean {
+  return (
+    input.limit !== undefined ||
+    (input.nextPaginationKey !== undefined && String(input.nextPaginationKey).trim() !== '')
+  );
+}
+
+function hasApplicabilityListFilters(input: ListMetadataInput): boolean {
+  return Boolean(
+    (input.applicableModules?.length ?? 0) +
+      (input.applicableCategories?.length ?? 0) +
+      (input.applicableConditions?.length ?? 0) +
+      (input.applicableCountries?.length ?? 0) +
+      (input.applicableLanguages?.length ?? 0),
+  );
+}
+
+function metadataTypeListItemValueCount(
+  mode: ListEntityStatusMode,
+  activeValueCount: number,
+  inactiveValueCount: number,
+): number {
+  if (mode === 'all') {
+    return activeValueCount + inactiveValueCount;
+  }
+  if (mode === 'inactive') {
+    return inactiveValueCount;
+  }
+  return activeValueCount;
+}
+
 export async function getType(metadataTypeCode: string): Promise<MetadataTypeRecord | null> {
   assertMetadataTypeCode(metadataTypeCode);
   return (await getMetadataRepository()).getMetadataType(metadataTypeCode);
@@ -159,7 +192,8 @@ export async function listTypes(filters: {
   module?: string;
   valueDataType?: string;
 }): Promise<MetadataTypeRecord[]> {
-  return (await getMetadataRepository()).listMetadataTypes(filters);
+  const entries = await (await getMetadataRepository()).listMetadataTypes(filters);
+  return entries.map((e) => e.type);
 }
 
 /**
@@ -362,34 +396,52 @@ export async function searchMetadataValues(
   return (await getMetadataRepository()).searchMetadataValues(metadataTypeCode, filter);
 }
 
-async function listMetadataTypesFromService(input: ListMetadataInput): Promise<MetadataTypeListItem[]> {
-  const mode = resolveStatusMode(input);
-
-  const base = {
-    module: input.module,
-    valueDataType: input.valueDataType,
-  };
-
-  const types =
-    mode === 'all'
-      ? await listTypes(base)
-      : await listTypes({
-          ...base,
-          status: mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE,
-        });
-
-  const valueListStatus: Status | null =
-    mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
-
-  const counts = await Promise.all(types.map((t) => listValues(t.metadataTypeCode, valueListStatus)));
-
-  return types.map((t, i) => ({
-    ...t,
-    metadataValueCount: counts[i]!.length,
+function mapTypeEntriesToListItems(
+  entries: MetadataTypeListEntry[],
+  mode: ListEntityStatusMode,
+): MetadataTypeListItem[] {
+  return entries.map((e) => ({
+    ...e.type,
+    metadataValueCount: metadataTypeListItemValueCount(mode, e.activeValueCount, e.inactiveValueCount),
   }));
 }
 
-async function listMetadataValuesFromService(input: ListMetadataInput): Promise<MetadataValueApiModel[]> {
+async function listMetadataTypesForRegistry(
+  input: ListMetadataInput,
+  paginated: boolean,
+): Promise<{ items: MetadataTypeListItem[]; lastEvaluatedKey?: Record<string, unknown> }> {
+  const mode = resolveStatusMode(input);
+
+  const filter: ListTypesFilter = {
+    module: input.module,
+    valueDataType: input.valueDataType,
+    ...(mode === 'all'
+      ? {}
+      : { status: mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE }),
+  };
+  const repo = await getMetadataRepository();
+
+  if (paginated) {
+    const ctx = await getMetadataRegistryDynamoContext();
+    const eks = input.nextPaginationKey
+      ? decodePaginationKey(input.nextPaginationKey, ctx.pkAttr, ctx.skAttr)
+      : undefined;
+    const limit = input.limit ?? 50;
+    const { entries, lastEvaluatedKey } = await repo.listMetadataTypesPaginated(filter, {
+      limit,
+      exclusiveStartKey: eks,
+    });
+    return { items: mapTypeEntriesToListItems(entries, mode), lastEvaluatedKey };
+  }
+
+  const entries = await repo.listMetadataTypes(filter);
+  return { items: mapTypeEntriesToListItems(entries, mode) };
+}
+
+async function listMetadataValuesForRegistry(
+  input: ListMetadataInput,
+  paginated: boolean,
+): Promise<{ items: MetadataValueApiModel[]; lastEvaluatedKey?: Record<string, unknown> }> {
   const mode = resolveStatusMode(input);
 
   const filter: ValueSearchFilter = {};
@@ -425,17 +477,34 @@ async function listMetadataValuesFromService(input: ListMetadataInput): Promise<
   }
 
   const repoStatus = mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
-  const rows = await listValues(input.metadataTypeCode, repoStatus);
+  const matchDefaultStatus: Status | null =
+    mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
 
-  const matchDefaultStatus: Status | null = mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
+  const allowPaginatedValues = paginated && !hasApplicabilityListFilters(input);
+
+  if (allowPaginatedValues) {
+    const ctx = await getMetadataRegistryDynamoContext();
+    const eks = input.nextPaginationKey
+      ? decodePaginationKey(input.nextPaginationKey, ctx.pkAttr, ctx.skAttr)
+      : undefined;
+    const limit = input.limit ?? 50;
+    const repo = await getMetadataRepository();
+    const { records, lastEvaluatedKey } = await repo.listMetadataValuesPaginated(input.metadataTypeCode, repoStatus, {
+      limit,
+      exclusiveStartKey: eks,
+    });
+    return { items: records.map(flattenMetadataValueForApi), lastEvaluatedKey };
+  }
+
+  const rows = await listValues(input.metadataTypeCode, repoStatus);
   const matched = rows.filter((v) => matchesSearchFilter(v, filter, matchDefaultStatus));
 
-  return sortValuesForSearch(matched).map(flattenMetadataValueForApi);
+  return { items: sortValuesForSearch(matched).map(flattenMetadataValueForApi) };
 }
 
 export const metadataService = {
-  listTypes: listMetadataTypesFromService,
-  listValues: listMetadataValuesFromService,
+  listTypes: (input: ListMetadataInput) => listMetadataTypesForRegistry(input, false).then((r) => r.items),
+  listValues: (input: ListMetadataInput) => listMetadataValuesForRegistry(input, false).then((r) => r.items),
 };
 
 /** Parsed `GET /metadata/:entityType` input (host validates via Zod). */
@@ -473,13 +542,41 @@ export async function orchestrateRegistryGet(
   return resolveMetadataValueGetForApi(input.metadataTypeCode, input.valueCode, input.mode);
 }
 
-export async function orchestrateRegistryList(
-  input: ListMetadataInput,
-): Promise<MetadataTypeListItem[] | MetadataValueApiModel[]> {
-  if (input.entityType === 'type') {
-    return metadataService.listTypes(input);
+export type RegistryListResult =
+  | { pagination: false; items: MetadataTypeListItem[] | MetadataValueApiModel[] }
+  | {
+      pagination: true;
+      items: MetadataTypeListItem[] | MetadataValueApiModel[];
+      nextPaginationKey?: string;
+    };
+
+export async function orchestrateRegistryList(input: ListMetadataInput): Promise<RegistryListResult> {
+  let paginated = registryListPaginationRequested(input);
+  if (paginated && input.entityType === 'value' && hasApplicabilityListFilters(input)) {
+    paginated = false;
   }
-  return metadataService.listValues(input);
+
+  if (input.entityType === 'type') {
+    const { items, lastEvaluatedKey } = await listMetadataTypesForRegistry(input, paginated);
+    if (!paginated) {
+      return { pagination: false, items };
+    }
+    return {
+      pagination: true,
+      items,
+      nextPaginationKey: encodePaginationKey(lastEvaluatedKey),
+    };
+  }
+
+  const { items, lastEvaluatedKey } = await listMetadataValuesForRegistry(input, paginated);
+  if (!paginated) {
+    return { pagination: false, items };
+  }
+  return {
+    pagination: true,
+    items,
+    nextPaginationKey: encodePaginationKey(lastEvaluatedKey),
+  };
 }
 
 export async function orchestrateRegistryPost(

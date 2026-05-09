@@ -1,5 +1,6 @@
 import {
   orchestrateRegistryList,
+  type ListMetadataInput,
   type MetadataTypeListItem,
   type MetadataValueApiModel,
 } from '@api-hub/metadata';
@@ -12,10 +13,21 @@ import {
 } from '../services/userLookup.service';
 
 export const main = withLambdaHandler(async (req) => {
-  const input = listMetadataSchema.parse(req);
-  const records = await orchestrateRegistryList(input);
-  const userMap = await getUsersByIds(collectUserIdsForEnrichment(records));
-  return records.map((row: MetadataTypeListItem | MetadataValueApiModel) =>
+  const parsed = listMetadataSchema.parse(req);
+  const result = await orchestrateRegistryList(parsed as ListMetadataInput);
+  const userMap = await getUsersByIds(collectUserIdsForEnrichment(result.items));
+  const enriched = result.items.map((row: MetadataTypeListItem | MetadataValueApiModel) =>
     enrichMetadataRecordActors(row, userMap),
   );
+
+  if (!result.pagination) {
+    return enriched;
+  }
+
+  return {
+    items: enriched,
+    ...(result.nextPaginationKey !== undefined
+      ? { nextPaginationKey: result.nextPaginationKey }
+      : {}),
+  };
 });

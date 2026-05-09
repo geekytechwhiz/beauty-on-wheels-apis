@@ -7,10 +7,16 @@ export * from './domain/relation-keys';
 export * from './domain/diff';
 export * from './domain/search-filter';
 
+export { encodePaginationKey, decodePaginationKey } from './lib/pagination-key';
+
 export { MetadataKeyBuilder } from './builders/metadata-key.builder';
 
 export type { ListMetadataInput } from './types/list-metadata-input';
-export type { IMetadataRegistryRepository, ListTypesFilter } from './repositories/metadata.repository';
+export type {
+  IMetadataRegistryRepository,
+  ListTypesFilter,
+  MetadataTypeListEntry,
+} from './repositories/metadata.repository';
 export type {
   IRelationRepository,
   ListRelationsByFromOptions,
@@ -64,6 +70,7 @@ export {
   resolveMetadataValueGetForApi,
   orchestrateRegistryGet,
   orchestrateRegistryList,
+  type RegistryListResult,
   orchestrateRegistryPost,
   orchestrateRegistryPatchStatus,
   orchestrateRegistryListAudit,

@@ -1,28 +1,38 @@
-import { parseQueryIncludeInactive, STATUS } from '@api-hub/metadata';
+import {
+  STATUS,
+  ValidationError,
+  assertRegistryEntityKind,
+  parseQueryIncludeInactive,
+  type Status,
+} from '@api-hub/metadata';
 import { z } from 'zod';
-/**
- * Utility: CSV → string[]
- */
-const csvToArray = z
-  .string()
-  .transform((val) =>
-    val
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
-  )
-  .optional();
 
 /**
- * Entity type
+ * CSV string -> trimmed, non-empty string[]. Returns undefined when the input is missing.
  */
-const entityTypeSchema = z.enum(['type', 'value']);
+function parseCsvToArray(val: string | undefined): string[] | undefined {
+  if (val === undefined) return undefined;
+  return val
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
-/** Omitted or empty → undefined (service defaults to ACTIVE-only via `resolveStatusMode`). */
-const optionalListStatusSchema = z.preprocess(
-  (v) => (v === undefined || v === '' ? undefined : String(v).trim().toUpperCase()),
-  z.enum([STATUS.ACTIVE, STATUS.INACTIVE]).optional(),
-);
+/**
+ * Optional list `status` query param. Empty/undefined -> undefined (service defaults to
+ * ACTIVE-only via `resolveStatusMode`). Any other value must be ACTIVE or INACTIVE,
+ * otherwise we surface a 400 ValidationError consistent with the rest of the registry routes.
+ */
+function normalizeListStatus(raw: string | undefined): Status | undefined {
+  if (raw === undefined || raw === '') return undefined;
+  const s = String(raw).trim().toUpperCase();
+  if (s === STATUS.ACTIVE || s === STATUS.INACTIVE) {
+    return s as Status;
+  }
+  throw new ValidationError('status must be ACTIVE or INACTIVE', [
+    { field: 'status', message: 'Must be ACTIVE or INACTIVE' },
+  ]);
+}
 
 /**
  * Base request extraction
@@ -36,54 +46,59 @@ export const listMetadataSchema = z
     const q = req.params ?? {};
     const p = req.pathParameters ?? {};
 
-    const entityTypeRaw = q.entityType ?? p.entityType ?? '';
-    const entityType = entityTypeSchema.parse(entityTypeRaw.trim().toLowerCase());
-
-    const metadataTypeCode = (q.metadataTypeCode ?? p.metadataTypeCode ?? '').trim();
-
-    const queryForInclude = q as Record<string, string | undefined>;
-
     return {
-      entityType,
+      entityTypeRaw: (q.entityType ?? p.entityType ?? '').trim().toLowerCase(),
 
-      // Common
-      metadataTypeCode,
+      metadataTypeCode: (q.metadataTypeCode ?? p.metadataTypeCode ?? '').trim(),
 
-      // TYPE / VALUE list status (same query params)
       module: q.module,
       valueDataType: q.valueDataType ?? q.datatype,
-      status: optionalListStatusSchema.parse(q.status),
-      includeInactive: parseQueryIncludeInactive(queryForInclude),
+      rawStatus: q.status,
+      includeInactive: parseQueryIncludeInactive(q as Record<string, string | undefined>),
 
-      applicableModules: csvToArray.parse(q.applicableModules),
-      applicableCategories: csvToArray.parse(q.applicableCategories),
-      applicableConditions: csvToArray.parse(q.applicableConditions),
-      applicableCountries: csvToArray.parse(q.applicableCountries),
-      applicableLanguages: csvToArray.parse(q.applicableLanguages),
+      applicableModules: q.applicableModules,
+      applicableCategories: q.applicableCategories,
+      applicableConditions: q.applicableConditions,
+      applicableCountries: q.applicableCountries,
+      applicableLanguages: q.applicableLanguages,
 
       search: q.search,
     };
   })
-  .superRefine((data, ctx) => {
-    // ❗ entityType specific validations
+  .superRefine((data) => {
+    const kind = assertRegistryEntityKind(data.entityTypeRaw);
 
-    if (data.entityType === 'value') {
+    if (kind === 'value') {
       if (!data.metadataTypeCode) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['metadataTypeCode'],
-          message: 'metadataTypeCode is required',
-        });
+        throw new ValidationError('metadataTypeCode is required', [
+          { field: 'metadataTypeCode', message: 'Required' },
+        ]);
       }
 
       if (data.search) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['search'],
-          message: 'search is not supported; use structured filters',
-        });
+        throw new ValidationError('search is not supported; use structured filters', [
+          { field: 'search', message: 'search is not supported; use structured filters' },
+        ]);
       }
     }
-  });
+  })
+  .transform((data) => ({
+    entityType: (data.entityTypeRaw === 'value' ? 'value' : 'type') as 'type' | 'value',
+
+    metadataTypeCode: data.metadataTypeCode,
+
+    module: data.module,
+    valueDataType: data.valueDataType,
+    status: normalizeListStatus(data.rawStatus),
+    includeInactive: data.includeInactive,
+
+    applicableModules: parseCsvToArray(data.applicableModules),
+    applicableCategories: parseCsvToArray(data.applicableCategories),
+    applicableConditions: parseCsvToArray(data.applicableConditions),
+    applicableCountries: parseCsvToArray(data.applicableCountries),
+    applicableLanguages: parseCsvToArray(data.applicableLanguages),
+
+    search: data.search,
+  }));
 
 export type ListMetadataInput = z.infer<typeof listMetadataSchema>;

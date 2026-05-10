@@ -20,7 +20,7 @@ phases:
       - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
       - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
-      # 2) select create vs update s3 keys
+       
       - |
         if [ -f .serverless/cloudformation-template-update-stack.json ]; then
           TEMPLATE=".serverless/cloudformation-template-update-stack.json"

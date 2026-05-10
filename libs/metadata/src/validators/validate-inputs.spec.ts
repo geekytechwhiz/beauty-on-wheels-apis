@@ -46,14 +46,30 @@ describe('validateMetadataTypeInput', () => {
 
   it('rejects update without status', () => {
     expect(() =>
-      validateMetadataTypeInput({ metadataTypeCode: 'SampleType', displayName: 'Renamed' }, true),
+      validateMetadataTypeInput(
+        {
+          metadataTypeCode: 'SampleType',
+          displayName: 'Renamed',
+          valueDataType: 'Enum',
+          multiSelectAllowed: false,
+          applicableModules: [],
+        },
+        true,
+      ),
     ).toThrow(/status is required on update/);
   });
 
   it('rejects update with invalid status', () => {
     expect(() =>
       validateMetadataTypeInput(
-        { metadataTypeCode: 'SampleType', displayName: 'Renamed', status: 'DRAFT' as never },
+        {
+          metadataTypeCode: 'SampleType',
+          displayName: 'Renamed',
+          valueDataType: 'Enum',
+          multiSelectAllowed: false,
+          applicableModules: [],
+          status: 'DRAFT' as never,
+        },
         true,
       ),
     ).toThrow(/status must be ACTIVE or INACTIVE/);
@@ -65,12 +81,30 @@ describe('validateMetadataTypeInput', () => {
         {
           metadataTypeCode: 'Country',
           displayName: 'Country',
+          valueDataType: 'Enum',
+          multiSelectAllowed: false,
           applicableModules: [],
           status: 'ACTIVE',
         },
         true,
       ),
     ).not.toThrow();
+  });
+
+  it('rejects merged update snapshot with null displayName', () => {
+    expect(() =>
+      validateMetadataTypeInput(
+        {
+          metadataTypeCode: 'SampleType',
+          displayName: null as never,
+          valueDataType: 'Enum',
+          multiSelectAllowed: false,
+          applicableModules: [],
+          status: 'ACTIVE',
+        },
+        true,
+      ),
+    ).toThrow(/displayName is required on update/);
   });
 
   it('rejects non-string metadataTypeCode', () => {

@@ -459,29 +459,32 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     const pk = typePartitionKey(input.metadataTypeCode);
     const currentVersion = (await this.resolveLatestTypeVersion(pk)) ?? existing.version;
 
-    const merged: MetadataTypeInput = {
-      displayName: existing.displayName,
-      description: existing.description,
-      applicableModules: existing.applicableModules,
-      valueApplicabilityConfig: existing.valueApplicabilityConfig,
-      valueDataType: existing.valueDataType,
-      multiSelectAllowed: existing.multiSelectAllowed,
-      attributeSchema: existing.attributeSchema,
-      status: existing.status,
-      ...input,
-      metadataTypeCode: input.metadataTypeCode,
-    };
-
     const now = new Date().toISOString();
 
     /** Every update is a new immutable row `TYPE#METADATA#vN` / `SCHEMA#vN` — never overwrite an existing version. */
     const newVersion = currentVersion + 1;
+
+    const resolvedAttributeSchema = resolveAttributeSchemaForMetadataType(
+      input.metadataTypeCode,
+      input.attributeSchema,
+    );
+
+    /** `input` is the fully merged snapshot from the service layer (PATCH semantics already applied). */
     const record: MetadataTypeRecord = {
-      ...existing,
-      ...merged,
+      metadataTypeCode: input.metadataTypeCode,
       version: newVersion,
+      displayName: input.displayName!,
+      description: input.description,
+      valueDataType: input.valueDataType as MetadataTypeRecord['valueDataType'],
+      multiSelectAllowed: input.multiSelectAllowed!,
+      applicableModules: input.applicableModules ?? [],
+      valueApplicabilityConfig: input.valueApplicabilityConfig,
+      attributeSchema: resolvedAttributeSchema,
+      status: input.status!,
+      createdAt: existing.createdAt,
+      createdBy: existing.createdBy ?? input.createdBy,
       lastModifiedAt: now,
-      lastModifiedBy: merged.lastModifiedBy ?? actor,
+      lastModifiedBy: input.lastModifiedBy ?? actor ?? existing.lastModifiedBy,
     };
 
     const typeItem = this.marshalType(record, pk, typeEntitySk(newVersion));
@@ -489,7 +492,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       input.metadataTypeCode,
       pk,
       newVersion,
-      resolveAttributeSchemaForMetadataType(input.metadataTypeCode, merged.attributeSchema),
+      resolvedAttributeSchema,
     );
 
     await this.sendTx([

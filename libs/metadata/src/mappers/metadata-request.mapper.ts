@@ -4,6 +4,7 @@ import { STATUS } from '../constants';
 import type {
   Applicability,
   MetadataTypeInput,
+  MetadataTypeRecord,
   MetadataValueInput,
   MetadataValueRecord,
   Status,
@@ -66,34 +67,97 @@ function normalizeApplicableModuleToken(raw: string): string {
   return t;
 }
 
+function hasOwnKey(o: object, k: string): boolean {
+  return Object.prototype.hasOwnProperty.call(o, k);
+}
+
 /**
  * Maps legacy / alternate request shapes to {@link MetadataTypeInput}
  * (`name` → `displayName`, `datatype` → `valueDataType`, `module` string → `applicableModules`).
+ *
+ * **Only keys present on the request body are emitted** (after alias resolution). Omitted fields must not
+ * appear as `undefined` values — that prevented PATCH-style merges from distinguishing "not sent" from
+ * `"field": null` or empty overrides downstream.
  */
 export function normalizeMetadataTypeInput(
   body: MetadataTypeInput & Record<string, unknown>,
 ): MetadataTypeInput {
-  const displayName = (body.displayName ?? body.name) as string | undefined;
-  const valueDataType = (body.valueDataType ?? body.datatype) as string | undefined;
-  const fromModule = body.module !== undefined ? [String(body.module)] : undefined;
-  const rawModules = (body.applicableModules ?? fromModule) as string[] | undefined;
-  const applicableModules =
-    rawModules === undefined ? undefined : rawModules.map(normalizeApplicableModuleToken);
-  const lastModifiedBy = (body.lastModifiedBy ?? body.updatedBy) as string | undefined;
-  const status = normalizeMetadataTypeStatus(body.status);
+  const out: MetadataTypeInput = {
+    metadataTypeCode: String(body.metadataTypeCode),
+  };
+
+  if (hasOwnKey(body, 'displayName') || hasOwnKey(body, 'name')) {
+    const raw = hasOwnKey(body, 'displayName') ? body.displayName : body.name;
+    out.displayName = raw as string | undefined;
+  }
+  if (hasOwnKey(body, 'description')) {
+    out.description = body.description as string | undefined;
+  }
+  if (hasOwnKey(body, 'valueDataType') || hasOwnKey(body, 'datatype')) {
+    out.valueDataType = (body.valueDataType ?? body.datatype) as string | undefined;
+  }
+  if (hasOwnKey(body, 'multiSelectAllowed')) {
+    out.multiSelectAllowed = body.multiSelectAllowed as boolean | undefined;
+  }
+  if (hasOwnKey(body, 'applicableModules')) {
+    const raw = body.applicableModules as string[] | null | undefined;
+    if (raw === null) {
+      out.applicableModules = null as unknown as string[];
+    } else if (raw !== undefined) {
+      out.applicableModules = raw.map(normalizeApplicableModuleToken);
+    }
+  } else if (hasOwnKey(body, 'module')) {
+    out.applicableModules = [normalizeApplicableModuleToken(String(body.module))];
+  }
+  if (hasOwnKey(body, 'valueApplicabilityConfig')) {
+    out.valueApplicabilityConfig = body.valueApplicabilityConfig as MetadataTypeInput['valueApplicabilityConfig'];
+  }
+  if (hasOwnKey(body, 'attributeSchema')) {
+    out.attributeSchema = body.attributeSchema as Record<string, unknown> | undefined;
+  }
+  if (hasOwnKey(body, 'status')) {
+    if (body.status === null) {
+      out.status = null as unknown as Status;
+    } else {
+      const s = normalizeMetadataTypeStatus(body.status);
+      if (s !== undefined) {
+        out.status = s;
+      }
+    }
+  }
+  if (hasOwnKey(body, 'createdBy')) {
+    out.createdBy = body.createdBy as string | undefined;
+  }
+  if (hasOwnKey(body, 'lastModifiedBy') || hasOwnKey(body, 'updatedBy')) {
+    out.lastModifiedBy = (body.lastModifiedBy ?? body.updatedBy) as string | undefined;
+  }
+
+  return out;
+}
+
+/**
+ * PATCH-style merge for metadata type updates. Overwrites an existing field only when the patch
+ * carries an explicit value (`!== undefined`). `null` is explicit and overwrites for downstream validation.
+ */
+export function mergeMetadataTypeForUpdate(
+  existing: MetadataTypeRecord,
+  patch: MetadataTypeInput,
+): MetadataTypeInput {
+  const pick = <T, U extends T | undefined>(next: U, prev: T): T | U =>
+    next !== undefined ? next : prev;
 
   return {
-    metadataTypeCode: body.metadataTypeCode,
-    displayName,
-    description: body.description,
-    valueDataType,
-    multiSelectAllowed: body.multiSelectAllowed,
-    applicableModules,
-    valueApplicabilityConfig: body.valueApplicabilityConfig,
-    attributeSchema: body.attributeSchema,
-    status,
-    createdBy: body.createdBy,
-    lastModifiedBy,
+    metadataTypeCode: existing.metadataTypeCode,
+    displayName: pick(patch.displayName, existing.displayName),
+    description: pick(patch.description, existing.description),
+    valueDataType: pick(patch.valueDataType, existing.valueDataType),
+    multiSelectAllowed: pick(patch.multiSelectAllowed, existing.multiSelectAllowed),
+    applicableModules: pick(patch.applicableModules, existing.applicableModules),
+    valueApplicabilityConfig: pick(patch.valueApplicabilityConfig, existing.valueApplicabilityConfig),
+    attributeSchema: pick(patch.attributeSchema, existing.attributeSchema),
+    status: pick(patch.status, existing.status),
+    createdBy: pick(patch.createdBy, existing.createdBy),
+    lastModifiedBy: pick(patch.lastModifiedBy, existing.lastModifiedBy),
   };
 }
 

@@ -56,29 +56,43 @@ export function validateMetadataTypeInput(input: MetadataTypeInput, isUpdate = f
     return;
   }
 
-  if (input.displayName !== undefined) {
-    if (!input.displayName.trim()) {
-      throw new ValidationError('displayName cannot be empty', [{ field: 'displayName', message: 'Invalid' }]);
-    }
-    if (input.displayName.length > DISPLAY_NAME_MAX) {
-      throw new ValidationError(`displayName must be at most ${DISPLAY_NAME_MAX} characters`, [
-        { field: 'displayName', message: `Max ${DISPLAY_NAME_MAX} characters` },
-      ]);
-    }
+  // Update path validates the final merged snapshot (after PATCH-style merge with the stored type).
+  if (input.displayName === undefined || input.displayName === null) {
+    throw new ValidationError('displayName is required on update', [{ field: 'displayName', message: 'Required' }]);
   }
-  if (input.valueDataType !== undefined && !VALUE_DATA_TYPES.includes(input.valueDataType as ValueDataType)) {
+  if (typeof input.displayName !== 'string' || !input.displayName.trim()) {
+    throw new ValidationError('displayName cannot be empty', [{ field: 'displayName', message: 'Invalid' }]);
+  }
+  if (input.displayName.length > DISPLAY_NAME_MAX) {
+    throw new ValidationError(`displayName must be at most ${DISPLAY_NAME_MAX} characters`, [
+      { field: 'displayName', message: `Max ${DISPLAY_NAME_MAX} characters` },
+    ]);
+  }
+  if (input.valueDataType === undefined || input.valueDataType === null) {
+    throw new ValidationError('valueDataType is required on update', [{ field: 'valueDataType', message: 'Required' }]);
+  }
+  if (typeof input.valueDataType !== 'string' || !input.valueDataType.trim()) {
+    throw new ValidationError('valueDataType cannot be empty', [{ field: 'valueDataType', message: 'Invalid' }]);
+  }
+  if (!VALUE_DATA_TYPES.includes(input.valueDataType as ValueDataType)) {
     throw new ValidationError('valueDataType must be Enum, Numeric, Boolean, or Text', [
       { field: 'valueDataType', message: 'Invalid enum' },
     ]);
   }
+  if (input.multiSelectAllowed === undefined || input.multiSelectAllowed === null) {
+    throw new ValidationError('multiSelectAllowed is required on update', [
+      { field: 'multiSelectAllowed', message: 'Required' },
+    ]);
+  }
+  if (typeof input.multiSelectAllowed !== 'boolean') {
+    throw new ValidationError('multiSelectAllowed must be a boolean', [{ field: 'multiSelectAllowed', message: 'Invalid' }]);
+  }
+  if (input.applicableModules === null) {
+    throw new ValidationError('applicableModules must be an array', [{ field: 'applicableModules', message: 'Invalid' }]);
+  }
   if (input.applicableModules !== undefined && input.applicableModules.length > 0) {
     assertEnumTokenArray(input.applicableModules, 'applicableModules');
   }
-  if (input.multiSelectAllowed !== undefined && typeof input.multiSelectAllowed !== 'boolean') {
-    throw new ValidationError('multiSelectAllowed must be a boolean', [{ field: 'multiSelectAllowed', message: 'Invalid' }]);
-  }
-  // status is required on every write (create + update). Omitting it previously fell through and
-  // could be persisted as INACTIVE downstream — clients must always send an explicit ACTIVE/INACTIVE.
   if (input.status === undefined || input.status === null || String(input.status).trim() === '') {
     throw new ValidationError('status is required on update', [{ field: 'status', message: 'Required' }]);
   }

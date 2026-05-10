@@ -44,6 +44,7 @@ export * from './validators/status';
 export * from './mappers/metadata-value-request';
 export {
   flattenMetadataValueForApi,
+  mergeMetadataTypeForUpdate,
   normalizeMetadataTypeInput,
   normalizeMetadataValueInput,
   type MetadataValueApiModel,

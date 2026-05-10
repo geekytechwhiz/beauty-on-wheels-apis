@@ -36,6 +36,7 @@ import { decodePaginationKey, encodePaginationKey } from '../lib/pagination-key'
 
 import {
   flattenMetadataValueForApi,
+  mergeMetadataTypeForUpdate,
   normalizeMetadataTypeInput,
   normalizeMetadataValueInput,
   type MetadataValueApiModel,
@@ -215,14 +216,13 @@ export async function upsertMetadataType(body: MetadataTypeInput, userId?: strin
     validateMetadataTypeInput(body, false);
     return repo.createMetadataType(body, actor);
   }
-  assertPostUpsertAllowedForLatestStatus(existing.status, body.status);
-  validateMetadataTypeInput(body, true);
-  const mergedSchema =
-    body.attributeSchema !== undefined ? body.attributeSchema : existing.attributeSchema;
+  const merged = mergeMetadataTypeForUpdate(existing, body);
+  validateMetadataTypeInput(merged, true);
+  assertPostUpsertAllowedForLatestStatus(existing.status, merged.status);
   const oldMap = attributeSchemaFieldMapForCompatibility(
     existing.attributeSchema as Record<string, unknown> | undefined,
   );
-  const newMap = attributeSchemaFieldMapForCompatibility(mergedSchema as Record<string, unknown> | undefined);
+  const newMap = attributeSchemaFieldMapForCompatibility(merged.attributeSchema as Record<string, unknown> | undefined);
   if (!isAttributeSchemaCompatibleExtension(oldMap, newMap)) {
     throw new ValidationError('attributeSchema is not a compatible extension of the existing schema', [
       {
@@ -231,7 +231,7 @@ export async function upsertMetadataType(body: MetadataTypeInput, userId?: strin
       },
     ]);
   }
-  return repo.updateMetadataType(body, actor);
+  return repo.updateMetadataType(merged, actor);
 }
 
 export async function patchTypeStatus(

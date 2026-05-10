@@ -57,6 +57,14 @@ describe('normalizeMetadataTypeInput', () => {
     } as unknown as MetadataTypeInput & Record<string, unknown>);
     expect(normalized.applicableModules).toEqual(['CARE_PLAN', 'OKR']);
   });
+
+  it('does not emit undefined keys for PATCH-style partial bodies (merge-friendly)', () => {
+    const normalized = normalizeMetadataTypeInput({
+      metadataTypeCode: 'SampleType',
+      status: 'ACTIVE',
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
+    expect(Object.keys(normalized).sort()).toEqual(['metadataTypeCode', 'status'].sort());
+  });
 });
 
 describe('parsePatchStatusBody', () => {

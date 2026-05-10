@@ -44,19 +44,29 @@ describe('validateMetadataTypeInput', () => {
     ).toThrow(/status must be ACTIVE or INACTIVE/);
   });
 
-  it('allows partial update without status', () => {
+  it('rejects update without status', () => {
     expect(() =>
       validateMetadataTypeInput({ metadataTypeCode: 'SampleType', displayName: 'Renamed' }, true),
-    ).not.toThrow();
+    ).toThrow(/status is required on update/);
   });
 
-  it('allows update with empty applicableModules (no module restriction)', () => {
+  it('rejects update with invalid status', () => {
+    expect(() =>
+      validateMetadataTypeInput(
+        { metadataTypeCode: 'SampleType', displayName: 'Renamed', status: 'DRAFT' as never },
+        true,
+      ),
+    ).toThrow(/status must be ACTIVE or INACTIVE/);
+  });
+
+  it('allows update with empty applicableModules (no module restriction) when status is provided', () => {
     expect(() =>
       validateMetadataTypeInput(
         {
           metadataTypeCode: 'Country',
           displayName: 'Country',
           applicableModules: [],
+          status: 'ACTIVE',
         },
         true,
       ),

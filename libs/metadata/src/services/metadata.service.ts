@@ -65,23 +65,6 @@ async function resolveActiveQuestionTypeValueCodes(): Promise<string[] | undefin
   return rows.map((v) => v.valueCode);
 }
 
-const PATCH_STATUS_INVALID =
-  'status must be Active or Inactive (other common casings are accepted)';
-
-/**
- * `PATCH` body `{ status }` for type/value activate endpoints. Trims and uppercases; rejects missing or unknown values.
- */
-export function parsePatchStatusBody(raw: unknown): Status {
-  if (raw === undefined || raw === null) {
-    throw new ValidationError(PATCH_STATUS_INVALID, [{ field: 'status', message: 'Invalid' }]);
-  }
-  const status = String(raw).trim().toUpperCase() as Status;
-  if (status !== STATUS.ACTIVE && status !== STATUS.INACTIVE) {
-    throw new ValidationError(PATCH_STATUS_INVALID, [{ field: 'status', message: 'Invalid' }]);
-  }
-  return status;
-}
-
 /**
  * `include-inactive` or `includeInactive` (query) — when true, admin/history: no active-only filter on list/get.
  */
@@ -517,15 +500,19 @@ export type RegistryPostMetadataInput =
   | { entityType: 'type'; userId?: string; body: Record<string, unknown> }
   | { entityType: 'value'; userId?: string; body: Record<string, unknown> };
 
-/** Parsed `PATCH .../status` input (host validates via Zod). */
+/**
+ * Parsed `PATCH .../status` input (host validates via Zod).
+ * Status enum validation runs in the schema layer (`parsePatchStatusBody`) before orchestration,
+ * so the orchestrator receives the canonical `Status` and does not re-parse.
+ */
 export type RegistryPatchMetadataStatusInput =
-  | { entityType: 'type'; userId?: string; metadataTypeCode: string; rawStatus: unknown }
+  | { entityType: 'type'; userId?: string; metadataTypeCode: string; status: Status }
   | {
       entityType: 'value';
       userId?: string;
       metadataTypeCode: string;
       valueCode: string;
-      rawStatus: unknown;
+      status: Status;
     };
 
 /** Parsed `GET .../audit` input (host validates via Zod). */
@@ -604,14 +591,12 @@ export async function orchestrateRegistryPatchStatus(
   input: RegistryPatchMetadataStatusInput,
 ): Promise<MetadataTypeRecord | MetadataValueApiModel> {
   if (input.entityType === 'type') {
-    const status = parsePatchStatusBody(input.rawStatus);
-    return patchTypeStatus(input.metadataTypeCode, status, input.userId);
+    return patchTypeStatus(input.metadataTypeCode, input.status, input.userId);
   }
-  const status = parsePatchStatusBody(input.rawStatus);
   const record = await patchValueStatus(
     input.metadataTypeCode,
     input.valueCode,
-    status,
+    input.status,
     input.userId,
   );
   return flattenMetadataValueForApi(record);

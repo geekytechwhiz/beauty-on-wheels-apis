@@ -7,7 +7,6 @@ import {
   type ValueDataType,
   type ValueSearchFilter,
 } from '../models/types';
-import { STATUS } from '../constants';
 import { ValidationError } from '../domain/errors';
 import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from './code-patterns';
 import {
@@ -19,6 +18,7 @@ import { validateQuestionCodeAttributes } from './question-code.schema';
 import {
   validateMetadataValueApplicabilityRules,
 } from '../mappers/metadata-value-request';
+import { assertStatusEnum } from './status';
 
 const DISPLAY_NAME_MAX = 100;
 const METADATA_VALUE_LABEL_MAX = 150;
@@ -52,11 +52,7 @@ export function validateMetadataTypeInput(input: MetadataTypeInput, isUpdate = f
     if (input.status === undefined || input.status === null || String(input.status).trim() === '') {
       throw new ValidationError('status is required on create', [{ field: 'status', message: 'Required' }]);
     }
-    if (input.status !== STATUS.ACTIVE && input.status !== STATUS.INACTIVE) {
-      throw new ValidationError('status must be ACTIVE or INACTIVE', [
-        { field: 'status', message: 'Must be ACTIVE or INACTIVE' },
-      ]);
-    }
+    assertStatusEnum(input.status);
     return;
   }
 
@@ -81,11 +77,12 @@ export function validateMetadataTypeInput(input: MetadataTypeInput, isUpdate = f
   if (input.multiSelectAllowed !== undefined && typeof input.multiSelectAllowed !== 'boolean') {
     throw new ValidationError('multiSelectAllowed must be a boolean', [{ field: 'multiSelectAllowed', message: 'Invalid' }]);
   }
-  if (input.status !== undefined && input.status !== STATUS.ACTIVE && input.status !== STATUS.INACTIVE) {
-    throw new ValidationError('status must be ACTIVE or INACTIVE', [
-      { field: 'status', message: 'Must be ACTIVE or INACTIVE' },
-    ]);
+  // status is required on every write (create + update). Omitting it previously fell through and
+  // could be persisted as INACTIVE downstream — clients must always send an explicit ACTIVE/INACTIVE.
+  if (input.status === undefined || input.status === null || String(input.status).trim() === '') {
+    throw new ValidationError('status is required on update', [{ field: 'status', message: 'Required' }]);
   }
+  assertStatusEnum(input.status);
 }
 
 export function validateApplicability(a: Applicability): void {
@@ -171,9 +168,7 @@ export function validateMetadataValueInput(
   if (input.status === undefined || input.status === null) {
     throw new ValidationError('status is required', [{ field: 'status', message: 'Required' }]);
   }
-  if (input.status !== STATUS.ACTIVE && input.status !== STATUS.INACTIVE) {
-    throw new ValidationError('status must be ACTIVE or INACTIVE', [{ field: 'status', message: 'Invalid' }]);
-  }
+  assertStatusEnum(input.status, { detailMessage: 'Invalid' });
   if (input.sortOrder !== undefined && (!Number.isInteger(input.sortOrder) || input.sortOrder < 0)) {
     throw new ValidationError('sortOrder must be a non-negative integer', [{ field: 'sortOrder', message: 'Invalid' }]);
   }
@@ -208,8 +203,8 @@ export function validateMetadataValueInput(
 
 /** Applicability-style search filter tokens and status; call before `searchMetadataValues` on the repository. */
 export function validateValueSearchFilter(filter: ValueSearchFilter): void {
-  if (filter.status && filter.status !== STATUS.ACTIVE && filter.status !== STATUS.INACTIVE) {
-    throw new ValidationError('Invalid status filter', [{ field: 'status', message: 'Must be ACTIVE or INACTIVE' }]);
+  if (filter.status !== undefined && filter.status !== '') {
+    assertStatusEnum(filter.status, { message: 'Invalid status filter' });
   }
   assertEnumTokenArray(filter.module, 'module');
   assertEnumTokenArray(filter.category, 'category');

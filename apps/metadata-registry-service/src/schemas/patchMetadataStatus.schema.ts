@@ -2,9 +2,24 @@ import {
   assertMetadataTypeCodePresentOnBody,
   assertRegistryEntityKind,
   assertValueCodePresentOnPatchBody,
+  extractRegistryEntityPath,
+  parsePatchStatusBody,
 } from '@api-hub/metadata';
 import { z } from 'zod';
 
+/**
+ * PATCH `/metadata/:entityType/.../status` schema.
+ *
+ * Schema responsibility:
+ *   1. parse request envelope
+ *   2. assert routing invariant (`entityType` ∈ {`type`, `value`}) and required body fields
+ *   3. assert status presence + ACTIVE/INACTIVE enum correctness via the shared
+ *      `parsePatchStatusBody` helper, so the PATCH validation lifecycle matches POST
+ *      (validation runs before orchestration; the orchestrator receives a canonical `Status`).
+ *
+ * Domain transitions (e.g. INACTIVE → INACTIVE rejection) remain in the service layer where
+ * they belong (`assertPatchStatusAllowedForInactiveRecord`).
+ */
 export const patchMetadataStatusSchema = z
   .object({
     params: z.record(z.string(), z.string().optional()).optional(),
@@ -19,40 +34,36 @@ export const patchMetadataStatusSchema = z
   .transform((req) => {
     const q = req.params ?? {};
     const p = req.pathParameters ?? {};
-    const rawEntity = q.entityType ?? p.entityType;
-    const entityType = (rawEntity ?? '').trim();
-    const kind = entityType.toLowerCase();
+    const { entityTypeRaw, kind } = extractRegistryEntityPath(q, p);
     const userId = req.context?.userContext?.userId;
-    const body = req.body as Record<string, unknown> | undefined;
-    return { entityTypeRaw: entityType, kind, userId, body };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    return { entityTypeRaw, kind, userId, body };
   })
   .superRefine((data) => {
     const kind = assertRegistryEntityKind(data.entityTypeRaw);
-    const b = (data.body ?? {}) as Record<string, unknown>;
-    if (kind === 'type') {
-      assertMetadataTypeCodePresentOnBody(b);
-      return;
+    assertMetadataTypeCodePresentOnBody(data.body);
+    if (kind === 'value') {
+      assertValueCodePresentOnPatchBody(data.body);
     }
-    assertMetadataTypeCodePresentOnBody(b);
-    assertValueCodePresentOnPatchBody(b);
   })
   .transform((data) => {
-    const b = (data.body ?? {}) as Record<string, unknown>;
+    const status = parsePatchStatusBody(data.body.status);
+    const metadataTypeCode = String(data.body.metadataTypeCode).trim();
     if (data.kind === 'type') {
       return {
         entityType: 'type' as const,
         userId: data.userId,
-        metadataTypeCode: String(b.metadataTypeCode).trim(),
-        rawStatus: b.status,
+        metadataTypeCode,
+        status,
       };
     }
-    const valueCode = (b.valueCode ?? b.metadataValueCode) as string;
+    const valueCode = (data.body.valueCode ?? data.body.metadataValueCode) as string;
     return {
       entityType: 'value' as const,
       userId: data.userId,
-      metadataTypeCode: String(b.metadataTypeCode).trim(),
+      metadataTypeCode,
       valueCode: String(valueCode).trim(),
-      rawStatus: b.status,
+      status,
     };
   });
 

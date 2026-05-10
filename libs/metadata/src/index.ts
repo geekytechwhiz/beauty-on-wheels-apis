@@ -39,6 +39,7 @@ export * from './validators/schemas';
 export * from './validators/validate-inputs';
 export * from './validators/relation';
 export * from './validators/registry-route.validation';
+export * from './validators/status';
 
 export * from './mappers/metadata-value-request';
 export {
@@ -61,7 +62,6 @@ export {
   listTypeAudit,
   listValueAudit,
   searchMetadataValues,
-  parsePatchStatusBody,
   parseQueryIncludeInactive,
   parseGetEntityStatusMode,
   parseListEntityStatusMode,

@@ -1,7 +1,7 @@
 import {
-  STATUS,
   ValidationError,
   assertRegistryEntityKind,
+  assertStatusEnum,
   parseQueryIncludeInactive,
   type Status,
 } from '@api-hub/metadata';
@@ -26,12 +26,8 @@ function parseCsvToArray(val: string | undefined): string[] | undefined {
 function normalizeListStatus(raw: string | undefined): Status | undefined {
   if (raw === undefined || raw === '') return undefined;
   const s = String(raw).trim().toUpperCase();
-  if (s === STATUS.ACTIVE || s === STATUS.INACTIVE) {
-    return s as Status;
-  }
-  throw new ValidationError('status must be ACTIVE or INACTIVE', [
-    { field: 'status', message: 'Must be ACTIVE or INACTIVE' },
-  ]);
+  assertStatusEnum(s);
+  return s;
 }
 
 function parseOptionalLimit(raw: string | undefined): number | undefined {

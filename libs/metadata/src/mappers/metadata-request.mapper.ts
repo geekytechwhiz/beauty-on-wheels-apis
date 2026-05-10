@@ -32,12 +32,16 @@ function normalizeMetadataTypeStatus(raw: unknown): Status | undefined {
   return raw as Status;
 }
 
-/** Coerce request status to `ACTIVE` | `INACTIVE` (uppercase). */
+/**
+ * Coerce request status to `ACTIVE` | `INACTIVE` (uppercase). Unknown non-empty values are
+ * passed through (uppercased) so the downstream validator can reject them with the proper
+ * "must be ACTIVE or INACTIVE" error instead of a misleading "required".
+ */
 function normalizeMetadataValueStatus(raw: unknown): Status | undefined {
   if (raw === undefined || raw === null) return undefined;
   const upper = String(raw).trim().toUpperCase();
-  if (upper === STATUS.ACTIVE || upper === STATUS.INACTIVE) return upper;
-  return undefined;
+  if (upper === '') return undefined;
+  return upper as Status;
 }
 
 /**
@@ -126,7 +130,10 @@ export function normalizeMetadataValueInput(
     ? existing!.applicability
     : mapFlatAndNestedToApplicability(raw, body.applicability as Applicability | undefined);
 
-  const resolvedStatus = normalizeMetadataValueStatus(body.status) ?? existing?.status;
+  // Status is required on every write (create + update). Do NOT fall back to `existing?.status`
+  // — silent inheritance let omitted-status updates persist whatever the previous version was
+  // (often INACTIVE), which is not the desired contract. Validator will reject undefined.
+  const resolvedStatus = normalizeMetadataValueStatus(body.status);
 
   const label =
     body.label !== undefined && body.label !== null && String(body.label).trim() !== ''

@@ -168,6 +168,10 @@ export function mergeMetadataTypeForUpdate(
  *
  * When `existing` is set (update path), fields omitted in the request keep the stored value; applicability
  * is only replaced when the body explicitly includes `applicability` or any `applicable*` flat key.
+ *
+ * **`label`:** When the `label` key is absent, the previous label is preserved on update. When `label` is
+ * present (including `""`, whitespace-only, or `null`), the raw value is forwarded for validation — invalid
+ * explicit updates are not silently replaced with the stored label.
  */
 export function normalizeMetadataValueInput(
   body: MetadataValueInput & Record<string, unknown>,
@@ -199,10 +203,23 @@ export function normalizeMetadataValueInput(
   // (often INACTIVE), which is not the desired contract. Validator will reject undefined.
   const resolvedStatus = normalizeMetadataValueStatus(body.status);
 
-  const label =
-    body.label !== undefined && body.label !== null && String(body.label).trim() !== ''
-      ? String(body.label)
-      : (existing?.label ?? '');
+  // Label: distinguish "key omitted" (PATCH: preserve existing) from "explicit empty/null" (invalid).
+  // Passing explicit null/""/whitespace through lets validateMetadataValueInput surface a 400.
+  let label: string;
+  if (hasOwnKey(raw, 'label')) {
+    const lv = raw.label;
+    if (lv === null) {
+      label = null as unknown as string;
+    } else if (lv === undefined) {
+      label = '';
+    } else {
+      label = String(lv);
+    }
+  } else if (existing) {
+    label = existing.label;
+  } else {
+    label = '';
+  }
 
   const result: MetadataValueInput = {
     valueCode,

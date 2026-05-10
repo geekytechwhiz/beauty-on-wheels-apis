@@ -166,7 +166,10 @@ export function validateMetadataValueInput(
       { field: 'valueCode', message: 'Immutable' },
     ]);
   }
-  if (!input.label?.trim()) {
+  if (input.label === null || input.label === undefined) {
+    throw new ValidationError('label is required', [{ field: 'label', message: 'Required' }]);
+  }
+  if (typeof input.label !== 'string' || input.label.trim() === '') {
     throw new ValidationError('label is required', [{ field: 'label', message: 'Required' }]);
   }
   if (input.label.length > METADATA_VALUE_LABEL_MAX) {

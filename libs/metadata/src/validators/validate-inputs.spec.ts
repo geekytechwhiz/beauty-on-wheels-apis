@@ -2,7 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 import { STATUS } from '../constants';
 import { ValidationError } from '../domain/errors';
 import type { MetadataTypeRecord } from '../models/types';
-import { validateMetadataTypeInput, validateMetadataValueConditionalApplicability } from './validate-inputs';
+import { validateMetadataTypeInput, validateMetadataValueConditionalApplicability, validateMetadataValueInput } from './validate-inputs';
+import type { Applicability, MetadataValueInput } from '../models/types';
 
 describe('validateMetadataTypeInput', () => {
   const validCreate = {
@@ -115,6 +116,52 @@ describe('validateMetadataTypeInput', () => {
       expect(e).toBeInstanceOf(ValidationError);
       expect((e as ValidationError).details?.[0]?.message).toBe('Must be a string');
     }
+  });
+});
+
+describe('validateMetadataValueInput (label)', () => {
+  const type: MetadataTypeRecord = {
+    metadataTypeCode: 'T',
+    version: 1,
+    displayName: 'T',
+    valueDataType: 'Enum',
+    multiSelectAllowed: false,
+    applicableModules: ['M'],
+    status: STATUS.ACTIVE,
+    createdAt: '',
+    lastModifiedAt: '',
+  };
+
+  const applic: Applicability = { module: [], category: [], condition: [], country: [] };
+
+  const base: MetadataValueInput = {
+    valueCode: 'V1',
+    label: 'Ok',
+    status: STATUS.ACTIVE,
+    isGlobal: true,
+    applicability: applic,
+  };
+
+  const optsCreate = { metadataType: type, mode: 'create' as const, mergedIsGlobal: true };
+
+  it('rejects explicit empty label on create', () => {
+    expect(() => validateMetadataValueInput({ ...base, label: '' }, optsCreate)).toThrow(ValidationError);
+  });
+
+  it('rejects whitespace-only label on create', () => {
+    expect(() => validateMetadataValueInput({ ...base, label: '   \t' }, optsCreate)).toThrow(ValidationError);
+  });
+
+  it('rejects null label on create', () => {
+    expect(() =>
+      validateMetadataValueInput({ ...base, label: null as never }, optsCreate),
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects empty / null label on update', () => {
+    const optsUpdate = { metadataType: type, mode: 'update' as const, mergedIsGlobal: true, expectedValueCode: 'V1' };
+    expect(() => validateMetadataValueInput({ ...base, label: '' }, optsUpdate)).toThrow(ValidationError);
+    expect(() => validateMetadataValueInput({ ...base, label: null as never }, optsUpdate)).toThrow(ValidationError);
   });
 });
 

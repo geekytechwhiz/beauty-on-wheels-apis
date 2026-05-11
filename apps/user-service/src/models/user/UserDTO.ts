@@ -61,6 +61,7 @@ import { UserType, Gender, RelationType } from '@api-hub/utils';
     profilePic?: string;
     gender?: Gender;
     dateOfBirth?: string;
+    age?: string;
     address?: string;
     city?: string;
     state?: string;
@@ -266,6 +267,7 @@ import { UserType, Gender, RelationType } from '@api-hub/utils';
     namePrefix?: string;
     gender?: Gender;
     dateOfBirth?: string;
+    age?: string;
     profilePic?: string;
     address?: string;
     city?: string;
@@ -310,6 +312,7 @@ import { UserType, Gender, RelationType } from '@api-hub/utils';
     workingHours?: Record<string, any>;
     assignRoomNo?: string;
     userRole?: string[];
+    age?: string;
   }
   
   export interface CreateFnFInput {
@@ -329,6 +332,7 @@ import { UserType, Gender, RelationType } from '@api-hub/utils';
       invitedBy: string;
       inviterName: string;
     };
+    age?: string;
   }
   
   export interface PatientResponse extends Omit<PatientUser, 'passwordHash' | 'tokenUpdatedAt'> {

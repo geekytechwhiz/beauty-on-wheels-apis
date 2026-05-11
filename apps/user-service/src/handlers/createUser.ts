@@ -51,6 +51,7 @@ const handler = async (
     phoneNumber: userInfo.contact.phone,
     phoneCode: userInfo.contact.phoneCode,
     dateOfBirth: userInfo.dateOfBirth,
+    age: userInfo.age,
     department: userInfo.department,
     gender: userInfo.gender,
     specialty: userInfo.specialty,

@@ -50,7 +50,7 @@ flowchart LR
   AWS -.-> AWS2
 ```
 
-- **Publish path:** Your code builds or receives a `BaseEvent` (often via `EventPublisher.publish` or DX `publishEvent` after `configureEventDx`). The **adapter** is the only layer that speaks the AWS SDK for that transport.
+- **Publish path:** Your code builds or receives a `BaseEvent` (often via `EventPublisher.publish` or DX `publishEvent` after `configureEventPlatform`). The **adapter** is the only layer that speaks the AWS SDK for that transport.
 - **Consume path:** Lambda invokes a handler built with **`createEventHandler`**, which runs **`buildEventExecutionPipeline`** then **`consumeEvent`** (routing, idempotency, retry/DLQ *decisions*, metrics). See [`create-event-handler.ts`](../../libs/event-platform/src/lib/create-event-handler.ts) and [`http-pipeline.ts`](../../libs/middleware/src/lib/http-pipeline.ts).
 
 ---
@@ -59,7 +59,7 @@ flowchart LR
 
 ### After (recommended)
 
-- **Publish:** `EventPublisher` + `EventBridgeAdapter`, or `configureEventDx` with an `EventPublishAdapter` backed by EventBridge.
+- **Publish:** `EventPublisher` + `EventBridgeAdapter`, or `configureEventPlatform` with an `EventPublishAdapter` backed by EventBridge.
 - **Consume:** `createEventHandler` with `consumer.mapRawToBaseEvent` that converts the EventBridge record (e.g. `detail`) into `BaseEvent`, plus `defineEvent` schemas in `events`.
 
 The adapter sends **`PutEvents`** internally:

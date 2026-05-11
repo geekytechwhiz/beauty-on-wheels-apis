@@ -27,6 +27,7 @@ import {
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';  
+import { publishAlertCreated } from '../handlers/events/publisher/publish-alert-created';
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
@@ -83,6 +84,7 @@ export class AlertHttpController {
 
     try {
       const { record } = await this.svc.createAlert(createInput, v.authHeader);
+      await publishAlertCreated({payload: record as any});
       return toAlertDetail(record);
     } catch (e: unknown) {
       normalizeAlertServiceError(e, {
@@ -139,6 +141,7 @@ export class AlertHttpController {
       });
     }
 
+    await publishAlertCreated({payload: input as any});
     return {
       alertIds: v.alertIds,
       succeeded: result.succeeded,
@@ -201,8 +204,10 @@ export class AlertHttpController {
       performedByUserId: performedByUserId ?? undefined,
       performedByDisplayName: v.performedByDisplayName,
     });
-
+     
     void result;
+
+
     return { alertIds: v.alertIds };
   }
 

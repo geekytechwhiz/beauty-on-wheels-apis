@@ -6,6 +6,7 @@
  * Canonical wire shape for platform events (see docs/prompt/event-platform/step1.md).
  */
 export type BaseEvent<T = unknown> = {
+  [x: string]: any;
   eventId: string;
   eventType: string;
   eventVersion: string;

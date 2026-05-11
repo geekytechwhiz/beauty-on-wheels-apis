@@ -6,7 +6,7 @@ echo "======================================="
 echo "VERIFYING DEPLOYMENT ARTIFACTS"
 echo "======================================="
 
-SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/alert-service"
+SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/user-service"
 
 cd "$SERVICE_DIR"
 
@@ -43,34 +43,36 @@ echo "Extracting S3 keys..."
 
 node <<'NODE' > /tmp/s3keys.txt
 const fs = require('fs');
-const template = fs.readFileSync('packaged.yaml', 'utf8');
+const raw = fs.readFileSync('packaged.yaml', 'utf8');
 const keys = new Set();
 
-// Extract S3Key values from line-level scalars (handles quoted keys with spaces).
-const lines = template.split(/\r?\n/);
-for (const line of lines) {
-  // YAML form: `S3Key: '...some key with spaces.../ci'`
-  let m = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
-  if (m) {
-    const v = m[2].trim();
-    if (v) keys.add(v);
-    continue;
+const trimmed = raw.trim();
+if (trimmed.startsWith('{')) {
+  const tpl = JSON.parse(raw);
+  for (const res of Object.values(tpl.Resources || {})) {
+    const code = res.Properties && res.Properties.Code;
+    if (code && typeof code.S3Key === 'string') keys.add(code.S3Key);
   }
-
-  // YAML form without quotes
-  m = line.match(/^\s*S3Key\s*:\s*([^#]+)\s*(?:#.*)?$/);
-  if (m) {
-    const v = m[1].trim();
-    if (v) keys.add(v);
-    continue;
-  }
-
-  // JSON-ish form: `"S3Key":"..."`
-  m = line.match(/"S3Key"\s*:\s*(['"])(.+?)\1\s*(?:,)?\s*$/);
-  if (m) {
-    const v = m[2].trim();
-    if (v) keys.add(v);
-    continue;
+} else {
+  const lines = raw.split(/\r?\n/);
+  for (const line of lines) {
+    let m = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
+    if (m) {
+      const v = m[2].trim();
+      if (v) keys.add(v);
+      continue;
+    }
+    m = line.match(/^\s*S3Key\s*:\s*([^#]+)\s*(?:#.*)?$/);
+    if (m) {
+      const v = m[1].trim();
+      if (v) keys.add(v);
+      continue;
+    }
+    m = line.match(/^\s*"S3Key"\s*:\s*"(.+)"\s*,?\s*$/);
+    if (m) {
+      const v = m[1].trim();
+      if (v) keys.add(v);
+    }
   }
 }
 
@@ -92,7 +94,7 @@ while read -r key; do
     continue
   fi
 
-  printf "Checking %-80s" "$key"
+  printf "Checking %s ... " "$key"
 
   if aws s3api head-object \
       --bucket "$BUCKET" \

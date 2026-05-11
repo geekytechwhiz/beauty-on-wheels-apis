@@ -6,7 +6,7 @@ echo "======================================="
 echo "BUILD STARTED"
 echo "======================================="
 
-SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/alert-service"
+SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/user-service"
 
 cd "$SERVICE_DIR"
 
@@ -38,9 +38,8 @@ fi
 
 echo "Using template: $TEMPLATE"
 
-# Serverless already uploaded all Lambda zips to the deploymentBucket and
-# embedded S3Bucket/S3Key in the generated CF template. Copy it as packaged.yaml
-# so the deploy stage can consume it without a redundant `aws cloudformation package`.
+# `serverless package` writes S3Key paths into the CF template but does not upload
+# zips to S3; this script uploads them. Copy the template as packaged.yaml for deploy.
 cp "$TEMPLATE" packaged.yaml
 
 echo "Verifying Lambda S3 keys are present in s3://$DEPLOYMENT_BUCKET ..."
@@ -70,7 +69,7 @@ else
   echo "Uploading Lambda zips to their exact S3 keys..."
   while read -r key; do
     [ -z "$key" ] && continue
-    # Key format: serverless/alert-service/<stage>/<timestamp>/<name>.zip
+    # Key format: serverless/user-service/<stage>/<timestamp>/<name>.zip
     # Strip any @... suffix (added by some CF tooling) to get the clean zip filename.
     zip_name=$(basename "${key%%@*}")
     local_path=".serverless/$zip_name"

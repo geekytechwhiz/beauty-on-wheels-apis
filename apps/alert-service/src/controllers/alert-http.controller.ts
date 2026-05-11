@@ -1,5 +1,5 @@
 /**
- * HTTP controllers for alert-service.
+  
  *
  * **Flow:** `withApiHandler` builds context + optional schema validation → controller (authz, orchestration) →
  * {@link AlertService} (`@api-hub/alert-core`) → {@link AlertRepository}.

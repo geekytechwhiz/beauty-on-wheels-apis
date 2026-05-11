@@ -1,11 +1,10 @@
 {
-  "name": "@api-hub/service-clients",
-  "version": "0.0.1",
+  "name": "@api-hub/service-clients", 
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.ts", 
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -15,11 +14,14 @@
       "default": "./dist/index.js"
     }
   },
-  "dependencies": { 
+  "dependencies": {  
     "axios": "^1.6.0",
     "axios-retry": "^4.5.0",
     "@api-hub/logger": "workspace:*",
-    "@aws-sdk/client-cognito-identity-provider": "^3.958.0",
-    "@api-hub/utils": "workspace:*"
+    "@aws-sdk/client-secrets-manager": "^3.966.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.958.0", 
+    "@api-hub/utils": "workspace:*",
+    "tslib": "^2.8.1"
+   
   }
 }

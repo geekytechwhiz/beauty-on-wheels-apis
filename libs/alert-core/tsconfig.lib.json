@@ -13,8 +13,8 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {
-      "@api-hub/logger": ["libs/logger/src/index.ts"],
-      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/logger": ["libs/logger/dist/index.d.ts"],
+      "@api-hub/utils": ["libs/utils/dist/index.d.ts"],
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
       "@api-hub/fhir": ["libs/fhir/src/index.ts"],
       "@api-hub/consent": ["libs/consent/src/index.ts"],
@@ -36,15 +36,30 @@
       "@api-hub/template-dto": ["libs/template/src/api/request.schemas.ts"],
       "@api-hub/template-rules": ["libs/rule-engine/src/index.ts"],
       "@api-hub/template-executor": ["libs/template/src/application/index.ts"],
-      "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
-      "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"],
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
+      "@api-hub/template-repository": [
+        "libs/template/src/infrastructure/index.ts"
+      ],
+      "@api-hub/template-storage": [
+        "libs/template/src/infrastructure/index.ts"
+      ],
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
-    { "path": "../logger/tsconfig.lib.json" },
-    { "path": "../utils/tsconfig.lib.json" }
+    {
+      "path": "../event-platform/tsconfig.lib.json"
+    },
+    {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../observability/tsconfig.lib.json"
+    }
   ],
   "exclude": [
     "jest.config.ts",

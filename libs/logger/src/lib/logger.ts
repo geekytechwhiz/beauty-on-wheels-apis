@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import winston from 'winston';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { Context } from 'aws-lambda';
@@ -37,8 +39,7 @@ export interface LoggerContext {
  * Log entry interface
  */
 export interface LogEntry {
-  event?: string;
-  message?: string;
+  event?: string; 
   err?: unknown;
   error?: {
     name: string;
@@ -294,6 +295,66 @@ export const extractCorrelationId = (
   // Generate a new correlation ID if not found
   return `corr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
+
+/**
+ * API Gateway / HTTP only: headers → requestContext.requestId → Lambda awsRequestId → UUID.
+ * Returns `undefined` when the event is not API Gateway-shaped (SQS, EventBridge, etc.).
+ */
+export function resolveCorrelationIdForHttp(
+  event:
+    | APIGatewayProxyEvent
+    | {
+        headers?: Record<string, unknown>;
+        requestContext?: unknown;
+        httpMethod?: string;
+        version?: string;
+      }
+    | null
+    | undefined,
+  lambdaAwsRequestId: string,
+): string | undefined {
+  if (!event || typeof event !== 'object') return undefined;
+
+  const e = event as {
+    requestContext?: unknown;
+    httpMethod?: string;
+    version?: string;
+    headers?: Record<string, unknown>;
+  };
+
+  const isApiGw =
+    e.requestContext != null ||
+    typeof e.httpMethod === 'string' ||
+    e.version === '2.0';
+
+  if (!isApiGw) return undefined;
+
+  if (e.headers) {
+    const correlationId =
+      e.headers['x-correlation-id'] ||
+      e.headers['X-Correlation-Id'] ||
+      e.headers['correlation-id'] ||
+      e.headers['Correlation-Id'];
+    if (
+      correlationId &&
+      typeof correlationId === 'string' &&
+      correlationId.length > 0
+    ) {
+      return correlationId;
+    }
+  }
+
+  if (e.requestContext) {
+    const requestId = (e.requestContext as { requestId?: string }).requestId;
+    if (requestId) return requestId;
+  }
+
+  if (lambdaAwsRequestId && lambdaAwsRequestId !== 'unknown-request-id') {
+    return lambdaAwsRequestId;
+  }
+
+  return randomUUID();
+}
 
 /**
  * Extract AWS Request ID from Lambda context

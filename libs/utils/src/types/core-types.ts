@@ -9,7 +9,7 @@ export interface Message {
 }
 
 export interface Meta {
-  requestId: string;
+  correlationId: string;
   timestamp: string;
   version: 'v1';
 }
@@ -35,7 +35,7 @@ export interface ApiResponseBody<T = unknown> {
 }
 
 export interface ResponseOptions {
-  requestId: string;
+  correlationId: string;
   headers?: Record<string, string>;
   /** Optional event passthrough for error handlers (e.g. API Gateway event). */
   event?: unknown;
@@ -45,7 +45,10 @@ export interface ErrorHandlerOptions {
     correlationId?: string;
     event?: any;
     logger?: any;
+    /** When true, {@link handleError} omits its own log line (caller already logged structured error). */
+    skipLog?: boolean;
   }
+  
   export interface LambdaRequest<
   Params = Record<string, any>,
   Body = any,
@@ -56,7 +59,7 @@ export interface ErrorHandlerOptions {
   body?: Body;
   query?: Query;
   context: RequestContext;
-  pathParameters?: Record<string, string>;
+  pathParameters?: Record<string, string>; 
 }
 export interface RequestContext {
   correlationId: string;
@@ -64,6 +67,8 @@ export interface RequestContext {
   logger: any;
   authHeader?: string;
   userContext?: UserContext;
+  traceId?: string;
+  operation?: string;
 }
 export interface UserContext {
   userId?: string;

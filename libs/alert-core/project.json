@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/alert-core/src",
   "projectType": "library",
-  "tags": ["type:lib", "scope:alert-service", "allowed-for-app"],
+  "tags": ["type:lib", "scope:alert-service","type:shared"],
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",

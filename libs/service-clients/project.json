@@ -3,27 +3,18 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/service-clients/src",
   "projectType": "library",
-  "tags": ["type:lib", "allowed-for-app"],
+  "tags": ["type:lib", "type:shared"],
   "targets": {
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
-    },
     "build": {
-      "executor": "@nx/vite:build",
-      "cache": true,
+      "executor": "@nx/js:tsc",
+
       "outputs": ["{options.outputPath}"],
-      "defaultConfiguration": "production",
+
       "options": {
-        "outputPath": "dist/libs/service-clients"
-      },
-      "configurations": {
-        "development": {
-          "mode": "development"
-        },
-        "production": {
-          "mode": "production"
-        }
+        "outputPath": "dist/libs/service-clients",
+        "main": "libs/service-clients/src/index.ts",
+        "tsConfig": "libs/service-clients/tsconfig.lib.json",
+        "assets": ["libs/service-clients/*.md"]
       }
     }
   }

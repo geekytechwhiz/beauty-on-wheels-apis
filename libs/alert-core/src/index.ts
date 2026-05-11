@@ -17,7 +17,7 @@ export * from './lib/models/domain/alert-activity.model';
 export * from './lib/models/domain/alert-assignment.model';
 export * from './lib/models/domain/alert-sla.model';
 export * from './lib/models/domain/alert-workflow.model';
-export * from './lib/models/persistence/alert-ddb.model';
+export * from './lib/models/persistence/alert-ddb.model'; 
 export * from './lib/mappers/alert-mapper';
 export * from './lib/mappers/alert-http.dto';
 export * from './lib/utils/alert.utils';

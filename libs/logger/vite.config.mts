@@ -66,7 +66,9 @@ export default defineConfig(() => ({
     },
     rollupOptions: {
       // External packages that should not be bundled into your library.
-      external: ['winston', 'crypto'],
+      // `node:crypto` must be listed explicitly; plain `crypto` does not match `import from 'node:crypto'`,
+      // and Vite would stub it as __vite-browser-external (no randomUUID).
+      external: ['winston', 'crypto', 'node:crypto'],
     },
   },
 }));

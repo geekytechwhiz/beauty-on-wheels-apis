@@ -5,7 +5,7 @@ export interface AlertSla {
   /** Unix epoch milliseconds (UTC). */
   assignSlaDueAt: number;
   /** Unix epoch milliseconds (UTC). */
-  resolveSlaDueAt: number;
+  resolveSlaDueAt?: number;
 
   slaBreachIndicator: boolean;
 

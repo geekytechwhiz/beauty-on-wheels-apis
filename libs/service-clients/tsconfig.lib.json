@@ -6,7 +6,6 @@
     "types": ["node", "vite/client"],
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "composite": true,
-    "declaration": false,
     "declarationMap": false,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,

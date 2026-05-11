@@ -1,0 +1,115 @@
+import { z } from 'zod';
+
+import { DomainIdempotencyStrategy } from '../core/idempotency/domain-idempotency.strategy';
+import { configureEventDx } from './configure-event-dx';
+import { defineEvent } from './define-event';
+import { onEvent } from './on-event';
+import { publishEvent } from './publish-event';
+
+function baseConsumerOptions() {
+  return {
+    idempotencyStrategy: new DomainIdempotencyStrategy(),
+    retry: { maxAttempts: 3, strategy: 'exponential' as const, delayMs: 1 },
+    dlq: { enabled: false },
+  };
+}
+
+describe('@api-hub/event-platform/dx', () => {
+  describe('publishEvent', () => {
+    it('delegates to SDK with eventType, source, version from __meta', async () => {
+      const publish = jest.fn().mockResolvedValue(undefined);
+      const schema = defineEvent(z.object({ orderId: z.string() }), {
+        eventType: 'Order.Created',
+        eventVersion: '1.0.0',
+        source: 'orders-svc',
+      });
+
+      configureEventDx({
+        serviceName: 'test',
+        publishAdapter: { publish },
+        consumer: baseConsumerOptions(),
+      });
+
+      await publishEvent(schema, { orderId: 'o1' });
+
+      expect(publish).toHaveBeenCalledTimes(1);
+      const envelope = publish.mock.calls[0][0];
+      expect(envelope.eventType).toBe('Order.Created');
+      expect(envelope.eventVersion).toBe('1.0.0');
+      expect(envelope.source).toBe('orders-svc');
+      expect(envelope.payload).toEqual({ orderId: 'o1' });
+    });
+
+    it('allows version override via third argument', async () => {
+      const publish = jest.fn().mockResolvedValue(undefined);
+      const schema = defineEvent(z.object({ x: z.number() }), {
+        eventType: 'X',
+        eventVersion: '1.0.0',
+        source: 's',
+      });
+
+      configureEventDx({
+        serviceName: 'test',
+        publishAdapter: { publish },
+        consumer: baseConsumerOptions(),
+      });
+
+      await publishEvent(schema, { x: 1 }, { version: '2.0.0', correlationId: 'cc' });
+
+      expect(publish).toHaveBeenCalledTimes(1);
+      const envelope = publish.mock.calls[0][0];
+      expect(envelope.eventVersion).toBe('2.0.0');
+      expect(envelope.meta.correlationId).toBe('cc');
+    });
+  });
+
+  describe('onEvent', () => {
+    it('delegates to EventConsumer.handle and flattens payload with meta', async () => {
+      const schema = defineEvent(z.object({ orderId: z.string() }), {
+        eventType: 'Order.Created',
+        eventVersion: '1.0.0',
+        source: 'orders-svc',
+      });
+
+      configureEventDx({
+        serviceName: 'test',
+        publishAdapter: { publish: jest.fn() },
+        payloadSchemas: {
+          'Order.Created': { '1.0.0': schema },
+        },
+        consumer: {
+          ...baseConsumerOptions(),
+          payloadSchemas: {
+            'Order.Created': { '1.0.0': schema },
+          },
+        },
+      });
+
+      const received: unknown[] = [];
+      const handler = onEvent(schema, async (input) => {
+        received.push(input);
+      });
+
+      const raw = {
+        eventId: 'e1',
+        eventType: 'Order.Created',
+        eventVersion: '1.0.0',
+        timestamp: new Date().toISOString(),
+        source: 'orders-svc',
+        idempotencyKey: 'idem-1',
+        payload: { orderId: 'o1' },
+        meta: { correlationId: 'c1' },
+      };
+
+      const result = await handler(raw);
+      expect(result.outcome).toBe('processed');
+      expect(received).toHaveLength(1);
+      expect(received[0]).toEqual(
+        expect.objectContaining({
+          orderId: 'o1',
+          meta: expect.objectContaining({ correlationId: 'c1' }),
+        }),
+      );
+    });
+  });
+});

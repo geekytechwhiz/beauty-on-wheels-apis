@@ -6,6 +6,81 @@ import {
   testLambdaContext,
 } from '../../__tests__/handler-test-utils';
 
+jest.mock('@api-hub/middleware', () => {
+  const { ApiResponse } = jest.requireActual<typeof import('@api-hub/utils')>('@api-hub/utils');
+
+  function tryParseJson(body: unknown): unknown {
+    if (typeof body !== 'string') return body;
+    if (body.trim() === '') return undefined;
+    try {
+      return JSON.parse(body);
+    } catch {
+      return Symbol.for('invalid-json');
+    }
+  }
+
+  return {
+    withApiHandler:
+      (options: any, handler: (req: any) => Promise<any>) =>
+      async (event: any) => {
+        if (event?.source === 'serverless-plugin-warmup') {
+          return ApiResponse.ok(null, { title: 'SUCCESS', description: 'Warmup', severity: 'SUCCESS' }, { correlationId: 'unknown' });
+        }
+
+        const parsedBody = tryParseJson(event?.body);
+        if (parsedBody === Symbol.for('invalid-json')) {
+          return ApiResponse.unprocessableEntity(
+            { title: 'INVALID_JSON', description: 'Invalid JSON body', severity: 'ERROR' },
+            { correlationId: 'test-correlation-id' },
+            { code: 'INVALID_JSON' },
+          );
+        }
+
+        const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
+        const req = {
+          event,
+          params: event?.queryStringParameters ?? {},
+          body: parsedBody,
+          query: {},
+          pathParameters: event?.pathParameters ?? undefined,
+          context: {
+            correlationId: 'test-correlation-id',
+            awsRequestId: 'test-aws-request-id',
+            logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+            authHeader,
+          },
+        };
+
+        try {
+          if (options?.bodySchema) {
+            req.body = options.bodySchema.parse(req.body);
+          }
+          if (options?.validator) {
+            await options.validator(req);
+          }
+          const out = await handler(req);
+          return ApiResponse.ok(out, { title: 'SUCCESS', description: 'Request processed successfully', severity: 'SUCCESS' }, { correlationId: 'test-correlation-id' });
+        } catch (e: any) {
+          if (e?.name === 'ZodError') {
+            return ApiResponse.unprocessableEntity(
+              { title: 'VALIDATION_ERROR', description: e?.issues?.[0]?.message ?? 'Validation failed', severity: 'ERROR' },
+              { correlationId: 'test-correlation-id' },
+              { code: 'VALIDATION_ERROR' },
+            );
+          }
+          const statusCode = e?.statusCode ?? 500;
+          const code = e?.code ?? 'INTERNAL_ERROR';
+          return ApiResponse.error(
+            statusCode,
+            { title: code, description: e?.message ?? 'Error', severity: 'ERROR' },
+            { correlationId: 'test-correlation-id' },
+            { code },
+          );
+        }
+      },
+  };
+});
+
 /** Mock must be set in factory before AlertHttpController loads (Jest hoist). */
 // eslint-disable-next-line no-var
 var mockCreateAlert: jest.Mock;
@@ -81,7 +156,7 @@ describe('createAlert HTTP handler', () => {
     const record = minimalAlertRecord();
     mockCreateAlert.mockResolvedValue({ record, duplicate: false });
 
-    const result = await main(baseEvent(), context);
+    const result = await (main as any)(baseEvent(), context);
 
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body ?? '{}') as {
@@ -108,7 +183,7 @@ describe('createAlert HTTP handler', () => {
     const record = minimalAlertRecord();
     mockCreateAlert.mockResolvedValue({ record, duplicate: true });
 
-    const result = await main(baseEvent(), context);
+    const result = await (main as any)(baseEvent(), context);
 
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body ?? '{}') as { data: { alertId: string } };
@@ -140,7 +215,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bodyObj) });
 
-    const result = await main(event, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(200);
     expect(mockCreateAlert).toHaveBeenCalledTimes(1);
@@ -151,7 +226,7 @@ describe('createAlert HTTP handler', () => {
   it('returns 500 when createAlert throws an unexpected error', async () => {
     mockCreateAlert.mockRejectedValue(new Error('Unexpected failure'));
 
-    const result = await main(baseEvent(), context);
+    const result = await (main as any)(baseEvent(), context);
 
     expect(result.statusCode).toBe(500);
     expect(mockCreateAlert).toHaveBeenCalled();
@@ -166,7 +241,7 @@ describe('createAlert HTTP handler', () => {
     err.code = 'IDEMPOTENCY_KEY_IN_USE';
     mockCreateAlert.mockRejectedValue(err);
 
-    const result = await main(baseEvent(), context);
+    const result = await (main as any)(baseEvent(), context);
 
     expect(result.statusCode).toBe(409);
     const body = JSON.parse(result.body ?? '{}') as {
@@ -182,7 +257,7 @@ describe('createAlert HTTP handler', () => {
       headers: { Authorization: bearerToken({ sub: 'user-only' }) },
     });
 
-    const result = await main(event, context);
+    const result = await (main as any)(event, context);
 
     expect([401, 422]).toContain(result.statusCode);
     const body = JSON.parse(result.body ?? '{}') as {
@@ -203,7 +278,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await main(event, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
@@ -220,7 +295,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await main(event, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     const body = JSON.parse(result.body ?? '{}') as { error: { code?: string } | null };
@@ -232,15 +307,62 @@ describe('createAlert HTTP handler', () => {
     const bad = { ...validMissedReadingBody(), unknownField: true };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await main(event, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
   });
 
+  it('accepts optional assignSlaMinutes / resolveSlaMinutes and forwards them to the service', async () => {
+    const record = minimalAlertRecord();
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+
+    const body = {
+      ...validMissedReadingBody(),
+      assignSlaMinutes: 30,
+      resolveSlaMinutes: 120,
+    };
+    const result = await (main as any)(baseEvent({ body: JSON.stringify(body) }), context);
+
+    expect(result.statusCode).toBe(200);
+    expect(mockCreateAlert).toHaveBeenCalledTimes(1);
+    const payload = mockCreateAlert.mock.calls[0][0] as {
+      assignSlaMinutes?: number;
+      resolveSlaMinutes?: number;
+    };
+    expect(payload.assignSlaMinutes).toBe(30);
+    expect(payload.resolveSlaMinutes).toBe(120);
+  });
+
+  it('omitting SLA minutes leaves them undefined on the payload (builder applies defaults)', async () => {
+    const record = minimalAlertRecord();
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+
+    const result = await (main as any)(baseEvent(), context);
+
+    expect(result.statusCode).toBe(200);
+    const payload = mockCreateAlert.mock.calls[0][0] as {
+      assignSlaMinutes?: number;
+      resolveSlaMinutes?: number;
+    };
+    expect(payload.assignSlaMinutes).toBeUndefined();
+    expect(payload.resolveSlaMinutes).toBeUndefined();
+  });
+
+  it('returns 422 when assignSlaMinutes is negative or non-integer', async () => {
+    const cases = [{ assignSlaMinutes: -5 }, { assignSlaMinutes: 12.5 }];
+    for (const overrides of cases) {
+      mockCreateAlert.mockReset();
+      const body = { ...validMissedReadingBody(), ...overrides };
+      const result = await (main as any)(baseEvent({ body: JSON.stringify(body) }), context);
+      expect(result.statusCode).toBe(422);
+      expect(mockCreateAlert).not.toHaveBeenCalled();
+    }
+  });
+
   it('handles serverless-plugin-warmup payload with 200', async () => {
     const warmupEvent = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
-    const result = await main(warmupEvent, context);
+    const result = await (main as any)(warmupEvent, context);
     expect(result.statusCode).toBe(200);
     expect(mockCreateAlert).not.toHaveBeenCalled();
   });

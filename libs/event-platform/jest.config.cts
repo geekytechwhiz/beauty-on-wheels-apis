@@ -1,0 +1,29 @@
+ 
+const { readFileSync } = require('fs');
+
+// Reading the SWC compilation config for the spec files
+const swcJestConfig = JSON.parse(
+  readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8'),
+);
+
+// Disable .swcrc look-up by SWC core because we're passing in swcJestConfig ourselves
+swcJestConfig.swcrc = false;
+
+module.exports = {
+  displayName: 'event-platform',
+  preset: '../../jest.preset.js',
+  testEnvironment: 'node',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  transform: {
+    '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
+  },
+  moduleFileExtensions: ['ts', 'js', 'html'],
+  coverageDirectory: 'test-output/jest/coverage',
+  moduleNameMapper: {
+    '^@api-hub/utils$': '<rootDir>/../utils/src/index.ts',
+    '^@api-hub/logger$': '<rootDir>/../logger/src/index.ts',
+    '^@api-hub/middleware$': '<rootDir>/../middleware/src/index.ts',
+    '^@api-hub/observability$': '<rootDir>/../observability/src/index.ts',
+    '^@api-hub/event-platform$': '<rootDir>/src/index.ts',
+  },
+};

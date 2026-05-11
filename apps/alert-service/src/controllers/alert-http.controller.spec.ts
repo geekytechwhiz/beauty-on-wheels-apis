@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
-import type { LambdaRequest } from '@api-hub/utils';
+import type { LambdaRequest }  from '@api-hub/middleware';
 import {
   bearerToken,
   minimalAlertRecord,
@@ -357,6 +357,7 @@ describe('AlertHttpController', () => {
       succeeded: ['a1'],
       failed: [],
     });
+    const record = minimalAlertRecord();
 
     const req = baseReq({
       validatedWorkflow: {
@@ -537,8 +538,8 @@ describe('AlertHttpController', () => {
     const c = new AlertHttpController();
     mockGetAlert.mockResolvedValue(null);
     const req = baseReq({ pathParameters: { alertId: 'a1' } });
-    await expect(c.handleGetAlertActivity(req)).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
-    expect(mockListAlertActivity).not.toHaveBeenCalled();
+    await expect(c.handleGetAlertActivity(req)).resolves.toEqual({ items: undefined });
+    expect(mockListAlertActivity).toHaveBeenCalledWith('a1', 'org-1', { notesOnly: false });
   });
 
   it('handleGetAlertActivity returns items on success', async () => {

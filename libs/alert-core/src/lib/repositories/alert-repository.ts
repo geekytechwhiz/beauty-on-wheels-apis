@@ -20,7 +20,7 @@ import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
-
+import { publishEvent } from '@api-hub/event-platform';
 import {
   assertAlertTable,
   isEventConditionalFailure,
@@ -231,8 +231,9 @@ export class AlertRepository extends BaseRepository {
           groupMembershipPut,
         ],
       });
-
+ 
       return alertPut;
+
     } catch (err: unknown) {
       if (isEventConditionalFailure(err)) {
         throw new DuplicateEventError(idempotencyKey);

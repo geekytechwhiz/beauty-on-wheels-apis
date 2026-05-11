@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/logger';
-import { ApiResponse } from '@api-hub/utils';
+import { ApiResponse }  from '@api-hub/utils';
 
 const logger = createLogger({ service: 'alert-service', redactPII: false });
 
@@ -39,7 +39,7 @@ export async function main(
     response,
     { title: 'OK', description: 'Alert service is healthy', severity: 'INFO' },
     {
-      requestId: correlationId,
+      correlationId,
       headers: {
         'X-Correlation-Id': correlationId,
         'Cache-Control': 'no-cache',

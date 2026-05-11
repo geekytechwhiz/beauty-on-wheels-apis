@@ -33,4 +33,16 @@ export interface CreateAlertRequest {
   triggerSummary?: string;
   triggerSummaryTemplateCode?: string;
   triggerSummaryParams?: Record<string, unknown>;
+
+  /**
+   * Minutes allowed from alert creation to first assignment. When omitted, falls back to
+   * `ENV_ASSIGN_SLA_MINUTES` then `DEFAULT_ASSIGN_SLA_MINUTES`. `0` means "no SLA tracked".
+   */
+  assignSlaMinutes?: number;
+  /**
+   * Minutes allowed from first assignment to closure (RESOLVED / DISMISSED). When omitted,
+   * falls back to `ENV_RESOLVE_SLA_MINUTES` then `DEFAULT_RESOLVE_SLA_MINUTES`. `0` means
+   * "no SLA tracked". Stored on create; `resolveSlaDueAt` is computed at first assignment.
+   */
+  resolveSlaMinutes?: number;
 }

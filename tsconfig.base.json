@@ -5,7 +5,9 @@
     "emitDeclarationOnly": true,
     "importHelpers": true,
     "isolatedModules": true,
-    "lib": ["es2022"],
+    "lib": [
+      "es2022"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmitOnError": true,
@@ -17,7 +19,9 @@
     "strict": true,
     "baseUrl": ".",
     "target": "es2022",
-    "customConditions": ["@api-hub/source"],
+    "customConditions": [
+      "@api-hub/source"
+    ],
     "paths": {
       "@api-hub/logger": ["libs/logger/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"], 
@@ -45,7 +49,8 @@
       "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
       "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"],
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],
-      "@api-hub/metadata": ["libs/metadata/src/index.ts"]
+      "@api-hub/metadata": ["libs/metadata/src/index.ts"],
+      
     }
   }
 }

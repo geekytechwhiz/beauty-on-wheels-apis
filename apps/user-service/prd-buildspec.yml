@@ -50,7 +50,7 @@ phases:
         grep 'S3Key:' packaged.yaml | awk '{print $2}' \
           | while read key; do
               printf " → %-80s " "$key"
-              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/prd/null 2>&1; then
+              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
                 echo "FOUND"
               else
                 echo "MISSING!"
@@ -67,8 +67,12 @@ phases:
           | awk '{print $2}' \
           | while read key; do
               name=$(basename "$key")
-              echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
-              aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+              if [ -f ".serverless/$name" ]; then
+                echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
+                aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+              else
+                echo "WARN: local artifact missing (.serverless/$name), skipping upload for $key"
+              fi
             done
 
       - echo "➤ Verifying upload…"

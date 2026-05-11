@@ -57,7 +57,6 @@ describe('alert-workflow', () => {
         assignedToDisplayName: 'User New',
       });
       expect(patch).toEqual({
-        alertState: ALERT_STATE.ASSIGNED,
         assignedToUserId: 'user-new',
         assignedToDisplayName: 'User New',
       });

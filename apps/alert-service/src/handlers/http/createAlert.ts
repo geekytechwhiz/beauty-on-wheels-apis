@@ -4,6 +4,7 @@ import { getAlertHttpController } from '../../controllers/alert-http.controller'
 import { createAlertHttpBodySchema } from '../../validators/alert.schemas';
 import { validateCreateAlertRequest } from '../../validators/request.validators';
 
+
 const c = getAlertHttpController();
 
 const handler = async (req: LambdaRequest) => c.handleCreateAlert(req);

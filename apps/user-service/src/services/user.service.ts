@@ -1051,6 +1051,7 @@ export class UserService {
       country: this.safeString(user.country),
       language: userKeys.includes('language') ? this.safeString(user.language) : this.safeString(defaultLanguage?.langCode || 'en'),
       dateOfBirth: this.safeString(user.dateOfBirth),
+      age: this.safeString(user.age),
       address: this.safeString(user.address),
       allergies: Array.isArray(allergies) ? allergies : [],
       chiefMedicalIssue: this.safeString(chiefMedicalIssue),

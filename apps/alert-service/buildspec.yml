@@ -32,7 +32,7 @@ phases:
           exit 1
         fi
 
-      # 3) push code & rewrite
+      # 3) push code & rewrite 
       - |
         aws cloudformation package \
           --template-file "$TEMPLATE" \
@@ -84,7 +84,7 @@ phases:
 
       # 6) debug: list entire directory
       # - echo "📦 Full directory on S3:"
-      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/serverless/alert-service/$STAGE/" --recursive
+      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/serverless/payments-service/$STAGE/" --recursive
 
       - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
       - |

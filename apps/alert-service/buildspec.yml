@@ -42,12 +42,12 @@ phases:
 
       # 4) debug: what keys did CF bake in?
       - echo "🔍 S3Key entries in packaged.yaml:"
-      - grep 'S3Key:' packaged.yaml | awk '{print $2}' | tr -d '"' | awk 'NF'
+      - grep 'S3Key:' packaged.yaml | awk '{print $2}'
 
       # 5) debug: do they exist?
       - echo "🔑 Verifying each baked-in key exists:"
       - |
-        grep 'S3Key:' packaged.yaml | awk '{print $2}' | tr -d '"' | awk 'NF' \
+        grep 'S3Key:' packaged.yaml | awk '{print $2}' \
           | while read key; do
               printf " → %-80s " "$key"
               if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
@@ -65,8 +65,6 @@ phases:
       - |
         grep 'S3Key:' packaged.yaml \
           | awk '{print $2}' \
-          | tr -d '"' \
-          | awk 'NF' \
           | while read key; do
               name=$(basename "$key")
               echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
@@ -74,7 +72,7 @@ phases:
             done
 
       - echo "➤ Verifying upload…"
-      - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | awk '{print $2}' | tr -d '\"' | awk 'NF' | head -1))/" --recursive
+      - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | head -1 | awk '{print $2}'))/" --recursive
 
   post_build:
     commands:

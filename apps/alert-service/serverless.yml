@@ -544,50 +544,50 @@ resources:
 
     # Explicit Lambda → EventBridge invoke permissions (mirrors apps/user-service/serverless.yml).
     # Rule names follow Serverless Framework convention: <service>-<stage>-<funcName>-rule-1
-    OnThresholdBreachInvokePermission:
-      Type: AWS::Lambda::Permission
-      Properties:
-        Action: lambda:InvokeFunction
-        FunctionName: !GetAtt OnThresholdBreachLambdaFunction.Arn
-        Principal: events.amazonaws.com
-        SourceAccount: ${aws:accountId}
-        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onThresholdBreach-rule-1
+    # OnThresholdBreachInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnThresholdBreachLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onThresholdBreach-rule-1
 
-    OnMissedReadingInvokePermission:
-      Type: AWS::Lambda::Permission
-      Properties:
-        Action: lambda:InvokeFunction
-        FunctionName: !GetAtt OnMissedReadingLambdaFunction.Arn
-        Principal: events.amazonaws.com
-        SourceAccount: ${aws:accountId}
-        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissedReading-rule-1
+    # OnMissedReadingInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnMissedReadingLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissedReading-rule-1
 
-    OnMissingDeviceInvokePermission:
-      Type: AWS::Lambda::Permission
-      Properties:
-        Action: lambda:InvokeFunction
-        FunctionName: !GetAtt OnMissingDeviceLambdaFunction.Arn
-        Principal: events.amazonaws.com
-        SourceAccount: ${aws:accountId}
-        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissingDevice-rule-1
+    # OnMissingDeviceInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnMissingDeviceLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissingDevice-rule-1
 
-    OnSymptomRiskTriggerInvokePermission:
-      Type: AWS::Lambda::Permission
-      Properties:
-        Action: lambda:InvokeFunction
-        FunctionName: !GetAtt OnSymptomRiskTriggerLambdaFunction.Arn
-        Principal: events.amazonaws.com
-        SourceAccount: ${aws:accountId}
-        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onSymptomRiskTrigger-rule-1
+    # OnSymptomRiskTriggerInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnSymptomRiskTriggerLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onSymptomRiskTrigger-rule-1
 
-    OnEngagementTriggerInvokePermission:
-      Type: AWS::Lambda::Permission
-      Properties:
-        Action: lambda:InvokeFunction
-        FunctionName: !GetAtt OnEngagementTriggerLambdaFunction.Arn
-        Principal: events.amazonaws.com
-        SourceAccount: ${aws:accountId}
-        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
+    # OnEngagementTriggerInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnEngagementTriggerLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
 
   Outputs:
     # Exports unblock the TODOs in apps/user-service/serverless.yml:

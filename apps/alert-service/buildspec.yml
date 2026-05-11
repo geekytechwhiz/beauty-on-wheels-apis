@@ -41,14 +41,20 @@ phases:
           --force-upload
 
       # 4) debug: what keys did CF bake in?
-      - echo "🔍 S3Key entries in packaged.yaml:"
-      - grep 'S3Key:' packaged.yaml | awk '{print $2}'
+      - echo "🔍 Raw S3Key lines in packaged.yaml:"
+      - grep 'S3Key:' packaged.yaml || true
+      - echo "🔍 Extracted non-empty S3 keys:"
+      - grep 'S3Key:' packaged.yaml | awk '{print $2}' | awk 'NF'
 
       # 5) debug: do they exist?
       - echo "🔑 Verifying each baked-in key exists:"
       - |
-        grep 'S3Key:' packaged.yaml | awk '{print $2}' \
+        grep 'S3Key:' packaged.yaml | awk '{print $2}' | awk 'NF' \
           | while read key; do
+              if [ -z "$key" ]; then
+                echo "WARN: empty S3 key extracted, skipping"
+                continue
+              fi
               printf " → %-80s " "$key"
               if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
                 echo "FOUND"
@@ -65,15 +71,29 @@ phases:
       - |
         grep 'S3Key:' packaged.yaml \
           | awk '{print $2}' \
+          | awk 'NF' \
           | while read key; do
+              if [ -z "$key" ]; then
+                echo "WARN: empty S3 key extracted, skipping upload"
+                continue
+              fi
               name=$(basename "$key")
-              echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
-              aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+              if [ -f ".serverless/$name" ]; then
+                echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
+                aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+              else
+                echo "WARN: local artifact missing (.serverless/$name), skipping upload for $key"
+              fi
             done
 
       - echo "➤ Verifying upload…"
-      - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | head -1 | awk '{print $2}'))/" --recursive
-
+      - |
+        first_key=$(grep 'S3Key:' packaged.yaml | awk '{print $2}' | awk 'NF' | head -1)
+        if [ -n "$first_key" ]; then
+          aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname "$first_key")/" --recursive
+        else
+          echo "WARN: no valid S3Key found in packaged.yaml; skipping upload verification list"
+        fi
   post_build:
     commands:
       - echo "✅ Build done, artifacts ready in packaged.yaml"

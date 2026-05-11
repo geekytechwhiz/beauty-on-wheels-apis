@@ -44,8 +44,8 @@ provider:
     ORGANIZATION_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
     USER_SERVICE_TIMEOUT_MS: '8000'
     ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
-    # EVENT_BUS_NAME: ${self:custom.eventBusName}
-    # ALERT_EVENTS_TOPIC_ARN: ${env:ALERT_EVENTS_TOPIC_ARN, ''}
+    EVENT_BUS_NAME: ${self:custom.eventBusName}
+    ALERT_EVENTS_TOPIC_ARN: ${env:ALERT_EVENTS_TOPIC_ARN, ''}
 
   tags:
     Service: ${self:service}
@@ -102,7 +102,7 @@ custom:
   # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here
   # (monitoring-service, device-monitoring, device-workflow, symptom-engine, engagement-service);
   # consumers below subscribe per source + detail-type. Bus name + ARN are exported for cross-stack ImportValue.
-  # eventBusName: alert-service-bus-${self:provider.stage}
+  eventBusName: alert-service-bus-${self:provider.stage}
 
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
   sourcemapsByStage:
@@ -527,20 +527,20 @@ functions:
   #           detail-type:
   #             - ENGAGEMENT_TRIGGER
 
-# resources:
-#   Resources:
+resources:
+  Resources:
     # EventBridge bus that all upstream alert-trigger producers publish to.
-    # AlertServiceBus:
-    #   Type: AWS::Events::EventBus
-    #   Properties:
-    #     Name: ${self:custom.eventBusName}
-    #     Tags:
-    #       - Key: Service
-    #         Value: ${self:service}
-    #       - Key: Stage
-    #         Value: ${self:provider.stage}
-    #       - Key: ManagedBy
-    #         Value: serverless
+    AlertServiceBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:custom.eventBusName}
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
 
     # Explicit Lambda → EventBridge invoke permissions (mirrors apps/user-service/serverless.yml).
     # Rule names follow Serverless Framework convention: <service>-<stage>-<funcName>-rule-1
@@ -589,18 +589,18 @@ functions:
     #     SourceAccount: ${aws:accountId}
     #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
 
-  # Outputs:
+  Outputs:
     # Exports unblock the TODOs in apps/user-service/serverless.yml:
     #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
     #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
-    # AlertServiceBusName:
-    #   Description: Name of the Alert Service Event Bus
-    #   Value: !Ref AlertServiceBus
-    #   Export:
-    #     Name: ${self:provider.stage}-${self:service}-EventBusName
+    AlertServiceBusName:
+      Description: Name of the Alert Service Event Bus
+      Value: !Ref AlertServiceBus
+      Export:
+        Name: ${self:provider.stage}-${self:service}-EventBusName
 
-    # AlertServiceBusArn:
-    #   Description: ARN of the Alert Service Event Bus
-    #   Value: !GetAtt AlertServiceBus.Arn
-    #   Export:
-    #     Name: ${self:provider.stage}-${self:service}-EventBusArn
+    AlertServiceBusArn:
+      Description: ARN of the Alert Service Event Bus
+      Value: !GetAtt AlertServiceBus.Arn
+      Export:
+        Name: ${self:provider.stage}-${self:service}-EventBusArn

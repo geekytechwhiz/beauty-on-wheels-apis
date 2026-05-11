@@ -1,8 +1,9 @@
 import { withApiHandler } from '@api-hub/middleware';
+import { LambdaRequest } from '@api-hub/utils';
 import { getAlertHttpController } from '../../controllers/alert-http.controller';
 import { createAlertHttpBodySchema } from '../../validators/alert.schemas';
 import { validateCreateAlertRequest } from '../../validators/request.validators';
-import { LambdaRequest } from '@api-hub/utils';
+
 
 const c = getAlertHttpController();
 

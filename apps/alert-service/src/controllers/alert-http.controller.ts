@@ -26,7 +26,7 @@ import {
   type ValidatedWorkflow,
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
-import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';
+import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';  
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {

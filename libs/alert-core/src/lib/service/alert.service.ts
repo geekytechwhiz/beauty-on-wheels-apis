@@ -15,7 +15,7 @@ import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
 import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
 import type { PriorityInput, PriorityResult } from '../models/api/alert-priority.types';
-import { AlertActivityType } from '../constants/alert-activity-type';
+import { AlertActivityType } from '../constants/alert-activity-type'; 
 import {
   assertWorkflowClosureComment,
   workflowActionToUpdatePatch,
@@ -307,8 +307,36 @@ export class AlertService extends BaseAlertService {
             activityItems: activityItems.length > 0 ? activityItems : undefined,
             performedByUserId: input.performedByUserId?.trim() || 'SYSTEM',
           });
-          if (updated) succeeded.push(id);
-          else failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found during update' });
+          if (updated) {
+            succeeded.push(id);
+
+            const nextState = patch.alertState;
+            if (nextState && nextState !== row.alertState) {
+              const activityType =
+                nextState === ALERT_STATE.RESOLVED
+                  ? AlertActivityType.AlertResolved
+                  : nextState === ALERT_STATE.DISMISSED
+                    ? AlertActivityType.AlertDismissed
+                    : AlertActivityType.AlertStateChanged;
+
+              await this.publishStateChangedEventSafe({
+                alertId: row.alertId,
+                organizationId: row.organizationId,
+                previousState: row.alertState,
+                newState: nextState,
+                activityType,
+                performedBy: input.performedByUserId?.trim() || 'SYSTEM',
+                performedByDisplayName: input.performedByDisplayName,
+                activityComment:
+                  nextState === ALERT_STATE.RESOLVED || nextState === ALERT_STATE.DISMISSED
+                    ? patch.closureComment ?? undefined
+                    : undefined,
+                occurredAt: new Date(nowMs).toISOString(),
+              });
+            }
+          } else {
+            failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found during update' });
+          }
         } catch (e) {
           const err = e as Error & { statusCode?: number; code?: string };
           if (err.statusCode === 409 && err.code === 'ILLEGAL_TRANSITION') {
@@ -413,6 +441,30 @@ export class AlertService extends BaseAlertService {
 
     await this.repo.updateAlertsTransaction(updates);
 
+    const stateChangePublishes = updates
+      .filter((update) => {
+        const nextState = update.patch.alertState;
+        return Boolean(nextState && nextState !== update.existing.alertState);
+      })
+      .map(async (update) => {
+        const nextState = update.patch.alertState as AlertState;
+        await this.publishStateChangedEventSafe({
+          alertId: update.existing.alertId,
+          organizationId: update.existing.organizationId,
+          previousState: update.existing.alertState,
+          newState: nextState,
+          activityType:
+            update.existing.alertState === ALERT_STATE.UNASSIGNED &&
+            nextState === ALERT_STATE.ASSIGNED
+              ? AlertActivityType.AlertAssigned
+              : AlertActivityType.AlertStateChanged,
+          performedBy,
+          performedByDisplayName,
+          occurredAt: new Date(nowMs).toISOString(),
+        });
+      });
+    await Promise.all(stateChangePublishes);
+
     return {};
   }
 
@@ -456,7 +508,40 @@ export class AlertService extends BaseAlertService {
     });
 
     await this.repo.updateAlertsTransaction(updates);
-
     return {};
+  }
+
+  private async publishStateChangedEventSafe(input: {
+    alertId: string;
+    organizationId: string;
+    previousState: AlertState;
+    newState: AlertState;
+    activityType:
+      | AlertActivityType.AlertAssigned
+      | AlertActivityType.AlertReassigned
+      | AlertActivityType.AlertStateChanged
+      | AlertActivityType.AlertResolved
+      | AlertActivityType.AlertDismissed;
+    performedBy: string;
+    performedByDisplayName?: string;
+    activityComment?: string;
+    occurredAt: string;
+  }): Promise<void> {
+    try {
+      await publishAlertStateChangedEvent(input, input.alertId);
+    } catch (error) {
+      this.log.warn({
+        event: 'alert_state_changed_publish_failed',
+        message: 'Alert state changed event publish failed after persistence',
+        alertId: input.alertId,
+        organizationId: input.organizationId,
+        previousState: input.previousState,
+        newState: input.newState,
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message, stack: error.stack }
+            : { name: 'UnknownError', message: String(error) },
+      });
+    }
   }
 }

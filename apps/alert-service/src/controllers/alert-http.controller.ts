@@ -1,13 +1,13 @@
 /**
  * HTTP controllers for alert-service.
  *
- * **Flow:** `withLambdaHandler` builds context + optional schema validation → controller (authz, orchestration) →
+ * **Flow:** `withApiHandler` builds context + optional schema validation → controller (authz, orchestration) →
  * {@link AlertService} (`@api-hub/alert-core`) → {@link AlertRepository}.
  *
- * **Responses:** shared `withLambdaHandler` success / {@link handleError} error envelopes (`@api-hub/utils`).
+ * **Responses:** shared `withApiHandler` success / {@link handleError} error envelopes (`@api-hub/utils`).
  */
-import type { LambdaRequest } from '@api-hub/utils';
-import { BaseError } from '@api-hub/utils';
+import type { LambdaRequest }  from '@api-hub/utils';
+import { BaseError }  from '@api-hub/utils';
 import {
   AlertService,
   createAlertPayloadFromHttpBody,
@@ -26,6 +26,7 @@ import {
   type ValidatedWorkflow,
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
+import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';  
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
@@ -35,21 +36,21 @@ function getAlertService(): AlertService {
 
 let ctrl: AlertHttpController | undefined;
 
-function unauthorizedOrgError(): Error & { statusCode: number; code: string } {
-  const e = new Error('Organization could not be resolved from the access token') as Error & {
-    statusCode: number;
-    code: string;
-  };
-  e.statusCode = 401;
-  e.code = 'UNAUTHORIZED';
-  return e;
+function unauthorizedOrgError(): BaseError {
+  return new BaseError(
+    'Organization could not be resolved from the access token',
+    401,
+    'UNAUTHORIZED',
+    [{ message: 'Organization could not be resolved from the access token' }],
+    { retryable: false },
+  );
 }
 
 export class AlertHttpController {
   private readonly svc = getAlertService();
 
   /**
-   * POST /alerts — body validated by {@link validateCreateAlertRequest} in `withLambdaHandler`; tenant + actor
+   * POST /alerts — body validated by {@link validateCreateAlertRequest} in `withApiHandler`; tenant + actor
    * attached there as {@link ValidatedCreateAlert}.
    */
   async handleCreateAlert(req: LambdaRequest) {
@@ -208,19 +209,29 @@ export class AlertHttpController {
   async handleGetAlert(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
     if (!alertId) {
-      throw Object.assign(new Error('alertId required'), { statusCode: 400, code: 'INVALID_REQUEST' });
+      throw new BaseError('alertId required', 400, 'INVALID_REQUEST', [
+        { message: 'alertId required' },
+      ], { retryable: false });
     }
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     const row = await this.svc.getAlert(alertId, orgId);
-    if (!row) throw Object.assign(new Error('Alert not found'), { statusCode: 404 });
+    if (!row) {
+      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
+        retryable: false,
+      });
+    }
     return toAlertDetail(row);
   }
 
   async handleGetAlertActivity(req: LambdaRequest) {
     const alertId = req.pathParameters?.alertId;
-    if (!alertId) throw Object.assign(new Error('alertId required'), { statusCode: 400 });
+    if (!alertId) {
+      throw new BaseError('alertId required', 400, 'INVALID_REQUEST', [
+        { message: 'alertId required' },
+      ], { retryable: false });
+    }
     const authHeader = req.context.authHeader;
     const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
@@ -229,6 +240,16 @@ export class AlertHttpController {
 
     const items = await this.svc.listAlertActivity(alertId, orgId, { notesOnly });
     return { items };
+  }
+
+  /**
+   * GET `/alerts/metadata` — static UI option lists until metadata registry exists (`alert-metadata-workaround.json`).
+   */
+  async handleGetAlertMetadata(req: LambdaRequest) {
+    const authHeader = req.context.authHeader;
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    if (!orgId) throw unauthorizedOrgError();
+    return alertMetadataWorkaround;
   }
 
   /**

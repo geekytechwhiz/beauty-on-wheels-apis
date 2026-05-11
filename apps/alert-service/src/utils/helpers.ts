@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
-import { decodeJwtPayload } from '@api-hub/utils';
+import { decodeJwtPayload }  from '@api-hub/utils';
 
 function readAuthorizer(event: APIGatewayProxyEvent): Record<string, unknown> | undefined {
   const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)

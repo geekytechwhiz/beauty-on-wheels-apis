@@ -4,6 +4,7 @@
     "outDir": "./out-tsc/jest",
     "types": ["jest", "node"],
     "module": "nodenext",
+    "composite": true,
     "moduleResolution": "nodenext"
   },
   "include": [
@@ -17,6 +18,9 @@
   "references": [
     {
       "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "../../libs/alert-core"
     }
   ]
 }

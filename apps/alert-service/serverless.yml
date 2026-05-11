@@ -44,6 +44,8 @@ provider:
     ORGANIZATION_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
     USER_SERVICE_TIMEOUT_MS: '8000'
     ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
+    EVENT_BUS_NAME: ${self:custom.eventBusName}
+    ALERT_EVENTS_TOPIC_ARN: ${env:ALERT_EVENTS_TOPIC_ARN, ''}
 
   tags:
     Service: ${self:service}
@@ -96,6 +98,11 @@ custom:
       - Sec-Ch-Ua-Platform
 
   alertDynamoTableName: alert-service-${self:provider.stage}
+
+  # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here
+  # (monitoring-service, device-monitoring, device-workflow, symptom-engine, engagement-service);
+  # consumers below subscribe per source + detail-type. Bus name + ARN are exported for cross-stack ImportValue.
+  eventBusName: alert-service-bus-${self:provider.stage}
 
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
   sourcemapsByStage:
@@ -273,6 +280,29 @@ functions:
             "403": Forbidden
             "500": Server error
 
+  getAlertMetadata:
+    handler: src/handlers/http/getAlertMetadata.main
+    events:
+      - http:
+          path: alerts/metadata
+          method: get
+          summary: Alert UI metadata (workaround)
+          description: >
+            Static lists for priorities, workflow statuses, resolve reasons, and dismiss reasons until a metadata
+            registry is available. Organization scope from JWT; response is the same for all tenants.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+
   getAlert:
     handler: src/handlers/http/getAlert.main
     events:
@@ -418,3 +448,159 @@ functions:
             "403": Forbidden
             "404": Not found
             "500": Server error
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # EventBridge consumers — alert ingest triggers
+  #
+  # NOTE: These consumers are currently disabled for local `serverless offline`
+  # because their handler entrypoints under `src/handlers/eventbridge/*` are not
+  # present yet. Re-enable once the EventBridge handlers exist.
+  # ──────────────────────────────────────────────────────────────────────────────
+  #
+  # onThresholdBreach:
+  #   handler: src/handlers/eventbridge/onThresholdBreach.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - monitoring-service
+  #           detail-type:
+  #             - THRESHOLD_BREACH
+  #
+  # onMissedReading:
+  #   handler: src/handlers/eventbridge/onMissedReading.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - device-monitoring
+  #           detail-type:
+  #             - MISSED_READING
+  #
+  # onMissingDevice:
+  #   handler: src/handlers/eventbridge/onMissingDevice.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - device-workflow
+  #           detail-type:
+  #             - MISSING_DEVICE
+  #
+  # onSymptomRiskTrigger:
+  #   handler: src/handlers/eventbridge/onSymptomRiskTrigger.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - symptom-engine
+  #           detail-type:
+  #             - SYMPTOM_RISK_TRIGGER
+  #
+  # onEngagementTrigger:
+  #   handler: src/handlers/eventbridge/onEngagementTrigger.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - engagement-service
+  #           detail-type:
+  #             - ENGAGEMENT_TRIGGER
+
+resources:
+  Resources:
+    # EventBridge bus that all upstream alert-trigger producers publish to.
+    AlertServiceBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:custom.eventBusName}
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+    # Explicit Lambda → EventBridge invoke permissions (mirrors apps/user-service/serverless.yml).
+    # Rule names follow Serverless Framework convention: <service>-<stage>-<funcName>-rule-1
+    # OnThresholdBreachInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnThresholdBreachLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onThresholdBreach-rule-1
+
+    # OnMissedReadingInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnMissedReadingLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissedReading-rule-1
+
+    # OnMissingDeviceInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnMissingDeviceLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissingDevice-rule-1
+
+    # OnSymptomRiskTriggerInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnSymptomRiskTriggerLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onSymptomRiskTrigger-rule-1
+
+    # OnEngagementTriggerInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     Action: lambda:InvokeFunction
+    #     FunctionName: !GetAtt OnEngagementTriggerLambdaFunction.Arn
+    #     Principal: events.amazonaws.com
+    #     SourceAccount: ${aws:accountId}
+    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
+
+  Outputs:
+    # Exports unblock the TODOs in apps/user-service/serverless.yml:
+    #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
+    #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
+    AlertServiceBusName:
+      Description: Name of the Alert Service Event Bus
+      Value: !Ref AlertServiceBus
+      Export:
+        Name: ${self:provider.stage}-${self:service}-EventBusName
+
+    AlertServiceBusArn:
+      Description: ARN of the Alert Service Event Bus
+      Value: !GetAtt AlertServiceBus.Arn
+      Export:
+        Name: ${self:provider.stage}-${self:service}-EventBusArn

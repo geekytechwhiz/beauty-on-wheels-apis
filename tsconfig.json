@@ -73,12 +73,6 @@
       "path": "./libs/service-clients"
     },
     {
-      "path": "./apps/template-service"
-    },
-    {
-      "path": "./libs/template"
-    },
-    {
       "path": "./apps/alert-service"
     },
     {
@@ -89,6 +83,18 @@
     },
     {
       "path": "./libs/alert-core"
+    },
+    {
+      "path": "./tools/eslint-mavrix"
+    },
+    {
+      "path": "./libs/event-platform"
+    },
+    {
+      "path": "./libs/observability"
+    },
+    {
+      "path": "./libs/middleware"
     }
   ]
 }

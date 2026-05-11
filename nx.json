@@ -1,5 +1,8 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "sync": {
+    "applyChanges": true
+  },
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
@@ -56,6 +59,7 @@
       },
       "exclude": ["apps/alert-service-e2e/**/*"]
     }
+   
   ],
   "targetDefaults": {
     "@nx/esbuild:esbuild": {
@@ -72,5 +76,10 @@
       "inputs": ["production", "^production"]
     }
   },
-  "analytics": true
+  "analytics": true,
+  "release": {
+    "version": {
+      "preVersionCommand": "pnpm dlx nx run-many -t build"
+    }
+  }
 }

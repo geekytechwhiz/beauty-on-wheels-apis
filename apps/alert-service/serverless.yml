@@ -452,94 +452,80 @@ functions:
   # ──────────────────────────────────────────────────────────────────────────────
   # EventBridge consumers — alert ingest triggers
   #
-  # Each upstream producer PutEvents onto AlertServiceBus with:
-  #   source       = <kebab-case service name>   e.g. "monitoring-service"
-  #   detail-type  = <SCREAMING_SNAKE inputType>  e.g. "THRESHOLD_BREACH"
-  #   detail       = evidencePayload (per inputType — see libs/alert-core schemas)
-  #
-  # Detail-type values intentionally match the alert-service `inputType` enum so producers and
-  # consumers share a single canonical name. Add `.v1` versioning here if you adopt that convention later.
+  # NOTE: These consumers are currently disabled for local `serverless offline`
+  # because their handler entrypoints under `src/handlers/eventbridge/*` are not
+  # present yet. Re-enable once the EventBridge handlers exist.
   # ──────────────────────────────────────────────────────────────────────────────
-
-  onThresholdBreach:
-    handler: src/handlers/eventbridge/onThresholdBreach.main
-    timeout: 30
-    memorySize: 256
-    events:
-      - eventBridge:
-          eventBus:
-            Fn::GetAtt:
-              - AlertServiceBus
-              - Arn
-          pattern:
-            source:
-              - monitoring-service
-            detail-type:
-              - THRESHOLD_BREACH
-
-  onMissedReading:
-    handler: src/handlers/eventbridge/onMissedReading.main
-    timeout: 30
-    memorySize: 256
-    events:
-      - eventBridge:
-          eventBus:
-            Fn::GetAtt:
-              - AlertServiceBus
-              - Arn
-          pattern:
-            source:
-              - device-monitoring
-            detail-type:
-              - MISSED_READING
-
-  onMissingDevice:
-    handler: src/handlers/eventbridge/onMissingDevice.main
-    timeout: 30
-    memorySize: 256
-    events:
-      - eventBridge:
-          eventBus:
-            Fn::GetAtt:
-              - AlertServiceBus
-              - Arn
-          pattern:
-            source:
-              - device-workflow
-            detail-type:
-              - MISSING_DEVICE
-
-  onSymptomRiskTrigger:
-    handler: src/handlers/eventbridge/onSymptomRiskTrigger.main
-    timeout: 30
-    memorySize: 256
-    events:
-      - eventBridge:
-          eventBus:
-            Fn::GetAtt:
-              - AlertServiceBus
-              - Arn
-          pattern:
-            source:
-              - symptom-engine
-            detail-type:
-              - SYMPTOM_RISK_TRIGGER
-
-  onEngagementTrigger:
-    handler: src/handlers/eventbridge/onEngagementTrigger.main
-    timeout: 30
-    memorySize: 256
-    events:
-      - eventBridge:
-          eventBus:
-            Fn::GetAtt:
-              - AlertServiceBus
-              - Arn
-          pattern:
-            source:
-              - engagement-service
-            detail-type:
-              - ENGAGEMENT_TRIGGER
+  #
+  # onThresholdBreach:
+  #   handler: src/handlers/eventbridge/onThresholdBreach.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - monitoring-service
+  #           detail-type:
+  #             - THRESHOLD_BREACH
+  #
+  # onMissedReading:
+  #   handler: src/handlers/eventbridge/onMissedReading.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - device-monitoring
+  #           detail-type:
+  #             - MISSED_READING
+  #
+  # onMissingDevice:
+  #   handler: src/handlers/eventbridge/onMissingDevice.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - device-workflow
+  #           detail-type:
+  #             - MISSING_DEVICE
+  #
+  # onSymptomRiskTrigger:
+  #   handler: src/handlers/eventbridge/onSymptomRiskTrigger.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - symptom-engine
+  #           detail-type:
+  #             - SYMPTOM_RISK_TRIGGER
+  #
+  # onEngagementTrigger:
+  #   handler: src/handlers/eventbridge/onEngagementTrigger.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - engagement-service
+  #           detail-type:
+  #             - ENGAGEMENT_TRIGGER
 
 resources:
   Resources:

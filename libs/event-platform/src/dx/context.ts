@@ -1,22 +1,47 @@
+import { EventTransport } from '../core/schema/define-event';
+
 import type { EventConsumer } from '../sdk/consumer/event-consumer';
 import type { EventPublisher } from '../sdk/publisher/event-publisher';
 
-type DxRuntime = {
-  publisher: EventPublisher;
-  consumer: EventConsumer;
+export type DxRuntime = {
+   
+ 
+  publishers: Partial<
+    Record<EventTransport, EventPublisher>
+  >;
+
+  /**
+   * Shared consumer runtime.
+   */
+  consumer?: EventConsumer;
 };
 
 let runtime: DxRuntime | null = null;
+ 
+export function setDxRuntime(
+  next: DxRuntime,
+): void {
+  if (
+    !next.publishers ||
+    Object.keys(next.publishers).length === 0
+  ) {
+    throw new Error(
+      'At least one event publisher must be configured.'
+    );
+  }
 
-export function setDxRuntime(next: DxRuntime): void {
   runtime = next;
 }
 
 export function getDxRuntimeOrThrow(): DxRuntime {
   if (!runtime) {
     throw new Error(
-      'Event DX not configured. Call configureEventDx(...) before publishEvent or onEvent.',
+      [
+        'Event DX runtime not configured.',
+        'Call configureEventDx(...) during application bootstrap.',
+      ].join(' '),
     );
   }
+
   return runtime;
 }

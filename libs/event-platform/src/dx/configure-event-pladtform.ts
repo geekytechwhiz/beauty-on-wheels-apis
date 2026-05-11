@@ -122,9 +122,6 @@ export function configureEventPlatform(
   } 
 
   setDxRuntime({
-    defaultTransport:
-      options.transport,
-
     publishers,
 
     consumer,

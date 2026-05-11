@@ -47,7 +47,6 @@ export { IdempotencyState, idempotencyBeforeResultToState } from './core/idempot
 export { createSnsPublishEvent } from './sdk/publisher/create-sns-publish-event';
 export type { EventSchemaMeta } from './core/schema/define-event';
 export { defineEvent } from './core/schema/define-event';
-export { publishEvent } from './dx/publish-event';
-export { configureEventDx } from './dx/configure-event-dx';
+export { publishEvent } from './dx/publish-event'; 
 export { EventBridgeAdapter } from './adapters/eventbridge/eventbridge-adapter';
-
+export { configureEventPlatform, type ConfigureEventPlatformOptions } from './dx/configure-event-pladtform';

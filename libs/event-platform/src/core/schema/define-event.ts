@@ -4,8 +4,9 @@ export type EventSchemaMeta = {
   eventVersion: string;
   source: string;
   correlationId?: string; 
+  transport: EventTransport;
 };
-
+export type EventTransport = 'eventbridge' | 'sns' | 'sqs';
 export function defineEvent<T extends z.ZodTypeAny>(
   schema: T,
   meta: EventSchemaMeta

@@ -54,7 +54,7 @@ describe('@api-hub/event-platform/dx', () => {
         consumer: baseConsumerOptions(),
       });
 
-      await publishEvent(schema, { x: 1 }, { version: '2.0.0', correlationId: 'cc' });
+      await publishEvent(schema, { x: 1 }, { version: '2.0.0', meta: { correlationId: 'cc' } });
 
       expect(publish).toHaveBeenCalledTimes(1);
       const envelope = publish.mock.calls[0][0];

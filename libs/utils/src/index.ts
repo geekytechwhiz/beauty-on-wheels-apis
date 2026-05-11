@@ -11,6 +11,7 @@ export * from './helper/jwt.helpers';
 export * from './middleware/request-context.middleware';
 export * from './middleware/response.middleware';
 export * from './middleware/error.middleware';
+export * from './middleware/withLambdaHandler';
 export * from './errors/app.error';
 export * from './errors/base.error';
 export * from './errors/normalize-error'; 

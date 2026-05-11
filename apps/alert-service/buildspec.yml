@@ -42,15 +42,34 @@ phases:
 
       # 4) debug: what keys did CF bake in?
       - echo "🔍 Raw S3Key lines in packaged.yaml:"
-      - grep 'S3Key:' packaged.yaml || true
+      - grep 'S3Key' packaged.yaml || true
+      - |
+        node <<'NODE' > .serverless/s3keys.txt
+        const fs = require('fs');
+        const template = fs.readFileSync('packaged.yaml', 'utf8');
+        const keys = new Set();
+        const s3KeyPattern = /["']?S3Key["']?\s*:\s*["']?([^"',\s}]+)["']?/g;
+
+        for (const match of template.matchAll(s3KeyPattern)) {
+          keys.add(match[1]);
+        }
+
+        for (const key of keys) {
+          console.log(key);
+        }
+        NODE
       - echo "🔍 Extracted non-empty S3 keys:"
-      - grep 'S3Key:' packaged.yaml | awk '{print $2}' | awk 'NF'
+      - cat .serverless/s3keys.txt
+      - |
+        if [ ! -s .serverless/s3keys.txt ]; then
+          echo "ERROR: No S3Key entries found in packaged.yaml; Lambda artifacts would not be uploaded."
+          exit 1
+        fi
 
       # 5) debug: do they exist?
       - echo "🔑 Verifying each baked-in key exists:"
       - |
-        grep 'S3Key:' packaged.yaml | awk '{print $2}' | awk 'NF' \
-          | while read key; do
+        while read key; do
               if [ -z "$key" ]; then
                 echo "WARN: empty S3 key extracted, skipping"
                 continue
@@ -61,7 +80,7 @@ phases:
               else
                 echo "MISSING!"
               fi
-            done
+            done < .serverless/s3keys.txt
 
       # 6) debug: list entire directory
       # - echo "📦 Full directory on S3:"
@@ -69,10 +88,7 @@ phases:
 
       - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
       - |
-        grep 'S3Key:' packaged.yaml \
-          | awk '{print $2}' \
-          | awk 'NF' \
-          | while read key; do
+        while read key; do
               if [ -z "$key" ]; then
                 echo "WARN: empty S3 key extracted, skipping upload"
                 continue
@@ -82,17 +98,31 @@ phases:
                 echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
                 aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
               else
-                echo "WARN: local artifact missing (.serverless/$name), skipping upload for $key"
+                echo "ERROR: local artifact missing (.serverless/$name), cannot upload $key"
+                exit 1
               fi
-            done
+            done < .serverless/s3keys.txt
 
       - echo "➤ Verifying upload…"
       - |
-        first_key=$(grep 'S3Key:' packaged.yaml | awk '{print $2}' | awk 'NF' | head -1)
-        if [ -n "$first_key" ]; then
-          aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname "$first_key")/" --recursive
-        else
-          echo "WARN: no valid S3Key found in packaged.yaml; skipping upload verification list"
+        missing=0
+        while read key; do
+          if [ -z "$key" ]; then
+            continue
+          fi
+
+          printf " → %-80s " "$key"
+          if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
+            echo "FOUND"
+          else
+            echo "MISSING!"
+            missing=1
+          fi
+        done < .serverless/s3keys.txt
+
+        if [ "$missing" -ne 0 ]; then
+          echo "ERROR: One or more Lambda artifacts are missing in s3://$DEPLOYMENT_BUCKET."
+          exit 1
         fi
   post_build:
     commands:

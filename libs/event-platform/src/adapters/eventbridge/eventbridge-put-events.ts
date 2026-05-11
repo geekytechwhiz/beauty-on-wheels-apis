@@ -7,12 +7,12 @@ import type { EventBridgeAdapterConfig } from './eventbridge-adapter-config';
 /** Maps a {@link BaseEvent} to a single PutEvents entry (no side effects). */
 export function toPutEventsEntry(
   event: BaseEvent,
-  config: EventBridgeAdapterConfig,
+  config: Pick<EventBridgeAdapterConfig, 'eventBusName' | 'source' | 'detailType'>,
 ): PutEventsRequestEntry {
   return {
     EventBusName: config.eventBusName,
     Source: config.source,
-    DetailType:   event.eventType,
+    DetailType: config.detailType ?? event.eventType,
     Detail: serializeBaseEvent(event),
   };
 }

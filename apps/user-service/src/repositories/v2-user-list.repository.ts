@@ -1,4 +1,6 @@
 import {
+  BatchGetCommand,
+  BatchGetCommandOutput,
   QueryCommand,
   type QueryCommandInput,
   type QueryCommandOutput,
@@ -56,7 +58,9 @@ function buildFilterExpression(
   const filterParts: string[] = [];
 
   if (filters.userTypes && filters.userTypes.length > 0) {
-    const userTypePlaceholders = filters.userTypes.map((_, idx) => `:userType${idx}`);
+    const userTypePlaceholders = filters.userTypes.map(
+      (_, idx) => `:userType${idx}`,
+    );
     filters.userTypes.forEach((ut, idx) => {
       exprValues[`:userType${idx}`] = ut.toUpperCase();
     });
@@ -65,12 +69,16 @@ function buildFilterExpression(
   }
 
   if (filters.roleCodes && filters.roleCodes.length > 0) {
-    const roleCodePlaceholders = filters.roleCodes.map((_, idx) => `:roleCode${idx}`);
+    const roleCodePlaceholders = filters.roleCodes.map(
+      (_, idx) => `:roleCode${idx}`,
+    );
     filters.roleCodes.forEach((rc, idx) => {
       exprValues[`:roleCode${idx}`] = rc;
     });
     exprNames['#definedRoleCode'] = 'definedRoleCode';
-    filterParts.push(`#definedRoleCode IN (${roleCodePlaceholders.join(', ')})`);
+    filterParts.push(
+      `#definedRoleCode IN (${roleCodePlaceholders.join(', ')})`,
+    );
   }
 
   if (typeof filters.isActive === 'boolean') {
@@ -91,7 +99,9 @@ function buildFilterExpression(
     filterParts.push('#status = :status');
   }
 
-  filterParts.push('(attribute_not_exists(#isDeleted) OR #isDeleted <> :deletedTrue)');
+  filterParts.push(
+    '(attribute_not_exists(#isDeleted) OR #isDeleted <> :deletedTrue)',
+  );
   exprNames['#isDeleted'] = 'isDeleted';
   exprValues[':deletedTrue'] = true;
 
@@ -153,7 +163,10 @@ export class V2UserListRepository {
     params: V2UserListQueryParams,
   ): Promise<V2UserListQueryResult> {
     const { organizationId, filters, pagination, sort, correlationId } = params;
-    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      organizationId,
+    });
 
     logger.info({ event: 'v2_user_list_query_start', organizationId });
 
@@ -181,8 +194,12 @@ export class V2UserListRepository {
       TableName: USER_TABLE_NAME,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
       ExpressionAttributeValues: exprValues,
-      ...(Object.keys(exprNames).length > 0 && { ExpressionAttributeNames: exprNames }),
-      ...(filterParts.length > 0 && { FilterExpression: filterParts.join(' AND ') }),
+      ...(Object.keys(exprNames).length > 0 && {
+        ExpressionAttributeNames: exprNames,
+      }),
+      ...(filterParts.length > 0 && {
+        FilterExpression: filterParts.join(' AND '),
+      }),
       ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
     };
 
@@ -190,7 +207,10 @@ export class V2UserListRepository {
       let allItems: Record<string, unknown>[] = [];
       let lastKey: Record<string, unknown> | undefined;
 
-      const result = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(queryParams));
+      const result = await sendDoc<QueryCommandOutput>(
+        docClient,
+        new QueryCommand(queryParams),
+      );
       allItems = (result.Items ?? []) as Record<string, unknown>[];
       lastKey = result.LastEvaluatedKey;
 
@@ -235,8 +255,14 @@ export class V2UserListRepository {
         };
 
         try {
-          const fallbackResult = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(uppercaseParams));
-          let allItems = (fallbackResult.Items ?? []) as Record<string, unknown>[];
+          const fallbackResult = await sendDoc<QueryCommandOutput>(
+            docClient,
+            new QueryCommand(uppercaseParams),
+          );
+          let allItems = (fallbackResult.Items ?? []) as Record<
+            string,
+            unknown
+          >[];
 
           if (filters?.search) {
             allItems = applySearchFilter(allItems, filters.search);
@@ -245,7 +271,8 @@ export class V2UserListRepository {
           allItems = sortItems(allItems, sort);
 
           const paginatedItems = allItems.slice(0, limit);
-          const hasMore = allItems.length > limit || !!fallbackResult.LastEvaluatedKey;
+          const hasMore =
+            allItems.length > limit || !!fallbackResult.LastEvaluatedKey;
 
           let nextKey: Record<string, unknown> | undefined;
           if (hasMore && paginatedItems.length > 0) {
@@ -285,73 +312,115 @@ export class V2UserListRepository {
     sort?: V2UserListSort,
     correlationId?: string,
   ): Promise<V2UserListQueryResult> {
-    const logger = createChildLogger(baseLogger, { correlationId, doctorId, organizationId });
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      doctorId,
+      organizationId,
+    });
 
-    logger.info({ 
-      event: 'v2_doctor_patients_query_start', 
+    logger.info({
+      event: 'v2_doctor_patients_query_start',
       doctorId,
       organizationId,
       hasFilters: !!filters,
-      filters: filters ? {
-        hasSearch: !!filters.search,
-        hasUserTypes: !!filters.userTypes,
-        isActive: filters.isActive,
-        isRpmUser: filters.isRpmUser,
-      } : undefined,
-      pagination: pagination ? { limit: pagination.limit, hasCursor: !!pagination.cursor } : undefined,
+      filters: filters
+        ? {
+            hasSearch: !!filters.search,
+            hasUserTypes: !!filters.userTypes,
+            isActive: filters.isActive,
+            isRpmUser: filters.isRpmUser,
+          }
+        : undefined,
+      pagination: pagination
+        ? {
+            limit: pagination.limit,
+            hasCursor: !!pagination.cursor,
+          }
+        : undefined,
     });
 
-    const patientLinks: Array<{ patientId: string; patientOrgId?: string }> = [];
-    const linkPrefixes = ['ASSIGNEE#', 'DIETICIAN#', 'HEALTHCOACH#', 'CAREMANAGER#', 'SCD_LINK#'];
+    /**
+     * Only active prefixes currently supported.
+     * Removed:
+     * - DIETICIAN#
+     * - HEALTHCOACH#
+     * - CAREMANAGER#
+     */
+    const linkPrefixes = ['ASSIGNEE#', 'SCD_LINK#'];
 
     try {
-      for (const prefix of linkPrefixes) {
-        logger.debug({ 
-          event: 'v2_doctor_patients_query_prefix_start', 
-          prefix,
-          doctorId,
-        });
+      /**
+       * =========================================================
+       * STEP 1: FETCH LINKS IN PARALLEL
+       * =========================================================
+       */
 
-        const isScdLink = prefix === 'SCD_LINK#';
-        let lastKey: Record<string, unknown> | undefined;
-        let queryIteration = 0;
-        do {
-          queryIteration++;
-          const params: QueryCommandInput = {
-            TableName: USER_TABLE_NAME,
-            KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-            ExpressionAttributeValues: {
-              ':pk': `USER#${doctorId}`,
-              ':sk': prefix,
-            },
-            ...(lastKey && { ExclusiveStartKey: lastKey }),
-          };
+      const patientLinkMap = new Map<
+        string,
+        {
+          patientId: string;
+          patientOrgId?: string;
+        }
+      >();
 
-          // SCD_LINK records have no filter (matches old getDoctorPatientLinks)
-          // Other link types filter by sk1 <> INACTIVE (matches old getDoctorPatient)
-          if (!isScdLink) {
-            params.FilterExpression = 'attribute_not_exists(#sk1) OR #sk1 <> :inactive';
-            params.ExpressionAttributeNames = { '#sk1': 'sk1' };
-            params.ExpressionAttributeValues = {
-              ...params.ExpressionAttributeValues,
-              ':inactive': 'INACTIVE',
-            };
-          }
-
+      await Promise.all(
+        linkPrefixes.map(async (prefix) => {
           logger.debug({
-            event: 'v2_doctor_patients_link_query',
+            event: 'v2_doctor_patients_query_prefix_start',
             prefix,
-            queryIteration,
-            pk: params.ExpressionAttributeValues?.[':pk'],
-            skPrefix: params.ExpressionAttributeValues?.[':sk'],
-            hasExclusiveStartKey: !!lastKey,
-            isScdLink,
-            hasFilter: !!params.FilterExpression,
+            doctorId,
           });
 
-          try {
-            const response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
+          const isScdLink = prefix === 'SCD_LINK#';
+
+          let lastKey: Record<string, unknown> | undefined;
+          let queryIteration = 0;
+
+          do {
+            queryIteration++;
+
+            const params: QueryCommandInput = {
+              TableName: USER_TABLE_NAME,
+              KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+              ExpressionAttributeValues: {
+                ':pk': `USER#${doctorId}`,
+                ':sk': prefix,
+              },
+              ...(lastKey && {
+                ExclusiveStartKey: lastKey,
+              }),
+
+              /**
+               * Reduce payload size
+               */
+              ProjectionExpression: 'sk, patientOrgId, sk1',
+            };
+
+            /**
+             * Preserve existing behavior.
+             * SCD_LINK does not apply inactive filter.
+             */
+            if (!isScdLink) {
+              params.FilterExpression =
+                'attribute_not_exists(#sk1) OR #sk1 <> :inactive';
+
+              params.ExpressionAttributeNames = {
+                '#sk1': 'sk1',
+              };
+
+              params.ExpressionAttributeValues = {
+                ...params.ExpressionAttributeValues,
+                ':inactive': 'INACTIVE',
+              };
+            }
+
+            const response = await sendDoc<QueryCommandOutput>(
+              docClient,
+              new QueryCommand(params),
+            );
+
             const items = response.Items ?? [];
+
             lastKey = response.LastEvaluatedKey;
 
             logger.debug({
@@ -364,137 +433,133 @@ export class V2UserListRepository {
 
             for (const item of items) {
               const sk = String(item.sk ?? '');
-              const patientId = sk.includes('#') ? sk.split('#')[1] : sk;
-              
-              // For SCD_LINK, extract patientOrgId from the record (matches old implementation)
-              const patientOrgId = isScdLink && item.patientOrgId 
-                ? String(item.patientOrgId) 
-                : undefined;
-              
-              logger.debug({
-                event: 'v2_doctor_patients_extract_patient_id',
-                prefix,
-                sk,
-                extractedPatientId: patientId,
-                patientOrgId,
-                itemSk1: item.sk1,
-                isScdLink,
-              });
 
-              if (patientId) {
-                // Check if this patientId already exists (avoid duplicates)
-                const existingLink = patientLinks.find(link => link.patientId === patientId);
-                if (!existingLink) {
-                  patientLinks.push({ patientId, patientOrgId });
-                  logger.debug({
-                    event: 'v2_doctor_patients_patient_link_added',
-                    patientId,
-                    patientOrgId,
-                    totalLinks: patientLinks.length,
-                  });
-                }
+              const separatorIndex = sk.indexOf('#');
+
+              const patientId =
+                separatorIndex >= 0 ? sk.substring(separatorIndex + 1) : sk;
+
+              if (!patientId) {
+                continue;
+              }
+
+              /**
+               * Preserve existing SCD_LINK behavior.
+               */
+              const patientOrgId =
+                isScdLink && item.patientOrgId
+                  ? String(item.patientOrgId)
+                  : undefined;
+
+              /**
+               * O(1) duplicate handling.
+               */
+              if (!patientLinkMap.has(patientId)) {
+                patientLinkMap.set(patientId, {
+                  patientId,
+                  patientOrgId,
+                });
               }
             }
-          } catch (queryErr) {
-            logger.error({
-              event: 'v2_doctor_patients_link_query_error',
-              prefix,
-              queryIteration,
-              err: serializeError(queryErr),
-              params: {
-                pk: params.ExpressionAttributeValues?.[':pk'],
-                skPrefix: params.ExpressionAttributeValues?.[':sk'],
-              },
-            });
-            throw queryErr;
-          }
-        } while (lastKey);
+          } while (lastKey);
+        }),
+      );
 
-        logger.info({
-          event: 'v2_doctor_patients_prefix_complete',
-          prefix,
-          patientLinksFound: patientLinks.length,
-        });
-      }
+      const patientLinks = Array.from(patientLinkMap.values());
 
       logger.info({
         event: 'v2_doctor_patients_links_collected',
         totalPatientLinks: patientLinks.length,
-        patientLinks: patientLinks.slice(0, 10), // Log first 10 to avoid huge logs
       });
 
       if (patientLinks.length === 0) {
-        logger.info({
-          event: 'v2_doctor_patients_no_links_found',
-          doctorId,
-        });
-        return { items: [], lastEvaluatedKey: undefined };
+        return {
+          items: [],
+          lastEvaluatedKey: undefined,
+        };
       }
 
-      const patientUsers: Record<string, unknown>[] = [];
-      logger.info({
-        event: 'v2_doctor_patients_fetch_users_start',
-        totalPatientLinks: patientLinks.length,
-      });
+      /**
+       * =========================================================
+       * STEP 2: BATCH FETCH USERS
+       * =========================================================
+       */
 
-      for (let i = 0; i < patientLinks.length; i++) {
-        const link = patientLinks[i];
-        const patientId = link.patientId;
-        // Use patientOrgId from SCD_LINK record if available, otherwise use organizationId parameter
-        // This matches old implementation: getUserDataBatch(patientId, patientOrgId)
-        const patientOrgId = link.patientOrgId || organizationId;
-        
-        try {
-          logger.debug({
-            event: 'v2_doctor_patients_fetch_user_attempt',
-            patientId,
-            patientOrgId,
-            index: i + 1,
-            total: patientLinks.length,
-            organizationId,
-            usingLinkOrgId: !!link.patientOrgId,
-          });
-
-          const userResult = await sendDoc<QueryCommandOutput>(docClient,
-            new QueryCommand({
-              TableName: USER_TABLE_NAME,
-              KeyConditionExpression: 'pk = :pk AND sk = :sk',
-              ExpressionAttributeValues: {
-                ':pk': `ORG#${patientOrgId}`,
-                ':sk': `USER#${patientId}`,
+      const BATCH_SIZE = 100;
+      const chunks: typeof patientLinks[] = [];
+      for (
+        let i = 0;
+        i < patientLinks.length;
+        i += BATCH_SIZE
+      ) {
+        chunks.push(
+          patientLinks.slice(i, i + BATCH_SIZE),
+        );
+      }
+      
+      const batchPromises = chunks.map((chunk) => {
+        const keys = chunk.map((link) => ({
+          pk: `ORG#${
+            link.patientOrgId || organizationId
+          }`,
+          sk: `USER#${link.patientId}`,
+        }));
+      
+        return sendDoc<BatchGetCommandOutput>(
+          docClient,
+          new BatchGetCommand({
+            RequestItems: {
+              [USER_TABLE_NAME]: {
+                Keys: keys,
+      
+                /**
+                 * Only fetch fields required for listing.
+                 * Keeps response contract intact.
+                 */
+                ProjectionExpression: `
+                  pk,
+                  sk,
+                  userID,
+                  organizationID,
+                  firstName,
+                  lastName,
+                  fullName,
+                  email,
+                  phoneNumber,
+                  profilePic,
+                  userType,
+                  roleName,
+                  isActive,
+                  isRpmUser,
+                  createdDate
+                `,
               },
-              Limit: 1,
-            }),
-          );
-
-          if (userResult.Items && userResult.Items.length > 0) {
-            patientUsers.push(userResult.Items[0] as Record<string, unknown>);
-            logger.debug({
-              event: 'v2_doctor_patients_user_fetched',
-              patientId,
-              patientOrgId,
-              userFound: true,
-              totalFetched: patientUsers.length,
-            });
-          } else {
-            logger.debug({
-              event: 'v2_doctor_patients_user_not_found',
-              patientId,
-              patientOrgId,
-              organizationId,
-            });
-          }
-        } catch (err) {
-          logger.error({
-            event: 'v2_doctor_patients_fetch_user_error',
-            patientId,
-            patientOrgId,
-            index: i + 1,
-            total: patientLinks.length,
-            organizationId,
-            err: serializeError(err),
-          });
-        }
+            },
+          }),
+        );
+      });
+      
+      const batchResponses = await Promise.all(
+        batchPromises,
+      );
+      
+      const patientUsers: Record<
+        string,
+        unknown
+      >[] = [];
+      
+      for (const response of batchResponses) {
+        const users =
+          response.Responses?.[
+            USER_TABLE_NAME
+          ] ?? [];
+      
+        patientUsers.push(
+          ...(users as Record<
+            string,
+            unknown
+          >[]),
+        );
       }
 
       logger.info({
@@ -503,55 +568,72 @@ export class V2UserListRepository {
         totalUsersFetched: patientUsers.length,
       });
 
+      /**
+       * =========================================================
+       * STEP 3: FILTERING
+       * =========================================================
+       */
+
       let filteredUsers = patientUsers;
 
       if (filters?.search) {
-        const beforeCount = filteredUsers.length;
         filteredUsers = applySearchFilter(filteredUsers, filters.search);
-        logger.debug({
-          event: 'v2_doctor_patients_search_filter_applied',
-          searchTerm: filters.search,
-          beforeCount,
-          afterCount: filteredUsers.length,
-        });
       }
 
       if (typeof filters?.isActive === 'boolean') {
-        const beforeCount = filteredUsers.length;
         filteredUsers = filteredUsers.filter(
           (u) => u.isActive === filters.isActive,
         );
-        logger.debug({
-          event: 'v2_doctor_patients_isactive_filter_applied',
-          isActive: filters.isActive,
-          beforeCount,
-          afterCount: filteredUsers.length,
-        });
       }
 
       if (typeof filters?.isRpmUser === 'boolean') {
-        const beforeCount = filteredUsers.length;
         filteredUsers = filteredUsers.filter(
           (u) => u.isRpmUser === filters.isRpmUser,
         );
-        logger.debug({
-          event: 'v2_doctor_patients_isrpmuser_filter_applied',
-          isRpmUser: filters.isRpmUser,
-          beforeCount,
-          afterCount: filteredUsers.length,
-        });
       }
+
+      if (filters?.userTypes && filters.userTypes.length > 0) {
+        const allowedTypes = new Set(
+          filters.userTypes.map((t) => String(t).toLowerCase()),
+        );
+
+        filteredUsers = filteredUsers.filter((u) =>
+          allowedTypes.has(String(u.userType || '').toLowerCase()),
+        );
+      }
+
+      /**
+       * =========================================================
+       * STEP 4: SORTING
+       * =========================================================
+       */
 
       filteredUsers = sortItems(filteredUsers, sort);
 
+      /**
+       * =========================================================
+       * STEP 5: PAGINATION
+       * =========================================================
+       */
+
       const limit = pagination?.limit || 20;
+
       const paginatedItems = filteredUsers.slice(0, limit);
+
       const hasMore = filteredUsers.length > limit;
 
       let nextKey: Record<string, unknown> | undefined;
+
+      /**
+       * Preserve existing response contract.
+       */
       if (hasMore && paginatedItems.length > 0) {
         const lastItem = paginatedItems[paginatedItems.length - 1];
-        nextKey = { pk: lastItem.pk, sk: lastItem.sk };
+
+        nextKey = {
+          pk: lastItem.pk,
+          sk: lastItem.sk,
+        };
       }
 
       logger.info({
@@ -572,8 +654,8 @@ export class V2UserListRepository {
         doctorId,
         organizationId,
         err: serializeError(err),
-        patientLinksCount: patientLinks.length,
       });
+
       throw err;
     }
   }
@@ -586,12 +668,21 @@ export class V2UserListRepository {
     sort?: V2UserListSort,
     correlationId?: string,
   ): Promise<V2UserListQueryResult> {
-    const logger = createChildLogger(baseLogger, { correlationId, patientId, organizationId });
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      patientId,
+      organizationId,
+    });
 
     logger.info({ event: 'v2_patient_care_team_query_start', patientId });
 
     const careTeamIds: string[] = [];
-    const linkPrefixes = ['ASSIGNEE#', 'DIETICIAN#', 'HEALTHCOACH#', 'CAREMANAGER#'];
+    const linkPrefixes = [
+      'ASSIGNEE#',
+      'DIETICIAN#',
+      'HEALTHCOACH#',
+      'CAREMANAGER#',
+    ];
 
     for (const prefix of linkPrefixes) {
       let lastKey: Record<string, unknown> | undefined;
@@ -611,7 +702,10 @@ export class V2UserListRepository {
         };
 
         try {
-          const response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
+          const response = await sendDoc<QueryCommandOutput>(
+            docClient,
+            new QueryCommand(params),
+          );
           const items = response.Items ?? [];
           lastKey = response.LastEvaluatedKey;
 
@@ -639,7 +733,8 @@ export class V2UserListRepository {
     const careTeamUsers: Record<string, unknown>[] = [];
     for (const staffId of careTeamIds) {
       try {
-        const userResult = await sendDoc<QueryCommandOutput>(docClient,
+        const userResult = await sendDoc<QueryCommandOutput>(
+          docClient,
           new QueryCommand({
             TableName: USER_TABLE_NAME,
             KeyConditionExpression: 'pk = :pk AND sk = :sk',
@@ -699,7 +794,10 @@ export class V2UserListRepository {
     sort?: V2UserListSort,
     correlationId?: string,
   ): Promise<V2UserListQueryResult> {
-    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      organizationId,
+    });
 
     logger.info({ event: 'v2_staff_users_query_start', organizationId });
 
@@ -725,7 +823,10 @@ export class V2UserListRepository {
     sort?: V2UserListSort,
     correlationId?: string,
   ): Promise<V2UserListQueryResult> {
-    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+    const logger = createChildLogger(baseLogger, {
+      correlationId,
+      organizationId,
+    });
 
     logger.info({ event: 'v2_doctors_query_start', organizationId });
 

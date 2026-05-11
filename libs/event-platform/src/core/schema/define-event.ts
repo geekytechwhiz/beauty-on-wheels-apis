@@ -1,13 +1,8 @@
 import { z } from 'zod';
-export type EventTransport =
-  | 'eventbridge'
-  | 'sns'
-  | 'sqs';
 export type EventSchemaMeta = {
   eventType: string;
   eventVersion: string;
   source: string;
-  transport: EventTransport;
   correlationId?: string; 
 };
 

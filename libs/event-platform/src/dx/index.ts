@@ -1,4 +1,4 @@
-export { configureEventPlatform, type ConfigureEventPlatformOptions } from './configure-event-pladtform';
+export { configureEventDx, type ConfigureEventDxOptions } from './configure-event-dx';
 
 export { defineEvent, type EventSchemaMeta } from './define-event';
 export {

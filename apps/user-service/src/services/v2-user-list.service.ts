@@ -57,8 +57,8 @@ export class V2UserListService {
     queryFn: (pagination: { limit: number; cursor?: string | null }) => Promise<T>,
     requestedLimit: number | undefined,
     currentCursor?: string | null,
-    maxFetchLimit: number = 1000,
-    maxIterations: number = 1000,
+    maxFetchLimit = 1000,
+    maxIterations = 1000,
   ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const allFilteredItems: Record<string, unknown>[] = [];
     let currentPaginationCursor: string | null | undefined = currentCursor;

@@ -16,7 +16,7 @@ function now() {
 
 function buildMeta(options: ResponseOptions): Meta {
   return {
-    requestId: options.requestId,
+    correlationId: options.correlationId,
     timestamp: now(),
     version: 'v1',
   };
@@ -186,6 +186,26 @@ export class ApiResponse {
         message,
         data: null,
         error: error ?? { code: 'CONFLICT' },
+        meta: buildMeta(options),
+      },
+      options.headers
+    );
+  }
+
+  /** 409 with success envelope and populated `data` (e.g. idempotent create replay). */
+  static conflictWithData<T>(
+    data: T,
+    message: Message,
+    options: ResponseOptions,
+  ): APIGatewayProxyResult {
+    return createResponse(
+      409,
+      {
+        success: true,
+        statusCode: 409,
+        message,
+        data: normalizeData(data),
+        error: null,
         meta: buildMeta(options),
       },
       options.headers

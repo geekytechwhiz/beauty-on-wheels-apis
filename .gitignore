@@ -24,6 +24,9 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Cursor (local only)
+.cursor/settings.json
+
 # misc
 /.sass-cache
 /connect.lock
@@ -60,6 +63,11 @@ services/sso-integration/.env
 
 # Serverless build artifacts
 **/.serverless/
+apps/metadata-registry-service/.env
+
+# Ad-hoc zip exports (e.g. local packaging); not for Git — triggers GitHub file-size / push protection
+apps/template-service.zip
+apps/template-service/*.zip
 
 # Swagger generated files
 apps/user-service/swagger
@@ -78,4 +86,16 @@ api-endpoints-export.xlsx
 myVitalRx/
 # Only ignore top-level scripts/ (e.g. script outputs). App-specific scripts (e.g. device-service seed data) stay tracked.
 /scripts/
+!/scripts/
+!/scripts/rule-checker.js
 vite.config.*.timestamp*
+apps/template-service/.esbuild/
+apps/template-service/docs/
+apps/template-service/scripts/migrate-single-table-aux-data.mjs
+
+apps/metadata-registry-service.zip
+apps/metadata-registry-service/*.zip
+
+apps/metadata-registry-service/.esbuild/
+apps/alert-service/.esbuild/
+apps/alert-service/swagger/

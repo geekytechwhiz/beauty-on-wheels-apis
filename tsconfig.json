@@ -71,6 +71,30 @@
     },
     {
       "path": "./libs/service-clients"
+    },
+    {
+      "path": "./apps/alert-service"
+    },
+    {
+      "path": "./libs/metadata"
+    },
+    {
+      "path": "./libs/rule-engine"
+    },
+    {
+      "path": "./libs/alert-core"
+    },
+    {
+      "path": "./tools/eslint-mavrix"
+    },
+    {
+      "path": "./libs/event-platform"
+    },
+    {
+      "path": "./libs/observability"
+    },
+    {
+      "path": "./libs/middleware"
     }
   ]
 }

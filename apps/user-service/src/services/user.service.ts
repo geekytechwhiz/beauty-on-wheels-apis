@@ -695,6 +695,19 @@ export class UserService {
     }
   }
 
+  /** Parses numeric age from stored user records (number or legacy string). */
+  private safeNumber(value: any): number | undefined {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value === 'number' && !Number.isNaN(value)) return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') return undefined;
+      const n = Number(trimmed);
+      if (!Number.isNaN(n)) return n;
+    }
+    return undefined;
+  }
+
   /**
    * Safely converts a value to a boolean, returning false if conversion fails
    */
@@ -1051,6 +1064,7 @@ export class UserService {
       country: this.safeString(user.country),
       language: userKeys.includes('language') ? this.safeString(user.language) : this.safeString(defaultLanguage?.langCode || 'en'),
       dateOfBirth: this.safeString(user.dateOfBirth),
+      age: userKeys.includes('age') ? this.safeNumber(user.age) : undefined,
       address: this.safeString(user.address),
       allergies: Array.isArray(allergies) ? allergies : [],
       chiefMedicalIssue: this.safeString(chiefMedicalIssue),
@@ -1243,6 +1257,10 @@ export class UserService {
             updated.fullName ??
             updated.firstName ??
             '';
+          const profileTemplateData: Record<string, unknown> = {};
+          if (notifyEmail && profileChannels.includes('email')) {
+            profileTemplateData.FirstName = notifyName;
+          }
           await notifyUser({
             userId: updated.userID,
             email: notifyEmail || undefined,
@@ -1250,8 +1268,7 @@ export class UserService {
             name: notifyName,
             channels: profileChannels,
             template: 'PROFILE_UPDATED',
-            // PROFILE_UPDATED template in template.registry has no {{placeholders}}; empty is valid.
-            templateData: {},
+            templateData: profileTemplateData,
             correlationId,
           });
         } else {

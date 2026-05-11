@@ -21,7 +21,6 @@ export interface GetOrganizationOptions {
  * Use for service-to-service checks (e.g. create user validation) so organization remains source of truth.
  * Optional authHeader is forwarded for downstream authorization.
  */
-
 /**
  * Fetches organization details directly from DynamoDB (organization-table).
  * Use this in stream/event handlers that have no auth token available.

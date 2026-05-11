@@ -444,6 +444,7 @@ async function updateUser(
           setIfPresent(userData, 'heightInFeet', body.heightInFeet);
           setIfPresent(userData, 'country', body.country);
           setIfPresent(userData, 'dateOfBirth', body.dateOfBirth);
+          setIfPresent(userData, 'age', body.age);
           setIfPresent(userData, 'address', body.address);
           setIfPresent(userData, 'postalCode', body.postalCode);
           setIfPresent(userData, 'zip', body.zip);
@@ -780,6 +781,7 @@ async function updateUser(
     if (data.bio !== undefined) userData.bio = data.bio;
     if (data.gender !== undefined) userData.gender = data.gender;
     if (data.dateOfBirth !== undefined) userData.dateOfBirth = data.dateOfBirth;
+    if (data.age !== undefined) userData.age = data.age;
     if (data.specialty !== undefined) userData.specialty = data.specialty;
     if (data.department !== undefined) userData.department = data.department;
     if (data.licenseNumber !== undefined)

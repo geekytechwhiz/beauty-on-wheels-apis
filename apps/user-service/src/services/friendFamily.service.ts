@@ -79,7 +79,7 @@ export class FriendFamilyService {
     }
     const user = await userRepository.findUserByEmailOrPhoneInOrg(organizationID, email || undefined, phone || undefined);
     
-    console.log("USER: ", user);
+    // console.log("USER: ", user);
     if (!user) {
       // User not found: check inviter F&F limit before handler runs invite flow
       const inviterHasInvitee = await friendFamilyRepository.checkFriendFamily(userID);
@@ -151,7 +151,7 @@ export class FriendFamilyService {
     const memberUserType = String((memberDetails as any).userType ?? '').toUpperCase();
     const memberDefinedRole = String((memberDetails as any).definedRoleCode ?? '').toUpperCase();
     const memberRoleName = String((memberDetails as any).roleName ?? '').toUpperCase();
-    console.log("MEMBER ROLE NAME: ", memberRoleName);
+    // console.log("MEMBER ROLE NAME: ", memberRoleName);
     if (memberUserType === 'PATIENT' || memberDefinedRole === 'PATIENT' || memberRoleName === 'PATIENT') {
       logger.warn({ event: 'friend_family_add_member_is_patient', userId, memberId });
       throw new UserAlreadyExistsError((memberDetails as any).emailAddress ?? memberId);
@@ -236,7 +236,6 @@ export class FriendFamilyService {
     } else {
       logger.info({ event: 'friend_family_add_member_sms_skipped_no_phone', memberId });
     }
-
     logger.info({ event: 'friend_family_add_member_success' });
     return {
       userId,

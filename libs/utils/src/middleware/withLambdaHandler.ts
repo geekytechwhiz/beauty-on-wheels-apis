@@ -12,13 +12,14 @@ import {
 import { createdResponse, successResponse } from './response.middleware';
 import { handleError } from './error.middleware';
 import { Message } from '../types/core-types';
+import { ApiResponse } from '../helper/http-response.helpers';
 
 const baseLogger = createLogger({
   service: 'api-service',
   redactPII: true,
 });
 
-interface LambdaHandlerOptions {
+export interface LambdaHandlerOptions {
   validator?: (request: any) => void | Promise<void>;
   /** When true, respond with HTTP 201 Created instead of 200 OK */
   useCreated?: boolean;
@@ -86,14 +87,26 @@ export const withLambdaHandler =
 
       const duration = Date.now() - startTime;
 
+      const successStatus = options.useCreated ? 201 : 200;
+
       logHttpRequest(
         logger,
         method,
         path,
-        200,
+        successStatus,
         duration,
         correlationId
       );
+
+      const responseOptions = { requestId: correlationId, event };
+
+      if (options.successMessageKey) {
+        const messageKey = options.successMessageKey as unknown as Message;
+        if (options.useCreated) {
+          return ApiResponse.created(result, messageKey, responseOptions);
+        }
+        return ApiResponse.ok(result, messageKey, responseOptions);
+      }
 
       const successMessage: Message = {
         title: 'SUCCESS',

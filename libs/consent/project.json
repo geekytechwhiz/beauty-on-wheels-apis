@@ -3,5 +3,5 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/consent/src",
   "projectType": "library",
-  "tags": ["scope:consent", "type:lib", "allowed-for-app"]
+  "tags": ["scope:consent", "type:lib","type:shared"]
 }

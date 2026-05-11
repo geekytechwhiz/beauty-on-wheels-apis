@@ -7,13 +7,18 @@ import {
   BatchGetCommand,
   QueryCommandInput,
   UpdateCommandInput,
+  TransactWriteCommand,
+
   type GetCommandOutput,
   type PutCommandOutput,
   type UpdateCommandOutput,
   type DeleteCommandOutput,
   type QueryCommandOutput,
   type BatchGetCommandOutput,
+  type TransactWriteCommandInput,
+  type TransactWriteCommandOutput,
 } from "@aws-sdk/lib-dynamodb";
+
 
 import { ddbDocClient } from "../configs/db.config";
 import { sendDoc } from "../configs/dynamodb-send";
@@ -21,6 +26,7 @@ import {
   createLogger,
   createChildLogger,
 } from "@api-hub/logger";
+import { ConditionalWriteConflictError } from "../errors/app.error";
 
 const baseLogger = createLogger({
   service: "dynamo-repository",
@@ -49,23 +55,73 @@ export abstract class BaseRepository {
 
   }
 
+  protected async transactWrite(
+    params: TransactWriteCommandInput
+  ): Promise<void> {
+  
+    this.logger.debug({
+      event: 'dynamodb_transact_write',
+      tables: params.TransactItems?.length,
+    });
+  
+    await sendDoc<TransactWriteCommandOutput>(
+      ddbDocClient,
+      new TransactWriteCommand(params)
+    );
+  
+  }
+
   protected async put<T>(
     table: string,
     item: T,
     condition?: string
   ): Promise<void> {
-
-    this.logger.debug({ event: "dynamodb_put", table });
-
-    await sendDoc<PutCommandOutput>(
-      ddbDocClient,
-      new PutCommand({
-        TableName: table,
-        Item: item as Record<string, any>,
-        ConditionExpression: condition,
-      })
-    );
-
+  
+    this.logger.debug({
+      event: "dynamodb_put_attempt",
+      table,
+      hasCondition: !!condition,
+    });
+  
+    try {
+  
+      await sendDoc<PutCommandOutput>(
+        ddbDocClient,
+        new PutCommand({
+          TableName: table,
+          Item: item as Record<string, any>,
+          ConditionExpression: condition,
+        })
+      );
+  
+      this.logger.info({
+        event: "dynamodb_put_success",
+        table,
+      });
+  
+    } catch (err: any) {
+  
+      if (err.name === "ConditionalCheckFailedException") {
+  
+        this.logger.warn({
+          event: "dynamodb_conditional_check_failed",
+          table,
+          reason: "conditional_expression_failed",
+        });
+  
+        // 👇 IMPORTANT: rethrow a DOMAIN-SAFE error
+        throw new ConditionalWriteConflictError(err);
+  
+      }
+  
+      this.logger.error({
+        event: "dynamodb_put_failed",
+        table,
+        error: err.message,
+      });
+  
+      throw err;
+    }
   }
 
   protected async update(params: UpdateCommandInput): Promise<void> {
@@ -116,6 +172,29 @@ export abstract class BaseRepository {
     );
 
     return (result.Items as T[]) || [];
+
+  }
+
+  /** Single DynamoDB Query page; preserves {@link QueryCommandOutput.LastEvaluatedKey} for pagination. */
+  protected async queryPage<T>(
+    params: QueryCommandInput
+  ): Promise<{ items: T[]; lastEvaluatedKey?: Record<string, unknown> }> {
+
+    this.logger.debug({
+      event: "dynamodb_query_page",
+      table: params?.TableName,
+      index: params?.IndexName,
+    });
+
+    const result = await sendDoc<QueryCommandOutput>(
+      ddbDocClient,
+      new QueryCommand(params)
+    );
+
+    return {
+      items: (result.Items as T[]) || [],
+      lastEvaluatedKey: result.LastEvaluatedKey as Record<string, unknown> | undefined,
+    };
 
   }
 

@@ -379,9 +379,6 @@ components:
         `valueDataType`, `multiSelectAllowed`, `status` (ACTIVE|INACTIVE). `applicableModules` is optional (empty or omitted
         means the type is not restricted to specific platform modules — stored as `[]`).
         `description` and `attributeSchema` are optional. **Updates** may send a partial body; see `MetadataTypeCreateInput`
-        for the strict create contract. Version and audit timestamps are system-owned on the stored record.
-      required: [metadataTypeCode]
-      properties:
         metadataTypeCode:
           type: string
           pattern: '^[A-Z][A-Za-z0-9]*$'
@@ -389,10 +386,7 @@ components:
         displayName:
           type: string
           maxLength: 100
-        description: { type: string }
         valueDataType:
-          type: string
-          enum: [Enum, Numeric, Boolean, Text]
         multiSelectAllowed: { type: boolean }
         applicableModules:
           type: array

@@ -1,0 +1,44 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "emitDeclarationOnly": false,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "declaration": true,
+    /* Override base `paths`: listing only deps used by this package avoids TS including
+       unrelated workspace libs (e.g. alert-core) as compilation roots under `rootDir: src`. */
+    "paths": {
+      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/middleware": ["libs/middleware/src/index.ts"],
+      "@api-hub/observability": ["libs/observability/src/index.ts"],
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
+      "@api-hub/event-platform/dx": ["libs/event-platform/src/dx/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "references": [
+    {
+      "path": "../logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../middleware/tsconfig.lib.json"
+    }
+  ],
+  "exclude": [
+    "jest.config.ts",
+    "jest.config.cts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ]
+}

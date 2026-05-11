@@ -1,0 +1,131 @@
+version: 0.2
+
+env:
+  variables:
+    STAGE: 'prd'
+    DEPLOYMENT_BUCKET: 'prd-mvx-alert-service-bucket'
+    STACK_NAME: 'prd-alert-service'
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - npm install -g serverless@3 --force
+      - npm install --legacy-peer-deps
+
+  build:
+    commands:
+      - cd apps/alert-service
+      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+      - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
+
+      - |
+        if [ -f .serverless/cloudformation-template-update-stack.json ]; then
+          TEMPLATE=".serverless/cloudformation-template-update-stack.json"
+        elif [ -f .serverless/cloudformation-template-create-stack.json ]; then
+          TEMPLATE=".serverless/cloudformation-template-create-stack.json"
+        else
+          echo "ERROR: No CloudFormation template found in .serverless"
+          ls -la .serverless || true
+          exit 1
+        fi
+        aws cloudformation package \
+          --template-file "$TEMPLATE" \
+          --s3-bucket "$DEPLOYMENT_BUCKET" \
+          --output-template-file packaged.yaml \
+          --force-upload
+
+      # 4) debug: what keys did CF bake in?
+      - echo "🔍 Raw S3Key lines in packaged.yaml:"
+      - grep 'S3Key' packaged.yaml || true
+      - |
+        node <<'NODE' > .serverless/s3keys.txt
+        const fs = require('fs');
+        const template = fs.readFileSync('packaged.yaml', 'utf8');
+        const keys = new Set();
+        const s3KeyPattern = /["']?S3Key["']?\s*:\s*["']?([^"',\s}]+)["']?/g;
+
+        for (const match of template.matchAll(s3KeyPattern)) {
+          keys.add(match[1]);
+        }
+
+        for (const key of keys) {
+          console.log(key);
+        }
+        NODE
+      - echo "🔍 Extracted non-empty S3 keys:"
+      - cat .serverless/s3keys.txt
+      - |
+        if [ ! -s .serverless/s3keys.txt ]; then
+          echo "ERROR: No S3Key entries found in packaged.yaml; Lambda artifacts would not be uploaded."
+          exit 1
+        fi
+
+      # 5) debug: do they exist?
+      - echo "🔑 Verifying each baked-in key exists:"
+      - |
+        while read key; do
+              if [ -z "$key" ]; then
+                echo "WARN: empty S3 key extracted, skipping"
+                continue
+              fi
+              printf " → %-80s " "$key"
+              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
+                echo "FOUND"
+              else
+                echo "MISSING!"
+              fi
+            done < .serverless/s3keys.txt
+
+      - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
+      - |
+        while read key; do
+              if [ -z "$key" ]; then
+                echo "WARN: empty S3 key extracted, skipping upload"
+                continue
+              fi
+              name=$(basename "$key")
+              if [ -f ".serverless/$name" ]; then
+                echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
+                aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
+              else
+                echo "ERROR: local artifact missing (.serverless/$name), cannot upload $key"
+                exit 1
+              fi
+            done < .serverless/s3keys.txt
+
+      - echo "➤ Verifying upload…"
+      - |
+        missing=0
+        while read key; do
+          if [ -z "$key" ]; then
+            continue
+          fi
+
+          printf " → %-80s " "$key"
+          if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
+            echo "FOUND"
+          else
+            echo "MISSING!"
+            missing=1
+          fi
+        done < .serverless/s3keys.txt
+
+        if [ "$missing" -ne 0 ]; then
+          echo "ERROR: One or more Lambda artifacts are missing in s3://$DEPLOYMENT_BUCKET."
+          exit 1
+        fi
+
+  post_build:
+    commands:
+      - echo "✅ Build done, artifacts ready in packaged.yaml"
+
+artifacts:
+  files:
+    - apps/alert-service/packaged.yaml
+  discard-paths: no
+
+cache:
+  paths:
+    - node_modules/**/*

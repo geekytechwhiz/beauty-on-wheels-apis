@@ -7,27 +7,39 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node", "vite/client"]
+    "types": [
+      "node",
+      "vite/client"
+    ],
+    "declaration": true
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
     {
-      "path": "../terminology/tsconfig.lib.json"
-    },
-    {
-      "path": "../canonical/tsconfig.lib.json"
-    },
-    {
-      "path": "../auth/tsconfig.lib.json"
-    },
-    {
-      "path": "../scope-mapping/tsconfig.lib.json"
+      "path": "../access-audit/tsconfig.lib.json"
     },
     {
       "path": "../consent/tsconfig.lib.json"
     },
     {
-      "path": "../access-audit/tsconfig.lib.json"
+      "path": "../auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../logger/tsconfig.lib.json"
+    },
+    {
+      "path": "../terminology/tsconfig.lib.json"
+    },
+    {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../scope-mapping/tsconfig.lib.json"
+    },
+    {
+      "path": "../canonical/tsconfig.lib.json"
     }
   ]
 }

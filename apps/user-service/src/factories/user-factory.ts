@@ -153,7 +153,7 @@ export class UserFactory {
 
       gender: input.gender,
       dateOfBirth: input.dateOfBirth,
-
+      age: input.age,
       emailAddress: this.normalizeEmail(input.emailAddress),
       phoneNumber: this.normalizePhone(input.phoneNumber),
       phoneCode: input.phoneCode?.trim(),
@@ -263,7 +263,7 @@ export class UserFactory {
       bio: input.bio,
 
       code: input.code,
-
+      age: input.age,
       slotDurationInMinutes: input.slotDurationInMinutes || 15,
 
       workingHours: input.workingHours,
@@ -327,7 +327,7 @@ export class UserFactory {
       relationship: input.relationship,
 
       emergencyContact: input.emergencyContact,
-
+      age: input.age,
       manageHealth: input.manageHealth || false,
 
       isActive: true,

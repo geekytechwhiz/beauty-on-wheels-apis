@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-const metadataTypeCodeRegex = /^[A-Z][A-Za-z0-9]*$/;
-const metadataValueCodeRegex = /^[A-Z0-9]+(_[A-Z0-9]+)*$/;
+import { METADATA_TYPE_CODE_PATTERN, METADATA_VALUE_CODE_PATTERN } from './code-patterns';
 
 const contextSchema = z.object({
   module: z.string().min(1),
@@ -12,12 +11,12 @@ const contextSchema = z.object({
 
 /** Create metadata type — required fields match product definition (displayName max 100, status ACTIVE|INACTIVE). */
 export const createMetadataTypeSchema = z.object({
-  metadataTypeCode: z.string().regex(metadataTypeCodeRegex, 'Invalid metadataTypeCode'),
+  metadataTypeCode: z.string().regex(METADATA_TYPE_CODE_PATTERN, 'Invalid metadataTypeCode'),
   displayName: z.string().min(1).max(100),
   description: z.string().optional(),
   valueDataType: z.enum(['Enum', 'Numeric', 'Boolean', 'Text']),
   multiSelectAllowed: z.boolean(),
-  applicableModules: z.array(z.string()).min(1),
+  applicableModules: z.array(z.string()).optional(),
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']),
   createdBy: z.string().optional(),
@@ -40,8 +39,8 @@ const applicabilityObjectSchema = z.object({
 /** Aligns with POST /metadata-types/{metadataTypeCode}/values body (MetadataValueInput). */
 export const createMetadataValueSchema = z
   .object({
-    valueCode: z.string().regex(metadataValueCodeRegex, 'Invalid valueCode').optional(),
-    metadataValueCode: z.string().regex(metadataValueCodeRegex, 'Invalid metadataValueCode').optional(),
+    valueCode: z.string().regex(METADATA_VALUE_CODE_PATTERN, 'Invalid valueCode').optional(),
+    metadataValueCode: z.string().regex(METADATA_VALUE_CODE_PATTERN, 'Invalid metadataValueCode').optional(),
     label: z.string().min(1).max(150),
     description: z.string().max(2000).optional(),
     sortOrder: z.number().int().min(0).optional(),
@@ -94,12 +93,12 @@ export const listMetadataAuditQuerySchema = z.object({
 });
 
 export const listMetadataTypeAuditParamsSchema = z.object({
-  metadataTypeCode: z.string().regex(metadataTypeCodeRegex, 'Invalid metadataTypeCode'),
+  metadataTypeCode: z.string().regex(METADATA_TYPE_CODE_PATTERN, 'Invalid metadataTypeCode'),
 });
 
 export const listMetadataValueAuditParamsSchema = z.object({
-  metadataTypeCode: z.string().regex(metadataTypeCodeRegex, 'Invalid metadataTypeCode'),
-  metadataValueCode: z.string().regex(metadataValueCodeRegex, 'Invalid metadataValueCode'),
+  metadataTypeCode: z.string().regex(METADATA_TYPE_CODE_PATTERN, 'Invalid metadataTypeCode'),
+  metadataValueCode: z.string().regex(METADATA_VALUE_CODE_PATTERN, 'Invalid metadataValueCode'),
 });
 
 /** Path params for routes under /metadata-types/{metadataTypeCode}/… */

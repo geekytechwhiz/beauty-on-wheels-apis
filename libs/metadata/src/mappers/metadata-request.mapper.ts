@@ -4,6 +4,7 @@ import { STATUS } from '../constants';
 import type {
   Applicability,
   MetadataTypeInput,
+  MetadataTypeRecord,
   MetadataValueInput,
   MetadataValueRecord,
   Status,
@@ -32,12 +33,16 @@ function normalizeMetadataTypeStatus(raw: unknown): Status | undefined {
   return raw as Status;
 }
 
-/** Coerce request status to `ACTIVE` | `INACTIVE` (uppercase). */
+/**
+ * Coerce request status to `ACTIVE` | `INACTIVE` (uppercase). Unknown non-empty values are
+ * passed through (uppercased) so the downstream validator can reject them with the proper
+ * "must be ACTIVE or INACTIVE" error instead of a misleading "required".
+ */
 function normalizeMetadataValueStatus(raw: unknown): Status | undefined {
   if (raw === undefined || raw === null) return undefined;
   const upper = String(raw).trim().toUpperCase();
-  if (upper === STATUS.ACTIVE || upper === STATUS.INACTIVE) return upper;
-  return undefined;
+  if (upper === '') return undefined;
+  return upper as Status;
 }
 
 /**
@@ -62,34 +67,97 @@ function normalizeApplicableModuleToken(raw: string): string {
   return t;
 }
 
+function hasOwnKey(o: object, k: string): boolean {
+  return Object.prototype.hasOwnProperty.call(o, k);
+}
+
 /**
  * Maps legacy / alternate request shapes to {@link MetadataTypeInput}
  * (`name` → `displayName`, `datatype` → `valueDataType`, `module` string → `applicableModules`).
+ *
+ * **Only keys present on the request body are emitted** (after alias resolution). Omitted fields must not
+ * appear as `undefined` values — that prevented PATCH-style merges from distinguishing "not sent" from
+ * `"field": null` or empty overrides downstream.
  */
 export function normalizeMetadataTypeInput(
   body: MetadataTypeInput & Record<string, unknown>,
 ): MetadataTypeInput {
-  const displayName = (body.displayName ?? body.name) as string | undefined;
-  const valueDataType = (body.valueDataType ?? body.datatype) as string | undefined;
-  const fromModule = body.module !== undefined ? [String(body.module)] : undefined;
-  const rawModules = (body.applicableModules ?? fromModule) as string[] | undefined;
-  const applicableModules =
-    rawModules === undefined ? undefined : rawModules.map(normalizeApplicableModuleToken);
-  const lastModifiedBy = (body.lastModifiedBy ?? body.updatedBy) as string | undefined;
-  const status = normalizeMetadataTypeStatus(body.status);
+  const out: MetadataTypeInput = {
+    metadataTypeCode: String(body.metadataTypeCode),
+  };
+
+  if (hasOwnKey(body, 'displayName') || hasOwnKey(body, 'name')) {
+    const raw = hasOwnKey(body, 'displayName') ? body.displayName : body.name;
+    out.displayName = raw as string | undefined;
+  }
+  if (hasOwnKey(body, 'description')) {
+    out.description = body.description as string | undefined;
+  }
+  if (hasOwnKey(body, 'valueDataType') || hasOwnKey(body, 'datatype')) {
+    out.valueDataType = (body.valueDataType ?? body.datatype) as string | undefined;
+  }
+  if (hasOwnKey(body, 'multiSelectAllowed')) {
+    out.multiSelectAllowed = body.multiSelectAllowed as boolean | undefined;
+  }
+  if (hasOwnKey(body, 'applicableModules')) {
+    const raw = body.applicableModules as string[] | null | undefined;
+    if (raw === null) {
+      out.applicableModules = null as unknown as string[];
+    } else if (raw !== undefined) {
+      out.applicableModules = raw.map(normalizeApplicableModuleToken);
+    }
+  } else if (hasOwnKey(body, 'module')) {
+    out.applicableModules = [normalizeApplicableModuleToken(String(body.module))];
+  }
+  if (hasOwnKey(body, 'valueApplicabilityConfig')) {
+    out.valueApplicabilityConfig = body.valueApplicabilityConfig as MetadataTypeInput['valueApplicabilityConfig'];
+  }
+  if (hasOwnKey(body, 'attributeSchema')) {
+    out.attributeSchema = body.attributeSchema as Record<string, unknown> | undefined;
+  }
+  if (hasOwnKey(body, 'status')) {
+    if (body.status === null) {
+      out.status = null as unknown as Status;
+    } else {
+      const s = normalizeMetadataTypeStatus(body.status);
+      if (s !== undefined) {
+        out.status = s;
+      }
+    }
+  }
+  if (hasOwnKey(body, 'createdBy')) {
+    out.createdBy = body.createdBy as string | undefined;
+  }
+  if (hasOwnKey(body, 'lastModifiedBy') || hasOwnKey(body, 'updatedBy')) {
+    out.lastModifiedBy = (body.lastModifiedBy ?? body.updatedBy) as string | undefined;
+  }
+
+  return out;
+}
+
+/**
+ * PATCH-style merge for metadata type updates. Overwrites an existing field only when the patch
+ * carries an explicit value (`!== undefined`). `null` is explicit and overwrites for downstream validation.
+ */
+export function mergeMetadataTypeForUpdate(
+  existing: MetadataTypeRecord,
+  patch: MetadataTypeInput,
+): MetadataTypeInput {
+  const pick = <T, U extends T | undefined>(next: U, prev: T): T | U =>
+    next !== undefined ? next : prev;
 
   return {
-    metadataTypeCode: body.metadataTypeCode,
-    displayName,
-    description: body.description,
-    valueDataType,
-    multiSelectAllowed: body.multiSelectAllowed,
-    applicableModules,
-    valueApplicabilityConfig: body.valueApplicabilityConfig,
-    attributeSchema: body.attributeSchema,
-    status,
-    createdBy: body.createdBy,
-    lastModifiedBy,
+    metadataTypeCode: existing.metadataTypeCode,
+    displayName: pick(patch.displayName, existing.displayName),
+    description: pick(patch.description, existing.description),
+    valueDataType: pick(patch.valueDataType, existing.valueDataType),
+    multiSelectAllowed: pick(patch.multiSelectAllowed, existing.multiSelectAllowed),
+    applicableModules: pick(patch.applicableModules, existing.applicableModules),
+    valueApplicabilityConfig: pick(patch.valueApplicabilityConfig, existing.valueApplicabilityConfig),
+    attributeSchema: pick(patch.attributeSchema, existing.attributeSchema),
+    status: pick(patch.status, existing.status),
+    createdBy: pick(patch.createdBy, existing.createdBy),
+    lastModifiedBy: pick(patch.lastModifiedBy, existing.lastModifiedBy),
   };
 }
 
@@ -100,6 +168,10 @@ export function normalizeMetadataTypeInput(
  *
  * When `existing` is set (update path), fields omitted in the request keep the stored value; applicability
  * is only replaced when the body explicitly includes `applicability` or any `applicable*` flat key.
+ *
+ * **`label`:** When the `label` key is absent, the previous label is preserved on update. When `label` is
+ * present (including `""`, whitespace-only, or `null`), the raw value is forwarded for validation — invalid
+ * explicit updates are not silently replaced with the stored label.
  */
 export function normalizeMetadataValueInput(
   body: MetadataValueInput & Record<string, unknown>,
@@ -126,12 +198,28 @@ export function normalizeMetadataValueInput(
     ? existing!.applicability
     : mapFlatAndNestedToApplicability(raw, body.applicability as Applicability | undefined);
 
-  const resolvedStatus = normalizeMetadataValueStatus(body.status) ?? existing?.status;
+  // Status is required on every write (create + update). Do NOT fall back to `existing?.status`
+  // — silent inheritance let omitted-status updates persist whatever the previous version was
+  // (often INACTIVE), which is not the desired contract. Validator will reject undefined.
+  const resolvedStatus = normalizeMetadataValueStatus(body.status);
 
-  const label =
-    body.label !== undefined && body.label !== null && String(body.label).trim() !== ''
-      ? String(body.label)
-      : (existing?.label ?? '');
+  // Label: distinguish "key omitted" (PATCH: preserve existing) from "explicit empty/null" (invalid).
+  // Passing explicit null/""/whitespace through lets validateMetadataValueInput surface a 400.
+  let label: string;
+  if (hasOwnKey(raw, 'label')) {
+    const lv = raw.label;
+    if (lv === null) {
+      label = null as unknown as string;
+    } else if (lv === undefined) {
+      label = '';
+    } else {
+      label = String(lv);
+    }
+  } else if (existing) {
+    label = existing.label;
+  } else {
+    label = '';
+  }
 
   const result: MetadataValueInput = {
     valueCode,

@@ -9,7 +9,7 @@ import {
   logHttpRequest,
 } from '@api-hub/logger';
 
-import { successResponse } from './response.middleware';
+import { createdResponse, successResponse } from './response.middleware';
 import { handleError } from './error.middleware';
 import { Message } from '../types/core-types';
 import { ApiResponse } from '../helper/http-response.helpers';
@@ -21,13 +21,7 @@ const baseLogger = createLogger({
 
 export interface LambdaHandlerOptions {
   validator?: (request: any) => void | Promise<void>;
-  /**
-   * CDN message key (e.g. MODULE.MESSAGE_CODE) for success responses.
-   * When set, uses ApiResponse.ok/created with `{ requestId, event }` for i18n.
-   * When omitted, uses {@link successResponse} with a generic Message.
-   */
-  successMessageKey?: string;
-  /** When true, success uses HTTP 201 with {@link ApiResponse.created}. */
+  /** When true, respond with HTTP 201 Created instead of 200 OK */
   useCreated?: boolean;
 }
 
@@ -123,11 +117,8 @@ export const withLambdaHandler =
       /**
        * Response middleware
        */
-      return successResponse(
-        result,
-        successMessage,
-        { correlationId }
-      );
+      const respond = options.useCreated ? createdResponse : successResponse;
+      return respond(result, successMessage, { correlationId });
 
     } catch (error: any) {
 

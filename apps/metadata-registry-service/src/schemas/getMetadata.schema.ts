@@ -1,4 +1,9 @@
-import { parseGetEntityStatusMode, ValidationError } from '@api-hub/metadata';
+import {
+  assertRegistryEntityKind,
+  assertRegistryPathCodesForKind,
+  extractRegistryEntityPath,
+  parseGetEntityStatusMode,
+} from '@api-hub/metadata';
 import { z } from 'zod';
 
 export const getMetadataSchema = z
@@ -9,43 +14,17 @@ export const getMetadataSchema = z
   .transform((req) => {
     const q = req.params ?? {};
     const p = req.pathParameters ?? {};
-    const entityTypeRaw = (q.entityType ?? p.entityType ?? '').trim();
-    const kind = entityTypeRaw.toLowerCase();
-    const metadataTypeCode = (q.metadataTypeCode ?? p.metadataTypeCode ?? '').trim();
-    const valueCode = (
-      q.metadataValueCode ??
-      q.valueCode ??
-      p.metadataValueCode ??
-      ''
-    ).trim();
+    const extracted = extractRegistryEntityPath(q, p);
     const mode = parseGetEntityStatusMode(q);
-    return { entityTypeRaw, kind, metadataTypeCode, valueCode, mode };
+    return { ...extracted, mode };
   })
   .superRefine((data) => {
-    if (!data.entityTypeRaw) {
-      throw new ValidationError('entityType is required in path', [{ field: 'entityType', message: 'Required' }]);
-    }
-    if (data.kind === 'type') {
-      if (!data.metadataTypeCode) {
-        throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
-      }
-      return;
-    }
-    if (data.kind === 'value') {
-      if (!data.metadataTypeCode) {
-        throw new ValidationError('metadataTypeCode is required', [{ field: 'metadataTypeCode', message: 'Required' }]);
-      }
-      if (!data.valueCode) {
-        throw new ValidationError('metadataValueCode is required', [{ field: 'metadataValueCode', message: 'Required' }]);
-      }
-      return;
-    }
-    throw new ValidationError('entityType must be "type" or "value"', [
-      { field: 'entityType', message: 'Must be "type" or "value"' },
-    ]);
+    const kind = assertRegistryEntityKind(data.entityTypeRaw);
+    assertRegistryPathCodesForKind(kind, data.metadataTypeCode, data.valueCode, 'get');
   })
   .transform((data) => {
-    if (data.kind === 'type') {
+    const kind = data.kind;
+    if (kind === 'type') {
       return {
         entityType: 'type' as const,
         metadataTypeCode: data.metadataTypeCode,

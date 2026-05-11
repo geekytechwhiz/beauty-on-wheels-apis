@@ -1,5 +1,6 @@
 import {
   STATUS,
+  resolveStatusMode,
   validateMetadataTypeInput,
   type MetadataTypeInput,
   normalizeMetadataTypeInput,
@@ -31,7 +32,7 @@ describe('normalizeMetadataTypeInput', () => {
       ...base,
       applicableModules: ['CarePlan', 'OKR', 'Alert'],
       status: 'Active',
-    } as MetadataTypeInput & Record<string, unknown>);
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
 
     expect(normalized.status).toBe(STATUS.ACTIVE);
     expect(normalized.applicableModules).toEqual(['CARE_PLAN', 'OKR', 'ALERT']);
@@ -43,7 +44,7 @@ describe('normalizeMetadataTypeInput', () => {
       ...base,
       applicableModules: ['OKR'],
       status: 'inactive',
-    } as MetadataTypeInput & Record<string, unknown>);
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
     expect(normalized.status).toBe(STATUS.INACTIVE);
     expect(() => validateMetadataTypeInput(normalized, false)).not.toThrow();
   });
@@ -53,8 +54,16 @@ describe('normalizeMetadataTypeInput', () => {
       ...base,
       applicableModules: ['CARE_PLAN', 'OKR'],
       status: 'ACTIVE',
-    } as MetadataTypeInput & Record<string, unknown>);
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
     expect(normalized.applicableModules).toEqual(['CARE_PLAN', 'OKR']);
+  });
+
+  it('does not emit undefined keys for PATCH-style partial bodies (merge-friendly)', () => {
+    const normalized = normalizeMetadataTypeInput({
+      metadataTypeCode: 'SampleType',
+      status: 'ACTIVE',
+    } as unknown as MetadataTypeInput & Record<string, unknown>);
+    expect(Object.keys(normalized).sort()).toEqual(['metadataTypeCode', 'status'].sort());
   });
 });
 
@@ -108,5 +117,29 @@ describe('parseListEntityStatusMode', () => {
     expect(parseListEntityStatusMode({})).toBe('active');
     expect(parseListEntityStatusMode({ status: 'INACTIVE' })).toBe('inactive');
     expect(parseListEntityStatusMode({ 'include-inactive': 'true' })).toBe('all');
+  });
+
+  it('includeInactive overrides status=ACTIVE', () => {
+    expect(parseListEntityStatusMode({ status: 'ACTIVE', includeInactive: 'true' })).toBe('all');
+  });
+
+  it('accepts lowercase inactive', () => {
+    expect(parseListEntityStatusMode({ status: 'inactive' })).toBe('inactive');
+  });
+});
+
+describe('resolveStatusMode', () => {
+  const base = { entityType: 'type' as const, metadataTypeCode: 'X', includeInactive: false };
+
+  it('active when no status', () => {
+    expect(resolveStatusMode(base)).toBe('active');
+  });
+
+  it('inactive when status INACTIVE', () => {
+    expect(resolveStatusMode({ ...base, status: STATUS.INACTIVE })).toBe('inactive');
+  });
+
+  it('both when includeInactive regardless of status', () => {
+    expect(resolveStatusMode({ ...base, includeInactive: true, status: STATUS.ACTIVE })).toBe('all');
   });
 });

@@ -1,4 +1,4 @@
-import { ValidationError } from '@api-hub/metadata';
+import { ValidationError, decodeRelationId } from '@api-hub/metadata';
 import { z } from 'zod';
 
 export const patchRelationSchema = z
@@ -19,8 +19,16 @@ export const patchRelationSchema = z
     };
   })
   .superRefine((data) => {
-    if (!data.id) {
+    if (!data.id.trim()) {
       throw new ValidationError('id is required', [{ field: 'id', message: 'Required' }]);
+    }
+  })
+  .transform((data) => {
+    try {
+      const { pk, sk } = decodeRelationId(data.id.trim());
+      return { pk, sk, userId: data.userId };
+    } catch {
+      throw new ValidationError('Invalid relation id', [{ field: 'id', message: 'Invalid' }]);
     }
   });
 

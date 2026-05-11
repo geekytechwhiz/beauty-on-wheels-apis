@@ -14,15 +14,20 @@ function intersects(filterVals: string[] | undefined, valueVals: string[] | unde
 
 /**
  * Applies Figma / requirements filter: OR within field, AND across fields.
- * `isGlobal` values always pass applicability checks; status still applies unless overridden.
+ * `isGlobal` values always pass applicability checks.
+ * When `defaultStatus` is `null`, do not constrain by record status unless `filter.status` is set.
  */
 export function matchesSearchFilter(
   value: MetadataValueRecord,
   filter: ValueSearchFilter,
-  defaultStatus: Status = STATUS.ACTIVE,
+  defaultStatus: Status | null = STATUS.ACTIVE,
 ): boolean {
-  const statusFilter = (filter.status as Status | undefined) ?? defaultStatus;
-  if (value.status !== statusFilter) {
+  if (defaultStatus !== null) {
+    const statusFilter = (filter.status as Status | undefined) ?? defaultStatus;
+    if (value.status !== statusFilter) {
+      return false;
+    }
+  } else if (filter.status !== undefined && value.status !== filter.status) {
     return false;
   }
 

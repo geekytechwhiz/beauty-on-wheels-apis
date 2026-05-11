@@ -6,10 +6,14 @@ import type { Status } from '../models/types';
 export interface ListMetadataInput {
   entityType: 'type' | 'value';
   metadataTypeCode: string;
+  /** Present only when using cursor pagination (or with `nextPaginationKey`). */
+  limit?: number;
+  nextPaginationKey?: string;
   module?: string;
   valueDataType?: string;
-  statusMode?: string;
-  status: Status;
+  /** Omitted → ACTIVE-only; `INACTIVE` → inactive-only; `includeInactive` wins when true. */
+  status?: Status;
+  includeInactive: boolean;
   applicableModules?: string[];
   applicableCategories?: string[];
   applicableConditions?: string[];

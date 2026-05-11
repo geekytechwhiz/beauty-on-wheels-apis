@@ -4,5 +4,5 @@ import { inactivateRelationById } from '../services/relationService';
 
 export const main = withLambdaHandler(async (req) => {
   const input = patchRelationSchema.parse(req);
-  return inactivateRelationById(input.id, input.userId);
+  return inactivateRelationById(input.pk, input.sk, input.userId);
 });

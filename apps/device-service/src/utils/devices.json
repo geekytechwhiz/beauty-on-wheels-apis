@@ -1007,7 +1007,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 24,
               "deviceDetails": "deviceDetails_bp2941",
               "supportedVitals": [
                 "bloodPressure",
@@ -1283,7 +1283,7 @@
               "externalVideoLink": "",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 12,
+              "templateId": 27,
               "deviceDetails": "deviceDetails_CS20Q_weighing_scale",
               "supportedVitals": [
                 "bodyComposition",
@@ -1324,7 +1324,7 @@
               "externalVideoLink": "",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 16,
+              "templateId": 26,
               "deviceDetails": "deviceDetails_CS10B_weighing_scale",
               "supportedVitals": [
                 "bodyComposition",
@@ -1531,7 +1531,7 @@
               "externalVideoLink": "",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 6,
+              "templateId": 23,
               "deviceDetails": "deviceDetails_p300_intelli_it",
               "supportedVitals": [
                 "oximeter",
@@ -1655,7 +1655,7 @@
               "externalVideoLink": "",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 17,
+              "templateId": 25,
               "deviceDetails": "deviceDetails_tracky_thermometer",
               "supportedVitals": [
                 "bodyTemperature"
@@ -2059,8 +2059,8 @@
               "supportsUserAuthentication": true,
               "requiresPairing": true,
               "enabled": true,
-              "isAutoSyncSupported": true,
-              "autoSyncDelay": 60000,
+              "isAutoSyncSupported": false,
+              "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/Gluco-BG5S.png",
               "externalVideoLink": "OMRON connect US/CAN App iOS Pairing Video",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",

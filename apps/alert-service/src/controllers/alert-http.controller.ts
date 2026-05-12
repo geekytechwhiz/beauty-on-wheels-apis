@@ -27,7 +27,7 @@ import {
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';  
-import { publishAlertCreated } from '../handlers/events/publisher/publish-alert-created';
+import { publishAlertCreated } from '../handlers/events/publisher/alert-publisher';
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {

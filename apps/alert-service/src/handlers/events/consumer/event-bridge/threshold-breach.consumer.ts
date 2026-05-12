@@ -1,7 +1,7 @@
 import { AlertService } from '@api-hub/alert-core';
 import { onEvent } from '@api-hub/event-platform';
 import { ThresholdBreachEventSchema } from '../../inbound/threshold-breach.event';
-import { publishAlertCreated } from '../../publisher/publish-alert-created';
+import { publishAlertCreated } from '../../publisher/alert-publisher';
 
 const alertService = new AlertService();
   

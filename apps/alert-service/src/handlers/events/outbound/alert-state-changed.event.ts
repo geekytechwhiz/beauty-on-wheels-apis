@@ -18,5 +18,6 @@ export const AlertStateChangedSchema = defineEvent(
     eventType: 'Alert.StateChanged.v1',
     eventVersion: '1.0.0',
     source: 'alert-service',
+    transport: 'eventbridge',
   },
 );

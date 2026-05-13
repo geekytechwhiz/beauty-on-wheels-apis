@@ -22,6 +22,7 @@ describe('@api-hub/event-platform/dx', () => {
         eventType: 'Order.Created',
         eventVersion: '1.0.0',
         source: 'orders-svc',
+        transport: 'eventbridge',
       });
 
       configureEventPlatform({
@@ -47,6 +48,7 @@ describe('@api-hub/event-platform/dx', () => {
         eventType: 'X',
         eventVersion: '1.0.0',
         source: 's',
+        transport: 'eventbridge',
       });
 
       configureEventPlatform({
@@ -71,6 +73,7 @@ describe('@api-hub/event-platform/dx', () => {
         eventType: 'Order.Created',
         eventVersion: '1.0.0',
         source: 'orders-svc',
+        transport: 'eventbridge',
       });
 
         configureEventPlatform({

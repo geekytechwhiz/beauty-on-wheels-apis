@@ -37,11 +37,11 @@ export class EventConsumer {
   ): Promise<HandleResult> {
     const fallbackCorrelation =
       handleOptions?.correlationId ?? getContext().correlationId;
-    let parsed: BaseEvent | undefined;
+    let parsed: BaseEvent 
 
     try {
-      parsed = parseInboundEvent(event: any, {
-        mapRawToBaseEvent: this.deps.mapRawToBaseevent: any,
+      parsed = parseInboundEvent(event, {
+        mapRawToBaseEvent: this.deps.mapRawToBaseEvent,
       });
       parsed = normalizeEventMeta(parsed, {
         fallbackCorrelationId: fallbackCorrelation,
@@ -89,7 +89,7 @@ export class EventConsumer {
     };
 
     const result = await orchestratePreparedConsumerEvent({
-      baseevent: any,
+      baseEvent,
       rawForDelivery: parsed,
       deps: this.deps,
       registry,

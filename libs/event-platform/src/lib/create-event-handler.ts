@@ -1,15 +1,12 @@
 import type { z } from 'zod';
 
-import {
-  buildEventExecutionPipeline,
-  runMiddlewares,
-} from '@api-hub/middleware';
-
+ 
 import type {
   Handler,
   Middleware,
-  MiddlewarePipelineevent: any,
+  MiddlewarePipelineEvent,
 } from '@api-hub/middleware';
+import { buildEventExecutionPipeline, runMiddlewares } from '@api-hub/middleware';
 
 import { consumeEvent } from '../engine/executor/consume-event';
 
@@ -36,7 +33,7 @@ type OperationName =
   `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
 
 export type CreateEventHandlerOptions<
-  TEvent extends MiddlewarePipelineevent: any,
+  TEvent extends MiddlewarePipelineEvent,
   TContext = unknown,
 > = {
   operation: OperationName;
@@ -47,11 +44,11 @@ export type CreateEventHandlerOptions<
 };
 
 export function createEventHandler<
-  TEvent extends MiddlewarePipelineevent: any,
+  TEvent extends MiddlewarePipelineEvent,
   TContext = unknown,
 >(
-  options: CreateEventHandlerOptions<Tevent: any, TContext>,
-): (event: Tevent: any, context: TContext) => Promise<void> {
+  options: CreateEventHandlerOptions<TEvent, TContext>,
+): (event: TEvent, context: TContext) => Promise<void> {
   /**
    * ---------------------------------------------------------------------
    * Build payload schema registry
@@ -151,7 +148,7 @@ export function createEventHandler<
     buildEventExecutionPipeline<void, TContext>({
       operation: options.operation,
     }) as Array<
-      Middleware<Tevent: any, void, TContext>
+      Middleware<TEvent, void, TContext>
     >;
 
   /**
@@ -162,7 +159,7 @@ export function createEventHandler<
   return runMiddlewares(
     stack,
     wrappedHandler as unknown as Handler<
-      Tevent: any,
+      TEvent,
       void,
       TContext
     >,

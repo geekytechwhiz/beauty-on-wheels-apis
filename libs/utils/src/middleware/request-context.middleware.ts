@@ -54,7 +54,7 @@ export const buildRequestContext = (event: any) => {
   const normalizedQueryParameters = event.queryStringParameters ?? undefined;
 
   return {
-    event: any,
+    event,
     params: {
       ...(normalizedPathParameters ?? {}),
       ...(normalizedQueryParameters ?? {}),

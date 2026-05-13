@@ -59,9 +59,6 @@
       "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/middleware/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/alert-core/tsconfig.lib.json"
     }
   ]

@@ -9,12 +9,9 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "declaration": true,
-    /* Override base `paths`: listing only deps used by this package avoids TS including
-       unrelated workspace libs (e.g. alert-core) as compilation roots under `rootDir: src`. */
+    /* Only map this package. Do not map workspace libs to sibling `src` — that pulls them
+       into this program and breaks `rootDir` (see TS6059). Resolve @api-hub/utils|middleware|observability via package.json + project references. */
     "paths": {
-      "@api-hub/utils": ["libs/utils/src/index.ts"],
-      "@api-hub/middleware": ["libs/middleware/src/index.ts"],
-      "@api-hub/observability": ["libs/observability/src/index.ts"],
       "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
       "@api-hub/event-platform/dx": ["libs/event-platform/src/dx/index.ts"]
     }

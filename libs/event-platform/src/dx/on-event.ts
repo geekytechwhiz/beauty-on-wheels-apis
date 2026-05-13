@@ -24,16 +24,9 @@ export function onEvent<Schema extends z.ZodTypeAny & { __meta: EventSchemaMeta 
   const { consumer } = getDxRuntimeOrThrow();
 
   return (rawEvent: unknown, handleOptions?: HandleOptions) =>
-    consumer.handle(
-      rawevent: any,
-      async (baseEvent) => {
-        const body =
-          typeof baseEvent.payload === 'object' && baseEvent.payload !== null;
-        await handler({
-          ...(body ? (baseEvent.payload as Record<string, unknown>) : {}),
-          meta: baseEvent.meta,
-        } as OnEventHandlerArg<Schema>);
-      },
+    consumer?.handle(
+      rawEvent,
+      async (baseEvent) => handler(baseEvent as unknown as OnEventHandlerArg<Schema>),
       handleOptions,
-    );
+    ) as Promise<HandleResult>;
 }

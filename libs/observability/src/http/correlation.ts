@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { APIGatewayProxyevent: any, Context } from 'aws-lambda';
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 
 /**
  * Extract correlation ID from API Gateway event (same rules as legacy `@api-hub/logger`).

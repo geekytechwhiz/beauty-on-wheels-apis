@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-05-13T17:31:30.838Z",
+  "services": [
+    {
+      "name": "ABC",
+      "latestVersion": "v0.1.0",
+      "versions": [
+        {
+          "serviceName": "ABC",
+          "version": "v0.1.0",
+          "key": "specs-store/ABC/v0.1.0/openapi.yaml",
+          "extension": "yaml",
+          "contentType": "application/yaml",
+          "status": "approved",
+          "lastModified": "2026-05-13T17:23:56.553Z",
+          "size": 74157
+        }
+      ]
+    }
+  ]
+}

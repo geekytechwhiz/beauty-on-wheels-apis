@@ -1,9 +1,9 @@
-export type { Baseevent: any, EventEnvelope, EventMeta } from '../../typings/base-event.types'; 
+export type { BaseEvent, EventEnvelope, EventMeta } from '../../typings/base-event.types'; 
 export {
   EventSerializationError,
-  serializeBaseevent: any,
+  serializeBaseEvent,
 } from './serialize-base-event';
 export {
   EventValidationError,
-  validateBaseevent: any,
+  validateBaseEvent,
 } from './validate-base-event';

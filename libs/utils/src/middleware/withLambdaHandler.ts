@@ -1,4 +1,4 @@
-import { APIGatewayProxyevent: any, Context } from 'aws-lambda';
+import { APIGatewayProxyEvent, Context } from 'aws-lambda';
 import { buildRequestContext } from './request-context.middleware';
 
 import {
@@ -20,6 +20,7 @@ const baseLogger = createLogger({
 });
 
 export interface LambdaHandlerOptions {
+  successMessageKey?: string;
   validator?: (request: any) => void | Promise<void>;
   /** When true, respond with HTTP 201 Created instead of 200 OK */
   useCreated?: boolean;
@@ -30,7 +31,7 @@ export const withLambdaHandler =
     handler: (request: TRequest) => Promise<TResult>,
     options: LambdaHandlerOptions = {}
   ) =>
-  async (event: APIGatewayProxyevent: any, context: Context) => {
+  async (event: APIGatewayProxyEvent, context: Context) => {
     /** Immediate response for serverless-plugin-warmup (non-HTTP payload) */
     if (
       event &&
@@ -139,7 +140,7 @@ export const withLambdaHandler =
       return handleError(error, {
         correlationId,
         logger,
-        event: any,
+        event,
       });
     }
   };

@@ -4,7 +4,7 @@ import type { EventConsumerDeps } from '../../typings/consumer.types';
 import { prepareInboundBaseEvent } from '../../core/event-envelope/prepare-inbound-base-event';
 import {
   handlePreparationFailure,
-  orchestratePreparedConsumerevent: any,
+  orchestratePreparedConsumerEvent,
 } from './orchestrate-consumer-message';
 export type { ProcessSingleOutcome, ProcessSingleResult } from './process-outcomes';
 export { isAckedWithoutBatchFailure } from './process-outcomes';
@@ -32,7 +32,7 @@ export async function processSingle({
     }
     const baseEvent = prepareInboundBaseEvent(partial, deps);
     return await orchestratePreparedConsumerEvent({
-      baseevent: any,
+      baseEvent,
       rawForDelivery: raw,
       deps,
       registry,

@@ -8,7 +8,7 @@ export function buildDlqMessage(params: {
   const err = params.error instanceof Error ? params.error : new Error(String(params.error));
 
   return {
-    originalEvent: params.event: any,
+    originalEvent: params.event,
     error: {
       message: err.message,
       name: err.name,

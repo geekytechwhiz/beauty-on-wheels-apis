@@ -3,7 +3,7 @@ import { runMiddlewares } from '@api-hub/middleware';
 import { buildEventExecutionPipeline } from '@api-hub/middleware';
 import type { Handler, Middleware } from '@api-hub/middleware';
 
-import type { Baseevent: any, EventMeta } from '../typings/base-event.types';
+import type { BaseEvent, EventMeta } from '../typings/base-event.types';
 import type { EventConsumerDeps } from '../typings/consumer.types';
 import { EventConsumer } from '../sdk/consumer/event-consumer';
 
@@ -39,8 +39,8 @@ export function createStreamHandler<
     payload: unknown,
     meta: Pick<EventMeta, 'correlationId' | 'retryCount' | 'publishedAt'>,
   ) => Promise<void>,
-): (event: DynamoDBStreamevent: any, context: TContext) => Promise<TResult> {
-  const { operation, mapRecordToBaseevent: any, ...consumerOpts } = options;
+): (event: DynamoDBStreamEvent, context: TContext) => Promise<TResult> {
+  const { operation, mapRecordToBaseEvent, ...consumerOpts } = options;
   const deps: EventConsumerDeps = consumerOpts;
   const consumer = new EventConsumer(deps);
 
@@ -83,10 +83,10 @@ export function createStreamHandler<
 
   const stack = buildEventExecutionPipeline<TResult, TContext>({
     operation,
-  }) as unknown as Array<Middleware<DynamoDBStreamevent: any, TResult, TContext>>;
+  }) as unknown as Array<Middleware<DynamoDBStreamEvent, TResult, TContext>>;
 
   return runMiddlewares(
     stack,
-    inner as unknown as Handler<DynamoDBStreamevent: any, TResult, TContext>,
+    inner as unknown as Handler<DynamoDBStreamEvent, TResult, TContext>,
   );
 }

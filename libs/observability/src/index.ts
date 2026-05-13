@@ -33,7 +33,7 @@ export {
 export {
   recordConsumerDeadLetter,
   recordConsumerDeliveryDisposition,
-  recordConsumerDuplicateevent: any,
+  recordConsumerDuplicateEvent,
   recordConsumerEventProcessed,
   recordConsumerFailure,
   recordConsumerRetry,
@@ -47,7 +47,7 @@ export {
   withHttpObservability,
   withLambdaObservability,
 
-  type ApiGatewayLikeevent: any,
+  type ApiGatewayLikeEvent,
 } from './middleware/index';
 
 export {

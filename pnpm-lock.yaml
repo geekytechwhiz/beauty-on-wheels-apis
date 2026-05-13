@@ -438,7 +438,7 @@ importers:
     dependencies:
       '@api-hub/event-platform':
         specifier: file:../../libs/event-platform
-        version: link:../../libs/event-platform
+        version: file:libs/event-platform
       '@api-hub/middleware':
         specifier: file:../../libs/middleware
         version: file:libs/middleware
@@ -478,7 +478,17 @@ importers:
 
   libs/consent: {}
 
-  libs/event-platform: {}
+  libs/event-platform:
+    dependencies:
+      '@api-hub/middleware':
+        specifier: workspace:*
+        version: link:../middleware
+      '@api-hub/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@api-hub/utils':
+        specifier: workspace:*
+        version: link:../utils
 
   libs/fhir:
     dependencies:
@@ -671,6 +681,9 @@ packages:
 
   2-thenable@1.0.0:
     resolution: {integrity: sha512-HqiDzaLDFCXkcCO/SwoyhRwqYtINFHF7t9BDRq4x90TOKNAJpiqUt9X5lQ08bwxYzc067HUywDjGySpebHcUpw==}
+
+  '@api-hub/event-platform@file:libs/event-platform':
+    resolution: {directory: libs/event-platform, type: directory}
 
   '@api-hub/middleware@file:libs/middleware':
     resolution: {directory: libs/middleware, type: directory}
@@ -11422,6 +11435,12 @@ snapshots:
     dependencies:
       d: 1.0.2
       es5-ext: 0.10.64
+
+  '@api-hub/event-platform@file:libs/event-platform':
+    dependencies:
+      '@api-hub/middleware': link:libs/middleware
+      '@api-hub/observability': link:libs/observability
+      '@api-hub/utils': link:libs/utils
 
   '@api-hub/middleware@file:libs/middleware':
     dependencies:

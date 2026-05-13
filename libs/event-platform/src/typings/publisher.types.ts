@@ -1,4 +1,4 @@
-import { Baseevent: any, EventMeta } from "../typings/base-event.types";
+import { BaseEvent, EventMeta } from "../typings/base-event.types";
 
 import type { Logger } from '@api-hub/observability';
 import { PayloadSchemaRegistry } from "./consumer.types";

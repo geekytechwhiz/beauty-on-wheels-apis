@@ -1,11 +1,11 @@
 export { configureEventPlatform, type ConfigureEventPlatformOptions } from './configure-event-pladtform';
 
-export { defineevent: any, type EventSchemaMeta } from './define-event';
+export { defineEvent, type EventSchemaMeta } from './define-event';
 export {
-  publishevent: any,
+  publishEvent,
   type PublishEventOverrides,
 } from './publish-event';
 export {
-  onevent: any,
+  onEvent,
   type OnEventHandlerArg,
 } from './on-event';

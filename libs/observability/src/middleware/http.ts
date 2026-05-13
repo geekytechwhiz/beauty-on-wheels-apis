@@ -14,10 +14,10 @@ export type ApiGatewayLikeEvent = {
 /**
  * Wrap an HTTP API Lambda handler: correlation id from headers or API Gateway request id, else new UUID.
  */
-export function withHttpObservability<TEvent extends ApiGatewayLikeevent: any, TResult>(
-  handler: Handler<Tevent: any, TResult>
-): Handler<Tevent: any, TResult> {
-  return ((event: any, context, callback) => {
+export function withHttpObservability<TEvent extends ApiGatewayLikeEvent, TResult>(
+  handler: Handler<TEvent, TResult>
+): Handler<TEvent, TResult> {
+  return ((event, context, callback) => {
     const correlationId =
       correlationIdFromHttpEvent(event) ??
       (typeof event.requestContext?.requestId === 'string' && event.requestContext.requestId.length > 0
@@ -25,9 +25,9 @@ export function withHttpObservability<TEvent extends ApiGatewayLikeevent: any, T
         : randomUUID());
     const awsRequestId = context.awsRequestId ?? 'unknown-request-id';
     return withContext({ correlationId, awsRequestId }, () =>
-      handler(event: any, context, callback) as Promise<TResult> | TResult
+      handler(event, context, callback) as Promise<TResult> | TResult
     );
-  }) as Handler<Tevent: any, TResult>;
+  }) as Handler<TEvent, TResult>;
 }
 
 function correlationIdFromHttpEvent(event: ApiGatewayLikeEvent): string | undefined {

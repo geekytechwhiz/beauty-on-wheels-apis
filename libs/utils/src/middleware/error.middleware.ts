@@ -1,4 +1,4 @@
-import { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { serializeError } from '@api-hub/observability';
 
 import { toBaseError } from '../errors/normalize-error';
@@ -94,7 +94,7 @@ export async function handleError(
    * used so the response title is always human-readable.
    */
   const cdnMessage = await resolveMessage(
-    (options.event ?? {}) as APIGatewayProxyevent: any,
+    (options.event ?? {}) as APIGatewayProxyEvent,
     errorCode,
     {
       title: localTitle,
@@ -106,7 +106,6 @@ export async function handleError(
     description: localDescription,
     severity: 'ERROR' as const,
   }  ));
-  console.log("CDN ERROR MESSAGE : ",cdnMessage);
   // For INTERNAL_SERVER_ERROR, prefer the thrown error message so AWS/DynamoDB details are not replaced by CDN copy.
   const descriptionForClient =
     errorCode === 'INTERNAL_SERVER_ERROR' ? localDescription : cdnMessage.description;

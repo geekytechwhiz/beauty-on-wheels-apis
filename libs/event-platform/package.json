@@ -24,6 +24,8 @@
     "name": "event-platform"
   },
   "dependencies": {
-   
+    "@api-hub/middleware": "workspace:*",
+    "@api-hub/observability": "workspace:*",
+    "@api-hub/utils": "workspace:*"
   }
 }

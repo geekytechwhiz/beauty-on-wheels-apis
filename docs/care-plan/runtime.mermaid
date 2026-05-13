@@ -1,0 +1,103 @@
+flowchart TB
+
+%% =====================================================
+%% PACKAGE CONFIGURATION
+%% =====================================================
+
+subgraph PACKAGE["Package Layer"]
+
+PKG1[Program Based Package]
+
+PKG2[LinkedOrgCarePlanVersionID]
+
+PKG3[Package Assignment]
+
+PKG1 --> PKG2
+PKG2 --> PKG3
+
+end
+
+%% =====================================================
+%% ORG TEMPLATE
+%% =====================================================
+
+subgraph TEMPLATE["Published Org Template"]
+
+CP[Org Care Plan Template]
+
+OKR[OKR Template]
+
+TASK[Task Template]
+
+SYM[Symptom Template]
+
+THR[Threshold Template]
+
+ALT[Alert Policy Template]
+
+CP --> OKR
+CP --> TASK
+CP --> SYM
+
+THR --> ALT
+
+end
+
+%% =====================================================
+%% RUNTIME CREATION
+%% =====================================================
+
+subgraph REALIZATION["Patient Runtime Realization"]
+
+RT1[Care Plan Runtime Service]
+
+RT2[Patient Care Plan Instance]
+
+RT3[Patient OKRs]
+
+RT4[Patient Tasks]
+
+RT5[Patient Symptoms]
+
+RT6[Threshold Monitoring]
+
+RT7[Alert Runtime]
+
+RT1 --> RT2
+
+RT2 --> RT3
+RT2 --> RT4
+RT2 --> RT5
+RT2 --> RT6
+
+RT6 --> RT7
+
+end
+
+%% =====================================================
+%% FLOW
+%% =====================================================
+
+PKG3 -->|LinkedOrgCarePlanVersionID| RT1
+
+CP --> RT1
+
+%% =====================================================
+%% RUNTIME RULES
+%% =====================================================
+
+R1["Patient runtime uses immutable Org Template Version"]
+
+R2["Runtime never references mutable drafts"]
+
+R3["Changing template later does NOT rewrite existing patient instances"]
+
+R4["Package entitlement remains source of truth"]
+
+R5["ReviewCadence guides planning only"]
+
+REALIZATION --> R1
+REALIZATION --> R2
+REALIZATION --> R3
+REALIZATION --> R4
+REALIZATION --> R5

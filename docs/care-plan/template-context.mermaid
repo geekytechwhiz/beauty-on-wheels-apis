@@ -1,0 +1,13 @@
+flowchart LR
+
+PlatformAdmin --> TemplateService
+OrgAdmin --> TemplateService
+
+TemplateService --> MetadataRegistry
+TemplateService --> PackageService
+
+PackageService --> CarePlanRuntime
+
+CarePlanRuntime --> TaskRuntime
+CarePlanRuntime --> AlertRuntime
+CarePlanRuntime --> SymptomRuntime

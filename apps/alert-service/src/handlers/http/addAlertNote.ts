@@ -1,6 +1,7 @@
-import { withApiHandler, withLambdaHandler, type LambdaRequest } from '@api-hub/middleware';
+import { withApiHandler  } from '@api-hub/middleware';
 import { getAlertHttpController } from '../../controllers/alert-http.controller';
 import { validateAddNoteRequest } from '../../validators/request.validators';
+import { LambdaRequest } from '@api-hub/utils';
 
 const c = getAlertHttpController();
 

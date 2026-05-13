@@ -17,19 +17,7 @@ export default [
   },
 
   // NX Module Boundary Rules
-  {
-    files: ['**/*.{ts,tsx,js,jsx}'],
-    rules: {
-      '@nx/enforce-module-boundaries': [
-        'warn',
-        {
-          selector: "Property[key.name='rules']",
-          message:
-            'Defining ESLint rules at project level is not allowed. Use root config only.',
-        },
-      ],
-    },
-  },
+   
 
   // ✅ Global baseline (allow only warn + error everywhere)
   {

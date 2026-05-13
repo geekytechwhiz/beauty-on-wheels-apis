@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    
     "cleanup:eslint": "node tools/scripts/cleanup-eslint.js",
     "user-service:offline": "cd apps/user-service && npx nodemon --watch src --ext ts,js,yml,json --exec \"serverless offline --stage dev --aws-profile ci-user\"",
     "deploy:fhir-gateway": "cd services/fhir-gateway && serverless deploy",
@@ -41,9 +42,8 @@
     "fix:imports:light": "FIX_IMPORTS_SKIP_CLEAN=1 FIX_IMPORTS_SKIP_BUILD=1 ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
     "fix:imports:sh": "sh tools/file-import/fix-imports.sh",
     "lint": "nx run-many --target=lint --all --parallel=10",
-    "lint:fix": "nx run-many --target=lint --all --parallel=10 --fix"
- 
-     
+    "lint:fix": "nx run-many --target=lint --all --parallel=10 --fix",
+    "prepare": "husky"
   },
   "private": true,
   "dependencies": {
@@ -120,11 +120,13 @@
     "esbuild": "^0.19.2",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
+    "husky": "^9.1.7",
     "jest": "^30.0.2",
     "jest-environment-node": "^30.0.2",
     "jest-util": "^30.0.2",
     "jiti": "2.4.2",
     "jsonc-eslint-parser": "^2.1.0",
+    "lint-staged": "^17.0.4",
     "nx": "22.3.3",
     "prettier": "~3.6.2",
     "serverless": "^3.40.0",
@@ -138,5 +140,10 @@
     "vite": "^7.0.0",
     "vite-plugin-dts": "~4.5.0",
     "vitest": "^4.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "node tools/scripts/lint-staged.js"
+    ]
   }
 }

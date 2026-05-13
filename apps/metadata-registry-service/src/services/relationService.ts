@@ -1,14 +1,8 @@
 import {
-  decodeRelationId,
   type CreateMetadataRelationInput,
   type MetadataRelationRecord,
   type RelatedValueRef,
-  ValidationError,
-  assertMetadataTypeCode,
-  assertMetadataValueCode,
-  assertValidRelationType,
   skBeginsWithForListFilter,
-  validateRelationRequestShape,
   assertRelationEndpointsExist,
   getMetadataRepository,
   getRelationRepository,
@@ -18,7 +12,6 @@ export async function createMetadataRelation(
   body: CreateMetadataRelationInput,
   userId?: string,
 ): Promise<MetadataRelationRecord> {
-  validateRelationRequestShape(body);
   const meta = await getMetadataRepository();
   await assertRelationEndpointsExist(meta, body);
   const rel = await getRelationRepository();
@@ -31,28 +24,11 @@ export async function listRelationsForValue(
   fromValue: string,
   query: { relationType?: string; toType?: string },
 ): Promise<MetadataRelationRecord[]> {
-  if (!fromType?.trim() || !fromValue?.trim()) {
-    throw new ValidationError('fromType and fromValue are required', [
-      { field: 'fromType', message: 'Required' },
-      { field: 'fromValue', message: 'Required' },
-    ]);
-  }
-  assertMetadataTypeCode(fromType, 'fromType');
-  assertMetadataValueCode(fromValue, 'fromValue');
-  if (query.relationType?.trim()) {
-    assertValidRelationType(query.relationType.trim());
-  }
-  if (query.toType?.trim()) {
-    assertMetadataTypeCode(query.toType.trim(), 'toType');
-  }
-  const skBeginsWith = skBeginsWithForListFilter(
-    query.relationType?.trim(),
-    query.toType?.trim(),
-  );
+  const skBeginsWith = skBeginsWithForListFilter(query.relationType, query.toType);
   const rel = await getRelationRepository();
   let rows = await rel.listRelationsByFrom(fromType, fromValue, { skBeginsWith });
-  if (query.toType?.trim() && !query.relationType?.trim()) {
-    const t = query.toType.trim();
+  if (query.toType && !query.relationType) {
+    const t = query.toType;
     rows = rows.filter((r: MetadataRelationRecord) => r.toMetadataTypeCode === t);
   }
   return rows;
@@ -71,16 +47,10 @@ export async function listRelatedValues(
 }
 
 export async function inactivateRelationById(
-  id: string,
+  pk: string,
+  sk: string,
   userId?: string,
 ): Promise<MetadataRelationRecord> {
-  let pk: string;
-  let sk: string;
-  try {
-    ({ pk, sk } = decodeRelationId(id));
-  } catch {
-    throw new ValidationError('Invalid relation id', [{ field: 'id', message: 'Invalid' }]);
-  }
   const rel = await getRelationRepository();
   return rel.inactivateRelation(pk, sk, userId);
 }

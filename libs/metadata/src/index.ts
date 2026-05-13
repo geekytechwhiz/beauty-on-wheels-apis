@@ -7,10 +7,16 @@ export * from './domain/relation-keys';
 export * from './domain/diff';
 export * from './domain/search-filter';
 
+export { encodePaginationKey, decodePaginationKey } from './lib/pagination-key';
+
 export { MetadataKeyBuilder } from './builders/metadata-key.builder';
 
 export type { ListMetadataInput } from './types/list-metadata-input';
-export type { IMetadataRegistryRepository, ListTypesFilter } from './repositories/metadata.repository';
+export type {
+  IMetadataRegistryRepository,
+  ListTypesFilter,
+  MetadataTypeListEntry,
+} from './repositories/metadata.repository';
 export type {
   IRelationRepository,
   ListRelationsByFromOptions,
@@ -28,13 +34,17 @@ export {
 export * from './validators/code-patterns';
 export * from './validators/metric-code.schema';
 export * from './validators/question-code.schema';
+export * from './validators/attribute-schema.validator';
 export * from './validators/schemas';
 export * from './validators/validate-inputs';
 export * from './validators/relation';
+export * from './validators/registry-route.validation';
+export * from './validators/status';
 
 export * from './mappers/metadata-value-request';
 export {
   flattenMetadataValueForApi,
+  mergeMetadataTypeForUpdate,
   normalizeMetadataTypeInput,
   normalizeMetadataValueInput,
   type MetadataValueApiModel,
@@ -53,14 +63,24 @@ export {
   listTypeAudit,
   listValueAudit,
   searchMetadataValues,
-  parsePatchStatusBody,
   parseQueryIncludeInactive,
   parseGetEntityStatusMode,
   parseListEntityStatusMode,
+  resolveStatusMode,
   resolveMetadataTypeGet,
   resolveMetadataValueGetForApi,
+  orchestrateRegistryGet,
+  orchestrateRegistryList,
+  type RegistryListResult,
+  orchestrateRegistryPost,
+  orchestrateRegistryPatchStatus,
+  orchestrateRegistryListAudit,
   type GetEntityByStatusMode,
   type ListEntityStatusMode,
+  type RegistryGetMetadataInput,
+  type RegistryPostMetadataInput,
+  type RegistryPatchMetadataStatusInput,
+  type RegistryListMetadataAuditInput,
 } from './services/metadata.service';
 
 export { MetadataRegistryService } from './services/metadata-registry.service';

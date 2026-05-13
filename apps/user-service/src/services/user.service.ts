@@ -695,6 +695,19 @@ export class UserService {
     }
   }
 
+  /** Parses numeric age from stored user records (number or legacy string). */
+  private safeNumber(value: any): number | undefined {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value === 'number' && !Number.isNaN(value)) return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') return undefined;
+      const n = Number(trimmed);
+      if (!Number.isNaN(n)) return n;
+    }
+    return undefined;
+  }
+
   /**
    * Safely converts a value to a boolean, returning false if conversion fails
    */
@@ -1051,6 +1064,7 @@ export class UserService {
       country: this.safeString(user.country),
       language: userKeys.includes('language') ? this.safeString(user.language) : this.safeString(defaultLanguage?.langCode || 'en'),
       dateOfBirth: this.safeString(user.dateOfBirth),
+      age: userKeys.includes('age') ? this.safeNumber(user.age) : undefined,
       address: this.safeString(user.address),
       allergies: Array.isArray(allergies) ? allergies : [],
       chiefMedicalIssue: this.safeString(chiefMedicalIssue),
@@ -1935,6 +1949,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         slotDurationInMinutes: userBasicDetails.slotDurationInMinutes || 15,
         language: userBasicDetails.language || orgBasicDetails?.organizationInfo?.defaultSetting?.languages?.[0]?.langCode || 'en',
         dateOfBirth: userBasicDetails.dateOfBirth || '',
+        age: userBasicDetails.age || '',
         address: userBasicDetails.address || '',
         allergies: userBasicDetails.medicalHistory?.allergies || [],
         chiefMedicalIssue: (userBasicDetails.medicalHistory as any)?.chiefMedicalIssue || (userBasicDetails as any).chiefMedicalIssue || '',

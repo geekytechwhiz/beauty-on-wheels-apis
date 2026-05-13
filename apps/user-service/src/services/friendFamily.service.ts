@@ -213,25 +213,9 @@ export class FriendFamilyService {
               orgAny?.name ??
               '',
           ).trim() || organizationID;
-
-        let orgAddress = '';
-        if (orgInfo.address && typeof orgInfo.address === 'object') {
-          const addr = orgInfo.address as Record<string, unknown>;
-          orgAddress = [addr.address, addr.city, addr.state, addr.country, addr.postalCode]
-            .filter(Boolean)
-            .map(String)
-            .join(', ');
-        }
-        if (!orgAddress) {
-          orgAddress = [orgAny.address, orgAny.city, orgAny.state, orgAny.country, orgAny.postalCode]
-            .filter(Boolean)
-            .map(String)
-            .join(', ');
-        }
-
-        const baseInviteUrl = (process.env.WEB_URL || WEB_DNS_URL || '').trim();
-        let invitationLink = baseInviteUrl;
-      
+          
+          const baseInviteUrl = (process.env.WEB_URL || WEB_DNS_URL || '').trim();
+          let invitationLink = baseInviteUrl;
 
         await sendSms({
           phone: inviteePhone,
@@ -252,7 +236,6 @@ export class FriendFamilyService {
     } else {
       logger.info({ event: 'friend_family_add_member_sms_skipped_no_phone', memberId });
     }
-    
     logger.info({ event: 'friend_family_add_member_success' });
     return {
       userId,

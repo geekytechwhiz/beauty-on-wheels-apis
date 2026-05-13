@@ -153,7 +153,8 @@ paths:
       summary: List metadata types or values for a type
       description: |
         `entityType=type`: `module`, `valueDataType` / `datatype`, and list status mode (`include-inactive` / `status`).
-        `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
+        Each type includes `metadataValueCount` (latest-version values for that type, using the same active/inactive/all
+        rule as below). `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
         filters: `applicableModules`, `applicableCategories`, `applicableConditions`, `applicableCountries`,
         `applicableLanguages` (comma-separated
         tokens, OR within a field, AND across fields; `isGlobal` values always included). The `search` query param is not supported.
@@ -375,27 +376,22 @@ components:
       type: object
       description: |
         Upsert body for `POST /metadata/type`. **First create** requires: `metadataTypeCode`, `displayName` (max 100),
-        `valueDataType`, `multiSelectAllowed`, `applicableModules` (min 1), `status` (ACTIVE|INACTIVE).
+        `valueDataType`, `multiSelectAllowed`, `status` (ACTIVE|INACTIVE). `applicableModules` is optional (empty or omitted
+        means the type is not restricted to specific platform modules — stored as `[]`).
         `description` and `attributeSchema` are optional. **Updates** may send a partial body; see `MetadataTypeCreateInput`
-        for the strict create contract. Version and audit timestamps are system-owned on the stored record.
-      required: [metadataTypeCode]
-      properties:
         metadataTypeCode:
           type: string
+          pattern: '^[A-Z][A-Za-z0-9]*$'
           description: Unique across registry; immutable after publish
         displayName:
           type: string
           maxLength: 100
-        description: { type: string }
         valueDataType:
-          type: string
-          enum: [Enum, Numeric, Boolean, Text]
         multiSelectAllowed: { type: boolean }
         applicableModules:
           type: array
           items: { type: string }
-          minItems: 1
-          description: One or more platform module tokens
+          description: Platform module tokens; omit or send `[]` when not module-scoped
         attributeSchema:
           type: object
           additionalProperties: true
@@ -406,17 +402,17 @@ components:
         lastModifiedBy: { type: string }
     MetadataTypeCreateInput:
       type: object
-      description: Strict shape for **creating** a metadata type (enforced by the API on first insert).
+      description: Strict shape for **creating** a metadata type (what the runtime requires on first insert).
       required:
         - metadataTypeCode
         - displayName
         - valueDataType
         - multiSelectAllowed
-        - applicableModules
         - status
       properties:
         metadataTypeCode:
           type: string
+          pattern: '^[A-Z][A-Za-z0-9]*$'
           description: Unique across registry; immutable after publish
         displayName:
           type: string
@@ -429,7 +425,7 @@ components:
         applicableModules:
           type: array
           items: { type: string }
-          minItems: 1
+          description: Optional; empty means not restricted to modules
         attributeSchema:
           type: object
           additionalProperties: true

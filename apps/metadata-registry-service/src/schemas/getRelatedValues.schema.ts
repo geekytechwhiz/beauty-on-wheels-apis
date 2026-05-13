@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { normalizeRelationListQueryParams } from './relationListQuery.shared';
+
 /**
  * Related values list: same resolution as the former handler; `fromType` / `fromValue`
  * have no `*Code` aliases (only `toType` has `toMetadataTypeCode`).
@@ -17,6 +19,7 @@ export const getRelatedValuesSchema = z
     const relationType = q.relationType ?? p.relationType;
     const toType = q.toType ?? q.toMetadataTypeCode ?? p.toType ?? p.toMetadataTypeCode;
     return { fromType, fromValue, relationType, toType };
-  });
+  })
+  .transform((raw) => normalizeRelationListQueryParams(raw));
 
 export type GetRelatedValuesInput = z.infer<typeof getRelatedValuesSchema>;

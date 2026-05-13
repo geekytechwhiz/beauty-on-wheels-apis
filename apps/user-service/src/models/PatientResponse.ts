@@ -20,4 +20,5 @@ export interface PatientResponse extends BaseUserResponse {
   gender: string;
   medicalHistory: Record<string, unknown> | null;
   dateOfBirth: string | null;
+  age: number | null;
 }

@@ -25,6 +25,7 @@ export interface User{
   countryCode?: string;
   createdDate: number;
   dateOfBirth?: string;
+  age?: number;
   dateFormat?: string;
   definedRoleCode?: string;
   department?: string;

@@ -18,6 +18,9 @@ provider:
   environment:
     REGION: ${self:provider.region}
     METADATA_REGISTRY_TABLE: MetadataRegistry-${self:provider.stage}
+    USER_TABLE: user-table-${self:provider.stage}
+    # Optional: METADATA_REGISTRY_PK_ATTR + METADATA_REGISTRY_SK_ATTR (both set) override auto-discovery.
+    # If unset, the Lambda resolves key names via DescribeTable (matches DevOps-created tables).
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
@@ -39,6 +42,7 @@ provider:
         - dynamodb:DescribeTable
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/MetadataRegistry-${self:provider.stage}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-${self:provider.stage}
     - Effect: Allow
       Action:
         - xray:PutTraceSegments
@@ -77,8 +81,9 @@ custom:
       - .jsx
       - .json
     loader:
-      .json: json
-  cors:
+      '.json': json
+  # Anchor so IDE schema sees a real object + array (not Serverless vars, which validate as strings).
+  defaultHttpCors: &defaultHttpCors
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
       - Content-Type
@@ -93,16 +98,18 @@ functions:
       - http:
           path: v1/health
           method: get
-          cors: ${self:custom.cors}
-  postMetadataV1:
-    handler: src/handlers/v1/postMetadata.main
+          cors: *defaultHttpCors
+
+  postMetadata:
+    handler: src/handlers/postMetadata.main
     events:
       - http:
           path: v1/metadata/{entityType}
           method: post
-          cors: ${self:custom.cors}
-  patchMetadataStatusV1:
-    handler: src/handlers/v1/patchMetadataStatus.main
+          cors: *defaultHttpCors
+
+  patchMetadataStatus:
+    handler: src/handlers/patchMetadataStatus.main
     events:
       - http:
           path: v1/metadata/{entityType}/status
@@ -156,109 +163,60 @@ functions:
       - http:
           path: v1/metadata/relations/{id}
           method: patch
-          cors: ${self:custom.cors}
+          cors: *defaultHttpCors
 
-resources:
-  Resources:
-    MetadataRegistryTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: MetadataRegistry-${self:provider.stage}
-        BillingMode: PAY_PER_REQUEST
+  getMetadata:
+    handler: src/handlers/getMetadata.main
+    events:
+      - http:
+          path: metadata/{entityType}
+          method: get
+          cors: *defaultHttpCors
 
-        AttributeDefinitions:
-          - AttributeName: pk
-            AttributeType: S
-          - AttributeName: sk
-            AttributeType: S
-          - AttributeName: gsi1pk
-            AttributeType: S
-          - AttributeName: gsi1sk
-            AttributeType: S
-          - AttributeName: entityType
-            AttributeType: S
-          - AttributeName: sk1
-            AttributeType: S
-          - AttributeName: sk2
-            AttributeType: S
-          - AttributeName: sk3
-            AttributeType: S
-          - AttributeName: sk4
-            AttributeType: S
-          - AttributeName: sk5
-            AttributeType: S
+  listMetadata:
+    handler: src/handlers/listMetadata.main
+    events:
+      - http:
+          path: metadata/{entityType}/list
+          method: get
+          cors: *defaultHttpCors
 
-        KeySchema:
-          - AttributeName: pk
-            KeyType: HASH
-          - AttributeName: sk
-            KeyType: RANGE
+  listMetadataAudit:
+    handler: src/handlers/listMetadataAudit.main
+    events:
+      - http:
+          path: metadata/{entityType}/audit
+          method: get
+          cors: *defaultHttpCors
 
-        GlobalSecondaryIndexes:
-          - IndexName: GSI1
-            KeySchema:
-              - AttributeName: gsi1pk
-                KeyType: HASH
-              - AttributeName: gsi1sk
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
+  postMetadataRelation:
+    handler: src/handlers/postRelation.main
+    events:
+      - http:
+          path: metadata/relations
+          method: post
+          cors: *defaultHttpCors
 
-          - IndexName: GSI2
-            KeySchema:
-              - AttributeName: entityType
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
+  getMetadataRelations:
+    handler: src/handlers/getRelations.main
+    events:
+      - http:
+          path: metadata/relations
+          method: get
+          cors: *defaultHttpCors
 
-        LocalSecondaryIndexes:
-          - IndexName: pk-sk1-index
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk1
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
+  getMetadataRelatedValues:
+    handler: src/handlers/getRelatedValues.main
+    events:
+      - http:
+          path: metadata/values/related
+          method: get
+          cors: *defaultHttpCors
 
-          - IndexName: pk-sk2-index
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk2
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-          - IndexName: pk-sk3-index
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk3
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-          - IndexName: pk-sk4-index
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk4
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-          - IndexName: pk-sk5-index
-            KeySchema:
-              - AttributeName: pk
-                KeyType: HASH
-              - AttributeName: sk5
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-
-        SSESpecification:
-          SSEEnabled: true
+  patchMetadataRelation:
+    handler: src/handlers/patchRelation.main
+    events:
+      - http:
+          path: metadata/relations/{id}
+          method: patch
+          cors: *defaultHttpCors

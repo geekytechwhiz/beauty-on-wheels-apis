@@ -19,7 +19,8 @@ export interface Applicability {
  * Request body for create / update metadata type.
  *
  * **Create:** `metadataTypeCode`, `displayName` (≤100), `valueDataType`, `multiSelectAllowed`,
- * `applicableModules` (≥1), and `status` (ACTIVE|INACTIVE) are required. `description` and
+ * and `status` (ACTIVE|INACTIVE) are required. `applicableModules` is optional (stored as `[]` when omitted).
+ * `description` and
  * `attributeSchema` are optional. `metadataTypeCode` is immutable after publish (new code = new type).
  *
  * **Update:** Partial fields allowed; omitted fields keep existing values where applicable.
@@ -78,6 +79,12 @@ export interface MetadataTypeRecord {
   /** User id; may be absent on legacy reads. */
   lastModifiedBy?: string;
 }
+
+/** Type row returned by list metadata when `entityType=type`, including value totals per type. */
+export type MetadataTypeListItem = MetadataTypeRecord & {
+  /** Latest-version values for this type; filtered like `GET .../list?entityType=value` (active / inactive / all). */
+  metadataValueCount: number;
+};
 
 export interface MetadataValueInput {
   /** Immutable after first write; API alias `metadataValueCode`. */

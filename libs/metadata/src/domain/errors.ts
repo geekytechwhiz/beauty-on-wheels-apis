@@ -1,7 +1,7 @@
 import { BaseError } from '@api-hub/utils';
 
 import { STATUS } from '../constants';
-import type { MetadataTypeRecord } from '../models/types';
+import type { MetadataTypeRecord, Status } from '../models/types';
 
 /** Stable public shape for HTTP mapping and tests (subclasses inherit this via {@link MetadataRegistryError}). */
 export interface MetadataHttpErrorShape {
@@ -75,5 +75,39 @@ export class MetadataTypeInactiveError extends MetadataRegistryError {
 export function assertMetadataTypeActiveForValueMutation(type: MetadataTypeRecord, metadataTypeCode: string): void {
   if (type.status !== STATUS.ACTIVE) {
     throw new MetadataTypeInactiveError(metadataTypeCode);
+  }
+}
+
+/** POST upsert (field changes / new version) on latest type or value row when status is INACTIVE. */
+export const INACTIVE_RECORD_MUTATION_MESSAGE =
+  'Inactive records cannot be modified or versioned. Please activate the record before making changes.';
+
+const inactiveRecordMutationDetails = [{ field: 'status', message: INACTIVE_RECORD_MUTATION_MESSAGE }];
+
+/**
+ * Blocks POST `/metadata/{entityType}` updates while the latest row stays INACTIVE.
+ * Reactivation in the same request is allowed when normalized `status` on the body is explicitly `ACTIVE`
+ * (any other fields may change in that version).
+ */
+export function assertPostUpsertAllowedForLatestStatus(
+  latestStatus: Status,
+  normalizedBodyStatus: Status | undefined,
+): void {
+  if (latestStatus !== STATUS.INACTIVE) {
+    return;
+  }
+  if (normalizedBodyStatus === STATUS.ACTIVE) {
+    return;
+  }
+  throw new ValidationError(INACTIVE_RECORD_MUTATION_MESSAGE, inactiveRecordMutationDetails);
+}
+
+/**
+ * PATCH status only: when the latest row is INACTIVE, only a transition to ACTIVE is allowed (no other field
+ * updates are possible on inactive rows; staying INACTIVE would version without purpose).
+ */
+export function assertPatchStatusAllowedForInactiveRecord(currentStatus: Status, requestedStatus: Status): void {
+  if (currentStatus === STATUS.INACTIVE && requestedStatus !== STATUS.ACTIVE) {
+    throw new ValidationError(INACTIVE_RECORD_MUTATION_MESSAGE, inactiveRecordMutationDetails);
   }
 }

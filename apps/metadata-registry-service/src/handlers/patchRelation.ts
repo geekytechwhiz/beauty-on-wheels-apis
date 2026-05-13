@@ -10,5 +10,5 @@ export const main =   withApiHandler(
   
 
   const input = patchRelationSchema.parse(req);
-  return inactivateRelationById(input.id, input.userId);
+  return inactivateRelationById(input.pk, input.sk, input.userId);
 });

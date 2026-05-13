@@ -1,15 +1,15 @@
 'use strict';
 
-const USERS = {
-  admin: 'Myvital@2026',
-  dev: 'Myvital@2026'
-};
+
 
 const PUBLIC_EXTENSIONS = [
   '.js', '.css', '.png', '.svg', '.ico',
   '.html', '.json', '.map', '.woff', '.woff2'
 ];
-
+const USERS = {
+  admin: 'Myvital@2026',
+  dev: 'Myvital@2026'
+};
 exports.handler = async (event) => {
   const request = event.Records[0].cf.request;
   const headers = request.headers;

@@ -49,30 +49,76 @@ phases:
 
       - npm install @aws-sdk/client-lambda
 
+   
+  
   build:
-    commands:
-      - echo "========================================"
-      - echo "BUILD PHASE"
-      - echo "========================================"
+  commands:
+    - echo "========================================"
+    - echo "BUILD PHASE"
+    - echo "========================================"
 
-      - echo "Building frontend"
+    - echo "Current directory"
+    - pwd
 
-      - npm --prefix api-center run build
+    - echo "Root files"
+    - ls -la
 
-      - echo "Verifying build output"
+    - echo "API Center files"
+    - ls -la api-center
 
-      - ls -la api-center
+    - echo "Building frontend"
+    - npm --prefix api-center run build
 
-      - |
-        if [ -d "api-center/dist" ]; then
-          ls -la api-center/dist
-        fi
+    # ------------------------------------
+    # DEBUG DIST CONTENT
+    # ------------------------------------
+    - echo "========================================"
+    - echo "DIST DEBUGGING"
+    - echo "========================================"
 
-      - find api-center/dist -type f | head -50
+    - echo "Listing api-center/dist"
+    - ls -lah api-center/dist || true
 
-      - test -f api-center/dist/index.html
+    - echo "Listing api-center/dist/assets"
+    - ls -lah api-center/dist/assets || true
 
-      - test -d api-center/dist/assets
+    - echo "Recursive dist listing"
+    - find api-center/dist -type f
+
+    - echo "File sizes"
+    - find api-center/dist -type f -exec ls -lh {} \;
+
+    - echo "Index.html content"
+    - cat api-center/dist/index.html
+
+    - echo "JS file preview"
+    - |
+      JS_FILE=$(find api-center/dist/assets -name "*.js" | head -1)
+
+      echo "JS_FILE=$JS_FILE"
+
+      if [ -f "$JS_FILE" ]; then
+        ls -lh "$JS_FILE"
+        head -20 "$JS_FILE"
+      else
+        echo "NO JS FILE FOUND"
+        exit 1
+      fi
+
+    - echo "CSS file preview"
+    - |
+      CSS_FILE=$(find api-center/dist/assets -name "*.css" | head -1)
+
+      echo "CSS_FILE=$CSS_FILE"
+
+      if [ -f "$CSS_FILE" ]; then
+        ls -lh "$CSS_FILE"
+        head -20 "$CSS_FILE"
+      else
+        echo "NO CSS FILE FOUND"
+      fi
+
+    - test -f api-center/dist/index.html
 
   post_build:
     commands:
@@ -118,7 +164,8 @@ phases:
           api-center/dist/assets \
           s3://$S3_BUCKET/assets \
           --delete \
-          --cache-control "public,max-age=31536000,immutable"
+          --cache-control "no-cache,no-store,must-revalidate" \
+          --content-type "text/html"
 
       # Upload remaining files
       - |
@@ -127,8 +174,38 @@ phases:
           s3://$S3_BUCKET \
           --exclude "assets/*" \
           --cache-control "no-cache,no-store,must-revalidate"
+          --content-type "text/html" \
 
       - echo "Uploaded frontend successfully"
+      - echo "========================================"
+      - echo "VERIFYING S3 CONTENT"
+      - echo "========================================"
+
+      - echo "Listing S3 root"
+      - aws s3 ls s3://$S3_BUCKET/
+
+      - echo "Listing S3 assets"
+      - aws s3 ls s3://$S3_BUCKET/assets/ --recursive
+
+      - echo "Checking uploaded JS object metadata"
+
+      - |
+        JS_OBJECT=$(aws s3 ls s3://$S3_BUCKET/assets/ --recursive | grep ".js" | head -1 | awk '{print $4}')
+
+        echo "JS_OBJECT=$JS_OBJECT"
+
+        aws s3api head-object \
+          --bucket "$S3_BUCKET" \
+          --key "$JS_OBJECT"
+
+      - echo "Downloading uploaded JS for verification"
+
+      - |
+        aws s3 cp s3://$S3_BUCKET/$JS_OBJECT /tmp/test.js
+
+        ls -lh /tmp/test.js
+
+        head -20 /tmp/test.js
 
       # Verify upload
       - |
@@ -286,7 +363,7 @@ phases:
       - |
         aws cloudfront create-invalidation \
           --distribution-id "$DISTRIBUTION_ID" \
-          --paths "/*"
+          -paths "/index.html" "/"
 
       - echo "Deployment completed successfully"
 

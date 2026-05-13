@@ -5,7 +5,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 import type { Partner, PartnerCapability } from '@api-hub/partners';
 import type { CreatePartnerInput, UpdatePartnerInput } from '../models/partner.model';
 import type { SetCapabilityInput } from '../models/capability.model';

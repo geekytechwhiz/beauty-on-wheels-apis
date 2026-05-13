@@ -307,7 +307,7 @@ if (!hasScope(scopes, 'Patient', 'read')) {
    import { FhirResponse, FhirErrorHandler } from '@api-hub/fhir/middleware';
    
    export async function getPatient(
-     event: APIGatewayProxyEvent,
+     event: APIGatewayProxyevent: any,
      context?: Context
    ): Promise<APIGatewayProxyResult> {
      try {

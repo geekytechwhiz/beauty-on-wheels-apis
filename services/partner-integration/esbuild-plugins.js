@@ -12,7 +12,7 @@ module.exports = [
       const workspaceRoot = resolve(projectRoot, '../..');
 
       const workspacePackages = {
-        '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
+        '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/partners': resolve(workspaceRoot, 'libs/partners/src/index.ts'),
         '@api-hub/error-messages': resolve(workspaceRoot, 'libs/error-messages/src/index.ts'),

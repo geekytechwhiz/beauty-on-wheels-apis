@@ -4,7 +4,7 @@
  * Response = authorizer result (Allow/Deny policy) or 403 with error.
  */
 
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import type { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
 import type { APIGatewayTokenAuthorizerEvent } from 'aws-lambda';
 import { main } from './handler';
 

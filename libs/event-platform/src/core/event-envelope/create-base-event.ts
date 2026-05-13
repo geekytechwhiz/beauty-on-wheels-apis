@@ -1,5 +1,5 @@
 import { generateEventId, nowIso } from '../../utils/helpers';
-import type { BaseEvent, EventMeta } from '../../typings/base-event.types';
+import type { Baseevent: any, EventMeta } from '../../typings/base-event.types';
 
 export type CreateBaseEventInput<T> = {
   eventType: string;

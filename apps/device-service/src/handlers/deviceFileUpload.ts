@@ -1,6 +1,6 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceMappingService } from '../services/deviceMappingService';
 import { DeviceNotFoundError } from '../utils/errors';
@@ -8,7 +8,7 @@ import { DeviceNotFoundError } from '../utils/errors';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceMappingService = new DeviceMappingService();
 
-const deviceFileUploadImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceFileUploadImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -25,7 +25,7 @@ const deviceFileUploadImpl: APIGatewayProxyHandler = async (event, context?: Con
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/{deviceId}/files', 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'BAD_REQUEST',
         details: [{ message: 'deviceId is required in path parameters' }],
@@ -41,7 +41,7 @@ const deviceFileUploadImpl: APIGatewayProxyHandler = async (event, context?: Con
     logger.error({ event: 'deviceFileUpload_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/{deviceId}/files', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Validate body
@@ -56,7 +56,7 @@ const deviceFileUploadImpl: APIGatewayProxyHandler = async (event, context?: Con
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/{deviceId}/files', 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'BAD_REQUEST',
         details: [{ message: 'fileName and fileUrl are required in request body' }],
@@ -75,17 +75,17 @@ const deviceFileUploadImpl: APIGatewayProxyHandler = async (event, context?: Con
     );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/{deviceId}/files', 201, duration, correlationId);
-    return ApiResponse.created(fileReference, 'DEVICE.DEVICE_FILE_UPLOADED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.created(fileReference, 'DEVICE.DEVICE_FILE_UPLOADED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceFileUpload_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/{deviceId}/files', 500, duration, correlationId);
 
     if (err instanceof DeviceNotFoundError) {
-      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', { requestId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
+      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', {  correlationId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
     }
 
-    return ApiResponse.internalServerError('DEVICE.FILE_UPLOAD_FAILED', { requestId: correlationId, event }, { code: 'FILE_UPLOAD_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.FILE_UPLOAD_FAILED', {  correlationId: correlationId, event }, { code: 'FILE_UPLOAD_FAILED' });
   }
 };
 

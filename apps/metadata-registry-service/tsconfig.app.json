@@ -12,7 +12,7 @@
     "emitDeclarationOnly": false,
     "paths": {
       "@api-hub/metadata": ["libs/metadata/src/index.ts"],
-      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/logger": ["libs/observability/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"],
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],

@@ -1,6 +1,6 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { DeviceNotFoundError } from '../utils/errors';
@@ -8,7 +8,7 @@ import { DeviceNotFoundError } from '../utils/errors';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const globalDeviceRepository = new GlobalDeviceRepository();
 
-const deviceUpdateImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceUpdateImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -20,7 +20,7 @@ const deviceUpdateImpl: APIGatewayProxyHandler = async (event, context?: Context
   if (!deviceId) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/devices/{deviceId}', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'deviceId is required in path' }] });
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'deviceId is required in path' }] });
   }
 
   // Parse body
@@ -31,14 +31,14 @@ const deviceUpdateImpl: APIGatewayProxyHandler = async (event, context?: Context
     logger.error({ event: 'deviceUpdate_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/devices/${deviceId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Validate body is an object
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/devices/${deviceId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Request body must be a valid object' }] });
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Request body must be a valid object' }] });
   }
 
   // Remove deviceId, pk, sk, sk3, sk4 from updates (these are key fields and cannot be updated)
@@ -50,7 +50,7 @@ const deviceUpdateImpl: APIGatewayProxyHandler = async (event, context?: Context
   if (Object.keys(updates).length === 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/devices/${deviceId}`, 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'No valid fields to update' }] });
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'No valid fields to update' }] });
   }
 
   // Log which fields will be updated (for debugging/auditing)
@@ -63,16 +63,16 @@ const deviceUpdateImpl: APIGatewayProxyHandler = async (event, context?: Context
 
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/devices/${deviceId}`, 200, duration, correlationId);
-    return ApiResponse.ok(updatedDevice, 'DEVICE.DEVICE_UPDATED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.ok(updatedDevice, 'DEVICE.DEVICE_UPDATED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof DeviceNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/devices/${deviceId}`, 404, duration, correlationId);
-      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', { requestId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
+      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', {  correlationId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
     }
     logger.error({ event: 'deviceUpdate_error', err: serializeError(err), deviceId });
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || `/devices/${deviceId}`, 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.UPDATE_FAILED', { requestId: correlationId, event }, { code: 'UPDATE_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.UPDATE_FAILED', {  correlationId: correlationId, event }, { code: 'UPDATE_FAILED' });
   }
 };
 

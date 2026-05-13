@@ -1,5 +1,5 @@
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'task-completion' });
 const lambdaClient = new LambdaClient({ region: process.env.REGION || 'us-east-1' });

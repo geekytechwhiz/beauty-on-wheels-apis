@@ -1,4 +1,4 @@
-import type { APIGatewayTokenAuthorizerEvent, APIGatewayAuthorizerResult } from 'aws-lambda';
+import type { APIGatewayTokenAuthorizerevent: any, APIGatewayAuthorizerResult } from 'aws-lambda';
 
 /**
  * Lambda token authorizer for partner-registry write operations (G5/G6).

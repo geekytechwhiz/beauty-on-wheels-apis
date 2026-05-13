@@ -1,4 +1,4 @@
-import { serializeError } from "@api-hub/logger";
+import { serializeError } from '@api-hub/observability';
 import { FriendFamilyService } from "../services/friendFamily.service";
 
 export interface FriendFamilyInput {

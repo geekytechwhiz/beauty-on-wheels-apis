@@ -38,7 +38,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event,
+          event: any,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -237,7 +237,7 @@ describe('listAlerts HTTP handler', () => {
   });
 
   it('handles warmup', async () => {
-    const result = await (main as any)({ source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent, context);
+    const result = await (main as any)({ source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyevent: any, context);
     expect(result.statusCode).toBe(200);
     expect(mockListAlerts).not.toHaveBeenCalled();
   });

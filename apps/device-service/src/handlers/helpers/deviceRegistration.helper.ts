@@ -1,4 +1,4 @@
-import { serializeError } from '@api-hub/logger';
+import { serializeError } from '@api-hub/observability';
 import { DeviceService } from '../../services/deviceService';
 import { deviceRegistrationSchema } from '../../validation/device.validation';
 import type { DeviceRegistrationResultItem } from '../../types/deviceRegistration.types';

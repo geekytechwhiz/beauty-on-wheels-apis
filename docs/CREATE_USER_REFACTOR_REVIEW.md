@@ -155,7 +155,7 @@ And ensure `roleCode` is set when the role source provides it (see 3.1).
 - **New**: `UserNotificationService.sendWelcomeNotification` **directly** calls `sendEmail`, `sendSMS`, `sendPush` with a small template data set (`USER_FIRST_NAME`, `ORG_NAME`, `ORG_ADDRESS`). No SNS event. No skip for FRIEND/FAMILY.
 - **Effect**: (1) Different delivery path (event vs direct). (2) F&F users get a welcome in the new flow but not in the old. (3) Template data is reduced; templates that expect the old fields may break or render incorrectly.
 
-**Recommendation:** Either keep the old behavior (publish same event, same template data, skip for F&F), or explicitly accept the new behavior and update templates and runbooks. If the requirement is “behavior must remain EXACTLY the same,” restore the old notification flow and template data and F&F skip.
+**Recommendation:** Either keep the old behavior (publish same event: any, same template data, skip for F&F), or explicitly accept the new behavior and update templates and runbooks. If the requirement is “behavior must remain EXACTLY the same,” restore the old notification flow and template data and F&F skip.
 
 ---
 

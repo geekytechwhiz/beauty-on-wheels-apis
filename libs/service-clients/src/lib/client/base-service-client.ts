@@ -4,7 +4,7 @@ import {
   createLogger,
   createChildLogger,
   serializeError,
-} from "@api-hub/logger";
+} from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: "service-client", redactPII: true });
 

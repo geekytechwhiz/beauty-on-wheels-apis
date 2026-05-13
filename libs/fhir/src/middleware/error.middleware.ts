@@ -1,5 +1,5 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
-import { serializeError } from '@api-hub/logger';
+import { serializeError } from '@api-hub/observability';
 
 import { AppError } from '@api-hub/utils';
 import { ErrorHandlerOptions, Message } from '@api-hub/utils';

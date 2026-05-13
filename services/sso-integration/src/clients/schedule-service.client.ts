@@ -1,7 +1,7 @@
 import {
   createChildLogger,
   serializeError
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { getEnvConfig } from '../config/env';

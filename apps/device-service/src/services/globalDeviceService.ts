@@ -1,5 +1,5 @@
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { GlobalDevice } from '../models';
 
 const baseLogger = createLogger({ service: 'global-device-service' });

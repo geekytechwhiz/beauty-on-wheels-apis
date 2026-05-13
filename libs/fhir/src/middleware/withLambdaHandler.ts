@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import { APIGatewayProxyevent: any, Context } from 'aws-lambda';
 import { buildRequestContext } from './request-context.middleware';
 
 import {
@@ -8,7 +8,7 @@ import {
   createChildLogger,
   logHttpRequest,
   createPerformanceTimer
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 import { successResponse } from './response.middleware';
 import { handleError } from './error.middleware';   
@@ -312,7 +312,7 @@ export const withLambdaHandler =
     handler: (request: TRequest) => Promise<TResult>,
     options: LambdaHandlerOptions = {}
   ) =>
-  async (event: APIGatewayProxyEvent, context: Context) => {
+  async (event: APIGatewayProxyevent: any, context: Context) => {
 
 
     const correlationId =
@@ -756,7 +756,7 @@ export const withLambdaHandler =
           clientId: fhirAuth?.clientId,
           tenantId: fhirAuth?.tenantId,
           outcome: auditOutcome,
-          requestId: correlationId,
+           correlationId: correlationId,
         }).catch(() => undefined);
       }
 

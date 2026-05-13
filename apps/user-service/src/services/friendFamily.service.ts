@@ -1,4 +1,4 @@
-import { createLogger, createChildLogger } from '@api-hub/logger';
+import { createLogger, createChildLogger } from '@api-hub/observability';
 import { UserRepository } from '../repositories/user.repository';
 import { FriendFamilyRepository, type FriendFamilyMapping } from '../repositories/friendFamily.repository';
 import { UserNotFoundError } from '../utils/errors';

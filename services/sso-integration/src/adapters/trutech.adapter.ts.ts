@@ -1,4 +1,4 @@
-import { createLogger, createChildLogger } from '@api-hub/logger';
+import { createLogger, createChildLogger } from '@api-hub/observability';
 
 import {
   TruTechAppointment,

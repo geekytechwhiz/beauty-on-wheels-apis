@@ -7,15 +7,15 @@ import {
   serializeError,
   logHttpRequest,
   createChildLogger,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const orgDeviceRepository = new OrgDeviceRepository();
 
-const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
-  event,
+const getOrganizationDeviceImpl: any = async (
+  event: any,
   context?: Context,
 ) => {
   const startTime = Date.now();
@@ -53,7 +53,7 @@ const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
       );
       return ApiResponse.badRequest(
         'DEVICE.ORGANIZATION_ID_REQUIRED',
-        { requestId: correlationId, event },
+        {  correlationId: correlationId, event },
         { code: 'ORGANIZATION_ID_REQUIRED' },
       );
     } 
@@ -71,7 +71,7 @@ const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
       return ApiResponse.ok(
         activeDevices,
         'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS',
-        { requestId: correlationId, event },
+        {  correlationId: correlationId, event },
       ); 
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -86,7 +86,7 @@ const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
     );
     return ApiResponse.internalServerError(
       'DEVICE.LIST_RETRIEVAL_FAILED',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'LIST_RETRIEVAL_FAILED' },
     );
   }

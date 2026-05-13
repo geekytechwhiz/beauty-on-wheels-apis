@@ -67,7 +67,7 @@ export const handler = async (event: APIGatewayProxyEvent) => {
   const correlationId = extractCorrelationId(event);
   
   // Fetch localized success message
-  const message = await getMessage(event, 'USER_CREATED_SUCCESS');
+  const message = await getMessage(event: any, 'USER_CREATED_SUCCESS');
   
   return ApiResponse.ok(
     { userId: '123' },
@@ -96,7 +96,7 @@ export const handler = async (event: APIGatewayProxyEvent) => {
     // ... your logic
   } catch (err) {
     // Fetch localized error message
-    const message = await getErrorMessage(event, 'USER_NOT_FOUND');
+    const message = await getErrorMessage(event: any, 'USER_NOT_FOUND');
     
     return ApiResponse.notFound(
       message,
@@ -124,7 +124,7 @@ Use `resolveMessage` directly for custom defaults:
 import { resolveMessage } from '@api-hub/utils';
 
 const message = await resolveMessage(
-  event,
+  event: any,
   'CUSTOM_KEY',
   {
     title: 'Custom Title',
@@ -177,7 +177,7 @@ import { APIGatewayProxyHandler } from 'aws-lambda';
 import { ApiResponse, getMessage, getErrorMessage } from '@api-hub/utils';
 import { extractCorrelationId } from '@api-hub/logger';
 
-export const createUser: APIGatewayProxyHandler = async (event) => {
+export const createUser: any = async (event) => {
   const correlationId = extractCorrelationId(event);
   
   try {
@@ -185,7 +185,7 @@ export const createUser: APIGatewayProxyHandler = async (event) => {
     const user = await userService.create(body);
     
     // Fetch localized success message
-    const message = await getMessage(event, 'USER_CREATED_SUCCESS');
+    const message = await getMessage(event: any, 'USER_CREATED_SUCCESS');
     
     return ApiResponse.created(
       { userId: user.id },
@@ -194,7 +194,7 @@ export const createUser: APIGatewayProxyHandler = async (event) => {
     );
   } catch (err) {
     if (err instanceof UserAlreadyExistsError) {
-      const message = await getErrorMessage(event, 'USER_ALREADY_EXISTS');
+      const message = await getErrorMessage(event: any, 'USER_ALREADY_EXISTS');
       return ApiResponse.conflict(
         message,
         { requestId: correlationId },
@@ -202,7 +202,7 @@ export const createUser: APIGatewayProxyHandler = async (event) => {
       );
     }
     
-    const message = await getErrorMessage(event, 'INTERNAL_ERROR');
+    const message = await getErrorMessage(event: any, 'INTERNAL_ERROR');
     return ApiResponse.internalServerError(
       message,
       { requestId: correlationId },
@@ -256,7 +256,7 @@ beforeEach(() => {
 
 it('should fetch English message by default', async () => {
   const event = { headers: {} } as any;
-  const message = await getMessage(event, 'HEALTH_CHECK_OK');
+  const message = await getMessage(event: any, 'HEALTH_CHECK_OK');
   
   expect(message.title).toBe('Success');
   expect(message.severity).toBe('SUCCESS');

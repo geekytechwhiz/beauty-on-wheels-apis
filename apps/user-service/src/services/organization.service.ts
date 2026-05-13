@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { createLogger, createChildLogger } from '@api-hub/logger';
+import { createLogger, createChildLogger } from '@api-hub/observability';
 import { OrganizationRepository } from '../repositories/organization.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });

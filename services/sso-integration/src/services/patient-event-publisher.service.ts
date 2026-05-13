@@ -1,5 +1,5 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 import { Patient, SSORequestContext } from '../types';
 import { PatientCreationEvent } from '../types/events';
 import { buildExternalIdentity } from '../utils/context-builder.util';
@@ -36,7 +36,7 @@ export class PatientEventPublisher {
    * @param correlationId - Correlation ID for logging
    */
   async publishPatientCreationEvent(
-    event: PatientCreationEvent,
+    event: PatientCreationevent: any,
     correlationId: string,
   ): Promise<void> {
     const logger = createChildLogger(this.logger, { correlationId });
@@ -146,7 +146,7 @@ export class PatientEventPublisher {
 
     const publishPromises = batches.map(async (batch, batchIndex) => {
       try {
-        const entries = batch.map((event, index) => ({
+        const entries = batch.map((event: any, index) => ({
           Id: `${batchIndex}-${index}`,
           MessageBody: JSON.stringify(event),
           MessageGroupId: `tenant:${event.tenantId}|patient:${String(event.data.externalId)}`,

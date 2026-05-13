@@ -1,4 +1,4 @@
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
 import type { TraceContext, TraceFailureContext } from './trace-context';
 
@@ -21,7 +21,7 @@ export type CreateEventTracingHooksOptions = {
   component?: string;
 };
 
-/** Default hooks using `@api-hub/logger` — no extra observability stack. */
+/** Default hooks using `@api-hub/observability` structured logger — no extra stack. */
 export function createEventTracingHooks(
   options: CreateEventTracingHooksOptions,
 ): EventTracingHooks {

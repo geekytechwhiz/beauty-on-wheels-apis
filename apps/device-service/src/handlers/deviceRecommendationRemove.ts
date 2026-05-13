@@ -15,8 +15,8 @@ import { ERROR_CODES } from '../constants/errorCodes';
 
 const recommendationService = new RecommendationService();
 
-const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
-  const ctx = createHandlerContext(event, context);
+const deviceRecommendationRemoveImpl: any = async (event: any, context?: Context) => {
+  const ctx = createHandlerContext(event: any, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
   logger.info({ event: 'deviceRecommendationRemove_received' });
@@ -25,7 +25,7 @@ const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, con
   if (!parseResult.success) {
     return logAndRespond(
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.DEVICES_RECOMMENDATIONS_REMOVE, statusCode: 400, startTime, correlationId },
-      await ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
+      await ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
     );
   }
 
@@ -63,7 +63,7 @@ const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, con
           title: 'Devices unrecommend success',
           description: 'The device recommendations were removed successfully.',
         },
-        { requestId: correlationId, event: evt },
+        {  correlationId: correlationId, event: evt },
       ),
     );
   } catch (err) {

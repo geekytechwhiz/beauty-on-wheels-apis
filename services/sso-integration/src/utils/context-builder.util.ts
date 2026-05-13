@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, ScheduledEvent, SQSEvent } from 'aws-lambda';
+import { APIGatewayProxyevent: any, Scheduledevent: any, SQSEvent } from 'aws-lambda';
 import { getEnvConfig } from '../config/env';
 import { loadTenantDetails } from '../utils/helper';
 import { SourceSystem, SSORequestContext } from '../types/common/context.types';
@@ -11,7 +11,7 @@ export function buildSSORequestContext(
     | APIGatewayProxyEvent
     | ScheduledEvent
     | SQSEvent
-    | PatientCreationEvent,
+    | PatientCreationevent: any,
   correlationId: string,
 ): SSORequestContext {
   const { INTERNAL_SERVICE_TOKEN } = getEnvConfig();
@@ -111,7 +111,7 @@ export function buildSSORequestContext(
 }
 
 export function buildSSORequestContextFromSQS(
-  event: PatientCreationEvent,
+  event: PatientCreationevent: any,
   correlationId: string,
 ): SSORequestContext {
   const { INTERNAL_SERVICE_TOKEN } = getEnvConfig();

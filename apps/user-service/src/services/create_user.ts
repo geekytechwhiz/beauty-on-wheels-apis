@@ -3,7 +3,7 @@ import {
   createLogger,
   createPerformanceTimer,
   serializeError,
-} from "@api-hub/logger";
+} from '@api-hub/observability';
 import { ulid } from "ulid";
 
 import { CreateUserHandlerModel } from "../models/user/create-user-model";

@@ -40,8 +40,8 @@ export class EventConsumer {
     let parsed: BaseEvent | undefined;
 
     try {
-      parsed = parseInboundEvent(event, {
-        mapRawToBaseEvent: this.deps.mapRawToBaseEvent,
+      parsed = parseInboundEvent(event: any, {
+        mapRawToBaseEvent: this.deps.mapRawToBaseevent: any,
       });
       parsed = normalizeEventMeta(parsed, {
         fallbackCorrelationId: fallbackCorrelation,
@@ -89,7 +89,7 @@ export class EventConsumer {
     };
 
     const result = await orchestratePreparedConsumerEvent({
-      baseEvent,
+      baseevent: any,
       rawForDelivery: parsed,
       deps: this.deps,
       registry,

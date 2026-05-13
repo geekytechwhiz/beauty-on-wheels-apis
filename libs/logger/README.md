@@ -1,5 +1,9 @@
 # Logger Library
 
+**Deprecated:** Use [`@api-hub/observability`](../observability/README.md) for new code. Observability provides Powertools-backed structured logging, sampling, PII controls, metrics, and AsyncLocalStorage context propagation.
+
+---
+
 A production-ready Winston-based logging library for serverless applications with AWS Lambda support.
 
 ## Features
@@ -156,7 +160,7 @@ logger.log(LogLevel.INFO, 'Custom log');
 ## Example: Complete Lambda Handler
 
 ```typescript
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
 import { extractLambdaContext, createLoggerWithContext } from '@api-hub/logger';
 
 export const handler = async (

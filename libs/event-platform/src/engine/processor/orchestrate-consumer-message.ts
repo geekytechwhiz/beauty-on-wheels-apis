@@ -2,7 +2,7 @@ import {
   getContext,
   getLogger,
   recordConsumerDeadLetter,
-  recordConsumerDuplicateEvent,
+  recordConsumerDuplicateevent: any,
   recordConsumerEventProcessed,
   recordConsumerFailure,
   recordConsumerRetry,
@@ -68,7 +68,7 @@ async function applyTerminalDecision(
     traceCtx: ReturnType<typeof traceContextFromEvent>;
   },
 ): Promise<ProcessSingleResult> {
-  const { rawForDelivery, deps, baseEvent, effectiveAttempt, traceCtx } = params;
+  const { rawForDelivery, deps, baseevent: any, effectiveAttempt, traceCtx } = params;
   const eventType = baseEvent?.eventType;
   const dlq = deps.dlq ?? { enabled: false };
 
@@ -161,7 +161,7 @@ async function handleIdempotencyContention(params: {
   baseEvent: BaseEvent<any>;
   traceCtx: ReturnType<typeof traceContextFromEvent>;
 }): Promise<ProcessSingleResult> {
-  const { rawForDelivery, deps, baseEvent, traceCtx } = params;
+  const { rawForDelivery, deps, baseevent: any, traceCtx } = params;
   const effectiveAttempt = computeEffectiveDeliveryAttempt(
     rawForDelivery,
     baseEvent.meta?.retryCount,
@@ -218,7 +218,7 @@ async function handleIdempotencyContention(params: {
   return applyTerminalDecision(decision, new Error('idempotency_contention'), {
     rawForDelivery,
     deps,
-    baseEvent,
+    baseevent: any,
     effectiveAttempt,
     traceCtx,
   });
@@ -232,7 +232,7 @@ async function runSingleHandlerAttempt(params: {
   handler: (event: BaseEvent<any>) => Promise<void>;
   traceCtx: ReturnType<typeof traceContextFromEvent>;
 }): Promise<ProcessSingleResult> {
-  const { baseEvent, rawForDelivery, deps, beforeDispatch, handler, traceCtx } = params;
+  const { baseevent: any, rawForDelivery, deps, beforeDispatch, handler, traceCtx } = params;
 
   try {
     await beforeDispatch?.(baseEvent);
@@ -282,7 +282,7 @@ async function runSingleHandlerAttempt(params: {
     return applyTerminalDecision(decision, err, {
       rawForDelivery,
       deps,
-      baseEvent,
+      baseevent: any,
       effectiveAttempt,
       traceCtx,
     });
@@ -313,7 +313,7 @@ async function runInProcessHandlerAttempts(params: {
   handler: (event: BaseEvent<any>) => Promise<void>;
   traceCtx: ReturnType<typeof traceContextFromEvent>;
 }): Promise<ProcessSingleResult> {
-  const { baseEvent, rawForDelivery, deps, beforeDispatch, handler, traceCtx } = params;
+  const { baseevent: any, rawForDelivery, deps, beforeDispatch, handler, traceCtx } = params;
 
   let current: BaseEvent<any> = baseEvent;
   const max = Math.max(1, deps.retry.maxAttempts);
@@ -381,7 +381,7 @@ async function runInProcessHandlerAttempts(params: {
 }
 
 export async function orchestratePreparedConsumerEvent({
-  baseEvent,
+  baseevent: any,
   rawForDelivery,
   deps,
   registry,
@@ -412,7 +412,7 @@ export async function orchestratePreparedConsumerEvent({
     return handleIdempotencyContention({
       rawForDelivery,
       deps,
-      baseEvent,
+      baseevent: any,
       traceCtx,
     });
   }
@@ -449,7 +449,7 @@ export async function orchestratePreparedConsumerEvent({
     return applyTerminalDecision(decision, err, {
       rawForDelivery,
       deps,
-      baseEvent,
+      baseevent: any,
       effectiveAttempt,
       traceCtx,
     });
@@ -459,7 +459,7 @@ export async function orchestratePreparedConsumerEvent({
 
   if (sqsSurface || deps.transportRetry) {
     return runSingleHandlerAttempt({
-      baseEvent,
+      baseevent: any,
       rawForDelivery,
       deps,
       beforeDispatch,
@@ -469,7 +469,7 @@ export async function orchestratePreparedConsumerEvent({
   }
 
   return runInProcessHandlerAttempts({
-    baseEvent,
+    baseevent: any,
     rawForDelivery,
     deps,
     beforeDispatch,
@@ -545,7 +545,7 @@ export async function handlePreparationFailure(
   return applyTerminalDecision(decision, err, {
     rawForDelivery: raw,
     deps,
-    baseEvent: partialEvent,
+    baseEvent: partialevent: any,
     effectiveAttempt,
     traceCtx,
   });

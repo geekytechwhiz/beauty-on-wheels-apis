@@ -1,7 +1,7 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { DeviceUserEntry, Device } from '../models';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceNotFoundError } from '../utils/errors';
 import * as crypto from 'crypto';
 

@@ -2,7 +2,7 @@ Refactor the middleware engine to be fully generic, type-safe, and reusable.
 
 Requirements:
 - Use a standard middleware signature:
-  async ({ event, context, next }) => Promise<TResult>
+  async ({ event: any, context, next }) => Promise<TResult>
 - Support chaining using next()
 - Add lifecycle hooks:
   - onBefore

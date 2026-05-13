@@ -21,7 +21,7 @@ export function consumeEvent(
     }
 
     return processSingle({
-      raw: rawEvent,
+      raw: rawevent: any,
       deps,
       registry,
       beforeDispatch,

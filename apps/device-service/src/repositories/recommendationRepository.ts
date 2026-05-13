@@ -1,7 +1,7 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand, DeleteCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { DeviceRecommendation } from '../models';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { RecommendationNotFoundError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'recommendation-repository' });

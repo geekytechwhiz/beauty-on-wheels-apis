@@ -3,7 +3,7 @@ import {
   createLogger,
   extractAwsRequestId,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { Context, SQSEvent } from 'aws-lambda';
 
 import { AppointmentSyncService } from '../../services/appointment-sync.service';
@@ -51,7 +51,7 @@ function validateMessageBody(body: CancellationReconciliationMessage): void {
 }
 
 export async function handler(
-  event: SQSEvent,
+  event: SQSevent: any,
   context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;

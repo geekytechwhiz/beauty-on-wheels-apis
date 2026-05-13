@@ -1,4 +1,4 @@
-import { createLogger, type Logger } from '@api-hub/logger';
+import { createLogger, type Logger } from '@api-hub/observability';
 
 import type { EventEnvelope } from '../../typings/base-event.types';
 

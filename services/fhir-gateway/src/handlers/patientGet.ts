@@ -2,7 +2,7 @@
  * GET /fhir/Patient/{id}
  * Auth → Scope → Consent → Tenant → Fetch canonical → Map to FHIR → Audit → Response.
  */
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import type { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
 import { getAuthContext } from '../auth';
 import { enforceConsent } from '@api-hub/consent';
 import { isScopeAllowed } from '@api-hub/scope-mapping';

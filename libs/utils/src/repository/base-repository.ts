@@ -25,7 +25,7 @@ import { sendDoc } from "../configs/dynamodb-send";
 import {
   createLogger,
   createChildLogger,
-} from "@api-hub/logger";
+} from '@api-hub/observability';
 import { ConditionalWriteConflictError } from "../errors/app.error";
 
 const baseLogger = createLogger({

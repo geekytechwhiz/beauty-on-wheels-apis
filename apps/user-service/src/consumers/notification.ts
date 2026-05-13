@@ -1,5 +1,5 @@
-import { SNSEvent, Context } from 'aws-lambda';
-import { createLogger, serializeError } from '@api-hub/logger';
+import { SNSevent: any, Context } from 'aws-lambda';
+import { createLogger, serializeError } from '@api-hub/observability';
 import { sendEmail, sendSms, sendPush } from '../services/notification.delivery';
 import type {
   RecommendationNotificationRequestedData,
@@ -106,7 +106,7 @@ async function deliver(payload: NotificationPayload): Promise<void> {
   logger.info({ event: 'deliver_complete', condition: 'exit', userId: payload.userId, channels, message: 'deliver() finished' });
 }
 
-export const handler = async (event: SNSEvent, _context: Context) => {
+export const handler = async (event: SNSevent: any, _context: Context) => {
   logger.info({ event: 'notification_consumer_start', records: event.Records.length });
 
   for (const record of event.Records || []) {

@@ -76,7 +76,7 @@ export class SqsAdapter {
    * and visibility is extended with exponential backoff so other workers do not tight-loop.
    */
   async subscribe(
-    handler: (event: BaseEvent, meta: SqsSubscribeMeta) => Promise<void>,
+    handler: (event: Baseevent: any, meta: SqsSubscribeMeta) => Promise<void>,
     options?: SqsSubscribeOptions,
   ): Promise<void> {
     const log = getLogger();
@@ -124,7 +124,7 @@ export class SqsAdapter {
           continue;
         }
         try {
-          await handler(event, meta);
+          await handler(event: any, meta);
         } catch (handlerErr) {
           log.error('sqs_subscribe_handler_failed', handlerErr, {
             messageId: meta.messageId,

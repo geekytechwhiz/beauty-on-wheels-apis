@@ -1,4 +1,4 @@
-import { isLabSubscriptionEvent, deliverSubscription } from './index';
+import { isLabSubscriptionevent: any, deliverSubscription } from './index';
 
 describe('outbound-delivery subscriptions', () => {
   describe('isLabSubscriptionEvent', () => {

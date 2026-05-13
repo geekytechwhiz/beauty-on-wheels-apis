@@ -1,9 +1,9 @@
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
 import { createEventTracingHooks } from './event-tracing-hooks';
 
 describe('createEventTracingHooks', () => {
-  it('logs received, processed, and failed via @api-hub/logger', () => {
+  it('logs received, processed, and failed via observability logger', () => {
     const info = jest.fn();
     const error = jest.fn();
     const logger = { info, error } as unknown as Logger;

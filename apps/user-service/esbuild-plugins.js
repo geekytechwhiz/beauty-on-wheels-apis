@@ -20,7 +20,7 @@ module.exports = [
        * Add new libs here when you create them
        */
       const workspacePackages = {
-        '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
+        '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
         

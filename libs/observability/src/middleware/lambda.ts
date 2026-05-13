@@ -12,7 +12,7 @@ export const withLambdaObservability =
       initialized = true;
     }
 
-    const ctx = normalizeContext(event, context);
+    const ctx = normalizeContext(event: any, context);
 
-    return withContext(ctx, () => handler(event, context));
+    return withContext(ctx, () => handler(event: any, context));
   };

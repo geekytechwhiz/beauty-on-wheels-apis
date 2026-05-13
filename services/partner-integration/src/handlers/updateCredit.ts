@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import {
   getRequestId,
@@ -20,10 +20,10 @@ import {
   PartnerNotFoundError,
 } from '@api-hub/lab-integration';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
-  const logger = createHandlerLogger(event, context);
+  const requestId = getRequestId(event: any, context);
+  const logger = createHandlerLogger(event: any, context);
   logger.info({ event: 'updateCredit_received' });
 
   const orderId = event.pathParameters?.orderId;
@@ -33,7 +33,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!orderId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'orderId path parameter is required' }] }
     );
   }
@@ -41,7 +41,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId query parameter is required' }] }
     );
   }
@@ -50,7 +50,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (body === null || typeof body !== 'object') {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Request body is required' }] }
     );
   }
@@ -63,7 +63,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const result = await integrationService.updateCredit(partnerId, orderId, creditData, idempotencyKey);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/orders', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.CREDIT_UPDATED', responseOpts(event, requestId));
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.CREDIT_UPDATED', responseOpts(event: any, requestId));
   } catch (err) {
     logger.error({ event: 'updateCredit_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
@@ -72,7 +72,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/orders', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
       );
     }
@@ -81,7 +81,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
@@ -90,28 +90,28 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'INVALID_PARTNER_RESPONSE', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerAuthenticationError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.AUTH_FAILED',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'AUTH_FAILED', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerNotFoundError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.NOT_FOUND',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'NOT_FOUND', details: [{ message: err.message }] }
       );
     }
     if (err instanceof Error && err.message?.includes('not supported')) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_OPERATION',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'UNSUPPORTED_OPERATION', details: [{ message: err.message }] }
       );
     }
@@ -119,7 +119,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/orders', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

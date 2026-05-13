@@ -8,7 +8,7 @@ export class SqsRetryStrategy implements RetryStrategy {
   constructor(private queueUrl: string) {}
 
   async scheduleRetry({
-    rawEvent,
+    rawevent: any,
     retryCount: _retryCount,
     delayMs,
   }: {

@@ -1,5 +1,5 @@
 import { LambdaRequest } from "@api-hub/utils";
-import { createChildLogger, createLogger } from "@api-hub/logger";
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import { CreateUserService } from "../services/create_user";
 import { assignUserRole } from "../services/role.service";
 import { UserValidationService } from "../validation/user-validation";

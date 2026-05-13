@@ -2,7 +2,7 @@ export { publishMiddlewarePipelineMetrics } from './middleware-metrics';
 export {
   recordConsumerDeadLetter,
   recordConsumerDeliveryDisposition,
-  recordConsumerDuplicateEvent,
+  recordConsumerDuplicateevent: any,
   recordConsumerEventProcessed,
   recordConsumerFailure,
   recordConsumerRetry,

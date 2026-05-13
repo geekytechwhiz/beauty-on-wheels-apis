@@ -21,7 +21,6 @@ module.exports = {
   coverageDirectory: 'test-output/jest/coverage',
   moduleNameMapper: {
     '^@api-hub/utils$': '<rootDir>/../utils/src/index.ts',
-    '^@api-hub/logger$': '<rootDir>/../logger/src/index.ts',
     '^@api-hub/middleware$': '<rootDir>/../middleware/src/index.ts',
     '^@api-hub/observability$': '<rootDir>/../observability/src/index.ts',
     '^@api-hub/event-platform$': '<rootDir>/src/index.ts',

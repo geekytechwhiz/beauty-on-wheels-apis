@@ -3,7 +3,7 @@ import {
   createLogger,
   extractAwsRequestId,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 import { Context, SQSEvent } from 'aws-lambda';
 
@@ -31,7 +31,7 @@ export interface AppointmentSyncQueueMessage {
  * Failed messages are reported as batch item failures so SQS retries them.
  */
 export async function handler(
-  event: SQSEvent,
+  event: SQSevent: any,
   context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;

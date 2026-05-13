@@ -1,4 +1,4 @@
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 

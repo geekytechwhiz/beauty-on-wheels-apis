@@ -1,5 +1,5 @@
 import { DynamoDBStreamEvent } from 'aws-lambda';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
 import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID, PORTAL_LINK } from '../../utils/constants';
@@ -38,7 +38,7 @@ async function processRecord(
     logger.info({
       event: 'inviteNotificationStream_skipped',
       eventName: record.eventName,
-      message: 'Not a MODIFY event, skipping',
+      message: 'Not a MODIFY event: any, skipping',
     });
     return;
   }

@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { linkOrgPartnerSchema } from '../validation/orgPartner.schema';
 import { PartnerNotFoundError, OrgPartnerLinkExistsError } from '../utils/errors';
@@ -11,11 +11,11 @@ import {
   getPartnerService,
 } from '../utils/handlerHelpers';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
+  const requestId = getRequestId(event: any, context);
   const orgId = event.pathParameters?.orgId;
-  const logger = createHandlerLogger(event, context, { organizationId: orgId });
+  const logger = createHandlerLogger(event: any, context, { organizationId: orgId });
   logger.info({ event: 'linkOrgPartner_received', organizationId: orgId });
 
   if (!orgId) {
@@ -24,7 +24,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Missing organization id in path' }] }
     );
   }
@@ -36,7 +36,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -48,7 +48,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 422, duration, requestId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -70,7 +70,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.created(
       { organizationId: orgId, partnerId: validation.data.partnerId },
       'PARTNER.ORG_PARTNER_LINKED_SUCCESS',
-      responseOpts(event, requestId)
+      responseOpts(event: any, requestId)
     );
   } catch (err) {
     if (err instanceof PartnerNotFoundError) {
@@ -79,7 +79,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 404, duration, requestId);
       return ApiResponse.notFound(
         'PARTNER.PARTNER_NOT_FOUND',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
       );
     }
@@ -89,7 +89,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 409, duration, requestId);
       return ApiResponse.conflict(
         'PARTNER.ORG_PARTNER_LINK_EXISTS',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'ORG_PARTNER_LINK_EXISTS', details: [{ message: err.message }] }
       );
     }
@@ -98,7 +98,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/organization/partner', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

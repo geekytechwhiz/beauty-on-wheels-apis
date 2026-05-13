@@ -2,7 +2,7 @@ import {
   createChildLogger,
   createLogger,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { UserItem, V2UserListServiceParams } from '../models/UserListResponse';
 import { V2UserListRepository } from '../repositories/v2-user-list.repository';
 import {

@@ -19,7 +19,7 @@
       "@api-hub/fhir": ["libs/fhir/src/index.ts"],
       "@api-hub/integration-events": ["libs/integration-events/src/index.ts"],
       "@api-hub/lab-integration": ["libs/lab-integration/src/index.ts"],
-      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/logger": ["libs/observability/src/index.ts"],
       "@api-hub/metadata": ["libs/metadata/src/index.ts"],
       "@api-hub/middleware": ["libs/middleware/src/index.ts"],
       "@api-hub/observability": ["libs/observability/src/index.ts"],
@@ -43,7 +43,7 @@
       "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/logger/tsconfig.lib.json"
+      "path": "../../libs/observability/tsconfig.lib.json"
     },
     {
       "path": "../../libs/middleware/tsconfig.lib.json"

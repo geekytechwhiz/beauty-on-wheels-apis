@@ -1,4 +1,4 @@
-import { createChildLogger } from '@api-hub/logger';
+import { createChildLogger } from '@api-hub/observability';
 import { withLambdaHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserRepository } from '../repositories/user.repository';

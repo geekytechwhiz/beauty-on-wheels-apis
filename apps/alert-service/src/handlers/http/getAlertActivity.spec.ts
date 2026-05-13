@@ -3,7 +3,7 @@ import {
   bearerToken,
   setupHandlerTestEnv,
   testLambdaContext,
-  baseGetEvent,
+  baseGetevent: any,
 } from '../../__tests__/handler-test-utils';
 
 jest.mock('@api-hub/middleware', () => {
@@ -38,7 +38,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event,
+          event: any,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -129,7 +129,7 @@ describe('getAlertActivity HTTP handler', () => {
 
   it('returns 400 when alertId missing', async () => {
     const event = baseGetEvent({ pathParameters: {} });
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(400);
     expect(mockListAlertActivity).not.toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe('getAlertActivity HTTP handler', () => {
     const event = baseGetEvent({
       headers: { Authorization: bearerToken({ sub: 'u' }) },
     });
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(401);
     expect(mockListAlertActivity).not.toHaveBeenCalled();
@@ -159,12 +159,12 @@ describe('getAlertActivity HTTP handler', () => {
       pathParameters: { alertId: 'alt-1' },
       queryStringParameters: { notesOnly: 'true' },
     });
-    await (main as any)(event, context);
+    await (main as any)(event: any, context);
     expect(mockListAlertActivity).toHaveBeenCalledWith('alt-1', 'org-1', { notesOnly: true });
   });
 
   it('handles warmup', async () => {
-    const result = await (main as any)({ source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent, context);
+    const result = await (main as any)({ source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyevent: any, context);
     expect(result.statusCode).toBe(200);
     expect(mockListAlertActivity).not.toHaveBeenCalled();
   });

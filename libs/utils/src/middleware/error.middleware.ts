@@ -1,5 +1,5 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { serializeError } from '@api-hub/logger';
+import { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
+import { serializeError } from '@api-hub/observability';
 
 import { toBaseError } from '../errors/normalize-error';
 import { ErrorHandlerOptions, Message } from '../types/core-types';
@@ -94,7 +94,7 @@ export async function handleError(
    * used so the response title is always human-readable.
    */
   const cdnMessage = await resolveMessage(
-    (options.event ?? {}) as APIGatewayProxyEvent,
+    (options.event ?? {}) as APIGatewayProxyevent: any,
     errorCode,
     {
       title: localTitle,

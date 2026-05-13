@@ -16,7 +16,7 @@ import {
   createLogger,
   serializeError,
   createChildLogger,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import {
   User,
   Appointment,

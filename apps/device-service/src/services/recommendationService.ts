@@ -1,5 +1,5 @@
 import { RecommendationRepository } from '../repositories/recommendationRepository';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceRecommendation } from '../models';
 import { RecommendationNotFoundError, RecommendationAlreadyExistsError, RecommendationCannotRemovePairedError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';

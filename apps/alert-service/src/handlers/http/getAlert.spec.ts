@@ -3,7 +3,7 @@ import {
   minimalAlertRecord,
   setupHandlerTestEnv,
   testLambdaContext,
-  baseGetEvent,
+  baseGetevent: any,
 } from '../../__tests__/handler-test-utils';
 
 jest.mock('@api-hub/middleware', () => {
@@ -38,7 +38,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event,
+          event: any,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -120,7 +120,7 @@ describe('getAlert HTTP handler', () => {
       pathParameters: {},
     });
 
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(400);
     expect(mockGetAlert).not.toHaveBeenCalled();
@@ -132,7 +132,7 @@ describe('getAlert HTTP handler', () => {
       headers: { Authorization: bearerToken({ sub: 'u1' }) },
     });
 
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(401);
     expect(mockGetAlert).not.toHaveBeenCalled();

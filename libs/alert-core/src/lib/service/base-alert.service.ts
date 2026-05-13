@@ -1,4 +1,4 @@
-import { createLogger, type Logger } from '@api-hub/logger';
+import { createLogger, type Logger } from '@api-hub/observability';
 
 import { AlertRepository } from '../repositories/alert-repository';
 

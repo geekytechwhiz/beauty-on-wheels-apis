@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import { APIGatewayProxyevent: any, Context } from 'aws-lambda';
 import { buildRequestContext } from './request-context.middleware';
 
 import {
@@ -7,7 +7,7 @@ import {
   extractAwsRequestId,
   createChildLogger,
   logHttpRequest,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 import { createdResponse, successResponse } from './response.middleware';
 import { handleError } from './error.middleware';
@@ -30,7 +30,7 @@ export const withLambdaHandler =
     handler: (request: TRequest) => Promise<TResult>,
     options: LambdaHandlerOptions = {}
   ) =>
-  async (event: APIGatewayProxyEvent, context: Context) => {
+  async (event: APIGatewayProxyevent: any, context: Context) => {
     /** Immediate response for serverless-plugin-warmup (non-HTTP payload) */
     if (
       event &&
@@ -98,7 +98,7 @@ export const withLambdaHandler =
         correlationId
       );
 
-      const responseOptions = { requestId: correlationId, event };
+      const responseOptions = {  correlationId: correlationId, event };
 
       if (options.successMessageKey) {
         const messageKey = options.successMessageKey as unknown as Message;
@@ -139,7 +139,7 @@ export const withLambdaHandler =
       return handleError(error, {
         correlationId,
         logger,
-        event,
+        event: any,
       });
     }
   };

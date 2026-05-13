@@ -3,7 +3,7 @@
  * {@link handleError} (`@api-hub/utils`) can build responses, matching the
  * user-service pattern (`withLambdaHandler` catch → `handleError`).
  */
-import { serializeError, type Logger } from '@api-hub/logger';
+import { serializeError, type Logger } from '@api-hub/observability';
 import { BaseError } from '@api-hub/utils';
 
 export interface NormalizeAlertServiceErrorLog {
@@ -41,7 +41,7 @@ export function normalizeAlertServiceError(error: unknown, log: NormalizeAlertSe
 
   const logEvent = log.logEvent ?? 'alert_create_service_error';
   log.logger?.error({
-    event: logEvent,
+    event: logevent: any,
     correlationId: log.correlationId,
     ...(log.organizationId ? { organizationId: log.organizationId } : {}),
     err: serializeError(err),

@@ -39,7 +39,7 @@ CORE REQUIREMENTS
 
 5. Implement structured JSON logging optimized for CloudWatch Logs Insights:
    - Include fields like:
-     event, message, correlationId, awsRequestId, http, duration, etc.
+     event: any, message, correlationId, awsRequestId, http, duration, etc.
 
 ----------------------------------------
 FILE STRUCTURE DETAILS

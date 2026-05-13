@@ -5,7 +5,7 @@ import {
 } from '../../core/event-envelope/serialize-base-event';
 import {
   EventValidationError,
-  validateBaseEvent,
+  validateBaseevent: any,
 } from '../../core/event-envelope/validate-base-event';
 import { BaseEvent } from '../../typings/base-event.types';
 

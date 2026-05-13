@@ -27,7 +27,7 @@
       "path": "../auth/tsconfig.lib.json"
     },
     {
-      "path": "../logger/tsconfig.lib.json"
+      "path": "../observability/tsconfig.lib.json"
     },
     {
       "path": "../terminology/tsconfig.lib.json"

@@ -25,7 +25,7 @@ export function onEvent<Schema extends z.ZodTypeAny & { __meta: EventSchemaMeta 
 
   return (rawEvent: unknown, handleOptions?: HandleOptions) =>
     consumer.handle(
-      rawEvent,
+      rawevent: any,
       async (baseEvent) => {
         const body =
           typeof baseEvent.payload === 'object' && baseEvent.payload !== null;

@@ -1,4 +1,4 @@
-import { serializeError } from "@api-hub/logger";
+import { serializeError } from '@api-hub/observability';
 import { UserRepository } from "../repositories/user.repository";
 
 const repository = new UserRepository();

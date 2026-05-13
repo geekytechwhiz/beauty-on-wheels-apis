@@ -1,4 +1,4 @@
-import { createChildLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, serializeError } from '@api-hub/observability';
 import { BaseClient } from '@api-hub/service-clients';
 import axios from 'axios';
 import { SSORequestContext } from '../types/common/context.types';

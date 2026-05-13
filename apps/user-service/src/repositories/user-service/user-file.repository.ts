@@ -5,7 +5,7 @@ import {
   createLogger,
   createChildLogger,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { KeyBuilder } from '@api-hub/utils';
 import { UserFile } from '../../models/user-file.model';
 

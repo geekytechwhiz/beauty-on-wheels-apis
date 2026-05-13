@@ -145,7 +145,7 @@ export class OrangeWebhookAdapter implements LabWebhookAdapter {
     const detail: Record<string, unknown> = {
       partnerId: 'orange',
       orderId,
-      event: orangeBody.event,
+      event: orangeBody.event: any,
       contains: orangeBody.contains || [],
       ...orangeBody.payload,
     };

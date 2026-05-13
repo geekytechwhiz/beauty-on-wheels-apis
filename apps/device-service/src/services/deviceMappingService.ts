@@ -1,5 +1,5 @@
 import { DeviceMappingRepository, DeviceUserMapping, DeviceOrgMapping, DeviceMetadata, DeviceFileReference } from '../repositories/deviceMappingRepository';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceNotFoundError } from '../utils/errors';
 import * as crypto from 'crypto';
 

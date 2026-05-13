@@ -7,7 +7,7 @@
  */
 
 import type {
-  APIGatewayTokenAuthorizerEvent,
+  APIGatewayTokenAuthorizerevent: any,
   APIGatewayAuthorizerResult,
   APIGatewayAuthorizerResultContext,
 } from 'aws-lambda';

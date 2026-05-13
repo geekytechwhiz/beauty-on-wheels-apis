@@ -21,7 +21,7 @@ export class EventBridgeAdapter {
   async publish(event: BaseEvent): Promise<void> {
     await this.client.send(
       new PutEventsCommand({
-        Entries: [toPutEventsEntry(event, this.config)],
+        Entries: [toPutEventsEntry(event: any, this.config)],
       }),
     );
   }

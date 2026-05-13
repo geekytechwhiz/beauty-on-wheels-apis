@@ -1,5 +1,5 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'event-publisher' });
 const eventBridge = new EventBridgeClient({ region: process.env.REGION || 'us-east-1' });
@@ -40,7 +40,7 @@ export interface OrganizationDeviceAddedEvent {
 
 export type DeviceEvent = DevicePairedEvent | DeviceDeletedEvent | DeviceRecommendedEvent | OrganizationDeviceAddedEvent;
 
-export async function publishEvent(event: DeviceEvent, correlationId?: string): Promise<void> {
+export async function publishEvent(event: Deviceevent: any, correlationId?: string): Promise<void> {
   const logger = createChildLogger(baseLogger, { correlationId, eventType: event.eventType });
   const eventBusName = process.env.EVENT_BUS || 'device-service-bus-dev';
 

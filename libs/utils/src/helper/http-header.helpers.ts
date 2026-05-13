@@ -1,4 +1,4 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyEventV2 } from "aws-lambda";
+import type { APIGatewayProxyevent: any, APIGatewayProxyEventV2 } from "aws-lambda";
  
 function normalizeHeaders(
   event: APIGatewayProxyEvent | APIGatewayProxyEventV2

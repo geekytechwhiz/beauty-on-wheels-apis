@@ -1,6 +1,6 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { errorNotificationSchema } from '../validation/device.validation';
 import { publishDeviceErrorNotification } from '../services/notification.service';
@@ -8,7 +8,7 @@ import { publishDeviceErrorNotification } from '../services/notification.service
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const PATH = '/devices/error-notification';
 
-const errorNotificationImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const errorNotificationImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -22,7 +22,7 @@ const errorNotificationImpl: APIGatewayProxyHandler = async (event, context?: Co
     logger.error({ event: 'errorNotification_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   const validation = errorNotificationSchema.safeParse(body);
@@ -31,7 +31,7 @@ const errorNotificationImpl: APIGatewayProxyHandler = async (event, context?: Co
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 400, duration, correlationId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
@@ -57,8 +57,8 @@ const errorNotificationImpl: APIGatewayProxyHandler = async (event, context?: Co
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 200, duration, correlationId);
     return ApiResponse.ok({ message: 'Notification requested' }, 'DEVICE.ERROR_NOTIFICATION_REQUESTED', {
-      requestId: correlationId,
-      event,
+       correlationId: correlationId,
+      event: any,
     });
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -66,7 +66,7 @@ const errorNotificationImpl: APIGatewayProxyHandler = async (event, context?: Co
     logHttpRequest(logger, event.httpMethod || 'POST', PATH, 500, duration, correlationId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_SERVER_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'INTERNAL_SERVER_ERROR' }
     );
   }

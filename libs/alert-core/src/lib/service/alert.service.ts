@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
 import { AlertWorkflowAction } from '../constants/alert-workflow-action';
 import { DuplicateEventError } from '../errors/duplicate-event.error';

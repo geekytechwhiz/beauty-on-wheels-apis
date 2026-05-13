@@ -1,4 +1,4 @@
-import { createChildLogger, createLogger } from '@api-hub/logger';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import { DeviceRecommendation, GlobalDevice } from '../models';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository'; 
 import { RecommendationRepository } from '../repositories/recommendationRepository';

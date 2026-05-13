@@ -1,6 +1,6 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
@@ -34,7 +34,7 @@ const deviceAssignSchema = z.object({
   supportedVitals: z.array(z.string()).optional(),
 });
 
-const deviceOrgAssignImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceOrgAssignImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const awsRequestId = context ? extractAwsRequestId(context) : 'local';
   const correlationId = extractCorrelationId(event.headers);
@@ -50,7 +50,7 @@ const deviceOrgAssignImpl: APIGatewayProxyHandler = async (event, context?: Cont
     logger.error({ event: 'deviceOrgAssign_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/organizations', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Validate request body
@@ -61,7 +61,7 @@ const deviceOrgAssignImpl: APIGatewayProxyHandler = async (event, context?: Cont
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/organizations', 400, duration, correlationId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e: any) => ({
@@ -84,7 +84,7 @@ const deviceOrgAssignImpl: APIGatewayProxyHandler = async (event, context?: Cont
   });
 
   try {
-    return await assignDevicesToOrganization(validation.data, orgId, correlationId, logger, event, startTime);
+    return await assignDevicesToOrganization(validation.data, orgId, correlationId, logger, event: any, startTime);
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceOrgAssign_error', err: serializeError(err) });
@@ -95,7 +95,7 @@ const deviceOrgAssignImpl: APIGatewayProxyHandler = async (event, context?: Cont
         title: 'Internal server error',
         description: 'An unexpected error occurred while assigning devices to organization.',
       },
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'INTERNAL_SERVER_ERROR' },
     );
   }
@@ -239,7 +239,7 @@ async function assignDevicesToOrganization(
         title: 'Device assignment failed',
         description: 'All devices failed to be assigned to the organization.',
       },
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'DEVICE_ASSIGNMENT_FAILED',
         details: failedDevices.map((d) => ({
@@ -284,7 +284,7 @@ async function assignDevicesToOrganization(
         },
         error: null,
         meta: {
-          requestId: correlationId,
+           correlationId: correlationId,
           timestamp: new Date().toISOString(),
           version: 'v1',
         },
@@ -307,7 +307,7 @@ async function assignDevicesToOrganization(
       title: 'Device is successfully updated',
       description: 'Device is successfully updated.',
     },
-    { requestId: correlationId, event },
+    {  correlationId: correlationId, event },
   );
 }
 

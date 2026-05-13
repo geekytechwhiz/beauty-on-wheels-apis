@@ -68,7 +68,7 @@ function baseEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayPro
 function baseReq(overrides: Partial<LambdaRequest> = {}): LambdaRequest {
   const event = (overrides.event as APIGatewayProxyEvent | undefined) ?? baseEvent();
   return {
-    event,
+    event: any,
     params: {},
     body: undefined,
     query: {},

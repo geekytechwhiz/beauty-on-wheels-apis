@@ -1,6 +1,6 @@
 import { userDeletedEventSchema } from '../validation/event.validation';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
-import { createLogger, createChildLogger } from '@api-hub/logger';
+import { createLogger, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const client = new EventBridgeClient({});

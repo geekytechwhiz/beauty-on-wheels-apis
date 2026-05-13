@@ -13,5 +13,5 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"],
-  "references": [{ "path": "../logger/tsconfig.lib.json" }, { "path": "../utils/tsconfig.lib.json" }]
+  "references": [{ "path": "../observability/tsconfig.lib.json" }, { "path": "../utils/tsconfig.lib.json" }]
 }

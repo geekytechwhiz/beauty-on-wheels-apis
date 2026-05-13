@@ -1,4 +1,4 @@
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
 import type { AlertActivity } from '../models/domain/alert-activity.model';
 import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';

@@ -12,7 +12,7 @@ function readAuthorizer(event: APIGatewayProxyEvent): Record<string, unknown> | 
  * {@link buildRequestContext} / user-service).
  */
 export function getActorUserIdForRequest(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   authHeader: string | undefined,
 ): string | undefined {
   const authorizer = readAuthorizer(event);
@@ -36,7 +36,7 @@ export function getActorUserIdForRequest(
  * Organization id for the request: authorizer context first, then JWT.
  */
 export function getOrganizationIdForRequest(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   authHeader: string | undefined,
 ): string | undefined {
   const authorizer = readAuthorizer(event);

@@ -1,4 +1,4 @@
-import type { BaseEvent, EventMeta, NormalizeMetaOptions } from '../../typings/base-event.types';
+import type { Baseevent: any, EventMeta, NormalizeMetaOptions } from '../../typings/base-event.types';
  
 
 export function normalizeEventMeta<T>(
@@ -45,7 +45,7 @@ export function normalizeEventMeta<T>(
   };
 
   return {
-    ...event,
+    ...event: any,
     meta: normalizedMeta,
   };
 }

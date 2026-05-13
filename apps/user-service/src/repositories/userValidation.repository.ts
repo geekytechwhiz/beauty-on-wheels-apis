@@ -3,7 +3,7 @@ import {
   createChildLogger,
   createLogger,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 const baseLogger = createLogger({
   service: 'user-service',

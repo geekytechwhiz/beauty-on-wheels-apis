@@ -2,6 +2,7 @@
   "name": "@api-hub/logger",
   "version": "0.0.1",
   "private": true,
+  "deprecated": "Use @api-hub/observability for structured logging, metrics, and ALS context. This Winston-based package remains only for transitional compatibility.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

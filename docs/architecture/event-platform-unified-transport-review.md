@@ -182,7 +182,7 @@ Each row: **Why it matters | Impact | Risk | Suggested implementation | Suggeste
 | Visibility timeout extension (Lambda) | Long handlers need heartbeat | Timeouts mid-work | Medium | Document Lambda `functionResponseType` + consider separate utility using `ChangeMessageVisibility` in async worker | new `sqs/lambda-heartbeat.ts` | `extendVisibilityWhileRunning(task)` |
 | ApproximateReceiveCount | Aligns redelivery with policy | Drift vs queue maxReceiveCount | Low | Integration test Lambda record shape vs `transport-attempt.ts` | `transport-attempt.ts` | N/A |
 | FIFO queue support | Ordering + dedupe | Cannot use FIFO safely | Medium | Add FIFO fields to publish + consumer docs for group id | `sqs-adapter.ts` | see §3 template |
-| Delay queue | Scheduled visibility | Manual workarounds | Low | Optional `delaySeconds` on publish | `sqs-adapter.ts` | `publish(event, { delaySeconds })` |
+| Delay queue | Scheduled visibility | Manual workarounds | Low | Optional `delaySeconds` on publish | `sqs-adapter.ts` | `publish(event: any, { delaySeconds })` |
 | Message attributes normalization | Filtering + tracing | Inconsistent attr names | Low | Central map `eventType`, `correlationId`, `traceId` to String attrs | `sqs-adapter.ts` | `buildStandardMessageAttributes(meta)` |
 | SNS→SQS unwrapping | Fan-out payloads | Parse failures | Low | Already in `transport-normalize`; add golden tests | `transport-normalize.ts` | N/A |
 | Batch checkpointing | Resume semantics | N/A for SQS | Low | Out of scope; use Dynamo checkpoint pattern in app | app layer | N/A |

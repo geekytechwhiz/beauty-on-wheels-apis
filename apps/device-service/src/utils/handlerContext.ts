@@ -1,6 +1,6 @@
-import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
-import type { Logger } from '@api-hub/logger';
+import type { APIGatewayProxyevent: any, Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, createChildLogger } from '@api-hub/observability';
+import type { Logger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 
@@ -24,7 +24,7 @@ export interface HandlerContext {
  * @param context - Lambda context (optional)
  * @returns HandlerContext for the rest of the handler
  */
-export function createHandlerContext(event: APIGatewayProxyEvent, context?: Context): HandlerContext {
+export function createHandlerContext(event: APIGatewayProxyevent: any, context?: Context): HandlerContext {
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
@@ -33,7 +33,7 @@ export function createHandlerContext(event: APIGatewayProxyEvent, context?: Cont
     correlationId,
     awsRequestId,
     logger,
-    event,
+    event: any,
   };
 }
 

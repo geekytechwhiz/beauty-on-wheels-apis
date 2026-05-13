@@ -1,6 +1,6 @@
 import { withLambdaHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
-import { createChildLogger, createLogger } from '@api-hub/logger';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import { UserService } from '../services/user.service';
 import { UserRepository } from '../repositories/user.repository';
 import { publishUserCreatedEvent } from '../events/UserCreated';

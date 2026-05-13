@@ -1,4 +1,4 @@
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { Feature, OrgFeature } from '../types/feature-types';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });

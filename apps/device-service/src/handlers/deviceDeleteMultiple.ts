@@ -1,6 +1,6 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { deviceDeleteMultipleSchema } from '../validation/device.validation';
@@ -8,7 +8,7 @@ import { deviceDeleteMultipleSchema } from '../validation/device.validation';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
 
-const deviceDeleteMultipleImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceDeleteMultipleImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -23,7 +23,7 @@ const deviceDeleteMultipleImpl: APIGatewayProxyHandler = async (event, context?:
     logger.error({ event: 'deviceDeleteMultiple_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/delete-multiple', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Extract user context from authorizer
@@ -38,7 +38,7 @@ const deviceDeleteMultipleImpl: APIGatewayProxyHandler = async (event, context?:
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/delete-multiple', 400, duration, correlationId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e: any) => ({
@@ -54,19 +54,19 @@ const deviceDeleteMultipleImpl: APIGatewayProxyHandler = async (event, context?:
     if (!targetUserId) {
       const duration = Date.now() - startTime;
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/delete-multiple', 400, duration, correlationId);
-      return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] });
+      return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'userId is required' }] });
     }
 
     // devices array contains configDeviceIds
     const results = await deviceService.deleteMultipleDevices(targetUserId, validation.data.devices, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/delete-multiple', 200, duration, correlationId);
-    return ApiResponse.ok(results, 'DEVICE.DEVICES_DELETED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.ok(results, 'DEVICE.DEVICES_DELETED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceDeleteMultiple_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/delete-multiple', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.DELETE_MULTIPLE_FAILED', { requestId: correlationId, event }, { code: 'DELETE_MULTIPLE_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.DELETE_MULTIPLE_FAILED', {  correlationId: correlationId, event }, { code: 'DELETE_MULTIPLE_FAILED' });
   }
 };
 

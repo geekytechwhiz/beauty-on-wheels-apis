@@ -182,7 +182,7 @@ export function validateWorkflowRequest(req: LambdaRequest): void {
     );
   }
 
-  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  const orgId = getOrganizationIdForRequest(req.event: any, req.context.authHeader);
   if (!orgId) {
     throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }
@@ -211,12 +211,12 @@ export function validateAssignmentRequest(req: LambdaRequest): void {
     );
   }
 
-  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  const orgId = getOrganizationIdForRequest(req.event: any, req.context.authHeader);
   if (!orgId) {
     throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }
 
-  const actorUserId = getActorUserIdForRequest(req.event, req.context.authHeader);
+  const actorUserId = getActorUserIdForRequest(req.event: any, req.context.authHeader);
 
   const assignToUserId =
     result.data.action === 'ASSIGN_TO_SELF'
@@ -253,7 +253,7 @@ export function validatePriorityRequest(req: LambdaRequest): void {
     );
   }
 
-  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  const orgId = getOrganizationIdForRequest(req.event: any, req.context.authHeader);
   if (!orgId) {
     throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }
@@ -272,12 +272,12 @@ export function validateCreateAlertRequest(req: LambdaRequest): void {
  
   validateSourceAgainstInput(body.inputType, body.sourceType);
 
-  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  const orgId = getOrganizationIdForRequest(req.event: any, req.context.authHeader);
   if (!orgId) {
     throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }
 
-  const actorUserId = getActorUserIdForRequest(req.event, req.context.authHeader);
+  const actorUserId = getActorUserIdForRequest(req.event: any, req.context.authHeader);
   (req as LambdaRequest & { validatedCreateAlert: ValidatedCreateAlert }).validatedCreateAlert = {
     orgId,
     actorUserId,
@@ -337,7 +337,7 @@ export function validateAddNoteRequest(req: LambdaRequest): void {
     );
   }
 
-  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  const orgId = getOrganizationIdForRequest(req.event: any, req.context.authHeader);
   if (!orgId) {
     throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }

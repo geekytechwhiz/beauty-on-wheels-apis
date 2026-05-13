@@ -441,15 +441,12 @@ importers:
         version: link:../../libs/event-platform
       '@api-hub/middleware':
         specifier: file:../../libs/middleware
-        version: link:../../libs/middleware
+        version: file:libs/middleware
 
   libs/access-audit: {}
 
   libs/alert-core:
     dependencies:
-      '@api-hub/logger':
-        specifier: workspace:*
-        version: link:../logger
       '@api-hub/observability':
         specifier: workspace:*
         version: link:../observability
@@ -502,7 +499,20 @@ importers:
         specifier: ^3.19.0
         version: 3.19.0
 
-  libs/middleware: {}
+  libs/middleware:
+    dependencies:
+      '@api-hub/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@api-hub/utils':
+        specifier: workspace:*
+        version: link:../utils
+      aws-lambda:
+        specifier: ^1.0.7
+        version: 1.0.7
+      zod:
+        specifier: ^4.2.1
+        version: 4.2.1
 
   libs/observability:
     dependencies:
@@ -535,9 +545,9 @@ importers:
 
   libs/service-clients:
     dependencies:
-      '@api-hub/logger':
+      '@api-hub/observability':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../observability
       '@api-hub/utils':
         specifier: workspace:*
         version: link:../utils
@@ -563,9 +573,9 @@ importers:
 
   libs/utils:
     dependencies:
-      '@api-hub/logger':
+      '@api-hub/observability':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../observability
       '@aws-sdk/client-dynamodb':
         specifier: ^3.958.0
         version: 3.958.0
@@ -661,6 +671,9 @@ packages:
 
   2-thenable@1.0.0:
     resolution: {integrity: sha512-HqiDzaLDFCXkcCO/SwoyhRwqYtINFHF7t9BDRq4x90TOKNAJpiqUt9X5lQ08bwxYzc067HUywDjGySpebHcUpw==}
+
+  '@api-hub/middleware@file:libs/middleware':
+    resolution: {directory: libs/middleware, type: directory}
 
   '@apidevtools/json-schema-ref-parser@14.0.1':
     resolution: {integrity: sha512-Oc96zvmxx1fqoSEdUmfmvvb59/KDOnUoJ7s2t7bISyAn0XEz57LCCw8k2Y4Pf3mwKaZLMciESALORLgfe2frCw==}
@@ -11409,6 +11422,13 @@ snapshots:
     dependencies:
       d: 1.0.2
       es5-ext: 0.10.64
+
+  '@api-hub/middleware@file:libs/middleware':
+    dependencies:
+      '@api-hub/observability': link:libs/observability
+      '@api-hub/utils': link:libs/utils
+      aws-lambda: 1.0.7
+      zod: 4.2.1
 
   '@apidevtools/json-schema-ref-parser@14.0.1':
     dependencies:

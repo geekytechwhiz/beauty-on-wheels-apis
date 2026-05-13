@@ -1,5 +1,5 @@
 import type { EventBridgeEvent } from 'aws-lambda';
-import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger, serializeError } from '@api-hub/observability';
 import { assignUserRole } from '../services/role.service';
 import { userRoleAssignmentRequestedEventSchema } from '../validation/event.validation';
 import { UserRepository } from '../repositories/user.repository';

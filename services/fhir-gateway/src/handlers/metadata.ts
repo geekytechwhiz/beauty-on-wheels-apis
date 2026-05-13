@@ -1,7 +1,7 @@
 /**
  * GET /fhir/metadata — CapabilityStatement for the requesting client.
  */
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import type { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
 import { getAuthContext } from '../auth';
 import { getClientCapability } from '@api-hub/capability';
 

@@ -68,7 +68,7 @@ The adapter sends **`PutEvents`** internally:
   async publish(event: BaseEvent): Promise<void> {
     await this.client.send(
       new PutEventsCommand({
-        Entries: [toPutEventsEntry(event, this.config)],
+        Entries: [toPutEventsEntry(event: any, this.config)],
       }),
     );
   }

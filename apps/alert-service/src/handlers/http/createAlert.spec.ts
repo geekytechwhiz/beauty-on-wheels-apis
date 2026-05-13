@@ -38,7 +38,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event,
+          event: any,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -215,7 +215,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bodyObj) });
 
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(200);
     expect(mockCreateAlert).toHaveBeenCalledTimes(1);
@@ -257,7 +257,7 @@ describe('createAlert HTTP handler', () => {
       headers: { Authorization: bearerToken({ sub: 'user-only' }) },
     });
 
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect([401, 422]).toContain(result.statusCode);
     const body = JSON.parse(result.body ?? '{}') as {
@@ -278,7 +278,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
@@ -295,7 +295,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(422);
     const body = JSON.parse(result.body ?? '{}') as { error: { code?: string } | null };
@@ -307,7 +307,7 @@ describe('createAlert HTTP handler', () => {
     const bad = { ...validMissedReadingBody(), unknownField: true };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event, context);
+    const result = await (main as any)(event: any, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
@@ -362,7 +362,7 @@ describe('createAlert HTTP handler', () => {
 
   it('handles serverless-plugin-warmup payload with 200', async () => {
     const warmupEvent = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
-    const result = await (main as any)(warmupEvent, context);
+    const result = await (main as any)(warmupevent: any, context);
     expect(result.statusCode).toBe(200);
     expect(mockCreateAlert).not.toHaveBeenCalled();
   });

@@ -25,7 +25,7 @@ export type RoleIds = {
  * Uses CreatePatientModel; output is compatible with createUserSchema.
  */
 export function mapHmsPatientToCreatePatientModel(
-  event: PatientCreationEvent,
+  event: PatientCreationevent: any,
   roleIds: RoleIds,
 ): PatientCreationPayload {
   const { patient, organizationID, provider } = event.data;

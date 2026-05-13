@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import {
   getRequestId,
@@ -8,11 +8,11 @@ import {
   getPartnerService,
 } from '../utils/handlerHelpers';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
+  const requestId = getRequestId(event: any, context);
   const orgId = event.pathParameters?.orgId;
-  const logger = createHandlerLogger(event, context, { organizationId: orgId });
+  const logger = createHandlerLogger(event: any, context, { organizationId: orgId });
   logger.info({ event: 'listOrgPartners_received', organizationId: orgId });
 
   if (!orgId) {
@@ -21,7 +21,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Missing organization id in path' }] }
     );
   }
@@ -33,7 +33,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.ok(
       { items: partners },
       'PARTNER.PARTNERS_LIST_SUCCESS',
-      responseOpts(event, requestId)
+      responseOpts(event: any, requestId)
     );
   } catch (err) {
     logger.error({ event: 'listOrgPartners_error', err: serializeError(err) });
@@ -41,7 +41,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

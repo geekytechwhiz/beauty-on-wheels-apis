@@ -1,14 +1,14 @@
-export { 
-  getConfig, 
+export {
+  getConfig,
   type ObservabilityConfig,
   type LogLevelName,
   type ObservabilityConfigInput,
   configureObservability,
 } from './config/config';
 
-export { 
+export {
   getContext,
-  withContext,  
+  withContext,
   getContext as getLoggerContext,
   withContext as withLoggerContext,
 } from './core/context';
@@ -17,13 +17,23 @@ export type { Context } from './core/context';
 export type LoggerContext = Partial<import('./core/context').Context>;
 
 export { getLogger } from './logger/logger';
-export { createLogger } from './logger/base';
+export { getPowertoolsLogger, getBaseLogger } from './logger/base';
 export { serializeError } from './logger/serialize-error';
 
-export { 
+export type { LogEntry, LoggerOptions } from './logger/types';
+
+export {
+  createLogger,
+  createChildLogger,
+  StructuredLogger,
+  logger,
+  type Logger,
+} from './logger/structured-logger';
+
+export {
   recordConsumerDeadLetter,
   recordConsumerDeliveryDisposition,
-  recordConsumerDuplicateEvent,
+  recordConsumerDuplicateevent: any,
   recordConsumerEventProcessed,
   recordConsumerFailure,
   recordConsumerRetry,
@@ -36,6 +46,16 @@ export { recordUpstreamRetryAttempts } from './metrics/upstream-metrics';
 export {
   withHttpObservability,
   withLambdaObservability,
-  
-  type ApiGatewayLikeEvent,
+
+  type ApiGatewayLikeevent: any,
 } from './middleware/index';
+
+export {
+  extractCorrelationId,
+  extractAwsRequestId,
+  resolveCorrelationIdForHttp,
+} from './http/correlation';
+
+export { logHttpRequest } from './http/log-http-request';
+
+export { createPerformanceTimer } from './http/performance-timer';

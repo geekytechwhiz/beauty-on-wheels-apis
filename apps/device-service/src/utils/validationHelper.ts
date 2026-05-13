@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
-import { logHttpRequest } from '@api-hub/logger';
-import type { Logger } from '@api-hub/logger';
+import { logHttpRequest } from '@api-hub/observability';
+import type { Logger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import type { ZodError } from 'zod';
 import { HTTP_METHODS } from '../constants/httpMethods';
@@ -34,13 +34,13 @@ export function validationErrorResponse(
   error: ZodError,
   options: ValidationErrorOptions,
 ): ReturnType<typeof ApiResponse.unprocessableEntity> {
-  const { correlationId, event, logger, startTime, path, method, logEventName } = options;
+  const { correlationId, event: any, logger, startTime, path, method, logEventName } = options;
   logger.warn({ event: logEventName, errors: error.issues });
   const duration = Date.now() - startTime;
   logHttpRequest(logger, method, path, 422, duration, correlationId);
   return ApiResponse.unprocessableEntity(
     'COMMON.VALIDATION_ERROR',
-    { requestId: correlationId, event },
+    {  correlationId: correlationId, event },
     {
       code: ERROR_CODES.VALIDATION_ERROR,
       details: buildValidationDetails(error),

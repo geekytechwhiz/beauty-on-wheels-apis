@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import {
   getRequestId,
@@ -10,10 +10,10 @@ import {
 import { processInboundWebhook } from '../services/webhook.service';
 import { PartnerUnavailableError } from '../utils/integrationErrors';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
-  const logger = createHandlerLogger(event, context);
+  const requestId = getRequestId(event: any, context);
+  const logger = createHandlerLogger(event: any, context);
   logger.info({ event: 'webhookLabEvent_received' });
 
   const partnerId = event.pathParameters?.partnerId;
@@ -21,7 +21,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'webhookLabEvent_missing_partner_id' });
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId is required in path' }] }
     );
   }
@@ -34,7 +34,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'webhookLabEvent_invalid_json' });
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -62,14 +62,14 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         return ApiResponse.error(
           401,
           'PARTNER_INTEGRATION.WEBHOOK_SIGNATURE_INVALID',
-          responseOpts(event, requestId),
+          responseOpts(event: any, requestId),
           { code: 'WEBHOOK_SIGNATURE_INVALID', details: [{ message: 'Webhook signature validation failed' }] }
         );
       }
       
       return ApiResponse.unprocessableEntity(
         'PARTNER_INTEGRATION.WEBHOOK_NOT_ACCEPTED',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'WEBHOOK_NOT_ACCEPTED', details: [{ message: 'Webhook payload could not be parsed or mapped to a known event type' }] }
       );
     }
@@ -77,7 +77,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.ok(
       { accepted: result.accepted, eventId: result.eventId },
       'PARTNER_INTEGRATION.WEBHOOK_ACCEPTED',
-      responseOpts(event, requestId)
+      responseOpts(event: any, requestId)
     );
   } catch (err) {
     logger.error({ event: 'webhookLabEvent_error', err: serializeError(err), partnerId });
@@ -90,14 +90,14 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       if (isNotFound) {
         return ApiResponse.notFound(
           'PARTNER_INTEGRATION.PARTNER_NOT_FOUND',
-          responseOpts(event, requestId),
+          responseOpts(event: any, requestId),
           { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
         );
       }
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
@@ -105,7 +105,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/webhooks/labs', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

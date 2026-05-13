@@ -19,7 +19,7 @@ function sampleEvent(): BaseEvent<{ n: number }> {
 describe('toPutEventsEntry (event transformation)', () => {
   it('maps BaseEvent to PutEvents entry fields', () => {
     const event = sampleEvent();
-    const entry = toPutEventsEntry(event, {
+    const entry = toPutEventsEntry(event: any, {
       eventBusName: 'my-bus',
       source: 'order-service',
       detailType: 'OrderPlaced',
@@ -35,7 +35,7 @@ describe('toPutEventsEntry (event transformation)', () => {
 
   it('defaults DetailType to event.eventType when detailType is omitted', () => {
     const event = sampleEvent();
-    const entry = toPutEventsEntry(event, {
+    const entry = toPutEventsEntry(event: any, {
       eventBusName: 'bus',
       source: 'svc',
     });
@@ -64,7 +64,7 @@ describe('EventBridgeAdapter.publish', () => {
     expect(send).toHaveBeenCalledTimes(1);
     const cmd = send.mock.calls[0][0] as PutEventsCommand;
     expect(cmd.input.Entries?.[0]).toEqual(
-      toPutEventsEntry(event, {
+      toPutEventsEntry(event: any, {
         eventBusName: 'custom-bus',
         source: 'platform-test',
         detailType: 'Test.Event',

@@ -20,7 +20,7 @@ export type PayloadSchemaRegistry = Partial<Record<string, z.ZodType<unknown>>>;
  * Unknown `eventType` entries skip validation.
  */
 export function validatePayloadByEventType(
-  event: BaseEvent,
+  event: Baseevent: any,
   registry: PayloadSchemaRegistry,
 ): BaseEvent {
   const schema = registry[event.eventType];
@@ -34,5 +34,5 @@ export function validatePayloadByEventType(
       r.error,
     );
   }
-  return { ...event, payload: r.data };
+  return { ...event: any, payload: r.data };
 }

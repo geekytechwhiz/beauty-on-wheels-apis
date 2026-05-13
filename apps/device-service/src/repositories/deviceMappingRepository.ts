@@ -1,6 +1,6 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'device-mapping-repository' });
 

@@ -1,5 +1,5 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { createLogger, createChildLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest } from '@api-hub/logger';
+import type { APIGatewayProxyevent: any, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { createLogger, createChildLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import {
   UserNotFoundError,
@@ -127,7 +127,7 @@ async function toErrorResponse(
  * Returns [parsed, null] or [null, errorResponse] so caller can short-circuit on error.
  */
 export async function parseJsonBody<T>(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
 ): Promise<[T | null, APIGatewayProxyResult | null]> {
   try {
     const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body ?? {};
@@ -136,7 +136,7 @@ export async function parseJsonBody<T>(
     const correlationId = extractCorrelationId(event);
     const errorResponse = await ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] },
     );
     return [null, errorResponse];
@@ -144,14 +144,14 @@ export async function parseJsonBody<T>(
 }
 
 /** Create handler context (logger, correlationId) for the request */
-export function createHandlerContext(event: APIGatewayProxyEvent, context?: Context): HandlerContext {
+export function createHandlerContext(event: APIGatewayProxyevent: any, context?: Context): HandlerContext {
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, {
     correlationId,
     ...(awsRequestId && { awsRequestId }),
   });
-  return { correlationId, logger, event, context };
+  return { correlationId, logger, event: any, context };
 }
 
 type HandlerFn = (ctx: HandlerContext) => HandlerResult;
@@ -162,10 +162,10 @@ type HandlerFn = (ctx: HandlerContext) => HandlerResult;
  * - Errors are mapped to HTTP responses consistently
  * - logHttpRequest is called for success and failure
  */
-export function withBaseHandler(handler: HandlerFn, defaultPath = '/'): (event: APIGatewayProxyEvent, context?: Context) => HandlerResult {
-  return async (event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> => {
+export function withBaseHandler(handler: HandlerFn, defaultPath = '/'): (event: APIGatewayProxyevent: any, context?: Context) => HandlerResult {
+  return async (event: APIGatewayProxyevent: any, context?: Context): Promise<APIGatewayProxyResult> => {
     const startTime = Date.now();
-    const ctx = createHandlerContext(event, context);
+    const ctx = createHandlerContext(event: any, context);
     const method = event.httpMethod || 'GET';
     const path = event.path || defaultPath;
 

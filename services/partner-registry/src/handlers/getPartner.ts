@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import {
   getRequestId,
@@ -8,11 +8,11 @@ import {
   getPartnerService,
 } from '../utils/handlerHelpers';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
+  const requestId = getRequestId(event: any, context);
   const partnerId = event.pathParameters?.id;
-  const logger = createHandlerLogger(event, context, { partnerId });
+  const logger = createHandlerLogger(event: any, context, { partnerId });
   logger.info({ event: 'getPartner_received', partnerId });
 
   if (!partnerId) {
@@ -21,7 +21,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/partner', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Missing partner id in path' }] }
     );
   }
@@ -34,20 +34,20 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/partner', 404, duration, requestId);
       return ApiResponse.notFound(
         'PARTNER.PARTNER_NOT_FOUND',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'PARTNER_NOT_FOUND', details: [{ message: `Partner ${partnerId} not found` }] }
       );
     }
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/partner', 200, duration, requestId);
-    return ApiResponse.ok(partner, 'PARTNER.PARTNER_RETRIEVED_SUCCESS', responseOpts(event, requestId));
+    return ApiResponse.ok(partner, 'PARTNER.PARTNER_RETRIEVED_SUCCESS', responseOpts(event: any, requestId));
   } catch (err) {
     logger.error({ event: 'getPartner_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/partner', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

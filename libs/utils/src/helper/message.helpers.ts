@@ -114,7 +114,7 @@ export function normalizeMessage(rawMessage: RawMessage | undefined, defaults: R
  * Resolves a message by key from CDN, with language detection and fallback to English
  */
 export async function resolveMessage(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   key: string,
   defaults: ResolvedMessage,
 ): Promise<ResolvedMessage> {
@@ -156,27 +156,27 @@ export async function resolveMessage(
  * Gets an error message by key from CDN (ERROR_MESSAGES_CDN_URL/error-messages/{lang}.json).
  * Uses Accept-Language from the event. Returns defaults when CDN is not configured or key is missing.
  */
-export async function getErrorMessage(event: APIGatewayProxyEvent, errorKey: string): Promise<ResolvedMessage> {
+export async function getErrorMessage(event: APIGatewayProxyevent: any, errorKey: string): Promise<ResolvedMessage> {
   const defaults: ResolvedMessage = {
     title: 'Error',
     description: 'An error occurred',
     severity: 'ERROR',
   };
   // Use the existing resolveMessage which handles CDN fetching and language detection
-  return resolveMessage(event, errorKey, defaults);
+  return resolveMessage(event: any, errorKey, defaults);
 }
 
 /**
  * Gets a success/info message by key from CDN
  * Default: { title: 'Success', description: 'Request processed successfully', severity: 'SUCCESS' }
  */
-export async function getMessage(event: APIGatewayProxyEvent, messageKey: string): Promise<ResolvedMessage> {
+export async function getMessage(event: APIGatewayProxyevent: any, messageKey: string): Promise<ResolvedMessage> {
   const defaults: ResolvedMessage = {
     title: 'Success',
     description: 'Request processed successfully',
     severity: 'SUCCESS',
   };
-  return resolveMessage(event, messageKey, defaults);
+  return resolveMessage(event: any, messageKey, defaults);
 }
 
 /**

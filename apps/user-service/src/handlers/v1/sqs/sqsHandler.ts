@@ -1,5 +1,5 @@
-import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/logger';
+import { SQSevent: any, SQSBatchResponse } from 'aws-lambda';
+import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/observability';
 import { sqsEventSchema } from '../../../validation/user.validation';
 import { InvalidEventError } from '../../../utils/errors';
 

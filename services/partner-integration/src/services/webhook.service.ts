@@ -1,6 +1,6 @@
 import { createWebhookAdapter, IdempotencyService } from '@api-hub/lab-integration';
 import type { CanonicalLabWebhookResult, WebhookHeaders } from '@api-hub/lab-integration';
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 import { getPartnerConfig } from './partnerRegistry.client';
 import { mapRegistryConfigToLibConfig } from '../config/partner-config.mapper';
 import { publishLabEvent } from './eventBridge.client';

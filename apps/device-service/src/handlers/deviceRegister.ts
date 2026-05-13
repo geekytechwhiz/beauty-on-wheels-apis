@@ -1,6 +1,6 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { deviceRegistrationSchema } from '../validation/device.validation';
@@ -13,7 +13,7 @@ const deviceService = new DeviceService();
 // Third-party apps by companyName (matching old structure)
 const ALLOWED_THIRD_PARTY_APPS = ['GOOGLEFIT', 'APPLEHEALTH', 'FITBIT', 'GARMIN', 'MANUAL'];
 
-const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRegisterImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;

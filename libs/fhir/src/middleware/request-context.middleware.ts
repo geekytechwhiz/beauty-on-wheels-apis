@@ -31,7 +31,7 @@ export const buildRequestContext = (event: any) => {
    * - req.params (merged path + query)
    *
    * For non-API Gateway invocations (e.g. direct Lambda invoke) where
-   * identifiers are sent at the top level of the event, we also map
+   * identifiers are sent at the top level of the event: any, we also map
    * `event.userId` / `event.organizationId` into pathParameters.
    */
   const normalizedPathParameters =
@@ -44,7 +44,7 @@ export const buildRequestContext = (event: any) => {
   const normalizedQueryParameters = event.queryStringParameters ?? undefined;
 
   return {
-    event,
+    event: any,
     params: {
       ...(normalizedPathParameters ?? {}),
       ...(normalizedQueryParameters ?? {}),

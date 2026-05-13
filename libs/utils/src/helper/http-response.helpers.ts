@@ -54,7 +54,7 @@ export class ApiResponse {
 
   static ok<T>(
     data: T | null,
-    message: Message,
+    message: Message | string,
     options: ResponseOptions,
   ): APIGatewayProxyResult {
 
@@ -63,7 +63,7 @@ export class ApiResponse {
       {
         success: true,
         statusCode: 200,
-        message,
+        message: typeof message === 'string' ? { title: message, description: message, severity: 'SUCCESS' } : message,
         data: normalizeData(data),
         error: null,
         meta: buildMeta(options),
@@ -74,7 +74,7 @@ export class ApiResponse {
 
   static created<T>(
     data: T | null,
-    message: Message,
+    message: Message | string ,
     options: ResponseOptions,
   ): APIGatewayProxyResult {
 
@@ -83,7 +83,7 @@ export class ApiResponse {
       {
         success: true,
         statusCode: 201,
-        message,
+        message: typeof message === 'string' ? { title: message, description: message, severity: 'SUCCESS' } : message,
         data: normalizeData(data),
         error: null,
         meta: buildMeta(options),

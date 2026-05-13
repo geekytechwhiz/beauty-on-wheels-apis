@@ -1,12 +1,12 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/logger';
+import { APIGatewayProxyevent: any, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { getAppointmentSyncController } from '../../controllers/appointment-sync.controller';
 
 const logger = createLogger({ service: 'sso-integration', redactPII: true });
 
 export async function handler(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   context?: Context
 ): Promise<APIGatewayProxyResult> {
   const correlationId = extractCorrelationId(event);
@@ -44,7 +44,7 @@ export async function handler(
 
     return ApiResponse.internalServerError(
       { title: 'Internal Server Error', description: 'An unexpected error occurred', severity: 'ERROR' },
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'INTERNAL_ERROR' },
     );
   }

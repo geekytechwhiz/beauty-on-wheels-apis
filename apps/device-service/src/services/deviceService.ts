@@ -2,7 +2,7 @@ import { DeviceRepository } from '../repositories/deviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { RecommendationRepository } from '../repositories/recommendationRepository';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceUserEntry, Device } from '../models';
 import { DeviceNotFoundError, DeviceNotInOrganizationError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';

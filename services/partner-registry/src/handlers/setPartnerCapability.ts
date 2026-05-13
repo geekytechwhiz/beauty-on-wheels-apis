@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { setCapabilitySchema } from '../validation/capability.schema';
 import { PartnerNotFoundError } from '../utils/errors';
@@ -11,11 +11,11 @@ import {
   getPartnerService,
 } from '../utils/handlerHelpers';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
+  const requestId = getRequestId(event: any, context);
   const partnerId = event.pathParameters?.id;
-  const logger = createHandlerLogger(event, context, { partnerId });
+  const logger = createHandlerLogger(event: any, context, { partnerId });
   logger.info({ event: 'setPartnerCapability_received', partnerId });
 
   if (!partnerId) {
@@ -24,7 +24,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Missing partner id in path' }] }
     );
   }
@@ -36,7 +36,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -48,7 +48,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 422, duration, requestId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -63,7 +63,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const capability = await getPartnerService().setCapability(partnerId, validation.data);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 200, duration, requestId);
-    return ApiResponse.ok(capability, 'PARTNER.CAPABILITY_SET_SUCCESS', responseOpts(event, requestId));
+    return ApiResponse.ok(capability, 'PARTNER.CAPABILITY_SET_SUCCESS', responseOpts(event: any, requestId));
   } catch (err) {
     if (err instanceof PartnerNotFoundError) {
       logger.warn({ event: 'setPartnerCapability_partner_not_found', err: serializeError(err) });
@@ -71,7 +71,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 404, duration, requestId);
       return ApiResponse.notFound(
         'PARTNER.PARTNER_NOT_FOUND',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
       );
     }
@@ -80,7 +80,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { rejectPartnerBodySchema } from '../validation/approveReject.schema';
 import { PartnerNotFoundError, PartnerInvalidStatusTransitionError } from '../utils/errors';
@@ -11,11 +11,11 @@ import {
   getPartnerService,
 } from '../utils/handlerHelpers';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
+  const requestId = getRequestId(event: any, context);
   const partnerId = event.pathParameters?.id;
-  const logger = createHandlerLogger(event, context, { partnerId });
+  const logger = createHandlerLogger(event: any, context, { partnerId });
   logger.info({ event: 'rejectPartner_received', partnerId });
 
   if (!partnerId) {
@@ -24,7 +24,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Missing partner id in path' }] }
     );
   }
@@ -33,7 +33,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (body === null) {
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -42,7 +42,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'rejectPartner_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -57,12 +57,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const partner = await getPartnerService().rejectPartner(partnerId, validation.data.rejectionReason);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 200, duration, requestId);
-    return ApiResponse.ok(partner, 'PARTNER.PARTNER_REJECTED_SUCCESS', responseOpts(event, requestId));
+    return ApiResponse.ok(partner, 'PARTNER.PARTNER_REJECTED_SUCCESS', responseOpts(event: any, requestId));
   } catch (err) {
     if (err instanceof PartnerNotFoundError) {
       return ApiResponse.notFound(
         'PARTNER.PARTNER_NOT_FOUND',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
       );
     }
@@ -71,7 +71,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 409, duration, requestId);
       return ApiResponse.conflict(
         'PARTNER.INVALID_STATUS_TRANSITION',
-        responseOpts(event, requestId),
+        responseOpts(event: any, requestId),
         { code: 'INVALID_STATUS_TRANSITION', details: [{ message: err.message }] }
       );
     }
@@ -80,7 +80,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event: any, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

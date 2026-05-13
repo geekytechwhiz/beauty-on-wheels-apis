@@ -1,6 +1,6 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { serializeError } from '@api-hub/logger';
+import { serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { deviceUserRegistrationSchema } from '../validation/device.validation';
@@ -20,8 +20,8 @@ const deviceService = new DeviceService();
  * POST body: { userID?, organizationId?, devices: [...] }
  * userId/organizationId from authorizer or body. Writes to existing table with correct mapping.
  */
-const deviceUserRegisterImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
-  const ctx = createHandlerContext(event, context);
+const deviceUserRegisterImpl: any = async (event: any, context?: Context) => {
+  const ctx = createHandlerContext(event: any, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
   logger.info({ event: 'deviceUserRegister_received' });
@@ -30,7 +30,7 @@ const deviceUserRegisterImpl: APIGatewayProxyHandler = async (event, context?: C
   if (!parseResult.success) {
     return logAndRespond(
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.DEVICES_USER_REGISTER, statusCode: 400, startTime, correlationId },
-      await ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
+      await ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
     );
   }
 
@@ -63,7 +63,7 @@ const deviceUserRegisterImpl: APIGatewayProxyHandler = async (event, context?: C
     const { items } = await deviceService.registerOrUpdateDeviceUserFromPatientApp(validation.data, correlationId);
     return logAndRespond(
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.DEVICES_USER_REGISTER, statusCode: 201, startTime, correlationId },
-      await ApiResponse.created({ items }, 'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS', { requestId: correlationId, event: evt }),
+      await ApiResponse.created({ items }, 'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS', {  correlationId: correlationId, event: evt }),
     );
   } catch (err) {
     logger.error({ event: 'deviceUserRegister_error', err: serializeError(err) });
@@ -71,7 +71,7 @@ const deviceUserRegisterImpl: APIGatewayProxyHandler = async (event, context?: C
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.DEVICES_USER_REGISTER, statusCode: 500, startTime, correlationId },
       await ApiResponse.internalServerError(
         'COMMON.INTERNAL_SERVER_ERROR',
-        { requestId: correlationId, event: evt },
+        {  correlationId: correlationId, event: evt },
         { code: ERROR_CODES.INTERNAL_SERVER_ERROR },
       ),
     );

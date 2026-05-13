@@ -357,7 +357,7 @@ console.log('debug'); // ❌
 
 ```ts
 logger.info('request', {
-  request: event, // blocked
+  request: event: any, // blocked
 });
 ```
 

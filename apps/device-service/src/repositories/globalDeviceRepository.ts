@@ -1,7 +1,7 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import {  GlobalDevice, OrganizationDevice } from '../models';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceNotFoundError, DeviceAlreadyDeletedError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'global-device-repository' });

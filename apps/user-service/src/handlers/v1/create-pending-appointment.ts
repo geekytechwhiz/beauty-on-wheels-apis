@@ -1,4 +1,4 @@
-import { createChildLogger } from '@api-hub/logger';
+import { createChildLogger } from '@api-hub/observability';
 import {   withApiHandler, successResponse } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { Appointment } from '../../models';

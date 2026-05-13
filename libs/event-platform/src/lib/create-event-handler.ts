@@ -8,7 +8,7 @@ import {
 import type {
   Handler,
   Middleware,
-  MiddlewarePipelineEvent,
+  MiddlewarePipelineevent: any,
 } from '@api-hub/middleware';
 
 import { consumeEvent } from '../engine/executor/consume-event';
@@ -36,7 +36,7 @@ type OperationName =
   `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
 
 export type CreateEventHandlerOptions<
-  TEvent extends MiddlewarePipelineEvent,
+  TEvent extends MiddlewarePipelineevent: any,
   TContext = unknown,
 > = {
   operation: OperationName;
@@ -47,11 +47,11 @@ export type CreateEventHandlerOptions<
 };
 
 export function createEventHandler<
-  TEvent extends MiddlewarePipelineEvent,
+  TEvent extends MiddlewarePipelineevent: any,
   TContext = unknown,
 >(
-  options: CreateEventHandlerOptions<TEvent, TContext>,
-): (event: TEvent, context: TContext) => Promise<void> {
+  options: CreateEventHandlerOptions<Tevent: any, TContext>,
+): (event: Tevent: any, context: TContext) => Promise<void> {
   /**
    * ---------------------------------------------------------------------
    * Build payload schema registry
@@ -151,7 +151,7 @@ export function createEventHandler<
     buildEventExecutionPipeline<void, TContext>({
       operation: options.operation,
     }) as Array<
-      Middleware<TEvent, void, TContext>
+      Middleware<Tevent: any, void, TContext>
     >;
 
   /**
@@ -162,7 +162,7 @@ export function createEventHandler<
   return runMiddlewares(
     stack,
     wrappedHandler as unknown as Handler<
-      TEvent,
+      Tevent: any,
       void,
       TContext
     >,

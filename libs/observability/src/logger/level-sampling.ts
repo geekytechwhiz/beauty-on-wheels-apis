@@ -1,10 +1,13 @@
+import { getConfig } from '../config/config';
+
 export function shouldSample(level: 'DEBUG' | 'INFO') {
+  const cfg = getConfig();
   if (level === 'INFO') {
-    return Math.random() < Number(process.env.LOG_SAMPLE_INFO ?? 0.1);
+    return Math.random() < cfg.sampling.info;
   }
 
   if (level === 'DEBUG') {
-    return Math.random() < Number(process.env.LOG_SAMPLE_DEBUG ?? 0.01);
+    return Math.random() < cfg.sampling.debug;
   }
 
   return true;

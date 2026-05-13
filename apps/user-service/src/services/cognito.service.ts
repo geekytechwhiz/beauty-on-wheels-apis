@@ -7,7 +7,7 @@ import {
   UserNotFoundException,
   UsernameExistsException,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { createLogger, serializeError } from '@api-hub/logger';
+import { createLogger, serializeError } from '@api-hub/observability';
 import { generatePassword } from '@api-hub/utils';
 
 const logger = createLogger({ service: 'cognito-service' });

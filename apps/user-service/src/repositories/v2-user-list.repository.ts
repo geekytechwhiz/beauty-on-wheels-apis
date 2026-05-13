@@ -11,7 +11,7 @@ import {
   createLogger,
   serializeError,
   createChildLogger,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import type {
   UserListContext,
   V2UserListFilters,

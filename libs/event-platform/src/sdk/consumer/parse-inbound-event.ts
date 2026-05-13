@@ -1,7 +1,7 @@
 import type { BaseEvent } from '../../typings/base-event.types';
 import {
   EventValidationError,
-  validateBaseEvent,
+  validateBaseevent: any,
 } from '../../core/event-envelope/validate-base-event';
 import { normalizeTransportToPayloadCandidate } from './transport-normalize';
 

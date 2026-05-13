@@ -1,5 +1,5 @@
-import { DynamoDBStreamEvent, DynamoDBRecord } from 'aws-lambda';
-import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/logger';
+import { DynamoDBStreamevent: any, DynamoDBRecord } from 'aws-lambda';
+import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/observability';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });

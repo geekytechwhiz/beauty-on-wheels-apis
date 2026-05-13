@@ -5,7 +5,7 @@ const TOKEN_MIN_LENGTH = 10;
 const TOKEN_MAX_LENGTH = 4096;
 
 export function extractLaunchParams(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   correlationId: string,
 ) {
   let token: string | undefined;

@@ -42,7 +42,7 @@
         "libs/lab-integration/src/index.ts"
       ],
       "@api-hub/logger": [
-        "libs/logger/src/index.ts"
+        "libs/observability/src/index.ts"
       ],
       "@api-hub/metadata": [
         "libs/metadata/src/index.ts"
@@ -92,7 +92,7 @@
       "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/logger/tsconfig.lib.json"
+      "path": "../../libs/observability/tsconfig.lib.json"
     },
     {
       "path": "../../libs/middleware/tsconfig.lib.json"

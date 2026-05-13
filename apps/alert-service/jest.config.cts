@@ -19,7 +19,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'html'],
   moduleNameMapper: {
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
-    '^@api-hub/logger$': '<rootDir>/../../libs/logger/src/index.ts',
+    '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
     '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/alert-core$': '<rootDir>/../../libs/alert-core/src/index.ts',

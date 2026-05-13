@@ -2,7 +2,7 @@ import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import type { QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { OrgDevice } from '../models';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceNotFoundError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'org-device-repository' });

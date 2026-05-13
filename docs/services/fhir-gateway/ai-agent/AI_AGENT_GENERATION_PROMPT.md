@@ -444,7 +444,7 @@ export class {{Resource}}NotFoundError extends Error {
 {{/if}}
  */
 
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { APIGatewayProxyevent: any, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { to{{Resource}} } from '@api-hub/fhir';
 import { {{ServiceName}}ServiceClient, {{Resource}}NotFoundError } from '../services/{{serviceName}}.client';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
@@ -455,7 +455,7 @@ const baseLogger = createLogger({ service: 'fhir-gateway', redactPII: true });
 const {{serviceName}}ServiceClient = new {{ServiceName}}ServiceClient();
 
 export async function main(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   context?: Context
 ): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();

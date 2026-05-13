@@ -3,9 +3,9 @@ import {
   createLogger,
   extractAwsRequestId,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
-import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
+import { Context, SQSevent: any, SQSRecord } from 'aws-lambda';
 
 import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { publishPendingReprocess } from '../../services/appointment-sync/pending-reprocess-queue.service';
@@ -32,7 +32,7 @@ const baseLogger = createLogger({
  * SQS handler
  */
 export async function handler(
-  event: SQSEvent,
+  event: SQSevent: any,
   context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
 
@@ -141,7 +141,7 @@ async function processPatientCreationEvent(
   /**
    * Build request context
    */
-  const requestContext = buildSSORequestContextFromSQS(event, correlationId);
+  const requestContext = buildSSORequestContextFromSQS(event: any, correlationId);
 
   /**
    * Check if patient already exists
@@ -190,7 +190,7 @@ async function processPatientCreationEvent(
    */
   if (!patientUserId) {
     const roleIds = await getOrganizationRoleIds(resolvedOrganizationId, requestContext);
-    const patientPayload = mapHmsPatientToCreatePatientModel(event, roleIds);
+    const patientPayload = mapHmsPatientToCreatePatientModel(event: any, roleIds);
 
     logger.info({
       event: 'patient_creation_event_mapped_payload',

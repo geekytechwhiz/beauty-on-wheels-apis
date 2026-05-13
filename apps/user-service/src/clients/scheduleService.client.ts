@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 import type { SchedulePreferences } from '../models/Schedule';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });

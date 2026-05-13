@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { createChildLogger, LogEntry, serializeError } from '@api-hub/logger';
+import { createChildLogger, LogEntry, serializeError } from '@api-hub/observability';
 import { BaseService } from '../core/base.service';
 
 import { fromDateString, toDateString } from '@api-hub/utils';
@@ -364,7 +364,7 @@ export class AppointmentSyncService extends BaseService {
     );
 
     await this.patientEventPublisher.publishPatientCreationEvent(
-      patientEvent,
+      patientevent: any,
       context.correlationId,
     );
 

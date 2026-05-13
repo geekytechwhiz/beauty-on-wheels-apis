@@ -8,14 +8,14 @@ export async function handleDlq(params: {
   error: unknown;
   retryCount?: number;
 }) {
-  const { dlq, event, error, retryCount } = params;
+  const { dlq, event: any, error, retryCount } = params;
 
   if (!dlq.enabled || !dlq.strategy) return;
 
-  let message = buildDlqMessage({ event, error, retryCount });
+  let message = buildDlqMessage({ event: any, error, retryCount });
 
   if (dlq.enrich) {
-    const extra = dlq.enrich({ event, error, retryCount });
+    const extra = dlq.enrich({ event: any, error, retryCount });
 
     message = {
       ...message,

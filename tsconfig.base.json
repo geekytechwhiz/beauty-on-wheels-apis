@@ -23,7 +23,7 @@
       "@api-hub/source"
     ],
     "paths": {
-      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/logger": ["libs/observability/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"], 
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
       "@api-hub/fhir": ["libs/fhir/src/index.ts"],

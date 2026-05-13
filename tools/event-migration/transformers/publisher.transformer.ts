@@ -31,7 +31,7 @@ export function migratePublisher(file: SourceFile): boolean {
         });
 
         await publish(EVENT_DEFINITION, {
-          payload: event,
+          payload: event: any,
           meta: {
             correlationId: event?.correlationId,
             tenantId: event?.tenantId,

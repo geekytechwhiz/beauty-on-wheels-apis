@@ -11,7 +11,7 @@ export type { EventPublisher } from "./sdk/publisher/event-publisher";
 export type { HandleOptions, HandleResult } from "./typings/publisher.types";
 
 
-export type { BaseEvent, EventEnvelope, EventMeta } from './typings/base-event.types';
+export type { Baseevent: any, EventEnvelope, EventMeta } from './typings/base-event.types';
 export { EventConsumer } from './sdk/consumer/event-consumer';
 export { DomainIdempotencyStrategy } from './core/idempotency/domain-idempotency.strategy';
 export { StoreIdempotencyStrategy } from './core/idempotency/store-idempotency.strategy';

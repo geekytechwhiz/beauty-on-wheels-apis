@@ -1,4 +1,4 @@
-import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import type { APIGatewayProxyevent: any, Context } from 'aws-lambda';
 import { ALERT_STATE, AlertKeyBuilder, type AlertDdbRecord } from '@api-hub/alert-core';
 
 export function bearerToken(payload: Record<string, unknown>): string {

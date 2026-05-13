@@ -1,6 +1,6 @@
 import { EventBridgeHandler } from 'aws-lambda';
 import { OrganizationService } from '../../services/organization.service';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { randomUUID } from 'crypto';
 import { eventBridgeEventSchema } from '../../validation/event.validation';
 

@@ -1,5 +1,5 @@
 
-import { createChildLogger, createLogger, logger, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger, logger, serializeError } from '@api-hub/observability';
 const baselogger = createLogger({ service: 'user-service', redactPII: true });
 
 const PACKAGE_TABLE_NAME = process.env.PACKAGE_TABLE || '';

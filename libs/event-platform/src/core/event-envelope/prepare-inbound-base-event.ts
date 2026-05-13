@@ -1,7 +1,7 @@
 import { EventValidationError } from './validate-base-event';
 import { normalizeEventMeta } from './normalize-event-meta';
 
-import type { BaseEvent, NormalizeMetaOptions } from '../../typings/base-event.types';
+import type { Baseevent: any, NormalizeMetaOptions } from '../../typings/base-event.types';
 import type { EventConsumerDeps } from '../../typings/consumer.types';
 
 import { resolveSchema } from '../schema/schema-resolver';
@@ -40,7 +40,7 @@ export function prepareInboundBaseEvent<T>(
       deps.schemaResolution,
     );
     baseEvent = {
-      ...baseEvent,
+      ...baseevent: any,
       payload: schema.parse(baseEvent.payload) as T,
     };
   }

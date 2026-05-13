@@ -1,13 +1,13 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceMappingService } from '../services/deviceMappingService';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceMappingService = new DeviceMappingService();
 
-const deviceUserListImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceUserListImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -24,7 +24,7 @@ const deviceUserListImpl: APIGatewayProxyHandler = async (event, context?: Conte
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/{deviceId}/users', 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'BAD_REQUEST',
         details: [{ message: 'deviceId is required in path parameters' }],
@@ -36,12 +36,12 @@ const deviceUserListImpl: APIGatewayProxyHandler = async (event, context?: Conte
     const users = await deviceMappingService.listDeviceUsers(deviceId, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/{deviceId}/users', 200, duration, correlationId);
-    return ApiResponse.ok(users, 'DEVICE.DEVICE_USERS_LISTED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.ok(users, 'DEVICE.DEVICE_USERS_LISTED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceUserList_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/{deviceId}/users', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.LIST_RETRIEVAL_FAILED', { requestId: correlationId, event }, { code: 'LIST_RETRIEVAL_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.LIST_RETRIEVAL_FAILED', {  correlationId: correlationId, event }, { code: 'LIST_RETRIEVAL_FAILED' });
   }
 };
 

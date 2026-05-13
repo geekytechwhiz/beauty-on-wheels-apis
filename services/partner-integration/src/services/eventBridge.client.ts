@@ -1,6 +1,6 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import type { CanonicalLabWebhookResult } from '@api-hub/lab-integration';
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
 const SOURCE = 'partner-integration';
 

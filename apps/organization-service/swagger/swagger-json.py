@@ -6,7 +6,7 @@ else:
     from .swagger import docs
 
 
-def handler(event, context):
+def handler(event: any, context):
     return {
         "statusCode": 200,
         "body": json.dumps(docs),

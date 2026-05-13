@@ -1,7 +1,7 @@
 import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, APIGatewayProxyEvent, Context } from 'aws-lambda';
+import { APIGatewayProxyHandler, APIGatewayProxyevent: any, Context } from 'aws-lambda';
 
-const healthImpl: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent, _context?: Context) => {
+const healthImpl: any = async (event: APIGatewayProxyevent: any, _context?: Context) => {
   return {
     statusCode: 200,
     body: JSON.stringify({ message: 'OK' }),

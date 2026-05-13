@@ -65,7 +65,7 @@ return ApiResponse.unprocessableEntity(
 return ApiResponse.ok(
   user,
   'USER.USER_RETRIEVED_SUCCESS',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 ```
 
@@ -96,7 +96,7 @@ return ApiResponse.ok(
 // ✅ New way - message key from CDN
 return ApiResponse.notFound(
   'USER.USER_NOT_FOUND',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'USER_NOT_FOUND', details: [{ message: err.message }] }
 );
 ```
@@ -128,7 +128,7 @@ return ApiResponse.notFound(
 // ✅ New way - message key from CDN
 return ApiResponse.unprocessableEntity(
   'COMMON.VALIDATION_ERROR',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   {
     code: 'VALIDATION_ERROR',
     details: validation.error.issues.map((e: any) => ({
@@ -300,7 +300,7 @@ return ApiResponse.internalServerError(
 // Validation error
 return ApiResponse.unprocessableEntity(
   'COMMON.VALIDATION_ERROR',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'VALIDATION_ERROR', details: errors }
 );
 
@@ -308,20 +308,20 @@ return ApiResponse.unprocessableEntity(
 return ApiResponse.created(
   { userID: result.userID },
   'USER.USER_CREATED_SUCCESS',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 
 // Already exists
 return ApiResponse.conflict(
   'USER.USER_ALREADY_EXISTS',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'USER_ALREADY_EXISTS', details: [{ message: err.message }] }
 );
 
 // Internal error
 return ApiResponse.internalServerError(
   'USER.CREATE_USER_FAILED',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'CREATE_USER_FAILED', details: [{ message: err?.message }] }
 );
 ```
@@ -374,7 +374,7 @@ return ApiResponse.ok(
 return ApiResponse.ok(
   data,
   'USER.USER_RETRIEVED_SUCCESS',  // ← Message key
-  { requestId: correlationId, event }  // ← Added event
+  {  correlationId: correlationId, event }  // ← Added event
 );
 ```
 

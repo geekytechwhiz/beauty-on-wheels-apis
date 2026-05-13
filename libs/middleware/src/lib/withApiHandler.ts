@@ -5,7 +5,7 @@ import {
   createChildLogger,
   createLogger,
   extractAwsRequestId,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 import { runMiddlewares } from './middlewareEngine';
 import { buildApiExecutionPipeline } from './http-pipeline';

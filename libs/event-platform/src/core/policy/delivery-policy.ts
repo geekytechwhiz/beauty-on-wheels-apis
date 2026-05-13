@@ -9,7 +9,12 @@ export type TransportMode =
   | 'sqs-native'
   | 'framework-managed'
   | 'eventbridge'
-  | 'sns';
+  | 'sns'
+  /**
+   * DynamoDB Streams (Lambda partial batch failures). Handler failures surface as
+   * `needs_transport_retry` per record without in-process retry sleeps; redelivery is driven by Lambda.
+   */
+  | 'dynamodb-stream';
 
 /**
  * Single source of truth for retry / dead-letter / fail / discard (decision only; no I/O).

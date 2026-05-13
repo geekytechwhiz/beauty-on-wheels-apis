@@ -15,7 +15,7 @@ export function registerValidateCommand(program: Command) {
         if (options.config) {
           // console.log(`📋 Validating configuration: ${options.config}`);
           const configParser = new ConfigParser();
-          const config = configParser.parseConfig(options.config);
+          void configParser.parseConfig(options.config);
           // console.log('✅ Configuration is valid');
           // console.log(`   Service: ${config.service.name}`);
           // console.log(`   FHIR Resource: ${config.fhirResource.resourceType}`);

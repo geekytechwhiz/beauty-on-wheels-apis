@@ -1,7 +1,0 @@
-{
-  "name": "fhir-gateway",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "services/fhir-gateway/src",
-  "projectType": "application",
-  "tags": ["type:service"]
-}

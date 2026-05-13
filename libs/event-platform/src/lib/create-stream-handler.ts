@@ -24,6 +24,10 @@ function itemIdentifierFromStreamRecord(record: unknown): string {
 /**
  * DynamoDB Streams: observability middleware + per-record {@link EventConsumer} processing.
  * Map each record to a {@link BaseEvent} (or skip with `null`) so idempotency / schema / retry apply per item.
+ *
+ * @deprecated Prefer {@link createDynamoStreamHandler} or {@link onDynamoEvent}, which reuse
+ * {@link consumeEvent}, {@link processBatch}, {@link processSingle}, and {@link orchestratePreparedConsumerEvent}
+ * with partial batch failures and transport-aligned retry semantics.
  */
 export function createStreamHandler<
   TResult = { batchItemFailures: { itemIdentifier: string }[] },

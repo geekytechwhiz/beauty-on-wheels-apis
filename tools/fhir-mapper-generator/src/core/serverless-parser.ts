@@ -83,7 +83,7 @@ export class ServerlessParser {
                 path: httpEvent.path,
                 method: 'GET',
                 pathParameters: this.extractPathParameters(path),
-                queryParameters: this.extractQueryParameters(httpevent: any, func),
+                queryParameters: this.extractQueryParameters(httpEvent, func),
                 documentation: httpEvent.documentation || (func as any).documentation,
               });
             }

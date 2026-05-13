@@ -20,7 +20,7 @@ export function registerAnalyzeCommand(program: Command) {
 
         if (options.verbose) {
           // console.log('\nPatterns:');
-          patterns.forEach((pattern: MappingPattern, index: number) => {
+          patterns.forEach((pattern: MappingPattern) => {
             // console.log(`\n${index + 1}. ${pattern.sourceField} → ${pattern.targetField}`);
             if (pattern.transformation) {
               // console.log(`   Transformation: ${pattern.transformation}`);

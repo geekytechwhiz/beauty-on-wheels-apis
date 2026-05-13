@@ -12,7 +12,7 @@ import {
   extractAwsRequestId,
   createChildLogger,
   logHttpRequest,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 import { successResponse } from './response.middleware';
 import { ApiResponse, handleError, type Message } from '@api-hub/utils';

@@ -210,9 +210,8 @@ package:
   patterns:
     - '!node_modules/**'
     - 'node_modules/@api-hub/**'  # Include workspace packages
-    - '../../libs/logger/dist/**'
-    - '../../libs/utils/dist/**'
-    - '../../libs/fhir/dist/**'
+
+    - '../../libs/utils/dist/**' 
     - '../../libs/error-messages/dist/**'
     - '!**/*.test.ts'
     - '!**/*.spec.ts'

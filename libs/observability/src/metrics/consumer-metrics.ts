@@ -88,6 +88,96 @@ export function recordConsumerRetry(eventType?: string, retryCount?: number): vo
   });
 }
 
+/** Successful or failed SQS ChangeMessageVisibility (heartbeat) API call. */
+export function recordSqsVisibilityHeartbeatExtend(success: boolean): void {
+  safePublish((m) => {
+    m.addMetric('SqsVisibilityExtensions', MetricUnit.Count, 1);
+    m.addDimension('Outcome', success ? 'Success' : 'Failure');
+  });
+}
+
+/** Heartbeat tick skipped (e.g. Lambda almost out of time) — no SDK call. */
+export function recordSqsVisibilityHeartbeatSkipped(reason: string): void {
+  safePublish((m) => {
+    m.addMetric('SqsVisibilityHeartbeatsSkipped', MetricUnit.Count, 1);
+    m.addDimension('Reason', reason);
+  });
+}
+
+/** Heartbeat loop ended without extending (Lambda timeout guard). */
+export function recordSqsVisibilityHeartbeatLoopEnded(reason: string): void {
+  safePublish((m) => {
+    m.addMetric('SqsVisibilityHeartbeatLoopsEnded', MetricUnit.Count, 1);
+    m.addDimension('Reason', reason);
+  });
+}
+
+/** FIFO-aware SQS batch scheduling: one snapshot per Lambda batch. */
+export function recordSqsFifoBatchScheduleSnapshot(input: {
+  groupCount: number;
+  recordCount: number;
+}): void {
+  safePublish((m) => {
+    m.addMetric('SqsFifoBatchScheduleSnapshots', MetricUnit.Count, 1);
+    m.addDimension('GroupCount', String(Math.min(100, input.groupCount)));
+    m.addDimension('RecordCountBucket', fifoRecordCountBucket(input.recordCount));
+  });
+}
+
+function fifoRecordCountBucket(n: number): string {
+  if (n <= 1) {
+    return '1';
+  }
+  if (n <= 5) {
+    return '2-5';
+  }
+  if (n <= 10) {
+    return '6-10';
+  }
+  return '11+';
+}
+
+/** Deferred FIFO-lane tails (not executed this invocation; reported as batch failures). */
+export function recordSqsFifoBatchTailDeferred(count: number, reason: string): void {
+  if (count <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('SqsFifoBatchTailsDeferred', MetricUnit.Count, count);
+    m.addDimension('Reason', reason);
+  });
+}
+
+/** Poison short-circuit: receive count threshold met before handler ran. */
+export function recordSqsFifoBatchPoisonShortCircuit(count: number): void {
+  if (count <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('SqsFifoBatchPoisonShortCircuits', MetricUnit.Count, count);
+  });
+}
+
+/** One Lambda batch of DynamoDB stream records (before per-record processing). */
+export function recordDynamoStreamBatchDispatch(recordCount: number): void {
+  if (recordCount <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('DynamoStreamBatchRecordsReceived', MetricUnit.Count, recordCount);
+  });
+}
+
+/** Records that matched no route and were acked without handler execution. */
+export function recordDynamoStreamRecordFiltered(count: number): void {
+  if (count <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('DynamoStreamRecordsFiltered', MetricUnit.Count, count);
+  });
+}
+
 /** @deprecated Use {@link recordConsumerDeliveryDisposition}; kept for `EventConsumer` call sites. */
 export function recordConsumerDeadLetter(
   eventType?: string,

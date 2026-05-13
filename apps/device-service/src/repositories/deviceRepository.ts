@@ -104,7 +104,7 @@ export class DeviceRepository {
         new PutCommand({
           TableName: this.tableName,
           Item: item,
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_user_entry_created', deviceId });
       return item;
@@ -200,7 +200,7 @@ export class DeviceRepository {
         new PutCommand({
           TableName: this.tableName,
           Item: item,
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_user_entry_created', deviceId });
       return item;
@@ -216,14 +216,14 @@ export class DeviceRepository {
   async getDeviceByConfigId(userId: string, configDeviceId: string): Promise<DeviceUserEntry | null> {
     const logger = createChildLogger(baseLogger, { userId, configDeviceId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
           Key: {
             pk: `DEVICE_LIST#${userId}`,
             sk: `DETAILS#${configDeviceId}`,
           },
-        }),
+        }) as any,
       );
       return result.Item as DeviceUserEntry | null;
     } catch (err) {
@@ -238,7 +238,7 @@ export class DeviceRepository {
   async getUserDevices(userId: string, filters?: { deviceId?: string; deviceType?: string }): Promise<DeviceUserEntry[]> {
     const logger = createChildLogger(baseLogger, { userId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk',
@@ -247,10 +247,10 @@ export class DeviceRepository {
             ':status': 'STATUS#ACTIVE',
           },
           FilterExpression: 'sk2 = :status',
-        }),
+        }) as any,
       );
 
-      let devices = (result.Items || []) as DeviceUserEntry[];
+      let devices = (result.Items || []) as any[];
 
       // Apply additional filters
       if (filters?.deviceId) {
@@ -288,7 +288,7 @@ export class DeviceRepository {
             ':isDeleted': true,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_deleted', configDeviceId });
     } catch (err) {
@@ -348,7 +348,7 @@ export class DeviceRepository {
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
           ReturnValues: 'ALL_NEW',
-        }),
+        }) as any,
       );
 
       // Fetch the updated device entry
@@ -474,7 +474,7 @@ export class DeviceRepository {
       addBooleanAttribute('isSync', device.isSync);
       addAttribute('deviceCategoryNum', device.deviceCategoryNum);
 
-      await this.docClient.send(new UpdateCommand(params));
+      await this.docClient.send(new UpdateCommand(params) as any);
 
       // Fetch the updated device entry
       const updatedDevice = await this.getDeviceByConfigId(userId, device.configDeviceId);

@@ -19,7 +19,7 @@ import type { BaseEvent } from '../../typings/base-event.types';
 import { computeFailureVisibilitySeconds, SqsAdapter } from './sqs-adapter';
 import {
   parseMessageBody,
-  serializeBaseevent: any,
+  serializeBaseEvent,
   SqsMessageParseError,
 } from './message-serialization';
 

@@ -108,13 +108,13 @@ export class OrgDeviceRepository {
           new PutCommand({
             TableName: this.tableName,
             Item: forwardEntry,
-          }),
+          }) as any,
         ),
         this.docClient.send(
           new PutCommand({
             TableName: this.tableName,
             Item: reverseEntry,
-          }),
+          }) as any,
         ),
       ]);
       logger.info({ event: 'org_device_added', deviceId: device.deviceId });
@@ -142,7 +142,7 @@ export class OrgDeviceRepository {
             KeyConditionExpression: 'pk = :pk',
             ExpressionAttributeValues: { ':pk': forwardPk },
             ExclusiveStartKey: exclusiveStartKey,
-          }),
+          }) as any,
         )) as QueryCommandOutput;
 
         await Promise.all(
@@ -156,7 +156,7 @@ export class OrgDeviceRepository {
                 Key: { pk: forwardPk, sk },
                 UpdateExpression: 'SET isActive = :inactive, modifiedDate = :modifiedDate',
                 ExpressionAttributeValues: { ':inactive': false, ':modifiedDate': now },
-              }),
+              }) as any,
             );
 
             if (sk === 'NON-DEVICES') return;
@@ -168,7 +168,7 @@ export class OrgDeviceRepository {
                   Key: { pk: `ORG_DEVICES#${sk}`, sk: organizationId },
                   UpdateExpression: 'SET isActive = :inactive, modifiedDate = :modifiedDate',
                   ExpressionAttributeValues: { ':inactive': false, ':modifiedDate': now },
-                }),
+                }) as any,
               );
             } catch (err) {
               logger.warn({
@@ -213,7 +213,7 @@ export class OrgDeviceRepository {
             pk: `ORG_DEVICES#${organizationId}`,
             sk: normalizedDeviceId,
           },
-        }),
+        }) as any,
       );
 
       // Delete reverse mapping
@@ -224,7 +224,7 @@ export class OrgDeviceRepository {
             pk: `ORG_DEVICES#${normalizedDeviceId}`,
             sk: organizationId,
           },
-        }),
+        }) as any,
       );
 
       logger.info({ event: 'org_device_removed', deviceId });
@@ -267,7 +267,7 @@ export class OrgDeviceRepository {
           UpdateExpression: `SET ${updateParts.join(', ')}`,
           ExpressionAttributeValues: exprValues,
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
 
       // Update reverse mapping
@@ -281,7 +281,8 @@ export class OrgDeviceRepository {
           UpdateExpression: `SET ${updateParts.join(', ')}`,
           ExpressionAttributeValues: exprValues,
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
+     
       );
 
       logger.info({ event: 'org_device_updated', deviceId });
@@ -301,14 +302,14 @@ export class OrgDeviceRepository {
   async getOrgDevices(organizationId: string): Promise<OrgDevice[]> {
     const logger = createChildLogger(baseLogger, { organizationId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk',
           ExpressionAttributeValues: {
             ':pk': `ORG_DEVICES#${organizationId}`,
           },
-        }),
+        }) as any,
       );
       logger.info({ event: 'get_org_devices_success', count: result.Items?.length || 0 });
       return (result.Items || []) as OrgDevice[];
@@ -325,14 +326,14 @@ export class OrgDeviceRepository {
     const logger = createChildLogger(baseLogger, { organizationId, deviceId });
     const normalizedDeviceId = this.normalizeDeviceId(deviceId);
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
           Key: {
             pk: `ORG_DEVICES#${organizationId}`,
             sk: normalizedDeviceId,
           },
-        }),
+        }) as any,
       );
       return result.Item as OrgDevice | null;
     } catch (err) {
@@ -373,7 +374,7 @@ export class OrgDeviceRepository {
         new PutCommand({
           TableName: this.tableName,
           Item: entry,
-        }),
+        }) as any,
       );
       logger.info({ event: 'non_device_vitals_upserted', supportedVitalsCount: supportedVitals.length });
     } catch (err) {

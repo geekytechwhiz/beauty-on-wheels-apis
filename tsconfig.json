@@ -4,9 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./libs/logger"
-    },
-    {
       "path": "./services/partner-integration"
     },
     {
@@ -19,12 +16,6 @@
       "path": "./services/partner-registry"
     },
     {
-      "path": "./libs/integration-events"
-    },
-    {
-      "path": "./services/fhir-gateway"
-    },
-    {
       "path": "./libs/lab-integration"
     },
     {
@@ -32,9 +23,6 @@
     },
     {
       "path": "./libs/scope-mapping"
-    },
-    {
-      "path": "./libs/access-audit"
     },
     {
       "path": "./libs/tenant-guard"
@@ -64,9 +52,6 @@
       "path": "./libs/auth"
     },
     {
-      "path": "./libs/fhir"
-    },
-    {
       "path": "./services/sso-integration"
     },
     {
@@ -79,13 +64,7 @@
       "path": "./libs/metadata"
     },
     {
-      "path": "./libs/rule-engine"
-    },
-    {
       "path": "./libs/alert-core"
-    },
-    {
-      "path": "./tools/eslint-mavrix"
     },
     {
       "path": "./libs/event-platform"

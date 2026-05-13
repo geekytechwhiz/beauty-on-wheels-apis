@@ -1,1 +1,0 @@
-{"name":"integration-events","$schema":"../../node_modules/nx/schemas/project-schema.json","sourceRoot":"libs/integration-events/src","projectType":"library","tags":["type:lib","allowed-for-app"],"targets":{"test":{"executor":"@nx/jest:jest","options":{"jestConfig":"libs/integration-events/jest.config.ts","passWithNoTests":true}}}}

@@ -302,6 +302,9 @@ Each has its own `serverless.yml` and is deployed independently (e.g. `cd servic
 |------|----------|
 | **Docs index** | `docs/README.md` |
 | **Event-driven guide** | `docs/engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md` |
+| **SQS Lambda handler (`createSqsEventHandler`)** | `docs/engineering/SQS_CREATE_SQS_EVENT_HANDLER.md` |
+| **SQS production readiness audit** | `docs/engineering/SQS_PRODUCTION_READINESS.md` |
+| **DynamoDB Streams runtime** | `docs/engineering/DYNAMODB_STREAM_RUNTIME.md` |
 | **Architecture** | `docs/architecture/system-architecture.md` |
 | **Coding standards** | `docs/coding-standards/README.md`, `docs/coding-standards/api-response/` |
 | **API response usage** | `docs/coding-standards/api-response/API_RESPONSE_USAGE.md` |

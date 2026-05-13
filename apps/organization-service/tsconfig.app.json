@@ -16,7 +16,6 @@
       "@api-hub/capability": ["libs/capability/src/index.ts"],
       "@api-hub/consent": ["libs/consent/src/index.ts"],
       "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
-      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
       "@api-hub/integration-events": ["libs/integration-events/src/index.ts"],
       "@api-hub/lab-integration": ["libs/lab-integration/src/index.ts"],
       "@api-hub/logger": ["libs/observability/src/index.ts"],

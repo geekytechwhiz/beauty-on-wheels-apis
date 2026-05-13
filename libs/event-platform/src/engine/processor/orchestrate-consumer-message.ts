@@ -27,6 +27,7 @@ import { effectiveTransportMode } from '../../typings/consumer.types';
 import type { NormalizeMetaOptions } from '../../typings/base-event.types';
 
 import { approximateReceiveCount, computeEffectiveDeliveryAttempt } from '../../utils/transport-attempt';
+import { isDynamoDbStreamRecord } from '../../dynamo-stream/normalize-dynamo-stream-record';
 import type { ProcessSingleResult } from './process-outcomes';
 
 function sleep(ms: number): Promise<void> {
@@ -41,6 +42,16 @@ function useSqsSurfaceRetry(raw: unknown, deps: EventConsumerDeps): boolean {
     return false;
   }
   return approximateReceiveCount(raw) !== undefined;
+}
+
+function useDynamoStreamSurfaceRetry(raw: unknown, deps: EventConsumerDeps): boolean {
+  if (deps.transportRetry) {
+    return false;
+  }
+  if (effectiveTransportMode(deps) !== 'dynamodb-stream') {
+    return false;
+  }
+  return isDynamoDbStreamRecord(raw);
 }
 
 export function mapRawAndPrepare(
@@ -456,8 +467,9 @@ export async function orchestratePreparedConsumerEvent({
   }
 
   const sqsSurface = useSqsSurfaceRetry(rawForDelivery, deps);
+  const dynamoSurface = useDynamoStreamSurfaceRetry(rawForDelivery, deps);
 
-  if (sqsSurface || deps.transportRetry) {
+  if (sqsSurface || dynamoSurface || deps.transportRetry) {
     return runSingleHandlerAttempt({
       baseEvent,
       rawForDelivery,

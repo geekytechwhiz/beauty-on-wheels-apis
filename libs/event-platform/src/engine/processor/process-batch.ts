@@ -1,6 +1,8 @@
+import type { EventTracingHooks } from '../../core/tracing/event-tracing-hooks';
 import type { ProcessSingleResult } from './process-outcomes';
 
 import { isAckedWithoutBatchFailure } from './process-outcomes';
+import { runFifoAwareSqsBatchProcess } from './sqs-fifo-group-scheduler';
 
 function itemIdentifier(record: unknown): string {
   if (record && typeof record === 'object') {
@@ -40,16 +42,31 @@ async function mapPool<T, R>(
   return results;
 }
 
+export type ProcessBatchOptions = {
+  concurrency?: number;
+  sqsFifoGroupScheduling?: boolean;
+  sqsFifoPoisonReceiveCountThreshold?: number;
+  tracing?: EventTracingHooks;
+};
+
 export async function processBatch(
   records: unknown[],
   processOne: (input: { raw: unknown }) => Promise<ProcessSingleResult>,
-  options?: { concurrency?: number },
+  options?: ProcessBatchOptions,
 ): Promise<{ batchItemFailures: { itemIdentifier: string }[] }> {
   const concurrency = options?.concurrency ?? Number.POSITIVE_INFINITY;
 
   const runMapped = async (
     recordsList: unknown[],
   ): Promise<PromiseSettledResult<ProcessSingleResult>[]> => {
+    if (options?.sqsFifoGroupScheduling && recordsList.length > 0) {
+      return runFifoAwareSqsBatchProcess(recordsList, processOne, {
+        concurrency,
+        poisonReceiveCountThreshold: options.sqsFifoPoisonReceiveCountThreshold,
+        tracing: options.tracing,
+      });
+    }
+
     if (
       !Number.isFinite(concurrency) ||
       concurrency < 1 ||

@@ -68,7 +68,7 @@ export class RecommendationRepository {
         new PutCommand({
           TableName: this.tableName,
           Item: item,
-        }),
+        }) as any,
       );
       logger.info({ event: 'recommendation_created', deviceId: data.deviceId });
       return item;
@@ -85,14 +85,14 @@ export class RecommendationRepository {
     const logger = createChildLogger(baseLogger, { patientUserId, deviceId });
     const normalizedDeviceId = this.normalizeDeviceId(deviceId);
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
           Key: {
             pk: 'RECOMMEND',
             sk: `${normalizedDeviceId}#${patientUserId}`,
           },
-        }),
+        }) as any,
       );
       return result.Item as DeviceRecommendation | null;
     } catch (err) {
@@ -109,14 +109,14 @@ export class RecommendationRepository {
     // console.log("GET PATIENT RECOMMENDATIONS ", patientUserId);
     try {
       // Query all recommendations
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk',
           ExpressionAttributeValues: {
             ':pk': 'RECOMMEND',
           },
-        }),
+        }) as any ,
       );
       
       // Filter to get only recommendations for this patient
@@ -179,7 +179,7 @@ export class RecommendationRepository {
             ':modifiedDate': Date.now(),
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
       logger.info({ event: 'recommendation_status_updated', status });
     } catch (err) {
@@ -206,7 +206,7 @@ export class RecommendationRepository {
             pk: 'RECOMMEND',
             sk: `${normalizedDeviceId}#${patientUserId}`,
           },
-        }),
+        }) as any,
       );
       logger.info({ event: 'recommendation_deleted', deviceId });
     } catch (err) {

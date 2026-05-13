@@ -37,6 +37,14 @@ export {
   recordConsumerEventProcessed,
   recordConsumerFailure,
   recordConsumerRetry,
+  recordSqsVisibilityHeartbeatExtend,
+  recordSqsVisibilityHeartbeatSkipped,
+  recordSqsVisibilityHeartbeatLoopEnded,
+  recordSqsFifoBatchPoisonShortCircuit,
+  recordSqsFifoBatchScheduleSnapshot,
+  recordSqsFifoBatchTailDeferred,
+  recordDynamoStreamBatchDispatch,
+  recordDynamoStreamRecordFiltered,
 } from './metrics/consumer-metrics';
 
 export { publishMiddlewarePipelineMetrics } from './metrics/middleware-metrics';

@@ -16,7 +16,6 @@ module.exports = [
       const workspacePackages = {
         '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
-        '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
        
       };
 

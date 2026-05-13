@@ -8,7 +8,7 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
-    "rootDir": "src",
+    
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],

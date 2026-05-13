@@ -38,7 +38,7 @@ export function registerFromServerlessCommand(program: Command) {
         // console.log(`\n📊 Found ${getFunctions.length} GET function(s) with path parameters:\n`);
 
         // Display available functions
-        getFunctions.forEach((func, index) => {
+        getFunctions.forEach((func) => {
           // console.log(`${index + 1}. ${func.name}`);
           // console.log(`   Path: ${func.path}`);
           // console.log(`   Handler: ${func.handler}`);

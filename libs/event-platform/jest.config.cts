@@ -23,6 +23,7 @@ module.exports = {
     '^@api-hub/utils$': '<rootDir>/../utils/src/index.ts',
     '^@api-hub/middleware$': '<rootDir>/../middleware/src/index.ts',
     '^@api-hub/observability$': '<rootDir>/../observability/src/index.ts',
+    '^@api-hub/logger$': '<rootDir>/../observability/src/index.ts',
     '^@api-hub/event-platform$': '<rootDir>/src/index.ts',
   },
 };

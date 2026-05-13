@@ -32,7 +32,7 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={appTheme}>
           <CssBaseline />

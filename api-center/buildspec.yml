@@ -32,6 +32,14 @@ phases:
 
   post_build:
     commands:
+      - |
+        if [ -n "${API_CENTER_S3_BUCKET:-}" ] && [ -n "${API_CENTER_S3_REGION:-}" ]; then
+          echo "Publishing api-center dist to S3 (MIME + cache headers)"
+          bash api-center/scripts/publish-dist-to-s3.sh
+        else
+          echo "Skipping S3 publish (optional: set API_CENTER_S3_BUCKET and API_CENTER_S3_REGION)"
+        fi
+
       - "echo Running cleanup"
       - "node ./scripts/lambda-version.cleanup.js || true"
 

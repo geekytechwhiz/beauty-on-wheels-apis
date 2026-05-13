@@ -46,36 +46,13 @@ fi
 echo "✅ Build found"
 
 # -----------------------------
-# SYNC S3
+# SYNC S3 + MIME / CACHE (shared with CodeBuild optional step)
 # -----------------------------
-echo "🧹 Syncing bucket..."
+echo "🧹 Syncing bucket (with Content-Type / Cache-Control overrides)..."
 
-aws s3 sync "$BUILD_DIR" "s3://$BUCKET_NAME" --delete --region $AWS_REGION
-
-# -----------------------------
-# MIME FIX (IMPORTANT)
-# -----------------------------
-echo "☁️ Fixing MIME types..."
-
-# HTML
-find "$BUILD_DIR" -name "*.html" | while read -r file; do
-  aws s3 cp "$file" "s3://$BUCKET_NAME/${file#$BUILD_DIR/}" \
-    --content-type "text/html" \
-    --cache-control "no-cache, no-store, must-revalidate"
-done
-
-# JS
-find "$BUILD_DIR" -type f \( -name "*.js" -o -name "*.mjs" \) | while read -r file; do
-  aws s3 cp "$file" "s3://$BUCKET_NAME/${file#$BUILD_DIR/}" \
-    --content-type "application/javascript" \
-    --cache-control "public, max-age=31536000, immutable"
-done
-
-# CSS
-find "$BUILD_DIR" -name "*.css" | while read -r file; do
-  aws s3 cp "$file" "s3://$BUCKET_NAME/${file#$BUILD_DIR/}" \
-    --content-type "text/css"
-done
+export API_CENTER_S3_BUCKET="$BUCKET_NAME"
+export API_CENTER_S3_REGION="$AWS_REGION"
+bash "./scripts/publish-dist-to-s3.sh"
 
 # -----------------------------
 # 🚀 LAMBDA@EDGE DEPLOY

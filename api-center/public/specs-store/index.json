@@ -1,22 +1,6 @@
 {
-  "generatedAt": "2026-05-02T00:21:02.715Z",
+  "generatedAt": "2026-05-13T18:00:38.282Z",
   "services": [
-    {
-      "name": "Alert",
-      "latestVersion": "v0.1.0",
-      "versions": [
-        {
-          "serviceName": "Alert",
-          "version": "v0.1.0",
-          "key": "specs-store/Alert/v0.1.0/openapi.yaml",
-          "extension": "yaml",
-          "contentType": "application/yaml",
-          "status": "approved",
-          "lastModified": "2026-05-02T00:21:02.705Z",
-          "size": 37292
-        }
-      ]
-    },
     {
       "name": "user-service",
       "latestVersion": "v1.0.0",
@@ -28,7 +12,7 @@
           "extension": "json",
           "contentType": "application/json",
           "status": "approved",
-          "lastModified": "2026-04-30T18:49:35.165Z",
+          "lastModified": "2026-05-13T17:52:50.247Z",
           "size": 48763
         }
       ]

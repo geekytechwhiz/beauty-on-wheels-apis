@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:registry": "VITE_API_BASE_URL=https://mgkys4bnl4.execute-api.us-east-1.amazonaws.com vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node ./scripts/verify-dist-assets.mjs",
     "preview": "pnpm build && vite preview",
     "typecheck": "tsc -b --noEmit",
     "generate:spec-index": "node ./scripts/generate-spec-index.mjs",

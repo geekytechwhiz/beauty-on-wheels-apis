@@ -6,8 +6,8 @@ const USERS = {
 };
 
 const PUBLIC_EXTENSIONS = [
-  '.js', '.css', '.png', '.svg', '.ico',
-  '.html', '.json', '.map', '.woff', '.woff2'
+  '.js', '.mjs', '.css', '.png', '.svg', '.ico',
+  '.html', '.json', '.map', '.woff', '.woff2', '.wasm'
 ];
 
 exports.handler = async (event) => {

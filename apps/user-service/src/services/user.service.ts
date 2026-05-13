@@ -1943,6 +1943,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
         slotDurationInMinutes: userBasicDetails.slotDurationInMinutes || 15,
         language: userBasicDetails.language || orgBasicDetails?.organizationInfo?.defaultSetting?.languages?.[0]?.langCode || 'en',
         dateOfBirth: userBasicDetails.dateOfBirth || '',
+        age: userBasicDetails.age || '',
         address: userBasicDetails.address || '',
         allergies: userBasicDetails.medicalHistory?.allergies || [],
         chiefMedicalIssue: (userBasicDetails.medicalHistory as any)?.chiefMedicalIssue || (userBasicDetails as any).chiefMedicalIssue || '',

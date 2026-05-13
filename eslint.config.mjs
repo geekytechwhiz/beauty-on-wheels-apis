@@ -16,16 +16,21 @@ export default [
     ],
   },
 
-  // NX Module Boundary Rules
+  // Nx module boundaries (options must match the rule schema — see Nx ESLint plugin docs)
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
     rules: {
       '@nx/enforce-module-boundaries': [
         'warn',
         {
-          selector: "Property[key.name='rules']",
-          message:
-            'Defining ESLint rules at project level is not allowed. Use root config only.',
+          enforceBuildableLibDependency: true,
+          allow: [],
+          depConstraints: [
+            {
+              sourceTag: '*',
+              onlyDependOnLibsWithTags: ['*'],
+            },
+          ],
         },
       ],
     },

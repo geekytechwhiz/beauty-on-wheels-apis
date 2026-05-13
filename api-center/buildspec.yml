@@ -1,12 +1,20 @@
+ 
+
 version: 0.2
 
 env:
   variables:
     NODE_ENV: production
     AWS_REGION: us-east-1
+
+    # FRONTEND
+    S3_BUCKET: dev-mvx-developer-hub
+
+    # LAMBDA EDGE
     LAMBDA_NAME: developer-hub-dev-basic-auth
     ROLE_NAME: developer-hub-dev-us-east-1-lambdaRole
     DISTRIBUTION_ID: EWGY1JYSRFKJQ
+
     KEEP_LAST_N: 2
     DRY_RUN: false
 
@@ -14,100 +22,212 @@ phases:
   install:
     runtime-versions:
       nodejs: 22
+
     commands:
-      - "echo Node $(node --version)"
-      - "echo NPM $(npm --version)"
-      - "apt-get update && apt-get install -y jq zip"
+      - echo "Node $(node --version)"
+      - echo "NPM $(npm --version)"
+      - apt-get update && apt-get install -y jq zip
 
   pre_build:
     commands:
-      - "echo Installing dependencies"
-      - "npm --prefix api-center install --include=dev"
-      - "npm install @aws-sdk/client-lambda"
+      - echo "Installing dependencies"
+
+      - npm --prefix api-center install --include=dev
+
+      - npm install @aws-sdk/client-lambda
 
   build:
     commands:
-      - "echo Building frontend"
-      - "npm --prefix api-center run build"
+      - echo "Building frontend"
+
+      - npm --prefix api-center run build
+
+      # ------------------------------------
+      # VERIFY BUILD OUTPUT
+      # ------------------------------------
+      - echo "Checking build output"
+
+      - find api-center/dist -type f | head -50
+
+      - test -f api-center/dist/index.html
 
   post_build:
     commands:
+      # ------------------------------------
+      # CLEANUP
+      # ------------------------------------
+      - echo "Running cleanup"
+
+      - node ./scripts/lambda-version.cleanup.js || true
+
+      # ------------------------------------
+      # VALIDATE ENV
+      # ------------------------------------
+      - echo "Validating environment"
+
+      - echo "LAMBDA_NAME=$LAMBDA_NAME"
+      - echo "ROLE_NAME=$ROLE_NAME"
+      - echo "DISTRIBUTION_ID=$DISTRIBUTION_ID"
+      - echo "S3_BUCKET=$S3_BUCKET"
+
+      - test -n "$LAMBDA_NAME"
+      - test -n "$ROLE_NAME"
+      - test -n "$DISTRIBUTION_ID"
+      - test -n "$S3_BUCKET"
+
+      # ------------------------------------
+      # ACCOUNT ID
+      # ------------------------------------
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+      - echo "ACCOUNT_ID=$ACCOUNT_ID"
+
+      # ------------------------------------
+      # DEPLOY FRONTEND TO S3
+      # ------------------------------------
+      - echo "Uploading frontend to S3"
+
+      # Upload assets first
       - |
-        if [ -n "${API_CENTER_S3_BUCKET:-}" ] && [ -n "${API_CENTER_S3_REGION:-}" ]; then
-          echo "Publishing api-center dist to S3 (MIME + cache headers)"
-          bash api-center/scripts/publish-dist-to-s3.sh
-        else
-          echo "Skipping S3 publish (optional: set API_CENTER_S3_BUCKET and API_CENTER_S3_REGION)"
-        fi
+        aws s3 sync api-center/dist/assets \
+          s3://$S3_BUCKET/assets \
+          --delete
 
-      - "echo Running cleanup"
-      - "node ./scripts/lambda-version.cleanup.js || true"
+      # Upload remaining files
+      - |
+        aws s3 sync api-center/dist \
+          s3://$S3_BUCKET \
+          --exclude "assets/*"
 
-      - "echo Validating environment"
-      - "echo LAMBDA_NAME=$LAMBDA_NAME"
-      - "echo ROLE_NAME=$ROLE_NAME"
-      - "echo DISTRIBUTION_ID=$DISTRIBUTION_ID"
+      # Verify upload
+      - echo "Verifying uploaded assets"
 
-      - "test -n \"$LAMBDA_NAME\""
-      - "test -n \"$ROLE_NAME\""
-      - "test -n \"$DISTRIBUTION_ID\""
+      - aws s3 ls s3://$S3_BUCKET/assets/ --recursive | head
 
-      - "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)"
-      - "echo ACCOUNT_ID=$ACCOUNT_ID"
-
+      # ------------------------------------
       # IAM ROLE
+      # ------------------------------------
       - |
         if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
           echo "IAM role exists"
         else
           echo "Creating IAM role..."
+
           echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":["lambda.amazonaws.com","edgelambda.amazonaws.com"]},"Action":"sts:AssumeRole"}]}' > trust.json
-          aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document file://trust.json
-          aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+          aws iam create-role \
+            --role-name "$ROLE_NAME" \
+            --assume-role-policy-document file://trust.json
+
+          aws iam attach-role-policy \
+            --role-name "$ROLE_NAME" \
+            --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
           sleep 15
         fi
 
-      # PACKAGE
-      - "echo Packaging Lambda"
-      - "cd api-center/edge-auth"
-      - "zip -r function.zip . >/dev/null"
-      - "cd -"
+      # ------------------------------------
+      # PACKAGE LAMBDA
+      # ------------------------------------
+      - echo "Packaging Lambda"
 
-      # DEPLOY
+      - cd api-center/edge-auth
+
+      - zip -r function.zip . >/dev/null
+
+      - cd -
+
+      # ------------------------------------
+      # DEPLOY LAMBDA
+      # ------------------------------------
       - |
-        if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$AWS_REGION" >/dev/null 2>&1; then
+        if aws lambda get-function \
+          --function-name "$LAMBDA_NAME" \
+          --region "$AWS_REGION" >/dev/null 2>&1; then
+
           echo "Updating Lambda..."
-          aws lambda update-function-code --function-name "$LAMBDA_NAME" --zip-file "fileb://api-center/edge-auth/function.zip" --region "$AWS_REGION"
+
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_NAME" \
+            --zip-file "fileb://api-center/edge-auth/function.zip" \
+            --region "$AWS_REGION"
+
         else
+
           echo "Creating Lambda..."
-          aws lambda create-function --function-name "$LAMBDA_NAME" --runtime nodejs18.x --handler index.handler --role "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME" --zip-file "fileb://api-center/edge-auth/function.zip" --region "$AWS_REGION"
+
+          aws lambda create-function \
+            --function-name "$LAMBDA_NAME" \
+            --runtime nodejs18.x \
+            --handler index.handler \
+            --role "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME" \
+            --zip-file "fileb://api-center/edge-auth/function.zip" \
+            --region "$AWS_REGION"
         fi
 
-      # ✅ WAIT FOR UPDATE (FIX)
-      - "echo Waiting for Lambda update to complete..."
-      - "aws lambda wait function-updated --function-name \"$LAMBDA_NAME\" --region \"$AWS_REGION\""
-      - "echo Lambda update complete"
+      # ------------------------------------
+      # WAIT FOR UPDATE
+      # ------------------------------------
+      - echo "Waiting for Lambda update"
 
-      # PUBLISH
-      - "VERSION=$(aws lambda publish-version --function-name \"$LAMBDA_NAME\" --region \"$AWS_REGION\" --query 'Version' --output text)"
-      - "echo Version=$VERSION"
+      - aws lambda wait function-updated \
+          --function-name "$LAMBDA_NAME" \
+          --region "$AWS_REGION"
 
-      # CLOUDFRONT
-      - "aws cloudfront get-distribution-config --id \"$DISTRIBUTION_ID\" > cf.json"
-      - "ETAG=$(jq -r '.ETag' cf.json)"
-      - "jq '.DistributionConfig' cf.json > dist.json"
+      # ------------------------------------
+      # PUBLISH VERSION
+      # ------------------------------------
+      - |
+        VERSION=$(aws lambda publish-version \
+          --function-name "$LAMBDA_NAME" \
+          --region "$AWS_REGION" \
+          --query 'Version' \
+          --output text)
+
+        echo "Version=$VERSION"
+
+      # ------------------------------------
+      # UPDATE CLOUDFRONT
+      # ------------------------------------
+      - aws cloudfront get-distribution-config \
+          --id "$DISTRIBUTION_ID" > cf.json
+
+      - ETAG=$(jq -r '.ETag' cf.json)
+
+      - jq '.DistributionConfig' cf.json > dist.json
 
       - |
         LAMBDA_ARN="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$LAMBDA_NAME:$VERSION"
-        jq ".DefaultCacheBehavior.LambdaFunctionAssociations = {\"Quantity\":1,\"Items\":[{\"EventType\":\"viewer-request\",\"LambdaFunctionARN\":\"$LAMBDA_ARN\"}]}" dist.json > updated.json
 
-      - "aws cloudfront update-distribution --id \"$DISTRIBUTION_ID\" --if-match \"$ETAG\" --distribution-config file://updated.json"
+        jq ".DefaultCacheBehavior.LambdaFunctionAssociations = {
+          \"Quantity\":1,
+          \"Items\":[
+            {
+              \"EventType\":\"viewer-request\",
+              \"LambdaFunctionARN\":\"$LAMBDA_ARN\"
+            }
+          ]
+        }" dist.json > updated.json
 
-      # INVALIDATE
-      - "aws cloudfront create-invalidation --distribution-id \"$DISTRIBUTION_ID\" --paths \"/*\""
+      - |
+        aws cloudfront update-distribution \
+          --id "$DISTRIBUTION_ID" \
+          --if-match "$ETAG" \
+          --distribution-config file://updated.json
+
+      # ------------------------------------
+      # INVALIDATE CACHE
+      # ------------------------------------
+      - echo "Invalidating CloudFront"
+
+      - |
+        aws cloudfront create-invalidation \
+          --distribution-id "$DISTRIBUTION_ID" \
+          --paths "/*"
 
 artifacts:
   base-directory: api-center/dist
+
   files:
     - '**/*'
 

@@ -10,7 +10,7 @@ const PUBLIC_EXTENSIONS = [
   '.html', '.json', '.map', '.woff', '.woff2', '.wasm'
 ];
 
-exports.handler = async (event) => {
+exports.handler = async (event, context, callback) => {
   const request = event.Records[0].cf.request;
   const headers = request.headers;
 
@@ -22,7 +22,18 @@ exports.handler = async (event) => {
   if (request.method === 'HEAD') {
     return request;
   }
+  const uri = request.uri;
 
+  if (
+    uri.startsWith('/assets/') ||
+    uri.endsWith('.js') ||
+    uri.endsWith('.css') ||
+    uri.endsWith('.png') ||
+    uri.endsWith('.svg') ||
+    uri.endsWith('.ico')
+  ) {
+    return callback(null, request);
+  }
   // Allow static assets safely
   const isStatic = PUBLIC_EXTENSIONS.some(ext =>
     request.uri.toLowerCase().endsWith(ext)

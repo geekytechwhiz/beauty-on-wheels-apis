@@ -1,9 +1,8 @@
 import { createChildLogger } from '@api-hub/logger';
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserRepository } from '../../repositories/user.repository';
 import { validateListAppointments } from '../../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userRepository = new UserRepository();
 
@@ -13,10 +12,10 @@ interface ListAppointmentsParams {
 
 const handler = async (
   req: LambdaRequest<ListAppointmentsParams> & {
-    validatedListAppointments?: ListAppointmentsParams;
+    validatedListAppointments: ListAppointmentsParams;
   },
 ) => {
-  const { patientUserId } = req.validatedListAppointments!;
+  const { patientUserId } = req.validatedListAppointments;
   const correlationId = req.context.correlationId;
   const logger = createChildLogger(req.context.logger as any, {
     correlationId,

@@ -64,9 +64,6 @@
       "path": "./libs/auth"
     },
     {
-      "path": "./libs/fhir"
-    },
-    {
       "path": "./services/sso-integration"
     },
     {

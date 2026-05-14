@@ -98,8 +98,7 @@
     }
   },
   "dependencies": {
-    "@api-hub/event-platform": "file:../../libs/event-platform",
-    "@api-hub/middleware": "file:../../libs/middleware"
+ 
   },
   "devDependencies": { 
   }

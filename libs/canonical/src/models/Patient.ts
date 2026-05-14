@@ -2,7 +2,7 @@
  * Canonical Patient model — pure business representation.
  * No FHIR imports or profile references.
  */
-export interface Patient {
+export interface CanonicalPatient {
   id: string;
   /** External/customer identifier */
   externalId?: string;

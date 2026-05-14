@@ -1438,9 +1438,8 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
           eventId,
           eventType: 'UserDeleted.v1',
           timestamp: new Date().toISOString(),
-          version: '1.0.0',
-          source: 'user-service',
-          correlationId,
+          eventVersion: '1.0.0',
+          source: 'user-service', 
           idempotencyKey: eventId,
           payload: {
             userId,
@@ -1709,9 +1708,8 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
           eventId: fileEventId,
           eventType: 'UserFileUploaded.v1',
           timestamp: now,
-          version: '1.0.0',
-          source: 'user-service',
-          correlationId,
+          eventVersion: '1.0.0',
+          source: 'user-service', 
           idempotencyKey: fileEventId,
           payload: {
             userId,

@@ -33,6 +33,7 @@ export default [
     ],
     rules: {
       'no-console': ['error', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-non-null-assertion': 'off'
     },
   },
 

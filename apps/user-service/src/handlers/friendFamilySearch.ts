@@ -5,14 +5,14 @@ import { CognitoService } from '../services/cognito.service';
 import { FriendFamilyService } from '../services/friendFamily.service';
 import { assignUserRole } from '../services/role.service';
 import { UserService } from '../services/user.service';
-import { validateFriendFamilySearch } from '../validation/request.validators';
 import { buildCreateUserPayloadFromFnfSearch, getUserIdAndOrganizationIdFromToken } from '../utils/helpers';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
+import { validateFriendFamilySearch } from '../validation/request.validators';
+import { createLogger, serializeError } from '@api-hub/logger';
 
 const friendFamilyService = new FriendFamilyService();
 const userService = new UserService();
 const userRepository = new UserRepository();
-
+const log = createLogger({ service: 'user-service', redactPII: true });
 const handler = async (req: LambdaRequest<any>) => {
   const authHeader = req.context.authHeader;
   const body = (req.body ?? {}) as any;
@@ -81,7 +81,12 @@ const handler = async (req: LambdaRequest<any>) => {
       (body?.phone ?? '').toString().trim(),
       '',
       authHeader,
-    ).catch(() => {});
+    ).catch(() => {
+      log.error({
+        event: 'user_role_assignment_event_failed',
+        err: serializeError(new Error('Failed to save role features')),
+      });
+    });
   }
 
   const emailVal = (body?.email ?? '').toString().trim();

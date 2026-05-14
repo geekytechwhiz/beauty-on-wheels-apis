@@ -1,8 +1,7 @@
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { CognitoService } from '../../services/cognito.service';
 import { validateContacts } from '../../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 function normalizePhone(phone: string): string {
   if (!phone) return '';

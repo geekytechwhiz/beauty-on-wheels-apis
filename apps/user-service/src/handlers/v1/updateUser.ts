@@ -1,27 +1,25 @@
 import {
+  createChildLogger,
+  createLogger,
+  extractAwsRequestId,
+  extractCorrelationId,
+  logHttpRequest,
+  serializeError,
+} from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { ApiResponse, type LambdaRequest } from '@api-hub/utils';
+import {
   APIGatewayProxyEvent,
   APIGatewayProxyResult,
   Context,
 } from 'aws-lambda';
-import {
-  createLogger,
-  createChildLogger,
-  extractCorrelationId,
-  extractAwsRequestId,
-  serializeError,
-  logHttpRequest,
-} from '@api-hub/logger';
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
-import { type LambdaRequest } from '@api-hub/utils';
-import { ApiResponse } from '@api-hub/utils';
+import { scheduleServiceClient } from '../../clients/scheduleService.client';
+import { SchedulePreferences } from '../../models/Schedule';
 import { UserService } from '../../services/user.service';
 import { UserNotFoundError } from '../../utils/errors';
-import { getAuthorizerUserId, getAuthorizerOrganizationId } from '../../utils/helpers';
-import { SchedulePreferences } from '../../models/Schedule';
-import { scheduleServiceClient } from '../../clients/scheduleService.client';
-import { updateUserSchema } from '../../validation/user.validation';
+import { getAuthorizerOrganizationId, getAuthorizerUserId } from '../../utils/helpers';
 import { validateUpdateUser } from '../../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
+import { updateUserSchema } from '../../validation/user.validation';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -61,7 +59,7 @@ async function updateUser(
     );
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
+      { correlationId: correlationId, event },
       {
         code: 'BAD_REQUEST',
         details: [{ message: 'Invalid JSON body' }],
@@ -111,6 +109,11 @@ async function updateUser(
         }
       }
     } catch {
+      return ApiResponse.unauthorized(
+        'COMMON.UNAUTHORIZED',
+        { correlationId: correlationId, event },
+        { code: 'UNAUTHORIZED', details: [{ message: 'Missing user context in access token' }] },
+      );
     }
   }
 
@@ -126,11 +129,8 @@ async function updateUser(
     );
     return ApiResponse.unauthorized(
       'COMMON.UNAUTHORIZED',
-      { requestId: correlationId, event },
-      {
-        code: 'UNAUTHORIZED',
-        details: [{ message: 'Missing user context in access token' }],
-      },
+      { correlationId: correlationId, event },
+      { code: 'UNAUTHORIZED', details: [{ message: 'Missing user context in access token' }] },
     );
   }
 
@@ -220,7 +220,7 @@ async function updateUser(
           if (!body?.language) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -239,7 +239,7 @@ async function updateUser(
           if (!body?.dateFormat) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -313,7 +313,7 @@ async function updateUser(
           if (!unitsSettings || Object.keys(unitsSettings).length === 0) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -360,7 +360,7 @@ async function updateUser(
           if (!communicationSettings || Object.keys(communicationSettings).length === 0) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -406,7 +406,7 @@ async function updateUser(
           if (Object.keys(generalSetting).length === 0) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -549,7 +549,7 @@ async function updateUser(
           if (!body?.chiefMedicalIssue) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -577,7 +577,7 @@ async function updateUser(
           if (!body?.emergencyContact || Object.keys(body.emergencyContact).length === 0) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -597,7 +597,7 @@ async function updateUser(
           if (validationMessage) {
             return ApiResponse.badRequest(
               'COMMON.VALIDATION_ERROR',
-              { requestId: correlationId, event },
+              { correlationId: correlationId, event },
               {
                 code: 'VALIDATION_ERROR',
                 details: [
@@ -649,7 +649,7 @@ async function updateUser(
         default: {
           return ApiResponse.badRequest(
             'COMMON.BAD_REQUEST',
-            { requestId: correlationId, event },
+            { correlationId: correlationId, event },
             { code: 'ACTION_SHOULD_BE_DELETE_AND_UPLOAD' },
           );
         }
@@ -717,7 +717,7 @@ async function updateUser(
           description: 'The operation completed successfully.',
           severity: 'SUCCESS',
         },
-        { requestId: correlationId, event },
+        { correlationId: correlationId, event },
       );
     } catch (err) {
       logger.error({
@@ -734,7 +734,7 @@ async function updateUser(
       );
       return ApiResponse.internalServerError(
         'USER.UPDATE_USER_FAILED',
-        { requestId: correlationId, event },
+        { correlationId: correlationId, event },
         {
           code: 'UPDATE_USER_FAILED',
           details: [
@@ -762,7 +762,7 @@ async function updateUser(
     );
     return ApiResponse.badRequest(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      { correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e: any) => ({
@@ -831,7 +831,7 @@ async function updateUser(
         description: 'The operation completed successfully.',
         severity: 'SUCCESS',
       },
-      { requestId: correlationId, event },
+      { correlationId: correlationId, event },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -846,7 +846,7 @@ async function updateUser(
       );
       return ApiResponse.notFound(
         'USER.USER_NOT_FOUND',
-        { requestId: correlationId, event },
+        { correlationId: correlationId, event },
         {
           code: 'USER_NOT_FOUND',
           details: [{ message: err.message }],
@@ -867,7 +867,7 @@ async function updateUser(
     );
     return ApiResponse.internalServerError(
       'USER.UPDATE_USER_FAILED',
-      { requestId: correlationId, event },
+      { correlationId: correlationId, event },
       {
         code: 'UPDATE_USER_FAILED',
         details: [

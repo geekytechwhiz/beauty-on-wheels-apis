@@ -1,13 +1,12 @@
-import { SNSEvent, Context } from 'aws-lambda';
 import { createLogger, serializeError } from '@api-hub/logger';
-import { sendEmail, sendSms, sendPush } from '../services/notification.delivery';
+import { Context, SNSEvent } from 'aws-lambda';
 import type {
-  RecommendationNotificationRequestedData,
   PaymentStatusNotificationRequestedData,
+  RecommendationNotificationRequestedData,
 } from '../events/event.types';
 import { UserRepository } from '../repositories/user.repository';
+import { sendEmail, sendPush, sendSms } from '../services/notification.delivery';
 import { NotificationPayload } from '../types/api-types';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const logger = createLogger({ service: 'notification-consumer', redactPII: true });
 const userRepository = new UserRepository();

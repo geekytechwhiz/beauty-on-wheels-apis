@@ -24,6 +24,7 @@ module.exports = [
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
         '@api-hub/middleware': resolve(workspaceRoot, 'libs/middleware/src/index.ts'),
+        '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
         '@api-hub/event-platform': resolve(workspaceRoot, 'libs/event-platform/src/index.ts'),
         '@api-hub/service-clients': resolve(workspaceRoot, 'libs/service-clients/src/index.ts'),
       };

@@ -459,7 +459,10 @@ functions:
     handler: src/handlers/eventbridge/onThresholdBreach.main
     events:
       - eventBridge:
-          eventBus: ${self:custom.eventBusName}
+          eventBus:
+            Fn::GetAtt:
+              - AlertServiceBus
+              - Arn
           pattern:
             source:
               - monitoring-service
@@ -473,7 +476,9 @@ functions:
   #   events:
   #     - eventBridge:
   #         eventBus:
-  #           Name: ${self:custom.eventBusName}
+  #           Fn::GetAtt:
+  #             - AlertServiceBus
+  #             - Arn
   #         pattern:
   #           source:
   #             - device-monitoring
@@ -487,7 +492,9 @@ functions:
   #   events:
   #     - eventBridge:
   #         eventBus:
-  #           Name: ${self:custom.eventBusName}
+  #           Fn::GetAtt:
+  #             - AlertServiceBus
+  #             - Arn
   #         pattern:
   #           source:
   #             - device-workflow
@@ -501,7 +508,9 @@ functions:
   #   events:
   #     - eventBridge:
   #         eventBus:
-  #           Name: ${self:custom.eventBusName}
+  #           Fn::GetAtt:
+  #             - AlertServiceBus
+  #             - Arn
   #         pattern:
   #           source:
   #             - symptom-engine
@@ -515,7 +524,9 @@ functions:
   #   events:
   #     - eventBridge:
   #         eventBus:
-  #           Name: ${self:custom.eventBusName}
+  #           Fn::GetAtt:
+  #             - AlertServiceBus
+  #             - Arn
   #         pattern:
   #           source:
   #             - engagement-service

@@ -6,6 +6,13 @@ echo "======================================="
 echo "BUILD STARTED"
 echo "======================================="
 
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "Installing pnpm (required by serverless-esbuild packager)..."
+  npm install -g pnpm@10
+fi
+
+pnpm --version
+
 SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/user-service"
 
 cd "$SERVICE_DIR"

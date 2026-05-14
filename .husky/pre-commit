@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  . "$HOME/.nvm/nvm.sh"
+  nvm use >/dev/null 2>&1
+fi
+
 echo "Running lint-staged..."
 
 npx lint-staged

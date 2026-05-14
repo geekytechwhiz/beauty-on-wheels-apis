@@ -1,13 +1,12 @@
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserRepository } from '../../repositories/user.repository';
 import { CognitoService } from '../../services/cognito.service';
 import { FriendFamilyService } from '../../services/friendFamily.service';
 import { assignUserRole } from '../../services/role.service';
 import { UserService } from '../../services/user.service';
-import { validateFriendFamilySearch } from '../../validation/request.validators';
 import { buildCreateUserPayloadFromFnfSearch, getUserIdAndOrganizationIdFromToken } from '../../utils/helpers';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
+import { validateFriendFamilySearch } from '../../validation/request.validators';
 
 const friendFamilyService = new FriendFamilyService();
 const userService = new UserService();
@@ -46,7 +45,7 @@ const handler = async (req: LambdaRequest<any>) => {
 
   await friendFamilyService.checkFriendFamilyLimit(userID);
   const userData = buildCreateUserPayloadFromFnfSearch(body, organizationID, userID) as any;
-  console.log("USERDATA >>>",userData)
+ 
   const roleIds = Array.isArray(userData.userRole) ? userData.userRole.map((r: string) => String(r)) : [];
   if (roleIds.length > 0) {
     const rolePermissions = await userRepository
@@ -81,7 +80,10 @@ const handler = async (req: LambdaRequest<any>) => {
       (body?.phone ?? '').toString().trim(),
       '',
       authHeader,
-    ).catch(() => {});
+    ).catch((error) => {
+      
+      throw error;
+    });
   }
 
   const emailVal = (body?.email ?? '').toString().trim();

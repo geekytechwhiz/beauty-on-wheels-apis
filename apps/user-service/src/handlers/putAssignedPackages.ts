@@ -1,8 +1,7 @@
 import { withLambdaHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
-import { validateUserOrganizationRequest, validateAssignedPackages } from '../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
+import { validateAssignedPackages, validateUserOrganizationRequest } from '../validation/request.validators';
 
 const userService = new UserService();
 

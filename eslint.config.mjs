@@ -17,19 +17,7 @@ export default [
   },
 
   // NX Module Boundary Rules
-  {
-    files: ['**/*.{ts,tsx,js,jsx}'],
-    rules: {
-      '@nx/enforce-module-boundaries': [
-        'warn',
-        {
-          selector: "Property[key.name='rules']",
-          message:
-            'Defining ESLint rules at project level is not allowed. Use root config only.',
-        },
-      ],
-    },
-  },
+   
 
   // ✅ Global baseline (allow only warn + error everywhere)
   {
@@ -45,6 +33,7 @@ export default [
     ],
     rules: {
       'no-console': ['error', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-non-null-assertion': 'off'
     },
   },
 

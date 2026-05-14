@@ -23,6 +23,7 @@ export interface LambdaHandlerOptions {
   validator?: (request: any) => void | Promise<void>;
   /** When true, respond with HTTP 201 Created instead of 200 OK */
   useCreated?: boolean;
+  successMessageKey?: string;
 }
 
 export const withLambdaHandler =
@@ -98,7 +99,7 @@ export const withLambdaHandler =
         correlationId
       );
 
-      const responseOptions = { requestId: correlationId, event };
+      const responseOptions = { correlationId: correlationId, event };
 
       if (options.successMessageKey) {
         const messageKey = options.successMessageKey as unknown as Message;

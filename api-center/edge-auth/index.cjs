@@ -6,61 +6,76 @@ const USERS = {
 };
 
 const PUBLIC_EXTENSIONS = [
-  '.js', '.mjs', '.css', '.png', '.svg', '.ico',
-  '.html', '.json', '.map', '.woff', '.woff2', '.wasm'
+  '.js',
+  '.mjs',
+  '.css',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.ico',
+  '.html',
+  '.json',
+  '.map',
+  '.txt',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.wasm'
 ];
 
-exports.handler = async (event, context, callback) => {
+exports.handler = async (event) => {
   const request = event.Records[0].cf.request;
+
+  const uri = (request.uri || '').toLowerCase();
+
+  // Allow HEAD requests
+  if (request.method === 'HEAD') {
+    return request;
+  }
+
+  // Allow static assets
+  const isStaticAsset =
+    uri.startsWith('/assets/') ||
+    uri.startsWith('/static/') ||
+    uri === '/favicon.ico' ||
+    uri.includes('.') ||
+    PUBLIC_EXTENSIONS.some((ext) => uri.endsWith(ext));
+
+  if (isStaticAsset) {
+    return request;
+  }
+
   const headers = request.headers;
 
   const authHeader =
     headers.authorization?.[0]?.value ||
     headers.Authorization?.[0]?.value;
 
-  // Allow HEAD requests
-  if (request.method === 'HEAD') {
-    return request;
-  }
-  const uri = request.uri;
-
-  if (
-    uri.startsWith('/assets/') ||
-    uri.endsWith('.js') ||
-    uri.endsWith('.css') ||
-    uri.endsWith('.png') ||
-    uri.endsWith('.svg') ||
-    uri.endsWith('.ico')
-  ) {
-    return callback(null, request);
-  }
-  // Allow static assets safely
-  const isStatic = PUBLIC_EXTENSIONS.some(ext =>
-    request.uri.toLowerCase().endsWith(ext)
-  );
-
-  if (isStatic) {
-    return request;
-  }
-
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     return unauthorized();
   }
 
-  const encoded = authHeader.split(' ')[1];
-
   let decoded;
+
   try {
-    decoded = Buffer.from(encoded, 'base64').toString();
-  } catch (e) {
+    const encoded = authHeader.split(' ')[1];
+    decoded = Buffer.from(encoded, 'base64').toString('utf-8');
+  } catch (err) {
     return unauthorized();
   }
 
-  const index = decoded.indexOf(':');
-  if (index === -1) return unauthorized();
+  const separatorIndex = decoded.indexOf(':');
 
-  const username = decoded.substring(0, index);
-  const password = decoded.substring(index + 1);
+  if (separatorIndex === -1) {
+    return unauthorized();
+  }
+
+  const username = decoded.substring(0, separatorIndex);
+  const password = decoded.substring(separatorIndex + 1);
 
   if (USERS[username] !== password) {
     return unauthorized();
@@ -86,7 +101,7 @@ function unauthorized() {
           value: 'no-store'
         }
       ],
-      'pragma': [
+      pragma: [
         {
           key: 'Pragma',
           value: 'no-cache'

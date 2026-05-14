@@ -1,8 +1,7 @@
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { FriendFamilyService } from '../../services/friendFamily.service';
 import { validateFriendFamilyCheck } from '../../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const friendFamilyService = new FriendFamilyService();
 

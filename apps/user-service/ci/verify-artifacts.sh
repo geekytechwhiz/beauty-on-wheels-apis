@@ -23,52 +23,74 @@ node <<'NODE' > /tmp/user-service-artifacts.tsv
 const fs = require('fs');
 const raw = fs.readFileSync('packaged.yaml', 'utf8');
 const entries = new Map();
-const trimmed = raw.trim();
 
 const add = (bucket, key) => {
   if (!key) return;
-  const normalizedBucket = (bucket || '').trim();
   if (!entries.has(key)) {
-    entries.set(key, normalizedBucket);
+    entries.set(key, (bucket || '').trim());
   }
 };
 
-if (trimmed.startsWith('{')) {
-  const tpl = JSON.parse(raw);
+const addFromTemplate = (tpl) => {
   for (const res of Object.values(tpl.Resources || {})) {
     const code = res.Properties && res.Properties.Code;
     if (!code || typeof code.S3Key !== 'string') continue;
+
     let bucket = '';
     if (typeof code.S3Bucket === 'string') {
       bucket = code.S3Bucket;
     } else if (code.S3Bucket && typeof code.S3Bucket.Ref === 'string') {
       bucket = code.S3Bucket.Ref;
     }
+
     add(bucket, code.S3Key);
   }
-} else {
-  const lines = raw.split(/\r?\n/);
-  let currentBucket = '';
-  for (const line of lines) {
-    let m = line.match(/^\s*S3Bucket\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
-    if (m) {
-      currentBucket = m[2].trim();
-      continue;
-    }
-    m = line.match(/^\s*S3Bucket\s*:\s*([^#]+)\s*(?:#.*)?$/);
-    if (m) {
-      currentBucket = m[1].trim();
-      continue;
-    }
-    m = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
-    if (m) {
-      add(currentBucket, m[2].trim());
-      continue;
-    }
-    m = line.match(/^\s*S3Key\s*:\s*([^#]+)\s*(?:#.*)?$/);
-    if (m) {
-      add(currentBucket, m[1].trim());
-    }
+};
+
+const trimmed = raw.trim();
+if (trimmed.startsWith('{')) {
+  try {
+    addFromTemplate(JSON.parse(raw));
+  } catch (_) {
+    // Fall through to text extraction.
+  }
+}
+
+let currentBucket = '';
+for (const line of raw.split(/\r?\n/)) {
+  let match = line.match(/^\s*"S3Bucket"\s*:\s*"([^"]+)"/);
+  if (match) {
+    currentBucket = match[1].trim();
+    continue;
+  }
+
+  match = line.match(/^\s*S3Bucket\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
+  if (match) {
+    currentBucket = match[2].trim();
+    continue;
+  }
+
+  match = line.match(/^\s*S3Bucket\s*:\s*([^#]+)\s*(?:#.*)?$/);
+  if (match) {
+    currentBucket = match[1].trim();
+    continue;
+  }
+
+  match = line.match(/^\s*"S3Key"\s*:\s*"([^"]+)"/);
+  if (match) {
+    add(currentBucket, match[1].trim());
+    continue;
+  }
+
+  match = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
+  if (match) {
+    add(currentBucket, match[2].trim());
+    continue;
+  }
+
+  match = line.match(/^\s*S3Key\s*:\s*([^#]+)\s*(?:#.*)?$/);
+  if (match) {
+    add(currentBucket, match[1].trim());
   }
 }
 

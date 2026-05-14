@@ -52,46 +52,71 @@ aws cloudformation package \
   --output-template-file packaged.yaml \
   --force-upload
 
-echo "Extracting Lambda S3 keys from packaged.yaml ..."
-node <<'NODE' > .serverless/s3keys.txt
-const fs = require('fs');
-const raw = fs.readFileSync('packaged.yaml', 'utf8');
-const keys = new Set();
-const trimmed = raw.trim();
+if [ ! -s packaged.yaml ]; then
+  echo "ERROR: packaged.yaml was not created or is empty"
+  exit 1
+fi
 
-if (trimmed.startsWith('{')) {
-  const tpl = JSON.parse(raw);
-  for (const res of Object.values(tpl.Resources || {})) {
-    const code = res.Properties && res.Properties.Code;
-    if (code && typeof code.S3Key === 'string') keys.add(code.S3Key);
+echo "packaged.yaml size: $(wc -c < packaged.yaml) bytes"
+
+echo "Extracting Lambda S3 keys from packaged.yaml ..."
+CF_TEMPLATE="$TEMPLATE" node <<'NODE' > .serverless/s3keys.txt
+const fs = require('fs');
+
+const collectKeys = (raw) => {
+  const keys = new Set();
+  if (!raw) return keys;
+
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const tpl = JSON.parse(raw);
+      for (const res of Object.values(tpl.Resources || {})) {
+        const code = res.Properties && res.Properties.Code;
+        if (code && typeof code.S3Key === 'string') {
+          keys.add(code.S3Key);
+        }
+      }
+    } catch (_) {
+      // Fall through to text extraction.
+    }
   }
-} else {
-  for (const line of raw.split(/\r?\n/)) {
-    let m = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
-    if (m) {
-      const v = m[2].trim();
-      if (v) keys.add(v);
-      continue;
-    }
-    m = line.match(/^\s*S3Key\s*:\s*([^#]+)\s*(?:#.*)?$/);
-    if (m) {
-      const v = m[1].trim();
-      if (v) keys.add(v);
-      continue;
-    }
-    m = line.match(/^\s*"S3Key"\s*:\s*"(.+)"\s*,?\s*$/);
-    if (m) {
-      const v = m[1].trim();
-      if (v) keys.add(v);
-    }
+
+  for (const match of raw.matchAll(/"S3Key"\s*:\s*"([^"]+)"/g)) {
+    keys.add(match[1]);
+  }
+
+  for (const match of raw.matchAll(/(?:^|\n)\s*S3Key:\s*('([^']+)'|"([^"]+)"|([^#\n]+))/g)) {
+    const value = (match[2] || match[3] || match[4] || '').trim();
+    if (value) keys.add(value);
+  }
+
+  return keys;
+};
+
+const sources = ['packaged.yaml'];
+if (process.env.CF_TEMPLATE) {
+  sources.push(process.env.CF_TEMPLATE);
+}
+
+let keys = new Set();
+for (const source of sources) {
+  if (!fs.existsSync(source)) continue;
+  const next = collectKeys(fs.readFileSync(source, 'utf8'));
+  if (next.size > keys.size) {
+    keys = next;
   }
 }
 
-for (const key of [...keys].sort()) console.log(key);
+for (const key of [...keys].sort()) {
+  console.log(key);
+}
 NODE
 
 if [ ! -s .serverless/s3keys.txt ]; then
-  echo "ERROR: No S3Key entries found in packaged.yaml"
+  echo "ERROR: No S3Key entries found in packaged.yaml or $TEMPLATE"
+  echo "packaged.yaml preview:"
+  head -n 40 packaged.yaml || true
   exit 1
 fi
 

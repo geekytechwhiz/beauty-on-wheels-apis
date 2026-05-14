@@ -355,7 +355,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/health.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/health.zip
       Handler: src/handlers/health.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-health
@@ -418,7 +418,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/healthV1.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/healthV1.zip
       Handler: src/handlers/v1/health.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-healthV1
@@ -481,7 +481,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/createUser.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/createUser.zip
       Handler: src/handlers/v1/createUser.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-createUser
@@ -544,7 +544,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/createUserV1.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/createUserV1.zip
       Handler: src/handlers/v1/create-user.handler
       Runtime: nodejs22.x
       FunctionName: user-service-dev-createUserV1
@@ -607,7 +607,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/getUser.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/getUser.zip
       Handler: src/handlers/v1/getUser.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-getUser
@@ -670,7 +670,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/getUserByExternalIdentity.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/getUserByExternalIdentity.zip
       Handler: src/handlers/v1/getUserByExternalIdentity.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-getUserByExternalIdentity
@@ -733,7 +733,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/getUserOrganization.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/getUserOrganization.zip
       Handler: src/handlers/v1/getUserOrganization.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-getUserOrganization
@@ -796,7 +796,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/updateUser.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/updateUser.zip
       Handler: src/handlers/v1/updateUser.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-updateUser
@@ -859,7 +859,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/deleteUser.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/deleteUser.zip
       Handler: src/handlers/v1/deleteUser.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-deleteUser
@@ -922,7 +922,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/setLogoutRequired.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/setLogoutRequired.zip
       Handler: src/handlers/v1/setLogoutRequired.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-setLogoutRequired
@@ -985,7 +985,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/putAssignedPackages.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/putAssignedPackages.zip
       Handler: src/handlers/v1/putAssignedPackages.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-putAssignedPackages
@@ -1048,7 +1048,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/assignUserToOrganization.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/assignUserToOrganization.zip
       Handler: src/handlers/v1/assignUserToOrganization.handler
       Runtime: nodejs22.x
       FunctionName: user-service-dev-assignUserToOrganization
@@ -1111,7 +1111,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/listUserOrganizations.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/listUserOrganizations.zip
       Handler: src/handlers/v1/listUserOrganizations.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-listUserOrganizations
@@ -1174,7 +1174,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/updateUserMetadata.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/updateUserMetadata.zip
       Handler: src/handlers/v1/updateUserMetadata.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-updateUserMetadata
@@ -1237,7 +1237,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/updateRecentInvite.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/updateRecentInvite.zip
       Handler: src/handlers/v1/updateRecentInvite.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-updateRecentInvite
@@ -1300,7 +1300,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/listUserFiles.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/listUserFiles.zip
       Handler: src/handlers/v1/listUserFiles.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-listUserFiles
@@ -1363,7 +1363,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/createPendingAppointment.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/createPendingAppointment.zip
       Handler: src/handlers/v1/create-pending-appointment.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-createPendingAppointment
@@ -1426,7 +1426,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/getPendingAppointment.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/getPendingAppointment.zip
       Handler: src/handlers/v1/get-pending-appointment.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-getPendingAppointment
@@ -1489,7 +1489,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/listPendingAppointments.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/listPendingAppointments.zip
       Handler: src/handlers/v1/list-appointments.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-listPendingAppointments
@@ -1552,7 +1552,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/listOrganizationUsers.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/listOrganizationUsers.zip
       Handler: src/handlers/v1/listOrganizationUsers.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-listOrganizationUsers
@@ -1615,7 +1615,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/listOrganizationUsersPost.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/listOrganizationUsersPost.zip
       Handler: src/handlers/v1/listOrganizationUsersPost.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-listOrganizationUsersPost
@@ -1678,7 +1678,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/assignDoctor.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/assignDoctor.zip
       Handler: src/handlers/v1/assignDoctor.handler
       Runtime: nodejs22.x
       FunctionName: user-service-dev-assignDoctor
@@ -1741,7 +1741,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/listDoctorPatients.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/listDoctorPatients.zip
       Handler: src/handlers/v1/listUsers.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-listDoctorPatients
@@ -1804,7 +1804,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/v2UserList.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/v2UserList.zip
       Handler: src/handlers/v1/v2UserList.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-v2UserList
@@ -1867,7 +1867,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/friendFamilySearch.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/friendFamilySearch.zip
       Handler: src/handlers/v1/friendFamilySearch.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-friendFamilySearch
@@ -1930,7 +1930,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/friendFamilyAddMember.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/friendFamilyAddMember.zip
       Handler: src/handlers/v1/friendFamilyAddMember.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-friendFamilyAddMember
@@ -1993,7 +1993,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/friendFamilyUpdate.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/friendFamilyUpdate.zip
       Handler: src/handlers/v1/friendFamilyUpdate.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-friendFamilyUpdate
@@ -2056,7 +2056,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/friendFamilyFetch.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/friendFamilyFetch.zip
       Handler: src/handlers/v1/friendFamilyFetch.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-friendFamilyFetch
@@ -2119,7 +2119,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/friendFamilyDelete.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/friendFamilyDelete.zip
       Handler: src/handlers/v1/friendFamilyDelete.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-friendFamilyDelete
@@ -2182,7 +2182,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/friendFamilyCheck.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/friendFamilyCheck.zip
       Handler: src/handlers/v1/friendFamilyCheck.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-friendFamilyCheck
@@ -2245,7 +2245,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/activateDeactivateUser.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/activateDeactivateUser.zip
       Handler: src/handlers/v1/activateDeactivateUser.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-activateDeactivateUser
@@ -2308,7 +2308,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/validateContacts.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/validateContacts.zip
       Handler: src/handlers/v1/validateContacts.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-validateContacts
@@ -2371,7 +2371,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/validateUsers.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/validateUsers.zip
       Handler: src/handlers/v1/validateUsers.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-validateUsers
@@ -2434,7 +2434,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/getOrganizationUserCount.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/getOrganizationUserCount.zip
       Handler: src/handlers/v1/getOrganizationUserCount.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-getOrganizationUserCount
@@ -2497,7 +2497,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/uploadUserFile.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/uploadUserFile.zip
       Handler: src/handlers/v1/s3/uploadUserFile.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-uploadUserFile
@@ -2560,7 +2560,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/userReminderEvent.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/userReminderEvent.zip
       Handler: src/handlers/v1/sqs/userReminderEvent.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-userReminderEvent
@@ -2623,7 +2623,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/userProfileStreamHandler.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/userProfileStreamHandler.zip
       Handler: src/handlers/v1/stream/userProfileStreamHandler.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-userProfileStreamHandler
@@ -2686,7 +2686,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/inviteNotificationStreamHandler.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/inviteNotificationStreamHandler.zip
       Handler: src/handlers/v1/stream/inviteNotificationStreamHandler.main
       Runtime: nodejs22.x
       FunctionName: user-service-dev-inviteNotificationStreamHandler
@@ -2751,7 +2751,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/notificationConsumer.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/notificationConsumer.zip
       Handler: src/consumers/notification.handler
       Runtime: nodejs22.x
       FunctionName: user-service-dev-notificationConsumer
@@ -2814,7 +2814,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/userRoleAssignmentRequested.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/userRoleAssignmentRequested.zip
       Handler: src/handlers/v1/userRoleAssignmentRequested.handler
       Runtime: nodejs22.x
       FunctionName: user-service-dev-userRoleAssignmentRequested
@@ -2877,7 +2877,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/swaggerUI.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/swaggerUI.zip
       Handler: swagger/swagger-html.handler
       Runtime: nodejs22.x
       FunctionName: user-service-dev-swagger-ui
@@ -2938,7 +2938,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/swaggerJSON.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/swaggerJSON.zip
       Handler: swagger/swagger-json.handler
       Runtime: nodejs22.x
       FunctionName: user-service-dev-swagger-json
@@ -2999,7 +2999,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: dev-mvx-user-service-bucket
-        S3Key: serverless/user-service/dev/1778741782578-2026-05-14T06:56:22.578Z/warmUpPluginDefault.zip
+        S3Key: serverless/user-service/dev/1778742458755-2026-05-14T07:07:38.755Z/warmUpPluginDefault.zip
       Handler: .warmup/default/index.warmUp
       Runtime: nodejs24.x
       FunctionName: user-service-dev-warmup-plugin-default
@@ -3082,13 +3082,6 @@ Resources:
       FunctionName:
         Ref: HealthV1LambdaFunction
       CodeSha256: GHAjO7AVd0dwNwNikVUmCR1kidwS1y1IGuF0yvU/ipg=
-  GetPendingAppointmentLambdaVersionExRg4olGbBICFkbLrsdzseiUxZAPDsBmsfgzNjUpX8:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: GetPendingAppointmentLambdaFunction
-      CodeSha256: JUa8Yxmmb3wpf2H9bYN5qxQWYUY72K5YNBqDx66f32g=
   ListPendingAppointmentsLambdaVersiony3K8phnIl3jCch1AEF8T24J2Ayu0lEaYeiIHZcl8:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3096,13 +3089,6 @@ Resources:
       FunctionName:
         Ref: ListPendingAppointmentsLambdaFunction
       CodeSha256: KJEmg6iddZz/cQ6WqT1d85SxI0BYnajE1vPm+UUQLWA=
-  CreatePendingAppointmentLambdaVersionYim6kRiJE0mgayhJCM6eefKNRYFP3zEnUY3tjCkFO4:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: CreatePendingAppointmentLambdaFunction
-      CodeSha256: teWi9GqxFnjhtrx08mpn31XIsgvmVQsj7cttJiLbY6w=
   ListOrganizationUsersPostLambdaVersionogEt2oeUXpXrmPuy8hD6NpMFsyPDAyGYtXCN6zcbk:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3110,6 +3096,27 @@ Resources:
       FunctionName:
         Ref: ListOrganizationUsersPostLambdaFunction
       CodeSha256: nXw7yHoEtA2STusg2AoJMIeydhQD0WAygpx/3NGuIdY=
+  CreatePendingAppointmentLambdaVersionYim6kRiJE0mgayhJCM6eefKNRYFP3zEnUY3tjCkFO4:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: CreatePendingAppointmentLambdaFunction
+      CodeSha256: teWi9GqxFnjhtrx08mpn31XIsgvmVQsj7cttJiLbY6w=
+  GetPendingAppointmentLambdaVersionExRg4olGbBICFkbLrsdzseiUxZAPDsBmsfgzNjUpX8:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: GetPendingAppointmentLambdaFunction
+      CodeSha256: JUa8Yxmmb3wpf2H9bYN5qxQWYUY72K5YNBqDx66f32g=
+  NotificationConsumerLambdaVersionEwwznWOCwE8LDM45u8npGVcW7sCXKjcX5Q50mva0:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: NotificationConsumerLambdaFunction
+      CodeSha256: +wBmuT1bZClXetRlJ8ieuiGp0zxNnWkz9O0Urdrh/Jc=
   InviteNotificationStreamHandlerLambdaVersiontS7PGMpxzhCZaTkY6fDjmkAiItDuj2Ca29mfXVyGZgI:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3119,13 +3126,6 @@ Resources:
       CodeSha256: LZvQTIrZ9RkxcJ0nKR6pt0snMTs8kbqG5v9VamQTwsQ=
       Description: Listens to user-table DynamoDB Stream; sends email/SMS when inviteDetails
         changes
-  ValidateContactsLambdaVersionSiSFvBrsqL6VB8D0wPepZwVhICf7iHVzAee7n37Yo:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: ValidateContactsLambdaFunction
-      CodeSha256: zOtqt/SXzlbpMWJSJ/dukkMd1SYn4WV2VpafVAhQG40=
   ValidateUsersLambdaVersione9GhIfOwtLcNFy8xDpWxG5KZ1PMdHa2AMm0DonGUcok:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3133,20 +3133,20 @@ Resources:
       FunctionName:
         Ref: ValidateUsersLambdaFunction
       CodeSha256: HzspugzP73YEpfQk8SqHdjnYr6EoDODiV27T7BjKh8o=
-  NotificationConsumerLambdaVersionEwwznWOCwE8LDM45u8npGVcW7sCXKjcX5Q50mva0:
+  ValidateContactsLambdaVersionSiSFvBrsqL6VB8D0wPepZwVhICf7iHVzAee7n37Yo:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: NotificationConsumerLambdaFunction
-      CodeSha256: +wBmuT1bZClXetRlJ8ieuiGp0zxNnWkz9O0Urdrh/Jc=
-  FriendFamilyAddMemberLambdaVersionXsv7iuVHsXm6xoi0srg5UMkHQatAUDGAot5IdmmLOXU:
+        Ref: ValidateContactsLambdaFunction
+      CodeSha256: zOtqt/SXzlbpMWJSJ/dukkMd1SYn4WV2VpafVAhQG40=
+  FriendFamilyFetchLambdaVersionEdAsRl7T4wnt6UPXoKR5JXWnkqxUZZDM2OL2OojSA:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: FriendFamilyAddMemberLambdaFunction
-      CodeSha256: eMIT1dS/++ZsNn552v0WsU7mgEjUSfo7RXg4PGy4LaE=
+        Ref: FriendFamilyFetchLambdaFunction
+      CodeSha256: MKatULBVAwkktepLi3cOfnwGvWYBYhrhxBpPUgNGlhw=
   FriendFamilyUpdateLambdaVersioni8EbMxgIj70QRukNEvUoRhZfOKjfWoWztjR87ItB1Y:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3168,20 +3168,13 @@ Resources:
       FunctionName:
         Ref: FriendFamilyCheckLambdaFunction
       CodeSha256: gpig91oqS7Hs4WXVAMi9TQkhxyO+iJB8uNTyw8Fl6D0=
-  FriendFamilyFetchLambdaVersionEdAsRl7T4wnt6UPXoKR5JXWnkqxUZZDM2OL2OojSA:
+  FriendFamilyAddMemberLambdaVersionXsv7iuVHsXm6xoi0srg5UMkHQatAUDGAot5IdmmLOXU:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: FriendFamilyFetchLambdaFunction
-      CodeSha256: MKatULBVAwkktepLi3cOfnwGvWYBYhrhxBpPUgNGlhw=
-  GetUserLambdaVersionGiJFztzy8y6LUnPQEX5cA2SQBnX162CtL1xTcYgGI:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: GetUserLambdaFunction
-      CodeSha256: AoIMJRWzJHuWn98nbISiz0CLvhkOfDggEuLVqqypBkw=
+        Ref: FriendFamilyAddMemberLambdaFunction
+      CodeSha256: eMIT1dS/++ZsNn552v0WsU7mgEjUSfo7RXg4PGy4LaE=
   UploadUserFileLambdaVersionypOCvuqTTDUXL2D5yZuhB3i6gbme53pHpDvtnnmVxtw:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3189,13 +3182,13 @@ Resources:
       FunctionName:
         Ref: UploadUserFileLambdaFunction
       CodeSha256: w0EqyPVEVIugSpkjuUU3IIJFlUvy9UAPQcZ/uRW4Ktg=
-  UpdateUserLambdaVersionG6faRyic0K0Gq7AfeoaTmLKd3Hr67rFMXfV5RI4Z8:
+  GetUserByExternalIdentityLambdaVersionFRa32wx2lu1GFV6ep3sDu4qYqrCRx8lj9dpwsYp1Ck:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: UpdateUserLambdaFunction
-      CodeSha256: NsS5/aXrmZJOFwJeiNQqwI7qizv0o08SAu+9zgwLwtQ=
+        Ref: GetUserByExternalIdentityLambdaFunction
+      CodeSha256: Tq2UWij8ABZYP+Dnt2uhDJYAXPkoydZlKhLLoHfUJPc=
   GetUserOrganizationLambdaVersionxkQWh8IwVmxsTJMuw9xLLOB69aX2CowXIuuugxE0:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3203,20 +3196,27 @@ Resources:
       FunctionName:
         Ref: GetUserOrganizationLambdaFunction
       CodeSha256: 1l9f7ji5EyotfYG9BKSpQu2zGG4tfbe9OvgVLVCP8Ww=
-  PutAssignedPackagesLambdaVersionC3MzMnyz2PUrd2Bp3javVnOvAGfNV9bigwNrqko:
+  UpdateUserLambdaVersionG6faRyic0K0Gq7AfeoaTmLKd3Hr67rFMXfV5RI4Z8:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: PutAssignedPackagesLambdaFunction
-      CodeSha256: kK98qxKINU8RspsGLGEPvajwiwuFubN+z6xrdgFSJMM=
-  SetLogoutRequiredLambdaVersionUvrnhNjhcNoBYiFA6qT9gv1NB4SUivnQVOvB9x7Tk:
+        Ref: UpdateUserLambdaFunction
+      CodeSha256: NsS5/aXrmZJOFwJeiNQqwI7qizv0o08SAu+9zgwLwtQ=
+  GetUserLambdaVersionGiJFztzy8y6LUnPQEX5cA2SQBnX162CtL1xTcYgGI:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: SetLogoutRequiredLambdaFunction
-      CodeSha256: ECQsXEreNDp6K+jbJpXqWnxz4pU1YZxypfNb/ZfhDe0=
+        Ref: GetUserLambdaFunction
+      CodeSha256: AoIMJRWzJHuWn98nbISiz0CLvhkOfDggEuLVqqypBkw=
+  CreateUserV1LambdaVersionI2BsqvQGXrxpIulSSceOLzvuHobNRNd0Pb4j5OREUw:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: CreateUserV1LambdaFunction
+      CodeSha256: LpKhS8DIojo3+tNiwCln07a9FFkapJk7I4X8wkNY7V8=
   ListUserOrganizationsLambdaVersionruwbICCCo3hxuzva3Wr7Fi8pE1m2meIj2wTENQq3mY:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3231,20 +3231,27 @@ Resources:
       FunctionName:
         Ref: DeleteUserLambdaFunction
       CodeSha256: h+/ggsGG78urN8Iw70GYpBOuNo0YJ9/Q4z90/FOwJ/8=
-  ListUserFilesLambdaVersioniYeNzyEJ6ffuvRaYdSUhiubMRD67P8UL3HO6tKuE:
+  AssignUserToOrganizationLambdaVersionT3JwAb5qLnoYkmEuFj3Z0mW6OiY0s1DLGsLJPOAEE:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: ListUserFilesLambdaFunction
-      CodeSha256: kLUHIuDTudiqzbX489UyyB/aV9EjUpBBrmS9qXdhO5c=
-  UpdateRecentInviteLambdaVersioncP4Pm3lqfMP6DE93jITISCtL5YPKtISxF7pocpQvI:
+        Ref: AssignUserToOrganizationLambdaFunction
+      CodeSha256: 1HgvFkpMOaYjl8KgXH/46qYf8XQGcentfLP/6fIXUIM=
+  PutAssignedPackagesLambdaVersionC3MzMnyz2PUrd2Bp3javVnOvAGfNV9bigwNrqko:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: UpdateRecentInviteLambdaFunction
-      CodeSha256: ma3xr5xCXlsIdyDnHqy06Di00u1qy/oufrdCdYCJUp8=
+        Ref: PutAssignedPackagesLambdaFunction
+      CodeSha256: kK98qxKINU8RspsGLGEPvajwiwuFubN+z6xrdgFSJMM=
+  SetLogoutRequiredLambdaVersionUvrnhNjhcNoBYiFA6qT9gv1NB4SUivnQVOvB9x7Tk:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: SetLogoutRequiredLambdaFunction
+      CodeSha256: ECQsXEreNDp6K+jbJpXqWnxz4pU1YZxypfNb/ZfhDe0=
   UpdateUserMetadataLambdaVersion72WgeqF8MKDUU8Dt38Yl3c1hqdOwXZhJq3R9CBzM:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3252,13 +3259,20 @@ Resources:
       FunctionName:
         Ref: UpdateUserMetadataLambdaFunction
       CodeSha256: i7MVY1zAtiKQfN77XnXpf/A9R+g8QBCOT+s+n4F4eCA=
-  V2UserListLambdaVersionS9XOiVuEmfk1xjTKd4UIfQBXAOPwI9cbI0MTKccc:
+  UpdateRecentInviteLambdaVersioncP4Pm3lqfMP6DE93jITISCtL5YPKtISxF7pocpQvI:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: V2UserListLambdaFunction
-      CodeSha256: dByszwfZph/Gm3GxX/JuPiWsHJ0tgYhkYhqNL8toQak=
+        Ref: UpdateRecentInviteLambdaFunction
+      CodeSha256: ma3xr5xCXlsIdyDnHqy06Di00u1qy/oufrdCdYCJUp8=
+  ListUserFilesLambdaVersioniYeNzyEJ6ffuvRaYdSUhiubMRD67P8UL3HO6tKuE:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: ListUserFilesLambdaFunction
+      CodeSha256: kLUHIuDTudiqzbX489UyyB/aV9EjUpBBrmS9qXdhO5c=
   AssignDoctorLambdaVersionbpeMhrgAQ49LNV9AICMPoE0jg4KmOqt73eWQQN8w:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3266,34 +3280,6 @@ Resources:
       FunctionName:
         Ref: AssignDoctorLambdaFunction
       CodeSha256: eoVASJhelSM6c8+MQmwPdnLIRyYaH7j1SQvSsqE+0oo=
-  ActivateDeactivateUserLambdaVersionTKJ6Nf98owT5UIZm9l9lb2ithXGo0qzZBYR6Y1Hx4W8:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: ActivateDeactivateUserLambdaFunction
-      CodeSha256: qI0BvYqz7y5MDPaIP5PTWGG1dCrbZKA+AYK9UFkjyzI=
-  GetOrganizationUserCountLambdaVersionjx3pABIWAR1C6Dy6Ujo3XMU7EirhkJT4g3Fm2d1c:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: GetOrganizationUserCountLambdaFunction
-      CodeSha256: B6Y3EySjdNXYqVJvdg4yEhMKjo3RXYRpUcuDwrCIFuw=
-  GetUserByExternalIdentityLambdaVersionFRa32wx2lu1GFV6ep3sDu4qYqrCRx8lj9dpwsYp1Ck:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: GetUserByExternalIdentityLambdaFunction
-      CodeSha256: Tq2UWij8ABZYP+Dnt2uhDJYAXPkoydZlKhLLoHfUJPc=
-  CreateUserV1LambdaVersionI2BsqvQGXrxpIulSSceOLzvuHobNRNd0Pb4j5OREUw:
-    Type: AWS::Lambda::Version
-    DeletionPolicy: Retain
-    Properties:
-      FunctionName:
-        Ref: CreateUserV1LambdaFunction
-      CodeSha256: LpKhS8DIojo3+tNiwCln07a9FFkapJk7I4X8wkNY7V8=
   ListOrganizationUsersLambdaVersionOU68JvXnIyhVpGch2L5H8uFsjy9UzqlUCQB8ocl2E:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -3308,13 +3294,27 @@ Resources:
       FunctionName:
         Ref: ListDoctorPatientsLambdaFunction
       CodeSha256: lX+I3QSaLpgt1fpWZ+4yF5JO2pZ/qjwN7xrc1r9iRAY=
-  AssignUserToOrganizationLambdaVersionT3JwAb5qLnoYkmEuFj3Z0mW6OiY0s1DLGsLJPOAEE:
+  V2UserListLambdaVersionS9XOiVuEmfk1xjTKd4UIfQBXAOPwI9cbI0MTKccc:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
     Properties:
       FunctionName:
-        Ref: AssignUserToOrganizationLambdaFunction
-      CodeSha256: 1HgvFkpMOaYjl8KgXH/46qYf8XQGcentfLP/6fIXUIM=
+        Ref: V2UserListLambdaFunction
+      CodeSha256: dByszwfZph/Gm3GxX/JuPiWsHJ0tgYhkYhqNL8toQak=
+  ActivateDeactivateUserLambdaVersionTKJ6Nf98owT5UIZm9l9lb2ithXGo0qzZBYR6Y1Hx4W8:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: ActivateDeactivateUserLambdaFunction
+      CodeSha256: qI0BvYqz7y5MDPaIP5PTWGG1dCrbZKA+AYK9UFkjyzI=
+  GetOrganizationUserCountLambdaVersionjx3pABIWAR1C6Dy6Ujo3XMU7EirhkJT4g3Fm2d1c:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    Properties:
+      FunctionName:
+        Ref: GetOrganizationUserCountLambdaFunction
+      CodeSha256: B6Y3EySjdNXYqVJvdg4yEhMKjo3RXYRpUcuDwrCIFuw=
   CreateUserLambdaVersionSLURYFyvkAWtaLbp6pZRfvJXsydsQSqsjtVlf3S7k:
     Type: AWS::Lambda::Version
     DeletionPolicy: Retain
@@ -5939,7 +5939,7 @@ Resources:
           - arn:aws:lambda:us-east-1:462778607085:function:dev_global_user_package_custom_authorization
           - /invocations
       Type: TOKEN
-  ApiGatewayDeployment1778741769903:
+  ApiGatewayDeployment1778742440176:
     Type: AWS::ApiGateway::Deployment
     Properties:
       RestApiId:
@@ -7153,60 +7153,60 @@ Outputs:
       Ref: HealthV1LambdaVersionVAg9r1hgvrksBJgER6aePwjMR69RdU5R0789qpnjlc
     Export:
       Name: sls-user-service-dev-HealthV1LambdaFunctionQualifiedArn
-  GetPendingAppointmentLambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: GetPendingAppointmentLambdaVersionExRg4olGbBICFkbLrsdzseiUxZAPDsBmsfgzNjUpX8
-    Export:
-      Name: sls-user-service-dev-GetPendingAppointmentLambdaFunctionQualifiedArn
   ListPendingAppointmentsLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
       Ref: ListPendingAppointmentsLambdaVersiony3K8phnIl3jCch1AEF8T24J2Ayu0lEaYeiIHZcl8
     Export:
       Name: sls-user-service-dev-ListPendingAppointmentsLambdaFunctionQualifiedArn
-  CreatePendingAppointmentLambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: CreatePendingAppointmentLambdaVersionYim6kRiJE0mgayhJCM6eefKNRYFP3zEnUY3tjCkFO4
-    Export:
-      Name: sls-user-service-dev-CreatePendingAppointmentLambdaFunctionQualifiedArn
   ListOrganizationUsersPostLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
       Ref: ListOrganizationUsersPostLambdaVersionogEt2oeUXpXrmPuy8hD6NpMFsyPDAyGYtXCN6zcbk
     Export:
       Name: sls-user-service-dev-ListOrganizationUsersPostLambdaFunctionQualifiedArn
-  InviteNotificationStreamHandlerLambdaFunctionQualifiedArn:
+  CreatePendingAppointmentLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: InviteNotificationStreamHandlerLambdaVersiontS7PGMpxzhCZaTkY6fDjmkAiItDuj2Ca29mfXVyGZgI
+      Ref: CreatePendingAppointmentLambdaVersionYim6kRiJE0mgayhJCM6eefKNRYFP3zEnUY3tjCkFO4
     Export:
-      Name: sls-user-service-dev-InviteNotificationStreamHandlerLambdaFunctionQualifiedArn
-  ValidateContactsLambdaFunctionQualifiedArn:
+      Name: sls-user-service-dev-CreatePendingAppointmentLambdaFunctionQualifiedArn
+  GetPendingAppointmentLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: ValidateContactsLambdaVersionSiSFvBrsqL6VB8D0wPepZwVhICf7iHVzAee7n37Yo
+      Ref: GetPendingAppointmentLambdaVersionExRg4olGbBICFkbLrsdzseiUxZAPDsBmsfgzNjUpX8
     Export:
-      Name: sls-user-service-dev-ValidateContactsLambdaFunctionQualifiedArn
-  ValidateUsersLambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: ValidateUsersLambdaVersione9GhIfOwtLcNFy8xDpWxG5KZ1PMdHa2AMm0DonGUcok
-    Export:
-      Name: sls-user-service-dev-ValidateUsersLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-GetPendingAppointmentLambdaFunctionQualifiedArn
   NotificationConsumerLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
       Ref: NotificationConsumerLambdaVersionEwwznWOCwE8LDM45u8npGVcW7sCXKjcX5Q50mva0
     Export:
       Name: sls-user-service-dev-NotificationConsumerLambdaFunctionQualifiedArn
-  FriendFamilyAddMemberLambdaFunctionQualifiedArn:
+  InviteNotificationStreamHandlerLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: FriendFamilyAddMemberLambdaVersionXsv7iuVHsXm6xoi0srg5UMkHQatAUDGAot5IdmmLOXU
+      Ref: InviteNotificationStreamHandlerLambdaVersiontS7PGMpxzhCZaTkY6fDjmkAiItDuj2Ca29mfXVyGZgI
     Export:
-      Name: sls-user-service-dev-FriendFamilyAddMemberLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-InviteNotificationStreamHandlerLambdaFunctionQualifiedArn
+  ValidateUsersLambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: ValidateUsersLambdaVersione9GhIfOwtLcNFy8xDpWxG5KZ1PMdHa2AMm0DonGUcok
+    Export:
+      Name: sls-user-service-dev-ValidateUsersLambdaFunctionQualifiedArn
+  ValidateContactsLambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: ValidateContactsLambdaVersionSiSFvBrsqL6VB8D0wPepZwVhICf7iHVzAee7n37Yo
+    Export:
+      Name: sls-user-service-dev-ValidateContactsLambdaFunctionQualifiedArn
+  FriendFamilyFetchLambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: FriendFamilyFetchLambdaVersionEdAsRl7T4wnt6UPXoKR5JXWnkqxUZZDM2OL2OojSA
+    Export:
+      Name: sls-user-service-dev-FriendFamilyFetchLambdaFunctionQualifiedArn
   FriendFamilyUpdateLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
@@ -7225,48 +7225,48 @@ Outputs:
       Ref: FriendFamilyCheckLambdaVersionXC9QAh1QMhBIu8DrCOrdWKtqc5cvYzkQQvDpEGLvYlg
     Export:
       Name: sls-user-service-dev-FriendFamilyCheckLambdaFunctionQualifiedArn
-  FriendFamilyFetchLambdaFunctionQualifiedArn:
+  FriendFamilyAddMemberLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: FriendFamilyFetchLambdaVersionEdAsRl7T4wnt6UPXoKR5JXWnkqxUZZDM2OL2OojSA
+      Ref: FriendFamilyAddMemberLambdaVersionXsv7iuVHsXm6xoi0srg5UMkHQatAUDGAot5IdmmLOXU
     Export:
-      Name: sls-user-service-dev-FriendFamilyFetchLambdaFunctionQualifiedArn
-  GetUserLambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: GetUserLambdaVersionGiJFztzy8y6LUnPQEX5cA2SQBnX162CtL1xTcYgGI
-    Export:
-      Name: sls-user-service-dev-GetUserLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-FriendFamilyAddMemberLambdaFunctionQualifiedArn
   UploadUserFileLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
       Ref: UploadUserFileLambdaVersionypOCvuqTTDUXL2D5yZuhB3i6gbme53pHpDvtnnmVxtw
     Export:
       Name: sls-user-service-dev-UploadUserFileLambdaFunctionQualifiedArn
-  UpdateUserLambdaFunctionQualifiedArn:
+  GetUserByExternalIdentityLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: UpdateUserLambdaVersionG6faRyic0K0Gq7AfeoaTmLKd3Hr67rFMXfV5RI4Z8
+      Ref: GetUserByExternalIdentityLambdaVersionFRa32wx2lu1GFV6ep3sDu4qYqrCRx8lj9dpwsYp1Ck
     Export:
-      Name: sls-user-service-dev-UpdateUserLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-GetUserByExternalIdentityLambdaFunctionQualifiedArn
   GetUserOrganizationLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
       Ref: GetUserOrganizationLambdaVersionxkQWh8IwVmxsTJMuw9xLLOB69aX2CowXIuuugxE0
     Export:
       Name: sls-user-service-dev-GetUserOrganizationLambdaFunctionQualifiedArn
-  PutAssignedPackagesLambdaFunctionQualifiedArn:
+  UpdateUserLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: PutAssignedPackagesLambdaVersionC3MzMnyz2PUrd2Bp3javVnOvAGfNV9bigwNrqko
+      Ref: UpdateUserLambdaVersionG6faRyic0K0Gq7AfeoaTmLKd3Hr67rFMXfV5RI4Z8
     Export:
-      Name: sls-user-service-dev-PutAssignedPackagesLambdaFunctionQualifiedArn
-  SetLogoutRequiredLambdaFunctionQualifiedArn:
+      Name: sls-user-service-dev-UpdateUserLambdaFunctionQualifiedArn
+  GetUserLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: SetLogoutRequiredLambdaVersionUvrnhNjhcNoBYiFA6qT9gv1NB4SUivnQVOvB9x7Tk
+      Ref: GetUserLambdaVersionGiJFztzy8y6LUnPQEX5cA2SQBnX162CtL1xTcYgGI
     Export:
-      Name: sls-user-service-dev-SetLogoutRequiredLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-GetUserLambdaFunctionQualifiedArn
+  CreateUserV1LambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: CreateUserV1LambdaVersionI2BsqvQGXrxpIulSSceOLzvuHobNRNd0Pb4j5OREUw
+    Export:
+      Name: sls-user-service-dev-CreateUserV1LambdaFunctionQualifiedArn
   ListUserOrganizationsLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
@@ -7279,60 +7279,48 @@ Outputs:
       Ref: DeleteUserLambdaVersionMToNy0SjbupcXW0ILc5hxF6TKWiDAYP7BSdxsSJHvb4
     Export:
       Name: sls-user-service-dev-DeleteUserLambdaFunctionQualifiedArn
-  ListUserFilesLambdaFunctionQualifiedArn:
+  AssignUserToOrganizationLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: ListUserFilesLambdaVersioniYeNzyEJ6ffuvRaYdSUhiubMRD67P8UL3HO6tKuE
+      Ref: AssignUserToOrganizationLambdaVersionT3JwAb5qLnoYkmEuFj3Z0mW6OiY0s1DLGsLJPOAEE
     Export:
-      Name: sls-user-service-dev-ListUserFilesLambdaFunctionQualifiedArn
-  UpdateRecentInviteLambdaFunctionQualifiedArn:
+      Name: sls-user-service-dev-AssignUserToOrganizationLambdaFunctionQualifiedArn
+  PutAssignedPackagesLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: UpdateRecentInviteLambdaVersioncP4Pm3lqfMP6DE93jITISCtL5YPKtISxF7pocpQvI
+      Ref: PutAssignedPackagesLambdaVersionC3MzMnyz2PUrd2Bp3javVnOvAGfNV9bigwNrqko
     Export:
-      Name: sls-user-service-dev-UpdateRecentInviteLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-PutAssignedPackagesLambdaFunctionQualifiedArn
+  SetLogoutRequiredLambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: SetLogoutRequiredLambdaVersionUvrnhNjhcNoBYiFA6qT9gv1NB4SUivnQVOvB9x7Tk
+    Export:
+      Name: sls-user-service-dev-SetLogoutRequiredLambdaFunctionQualifiedArn
   UpdateUserMetadataLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
       Ref: UpdateUserMetadataLambdaVersion72WgeqF8MKDUU8Dt38Yl3c1hqdOwXZhJq3R9CBzM
     Export:
       Name: sls-user-service-dev-UpdateUserMetadataLambdaFunctionQualifiedArn
-  V2UserListLambdaFunctionQualifiedArn:
+  UpdateRecentInviteLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: V2UserListLambdaVersionS9XOiVuEmfk1xjTKd4UIfQBXAOPwI9cbI0MTKccc
+      Ref: UpdateRecentInviteLambdaVersioncP4Pm3lqfMP6DE93jITISCtL5YPKtISxF7pocpQvI
     Export:
-      Name: sls-user-service-dev-V2UserListLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-UpdateRecentInviteLambdaFunctionQualifiedArn
+  ListUserFilesLambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: ListUserFilesLambdaVersioniYeNzyEJ6ffuvRaYdSUhiubMRD67P8UL3HO6tKuE
+    Export:
+      Name: sls-user-service-dev-ListUserFilesLambdaFunctionQualifiedArn
   AssignDoctorLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
       Ref: AssignDoctorLambdaVersionbpeMhrgAQ49LNV9AICMPoE0jg4KmOqt73eWQQN8w
     Export:
       Name: sls-user-service-dev-AssignDoctorLambdaFunctionQualifiedArn
-  ActivateDeactivateUserLambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: ActivateDeactivateUserLambdaVersionTKJ6Nf98owT5UIZm9l9lb2ithXGo0qzZBYR6Y1Hx4W8
-    Export:
-      Name: sls-user-service-dev-ActivateDeactivateUserLambdaFunctionQualifiedArn
-  GetOrganizationUserCountLambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: GetOrganizationUserCountLambdaVersionjx3pABIWAR1C6Dy6Ujo3XMU7EirhkJT4g3Fm2d1c
-    Export:
-      Name: sls-user-service-dev-GetOrganizationUserCountLambdaFunctionQualifiedArn
-  GetUserByExternalIdentityLambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: GetUserByExternalIdentityLambdaVersionFRa32wx2lu1GFV6ep3sDu4qYqrCRx8lj9dpwsYp1Ck
-    Export:
-      Name: sls-user-service-dev-GetUserByExternalIdentityLambdaFunctionQualifiedArn
-  CreateUserV1LambdaFunctionQualifiedArn:
-    Description: Current Lambda function version
-    Value:
-      Ref: CreateUserV1LambdaVersionI2BsqvQGXrxpIulSSceOLzvuHobNRNd0Pb4j5OREUw
-    Export:
-      Name: sls-user-service-dev-CreateUserV1LambdaFunctionQualifiedArn
   ListOrganizationUsersLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
@@ -7345,12 +7333,24 @@ Outputs:
       Ref: ListDoctorPatientsLambdaVersionn386kZDjgkk4eHHnKGw4NFUElWbOk59q6ayIEIkNmqk
     Export:
       Name: sls-user-service-dev-ListDoctorPatientsLambdaFunctionQualifiedArn
-  AssignUserToOrganizationLambdaFunctionQualifiedArn:
+  V2UserListLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:
-      Ref: AssignUserToOrganizationLambdaVersionT3JwAb5qLnoYkmEuFj3Z0mW6OiY0s1DLGsLJPOAEE
+      Ref: V2UserListLambdaVersionS9XOiVuEmfk1xjTKd4UIfQBXAOPwI9cbI0MTKccc
     Export:
-      Name: sls-user-service-dev-AssignUserToOrganizationLambdaFunctionQualifiedArn
+      Name: sls-user-service-dev-V2UserListLambdaFunctionQualifiedArn
+  ActivateDeactivateUserLambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: ActivateDeactivateUserLambdaVersionTKJ6Nf98owT5UIZm9l9lb2ithXGo0qzZBYR6Y1Hx4W8
+    Export:
+      Name: sls-user-service-dev-ActivateDeactivateUserLambdaFunctionQualifiedArn
+  GetOrganizationUserCountLambdaFunctionQualifiedArn:
+    Description: Current Lambda function version
+    Value:
+      Ref: GetOrganizationUserCountLambdaVersionjx3pABIWAR1C6Dy6Ujo3XMU7EirhkJT4g3Fm2d1c
+    Export:
+      Name: sls-user-service-dev-GetOrganizationUserCountLambdaFunctionQualifiedArn
   CreateUserLambdaFunctionQualifiedArn:
     Description: Current Lambda function version
     Value:

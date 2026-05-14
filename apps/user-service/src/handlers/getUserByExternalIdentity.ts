@@ -1,7 +1,6 @@
 import { withLambdaHandler } from '@api-hub/middleware';
-import { type LambdaRequest } from '@api-hub/utils'; 
+import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 interface ExternalQuery {
   tenant?: string;

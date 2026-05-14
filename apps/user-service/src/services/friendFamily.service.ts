@@ -215,7 +215,7 @@ export class FriendFamilyService {
           ).trim() || organizationID;
           
           const baseInviteUrl = (process.env.WEB_URL || WEB_DNS_URL || '').trim();
-          let invitationLink = baseInviteUrl;
+          const invitationLink = baseInviteUrl;
 
         await sendSms({
           phone: inviteePhone,

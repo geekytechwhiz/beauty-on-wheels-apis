@@ -7,9 +7,6 @@
       "path": "./services/partner-integration"
     },
     {
-      "path": "./services/authorizer-service"
-    },
-    {
       "path": "./apps/organization-service"
     },
     {

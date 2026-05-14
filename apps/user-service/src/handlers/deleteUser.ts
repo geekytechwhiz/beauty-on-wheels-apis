@@ -2,7 +2,6 @@ import { withLambdaHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUserOrganizationRequest } from '../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new UserService();
 
@@ -22,4 +21,4 @@ const handler = async (req: LambdaRequest<Params>) => {
 
 export const main = withLambdaHandler(handler, {
   validator: validateUserOrganizationRequest,
-});``
+});

@@ -494,7 +494,7 @@ function transformValueForOffline(val, pathArr, ctx) {
 
   // Inline-resolve `${aws:accountId}` and `${aws:region}` so offline never
   // needs to touch STS or any other AWS service at startup.
-  let next = val
+  const next = val
     .replace(/\$\{aws:region\}/g, ctx.region)
     .replace(/\$\{aws:accountId\}/g, ctx.accountId);
 

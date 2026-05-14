@@ -4,7 +4,6 @@ import { type LambdaRequest } from '@api-hub/utils';
 import { Appointment } from '../models';
 import { UserRepository } from '../repositories/user.repository';
 import { validateCreateAppointment } from '../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userRepository = new UserRepository();
 

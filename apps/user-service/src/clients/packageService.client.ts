@@ -3,15 +3,15 @@ import { createLogger, createChildLogger, serializeError } from '@api-hub/observ
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
-export interface PackageServiceClientOptions {
-  baseUrl: string;
-  timeoutMs?: number;
-}
 
 export interface UserServiceRequest {
   userId: string;
   userPackageId?: string;
   userAddonId?: string;
+}
+export interface PackageServiceClientOptions {
+  baseUrl: string;
+  timeoutMs?: number;
 }
 
 export interface ScheduledService {

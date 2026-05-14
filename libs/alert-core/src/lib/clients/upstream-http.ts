@@ -14,7 +14,7 @@ function notifyUpstreamRetries(
   if (retryAttempts <= 0) return;
   void import('@api-hub/observability')
     .then((m) => m.recordUpstreamRetryAttempts(dependency, retryAttempts))
-    .catch(() => {});
+     
 }
 
 class CircuitBreaker {

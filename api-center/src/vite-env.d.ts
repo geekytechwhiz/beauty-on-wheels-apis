@@ -2,6 +2,8 @@
 /// <reference types="node" />
 
 interface ImportMetaEnv {
+  /** Public URL prefix for the built app (e.g. `/hub/`). Must start/end with `/` when set; see `vite.config.ts`. */
+  readonly VITE_PUBLIC_BASE_PATH: string | undefined;
   readonly VITE_API_BASE_URL: string | undefined;
   /** In dev/preview, Vite exposes `GET/POST /__api-center/specs-store/*` (catalog lives at `/catalog`). Static files use `public/{VITE_SPECS_PREFIX}/`. */
   readonly VITE_ENABLE_LOCAL_SPEC_API: string | undefined;

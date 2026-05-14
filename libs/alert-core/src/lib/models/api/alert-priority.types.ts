@@ -5,10 +5,5 @@ export interface PriorityInput {
   priority: PriorityBand;
   performedByUserId?: string;
   performedByDisplayName?: string;
-}
-
-export interface PriorityResult {
-  // Intentionally empty result shape; mutation endpoints return ids/results at the HTTP layer.
-  // (Kept as an interface for forward-compatible extension.)
-}
+} 
 

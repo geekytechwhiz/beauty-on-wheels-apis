@@ -1,8 +1,7 @@
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { FriendFamilyService } from '../../services/friendFamily.service';
 import { validateAddMemberFriendFamily } from '../../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const friendFamilyService = new FriendFamilyService();
 
@@ -25,7 +24,6 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   const userId = body.userId ?? body.userID ?? req.context.userContext?.userId ?? '';
   const authHeader = req.context.authHeader;
   const { organizationID: _o, ...addBody } = body as any;
-  console.log("Organization Details: ", organizationID, userId, authHeader, addBody);
   return friendFamilyService.addMember(organizationID, { ...addBody, userId }, authHeader);
 };
 

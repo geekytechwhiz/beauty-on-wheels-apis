@@ -1,28 +1,28 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/observability';
-import { ApiResponse } from '@api-hub/utils';
-import {
-  getRequestId,
-  responseOpts,
-  createHandlerLogger,
-} from '../utils/handlerHelpers';
-import * as integrationService from '../services/integration.service';
-import {
-  PartnerUnavailableError as ServicePartnerUnavailableError,
-  UnsupportedPartnerError,
-  InvalidPartnerResponseError as ServiceInvalidPartnerResponseError,
-} from '../utils/integrationErrors';
 import {
   InvalidPartnerResponseError,
-  PartnerUnavailableError,
   PartnerAuthenticationError,
   PartnerNotFoundError,
+  PartnerUnavailableError,
 } from '@api-hub/lab-integration';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
+import { ApiResponse } from '@api-hub/utils';
+import type { Context } from 'aws-lambda';
+import * as integrationService from '../services/integration.service';
+import {
+  createHandlerLogger,
+  getRequestId,
+  responseOpts,
+} from '../utils/handlerHelpers';
+import {
+  InvalidPartnerResponseError as ServiceInvalidPartnerResponseError,
+  PartnerUnavailableError as ServicePartnerUnavailableError,
+  UnsupportedPartnerError,
+} from '../utils/integrationErrors';
 
 export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event: any, context);
-  const logger = createHandlerLogger(event: any, context);
+  const requestId = getRequestId(event, context);
+  const logger = createHandlerLogger(event, context);
   logger.info({ event: 'searchPackages_received' });
 
   const partnerId = event.queryStringParameters?.partnerId;
@@ -31,7 +31,7 @@ export const main: any = async (event: any, context?: Context) => {
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      responseOpts(event, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId query parameter is required' }] }
     );
   }
@@ -39,7 +39,7 @@ export const main: any = async (event: any, context?: Context) => {
   if (!query) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      responseOpts(event, requestId),
       { code: 'BAD_REQUEST', details: [{ message: 'query parameter is required' }] }
     );
   }
@@ -50,7 +50,7 @@ export const main: any = async (event: any, context?: Context) => {
     const result = await integrationService.searchPackages(partnerId, query);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/packages', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.PACKAGES_RETRIEVED', responseOpts(event: any, requestId));
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.PACKAGES_RETRIEVED', responseOpts(event, requestId));
   } catch (err) {
     logger.error({ event: 'searchPackages_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
@@ -59,7 +59,7 @@ export const main: any = async (event: any, context?: Context) => {
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/packages', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
-        responseOpts(event: any, requestId),
+        responseOpts(event, requestId),
         { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
       );
     }
@@ -68,7 +68,7 @@ export const main: any = async (event: any, context?: Context) => {
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
-        responseOpts(event: any, requestId),
+        responseOpts(event, requestId),
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
@@ -77,28 +77,28 @@ export const main: any = async (event: any, context?: Context) => {
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
-        responseOpts(event: any, requestId),
+        responseOpts(event, requestId),
         { code: 'INVALID_PARTNER_RESPONSE', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerAuthenticationError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.AUTH_FAILED',
-        responseOpts(event: any, requestId),
+        responseOpts(event, requestId),
         { code: 'AUTH_FAILED', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerNotFoundError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.NOT_FOUND',
-        responseOpts(event: any, requestId),
+        responseOpts(event, requestId),
         { code: 'NOT_FOUND', details: [{ message: err.message }] }
       );
     }
     if (err instanceof Error && err.message?.includes('not supported')) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_OPERATION',
-        responseOpts(event: any, requestId),
+        responseOpts(event, requestId),
         { code: 'UNSUPPORTED_OPERATION', details: [{ message: err.message }] }
       );
     }
@@ -106,7 +106,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/packages', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event: any, requestId),
+      responseOpts(event, requestId),
       { code: 'INTERNAL_ERROR' }
     );
   }

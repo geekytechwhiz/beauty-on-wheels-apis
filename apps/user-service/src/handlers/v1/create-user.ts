@@ -1,12 +1,10 @@
 import { LambdaRequest } from "@api-hub/utils";
 import { createChildLogger, createLogger } from '@api-hub/observability';
 import { CreateUserService } from "../../services/create_user";
+import { getOrganization } from "../../services/organization.service";
 import { assignUserRole } from "../../services/role.service";
 import { UserValidationService } from "../../validation/user-validation";
-import { getOrganization } from "../../services/organization.service";
 import { UserRepository } from "../../repositories/user.repository";
-import { publishUserCreatedEvent } from "../../events/UserCreated";
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new CreateUserService();
 const userRepository = new UserRepository();

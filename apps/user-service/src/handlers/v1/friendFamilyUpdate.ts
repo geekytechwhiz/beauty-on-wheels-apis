@@ -1,8 +1,7 @@
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { FriendFamilyService } from '../../services/friendFamily.service';
 import { validateUpdateFriendFamily } from '../../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const friendFamilyService = new FriendFamilyService();
 
@@ -19,7 +18,7 @@ interface Body {
 }
 
 const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
-  const body = req.body ?? {};
+  const body = req.body as Body ?? {};
   const userId = body.userId ?? body.userID ?? req.context.userContext?.userId ?? '';
   const orgId = body.organizationID ?? req.context.userContext?.organizationId ?? '';
   const validated = body as any;

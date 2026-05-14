@@ -1,4 +1,4 @@
-import { APIGatewayProxyevent: any, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 
@@ -7,7 +7,7 @@ const { main } = require('../migration/script');
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
-export async function metadataMigration(event: APIGatewayProxyevent: any, context?: Context): Promise<APIGatewayProxyResult> {
+export async function metadataMigration(event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -65,7 +65,7 @@ export async function metadataMigration(event: APIGatewayProxyevent: any, contex
         duration: `${duration}ms`,
       },
       'METADATA.MIGRATION_COMPLETED',
-      {  correlationId: correlationId, event },
+      { correlationId: correlationId, event },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -74,7 +74,7 @@ export async function metadataMigration(event: APIGatewayProxyevent: any, contex
 
     return ApiResponse.internalServerError(
       'METADATA.MIGRATION_FAILED',
-      {  correlationId: correlationId, event },
+      { correlationId: correlationId, event },
       {
         code: 'MIGRATION_FAILED',
         details: [{ message: (err as Error).message }],

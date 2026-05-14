@@ -168,7 +168,7 @@ export class LocalSpecStore {
 
   constructor(options: { rootDir: string; specsDir?: string; prefix?: string }) {
     this.rootDir = options.rootDir;
-    this.specsDir =
+   this.specsDir =
       options.specsDir && options.specsDir.trim()
         ? path.resolve(this.rootDir, options.specsDir.trim())
         : path.resolve(this.rootDir, 'public/specs-store');

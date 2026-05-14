@@ -11,8 +11,10 @@
     "emitDeclarationOnly": false,
     "baseUrl": "../..",
     "paths": {
+      "@api-hub/logger": ["libs/logger/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"],
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
+      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
       "@api-hub/consent": ["libs/consent/src/index.ts"],
       "@api-hub/capability": ["libs/capability/src/index.ts"],
       "@api-hub/terminology": ["libs/terminology/src/index.ts"],
@@ -23,7 +25,7 @@
       "@api-hub/scope-mapping": ["libs/scope-mapping/src/index.ts"],
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
       "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
-      "@api-hub/service-clients": ["dist/libs/service-clients"],
+      "@api-hub/service-clients": ["libs/service-clients/src/index.ts"],
       "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],
       "@api-hub/metadata": ["libs/metadata/src/index.ts"],
@@ -43,13 +45,10 @@
       "path": "../../libs/utils/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/observability/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/middleware/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/event-platform/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/observability/tsconfig.lib.json"
     }
   ]
 }

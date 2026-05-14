@@ -3,11 +3,12 @@
  * {@link handleError} (`@api-hub/utils`) can build responses, matching the
  * user-service pattern (`withLambdaHandler` catch → `handleError`).
  */
-import { serializeError, type Logger } from '@api-hub/observability';
-import { BaseError } from '@api-hub/utils';
+ 
+import { BaseError } from '@api-hub/utils'; 
+  
 
 export interface NormalizeAlertServiceErrorLog {
-  logger?: Logger;
+  logger?: any;
   correlationId?: string;
   organizationId?: string;
   logEvent?: string;
@@ -41,10 +42,10 @@ export function normalizeAlertServiceError(error: unknown, log: NormalizeAlertSe
 
   const logEvent = log.logEvent ?? 'alert_create_service_error';
   log.logger?.error({
-    event: logevent: any,
+    event: logEvent,
     correlationId: log.correlationId,
     ...(log.organizationId ? { organizationId: log.organizationId } : {}),
-    err: serializeError(err),
+    err: err,
   });
 
   throw new BaseError('An unexpected error occurred', 500, 'INTERNAL_ERROR', [

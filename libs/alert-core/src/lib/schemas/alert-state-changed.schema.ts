@@ -21,6 +21,7 @@ export const AlertPriorityChangedEventSchema = defineEvent(
     eventType: 'Alert.PriorityChanged.v1',
     eventVersion: '1.0.0',
     source: 'alert-service',
+    transport: 'eventbridge',
   },
 );
 

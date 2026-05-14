@@ -7,9 +7,17 @@ import { mergeSpecsStorePlugin } from './vite-plugins/merge-specs-store';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+function publicBaseFromEnv(raw: string | undefined): string {
+  if (!raw?.trim()) return '/';
+  let b = raw.trim();
+  if (!b.startsWith('/')) b = `/${b}`;
+  if (!b.endsWith('/')) b = `${b}/`;
+  return b;
+}
+
 /**
- * NOTE: Vite resolves `vite.config.js` before `vite.config.ts`. Do not add a duplicate
- * `vite.config.js` — it will shadow this file and break proxy/env behavior.
+ * When `VITE_PUBLIC_BASE_PATH` is set (e.g. `/developer-hub/`), Vite emits asset URLs under
+ * that prefix so deploys behind a subpath do not request `/assets/*` at the domain root.
  *
  * When `VITE_API_BASE_URL` is set (see `.env.development`), the app calls the API directly.
  * The `/api` proxy is only used when the app falls back to base `/api` (local Express aggregator).
@@ -23,6 +31,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     root: __dirname,
+    base: publicBaseFromEnv(env.VITE_PUBLIC_BASE_PATH),
     plugins: [
       react(),
       mergeSpecsStorePlugin({

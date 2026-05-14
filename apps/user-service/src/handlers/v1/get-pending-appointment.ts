@@ -1,9 +1,8 @@
+import { withApiHandler } from '@api-hub/middleware';
 import { createChildLogger } from '@api-hub/observability';
-import {   withApiHandler, successResponse } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserRepository } from '../../repositories/user.repository';
 import { validateGetAppointment } from '../../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userRepository = new UserRepository();
 

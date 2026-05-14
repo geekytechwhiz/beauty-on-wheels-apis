@@ -11,9 +11,4 @@ export interface AssignmentInput {
   performedByUserId?: string;
   performedByDisplayName?: string;
 }
-
-export interface AssignmentResult {
-  // Intentionally empty result shape; mutation endpoints return ids/results at the HTTP layer.
-  // (Kept as an interface for forward-compatible extension.)
-}
-
+ 

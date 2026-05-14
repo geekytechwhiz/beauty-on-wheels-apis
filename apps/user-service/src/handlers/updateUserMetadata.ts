@@ -1,8 +1,8 @@
+ 
 import { withLambdaHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUpdateUserMetadata } from '../validation/request.validators';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
 
 const userService = new UserService();
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 
-import type { Logger } from '@api-hub/observability';
+import type {  } from '@api-hub/observability';
 
 import { AlertWorkflowAction } from '../constants/alert-workflow-action';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
@@ -13,8 +13,8 @@ import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
-import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
-import type { PriorityInput, PriorityResult } from '../models/api/alert-priority.types';
+import type { AssignmentInput } from '../models/api/alert-assignment.types';
+import type { PriorityInput } from '../models/api/alert-priority.types';
 import { AlertActivityType } from '../constants/alert-activity-type'; 
 import {
   assertWorkflowClosureComment,
@@ -23,6 +23,7 @@ import {
 import { BaseAlertService } from './base-alert.service';
 import type { CreateAlertPayload, ListAlertsParams, ListAlertsResult } from '../models/api/create-alert.types';
 import { decodeListAlertsCursor, encodeListAlertsCursor } from '../utils/alert.utils';
+import { AssignmentResult, PriorityResult } from '@api-hub/alert-core'; 
 
 /** Persisted alert row (alias for HTTP/service consumers). */
 export type AlertRecord = AlertDdbRecord;
@@ -47,7 +48,7 @@ function buildTriggerSummary(input: CreateAlertRequest): string {
  * Alert use-cases: idempotency, upstream validation, listing, workflow mutations.
  */
 export class AlertService extends BaseAlertService {
-  constructor(repo?: AlertRepository, log?: Logger) {
+  constructor(repo?: AlertRepository, log?: any) {
     super(repo, log);
   }
 

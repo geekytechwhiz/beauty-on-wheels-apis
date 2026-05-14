@@ -390,7 +390,7 @@ export class AlertEntityBuilder {
     nowMs: number;
   }): Record<string, unknown>[] {
     const { existing, patch } = params;
-    let nowMs = params.nowMs;
+    const nowMs = params.nowMs;
     const performedBy = params.performedBy?.trim() || 'SYSTEM';
     const performedByDisplayName = params.performedByDisplayName;
 

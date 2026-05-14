@@ -1,13 +1,12 @@
+import { createChildLogger, createLogger } from '@api-hub/logger';
 import { withLambdaHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
-import { createChildLogger, createLogger } from '@api-hub/observability';
-import { UserService } from '../services/user.service';
-import { UserRepository } from '../repositories/user.repository';
 import { publishUserCreatedEvent } from '../events/UserCreated';
 import { publishUserRoleAssignmentRequestedEvent } from '../events/UserRoleAssignmentRequested';
-import { validateCreateUser } from '../validation/request.validators';
 import { ExternalIdentity } from '../models';
-import { createEventHandler, onEvent } from "@api-hub/event-platform";
+import { UserRepository } from '../repositories/user.repository';
+import { UserService } from '../services/user.service';
+import { validateCreateUser } from '../validation/request.validators';
 
 const userService = new UserService();
 const userRepository = new UserRepository();

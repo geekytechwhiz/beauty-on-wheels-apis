@@ -7,12 +7,18 @@ fi
 
 echo "Running affected lint..."
 
-npx nx affected --target=lint --base=origin/main --head=HEAD
+pnpm run lint:affected
 
 if [ $? -ne 0 ]; then
   echo "❌ Lint failed"
   exit 1
 fi
 
-echo "Running affected tests..." 
-NX_DAEMON=true
+echo "Running affected tests..."
+
+NX_DAEMON=true pnpm run test:affected
+
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed"
+  exit 1
+fi

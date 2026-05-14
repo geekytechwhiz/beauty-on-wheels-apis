@@ -592,12 +592,16 @@ resources:
     #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
     AlertServiceBusName:
       Description: Name of the Alert Service Event Bus
-      Value: !Ref AlertServiceBus
+      Value:
+        Ref: AlertServiceBus
       Export:
         Name: ${self:provider.stage}-${self:service}-EventBusName
 
     AlertServiceBusArn:
       Description: ARN of the Alert Service Event Bus
-      Value: !GetAtt AlertServiceBus.Arn
+      Value:
+        Fn::GetAtt:
+          - AlertServiceBus
+          - Arn
       Export:
         Name: ${self:provider.stage}-${self:service}-EventBusArn

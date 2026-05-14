@@ -455,18 +455,18 @@ functions:
   # Threshold breach is enabled; the remaining consumers stay commented until
   # their entrypoints are added.
   # ──────────────────────────────────────────────────────────────────────────────
-  # onThresholdBreach:
-  #   handler: src/handlers/eventbridge/onThresholdBreach.main
-  #   timeout: 30
-  #   memorySize: 256
-  #   events:
-  #     - eventBridge:
-  #         eventBus: ${self:custom.eventBusName}
-  #         pattern:
-  #           source:
-  #             - monitoring-service
-  #           detail-type:
-  #             - Threshold.Breach.v1
+  onThresholdBreach:
+    handler: src/handlers/eventbridge/onThresholdBreach.main
+    timeout: 30
+    memorySize: 256
+    events:
+      - eventBridge:
+          eventBus: ${self:custom.eventBusName}
+          pattern:
+            source:
+              - monitoring-service
+            detail-type:
+              - Threshold.Breach.v1
   #
   # onMissedReading:
   #   handler: src/handlers/eventbridge/onMissedReading.main
@@ -586,22 +586,22 @@ resources:
     #     SourceAccount: ${aws:accountId}
     #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
 
-  Outputs:
+  # Outputs:
     # Exports unblock the TODOs in apps/user-service/serverless.yml:
     #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
     #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
-    AlertServiceBusName:
-      Description: Name of the Alert Service Event Bus
-      Value:
-        Ref: AlertServiceBus
-      Export:
-        Name: ${self:provider.stage}-${self:service}-EventBusName
+    # AlertServiceBusName:
+    #   Description: Name of the Alert Service Event Bus
+    #   Value:
+    #     Ref: AlertServiceBus
+    #   Export:
+    #     Name: ${self:provider.stage}-${self:service}-EventBusName
 
-    AlertServiceBusArn:
-      Description: ARN of the Alert Service Event Bus
-      Value:
-        Fn::GetAtt:
-          - AlertServiceBus
-          - Arn
-      Export:
-        Name: ${self:provider.stage}-${self:service}-EventBusArn
+    # AlertServiceBusArn:
+    #   Description: ARN of the Alert Service Event Bus
+    #   Value:
+    #     Fn::GetAtt:
+    #       - AlertServiceBus
+    #       - Arn
+    #   Export:
+    #     Name: ${self:provider.stage}-${self:service}-EventBusArn

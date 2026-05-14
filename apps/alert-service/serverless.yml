@@ -44,7 +44,7 @@ provider:
     ORGANIZATION_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
     USER_SERVICE_TIMEOUT_MS: '8000'
     ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
-    ALERT_EVENT_BUS_NAME: ${self:custom.eventBusName}
+    EVENT_BUS_NAME: ${self:custom.eventBusName}
     ALERT_EVENTS_TOPIC_ARN: ${env:ALERT_EVENTS_TOPIC_ARN, ''}
 
   tags:
@@ -76,9 +76,9 @@ provider:
 
 package:
   individually: true
-  patterns:
-    - '!**/*.test.ts'
-    - '!**/*.spec.ts'
+  # patterns:
+  #   - '!**/*.test.ts'
+  #   - '!**/*.spec.ts'
 
 custom:
   # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
@@ -452,21 +452,24 @@ functions:
   # ──────────────────────────────────────────────────────────────────────────────
   # EventBridge consumers — alert ingest triggers
   #
-  # Threshold breach is enabled; the remaining consumers stay commented until
-  # their entrypoints are added.
+  # NOTE: These consumers are currently disabled for local `serverless offline`
+  # because their handler entrypoints under `src/handlers/eventbridge/*` are not
+  # present yet. Re-enable once the EventBridge handlers exist.
   # ──────────────────────────────────────────────────────────────────────────────
-  onThresholdBreach:
-    handler: src/handlers/eventbridge/onThresholdBreach.main
-    timeout: 30
-    memorySize: 256
-    events:
-      - eventBridge:
-          eventBus: ${self:custom.eventBusName}
-          pattern:
-            source:
-              - monitoring-service
-            detail-type:
-              - Threshold.Breach.v1
+  #
+  # onThresholdBreach:
+  #   handler: src/handlers/eventbridge/onThresholdBreach.main
+  #   timeout: 30
+  #   memorySize: 256
+  #   events:
+  #     - eventBridge:
+  #         eventBus:
+  #           Name: ${self:custom.eventBusName}
+  #         pattern:
+  #           source:
+  #             - monitoring-service
+  #           detail-type:
+  #             - THRESHOLD_BREACH
   #
   # onMissedReading:
   #   handler: src/handlers/eventbridge/onMissedReading.main
@@ -592,16 +595,12 @@ resources:
     #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
     AlertServiceBusName:
       Description: Name of the Alert Service Event Bus
-      Value:
-        Ref: AlertServiceBus
+      Value: !Ref AlertServiceBus
       Export:
         Name: ${self:provider.stage}-${self:service}-EventBusName
 
     AlertServiceBusArn:
       Description: ARN of the Alert Service Event Bus
-      Value:
-        Fn::GetAtt:
-          - AlertServiceBus
-          - Arn
+      Value: !GetAtt AlertServiceBus.Arn
       Export:
         Name: ${self:provider.stage}-${self:service}-EventBusArn

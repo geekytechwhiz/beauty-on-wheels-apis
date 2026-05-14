@@ -26,6 +26,7 @@
       "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
       "@api-hub/observability": ["libs/observability/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"], 
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
  
       "@api-hub/consent": ["libs/consent/src/index.ts"],

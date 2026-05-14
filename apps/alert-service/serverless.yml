@@ -457,8 +457,6 @@ functions:
   # ──────────────────────────────────────────────────────────────────────────────
   onThresholdBreach:
     handler: src/handlers/eventbridge/onThresholdBreach.main
-    timeout: 30
-    memorySize: 256
     events:
       - eventBridge:
           eventBus: ${self:custom.eventBusName}

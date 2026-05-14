@@ -45,66 +45,85 @@ fi
 
 echo "Using template: $TEMPLATE"
 
-# `serverless package` writes S3Key paths into the CF template but does not upload
-# zips to S3; this script uploads them. Copy the template as packaged.yaml for deploy.
-cp "$TEMPLATE" packaged.yaml
+echo "Packaging CloudFormation template and uploading artifacts to s3://$DEPLOYMENT_BUCKET ..."
+aws cloudformation package \
+  --template-file "$TEMPLATE" \
+  --s3-bucket "$DEPLOYMENT_BUCKET" \
+  --output-template-file packaged.yaml \
+  --force-upload
 
-echo "Verifying Lambda S3 keys are present in s3://$DEPLOYMENT_BUCKET ..."
+echo "Extracting Lambda S3 keys from packaged.yaml ..."
 node <<'NODE' > .serverless/s3keys.txt
 const fs = require('fs');
-const raw = fs.readFileSync('.serverless/' + (
-  fs.existsSync('.serverless/cloudformation-template-update-stack.json')
-    ? 'cloudformation-template-update-stack.json'
-    : 'cloudformation-template-create-stack.json'
-), 'utf8');
-const tpl = JSON.parse(raw);
+const raw = fs.readFileSync('packaged.yaml', 'utf8');
 const keys = new Set();
+const trimmed = raw.trim();
 
-for (const res of Object.values(tpl.Resources || {})) {
-  const code = res.Properties && res.Properties.Code;
-  if (code && code.S3Key) keys.add(code.S3Key);
+if (trimmed.startsWith('{')) {
+  const tpl = JSON.parse(raw);
+  for (const res of Object.values(tpl.Resources || {})) {
+    const code = res.Properties && res.Properties.Code;
+    if (code && typeof code.S3Key === 'string') keys.add(code.S3Key);
+  }
+} else {
+  for (const line of raw.split(/\r?\n/)) {
+    let m = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
+    if (m) {
+      const v = m[2].trim();
+      if (v) keys.add(v);
+      continue;
+    }
+    m = line.match(/^\s*S3Key\s*:\s*([^#]+)\s*(?:#.*)?$/);
+    if (m) {
+      const v = m[1].trim();
+      if (v) keys.add(v);
+      continue;
+    }
+    m = line.match(/^\s*"S3Key"\s*:\s*"(.+)"\s*,?\s*$/);
+    if (m) {
+      const v = m[1].trim();
+      if (v) keys.add(v);
+    }
+  }
 }
 
 for (const key of [...keys].sort()) console.log(key);
 NODE
 
 if [ ! -s .serverless/s3keys.txt ]; then
-  echo "WARN: No S3Key entries found in CF template — Serverless may have used inline ZipFile or a different layout."
-  echo "Listing .serverless contents for diagnosis:"
-  ls -la .serverless/
-else
-  echo "Uploading Lambda zips to their exact S3 keys..."
-  while read -r key; do
-    [ -z "$key" ] && continue
-    # Key format: serverless/user-service/<stage>/<timestamp>/<name>.zip
-    # Strip any @... suffix (added by some CF tooling) to get the clean zip filename.
-    zip_name=$(basename "${key%%@*}")
-    local_path=".serverless/$zip_name"
-    if [ ! -f "$local_path" ]; then
-      echo "ERROR: Local artifact not found: $local_path (key: $key)"
-      exit 1
-    fi
-    echo "Uploading $local_path → s3://$DEPLOYMENT_BUCKET/$key"
-    aws s3 cp "$local_path" "s3://$DEPLOYMENT_BUCKET/$key"
-  done < .serverless/s3keys.txt
+  echo "ERROR: No S3Key entries found in packaged.yaml"
+  exit 1
+fi
 
-  echo "Verifying all artifacts are present in s3://$DEPLOYMENT_BUCKET ..."
-  missing=0
-  while read -r key; do
-    [ -z "$key" ] && continue
-    printf " → %-80s " "$key"
-    if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
-      echo "FOUND"
-    else
-      echo "MISSING"
-      missing=1
-    fi
-  done < .serverless/s3keys.txt
-
-  if [ "$missing" -ne 0 ]; then
-    echo "ERROR: One or more Lambda artifacts are still missing in s3://$DEPLOYMENT_BUCKET"
+echo "Ensuring every packaged Lambda zip exists at its exact S3 key..."
+while read -r key; do
+  [ -z "$key" ] && continue
+  zip_name=$(basename "${key%%@*}")
+  local_path=".serverless/$zip_name"
+  if [ ! -f "$local_path" ]; then
+    echo "ERROR: Local artifact not found: $local_path (key: $key)"
     exit 1
   fi
+  echo "Uploading $local_path → s3://$DEPLOYMENT_BUCKET/$key"
+  aws s3 cp "$local_path" "s3://$DEPLOYMENT_BUCKET/$key"
+done < .serverless/s3keys.txt
+
+echo "Verifying all artifacts are present in s3://$DEPLOYMENT_BUCKET ..."
+missing=0
+while read -r key; do
+  [ -z "$key" ] && continue
+  printf " → %-80s " "$key"
+  if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
+    echo "FOUND"
+  else
+    echo "MISSING"
+    missing=1
+  fi
+done < .serverless/s3keys.txt
+
+if [ "$missing" -ne 0 ]; then
+  echo "ERROR: One or more Lambda artifacts are still missing in s3://$DEPLOYMENT_BUCKET"
+  exit 1
 fi
 
 echo "Packaged template created:"

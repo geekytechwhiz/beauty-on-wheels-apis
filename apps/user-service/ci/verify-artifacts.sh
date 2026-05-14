@@ -17,99 +17,107 @@ if [ ! -f "$TEMPLATE" ]; then
   exit 1
 fi
 
-echo "Resolving S3 bucket..."
+echo "Resolving S3 bucket and keys from packaged.yaml..."
 
-# Prefer the bucket used by `aws cloudformation package` in build.sh (matches packaged.yaml).
-if [ -n "${DEPLOYMENT_BUCKET:-}" ]; then
-  BUCKET="$DEPLOYMENT_BUCKET"
-else
-  # Fallback: literal S3Bucket in template (single-line string values only).
-  BUCKET=$(grep -E '^\s*S3Bucket:\s+.+' "$TEMPLATE" \
-    | awk '{print $2}' \
-    | tr -d "'\"" \
-    | awk 'NF' \
-    | head -1)
-fi
-
-if [ -z "$BUCKET" ]; then
-  echo "ERROR: Could not determine S3 bucket (set DEPLOYMENT_BUCKET or ensure packaged.yaml has S3Bucket)"
-  exit 1
-fi
-
-echo "Using bucket:"
-echo "$BUCKET"
-
-echo "Extracting S3 keys..."
-
-node <<'NODE' > /tmp/s3keys.txt
+node <<'NODE' > /tmp/user-service-artifacts.tsv
 const fs = require('fs');
 const raw = fs.readFileSync('packaged.yaml', 'utf8');
-const keys = new Set();
-
+const entries = new Map();
 const trimmed = raw.trim();
+
+const add = (bucket, key) => {
+  if (!key) return;
+  const normalizedBucket = (bucket || '').trim();
+  if (!entries.has(key)) {
+    entries.set(key, normalizedBucket);
+  }
+};
+
 if (trimmed.startsWith('{')) {
   const tpl = JSON.parse(raw);
   for (const res of Object.values(tpl.Resources || {})) {
     const code = res.Properties && res.Properties.Code;
-    if (code && typeof code.S3Key === 'string') keys.add(code.S3Key);
+    if (!code || typeof code.S3Key !== 'string') continue;
+    let bucket = '';
+    if (typeof code.S3Bucket === 'string') {
+      bucket = code.S3Bucket;
+    } else if (code.S3Bucket && typeof code.S3Bucket.Ref === 'string') {
+      bucket = code.S3Bucket.Ref;
+    }
+    add(bucket, code.S3Key);
   }
 } else {
   const lines = raw.split(/\r?\n/);
+  let currentBucket = '';
   for (const line of lines) {
-    let m = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
+    let m = line.match(/^\s*S3Bucket\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
     if (m) {
-      const v = m[2].trim();
-      if (v) keys.add(v);
+      currentBucket = m[2].trim();
+      continue;
+    }
+    m = line.match(/^\s*S3Bucket\s*:\s*([^#]+)\s*(?:#.*)?$/);
+    if (m) {
+      currentBucket = m[1].trim();
+      continue;
+    }
+    m = line.match(/^\s*S3Key\s*:\s*(['"])(.+)\1\s*(?:#.*)?$/);
+    if (m) {
+      add(currentBucket, m[2].trim());
       continue;
     }
     m = line.match(/^\s*S3Key\s*:\s*([^#]+)\s*(?:#.*)?$/);
     if (m) {
-      const v = m[1].trim();
-      if (v) keys.add(v);
-      continue;
-    }
-    m = line.match(/^\s*"S3Key"\s*:\s*"(.+)"\s*,?\s*$/);
-    if (m) {
-      const v = m[1].trim();
-      if (v) keys.add(v);
+      add(currentBucket, m[1].trim());
     }
   }
 }
 
-for (const key of [...keys].sort()) console.log(key);
+for (const [key, bucket] of [...entries.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  console.log(`${bucket}\t${key}`);
+}
 NODE
 
-if [ ! -s /tmp/s3keys.txt ]; then
-  echo "ERROR: No S3Key entries found"
+if [ ! -s /tmp/user-service-artifacts.tsv ]; then
+  echo "ERROR: No S3Key entries found in packaged.yaml"
   exit 1
 fi
 
+if [ -n "${DEPLOYMENT_BUCKET:-}" ]; then
+  DEFAULT_BUCKET="$DEPLOYMENT_BUCKET"
+else
+  DEFAULT_BUCKET=$(awk -F '\t' 'NF && $1 != "ServerlessDeploymentBucket" { print $1; exit }' /tmp/user-service-artifacts.tsv)
+fi
+
+if [ -z "$DEFAULT_BUCKET" ]; then
+  echo "ERROR: Could not determine S3 bucket (set DEPLOYMENT_BUCKET or ensure packaged.yaml has S3Bucket)"
+  exit 1
+fi
+
+echo "Default bucket: $DEFAULT_BUCKET"
 echo "Checking uploaded artifacts..."
 
 missing=0
 
-while read -r key; do
-
+while IFS=$'\t' read -r bucket key; do
   if [ -z "$key" ]; then
     continue
   fi
 
-  printf "Checking %s ... " "$key"
-
-  if aws s3api head-object \
-      --bucket "$BUCKET" \
-      --key "$key" >/dev/null 2>&1; then
-
-    echo "FOUND"
-
-  else
-
-    echo "MISSING"
-    missing=1
-
+  if [ -z "$bucket" ] || [ "$bucket" = "ServerlessDeploymentBucket" ]; then
+    bucket="$DEFAULT_BUCKET"
   fi
 
-done < /tmp/s3keys.txt
+  printf "Checking s3://%s/%s ... " "$bucket" "$key"
+
+  if aws s3api head-object \
+      --bucket "$bucket" \
+      --key "$key" >/dev/null 2>&1; then
+    echo "FOUND"
+  else
+    echo "MISSING"
+    missing=1
+  fi
+done < /tmp/user-service-artifacts.tsv
 
 if [ "$missing" -ne 0 ]; then
   echo "ERROR: One or more Lambda artifacts are missing"

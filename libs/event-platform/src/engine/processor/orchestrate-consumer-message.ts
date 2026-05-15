@@ -1,6 +1,7 @@
 import {
   getContext,
   getLogger,
+  logEventOperation,
   recordConsumerDeadLetter,
   recordConsumerDuplicateEvent,
   recordConsumerEventProcessed,
@@ -26,12 +27,29 @@ import type { EventConsumerDeps } from '../../typings/consumer.types';
 import { effectiveTransportMode } from '../../typings/consumer.types';
 import type { NormalizeMetaOptions } from '../../typings/base-event.types';
 
+import { DependencyError } from '../../reliability/errors';
 import { approximateReceiveCount, computeEffectiveDeliveryAttempt } from '../../utils/transport-attempt';
 import { isDynamoDbStreamRecord } from '../../dynamo-stream/normalize-dynamo-stream-record';
 import type { ProcessSingleResult } from './process-outcomes';
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function transportFromDeps(deps: EventConsumerDeps): string {
+  return deps.transportProfile?.transport ?? deps.transportMode ?? 'unknown';
+}
+
+function logConsumerOutcome(
+  deps: EventConsumerDeps,
+  baseEvent: BaseEvent<any>,
+  outcome: string,
+): void {
+  logEventOperation({
+    eventId: baseEvent.eventId,
+    eventType: baseEvent.eventType,
+    transport: transportFromDeps(deps),
+    correlationId: baseEvent.meta.correlationId,
+    traceId: baseEvent.meta.traceId,
+    operation: `event.consume.${baseEvent.eventType}`,
+    outcome,
+  });
 }
 
 function useSqsSurfaceRetry(raw: unknown, deps: EventConsumerDeps): boolean {
@@ -377,6 +395,14 @@ async function runInProcessHandlerAttempts(params: {
         eventType: current.eventType,
       });
     } catch (idemErr) {
+      if (deps.strictIdempotencyAfterSuccess) {
+        return {
+          outcome: 'needs_transport_retry',
+          error: new DependencyError('Idempotency afterSuccess failed', {
+            cause: idemErr,
+          }),
+        };
+      }
       console.error('Idempotency afterSuccess failed', {
         eventId: current.eventId,
         error: idemErr,
@@ -384,7 +410,11 @@ async function runInProcessHandlerAttempts(params: {
     }
 
     fireProcessingSuccess(deps.tracing, traceCtx);
-    recordConsumerEventProcessed(current.eventType);
+    recordConsumerEventProcessed(current.eventType, {
+      transport: transportFromDeps(deps),
+      outcome: 'success',
+    });
+    logConsumerOutcome(deps, current, 'success');
     return { outcome: 'success' };
   }
 
@@ -415,7 +445,11 @@ export async function orchestratePreparedConsumerEvent({
   const idemDecision = await deps.idempotencyStrategy.before(idemContext);
 
   if (idemDecision === 'DUPLICATE') {
-    recordConsumerDuplicateEvent(baseEvent.eventType);
+    recordConsumerDuplicateEvent(baseEvent.eventType, {
+      transport: transportFromDeps(deps),
+      outcome: 'duplicate',
+    });
+    logConsumerOutcome(deps, baseEvent, 'duplicate');
     return { outcome: 'duplicate' };
   }
 

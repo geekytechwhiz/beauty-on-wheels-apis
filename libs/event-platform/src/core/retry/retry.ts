@@ -3,6 +3,34 @@
 import { RetryOptions } from '../../typings/consumer.types';
 import { RetryContext } from '../../typings/consumer.types';
 import { RetryJitter } from '../../typings/consumer.types';
+import { isNonRetryableFailure } from '../../reliability/failure-classifier';
+
+export function defaultIsRetryable(error: unknown): boolean {
+  if (error !== null && typeof error === 'object' && 'retryable' in error) {
+    const retryable = (error as { retryable?: boolean }).retryable;
+    if (retryable === false) {
+      return false;
+    }
+    if (retryable === true) {
+      return true;
+    }
+  }
+  if (error instanceof Error && error.name === 'AbortError') {
+    return false;
+  }
+  if (error !== null && typeof error === 'object' && 'statusCode' in error) {
+    const statusCode = Number((error as { statusCode: number }).statusCode);
+    if (Number.isFinite(statusCode)) {
+      if (statusCode >= 400 && statusCode < 500) {
+        return false;
+      }
+      if (statusCode >= 500) {
+        return true;
+      }
+    }
+  }
+  return !isNonRetryableFailure(error);
+}
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));

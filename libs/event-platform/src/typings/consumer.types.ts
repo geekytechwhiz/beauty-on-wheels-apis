@@ -7,6 +7,7 @@ import type { RetryStrategy } from '../core/retry/retry.types';
 import type { ResolveSchemaOptions } from '../core/schema/schema-resolver';
 import type { TransportMode } from '../core/policy/delivery-policy';
 import type { EventTracingHooks } from '../core/tracing/event-tracing-hooks';
+import type { TransportProfile } from '../runtime/transport-profile';
 
 export type PayloadSchemaRegistry = Partial<Record<string, z.ZodType<unknown>>>;
 
@@ -73,6 +74,11 @@ export type EventConsumerDeps = {
   mapRawToBaseEvent?: (raw: unknown) => BaseEvent;
 
   /**
+   * Transport profile selected at handler factory time (not auto-detected per invocation).
+   */
+  transportProfile?: TransportProfile;
+
+  /**
    * When unset: `framework-managed` if {@link transportRetry} is set, otherwise `sqs-native`.
    */
   transportMode?: TransportMode;
@@ -95,6 +101,11 @@ export type EventConsumerDeps = {
    * exceeds this value and surface `needs_transport_retry` (batch failure) to isolate poison retries.
    */
   sqsFifoPoisonReceiveCountThreshold?: number;
+
+  /**
+   * When true, a failed idempotency `afterSuccess` commit surfaces as a retryable failure.
+   */
+  strictIdempotencyAfterSuccess?: boolean;
 
   /**
    * When set, retries re-publish the raw transport payload (e.g. SQS) instead of failing the Lambda.

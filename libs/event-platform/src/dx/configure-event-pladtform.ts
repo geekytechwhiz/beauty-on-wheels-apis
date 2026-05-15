@@ -1,4 +1,5 @@
-import { EventTransport } from '../core/schema/define-event';
+import type { EventTransport } from '../core/schema/define-event';
+import type { PublishRoutingConfig } from '../publishing/routing';
 
 import { EventConsumer } from '../sdk/consumer/event-consumer';
 import { EventPublisher } from '../sdk/publisher/event-publisher';
@@ -16,11 +17,9 @@ import type {
 import { setDxRuntime } from './context';
 
 export type ConfigureEventPlatformOptions = {
-  
   serviceName: string;
- 
   transport: EventTransport;
- 
+  routing?: PublishRoutingConfig;
   publishers: Partial<
     Record<EventTransport, EventPublishAdapter>
   >;
@@ -123,7 +122,7 @@ export function configureEventPlatform(
 
   setDxRuntime({
     publishers,
-
     consumer,
+    routing: options.routing,
   });
 }

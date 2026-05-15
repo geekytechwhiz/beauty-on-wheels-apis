@@ -26,11 +26,10 @@ export async function publishEvent<
 
   const runtime = getDxRuntimeOrThrow();
 
-  const transport: EventTransport = 
-    runtime.publishers.eventbridge as unknown as EventTransport;
-
-  const publisher =
-    runtime.publishers[transport];
+  // `meta.transport` is the registry key ('eventbridge' | 'sns' | 'sqs').
+  // The value at runtime.publishers[transport] is the configured EventPublisher instance.
+  const transport: EventTransport = meta.transport;
+  const publisher = runtime.publishers[transport];
 
   if (!publisher) {
     throw new Error(

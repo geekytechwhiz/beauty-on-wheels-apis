@@ -6,7 +6,6 @@ configValidationMode: warn
 frameworkVersion: '3.x'
 
 plugins:
-  - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
@@ -157,10 +156,6 @@ custom:
     dev: debug
     stg: info
     prd: warn
-
-  # serverless-plugin-warmup: declare default warmer (attach per-function `warmup` when needed)
-  warmup:
-    default: {}
 
   dotenv:
     logging: false

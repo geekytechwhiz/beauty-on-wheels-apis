@@ -98,7 +98,6 @@
     "serverless-auto-swagger": "^3.1.0",
     "serverless-dotenv-plugin": "^6.0.0",
     "serverless-esbuild": "^1.57.0",
-    "serverless-offline": "^13.9.0",
-    "serverless-plugin-warmup": "^8.4.1"
+    "serverless-offline": "^13.9.0"
   }
 }

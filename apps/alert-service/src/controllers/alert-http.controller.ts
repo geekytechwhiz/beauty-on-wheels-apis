@@ -30,6 +30,8 @@ import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';
 import { publishAlertCreated } from '../handlers/events/publisher/alert-publisher';
 import { configureEventRuntime } from '../handlers/events/bootstrap/event-runtime';
 
+configureEventRuntime();
+
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
   if (!alertService) alertService = new AlertService();

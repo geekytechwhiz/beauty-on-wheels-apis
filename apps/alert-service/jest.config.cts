@@ -21,7 +21,6 @@ module.exports = {
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
     '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
-    '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/alert-core$': '<rootDir>/../../libs/alert-core/src/index.ts',
   },
   coverageDirectory: '../../coverage/apps/alert-service',

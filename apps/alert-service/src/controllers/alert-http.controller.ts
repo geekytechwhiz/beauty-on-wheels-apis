@@ -28,6 +28,7 @@ import {
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';  
 import { publishAlertCreated } from '../handlers/events/publisher/alert-publisher';
+import { configureEventRuntime } from '../handlers/events/bootstrap/event-runtime';
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
@@ -49,6 +50,10 @@ function unauthorizedOrgError(): BaseError {
 
 export class AlertHttpController {
   private readonly svc = getAlertService();
+
+  private ensureEventRuntime(): void {
+    configureEventRuntime();
+  }
 
   /**
    * POST /alerts — body validated by {@link validateCreateAlertRequest} in `withApiHandler`; tenant + actor
@@ -83,6 +88,7 @@ export class AlertHttpController {
     );
 
     try {
+      this.ensureEventRuntime();
       const { record } = await this.svc.createAlert(createInput, v.authHeader);
       await publishAlertCreated({payload: record as any});
       return toAlertDetail(record);
@@ -111,7 +117,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     const input: WorkflowInput = {
       alertIds: v.alertIds,
@@ -141,6 +147,7 @@ export class AlertHttpController {
       });
     }
 
+    this.ensureEventRuntime();
     await publishAlertCreated({payload: input as any});
     return {
       alertIds: v.alertIds,
@@ -165,7 +172,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     const result = await this.svc.applyAssignment(v.orgId, {
       alertIds: v.alertIds,
@@ -196,7 +203,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     const result = await this.svc.applyPriority(v.orgId, {
       alertIds: v.alertIds,
@@ -219,7 +226,7 @@ export class AlertHttpController {
       ], { retryable: false });
     }
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     const row = await this.svc.getAlert(alertId, orgId);
     if (!row) {
@@ -238,7 +245,7 @@ export class AlertHttpController {
       ], { retryable: false });
     }
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const notesOnly = (req.params as { notesOnly?: string }).notesOnly === 'true';
@@ -252,7 +259,7 @@ export class AlertHttpController {
    */
   async handleGetAlertMetadata(req: LambdaRequest) {
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     return alertMetadataWorkaround;
   }
@@ -264,7 +271,7 @@ export class AlertHttpController {
   async handleListAlerts(req: LambdaRequest) {
     const event = req.event;
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(event, authHeader);
+    const orgId = getOrganizationIdForRequest(event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const {
@@ -281,7 +288,7 @@ export class AlertHttpController {
       nextToken,
     } = parseListAlertsQuery(req.params as Record<string, string | string[] | undefined>);
     const limit = Math.min(100, Math.max(1, pageSize ?? 20));
-    const actorUserId = getActorUserIdForRequest(event, authHeader);
+    const actorUserId = getActorUserIdForRequest(event as any, authHeader);
 
     const { items, nextToken: nextPageToken } = await this.svc.listAlerts({
       organizationId: orgId,

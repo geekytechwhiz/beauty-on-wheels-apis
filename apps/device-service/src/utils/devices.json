@@ -1125,7 +1125,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 9,
+              "templateId": 2,
               "deviceDetails": "deviceDetails_viva",
               "supportedVitals": [
                 "bodyComposition",
@@ -1564,7 +1564,7 @@
               "supportsUserAuthentication": false,
               "requiresPairing": false,
               "enabled": true,
-              "isAutoSyncSupported": true,
+              "isAutoSyncSupported": false,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/Oxi-PO3.png",
               "externalVideoLink": "",
@@ -1820,7 +1820,7 @@
           "companyIdentifier": 11718,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/andesfit.png",
           "devices": [
             {
               "name": "Samico GL",
@@ -1858,7 +1858,7 @@
           "companyIdentifier": 359,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/asensia.png",
           "devices": [
             {
               "name": "Contour7926H",

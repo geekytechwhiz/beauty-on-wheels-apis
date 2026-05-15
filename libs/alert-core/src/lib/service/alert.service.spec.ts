@@ -7,12 +7,8 @@ import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import { ALERT_STATE } from '../models/types/alert-state.type';
 import { AlertRepository } from '../repositories/alert-repository';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
+import { AlertActivityType } from '../constants/alert-activity-type';
 import { AlertService } from './alert.service';
-import { publishAlertStateChangedEvent } from '../../events/outbound/publish-alert-state-changed.event';
-
-jest.mock('../../events/outbound/publish-alert-state-changed.event', () => ({
-  publishAlertStateChangedEvent: jest.fn(),
-}));
 
 jest.mock('crypto', () => {
   const actual = jest.requireActual('crypto');
@@ -131,7 +127,6 @@ describe('AlertService', () => {
       updateAlertsTransaction: jest.fn(),
     };
     service = new AlertService(repo as unknown as AlertRepository, log);
-    jest.mocked(publishAlertStateChangedEvent).mockReset();
   });
 
   describe('createAlert', () => {
@@ -145,6 +140,7 @@ describe('AlertService', () => {
 
       expect(result.duplicate).toBe(false);
       expect(result.record).toBe(record);
+      expect(result.publishIntents).toEqual([{ kind: 'CREATED', record }]);
       expect(repo.resolveInputEventId).toHaveBeenCalledWith('evt-new', 'org-1');
       expect(repo.createAlert).toHaveBeenCalledTimes(1);
       const keyed = repo.createAlert.mock.calls[0][0];
@@ -160,6 +156,7 @@ describe('AlertService', () => {
 
       expect(result.duplicate).toBe(true);
       expect(result.record).toBe(record);
+      expect(result.publishIntents).toEqual([]);
       expect(repo.createAlert).not.toHaveBeenCalled();
       expect(log.info).toHaveBeenCalled();
     });
@@ -210,7 +207,9 @@ describe('AlertService', () => {
 
       expect(result.duplicate).toBe(false);
       expect(repo.resolveInputEventId).toHaveBeenCalledWith('evt-generated-1', 'org-1');
-      expect(repo.createAlert).toHaveBeenCalledWith(expect.objectContaining({ inputEventId: 'evt-generated-1' }));
+      expect(repo.createAlert).toHaveBeenCalledWith(
+        expect.objectContaining({ inputEventId: 'evt-generated-1' }),
+      );
     });
 
     it('rethrows when createAlert fails with transaction race but idempotency row is still missing', async () => {
@@ -485,7 +484,13 @@ describe('AlertService', () => {
         performedByUserId: 'actor-1',
       });
 
-      expect(result).toEqual({});
+      expect(result.publishIntents).toHaveLength(2);
+      expect(result.publishIntents.every((i) => i.kind === 'ASSIGNMENT_CHANGED')).toBe(true);
+      expect(result.publishIntents[0]).toMatchObject({
+        kind: 'ASSIGNMENT_CHANGED',
+        alertId: 'a1',
+        activityType: AlertActivityType.AlertAssigned,
+      });
       expect(repo.updateAlertsTransaction).toHaveBeenCalledTimes(1);
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -503,16 +508,6 @@ describe('AlertService', () => {
           }),
         ]),
       );
-      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledTimes(2);
-      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          alertId: 'a1',
-          previousState: ALERT_STATE.UNASSIGNED,
-          newState: ALERT_STATE.ASSIGNED,
-        }),
-        'a1',
-      );
     });
 
     it('returns empty result for single-select', async () => {
@@ -525,7 +520,7 @@ describe('AlertService', () => {
         action: 'UNASSIGN',
       });
 
-      expect(result).toEqual({});
+      expect(result.publishIntents).toEqual([]);
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
         expect.objectContaining({
           existing: a1,
@@ -534,7 +529,6 @@ describe('AlertService', () => {
           performedByUserId: 'SYSTEM',
         }),
       ]);
-      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
     });
 
     it('ASSIGN from IN_PROGRESS retains state and only updates assignee', async () => {
@@ -547,7 +541,7 @@ describe('AlertService', () => {
       });
       repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
 
-      await service.applyAssignment('org-1', {
+      const result = await service.applyAssignment('org-1', {
         alertIds: ['a1'],
         action: 'ASSIGN',
         assignToUserId: 'user-new',
@@ -560,7 +554,11 @@ describe('AlertService', () => {
           patch: { assignedToUserId: 'user-new', assignedToDisplayName: 'User New' },
         }),
       ]);
-      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
+      expect(result.publishIntents).toHaveLength(1);
+      expect(result.publishIntents[0]).toMatchObject({
+        kind: 'ASSIGNMENT_CHANGED',
+        activityType: AlertActivityType.AlertReassigned,
+      });
     });
 
     it('REASSIGN from WAITING retains state and only updates assignee', async () => {
@@ -698,7 +696,8 @@ describe('AlertService', () => {
         performedByUserId: 'actor-1',
       });
 
-      expect(result).toEqual({});
+      expect(result.publishIntents).toHaveLength(2);
+      expect(result.publishIntents.every((i) => i.kind === 'PRIORITY_CHANGED')).toBe(true);
       expect(repo.updateAlertsTransaction).toHaveBeenCalledTimes(1);
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -708,7 +707,7 @@ describe('AlertService', () => {
       );
     });
 
-    it('returns empty result for single-select', async () => {
+    it('returns publish intents for single-select', async () => {
       const a1 = minimalRecord({ alertId: 'a1', pk: 'ALERT#a1' });
       repo.getAlertsById.mockResolvedValue(new Map([['a1', a1]]));
       repo.getAlertById.mockResolvedValue({ ...a1, priority: 'P0' } as any);
@@ -718,7 +717,8 @@ describe('AlertService', () => {
         priority: 'P0',
       });
 
-      expect(result).toEqual({});
+      expect(result.publishIntents).toHaveLength(1);
+      expect(result.publishIntents[0]).toMatchObject({ kind: 'PRIORITY_CHANGED', newPriority: 'P0' });
       expect(repo.updateAlertsTransaction).toHaveBeenCalledWith([
         expect.objectContaining({ patch: { priority: 'P0' } }),
       ]);
@@ -756,13 +756,20 @@ describe('AlertService', () => {
       (repo as any).addNoteActivity = jest.fn().mockResolvedValue(activity);
 
       const out = await service.addNote('a1', 'org-1', 'hello', '   ', 'User One');
-      expect(out).toBe(activity);
+      expect(out.activity).toBe(activity);
+      expect(out.publishIntents).toEqual([
+        expect.objectContaining({
+          kind: 'NOTE_ADDED',
+          alertId: 'a1',
+          patientId: 'pat-1',
+        }),
+      ]);
       expect((repo as any).addNoteActivity).toHaveBeenCalledWith('a1', 'org-1', 'hello', 'SYSTEM', 'User One');
     });
   });
 
   describe('applyWorkflow', () => {
-    it('publishes alert-state-changed when workflow transition succeeds', async () => {
+    it('returns STATE_CHANGED publish intent when workflow transition succeeds', async () => {
       const row = minimalRecord({ alertId: 'a1', alertState: ALERT_STATE.ASSIGNED });
       repo.getAlertById.mockResolvedValue(row);
       (repo as any).updateAlert = jest.fn().mockResolvedValue({
@@ -770,24 +777,23 @@ describe('AlertService', () => {
         alertState: ALERT_STATE.IN_PROGRESS,
       });
 
-      await service.applyWorkflow('org-1', {
+      const out = await service.applyWorkflow('org-1', {
         alertIds: ['a1'],
         action: 'START_WORK' as any,
         performedByUserId: 'actor-1',
         performedByDisplayName: 'Actor One',
       } as any);
 
-      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledTimes(1);
-      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledWith(
-        expect.objectContaining({
-          alertId: 'a1',
-          organizationId: 'org-1',
-          previousState: ALERT_STATE.ASSIGNED,
-          newState: ALERT_STATE.IN_PROGRESS,
-          performedBy: 'actor-1',
-        }),
-        'a1',
-      );
+      expect(out.publishIntents).toHaveLength(1);
+      expect(out.publishIntents[0]).toMatchObject({
+        kind: 'STATE_CHANGED',
+        activityType: AlertActivityType.AlertStateChanged,
+        alertId: 'a1',
+        organizationId: 'org-1',
+        previousState: ALERT_STATE.ASSIGNED,
+        newState: ALERT_STATE.IN_PROGRESS,
+        performedBy: 'actor-1',
+      });
     });
 
     it('processes bulk with mixed states per-alert (no heterogeneous bulk error)', async () => {
@@ -809,7 +815,7 @@ describe('AlertService', () => {
       expect(out.succeeded).toEqual(['a1']);
       expect(out.failed).toHaveLength(1);
       expect(out.failed[0]).toMatchObject({ alertId: 'a2', code: 'ILLEGAL_TRANSITION' });
-      expect(jest.mocked(publishAlertStateChangedEvent)).toHaveBeenCalledTimes(1);
+      expect(out.publishIntents).toHaveLength(1);
     });
 
     it('maps ILLEGAL_TRANSITION into failed[] and does not throw', async () => {
@@ -825,7 +831,7 @@ describe('AlertService', () => {
 
       expect(out.succeeded).toEqual([]);
       expect(out.failed[0]).toMatchObject({ alertId: 'a1', code: 'ILLEGAL_TRANSITION' });
-      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
+      expect(out.publishIntents).toEqual([]);
     });
 
     it('records NOT_FOUND when update returns null', async () => {
@@ -841,7 +847,7 @@ describe('AlertService', () => {
 
       expect(out.succeeded).toEqual([]);
       expect(out.failed[0]).toMatchObject({ alertId: 'a1', code: 'NOT_FOUND' });
-      expect(jest.mocked(publishAlertStateChangedEvent)).not.toHaveBeenCalled();
+      expect(out.publishIntents).toEqual([]);
     });
 
     it('throws for unexpected errors during update (not ILLEGAL_TRANSITION)', async () => {

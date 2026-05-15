@@ -1,3 +1,5 @@
+import type { AlertPublishIntent } from '../events/alert-publish-intent';
+
 export type AssignmentAction = 'ASSIGN' | 'REASSIGN' | 'UNASSIGN' | 'ASSIGN_TO_SELF';
 
 /** Orchestration input for POST `/alerts/assignment`. */
@@ -11,4 +13,8 @@ export interface AssignmentInput {
   performedByUserId?: string;
   performedByDisplayName?: string;
 }
- 
+
+export interface AssignmentResult {
+  publishIntents: AlertPublishIntent[];
+}
+

@@ -36,7 +36,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -74,6 +74,10 @@ jest.mock('@api-hub/middleware', () => {
 
 // eslint-disable-next-line no-var
 var mockApplyAssignment: jest.Mock;
+
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@api-hub/alert-core', () => {
   mockApplyAssignment = jest.fn();
@@ -118,7 +122,7 @@ describe('updateAlertAssignment HTTP handler', () => {
   }
 
   it('returns 200 with alertIds for single-select', async () => {
-    mockApplyAssignment.mockResolvedValue({});
+    mockApplyAssignment.mockResolvedValue({ publishIntents: [] });
 
     const result = await (main as any)(
       baseEvent({ alertIds: [alertId], action: 'ASSIGN', assignToUserId: 'user-2', assigneeDisplayName: 'User Two' }),
@@ -140,7 +144,7 @@ describe('updateAlertAssignment HTTP handler', () => {
   });
 
   it('derives assignToUserId for ASSIGN_TO_SELF from token', async () => {
-    mockApplyAssignment.mockResolvedValue({});
+    mockApplyAssignment.mockResolvedValue({ publishIntents: [] });
 
     await (main as any)(baseEvent({ alertIds: [alertId], action: 'ASSIGN_TO_SELF', assigneeDisplayName: 'User One' }), context);
 

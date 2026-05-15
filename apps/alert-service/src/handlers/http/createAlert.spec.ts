@@ -35,7 +35,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -81,6 +81,10 @@ jest.mock('@api-hub/middleware', () => {
 /** Mock must be set in factory before AlertHttpController loads (Jest hoist). */
 // eslint-disable-next-line no-var
 var mockCreateAlert: jest.Mock;
+
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
@@ -151,7 +155,7 @@ describe('createAlert HTTP handler', () => {
 
   it('returns 200 with alert detail when createAlert succeeds', async () => {
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const result = await (main as any)(baseEvent(), context);
 
@@ -193,7 +197,7 @@ describe('createAlert HTTP handler', () => {
       sourceType: 'DEVICE_MONITORING',
       inputEventId: 'evt-device-1',
     });
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const bodyObj = {
       inputEventId: 'evt-device-1',
@@ -212,7 +216,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bodyObj) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(200);
     expect(mockCreateAlert).toHaveBeenCalledTimes(1);
@@ -254,7 +258,7 @@ describe('createAlert HTTP handler', () => {
       headers: { Authorization: bearerToken({ sub: 'user-only' }) },
     });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect([401, 422]).toContain(result.statusCode);
     const body = JSON.parse(result.body ?? '{}') as {
@@ -275,7 +279,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
@@ -292,7 +296,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     const body = JSON.parse(result.body ?? '{}') as { error: { code?: string } | null };
@@ -304,7 +308,7 @@ describe('createAlert HTTP handler', () => {
     const bad = { ...validMissedReadingBody(), unknownField: true };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
@@ -312,7 +316,7 @@ describe('createAlert HTTP handler', () => {
 
   it('accepts optional assignSlaMinutes / resolveSlaMinutes and forwards them to the service', async () => {
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const body = {
       ...validMissedReadingBody(),
@@ -333,7 +337,7 @@ describe('createAlert HTTP handler', () => {
 
   it('omitting SLA minutes leaves them undefined on the payload (builder applies defaults)', async () => {
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const result = await (main as any)(baseEvent(), context);
 

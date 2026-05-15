@@ -10,7 +10,7 @@ jest.mock('@api-hub/middleware', () => {
       async (event: any) => {
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: undefined,
           query: {},

@@ -22,6 +22,7 @@ module.exports = {
     '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
     '^@api-hub/alert-core$': '<rootDir>/../../libs/alert-core/src/index.ts',
+    '^@api-hub/event-platform$': '<rootDir>/src/__tests__/mocks/event-platform.mock.ts',
   },
   coverageDirectory: '../../coverage/apps/alert-service',
   coverageReporters: ['text', 'text-summary', 'html', 'lcov'],

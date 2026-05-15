@@ -35,7 +35,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -73,6 +73,10 @@ jest.mock('@api-hub/middleware', () => {
 
 // eslint-disable-next-line no-var
 var mockAddNote: jest.Mock;
+
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@api-hub/alert-core', () => {
   mockAddNote = jest.fn();
@@ -122,13 +126,32 @@ describe('addAlertNote HTTP handler', () => {
 
   it('returns 200 when note succeeds', async () => {
     mockAddNote.mockResolvedValue({
-      activityId: 'act-1',
-      alertId: 'a-1',
-      activityType: 'NOTE_ADDED',
-      activityTimestamp: Date.now(),
-      performedBy: 'user-1',
-      performedByDisplayName: 'User One',
-      activityComment: 'hello',
+      activity: {
+        activityId: 'act-1',
+        alertId: 'a-1',
+        activityType: 'NOTE_ADDED',
+        activityTimestamp: Date.now(),
+        performedBy: 'user-1',
+        performedByDisplayName: 'User One',
+        activityComment: 'hello',
+      },
+      publishIntents: [
+        {
+          kind: 'NOTE_ADDED',
+          activity: {
+            activityId: 'act-1',
+            alertId: 'a-1',
+            activityType: 'NOTE_ADDED',
+            activityTimestamp: Date.now(),
+            performedBy: 'user-1',
+            performedByDisplayName: 'User One',
+            activityComment: 'hello',
+          },
+          alertId: 'a-1',
+          organizationId: 'org-1',
+          patientId: 'pat-1',
+        },
+      ],
     });
 
     const result = await mainDefault(baseEvent('a-1', { comment: 'hello' }), context);

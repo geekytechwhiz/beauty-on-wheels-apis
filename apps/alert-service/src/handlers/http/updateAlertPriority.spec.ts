@@ -36,7 +36,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -74,6 +74,10 @@ jest.mock('@api-hub/middleware', () => {
 
 // eslint-disable-next-line no-var
 var mockApplyPriority: jest.Mock;
+
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@api-hub/alert-core', () => {
   mockApplyPriority = jest.fn();
@@ -118,7 +122,7 @@ describe('updateAlertPriority HTTP handler', () => {
   }
 
   it('returns 200 with alertIds for single-select', async () => {
-    mockApplyPriority.mockResolvedValue({});
+    mockApplyPriority.mockResolvedValue({ publishIntents: [] });
 
     const result = await (main as any)(
       baseEvent({ alertIds: [alertId], priority: 'P1' }),

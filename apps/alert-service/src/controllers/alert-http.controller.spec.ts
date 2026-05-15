@@ -21,6 +21,10 @@ var mockApplyAssignment: jest.Mock;
 // eslint-disable-next-line no-var
 var mockApplyPriority: jest.Mock;
 
+jest.mock('../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
   mockGetAlert = jest.fn();
@@ -68,7 +72,7 @@ function baseEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayPro
 function baseReq(overrides: Partial<LambdaRequest> = {}): LambdaRequest {
   const event = (overrides.event as APIGatewayProxyEvent | undefined) ?? baseEvent();
   return {
-    event: any,
+    event,
     params: {},
     body: undefined,
     query: {},
@@ -133,7 +137,7 @@ describe('AlertHttpController', () => {
   it('handleCreateAlert returns alert detail on success', async () => {
     const c = new AlertHttpController();
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const req = baseReq({
       validatedCreateAlert: {

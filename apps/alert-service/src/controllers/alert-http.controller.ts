@@ -27,7 +27,7 @@ import {
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';  
-import { publishAlertCreated } from '../handlers/events/publisher/alert-publisher';
+import { publishAlertIntents } from '../handlers/events/publisher/alert-publisher';
 import { configureEventRuntime } from '../handlers/events/bootstrap/event-runtime';
 
 configureEventRuntime();
@@ -91,8 +91,10 @@ export class AlertHttpController {
 
     try {
       this.ensureEventRuntime();
-      const { record } = await this.svc.createAlert(createInput, v.authHeader);
-      await publishAlertCreated({payload: record as any});
+      const { record, duplicate, publishIntents } = await this.svc.createAlert(createInput, v.authHeader);
+      if (!duplicate) {
+        await publishAlertIntents(publishIntents, requestLogger);
+      }
       return toAlertDetail(record);
     } catch (e: unknown) {
       normalizeAlertServiceError(e, {
@@ -150,7 +152,7 @@ export class AlertHttpController {
     }
 
     this.ensureEventRuntime();
-    await publishAlertCreated({payload: input as any});
+    await publishAlertIntents(result.publishIntents, req.context.logger);
     return {
       alertIds: v.alertIds,
       succeeded: result.succeeded,
@@ -185,7 +187,8 @@ export class AlertHttpController {
       assigneeDisplayName: v.assigneeDisplayName,
     });
 
-    void result;
+    this.ensureEventRuntime();
+    await publishAlertIntents(result.publishIntents, req.context.logger);
     return { alertIds: v.alertIds };
   }
 
@@ -213,10 +216,9 @@ export class AlertHttpController {
       performedByUserId: performedByUserId ?? undefined,
       performedByDisplayName: v.performedByDisplayName,
     });
-     
-    void result;
 
-
+    this.ensureEventRuntime();
+    await publishAlertIntents(result.publishIntents, req.context.logger);
     return { alertIds: v.alertIds };
   }
 
@@ -326,7 +328,7 @@ export class AlertHttpController {
 
     // Call core service to add a note. Expect the core to return the created activity record or similar.
     // Use a best-effort call name `addNote` on the service.
-    const activity = await this.svc.addNote(
+    const { activity, publishIntents } = await this.svc.addNote(
       v.alertId,
       v.orgId,
       v.comment,
@@ -334,6 +336,8 @@ export class AlertHttpController {
       v.performedByDisplayName,
     );
 
+    this.ensureEventRuntime();
+    await publishAlertIntents(publishIntents, req.context.logger);
     return activity;
   }
 }

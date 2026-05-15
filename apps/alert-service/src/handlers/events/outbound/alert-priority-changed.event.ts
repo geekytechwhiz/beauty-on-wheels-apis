@@ -1,20 +1,21 @@
 import { defineEvent } from '@api-hub/event-platform';
 import { z } from 'zod';
 
-export const AlertStateChangedEventSchema = defineEvent(
+const priorityBandZ = z.enum(['P0', 'P1', 'P2', 'P3']);
+
+export const AlertPriorityChangedEventSchema = defineEvent(
   z.object({
     alertId: z.string(),
     patientId: z.string(),
     organizationId: z.string(),
-    activityType: z.string(),
-    previousState: z.string(),
-    currentState: z.string(),
+    previousPriority: priorityBandZ,
+    newPriority: priorityBandZ,
     performedBy: z.string(),
     performedByDisplayName: z.string().optional(),
     occurredAt: z.string(),
   }),
   {
-    eventType: 'Alert.StateChanged.v1',
+    eventType: 'Alert.PriorityChanged.v1',
     eventVersion: '1.0.0',
     source: 'alert-service',
     transport: 'eventbridge',

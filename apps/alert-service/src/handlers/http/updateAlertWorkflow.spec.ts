@@ -36,7 +36,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -74,6 +74,10 @@ jest.mock('@api-hub/middleware', () => {
 
 // eslint-disable-next-line no-var
 var mockApplyWorkflow: jest.Mock;
+
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@api-hub/alert-core', () => {
   mockApplyWorkflow = jest.fn();
@@ -121,6 +125,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
+      publishIntents: [],
     });
 
     const result = await (main as any)(baseEvent({ alertIds: [alertId], action: 'START_WORK' }), context);
@@ -147,6 +152,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
+      publishIntents: [],
     });
 
     await (main as any)(
@@ -192,6 +198,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
           message: 'RESUME is not valid from state UNASSIGNED',
         },
       ],
+      publishIntents: [],
     });
 
     const result = await (main as any)(baseEvent({ alertIds: [alertId], action: 'RESUME_WORK' }), context);
@@ -204,6 +211,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [],
       failed: [{ alertId, code: 'NOT_FOUND', message: 'Alert not found' }],
+      publishIntents: [],
     });
 
     const result = await (main as any)(baseEvent({ alertIds: [alertId], action: 'START_WORK' }), context);

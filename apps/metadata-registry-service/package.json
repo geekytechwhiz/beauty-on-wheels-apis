@@ -2,9 +2,7 @@
   "name": "@api-hub/metadata-registry-service",
   "version": "0.0.1",
   "private": true,
-  "engines": {
-    "node": ">=22"
-  },
+   
   "dependencies": {
     
   },

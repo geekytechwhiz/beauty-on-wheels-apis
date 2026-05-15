@@ -1,0 +1,13 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Template Service API",
+    "version": "1.0.0",
+    "description": "Care plan template HTTP API. Expand paths and definitions with serverless-auto-swagger."
+  },
+  "schemes": ["https", "http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "paths": {},
+  "definitions": {}
+}

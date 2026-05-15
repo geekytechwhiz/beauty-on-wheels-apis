@@ -1,0 +1,19 @@
+# Naming for externally provisioned DynamoDB + in-stack EventBridge/SQS, and per-stage service URLs.
+templateDynamoTableName: template-service-${self:provider.stage}
+eventBusName: template-service-bus-${self:provider.stage}
+templateEventsDlqName: template-events-dlq-${self:provider.stage}
+logLevel:
+  dev: debug
+  stg: info
+  prd: warn
+# Per-stage API bases (aligned with services/sso-integration/serverless.yml custom.stageUrls)
+stageUrls:
+  dev:
+    USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+    ORGANIZATION_SERVICE_BASE_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
+  stg:
+    USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
+    ORGANIZATION_SERVICE_BASE_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
+  prd:
+    USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
+    ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'

@@ -61,8 +61,18 @@
         "targetName": "test"
       },
       "exclude": ["apps/alert-service-e2e/**/*"]
+    },
+    {
+      "plugin": "@nx/webpack/plugin",
+      "options": {
+        "buildTargetName": "build",
+        "serveTargetName": "serve",
+        "previewTargetName": "preview",
+        "buildDepsTargetName": "build-deps",
+        "watchDepsTargetName": "watch-deps",
+        "serveStaticTargetName": "serve-static"
+      }
     }
-   
   ],
   "targetDefaults": {
     "@nx/esbuild:esbuild": {

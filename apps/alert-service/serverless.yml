@@ -460,9 +460,7 @@ functions:
     events:
       - eventBridge:
           eventBus:
-            Fn::GetAtt:
-              - AlertServiceBus
-              - Arn
+            Name: ${self:custom.eventBusName}
           pattern:
             source:
               - monitoring-service

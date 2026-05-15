@@ -66,6 +66,13 @@ provider:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}/index/*
 
+    # Outbound domain events (EventBridgeAdapter → PutEvents on this stack's bus)
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource:
+        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:custom.eventBusName}
+
     # X-Ray
     - Effect: Allow
       Action:

@@ -1,6 +1,6 @@
 import { logHttpRequest, serializeError, type Logger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
-import { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ERROR_CODES } from '../constants/errorCodes';
 import { HTTP_METHODS } from '../constants/httpMethods';
 import { PATHS } from '../constants/paths';
@@ -78,14 +78,18 @@ export async function handleDeviceRegistrationError(
 
   return ApiResponse.internalServerError(
     'DEVICE.REGISTRATION_FAILED',
-    { requestId: context.correlationId, event: context.event },
+    { correlationId: context.correlationId, event: context.event },
     { code: ERROR_CODES.REGISTRATION_FAILED },
   );
 }
 
+/** Any Error subclass constructor (instanceof-only; args vary by domain error). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DomainErrorConstructor = abstract new (...args: any[]) => Error;
+
 /** Domain error mapping: Error constructor -> HTTP response params. */
 export type DomainErrorMapping = Array<
-  [new (message?: string) => Error, { statusCode: number; messageKey: string; code: string }]
+  [DomainErrorConstructor, { statusCode: number; messageKey: string; code: string }]
 >;
 
 export interface GenericHandlerErrorOptions {
@@ -110,7 +114,7 @@ export async function handleHandlerError(
   err: unknown,
   options: GenericHandlerErrorOptions,
 ): Promise<APIGatewayProxyResult> {
-  const { correlationId, event: any, path, method, startTime, logger, logEventName, defaultMessageKey, defaultCode, domainMap } = options;
+  const { correlationId, event, path, method, startTime, logger, logEventName, defaultMessageKey, defaultCode, domainMap } = options;
   const duration = Date.now() - startTime;
 
   for (const [ErrorClass, { statusCode, messageKey, code }] of domainMap) {

@@ -4,7 +4,7 @@ import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceUserEntry, Device } from '../models';
-import { DeviceNotFoundError, DeviceNotInOrganizationError } from '../utils/errors';
+import { DeviceNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { isThirdPartyApp } from '../validation/device.validation';
 
@@ -216,6 +216,96 @@ export class DeviceService {
       logger.error({ event: 'service_registerDevice_error', err: serializeError(err) });
       throw err;
     }
+  }
+
+  /**
+   * Patient-app bulk register/update (legacy pairing endpoint).
+   */
+  async registerOrUpdateDeviceUserFromPatientApp(
+    data: {
+      userId: string;
+      organizationId: string;
+      devices: Array<{
+        configDeviceId: string;
+        displayName: string;
+        noOfUsers: number;
+        deviceCategory: string;
+        companyName: string;
+        modelName: string;
+        usesExtensionProtocol: boolean;
+        supportsUserAuthentication: boolean;
+        platform: string;
+        isAutoSyncEnabled: boolean;
+        isAutoSyncSupported: boolean;
+        autoSyncDelay: number;
+        isSync: boolean;
+        macAddress?: string;
+        localName?: string;
+        lastSequenceNumber?: string;
+        lastReadingTimeStamp?: number;
+        databaseUpdateFlag?: boolean;
+        databaseChangeIncrement?: number;
+        isDeviceDeleted?: boolean;
+        iOSIdentifier?: string;
+        userIndex?: number;
+        isEagleDevice?: boolean;
+        deviceCategoryNum?: string | number;
+      }>;
+    },
+    correlationId?: string,
+  ): Promise<{
+    items: Array<{
+      message: string;
+      statusCode: number;
+      configDeviceId: string;
+      deviceId: string;
+    }>;
+  }> {
+    const items = await Promise.all(
+      data.devices.map(async (device) => {
+        const result = await this.registerDevice(
+          {
+            userId: data.userId,
+            organizationId: data.organizationId,
+            configDeviceId: device.configDeviceId,
+            displayName: device.displayName,
+            deviceCategory: device.deviceCategory,
+            companyName: device.companyName,
+            modelName: device.modelName,
+            platform: device.platform,
+            macAddress: device.macAddress,
+            localName: device.localName,
+            isAutoSyncEnabled: device.isAutoSyncEnabled,
+            isAutoSyncSupported: device.isAutoSyncSupported,
+            isSync: device.isSync,
+            usesExtensionProtocol: device.usesExtensionProtocol,
+            supportsUserAuthentication: device.supportsUserAuthentication,
+            autoSyncDelay: device.autoSyncDelay,
+            userIndex: device.userIndex,
+            noOfUsers: device.noOfUsers,
+            lastReadingTimeStamp: device.lastReadingTimeStamp,
+            lastSequenceNumber: device.lastSequenceNumber,
+            databaseUpdateFlag: device.databaseUpdateFlag,
+            databaseChangeIncrement: device.databaseChangeIncrement,
+            isDeviceDeleted: device.isDeviceDeleted,
+            iOSIdentifier: device.iOSIdentifier,
+            isEagleDevice: device.isEagleDevice,
+            deviceCategoryNum:
+              device.deviceCategoryNum !== undefined ? String(device.deviceCategoryNum) : undefined,
+          },
+          correlationId,
+        );
+        return {
+          message: result.isUpdate
+            ? 'Device updated successfully'
+            : 'Device successfully paired with the user',
+          statusCode: 201,
+          configDeviceId: result.configDeviceId,
+          deviceId: result.deviceId,
+        };
+      }),
+    );
+    return { items };
   }
 
   /**

@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { ApiResponse } from '@api-hub/utils';
 import { RecommendationService } from '../services/recommendationService';
 import { deviceRecommendationRemoveSchema } from '../validation/device.validation';
@@ -16,7 +16,7 @@ import { ERROR_CODES } from '../constants/errorCodes';
 const recommendationService = new RecommendationService();
 
 const deviceRecommendationRemoveImpl: any = async (event: any, context?: Context) => {
-  const ctx = createHandlerContext(event: any, context);
+  const ctx = createHandlerContext(event, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
   logger.info({ event: 'deviceRecommendationRemove_received' });
@@ -62,6 +62,7 @@ const deviceRecommendationRemoveImpl: any = async (event: any, context?: Context
         {
           title: 'Devices unrecommend success',
           description: 'The device recommendations were removed successfully.',
+          severity: 'SUCCESS',
         },
         {  correlationId: correlationId, event: evt },
       ),
@@ -85,4 +86,4 @@ const deviceRecommendationRemoveImpl: any = async (event: any, context?: Context
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.recommendationRemove', deviceRecommendationRemoveImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.recommendationRemove' }, deviceRecommendationRemoveImpl);

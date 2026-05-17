@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
+    "rootDir": "src",
+    "baseUrl": "../..",
     "types": [
       "node"
     ],
@@ -10,6 +12,8 @@
     "declaration": false,
     "declarationMap": false,
     "emitDeclarationOnly": false,
+    "customConditions": [],
+    "disableSourceOfProjectReferenceRedirect": true,
     "paths": {
       "@api-hub/access-audit": [
         "libs/access-audit/src/index.ts"
@@ -29,9 +33,6 @@
       "@api-hub/consent": [
         "libs/consent/src/index.ts"
       ],
-      "@api-hub/event-platform": [
-        "libs/event-platform/src/index.ts"
-      ],
       "@api-hub/integration-events": [
         "libs/integration-events/src/index.ts"
       ],
@@ -40,9 +41,6 @@
       ],
       "@api-hub/metadata": [
         "libs/metadata/src/index.ts"
-      ],
-      "@api-hub/middleware": [
-        "libs/middleware/src/index.ts"
       ],
       "@api-hub/observability": [
         "libs/observability/src/index.ts"

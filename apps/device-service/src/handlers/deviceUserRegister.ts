@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
@@ -21,7 +21,7 @@ const deviceService = new DeviceService();
  * userId/organizationId from authorizer or body. Writes to existing table with correct mapping.
  */
 const deviceUserRegisterImpl: any = async (event: any, context?: Context) => {
-  const ctx = createHandlerContext(event: any, context);
+  const ctx = createHandlerContext(event, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
   logger.info({ event: 'deviceUserRegister_received' });
@@ -78,4 +78,4 @@ const deviceUserRegisterImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.userRegister', deviceUserRegisterImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.userRegister' }, deviceUserRegisterImpl);

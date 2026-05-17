@@ -5,6 +5,7 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
+      "dependsOn": ["^build"],
       "options": {
         "outputPath": "dist/apps/device-service",
         "main": "apps/device-service/src/index.ts",

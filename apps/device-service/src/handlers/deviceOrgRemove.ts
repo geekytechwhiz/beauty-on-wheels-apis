@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
@@ -82,7 +82,7 @@ const deviceOrgRemoveImpl: any = async (event: any, context?: Context) => {
   });
 
   try {
-    return await removeDevicesFromOrganization(validation.data, orgId, correlationId, logger, event: any, startTime);
+    return await removeDevicesFromOrganization(validation.data, orgId, correlationId, logger, event, startTime);
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceOrgRemove_error', err: serializeError(err) });
@@ -173,6 +173,7 @@ async function removeDevicesFromOrganization(
       {
         title: 'Device unassign success',
         description: 'The device unassign completed successfully.',
+        severity: 'SUCCESS',
       },
       {  correlationId: correlationId, event },
     );
@@ -304,9 +305,10 @@ async function removeDevicesFromOrganization(
     {
       title: 'Device unassign success',
       description: 'The device unassign completed successfully.',
+      severity: 'SUCCESS',
     },
     {  correlationId: correlationId, event },
   );
 }
 
-export const handler = withStandardApiGatewayPipeline('device.orgRemove', deviceOrgRemoveImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.orgRemove' }, deviceOrgRemoveImpl);

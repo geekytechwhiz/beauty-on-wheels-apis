@@ -97,7 +97,9 @@
       }
     }
   },
-  "dependencies": { 
+  "dependencies": {
+    "@aws-sdk/client-sns": "^3.958.0",
+    "@smithy/node-http-handler": "^4.0.0"
   },
   "devDependencies": { 
   }

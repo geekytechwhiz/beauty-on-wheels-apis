@@ -11,5 +11,5 @@ export async function publishNotificationEvent<T>(
   data: T,
   correlationId?: string,
 ): Promise<void> {
-  return publishSns({ eventType, payload: data, correlationId }, correlationId);
+  return publishSns({ eventType, payload: data }, correlationId);
 }

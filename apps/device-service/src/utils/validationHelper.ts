@@ -3,7 +3,6 @@ import { logHttpRequest } from '@api-hub/observability';
 import type { Logger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import type { ZodError } from 'zod';
-import { HTTP_METHODS } from '../constants/httpMethods';
 import { ERROR_CODES } from '../constants/errorCodes';
 
 export interface ValidationErrorOptions {
@@ -34,7 +33,7 @@ export function validationErrorResponse(
   error: ZodError,
   options: ValidationErrorOptions,
 ): ReturnType<typeof ApiResponse.unprocessableEntity> {
-  const { correlationId, event: any, logger, startTime, path, method, logEventName } = options;
+  const { correlationId, event, logger, startTime, path, method, logEventName } = options;
   logger.warn({ event: logEventName, errors: error.issues });
   const duration = Date.now() - startTime;
   logHttpRequest(logger, method, path, 422, duration, correlationId);

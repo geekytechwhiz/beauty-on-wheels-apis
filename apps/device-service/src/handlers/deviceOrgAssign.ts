@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
@@ -84,7 +84,7 @@ const deviceOrgAssignImpl: any = async (event: any, context?: Context) => {
   });
 
   try {
-    return await assignDevicesToOrganization(validation.data, orgId, correlationId, logger, event: any, startTime);
+    return await assignDevicesToOrganization(validation.data, orgId, correlationId, logger, event, startTime);
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceOrgAssign_error', err: serializeError(err) });
@@ -306,9 +306,10 @@ async function assignDevicesToOrganization(
     {
       title: 'Device is successfully updated',
       description: 'Device is successfully updated.',
+      severity: 'SUCCESS',
     },
     {  correlationId: correlationId, event },
   );
 }
 
-export const handler = withStandardApiGatewayPipeline('device.orgAssign', deviceOrgAssignImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.orgAssign' }, deviceOrgAssignImpl);

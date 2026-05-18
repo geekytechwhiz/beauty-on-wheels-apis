@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { OrgDeviceService } from '../services/orgDeviceService';
@@ -56,7 +56,7 @@ const orgDeviceManageImpl: any = async (event: any, context?: Context) => {
     if (!targetOrgId || targetOrgId.toUpperCase() !== 'ROOT') {
       const duration = Date.now() - startTime;
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 403, duration, correlationId);
-      return ApiResponse.forbidden('DEVICE.INVALID_ORGANIZATION', {  correlationId: correlationId, event }, { code: 'INVALID_ORGANIZATION' });
+      return ApiResponse.forbidden({ title: 'DEVICE.INVALID_ORGANIZATION', description: 'Invalid organization', severity: 'ERROR' }, { correlationId: correlationId, event }, { code: 'INVALID_ORGANIZATION' });
     }
 
     let result: unknown;
@@ -110,7 +110,7 @@ const orgDeviceManageImpl: any = async (event: any, context?: Context) => {
     const duration = Date.now() - startTime;
     if (err instanceof InvalidOrganizationError) {
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 403, duration, correlationId);
-      return ApiResponse.forbidden('DEVICE.INVALID_ORGANIZATION', {  correlationId: correlationId, event }, { code: 'INVALID_ORGANIZATION' });
+      return ApiResponse.forbidden({ title: 'DEVICE.INVALID_ORGANIZATION', description: 'Invalid organization', severity: 'ERROR' }, { correlationId: correlationId, event }, { code: 'INVALID_ORGANIZATION' });
     }
     if (err instanceof DeviceNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/org/manage', 404, duration, correlationId);
@@ -122,4 +122,4 @@ const orgDeviceManageImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.orgManage', orgDeviceManageImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.orgManage' }, orgDeviceManageImpl);

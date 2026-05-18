@@ -40,7 +40,7 @@ export interface OrganizationDeviceAddedEvent {
 
 export type DeviceEvent = DevicePairedEvent | DeviceDeletedEvent | DeviceRecommendedEvent | OrganizationDeviceAddedEvent;
 
-export async function publishEvent(event: Deviceevent: any, correlationId?: string): Promise<void> {
+export async function publishEvent(event: DeviceEvent, correlationId?: string): Promise<void> {
   const logger = createChildLogger(baseLogger, { correlationId, eventType: event.eventType });
   const eventBusName = process.env.EVENT_BUS || 'device-service-bus-dev';
 

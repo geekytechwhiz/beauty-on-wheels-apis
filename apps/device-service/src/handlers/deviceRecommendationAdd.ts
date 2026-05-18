@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { RecommendationService } from '../services/recommendationService';
@@ -86,6 +86,7 @@ const deviceRecommendationAddImpl: any = async (event: any, context?: Context) =
       {
         title: 'Device recommend success',
         description: 'The device recommend completed successfully.',
+        severity: 'SUCCESS',
       },
       {  correlationId: correlationId, event }
     );
@@ -97,4 +98,4 @@ const deviceRecommendationAddImpl: any = async (event: any, context?: Context) =
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.recommendationAdd', deviceRecommendationAddImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.recommendationAdd' }, deviceRecommendationAddImpl);

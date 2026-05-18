@@ -76,11 +76,19 @@ function minimalRecord(overrides: Partial<AlertDdbRecord> = {}): AlertDdbRecord 
 function createPayload(overrides: Partial<CreateAlertPayload> = {}): CreateAlertPayload {
   return {
     organizationId: 'org-1',
+    inputEventId: 'evt-default',
     inputType: 'MISSED_READING',
     sourceType: 'MONITORING_SERVICE',
     patientId: 'pat-1',
-    triggerTimestamp: '2026-01-15T10:00:00.000Z',
+    patientName: 'Test Patient',
+    triggerTimestamp: Date.parse('2026-01-15T10:00:00.000Z'),
     evidencePayload: {},
+    priority: 'P2',
+    groupingKey: 'pat-1|GENERIC|OPEN',
+    alertPolicyTemplateVersionId: 'UNSPECIFIED',
+    thresholdTemplateVersionId: 'UNSPECIFIED',
+    assignSlaMinutes: 60,
+    resolveSlaMinutes: 240,
     ...overrides,
   };
 }
@@ -196,20 +204,6 @@ describe('AlertService', () => {
 
       expect(result.duplicate).toBe(true);
       expect(result.record).toBe(record);
-    });
-
-    it('generates an idempotency key when inputEventId is omitted', async () => {
-      const record = minimalRecord();
-      repo.resolveInputEventId.mockResolvedValueOnce('missing');
-      repo.createAlert.mockResolvedValueOnce(record);
-
-      const result = await service.createAlert(createPayload({ inputEventId: undefined }));
-
-      expect(result.duplicate).toBe(false);
-      expect(repo.resolveInputEventId).toHaveBeenCalledWith('evt-generated-1', 'org-1');
-      expect(repo.createAlert).toHaveBeenCalledWith(
-        expect.objectContaining({ inputEventId: 'evt-generated-1' }),
-      );
     });
 
     it('rethrows when createAlert fails with transaction race but idempotency row is still missing', async () => {

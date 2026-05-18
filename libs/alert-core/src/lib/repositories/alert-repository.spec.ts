@@ -18,11 +18,19 @@ const TABLE = 'test-alert-table';
 function createRequest(overrides: Partial<CreateAlertRequest> = {}): CreateAlertRequest {
   return {
     organizationId: 'org-1',
+    inputEventId: 'evt-default',
     inputType: 'MISSED_READING',
     sourceType: 'MONITORING_SERVICE',
     patientId: 'pat-1',
-    triggerTimestamp: '2026-01-15T10:00:00.000Z',
+    patientName: 'Test Patient',
+    triggerTimestamp: Date.parse('2026-01-15T10:00:00.000Z'),
     evidencePayload: {},
+    priority: 'P2',
+    groupingKey: 'pat-1|GENERIC|OPEN',
+    alertPolicyTemplateVersionId: 'UNSPECIFIED',
+    thresholdTemplateVersionId: 'UNSPECIFIED',
+    assignSlaMinutes: DEFAULT_ASSIGN_SLA_MINUTES,
+    resolveSlaMinutes: DEFAULT_RESOLVE_SLA_MINUTES,
     ...overrides,
   };
 }
@@ -179,7 +187,7 @@ describe('AlertRepository', () => {
       );
     });
 
-    it('uses DEFAULT_*_SLA_MINUTES when input omits SLA fields and starts assign-SLA at creation', async () => {
+    it('persists assign SLA from input and starts assign-SLA clock at creation', async () => {
       jest.spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite').mockResolvedValue(undefined);
 
       const out = await repo.createAlert(createRequest({ inputEventId: 'evt-sla-default' }));
@@ -416,34 +424,18 @@ describe('AlertRepository', () => {
   it('createAlert rethrows non-idempotency errors', async () => {
     jest.spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite').mockRejectedValue(new Error('boom'));
 
-    await expect(
-      repo.createAlert({
-        organizationId: 'org-1',
-        inputType: 'MISSED_READING',
-        sourceType: 'MONITORING_SERVICE',
-        patientId: 'pat-1',
-        triggerTimestamp: '2026-01-15T10:00:00.000Z',
-        evidencePayload: {},
-      } as Parameters<AlertRepository['createAlert']>[0]),
-    ).rejects.toThrow('boom');
+    await expect(repo.createAlert(createRequest({ inputEventId: 'evt-boom' }))).rejects.toThrow('boom');
   });
 
-  it('createAlert uses inputEventId fallback and can still throw DuplicateEventError', async () => {
+  it('createAlert throws DuplicateEventError on idempotency conditional failure', async () => {
     jest.spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite').mockRejectedValue({
       name: 'TransactionCanceledException',
       CancellationReasons: [{ Code: 'ConditionalCheckFailed' }],
     });
 
-    await expect(
-      repo.createAlert({
-        organizationId: 'org-1',
-        inputType: 'MISSED_READING',
-        sourceType: 'MONITORING_SERVICE',
-        patientId: 'pat-1',
-        triggerTimestamp: '2026-01-15T10:00:00.000Z',
-        evidencePayload: {},
-      } as Parameters<AlertRepository['createAlert']>[0]),
-    ).rejects.toBeInstanceOf(DuplicateEventError);
+    await expect(repo.createAlert(createRequest({ inputEventId: 'evt-dup-cond' }))).rejects.toBeInstanceOf(
+      DuplicateEventError,
+    );
   });
 
   it('queryOrgAlerts and queryOrgAlertsPage cover unassignedOnly filtering', async () => {

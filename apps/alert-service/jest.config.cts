@@ -1,5 +1,6 @@
- 
+
 const { readFileSync } = require('fs');
+const { coverageThreshold, collectCoverageFrom } = require('./jest.coverage.cjs');
 
 // Reading the SWC compilation config for the spec files
 const swcJestConfig = JSON.parse(
@@ -26,16 +27,7 @@ module.exports = {
   },
   coverageDirectory: '../../coverage/apps/alert-service',
   coverageReporters: ['text', 'text-summary', 'html', 'lcov'],
-  collectCoverageFrom: [
-    'src/controllers/**/*.ts',
-    'src/handlers/**/*.ts',
-    // Exclusions
-    '!src/**/*.spec.ts',
-    '!src/**/__tests__/**',
-    '!src/**/*.d.ts',
-    // Exclude index files
-    '!src/**/index.ts',
-    '!src/**/health.ts',
-  ],
+  coverageThreshold,
+  collectCoverageFrom,
   verbose: true,
 };

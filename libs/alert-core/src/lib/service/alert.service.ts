@@ -61,7 +61,7 @@ export class AlertService extends BaseAlertService {
   ): Promise<{ record: AlertDdbRecord; duplicate: boolean; publishIntents: AlertPublishIntent[] }> {
     const input: CreateAlertRequest = { ...payload };
 
-    const idempotencyKey = input.inputEventId ?? randomUUID();
+    const idempotencyKey = input.inputEventId;
     const resolvedSummary = buildTriggerSummary(input);
     const keyed: CreateAlertRequest = {
       ...input,

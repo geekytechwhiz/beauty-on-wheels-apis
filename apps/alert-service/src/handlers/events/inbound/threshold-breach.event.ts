@@ -1,34 +1,12 @@
-import { z } from 'zod';
-
 import { defineEvent } from '@api-hub/event-platform';
 
-export const ThresholdBreachEventSchema = defineEvent(
-  z.object({
-    patientId: z.string(),
-    organizationId: z.string(),
+import { thresholdBreachPayloadSchema } from './threshold-breach.payload';
 
-    metric: z.string(),
+export type { ThresholdBreachEventPayload } from './threshold-breach.payload';
 
-    currentValue: z.number(),
-
-    threshold: z.number(),
-
-    severity: z.enum([
-      'LOW',
-      'MEDIUM',
-      'HIGH',
-      'CRITICAL',
-    ]),
-
-    triggeredAt: z.string(),
-  }),
-  {
-    eventType: 'Threshold.Breach.v1',
-
-    eventVersion: '1.0.0',
-
-    source: 'monitoring-service',
-
-    transport: 'eventbridge',
-  },
-);
+export const ThresholdBreachEventSchema = defineEvent(thresholdBreachPayloadSchema, {
+  eventType: 'ThresholdBreach.v1',
+  eventVersion: '1.0.0',
+  source: 'monitoring-service',
+  transport: 'eventbridge',
+});

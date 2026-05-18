@@ -2,17 +2,17 @@ import { AlertService } from '@api-hub/alert-core';
 import { onEvent } from '@api-hub/event-platform';
 
 import { configureEventRuntime } from '../../bootstrap/event-runtime';
-import { ThresholdBreachEventSchema } from '../../inbound/threshold-breach.event';
-import { mapThresholdBreachToCreateAlert } from '../../mappers/alert-event-ingest.mapper';
+import { MissedReadingEventSchema } from '../../inbound/missed-reading.event';
+import { mapMissedReadingToCreateAlert } from '../../mappers/alert-event-ingest.mapper';
 import { publishAlertIntents } from '../../publisher/alert-publisher';
 
 configureEventRuntime();
 
 const alertService = new AlertService();
 
-export const handler = onEvent(ThresholdBreachEventSchema, async (event) => {
+export const handler = onEvent(MissedReadingEventSchema, async (event) => {
   const { publishIntents, duplicate } = await alertService.createAlert(
-    mapThresholdBreachToCreateAlert(event.payload),
+    mapMissedReadingToCreateAlert(event.payload),
   );
 
   if (!duplicate) {

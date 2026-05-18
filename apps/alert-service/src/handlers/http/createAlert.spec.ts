@@ -114,20 +114,31 @@ describe('createAlert HTTP handler', () => {
     mockCreateAlert.mockReset();
   });
 
+  const EPOCH_TRIGGER = Date.parse('2026-01-15T10:00:00.000Z');
+  const EPOCH_EVIDENCE = Date.parse('2026-01-15T09:00:00.000Z');
+  const EPOCH_LAST_READING = Date.parse('2026-01-14T09:00:00.000Z');
+
   function validMissedReadingBody(): Record<string, unknown> {
     return {
       inputEventId: 'evt-unique-1',
       inputType: 'MISSED_READING',
       sourceType: 'MONITORING_SERVICE',
       patientId: 'pat-1',
-      triggerTimestamp: '2026-01-15T10:00:00.000Z',
+      patientName: 'Jane Doe',
+      triggerTimestamp: EPOCH_TRIGGER,
+      priority: 'P2',
+      groupingKey: 'pat-1|BP_SYSTOLIC|OPEN',
+      alertPolicyTemplateVersionId: 'policy-v1',
+      thresholdTemplateVersionId: 'thresh-v1',
+      assignSlaMinutes: 60,
+      resolveSlaMinutes: 240,
       evidencePayload: {
-        eventTimestamp: '2026-01-15T09:00:00.000Z',
+        eventTimestamp: EPOCH_EVIDENCE,
         source: 'MONITORING_SERVICE',
         inputType: 'MISSED_READING',
         appliesToType: 'VITAL_SIGN',
         linkedEntityCode: 'BP_SYSTOLIC',
-        lastSuccessfulReadingTimestamp: '2026-01-14T09:00:00.000Z',
+        lastSuccessfulReadingTimestamp: EPOCH_LAST_READING,
         missedDuration: '24h',
         readingType: 'BLOOD_PRESSURE',
       },
@@ -204,9 +215,16 @@ describe('createAlert HTTP handler', () => {
       inputType: 'MISSING_DEVICE',
       sourceType: 'DEVICE_MONITORING',
       patientId: 'pat-1',
-      triggerTimestamp: '2026-01-15T10:00:00.000Z',
+      patientName: 'John Smith',
+      triggerTimestamp: EPOCH_TRIGGER,
+      priority: 'P1',
+      groupingKey: 'pat-1|GLUCOSE_METER|OPEN',
+      alertPolicyTemplateVersionId: 'policy-v1',
+      thresholdTemplateVersionId: 'thresh-v1',
+      assignSlaMinutes: 30,
+      resolveSlaMinutes: 120,
       evidencePayload: {
-        eventTimestamp: '2026-01-15T09:00:00.000Z',
+        eventTimestamp: EPOCH_EVIDENCE,
         source: 'DEVICE_MONITORING',
         inputType: 'MISSING_DEVICE',
         appliesToType: 'DEVICE',
@@ -335,7 +353,7 @@ describe('createAlert HTTP handler', () => {
     expect(payload.resolveSlaMinutes).toBe(120);
   });
 
-  it('omitting SLA minutes leaves them undefined on the payload (builder applies defaults)', async () => {
+  it('forwards required SLA minutes from the HTTP body to the service', async () => {
     const record = minimalAlertRecord();
     mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
@@ -343,11 +361,11 @@ describe('createAlert HTTP handler', () => {
 
     expect(result.statusCode).toBe(200);
     const payload = mockCreateAlert.mock.calls[0][0] as {
-      assignSlaMinutes?: number;
-      resolveSlaMinutes?: number;
+      assignSlaMinutes: number;
+      resolveSlaMinutes: number;
     };
-    expect(payload.assignSlaMinutes).toBeUndefined();
-    expect(payload.resolveSlaMinutes).toBeUndefined();
+    expect(payload.assignSlaMinutes).toBe(60);
+    expect(payload.resolveSlaMinutes).toBe(240);
   });
 
   it('returns 422 when assignSlaMinutes is negative or non-integer', async () => {

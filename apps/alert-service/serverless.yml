@@ -458,7 +458,7 @@ functions:
   # their entrypoints are added.
   # ──────────────────────────────────────────────────────────────────────────────
   onThresholdBreach:
-    handler: src/handlers/eventbridge/onThresholdBreach.main
+    handler: src/handlers/events/consumer/event-bridge/threshold-breach.consumer.main
     events:
       - eventBridge:
           eventBus:
@@ -469,26 +469,23 @@ functions:
             source:
               - monitoring-service
             detail-type:
-              - Threshold.Breach.v1
-  #
-  # onMissedReading:
-  #   handler: src/handlers/eventbridge/onMissedReading.main
-  #   timeout: 30
-  #   memorySize: 256
-  #   events:
-  #     - eventBridge:
-  #         eventBus:
-  #           Fn::GetAtt:
-  #             - AlertServiceBus
-  #             - Arn
-  #         pattern:
-  #           source:
-  #             - device-monitoring
-  #           detail-type:
-  #             - MISSED_READING
+              - ThresholdBreach.v1
+  onMissedReading:
+    handler: src/handlers/events/consumer/event-bridge/missed-reading.consumer.main
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - AlertServiceBus
+              - Arn
+          pattern:
+            source:
+              - device-monitoring
+            detail-type:
+              - MissedReading.v1
   #
   # onMissingDevice:
-  #   handler: src/handlers/eventbridge/onMissingDevice.main
+  #   handler: src/handlers/events/consumer/event-bridge/missing-device.consumer.main
   #   timeout: 30
   #   memorySize: 256
   #   events:
@@ -504,7 +501,7 @@ functions:
   #             - MISSING_DEVICE
   #
   # onSymptomRiskTrigger:
-  #   handler: src/handlers/eventbridge/onSymptomRiskTrigger.main
+  #   handler: src/handlers/events/consumer/event-bridge/symptom-risk-trigger.consumer.main
   #   timeout: 30
   #   memorySize: 256
   #   events:
@@ -520,7 +517,7 @@ functions:
   #             - SYMPTOM_RISK_TRIGGER
   #
   # onEngagementTrigger:
-  #   handler: src/handlers/eventbridge/onEngagementTrigger.main
+  #   handler: src/handlers/events/consumer/event-bridge/engagement-trigger.consumer.main
   #   timeout: 30
   #   memorySize: 256
   #   events:

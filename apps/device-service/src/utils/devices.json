@@ -1125,7 +1125,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 9,
+              "templateId": 2,
               "deviceDetails": "deviceDetails_viva",
               "supportedVitals": [
                 "bodyComposition",
@@ -1236,7 +1236,7 @@
               "supportsUserAuthentication": false,
               "requiresPairing": false,
               "enabled": true,
-              "isAutoSyncSupported": false,
+              "isAutoSyncSupported": true,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/HealthSense.png",
               "externalVideoLink": "",
@@ -1277,7 +1277,7 @@
               "requiresPairing": false,
               "requireDataForPairing": true,
               "enabled": true,
-              "isAutoSyncSupported": false,
+              "isAutoSyncSupported": true,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/TR-CS20Q.png",
               "externalVideoLink": "",
@@ -1318,7 +1318,7 @@
               "requiresPairing": false,
               "requireDataForPairing": true,
               "enabled": true,
-              "isAutoSyncSupported": false,
+              "isAutoSyncSupported": true,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/TR-CS10B.png",
               "externalVideoLink": "",
@@ -1564,7 +1564,7 @@
               "supportsUserAuthentication": false,
               "requiresPairing": false,
               "enabled": true,
-              "isAutoSyncSupported": true,
+              "isAutoSyncSupported": false,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/Oxi-PO3.png",
               "externalVideoLink": "",
@@ -1820,7 +1820,7 @@
           "companyIdentifier": 11718,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/andesfit.png",
           "devices": [
             {
               "name": "Samico GL",
@@ -1858,7 +1858,7 @@
           "companyIdentifier": 359,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/asensia.png",
           "devices": [
             {
               "name": "Contour7926H",
@@ -2065,7 +2065,7 @@
               "externalVideoLink": "OMRON connect US/CAN App iOS Pairing Video",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 20,
+              "templateId": 28,
               "deviceDetails": "",
               "supportedVitals": [
                 "bloodGlucose",

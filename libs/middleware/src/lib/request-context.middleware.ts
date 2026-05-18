@@ -64,6 +64,10 @@ export const buildRequestContext = (event: RequestBuildEvent): LambdaRequest => 
   const normalizedQueryParameters =
     event.queryStringParameters ?? undefined;
 
+  const rc = event.requestContext as
+    | { correlationId?: string; awsRequestId?: string; logger?: unknown }
+    | undefined;
+
   return {
     event: event as unknown as APIGatewayProxyEvent,
     params: {
@@ -73,9 +77,9 @@ export const buildRequestContext = (event: RequestBuildEvent): LambdaRequest => 
     pathParameters: normalizedPathParameters as Record<string, string> | undefined,
     body: parseEventBody(event.body),
     context: {
-      correlationId: (event.requestContext as { correlationId?: string }).correlationId ?? '',
-      awsRequestId: (event.requestContext as { awsRequestId?: string }).awsRequestId ?? '',
-      logger: (event.requestContext as { logger?: any }).logger ?? {},
+      correlationId: rc?.correlationId ?? '',
+      awsRequestId: rc?.awsRequestId ?? '',
+      logger: rc?.logger ?? {},
       authHeader,
       userContext: user as UserContext,
     },

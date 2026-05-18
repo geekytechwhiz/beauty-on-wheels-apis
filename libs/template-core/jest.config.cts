@@ -1,12 +1,6 @@
-/* eslint-disable */
 const { readFileSync } = require('fs');
 
-// Reading the SWC compilation config for the spec files
-const swcJestConfig = JSON.parse(
-  readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8'),
-);
-
-// Disable .swcrc look-up by SWC core because we're passing in swcJestConfig ourselves
+const swcJestConfig = JSON.parse(readFileSync(`${__dirname}/.spec.swcrc`, 'utf-8'));
 swcJestConfig.swcrc = false;
 
 module.exports = {
@@ -17,5 +11,9 @@ module.exports = {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: 'test-output/jest/coverage',
+  moduleNameMapper: {
+    '^@api-hub/utils$': '<rootDir>/../utils/src/index.ts',
+  },
+  coverageDirectory: '../../coverage/libs/template-core',
+  verbose: true,
 };

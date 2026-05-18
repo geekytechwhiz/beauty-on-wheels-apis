@@ -8,10 +8,16 @@
     "emitDeclarationOnly": false,
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": "../..",
+    "paths": {
+      "@api-hub/utils": ["libs/utils/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"],
-  "references": [],
+  "references": [
+    { "path": "../utils/tsconfig.lib.json" }
+  ],
   "exclude": [
     "jest.config.ts",
     "jest.config.cts",

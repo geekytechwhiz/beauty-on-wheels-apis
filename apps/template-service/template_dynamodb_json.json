@@ -1,0 +1,618 @@
+{
+  "masterTemplate": {
+    "PK": "MASTER_TMPL#CP-HTN-001",
+    "SK": "VERSION#001",
+    "entityType": "MASTER_TEMPLATE",
+
+    "meta": {
+      "templateId": "CP-HTN-001",
+      "templateVersionId": "CP-HTN-001-V01",
+      "templateType": "CARE_PLAN",
+      "templateName": "Hypertension Management Plan",
+      "category": "CHRONIC_DISEASE",
+      "condition": "HYPERTENSION",
+      "countries": ["IN"],
+      "states": ["ALL"],
+      "languages": ["en"],
+      "specialty": [
+        "CARDIOLOGY",
+        "ENDOCRINOLOGY",
+        "INTERNAL_MEDICINE",
+        "FAMILY_MEDICINE"
+      ],
+      "version": 1,
+      "status": "SAVED",
+      "isActive": true,
+      "deprecatedAt": null,
+      "isMaster": true,
+      "ownerOrgId": null,
+      "masterTemplateVersionId": null,
+      "shareScope": "PLATFORM",
+      "description": "Master template for hypertension management. Covers BP monitoring, medication, lifestyle goals, and alert thresholds.",
+      "riskLevel": null,
+      "createdBy": "user-uuid",
+      "createdAt": "2024-01-01T00:00:00Z",
+      "lastModifiedBy": "user-uuid",
+      "lastModifiedAt": "2024-01-01T00:00:00Z",
+      "publishedBy": null,
+      "publishedAt": null,
+      "auditTrail": [
+        {
+          "action": "TEMPLATE_CREATED",
+          "performedBy": "user-uuid",
+          "performedAt": "2024-01-01T00:00:00Z"
+        }
+      ]
+    },
+
+    "carePlanAttributes": {
+      "durationType": {
+        "isMetadataDriven": true,
+        "display": "MAIN",
+        "required": true,
+        "metadataConfig": {
+          "metadataType": "DURATION_TYPE",
+          "selectedValues": [
+            "DAYS_30",
+            "DAYS_90",
+            "MONTHS_6",
+            "YEAR_1"
+          ],
+          "defaultValue": "DAYS_90",
+          "metadataMode": "FIXED",
+          "minSelections": 1
+        }
+      },
+      "customDurationAllowed": {
+        "type": "toggle",
+        "display": "MAIN",
+        "defaultValue": false,
+        "platformFlagRequired": true
+      },
+      "maxObjectivesAllowed": {
+        "type": "number",
+        "display": "SETTINGS",
+        "defaultValue": 10,
+        "constraints": {
+          "minValue": 1,
+          "maxValue": 20
+        }
+      }
+    },
+
+    "sharedComponents": {
+      "fieldTypes": {
+        "text": { "component": "TextInput" },
+        "number": { "component": "NumberInput" },
+        "select": { "component": "Dropdown" },
+        "multiSelect": { "component": "MultiSelectDropdown" },
+        "date": { "component": "DatePicker" },
+        "toggle": { "component": "Toggle" },
+        "textarea": { "component": "TextArea" },
+        "radio": { "component": "RadioGroup" },
+        "table": { "component": "EditableTable" },
+        "yesNo": { "component": "YesNoToggle" },
+        "scale": { "component": "ScaleSlider" }
+      },
+
+      "commonFields": {
+        "frequency": {
+          "id": "frequency",
+          "label": "Frequency",
+          "type": "select",
+          "required": true,
+          "isMetadataDriven": true,
+          "metadataConfig": {
+            "metadataType": "FREQUENCY_TYPE",
+            "selectedValues": [
+              "ONCE_DAILY",
+              "TWICE_DAILY",
+              "X_TIMES_DAILY",
+              "X_TIMES_WEEKLY",
+              "WEEKLY",
+              "MONTHLY",
+              "CUSTOM"
+            ],
+            "metadataMode": "FIXED"
+          }
+        },
+
+        "duration": {
+          "id": "duration",
+          "label": "Duration",
+          "type": "number",
+          "required": true,
+          "constraints": {
+            "minValue": 1,
+            "decimalAllowed": false
+          }
+        },
+
+        "notes": {
+          "id": "notes",
+          "label": "Notes",
+          "type": "textarea",
+          "required": false,
+          "constraints": {
+            "maxLength": 500
+          }
+        },
+
+        "priority": {
+          "id": "priority",
+          "label": "Priority",
+          "type": "radio",
+          "required": true,
+          "isMetadataDriven": true,
+          "metadataConfig": {
+            "metadataType": "PRIORITY_LEVEL",
+            "selectedValues": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          }
+        },
+
+        "assignedTo": {
+          "id": "assignedTo",
+          "label": "Assigned To",
+          "type": "select",
+          "required": true,
+          "isMetadataDriven": true,
+          "metadataConfig": {
+            "metadataType": "ASSIGNED_TO_TYPE",
+            "selectedValues": [
+              "DOCTOR",
+              "NURSE",
+              "PATIENT",
+              "CARE_MANAGER",
+              "ALL"
+            ]
+          }
+        },
+
+        "reminders": {
+          "id": "reminders",
+          "label": "Reminders",
+          "type": "toggle",
+          "required": false,
+          "config": {
+            "push": {
+              "enabled": true
+            },
+            "sms": {
+              "enabled": true
+            },
+            "email": {
+              "enabled": false
+            }
+          }
+        }
+      }
+    },
+
+    "links": {
+      "okrTemplate": {
+        "linkType": "DIRECT",
+        "mandatory": true,
+        "linkedVersionId": null
+      },
+
+      "taskTemplates": {
+        "linkType": "DIRECT",
+        "mandatory": false,
+        "linkedVersionIds": [],
+        "autoCreateAtActivation": true
+      },
+
+      "symptomTemplates": {
+        "linkType": "DIRECT",
+        "mandatory": false,
+        "linkedVersionIds": [],
+        "maxQuestionsPerForm": 10
+      },
+
+      "packageLinks": {
+        "linkType": "REQUIRED",
+        "mandatory": true,
+        "linkedPackageIds": [],
+        "durationMustMatch": true
+      }
+    },
+
+    "steps": [
+      {
+        "stepId": "plan_overview",
+        "stepNumber": 1,
+        "label": "Plan Overview",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-01",
+            "sectionName": "Basic Information",
+            "isMandatory": true,
+
+            "fields": [
+              {
+                "id": "templateName",
+                "label": "Template Name",
+                "type": "text",
+                "required": true,
+                "constraints": {
+                  "maxLength": 150
+                }
+              },
+
+              {
+                "id": "condition",
+                "label": "Condition",
+                "type": "select",
+                "required": true,
+                "isMetadataDriven": true,
+                "metadataConfig": {
+                  "metadataType": "CONDITION",
+                  "selectedValues": [
+                    "HYPERTENSION",
+                    "DIABETES",
+                    "ANNUAL_WELLNESS",
+                    "CUSTOM"
+                  ]
+                }
+              },
+
+              {
+                "id": "countries",
+                "label": "Countries",
+                "type": "multiSelect",
+                "required": true
+              },
+
+              {
+                "id": "states",
+                "label": "States",
+                "type": "multiSelect",
+                "required": false
+              },
+
+              {
+                "id": "description",
+                "label": "Description",
+                "type": "textarea",
+                "required": false,
+                "constraints": {
+                  "maxLength": 300,
+                  "noEmoji": true
+                }
+              },
+
+              {
+                "id": "duration",
+                "label": "Duration",
+                "type": "select",
+                "required": true,
+                "metadataConfig": {
+                  "selectedValues": [
+                    "DAYS_30",
+                    "DAYS_90",
+                    "MONTHS_6",
+                    "YEAR_1"
+                  ]
+                }
+              },
+
+              {
+                "id": "riskLevel",
+                "label": "Risk Level",
+                "type": "select",
+                "required": false,
+                "metadataConfig": {
+                  "selectedValues": [
+                    "LOW",
+                    "MEDIUM",
+                    "HIGH",
+                    "CRITICAL"
+                  ]
+                }
+              },
+
+              {
+                "id": "specialty",
+                "label": "Specialty",
+                "type": "multiSelect",
+                "required": false
+              },
+
+              {
+                "id": "careTeam",
+                "label": "Care Team",
+                "type": "object",
+                "required": true,
+
+                "fields": [
+                  {
+                    "id": "doctor",
+                    "label": "Doctor",
+                    "type": "select",
+                    "required": true
+                  },
+                  {
+                    "id": "careManager",
+                    "label": "Care Manager",
+                    "type": "select",
+                    "required": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "stepId": "medication",
+        "stepNumber": 2,
+        "label": "Medication",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-MED",
+            "sectionName": "Medications",
+
+            "columns": [
+              {
+                "id": "medicationName",
+                "label": "Medication Name",
+                "type": "select",
+                "required": true
+              },
+
+              {
+                "id": "dosage",
+                "label": "Dosage",
+                "type": "text",
+                "required": true
+              },
+
+              {
+                "$ref": "sharedComponents.commonFields.frequency"
+              },
+
+              {
+                "$ref": "sharedComponents.commonFields.duration"
+              },
+
+              {
+                "$ref": "sharedComponents.commonFields.notes"
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "stepId": "lab_diagnostics",
+        "stepNumber": 3,
+        "label": "Lab & Diagnostics",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-LAB",
+            "sectionName": "Diagnostic Tests & Reports",
+
+            "fields": [
+              {
+                "id": "diagnosticReports",
+                "label": "Diagnostic Reports",
+                "type": "table"
+              },
+
+              {
+                "id": "painScore",
+                "label": "Pain Score",
+                "type": "scale"
+              },
+
+              {
+                "id": "mobilityLevel",
+                "label": "Mobility Level",
+                "type": "select"
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "stepId": "rpm_and_devices",
+        "stepNumber": 4,
+        "label": "RPM & Devices",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-RPM",
+            "sectionName": "Remote Patient Monitoring",
+
+            "fields": [
+              {
+                "id": "deviceRecommended",
+                "label": "Device Recommended",
+                "type": "yesNo"
+              },
+
+              {
+                "id": "primaryDevice",
+                "label": "Primary Device",
+                "type": "select"
+              },
+
+              {
+                "id": "secondaryDevices",
+                "label": "Secondary Devices",
+                "type": "multiSelect"
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "stepId": "baseline_assessment",
+        "stepNumber": 5,
+        "label": "Baseline Assessment",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-BAS-CLIN",
+            "sectionName": "Clinical",
+
+            "fields": [
+              {
+                "id": "vitals",
+                "label": "Vitals",
+                "type": "multiSelect"
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "stepId": "vitals_monitoring",
+        "stepNumber": 6,
+        "label": "Vitals Monitoring",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-VIT",
+            "sectionName": "Vitals & Thresholds",
+
+            "columns": [
+              {
+                "id": "vitalName",
+                "label": "Vital",
+                "type": "select"
+              },
+
+              {
+                "id": "dataSource",
+                "label": "Data Source",
+                "type": "select"
+              },
+
+              {
+                "id": "threshold",
+                "label": "Threshold",
+                "type": "object"
+              },
+
+              {
+                "id": "alertAction",
+                "label": "Alert Action",
+                "type": "select"
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "stepId": "okr_and_tasks",
+        "stepNumber": 7,
+        "label": "OKR & Tasks",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-OKR",
+            "sectionName": "Objectives & Key Results",
+
+            "objectiveConfig": {
+              "maxObjectives": 10,
+
+              "keyResultConfig": {
+                "minPerObjective": 1
+              },
+
+              "taskConfig": {
+                "minPerKR": 1
+              }
+            }
+          }
+        ]
+      },
+
+      {
+        "stepId": "symptom_forms",
+        "stepNumber": 8,
+        "label": "Symptom Forms",
+
+        "sections": [
+          {
+            "sectionId": "CP-HTN-001-V01-SEC-SYM",
+            "sectionName": "Symptom & Assessment Forms",
+
+            "formConfig": {
+              "maxQuestionsPerForm": 10,
+
+              "questionTypes": [
+                "NUMERIC",
+                "YES_NO",
+                "MULTI_SELECT",
+                "SINGLE_SELECT",
+                "SCALE_1_TO_5",
+                "SCALE_1_TO_10",
+                "LOW_MID_HIGH",
+                "FREE_TEXT"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+
+    "templateTypeConfig": {
+      "hypertension": {
+        "label": "Hypertension",
+
+        "enabledSteps": [
+          "plan_overview",
+          "medication",
+          "lab_diagnostics",
+          "rpm_and_devices",
+          "baseline_assessment",
+          "vitals_monitoring",
+          "okr_and_tasks",
+          "symptom_forms"
+        ]
+      },
+
+      "diabetes": {
+        "label": "Diabetes",
+
+        "enabledSteps": [
+          "plan_overview",
+          "medication",
+          "lab_diagnostics",
+          "rpm_and_devices",
+          "baseline_assessment",
+          "vitals_monitoring",
+          "okr_and_tasks",
+          "symptom_forms"
+        ]
+      },
+
+      "annual_wellness": {
+        "label": "Annual Wellness",
+
+        "enabledSteps": [
+          "plan_overview",
+          "lab_diagnostics",
+          "baseline_assessment",
+          "okr_and_tasks",
+          "symptom_forms"
+        ]
+      }
+    }
+  }
+}

@@ -7,7 +7,6 @@ frameworkVersion: '3.x'
 
 plugins:
   - serverless-esbuild
-  - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
 
@@ -49,7 +48,7 @@ package:
 custom:
   bundle: ${file(./infra/config/infra-custom.yml)} 
   cors: &httpApiCors
-    origin: ${env:CORS_ORIGIN, '*'}
+    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
     headers:
       - Content-Type
       - X-Amz-Date
@@ -111,9 +110,6 @@ custom:
     excludeStages:
       - production
 
-  dotenv:
-    logging: false
-
   serverless-offline:
     httpPort: 3000
     noPrependStageInUrl: true
@@ -126,6 +122,81 @@ functions:
           path: /health
           method: get
           cors: true
+
+  createMasterTemplate:
+    handler: src/handlers/http/createMasterTemplate.main
+    events:
+      - http:
+          path: templates/master
+          method: post
+          summary: Create master template
+          description: Create platform-owned master care plan template (META + VERSION#001).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Created — TemplateSummaryData
+            "400": Bad request
+            "401": Unauthorized
+            "409": Conflict
+            "422": Validation error
+            "500": Server error
+
+  listMasterTemplates:
+    handler: src/handlers/http/listMasterTemplates.main
+    events:
+      - http:
+          path: templates/master
+          method: get
+          summary: List master templates
+          description: List master templates with optional filters (GSI2 published catalog or GSI5 by status).
+          queryStringParameters:
+            organizationId:
+              required: false
+              type: string
+            category:
+              required: false
+              type: string
+            condition:
+              required: false
+              type: string
+            country:
+              required: false
+              type: string
+            status:
+              required: false
+              type: string
+            templateType:
+              required: false
+              type: string
+            language:
+              required: false
+              type: string
+            specialty:
+              required: false
+              type: string
+            templateCode:
+              required: false
+              type: string
+            nextToken:
+              required: false
+              type: string
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — master template list
+            "400": Bad request
+            "401": Unauthorized
+            "500": Server error
 
 resources:
   - ${file(./infra/resources/events/event-bus.yml)}

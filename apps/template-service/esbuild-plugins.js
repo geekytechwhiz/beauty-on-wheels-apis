@@ -9,9 +9,10 @@ module.exports = [
       const workspaceRoot = resolve(__dirname, '../..');
       const workspacePackages = {
         '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
-        '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'), 
+        '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/event-platform': resolve(workspaceRoot, 'libs/event-platform/src/index.ts'),
-        '@api-hub/middleware': resolve(workspaceRoot, 'libs/middleware/src/index.ts'), 
+        '@api-hub/middleware': resolve(workspaceRoot, 'libs/middleware/src/index.ts'),
+        '@api-hub/template-core': resolve(workspaceRoot, 'libs/template-core/src/index.ts'),
       };
 
       build.onResolve({ filter: /^@api-hub\/.*/ }, (args) => {

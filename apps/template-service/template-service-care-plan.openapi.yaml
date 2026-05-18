@@ -1,0 +1,3003 @@
+openapi: 3.0.3
+info:
+  title: Template Service — Care Plan (Master / Org / Lifecycle)
+  description: |
+    OpenAPI spec for **Template Service (Care Plan)** derived from:
+    - `Template_service_Endpoints-2.pdf` (Confluence export — inferred URIs)
+    - `Template+Service+DB+design+and++Access+Patterns.pdf` / `Template_Service_DB_design_and_Access_Patterns.doc` (DynamoDB single-table keys, GSIs, flat template document)
+    - `template_master_corrected.json` (corrected master template document shape)
+    - `template_data_9april_2.json` (original senior dev JSON — reference only)
+
+    **DB Design:** DynamoDB single-table. Every template record carries `PK`, `SK`, and `entityType`.
+    Master templates: `PK = MASTER_TMPL#<templateId>`, `SK = VERSION#<versionId>`.
+    Org templates: `PK = ORG_TMPL#<orgId>#<templateId>`, `SK = VERSION#<versionId>`.
+    List/filter access uses **GSI-1** (`PK = orgId`, …) and **GSI-2** (`PK = type`, `SK = publishedAt`, …) as described in the DB design doc.
+
+    **Lifecycle:** Authoring may use `DRAFT` or `SAVED` (same phase); workflow then `IN_REVIEW` → `PUBLISHED`. End states: `ARCHIVED`, `DEPRECATED`.
+    **Review** state on the flat document is carried in `reviewStatus` (orthogonal to `status` where applicable).
+
+    **Clone path fix:** Confluence doc had typo `orgnizationId`. Corrected to `organizations/{organizationId}`.
+
+    **Duration values:** Canonical enums include `DAYS_30`, `DAYS_90`, `MONTHS_6`, `YEAR_1`, `CUSTOM`. Flat care-plan documents and `metadataAllocation` may also use compact codes `90D`, `6M` (same semantics as `DAYS_90`, `MONTHS_6`).
+
+    **Required authoring and lifecycle (canonical HTTP — these two are part of the product contract):**
+    1. **`PUT /templates/org/{templateId}/versions/{versionId}`** — *Update organization template.* Body **`OrgTemplateUpdateRequest`**. Persists to **`ORG_TMPL#<organizationId>#<templateId>`** with **`VERSION#<versionId>`** (and **`META`** when merged). **`organizationId`** from **JWT / org context** unless the gateway documents an explicit override. Downstream field rules match **`GET /templates/organizations/{organizationId}/{templateId}/versions`**.
+    2. **`POST /templates/{templateId}/versions/{versionId}/status`** — *Transition template status* (**DRAFT / SAVED / IN_REVIEW / PUBLISHED**, plus **ARCHIVED** / **DEPRECATED**). Body **`TemplateStatusTransitionRequest`**. Updates **`SK=META`**; **`PUBLISH`** may add an immutable **`VERSION#`**. **Master vs org** `PK` follows **caller scope** plus route ids (full rules under `paths` for that operation).
+
+    Full request and response shapes, examples, and error codes live only under **`paths`** for those two operations; this numbered list is the **contract index** so reviewers do not rely on informal notes outside this YAML.
+
+    **Additional access-pattern APIs (PDF / single-table):** consolidated reads — both **master** and **org** use **`GET .../versions`** with optional query `version`: omit → list `VERSION#*`; `version=latest` → latest snapshot; **`version=meta`** (org only) → `SK=META`; any other `version` → point read by id. Enablement **update and revoke** share **`PATCH /org-enablements/id/{enablementId}`** with body `action` (`UPDATE` \| `REVOKE`). Enablement **search** (`GET /org-enablements`) remains separate from `GET /org-enablements/{orgId}`.
+
+    **API catalog (this file = Swagger source of truth):** every operation below is defined under `paths` with DynamoDB intent called out in each summary/description. **Rows marked (required contract)** are the org update and lifecycle endpoints above — they are not optional add-ons.
+
+    | Method | Path | Primary access pattern |
+    | ------ | ---- | ------------------------ |
+    | POST | `/templates/master` | Create `META` + first `VERSION#` |
+    | GET | `/templates/master` | **GSI-2** (type / publishedAt) + optional **GSI-1** / filters (`organizationId`, `templateType`, `language`, `specialty`, `templateCode`, …) |
+    | GET | `/templates/master/{templateId}/meta` | `PK=MASTER_TMPL#id`, `SK=META` |
+    | GET | `/templates/master/{templateId}/versions` | **Unified:** omit `version` → list `VERSION#*`; `version=latest` → latest snapshot; `version={id}` → point read; **PUT** same path+`versionId` updates |
+    | GET/PUT | `/templates/master/{templateId}/versions/{versionId}` | **PUT only** — update `VERSION#` (+ META rules); GET uses query on parent `/versions` |
+    | POST | `/templates/organizations/.../clone` | Write `ORG_TMPL#...` new partition |
+    | GET | `/templates/organizations/{organizationId}/{templateId}/versions` | **Unified (same pattern as master):** omit `version` → list; `version=latest` → latest; **`version=meta`** → META row; `version={id}` → point read |
+    | GET | `/templates/org` | **GSI-1** org index; optional `templateType`, `specialty`, … |
+    | PUT | `/templates/org/{templateId}/versions/{versionId}` | **(required contract)** **Org update** — `UpdateItem` on `ORG_TMPL#<org>#<templateId>` + `VERSION#…` / `META` per rules; `organizationId` from token |
+    | POST | `/templates/{templateId}/versions/{versionId}/status` | **(required contract)** **Lifecycle** — `SUBMIT_REVIEW` / `PUBLISH` / `REJECT` / `ARCHIVE` / `DEPRECATE`; master or org resolved from **caller scope** + ids |
+    | POST | `/org-enablements` | Create enablement row (+ projections per design) |
+    | GET | `/org-enablements` | Filter enablements (query; GSI-backed) |
+    | GET | `/org-enablements/{orgId}` | List by org (**GSI-1 PK = orgId**) |
+    | GET/PATCH | `/org-enablements/id/{enablementId}` | Get by id; **PATCH** with `action=UPDATE` (dates) or `action=REVOKE` replaces legacy DELETE |
+    | GET | `/templates/compatible` | **GSI-2** published templates for linking |
+
+    **Swagger preview:** Import this YAML into Swagger UI or Redoc — it is the **machine-readable** contract for clients.
+
+    **PDF vs YAML:** The PDF cannot be auto-ingested here; if it lists extra routes, GSIs, or query keys, export it to text/Markdown and extend `paths` plus this catalog so Swagger stays aligned.
+  version: 2.0.5
+
+servers:
+  - url: https://api.example.com/v1
+    description: Replace with API Gateway base URL + stage
+
+tags:
+  - name: MasterTemplateManagement
+    description: Platform-owned master templates (META row, version list, CRUD, clone)
+  - name: OrgTemplateManagement
+    description: Organization-scoped templates (GET organizations/.../versions with query `version` like master + `meta`; short-path PUT /templates/org/.../versions/...; GSI list)
+  - name: Lifecycle
+    description: DRAFT / SAVED / IN_REVIEW / PUBLISHED (and ARCHIVED / DEPRECATED) via POST status — applies to master or org template per caller scope
+  - name: OrgEnablement
+    description: Org–master enablements (create, search, list by org, get by id, PATCH update window or revoke)
+  - name: ValidationLinking
+    description: Compatible published templates for package linking
+
+paths:
+
+  # ─────────────────────────────────────────────────────────────────
+  # MASTER TEMPLATE MANAGEMENT
+  # ─────────────────────────────────────────────────────────────────
+
+  /templates/master:
+    post:
+      tags: [MasterTemplateManagement]
+      summary: Create master template
+      description: |
+        Create a new platform-owned master care plan template using the flat **Care Plan template document**
+        (`#/components/schemas/CarePlanTemplateDocument` — same keys as the JSON contract).
+        The service persists header and version rows (`SK=META` and `SK=VERSION#001`); if the document exceeds 50 KB, `schemaRef` is returned on success.
+      operationId: createMasterTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterTemplateCreateRequest'
+            examples:
+              cp_htn_standard_create:
+                summary: Hypertension standard care plan — flat create body
+                value:
+                  templateCode: CP_HTN_STANDARD
+                  templateName: Hypertension Standard Care Plan
+                  templateDescription: Standard hypertension management care plan for chronic disease patients.
+                  templateType: CARE_PLAN
+                  templateSource: MASTER
+                  status: DRAFT
+                  category:
+                    - CHRONIC_DISEASE
+                  conditions:
+                    - HYPERTENSION
+                  countries:
+                    - US
+                    - IN
+                  languages:
+                    - EN
+                  specialties:
+                    - CARDIOLOGY
+                    - INTERNAL_MEDICINE
+                  shareScope: SHAREABLE
+                  tags:
+                    - HTN
+                    - CARDIAC
+                    - RPM
+                  version: 1
+                  isLatestVersion: true
+                  isLatestPublishedVersion: false
+                  isActiveVersion: false
+                  previousVersion: null
+                  latestVersion: 1
+                  ownerOrgId: null
+                  masterTemplateVersionId: null
+                  derivedFromTemplateVersionId: null
+                  reviewRequired: true
+                  approvalWorkflowEnabled: true
+                  reviewStatus: IN_REVIEW
+                  reviewComments: null
+                  effectiveStartDate: "2026-01-01T00:00:00Z"
+                  effectiveEndDate: null
+                  publishAt: null
+                  archiveAt: null
+                  metadataContext:
+                    templateType: CARE_PLAN
+                    categories:
+                      - CHRONIC_DISEASE
+                    conditions:
+                      - HYPERTENSION
+                    countries:
+                      - US
+                      - IN
+                    languages:
+                      - EN
+                  enabledScope:
+                    sections:
+                      - sectionCode: CAREPLAN_OVERVIEW
+                        enabled: true
+                        mandatory: true
+                        allowOrgAdd: false
+                        allowOrgRemove: false
+                        allowOrgUpdate: true
+                      - sectionCode: RPM_MONITORING
+                        enabled: true
+                        mandatory: false
+                        allowOrgAdd: true
+                        allowOrgRemove: true
+                        allowOrgUpdate: true
+                    linkedTemplates:
+                      allowOKRTemplates: true
+                      allowTaskTemplates: true
+                      allowSymptomTemplates: true
+                      allowThresholdTemplates: true
+                      allowAlertPolicyTemplates: true
+                  manageability:
+                    allowOrgCustomization: true
+                    allowOrgMetadataExpansion: true
+                    allowOrgVersioning: true
+                    allowOrgPublish: true
+                    allowOrgArchive: false
+                    allowOrgClone: true
+                    allowOrgOverrideDefaults: true
+                    allowOrgAddSections: true
+                    allowOrgRemoveSections: false
+                    allowOrgUpdateSections: true
+                    allowOrgAddFields: true
+                    allowOrgRemoveFields: false
+                    allowOrgUpdateFields: true
+                  metadataAllocation:
+                    durationTypes:
+                      metadataType: DurationType
+                      metadataMode: FIXED
+                      selectedValues:
+                        - 90D
+                        - 6M
+                      defaultValues:
+                        - 90D
+                      minSelections: 1
+                      maxSelections: 1
+                    devices:
+                      metadataType: Device
+                      metadataMode: EXPANDABLE
+                      selectedValues:
+                        - BP_MONITOR
+                        - WEIGHT_SCALE
+                      defaultValues:
+                        - BP_MONITOR
+                      minSelections: 1
+                      maxSelections: 5
+                    dataSourceTypes:
+                      metadataType: DataSourceType
+                      metadataMode: FIXED
+                      selectedValues:
+                        - DEVICE
+                        - MANUAL
+                      defaultValues:
+                        - DEVICE
+                      minSelections: 1
+                      maxSelections: 2
+                  carePlanConfiguration:
+                    duration:
+                      durationType: 90D
+                      customDurationDays: null
+                    reviewCadence:
+                      enabled: true
+                      frequency: MONTHLY
+                    rpmMonitoring:
+                      enabled: true
+                      devices:
+                        - BP_MONITOR
+                        - WEIGHT_SCALE
+                      dataSourceTypes:
+                        - DEVICE
+                        - MANUAL
+                  linkedTemplates:
+                    okrTemplates:
+                      - templateVersionId: OKR_HTN_BP_CONTROL_V1
+                        mandatory: true
+                        sortOrder: 1
+                    taskTemplates:
+                      - templateVersionId: TASK_DAILY_BP_CHECK_V1
+                        mandatory: true
+                        sortOrder: 1
+                    symptomTemplates:
+                      - templateVersionId: SYM_HEADACHE_MONITORING_V1
+                        mandatory: false
+                        sortOrder: 1
+                    thresholdTemplates:
+                      - templateVersionId: THR_BP_CRITICAL_V1
+                        mandatory: true
+                        sortOrder: 1
+                    alertPolicyTemplates:
+                      - templateVersionId: ALT_BP_ESCALATION_POLICY_V1
+                        mandatory: true
+                        sortOrder: 1
+                  visibilityRules:
+                    orgTypes:
+                      - HOSPITAL
+                      - CLINIC
+                    allowedCountries:
+                      - US
+                      - IN
+                    allowedSpecialties:
+                      - CARDIOLOGY
+                  compliance:
+                    hipaaCompliant: true
+                    gdprCompliant: true
+                    auditRequired: true
+                    approvalRequired: true
+                  searchMetadata:
+                    searchKeywords:
+                      - hypertension
+                      - blood pressure
+                      - rpm
+                      - cardiology
+                  auditInformation:
+                    createdBy: platform-admin
+                    createdAt: "2026-05-13T10:00:00Z"
+                    changeReason: Initial master template creation.
+                    requestId: req-123456
+                    correlationId: corr-123456
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateCreated'
+              example:
+                success: true
+                message: Master template created successfully
+                data:
+                  templateId: CP-HTN-001
+                  templateVersionId: CP-HTN-001-V01
+                  version: 1
+                  status: DRAFT
+                  schemaRef: s3://templates/CP-HTN-001/v1.json
+                  createdAt: "2024-01-01T00:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    get:
+      tags: [MasterTemplateManagement]
+      summary: List master templates
+      description: |
+        Retrieve master templates with optional filters.
+        Uses **GSI-2** (`PK = type, SK = publishedAt`) for type-based queries.
+        Uses **GSI-1** (`PK = orgId`) when filtering by org.
+      operationId: listMasterTemplates
+      parameters:
+        - in: query
+          name: organizationId
+          required: false
+          schema:
+            type: string
+          description: When set, scopes catalog templates visible to that org (often via **GSI-1** + enablement join semantics).
+          example: org-apollo-001
+        - in: query
+          name: category
+          schema:
+            $ref: '#/components/schemas/TemplateCategory'
+          example: CHRONIC_DISEASE
+        - in: query
+          name: condition
+          schema:
+            $ref: '#/components/schemas/Condition'
+          example: HYPERTENSION
+        - in: query
+          name: country
+          schema:
+            type: string
+          example: IN
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TemplateStatus'
+          example: PUBLISHED
+        - in: query
+          name: templateType
+          schema:
+            $ref: '#/components/schemas/TemplateType'
+          description: Filter by template type (aligns with **GSI-2** partition key for type-scoped listings).
+        - in: query
+          name: language
+          schema:
+            type: string
+          description: ISO-ish language tag filter (e.g. `EN`, `en`) — secondary filter on projected attributes.
+          example: EN
+        - in: query
+          name: specialty
+          schema:
+            type: string
+          description: Single specialty code filter (e.g. `CARDIOLOGY`).
+        - in: query
+          name: templateCode
+          schema:
+            type: string
+          description: Exact or prefix match on business `templateCode` when present in index projection.
+        - in: query
+          name: nextToken
+          schema:
+            type: string
+          description: Pagination token from previous response
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessMasterTemplateList'
+              example:
+                success: true
+                message: Master templates retrieved successfully
+                data:
+                  items:
+                    - templateId: CP-HTN-001
+                      templateVersionId: CP-HTN-001-V01
+                      templateName: Hypertension Management Plan
+                      templateType: CARE_PLAN
+                      category: CHRONIC_DISEASE
+                      condition: HYPERTENSION
+                      countries: [IN]
+                      version: 1
+                      status: PUBLISHED
+                      isActive: true
+                      publishedAt: "2024-02-01T00:00:00Z"
+                  nextToken: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/master/{templateId}/meta:
+    get:
+      tags: [MasterTemplateManagement]
+      summary: Get master template META row
+      description: |
+        Returns the logical **header** item for a master template (`SK=META`).
+        DynamoDB: `PK = MASTER_TMPL#<templateId>`, `SK = META`.
+        Prefer this for lightweight reads (current flags, pointers) without loading a full `VERSION#` snapshot body.
+      operationId: getMasterTemplateMeta
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessMasterTemplateMeta'
+              example:
+                success: true
+                message: Master template META retrieved successfully
+                data:
+                  PK: MASTER_TMPL#CP-HTN-001
+                  SK: META
+                  entityType: MASTER_TEMPLATE
+                  meta:
+                    templateId: CP-HTN-001
+                    templateVersionId: CP-HTN-001-V02
+                    templateName: Hypertension Management Plan
+                    templateType: CARE_PLAN
+                    category: CHRONIC_DISEASE
+                    condition: HYPERTENSION
+                    countries: [IN]
+                    states: [ALL]
+                    languages: [en]
+                    version: 2
+                    status: PUBLISHED
+                    isActive: true
+                    isMaster: true
+                    shareScope: PLATFORM
+                    publishedAt: "2024-04-01T00:00:00Z"
+                    publishedBy: admin-uuid
+                    createdBy: admin-uuid
+                    createdAt: "2024-01-01T00:00:00Z"
+                  schemaRef: s3://templates/CP-HTN-001/latest.json
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/master/{templateId}/versions:
+    get:
+      tags: [MasterTemplateManagement]
+      summary: Master template versions — list, latest, or point read (query `version`)
+      description: |
+        **Single read endpoint** for master template version data under `PK = MASTER_TMPL#<templateId>`.
+
+        **Query `version` (optional):**
+        - **Omitted or empty** — list all `SK` beginning with `VERSION#` (paginated). Use `nextToken`, `limit`, `status`.
+        - **`latest`** — return one full **version snapshot** (same shape as point read). Use optional `resolve` (`ACTIVE`, `LATEST_PUBLISHED`, `LATEST_ANY`) to choose which snapshot.
+        - **Any other value** — treat as `versionId` (e.g. `V01`, `001`) for a single `GetItem` on `SK = VERSION#<version>`.
+
+        Pagination filters apply only to the **list** mode.
+      operationId: getMasterTemplateVersionsQuery
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+        - in: query
+          name: version
+          required: false
+          schema:
+            type: string
+          description: |
+            Omit for **list**. Use `latest` for latest/active snapshot. Otherwise pass the path-style **versionId** (e.g. `V01`).
+          example: latest
+        - in: query
+          name: resolve
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, LATEST_PUBLISHED, LATEST_ANY]
+            default: ACTIVE
+          description: Only used when `version=latest`. See previous `/versions/latest` semantics.
+        - in: query
+          name: nextToken
+          schema:
+            type: string
+          description: Pagination token — **list mode only** (ignored when `version` is set).
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+          description: "**List mode only**."
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TemplateStatus'
+          description: "**List mode only** — filter summaries by stored status."
+      responses:
+        '200':
+          description: |
+            **List mode** — `ApiSuccessTemplateVersionSummaryList`.  
+            **Latest or point-read mode** — `ApiSuccessMasterTemplateVersion`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ApiSuccessTemplateVersionSummaryList'
+                  - $ref: '#/components/schemas/ApiSuccessMasterTemplateVersion'
+              examples:
+                list:
+                  summary: List (no version query)
+                  value:
+                    success: true
+                    message: Master template versions retrieved successfully
+                    data:
+                      items:
+                        - templateId: CP-HTN-001
+                          templateVersionId: CP-HTN-001-V02
+                          organizationId: null
+                          version: 2
+                          status: PUBLISHED
+                          isActive: true
+                          publishedAt: "2024-04-01T00:00:00Z"
+                          createdAt: "2024-04-01T00:00:00Z"
+                          schemaRef: s3://templates/CP-HTN-001/v2.json
+                      nextToken: null
+                single:
+                  summary: Point read (version=V01) or latest (version=latest)
+                  value:
+                    success: true
+                    message: Template version retrieved successfully
+                    data:
+                      PK: MASTER_TMPL#CP-HTN-001
+                      SK: VERSION#001
+                      entityType: MASTER_TEMPLATE
+                      meta:
+                        templateId: CP-HTN-001
+                        templateVersionId: CP-HTN-001-V01
+                        templateName: Hypertension Management Plan
+                        templateType: CARE_PLAN
+                        category: CHRONIC_DISEASE
+                        condition: HYPERTENSION
+                        countries: [IN]
+                        states: [ALL]
+                        languages: [en]
+                        version: 1
+                        status: PUBLISHED
+                        isActive: true
+                        isMaster: true
+                        shareScope: PLATFORM
+                        publishedAt: "2024-02-01T00:00:00Z"
+                        publishedBy: admin-uuid
+                      schemaRef: s3://templates/CP-HTN-001/v1.json
+                      schemaHash: sha256:e3b0c44...
+                      schemaSize: 142000
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/master/{templateId}/versions/{versionId}:
+    parameters:
+      - $ref: '#/components/parameters/TemplateId'
+      - $ref: '#/components/parameters/VersionId'
+    put:
+      tags: [MasterTemplateManagement]
+      summary: Update master template version
+      description: |
+        Update a master template in place.
+        **Allowed only if status is `DRAFT`, `SAVED`, or `IN_REVIEW`.**
+        Published versions are immutable — clone instead.
+        Updates `SK=META` header row and writes a new `SK=VERSION#` snapshot row.
+        Increments `version` on the META row. Does not change `versionId` until published.
+
+        **Reads** use `GET /templates/master/{templateId}/versions` with query `version` (omit for list, `latest`, or this same `versionId`).
+      operationId: updateMasterTemplateVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterTemplateUpdateRequest'
+            example:
+              meta:
+                templateName: Hypertension Management Plan v2
+                description: Updated with new BP threshold rules
+                lastModifiedBy: user-uuid
+                lastModifiedAt: "2024-03-01T00:00:00Z"
+              steps:
+                - stepId: plan_overview
+                  stepNumber: 1
+                  label: Plan Overview
+                  isCommon: true
+                  sections: []
+              links:
+                packageLinks:
+                  mandatory: true
+                  durationMustMatch: true
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateSummary'
+              example:
+                success: true
+                message: Template updated successfully
+                data:
+                  templateId: CP-HTN-001
+                  templateVersionId: CP-HTN-001-V01
+                  version: 1
+                  status: SAVED
+                  schemaRef: s3://templates/CP-HTN-001/v1-updated.json
+                  updatedAt: "2024-03-01T00:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone:
+    post:
+      tags: [MasterTemplateManagement]
+      summary: Clone template version for an org
+      description: |
+        Clone a **published** master template into a new org-level template in `SAVED` state.
+        Published versions are immutable — this is the only way to create a new editable version.
+        Writes new DynamoDB rows: `PK = ORG_TMPL#<orgId>#<newTemplateId>`, `SK = VERSION#001`.
+        Copies S3 schema file to new path.
+      operationId: cloneTemplateVersion
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/TemplateId'
+        - $ref: '#/components/parameters/VersionId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloneTemplateRequest'
+            example:
+              newTemplateName: Apollo Hospital – Hypertension Plan
+              inheritLinks: true
+      responses:
+        '201':
+          description: Cloned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateCreated'
+              example:
+                success: true
+                message: Template cloned successfully
+                data:
+                  templateId: CP-HTN-ORG-APOLLO-001
+                  templateVersionId: CP-HTN-ORG-APOLLO-001-V01
+                  version: 1
+                  status: SAVED
+                  derivedFromTemplateVersionId: CP-HTN-001-V01
+                  schemaRef: s3://templates/org-apollo/CP-HTN-ORG-APOLLO-001/v1.json
+                  createdAt: "2024-03-15T00:00:00Z"
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /templates/organizations/{organizationId}/{templateId}/versions:
+    get:
+      tags: [OrgTemplateManagement]
+      summary: Org template versions — list, latest, META, or point read (query `version`)
+      description: |
+        **Single read endpoint** for org template data under `PK = ORG_TMPL#<organizationId>#<templateId>` — same **query `version`** pattern as **`GET /templates/master/{templateId}/versions`**, plus org **`META`**.
+
+        **Query `version` (optional):**
+        - **Omitted or empty** — list all `SK` beginning with `VERSION#` (paginated). Use `nextToken`, `limit`, `status`.
+        - **`latest`** — one full **version snapshot** (`ApiSuccessOrgTemplateVersion`). Use optional `resolve` (`ACTIVE`, `LATEST_PUBLISHED`, `LATEST_ANY`).
+        - **`meta`** — `GetItem` **`SK=META`** (`ApiSuccessOrgTemplateMeta`). **Reserved** — not a `VERSION#` id.
+        - **Any other value** — treat as `versionId` (e.g. `V01`, `001`) for `SK = VERSION#<version>`.
+
+        Pagination filters apply only when listing (no `version` set).
+      operationId: getOrgTemplateVersionsQuery
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/TemplateId'
+        - in: query
+          name: version
+          required: false
+          schema:
+            type: string
+          description: |
+            Omit for **list**. Use `latest` for latest snapshot. Use **`meta`** for the **META** header row. Otherwise pass a **versionId** for a point read.
+          example: latest
+        - in: query
+          name: resolve
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, LATEST_PUBLISHED, LATEST_ANY]
+            default: ACTIVE
+          description: Only used when `version=latest`.
+        - in: query
+          name: nextToken
+          schema:
+            type: string
+          description: Pagination token — **list mode only** (ignored when `version` is set).
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+          description: "**List mode only**."
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TemplateStatus'
+          description: "**List mode only** — filter summaries by stored status."
+      responses:
+        '200':
+          description: |
+            **List mode** — `ApiSuccessTemplateVersionSummaryList`.  
+            **`version=meta`** — `ApiSuccessOrgTemplateMeta`.  
+            **`version=latest`** or concrete version id — `ApiSuccessOrgTemplateVersion`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ApiSuccessTemplateVersionSummaryList'
+                  - $ref: '#/components/schemas/ApiSuccessOrgTemplateMeta'
+                  - $ref: '#/components/schemas/ApiSuccessOrgTemplateVersion'
+              examples:
+                meta:
+                  summary: version=meta (META row)
+                  value:
+                    success: true
+                    message: Org template META retrieved successfully
+                    data:
+                      PK: ORG_TMPL#org-apollo-001#CP-HTN-ORG-APOLLO-001
+                      SK: META
+                      entityType: ORG_TEMPLATE
+                      meta:
+                        templateId: CP-HTN-ORG-APOLLO-001
+                        templateVersionId: CP-HTN-ORG-APOLLO-001-V01
+                        templateName: Apollo Hospital – Hypertension Plan
+                        templateType: CARE_PLAN
+                        category: CHRONIC_DISEASE
+                        condition: HYPERTENSION
+                        countries: [IN]
+                        states: [ALL]
+                        languages: [en]
+                        version: 1
+                        status: IN_REVIEW
+                        isActive: true
+                        isMaster: false
+                        ownerOrgId: org-apollo-001
+                        masterTemplateVersionId: CP-HTN-001-V01
+                        derivedFromTemplateVersionId: CP-HTN-001-V01
+                        shareScope: ORG
+                        createdBy: org-admin-uuid
+                        createdAt: "2024-03-15T00:00:00Z"
+                      schemaRef: s3://templates/org-apollo/CP-HTN-ORG-APOLLO-001/latest.json
+                list:
+                  summary: List (no version query)
+                  value:
+                    success: true
+                    message: Org template versions retrieved successfully
+                    data:
+                      items:
+                        - templateId: CP-HTN-ORG-APOLLO-001
+                          templateVersionId: CP-HTN-ORG-APOLLO-001-V01
+                          organizationId: org-apollo-001
+                          version: 1
+                          status: IN_REVIEW
+                          isActive: true
+                          publishedAt: null
+                          createdAt: "2024-03-15T00:00:00Z"
+                          schemaRef: s3://templates/org-apollo/CP-HTN-ORG-APOLLO-001/v1.json
+                      nextToken: null
+                single:
+                  summary: Point read (version=001) or latest (version=latest)
+                  value:
+                    success: true
+                    message: Org template version retrieved successfully
+                    data:
+                      PK: ORG_TMPL#org-apollo-001#CP-HTN-ORG-APOLLO-001
+                      SK: VERSION#001
+                      entityType: ORG_TEMPLATE
+                      meta:
+                        templateId: CP-HTN-ORG-APOLLO-001
+                        templateVersionId: CP-HTN-ORG-APOLLO-001-V01
+                        templateName: Apollo Hospital – Hypertension Plan
+                        templateType: CARE_PLAN
+                        category: CHRONIC_DISEASE
+                        condition: HYPERTENSION
+                        countries: [IN]
+                        states: [ALL]
+                        languages: [en]
+                        version: 1
+                        status: IN_REVIEW
+                        isActive: true
+                        isMaster: false
+                        ownerOrgId: org-apollo-001
+                        masterTemplateVersionId: CP-HTN-001-V01
+                        shareScope: ORG
+                        createdBy: org-admin-uuid
+                        createdAt: "2024-03-15T00:00:00Z"
+                      schemaRef: s3://templates/org-apollo/CP-HTN-ORG-APOLLO-001/v1.json
+                      schemaHash: sha256:e3b0c44...
+                      schemaSize: 98000
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────
+  # ORG TEMPLATE MANAGEMENT
+  # ─────────────────────────────────────────────────────────────────
+
+  /templates/org:
+    get:
+      tags: [OrgTemplateManagement]
+      summary: List organization templates
+      description: |
+        Retrieve org-specific templates.
+        DynamoDB query uses **GSI-1** (`PK = orgId`).
+        If `organizationId` is not passed as query param, it is inferred from the auth token.
+      operationId: listOrgTemplates
+      parameters:
+        - in: query
+          name: organizationId
+          schema:
+            type: string
+          description: Inferred from auth context if omitted
+          example: org-apollo-001
+        - in: query
+          name: condition
+          schema:
+            $ref: '#/components/schemas/Condition'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TemplateStatus'
+        - in: query
+          name: nextToken
+          schema:
+            type: string
+        - in: query
+          name: templateType
+          schema:
+            $ref: '#/components/schemas/TemplateType'
+        - in: query
+          name: specialty
+          schema:
+            type: string
+          description: Filter by specialty code when projected on GSI or filtered in application layer.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgTemplateList'
+              example:
+                success: true
+                message: Org templates retrieved successfully
+                data:
+                  items:
+                    - templateId: CP-HTN-ORG-APOLLO-001
+                      templateVersionId: CP-HTN-ORG-APOLLO-001-V01
+                      templateName: Apollo Hospital – Hypertension Plan
+                      organizationId: org-apollo-001
+                      condition: HYPERTENSION
+                      version: 1
+                      status: IN_REVIEW
+                      derivedFromTemplateVersionId: CP-HTN-001-V01
+                      updatedAt: "2024-03-16T00:00:00Z"
+                  nextToken: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/org/{templateId}/versions/{versionId}:
+    put:
+      tags: [OrgTemplateManagement]
+      summary: Update organization template
+      description: |
+        **Org-scoped authoring update** (short URL). Persists changes on the org template partition
+        `PK = ORG_TMPL#<organizationId>#<templateId>`, `SK = VERSION#<versionId>` (and **`META`** when the implementation merges header fields).
+
+        **`organizationId`** is normally inferred from the **JWT / session org context** (same convention as **`GET /templates/org`**). Platform or support callers may use an agreed override (e.g. optional `organizationId` query) only if your API gateway documents it.
+
+        Changes are validated against the master template's control limits:
+        - Fields with `downstream.update = "NO"` cannot be changed
+        - Fields with `downstream.update = "ADMIN"` can only be changed by org admin
+        - Fields with `downstream.update = "ALL"` can be changed by any org role
+
+        **Allowed only if** stored status is `DRAFT`, `SAVED`, or `IN_REVIEW`. Use **`POST /templates/{templateId}/versions/{versionId}/status`** for workflow transitions (`SUBMIT_REVIEW`, `PUBLISH`, etc.).
+
+        **Reads** use **`GET /templates/organizations/{organizationId}/{templateId}/versions`** with query `version` (omit for list, `latest`, **`meta`**, or a concrete version id) — same pattern as master **`GET /templates/master/{templateId}/versions`**.
+      operationId: updateOrgTemplateVersion
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+        - $ref: '#/components/parameters/VersionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrgTemplateUpdateRequest'
+            example:
+              meta:
+                templateName: Apollo Hospital – Hypertension Plan
+                specialty: [CARDIOLOGY]
+                description: Customised hypertension plan for Apollo Ahmedabad patients
+                lastModifiedBy: org-admin-uuid
+                lastModifiedAt: "2024-03-16T00:00:00Z"
+              overrides:
+                careTeam:
+                  doctor:
+                    id: DOC101
+                    name: Dr Raj Sharma
+                  careManager:
+                    id: CM101
+                    name: Anjali Patel
+              steps:
+                - stepId: rpm_and_devices
+                  stepNumber: 3
+                  label: RPM & Devices
+                  isCommon: false
+                  sections:
+                    - sectionId: CP-HTN-ORG-APOLLO-001-V01-SEC-RPM
+                      sectionName: Remote Patient Monitoring
+                      isMandatory: false
+                      displayOrder: 1
+                      fields:
+                        - id: deviceRecommended
+                          label: Device Recommended
+                          type: yesNo
+                          defaultValue: true
+                        - id: primaryDevice
+                          label: Primary Device
+                          type: select
+                          defaultValue: BP_MONITOR
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateSummary'
+              example:
+                success: true
+                message: Org template updated successfully
+                data:
+                  templateId: CP-HTN-ORG-APOLLO-001
+                  templateVersionId: CP-HTN-ORG-APOLLO-001-V01
+                  version: 1
+                  status: SAVED
+                  updatedAt: "2024-03-16T00:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────
+  # LIFECYCLE & STATUS
+  # ─────────────────────────────────────────────────────────────────
+
+  /templates/{templateId}/versions/{versionId}/status:
+    post:
+      tags: [Lifecycle]
+      summary: Transition template status (DRAFT / SAVED / IN_REVIEW / PUBLISHED)
+      description: |
+        **Lifecycle API** for **DRAFT / SAVED / IN_REVIEW / PUBLISHED** (and **ARCHIVED** / **DEPRECATED**).
+
+        **Partition resolution:** The same path serves **master** and **org** templates. The implementation selects
+        `PK = MASTER_TMPL#<templateId>` vs `PK = ORG_TMPL#<organizationId>#<templateId>` from **caller scope**
+        (e.g. platform admin / service role → master; org-authenticated user → that user's `organizationId`) plus route `templateId` and `versionId`. If your deployment splits these into two URLs instead, keep request/response bodies aligned with **`TemplateStatusTransitionRequest`** / **`ApiSuccessTemplateSummary`**.
+
+        Valid flows:
+        - `DRAFT` or `SAVED` → `IN_REVIEW` (action: `SUBMIT_REVIEW`)
+        - `IN_REVIEW` → `PUBLISHED` (action: `PUBLISH`) — writes new `VERSION#` row, increments version
+        - `IN_REVIEW` → `DRAFT` or `SAVED` (action: `REJECT`) — does NOT create new version
+        - `PUBLISHED` → `ARCHIVED` (action: `ARCHIVE`)
+        - `PUBLISHED` → `DEPRECATED` (action: `DEPRECATE`)
+
+        Publishing is the only action that creates a new immutable `VERSION#` row.
+        All other transitions only update the `SK=META` status field.
+      operationId: transitionTemplateStatus
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+        - $ref: '#/components/parameters/VersionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateStatusTransitionRequest'
+            examples:
+              submit_for_review:
+                summary: Submit DRAFT or SAVED template for review
+                value:
+                  action: SUBMIT_REVIEW
+                  comment: Ready for platform review
+              publish:
+                summary: Approve and publish
+                value:
+                  action: PUBLISH
+                  comment: Approved for platform rollout
+              reject:
+                summary: Reject and send back to DRAFT or SAVED
+                value:
+                  action: REJECT
+                  reason: Threshold rules incomplete. Please add critical BP alert.
+              archive:
+                summary: Archive a published template
+                value:
+                  action: ARCHIVE
+                  comment: Superseded by version 2
+      responses:
+        '200':
+          description: Status transitioned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateSummary'
+              example:
+                success: true
+                message: Template status updated to PUBLISHED
+                data:
+                  templateId: CP-HTN-001
+                  templateVersionId: CP-HTN-001-V02
+                  version: 2
+                  status: PUBLISHED
+                  publishedAt: "2024-04-01T00:00:00Z"
+                  publishedBy: reviewer-uuid
+                  schemaRef: s3://templates/CP-HTN-001/v2.json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────
+  # ORG ENABLEMENT
+  # ─────────────────────────────────────────────────────────────────
+
+  /org-enablements:
+    post:
+      tags: [OrgEnablement]
+      summary: Create org enablement
+      description: |
+        Link a valid `organizationId` to a **published** `masterTemplateVersionId`.
+        Only published master templates can be enabled for orgs.
+        This controls which master templates are visible and usable by each org.
+      operationId: createOrgEnablement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrgEnablementCreateRequest'
+            example:
+              organizationId: org-apollo-001
+              masterTemplateVersionId: CP-HTN-001-V01
+              effectiveFrom: "2024-04-01T00:00:00Z"
+              effectiveTo: null
+      responses:
+        '201':
+          description: Org linked to master template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgEnablement'
+              example:
+                success: true
+                message: Org enablement created successfully
+                data:
+                  enablementId: ENB-APOLLO-HTN-001
+                  organizationId: org-apollo-001
+                  masterTemplateVersionId: CP-HTN-001-V01
+                  effectiveFrom: "2024-04-01T00:00:00Z"
+                  effectiveTo: null
+                  createdAt: "2024-04-01T00:00:00Z"
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    get:
+      tags: [OrgEnablement]
+      summary: Search or list org enablements (query)
+      description: |
+        Returns enablement rows filtered by optional query parameters. Uses **GSI-1** (`PK = organizationId`) when `organizationId` is present; may use an alternate index on `masterTemplateVersionId` when that filter is present (per implementation / PDF access pattern).
+        When no filters are supplied, behavior is **implementation-defined** (e.g. caller-scoped list for org admins, or `400` for ambiguous global queries).
+      operationId: searchOrgEnablements
+      parameters:
+        - in: query
+          name: organizationId
+          required: false
+          schema:
+            type: string
+          example: org-apollo-001
+        - in: query
+          name: masterTemplateVersionId
+          required: false
+          schema:
+            type: string
+          example: CP-HTN-001-V01
+        - in: query
+          name: nextToken
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgEnablementList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /org-enablements/{orgId}:
+    get:
+      tags: [OrgEnablement]
+      summary: List enablements for organization
+      description: |
+        Get all enabled master template versions linked to a specific org.
+        DynamoDB query: `GSI-1 PK = orgId`.
+      operationId: listOrgEnablementsByOrg
+      parameters:
+        - in: path
+          name: orgId
+          required: true
+          schema:
+            type: string
+          example: org-apollo-001
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgEnablementList'
+              example:
+                success: true
+                message: Org enablements retrieved successfully
+                data:
+                  items:
+                    - enablementId: ENB-APOLLO-HTN-001
+                      organizationId: org-apollo-001
+                      masterTemplateVersionId: CP-HTN-001-V01
+                      templateName: Hypertension Management Plan
+                      condition: HYPERTENSION
+                      effectiveFrom: "2024-04-01T00:00:00Z"
+                      effectiveTo: null
+                      createdAt: "2024-04-01T00:00:00Z"
+                    - enablementId: ENB-APOLLO-DM-001
+                      organizationId: org-apollo-001
+                      masterTemplateVersionId: CP-DM-001-V01
+                      templateName: Diabetes Care Plan
+                      condition: DIABETES
+                      effectiveFrom: "2024-04-01T00:00:00Z"
+                      effectiveTo: null
+                      createdAt: "2024-04-01T00:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /org-enablements/id/{enablementId}:
+    get:
+      tags: [OrgEnablement]
+      summary: Get org enablement by id
+      description: |
+        Point read of a single enablement record by `enablementId` (primary key or GSI lookup per table design).
+      operationId: getOrgEnablementById
+      parameters:
+        - $ref: '#/components/parameters/EnablementId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgEnablement'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      tags: [OrgEnablement]
+      summary: Update org enablement window or revoke
+      description: |
+        **Unified mutation** for an enablement keyed by `enablementId`:
+
+        - **`action` `UPDATE` (default)** — adjust `effectiveFrom` / `effectiveTo` (same as legacy PATCH-only).
+        - **`action` `REVOKE`** — remove or soft-delete the enablement (replaces legacy `DELETE` on this path).
+
+        **Path note:** distinct from `GET /org-enablements/{orgId}` (list by organization) so both routes can coexist in gateways that match by path pattern.
+      operationId: updateOrgEnablement
+      parameters:
+        - $ref: '#/components/parameters/EnablementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrgEnablementUpdateRequest'
+            examples:
+              updateWindow:
+                summary: Default — update validity window
+                value:
+                  action: UPDATE
+                  effectiveFrom: "2024-04-01T00:00:00Z"
+                  effectiveTo: "2025-12-31T23:59:59Z"
+              revoke:
+                summary: Revoke enablement
+                value:
+                  action: REVOKE
+      responses:
+        '200':
+          description: Updated (`action=UPDATE`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgEnablement'
+              example:
+                success: true
+                message: Org enablement updated successfully
+                data:
+                  enablementId: ENB-APOLLO-HTN-001
+                  organizationId: org-apollo-001
+                  masterTemplateVersionId: CP-HTN-001-V01
+                  templateName: Hypertension Management Plan
+                  condition: HYPERTENSION
+                  effectiveFrom: "2024-04-01T00:00:00Z"
+                  effectiveTo: "2025-12-31T23:59:59Z"
+                  createdAt: "2024-04-01T00:00:00Z"
+        '204':
+          description: Revoked (`action=REVOKE`) — no response body
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ─────────────────────────────────────────────────────────────────
+  # VALIDATION & LINKING
+  # ─────────────────────────────────────────────────────────────────
+
+  /templates/compatible:
+    get:
+      tags: [ValidationLinking]
+      summary: List compatible published templates
+      description: |
+        Fetch **Published** templates valid for linking to a package.
+        Enforces exact `condition` and `country` match as per requirements.
+        Also validates that template `duration` matches package `duration` — only matching templates returned.
+        Uses **GSI-2** (`PK = type, SK = publishedAt`) sorted newest first.
+      operationId: listCompatibleTemplates
+      parameters:
+        - in: query
+          name: condition
+          required: true
+          schema:
+            $ref: '#/components/schemas/Condition'
+          example: HYPERTENSION
+        - in: query
+          name: country
+          required: true
+          schema:
+            type: string
+          example: IN
+        - in: query
+          name: duration
+          required: false
+          schema:
+            $ref: '#/components/schemas/DurationType'
+          description: Filter by duration — must match package duration
+          example: MONTHS_6
+        - in: query
+          name: templateType
+          schema:
+            $ref: '#/components/schemas/TemplateType'
+          example: CARE_PLAN
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessCompatibleTemplateList'
+              example:
+                success: true
+                message: Compatible templates retrieved successfully
+                data:
+                  items:
+                    - templateId: CP-HTN-001
+                      templateVersionId: CP-HTN-001-V01
+                      templateName: Hypertension Management Plan
+                      condition: HYPERTENSION
+                      countries: [IN]
+                      duration: MONTHS_6
+                      status: PUBLISHED
+                      publishedAt: "2024-04-01T00:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+# ─────────────────────────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────────────────────────
+
+components:
+
+  parameters:
+    TemplateId:
+      in: path
+      name: templateId
+      required: true
+      schema:
+        type: string
+      example: CP-HTN-001
+
+    VersionId:
+      in: path
+      name: versionId
+      required: true
+      schema:
+        type: string
+      description: Version identifier — e.g. V01 or 001 (zero-padded for correct sort order in DynamoDB SK)
+      example: V01
+
+    OrganizationId:
+      in: path
+      name: organizationId
+      required: true
+      schema:
+        type: string
+      description: Organization identifier — part of org template partition key `ORG_TMPL#<organizationId>#<templateId>`
+      example: org-apollo-001
+
+    EnablementId:
+      in: path
+      name: enablementId
+      required: true
+      schema:
+        type: string
+      description: Stable id of an org–master enablement row
+      example: ENB-APOLLO-HTN-001
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            message: Validation failed
+            error:
+              code: VALIDATION_ERROR
+              details:
+                - field: description
+                  message: Description must not exceed 300 characters
+                - field: duration
+                  message: Duration must match linked package duration
+
+    Unauthorized:
+      description: Unauthorized — missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            message: Unauthorized
+            error:
+              code: UNAUTHORIZED
+
+    NotFound:
+      description: Template or version not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            message: Template not found
+            error:
+              code: NOT_FOUND
+
+    Conflict:
+      description: |
+        Conflict — possible causes:
+        - Attempting to update a PUBLISHED (immutable) version
+        - Duplicate template ID
+        - Status transition not allowed from current state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            message: Template version is published and immutable. Clone to create a new version.
+            error:
+              code: IMMUTABLE_VERSION
+
+  schemas:
+
+    # ── Enums ─────────────────────────────────────────────────────
+
+    TemplateType:
+      type: string
+      enum: [CARE_PLAN, OKR, TASK, SYMPTOM, PACKAGE]
+
+    TemplateStatus:
+      type: string
+      enum: [DRAFT, SAVED, IN_REVIEW, PUBLISHED, ARCHIVED, DEPRECATED]
+      description: |
+        DRAFT / SAVED = authoring (interchangeable on create; clients may send either).
+        IN_REVIEW = submitted for approval.
+        PUBLISHED = live, immutable.
+        ARCHIVED = retired but preserved.
+        DEPRECATED = superseded by newer version.
+
+    TemplateCategory:
+      type: string
+      enum: [CHRONIC_DISEASE, POST_OP, RISK_ASSESSMENT, SURVEY]
+      example: CHRONIC_DISEASE
+
+    Condition:
+      type: string
+      enum: [HYPERTENSION, DIABETES, ANNUAL_WELLNESS, CUSTOM]
+      description: Phase 1 supports 4 conditions. Extensible in future.
+
+    DurationType:
+      type: string
+      enum: [DAYS_30, DAYS_90, MONTHS_6, YEAR_1, CUSTOM, "90D", "6M"]
+      description: |
+        Canonical values: `DAYS_30`, `DAYS_90`, `MONTHS_6`, `YEAR_1`, `CUSTOM`.
+        Flat care-plan payloads and metadata allocation may use compact codes `90D` / `6M` (same semantics as `DAYS_90` / `MONTHS_6`).
+        CUSTOM requires full care plan creation from scratch — Phase 1 = false.
+        Duration must match linked package duration.
+
+    ShareScope:
+      type: string
+      enum: [PLATFORM, ORG, PRIVATE, SHAREABLE]
+      description: |
+        PLATFORM / ORG / PRIVATE = visibility scope on stored records.
+        SHAREABLE = flat-document flag indicating the template may be shared per product rules.
+
+    TemplateSource:
+      type: string
+      enum: [MASTER, ORG]
+      description: MASTER = platform template; ORG = organization-owned template.
+
+    ReviewStatus:
+      type: string
+      enum: [NOT_SUBMITTED, IN_REVIEW, APPROVED, REJECTED, CHANGES_REQUESTED]
+      description: Workflow state on the flat template document; pairs with `reviewRequired` / `approvalWorkflowEnabled`.
+
+    ReviewCadenceFrequency:
+      type: string
+      enum: [DAILY, WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, ANNUALLY]
+      description: How often a care plan instance should be formally reviewed when cadence is enabled.
+
+    MetadataMode:
+      type: string
+      enum: [FIXED, EXPANDABLE]
+      description: |
+        FIXED = org cannot add values beyond what is defined.
+        EXPANDABLE = org can add additional values.
+
+    DownstreamControl:
+      type: string
+      enum: ["NO", "ADMIN", "ALL"]
+      description: |
+        NO = field cannot be changed downstream.
+        ADMIN = only org admin can change.
+        ALL = any org role can change.
+
+    # ── Core objects ──────────────────────────────────────────────
+
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+    ApiSuccessEnvelope:
+      type: object
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          nullable: true
+        meta:
+          type: object
+          properties:
+            correlationId:
+              type: string
+            requestId:
+              type: string
+
+    AuditEntry:
+      type: object
+      required: [action, performedBy, performedAt]
+      properties:
+        action:
+          type: string
+          enum:
+            - TEMPLATE_CREATED
+            - TEMPLATE_UPDATED
+            - TEMPLATE_SUBMITTED_FOR_REVIEW
+            - TEMPLATE_PUBLISHED
+            - TEMPLATE_REJECTED
+            - TEMPLATE_ARCHIVED
+            - TEMPLATE_DEPRECATED
+            - TEMPLATE_CLONED
+          example: TEMPLATE_CREATED
+        performedBy:
+          type: string
+          example: user-uuid
+        performedAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+        comment:
+          type: string
+          nullable: true
+
+    # ── Template Meta ─────────────────────────────────────────────
+
+    TemplateMeta:
+      type: object
+      required:
+        - templateId
+        - templateVersionId
+        - templateType
+        - templateName
+        - category
+        - condition
+        - countries
+        - version
+        - status
+        - isMaster
+        - createdBy
+        - createdAt
+      properties:
+        templateId:
+          type: string
+          example: CP-HTN-001
+        templateVersionId:
+          type: string
+          example: CP-HTN-001-V01
+        templateType:
+          $ref: '#/components/schemas/TemplateType'
+        templateName:
+          type: string
+          maxLength: 150
+          example: Hypertension Management Plan
+        category:
+          $ref: '#/components/schemas/TemplateCategory'
+        condition:
+          $ref: '#/components/schemas/Condition'
+        countries:
+          type: array
+          items:
+            type: string
+          example: [IN]
+        states:
+          type: array
+          items:
+            type: string
+          description: Defaults to ALL for phase 1. Pulled from org address.
+          example: [ALL]
+        languages:
+          type: array
+          items:
+            type: string
+          example: [en]
+        specialty:
+          type: array
+          items:
+            type: string
+            enum:
+              - CARDIOLOGY
+              - ENDOCRINOLOGY
+              - HEMATOLOGY
+              - NEPHROLOGY
+              - PULMONOLOGY
+              - RHEUMATOLOGY
+              - FAMILY_MEDICINE
+              - INTERNAL_MEDICINE
+              - OBS_AND_GYN
+              - SURGERY
+              - DERMATOLOGY
+              - PSYCHIATRY
+          description: Optional. Multi-select.
+          example: [CARDIOLOGY, INTERNAL_MEDICINE]
+        version:
+          type: integer
+          minimum: 1
+          description: Monotonically increasing. Never reused.
+          example: 1
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        isActive:
+          type: boolean
+          description: Only one version can be active per template at a time.
+          example: true
+        deprecatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        isMaster:
+          type: boolean
+          example: true
+        ownerOrgId:
+          type: string
+          nullable: true
+          description: Null for master templates. Set for org templates.
+        masterTemplateVersionId:
+          type: string
+          nullable: true
+          description: Set on org templates to track which master version they were derived from.
+        derivedFromTemplateVersionId:
+          type: string
+          nullable: true
+          description: Set when cloned from another template version.
+        shareScope:
+          $ref: '#/components/schemas/ShareScope'
+        description:
+          type: string
+          maxLength: 300
+          description: No emoji allowed. Max 300 characters.
+          example: Master template for hypertension management.
+        riskLevel:
+          type: string
+          nullable: true
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        createdBy:
+          type: string
+          example: user-uuid
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+        lastModifiedBy:
+          type: string
+          example: user-uuid
+        lastModifiedAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+        publishedBy:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        auditTrail:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntry'
+
+    # ── DynamoDB document ─────────────────────────────────────────
+
+    MasterTemplateRecord:
+      type: object
+      description: |
+        Full DynamoDB document. PK/SK are stored in DB but may be stripped from API responses
+        depending on implementation preference.
+      required: [PK, SK, entityType, meta]
+      properties:
+        PK:
+          type: string
+          description: DynamoDB partition key
+          example: MASTER_TMPL#CP-HTN-001
+        SK:
+          type: string
+          description: DynamoDB sort key
+          example: VERSION#001
+        entityType:
+          type: string
+          enum: [MASTER_TEMPLATE, ORG_TEMPLATE]
+          example: MASTER_TEMPLATE
+        schemaRef:
+          type: string
+          nullable: true
+          description: S3 URI. Present when schema exceeds 50 KB. Null when stored inline.
+          example: s3://templates/CP-HTN-001/v1.json
+        schemaHash:
+          type: string
+          nullable: true
+          description: sha256 of schema body. Verified on every read.
+          example: sha256:e3b0c44...
+        schemaSize:
+          type: integer
+          nullable: true
+          description: Size in bytes. Threshold is 50000 bytes.
+          example: 142000
+        meta:
+          $ref: '#/components/schemas/TemplateMeta'
+        carePlanAttributes:
+          $ref: '#/components/schemas/CarePlanAttributes'
+        sharedComponents:
+          $ref: '#/components/schemas/SharedComponents'
+        links:
+          $ref: '#/components/schemas/TemplateLinks'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarePlanStep'
+        templateTypeConfig:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TemplateTypeConfigEntry'
+
+    CarePlanAttributes:
+      type: object
+      properties:
+        durationType:
+          type: object
+          properties:
+            isMetadataDriven:
+              type: boolean
+            display:
+              type: string
+              enum: [MAIN, SETTINGS]
+            required:
+              type: boolean
+            metadataConfig:
+              type: object
+              properties:
+                metadataType:
+                  type: string
+                  example: DURATION_TYPE
+                selectedValues:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/DurationType'
+                  example: [DAYS_30, DAYS_90, MONTHS_6, YEAR_1]
+                defaultValue:
+                  $ref: '#/components/schemas/DurationType'
+                metadataMode:
+                  $ref: '#/components/schemas/MetadataMode'
+                minSelections:
+                  type: integer
+        customDurationAllowed:
+          type: object
+          properties:
+            type:
+              type: string
+            display:
+              type: string
+            defaultValue:
+              type: boolean
+              description: Phase 1 = false. DB must support for future.
+            platformFlagRequired:
+              type: boolean
+        maxObjectivesAllowed:
+          type: object
+          properties:
+            type:
+              type: string
+            display:
+              type: string
+            defaultValue:
+              type: integer
+              example: 10
+            constraints:
+              type: object
+              properties:
+                minValue:
+                  type: integer
+                maxValue:
+                  type: integer
+
+    SharedComponents:
+      type: object
+      description: Reusable field type and common field definitions referenced by $ref in steps
+      properties:
+        fieldTypes:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              component:
+                type: string
+        commonFields:
+          type: object
+          properties:
+            frequency:
+              $ref: '#/components/schemas/FieldDefinition'
+            duration:
+              $ref: '#/components/schemas/FieldDefinition'
+            notes:
+              $ref: '#/components/schemas/FieldDefinition'
+            priority:
+              $ref: '#/components/schemas/FieldDefinition'
+            assignedTo:
+              $ref: '#/components/schemas/FieldDefinition'
+            reminders:
+              $ref: '#/components/schemas/FieldDefinition'
+
+    FieldDefinition:
+      type: object
+      description: Generic field definition used in steps and sections
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum:
+            - text
+            - number
+            - select
+            - multiSelect
+            - date
+            - toggle
+            - textarea
+            - radio
+            - table
+            - yesNo
+            - scale
+            - object
+            - fileUpload
+        display:
+          type: string
+          enum: [MAIN, SETTINGS]
+        required:
+          type: boolean
+        isMetadataDriven:
+          type: boolean
+          default: false
+        metadataConfig:
+          type: object
+          nullable: true
+          properties:
+            metadataType:
+              type: string
+            selectedValues:
+              type: array
+              items:
+                type: string
+            defaultValue:
+              type: string
+              nullable: true
+            metadataMode:
+              $ref: '#/components/schemas/MetadataMode'
+            minSelections:
+              type: integer
+            maxSelections:
+              type: integer
+              nullable: true
+        constraints:
+          type: object
+          nullable: true
+          additionalProperties: true
+        downstream:
+          type: object
+          nullable: true
+          properties:
+            update:
+              $ref: '#/components/schemas/DownstreamControl'
+            remove:
+              $ref: '#/components/schemas/DownstreamControl'
+        defaultValue:
+          nullable: true
+        dependsOn:
+          type: object
+          nullable: true
+          properties:
+            field:
+              type: string
+            value: {}
+        validationNote:
+          type: string
+          nullable: true
+        dataSource:
+          type: string
+          nullable: true
+          description: API path or constant e.g. /api/org/devices/active
+        phaseSupport:
+          type: string
+          nullable: true
+          enum: [PHASE_1, FUTURE]
+        fields:
+          type: array
+          nullable: true
+          description: For type=object — nested field definitions
+          items:
+            $ref: '#/components/schemas/FieldDefinition'
+
+    TemplateLinks:
+      type: object
+      properties:
+        okrTemplate:
+          type: object
+          properties:
+            linkType:
+              type: string
+              enum: [DIRECT, DERIVED]
+            mandatory:
+              type: boolean
+            linkedVersionId:
+              type: string
+              nullable: true
+            maxAllowed:
+              type: integer
+              nullable: true
+        taskTemplates:
+          type: object
+          properties:
+            linkType:
+              type: string
+              enum: [DIRECT]
+            mandatory:
+              type: boolean
+            linkedVersionIds:
+              type: array
+              items:
+                type: string
+            minRequired:
+              type: integer
+            maxAllowed:
+              type: integer
+              nullable: true
+            autoCreateAtActivation:
+              type: boolean
+            control:
+              type: object
+              properties:
+                add:
+                  $ref: '#/components/schemas/DownstreamControl'
+                remove:
+                  $ref: '#/components/schemas/DownstreamControl'
+        symptomTemplates:
+          type: object
+          properties:
+            linkType:
+              type: string
+            mandatory:
+              type: boolean
+            linkedVersionIds:
+              type: array
+              items:
+                type: string
+            maxQuestionsPerForm:
+              type: integer
+              description: Max 10 questions per symptom form
+              example: 10
+            control:
+              type: object
+              properties:
+                add:
+                  $ref: '#/components/schemas/DownstreamControl'
+                remove:
+                  $ref: '#/components/schemas/DownstreamControl'
+        packageLinks:
+          type: object
+          required: [mandatory, durationMustMatch]
+          properties:
+            linkType:
+              type: string
+              enum: [REQUIRED]
+            mandatory:
+              type: boolean
+              description: Care plan cannot be used without a linked package.
+              example: true
+            linkedPackageIds:
+              type: array
+              items:
+                type: string
+            durationMustMatch:
+              type: boolean
+              description: Package duration must equal care plan duration. If mismatch, no care plan shown.
+              example: true
+            control:
+              type: object
+              properties:
+                add:
+                  $ref: '#/components/schemas/DownstreamControl'
+                remove:
+                  $ref: '#/components/schemas/DownstreamControl'
+        thresholdResolution:
+          type: object
+          properties:
+            linkType:
+              type: string
+              enum: [DERIVED]
+            resolutionKey:
+              type: string
+              example: appliesToType+linkedEntityCode
+
+    CarePlanStep:
+      type: object
+      required: [stepId, stepNumber, label]
+      properties:
+        stepId:
+          type: string
+          enum:
+            - plan_overview
+            - medication
+            - lab_diagnostics
+            - rpm_and_devices
+            - baseline_assessment
+            - vitals_monitoring
+            - okr_and_tasks
+            - symptom_forms
+          example: plan_overview
+        stepNumber:
+          type: integer
+          example: 1
+        label:
+          type: string
+          example: Plan Overview
+        isCommon:
+          type: boolean
+          description: True = shown for all conditions. False = condition-specific.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/StepSection'
+
+    StepSection:
+      type: object
+      properties:
+        sectionId:
+          type: string
+        sectionName:
+          type: string
+        isMandatory:
+          type: boolean
+        displayOrder:
+          type: integer
+        fieldLayout:
+          type: string
+          enum: [default, table]
+          nullable: true
+        control:
+          type: object
+          properties:
+            add:
+              $ref: '#/components/schemas/DownstreamControl'
+            remove:
+              $ref: '#/components/schemas/DownstreamControl'
+            update:
+              $ref: '#/components/schemas/DownstreamControl'
+            min:
+              type: integer
+              nullable: true
+            max:
+              type: integer
+              nullable: true
+        fields:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/FieldDefinition'
+        columns:
+          type: array
+          nullable: true
+          description: Used when fieldLayout = table
+          items:
+            $ref: '#/components/schemas/FieldDefinition'
+        objectiveConfig:
+          type: object
+          nullable: true
+          description: Present only on okr_and_tasks step
+          properties:
+            maxObjectives:
+              type: integer
+              example: 10
+            fields:
+              type: array
+              items:
+                $ref: '#/components/schemas/FieldDefinition'
+            keyResultConfig:
+              type: object
+              properties:
+                minPerObjective:
+                  type: integer
+                  example: 1
+                maxPerObjective:
+                  type: integer
+                  nullable: true
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FieldDefinition'
+                taskConfig:
+                  type: object
+                  properties:
+                    minPerKR:
+                      type: integer
+                      description: Each KR must have at least one task
+                      example: 1
+                    maxPerKR:
+                      type: integer
+                      nullable: true
+                    fields:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/FieldDefinition'
+        formConfig:
+          type: object
+          nullable: true
+          description: Present only on symptom_forms step
+          properties:
+            maxQuestionsPerForm:
+              type: integer
+              example: 10
+            questionTypes:
+              type: array
+              items:
+                type: string
+                enum:
+                  - NUMERIC
+                  - YES_NO
+                  - MULTI_SELECT
+                  - SINGLE_SELECT
+                  - SCALE_1_TO_5
+                  - SCALE_1_TO_10
+                  - LOW_MID_HIGH
+                  - FREE_TEXT
+            fields:
+              type: array
+              items:
+                $ref: '#/components/schemas/FieldDefinition'
+
+    TemplateTypeConfigEntry:
+      type: object
+      properties:
+        label:
+          type: string
+          example: Hypertension
+        enabledSteps:
+          type: array
+          items:
+            type: string
+          description: Steps enabled for this condition. Must all exist in the steps array.
+          example:
+            - plan_overview
+            - medication
+            - rpm_and_devices
+            - baseline_assessment
+            - vitals_monitoring
+            - okr_and_tasks
+            - symptom_forms
+        fieldVisibility:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              enabledFields:
+                type: array
+                items:
+                  type: string
+
+    # ── Request bodies ────────────────────────────────────────────
+
+    CarePlanTemplateLinkedEntry:
+      type: object
+      required:
+        - templateVersionId
+        - mandatory
+        - sortOrder
+      properties:
+        templateVersionId:
+          type: string
+        mandatory:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    CarePlanTemplateEnabledSection:
+      type: object
+      properties:
+        sectionCode:
+          type: string
+        enabled:
+          type: boolean
+        mandatory:
+          type: boolean
+        allowOrgAdd:
+          type: boolean
+        allowOrgRemove:
+          type: boolean
+        allowOrgUpdate:
+          type: boolean
+
+    CarePlanTemplateLinkedTemplatesFlags:
+      type: object
+      properties:
+        allowOKRTemplates:
+          type: boolean
+        allowTaskTemplates:
+          type: boolean
+        allowSymptomTemplates:
+          type: boolean
+        allowThresholdTemplates:
+          type: boolean
+        allowAlertPolicyTemplates:
+          type: boolean
+
+    CarePlanTemplateMetadataAllocationItem:
+      type: object
+      properties:
+        metadataType:
+          type: string
+        metadataMode:
+          $ref: '#/components/schemas/MetadataMode'
+        selectedValues:
+          type: array
+          items:
+            type: string
+        defaultValues:
+          type: array
+          items:
+            type: string
+        minSelections:
+          type: integer
+        maxSelections:
+          type: integer
+
+    CarePlanTemplateDocument:
+      type: object
+      description: Flat care plan template document for create/update (matches JSON contract keys).
+      properties:
+        templateCode:
+          type: string
+        templateName:
+          type: string
+        templateDescription:
+          type: string
+        templateType:
+          $ref: '#/components/schemas/TemplateType'
+        templateSource:
+          $ref: '#/components/schemas/TemplateSource'
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        category:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateCategory'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+        countries:
+          type: array
+          items:
+            type: string
+        languages:
+          type: array
+          items:
+            type: string
+        specialties:
+          type: array
+          items:
+            type: string
+        shareScope:
+          $ref: '#/components/schemas/ShareScope'
+        tags:
+          type: array
+          items:
+            type: string
+        version:
+          type: integer
+        isLatestVersion:
+          type: boolean
+        isLatestPublishedVersion:
+          type: boolean
+        isActiveVersion:
+          type: boolean
+        previousVersion:
+          type: string
+          nullable: true
+        latestVersion:
+          type: integer
+        ownerOrgId:
+          type: string
+          nullable: true
+        masterTemplateVersionId:
+          type: string
+          nullable: true
+        derivedFromTemplateVersionId:
+          type: string
+          nullable: true
+        reviewRequired:
+          type: boolean
+        approvalWorkflowEnabled:
+          type: boolean
+        reviewStatus:
+          $ref: '#/components/schemas/ReviewStatus'
+        reviewComments:
+          type: string
+          nullable: true
+        effectiveStartDate:
+          type: string
+          format: date-time
+          nullable: true
+        effectiveEndDate:
+          type: string
+          format: date-time
+          nullable: true
+        publishAt:
+          type: string
+          format: date-time
+          nullable: true
+        archiveAt:
+          type: string
+          format: date-time
+          nullable: true
+        metadataContext:
+          type: object
+          properties:
+            templateType:
+              $ref: '#/components/schemas/TemplateType'
+            categories:
+              type: array
+              items:
+                $ref: '#/components/schemas/TemplateCategory'
+            conditions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Condition'
+            countries:
+              type: array
+              items:
+                type: string
+            languages:
+              type: array
+              items:
+                type: string
+        enabledScope:
+          type: object
+          properties:
+            sections:
+              type: array
+              items:
+                $ref: '#/components/schemas/CarePlanTemplateEnabledSection'
+            linkedTemplates:
+              $ref: '#/components/schemas/CarePlanTemplateLinkedTemplatesFlags'
+        manageability:
+          type: object
+          properties:
+            allowOrgCustomization:
+              type: boolean
+            allowOrgMetadataExpansion:
+              type: boolean
+            allowOrgVersioning:
+              type: boolean
+            allowOrgPublish:
+              type: boolean
+            allowOrgArchive:
+              type: boolean
+            allowOrgClone:
+              type: boolean
+            allowOrgOverrideDefaults:
+              type: boolean
+            allowOrgAddSections:
+              type: boolean
+            allowOrgRemoveSections:
+              type: boolean
+            allowOrgUpdateSections:
+              type: boolean
+            allowOrgAddFields:
+              type: boolean
+            allowOrgRemoveFields:
+              type: boolean
+            allowOrgUpdateFields:
+              type: boolean
+        metadataAllocation:
+          type: object
+          properties:
+            durationTypes:
+              $ref: '#/components/schemas/CarePlanTemplateMetadataAllocationItem'
+            devices:
+              $ref: '#/components/schemas/CarePlanTemplateMetadataAllocationItem'
+            dataSourceTypes:
+              $ref: '#/components/schemas/CarePlanTemplateMetadataAllocationItem'
+        carePlanConfiguration:
+          type: object
+          properties:
+            duration:
+              type: object
+              properties:
+                durationType:
+                  $ref: '#/components/schemas/DurationType'
+                customDurationDays:
+                  type: integer
+                  nullable: true
+            reviewCadence:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                frequency:
+                  $ref: '#/components/schemas/ReviewCadenceFrequency'
+            rpmMonitoring:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                devices:
+                  type: array
+                  items:
+                    type: string
+                dataSourceTypes:
+                  type: array
+                  items:
+                    type: string
+        linkedTemplates:
+          type: object
+          properties:
+            okrTemplates:
+              type: array
+              items:
+                $ref: '#/components/schemas/CarePlanTemplateLinkedEntry'
+            taskTemplates:
+              type: array
+              items:
+                $ref: '#/components/schemas/CarePlanTemplateLinkedEntry'
+            symptomTemplates:
+              type: array
+              items:
+                $ref: '#/components/schemas/CarePlanTemplateLinkedEntry'
+            thresholdTemplates:
+              type: array
+              items:
+                $ref: '#/components/schemas/CarePlanTemplateLinkedEntry'
+            alertPolicyTemplates:
+              type: array
+              items:
+                $ref: '#/components/schemas/CarePlanTemplateLinkedEntry'
+        visibilityRules:
+          type: object
+          properties:
+            orgTypes:
+              type: array
+              items:
+                type: string
+            allowedCountries:
+              type: array
+              items:
+                type: string
+            allowedSpecialties:
+              type: array
+              items:
+                type: string
+        compliance:
+          type: object
+          properties:
+            hipaaCompliant:
+              type: boolean
+            gdprCompliant:
+              type: boolean
+            auditRequired:
+              type: boolean
+            approvalRequired:
+              type: boolean
+        searchMetadata:
+          type: object
+          properties:
+            searchKeywords:
+              type: array
+              items:
+                type: string
+        auditInformation:
+          type: object
+          properties:
+            createdBy:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            changeReason:
+              type: string
+            requestId:
+              type: string
+            correlationId:
+              type: string
+
+    MasterTemplateCreateRequest:
+      title: MasterTemplateCreateRequest
+      allOf:
+        - $ref: '#/components/schemas/CarePlanTemplateDocument'
+
+    MasterTemplateUpdateRequest:
+      type: object
+      description: Partial update — only send fields that changed. meta.templateId and meta.templateVersionId are immutable.
+      properties:
+        meta:
+          type: object
+          description: Subset of TemplateMeta. templateId and templateVersionId cannot be changed.
+          properties:
+            templateName:
+              type: string
+              maxLength: 150
+            description:
+              type: string
+              maxLength: 300
+            specialty:
+              type: array
+              items:
+                type: string
+            riskLevel:
+              type: string
+              nullable: true
+            lastModifiedBy:
+              type: string
+            lastModifiedAt:
+              type: string
+              format: date-time
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarePlanStep'
+        links:
+          $ref: '#/components/schemas/TemplateLinks'
+        carePlanAttributes:
+          $ref: '#/components/schemas/CarePlanAttributes'
+        templateTypeConfig:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TemplateTypeConfigEntry'
+
+    OrgTemplateUpdateRequest:
+      type: object
+      description: |
+        Org template update. Each field change is validated against master `downstream` control limits.
+        Fields with `downstream.update = NO` will be rejected.
+      properties:
+        meta:
+          type: object
+          properties:
+            templateName:
+              type: string
+              maxLength: 150
+            description:
+              type: string
+              maxLength: 300
+            specialty:
+              type: array
+              items:
+                type: string
+            lastModifiedBy:
+              type: string
+            lastModifiedAt:
+              type: string
+              format: date-time
+        overrides:
+          type: object
+          description: Org-specific overrides for field default values (e.g. careTeam, devices)
+          additionalProperties: true
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarePlanStep'
+        links:
+          $ref: '#/components/schemas/TemplateLinks'
+
+    CloneTemplateRequest:
+      type: object
+      properties:
+        newTemplateName:
+          type: string
+          maxLength: 150
+          description: Optional. If not provided, server uses source template name with org suffix.
+        inheritLinks:
+          type: boolean
+          default: true
+          description: Copy all linked template version IDs from source into the clone.
+
+    TemplateStatusTransitionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum:
+            - SUBMIT_REVIEW
+            - PUBLISH
+            - REJECT
+            - ARCHIVE
+            - DEPRECATE
+          description: |
+            SUBMIT_REVIEW: DRAFT or SAVED → IN_REVIEW
+            PUBLISH: IN_REVIEW → PUBLISHED (creates new immutable VERSION# row)
+            REJECT: IN_REVIEW → DRAFT or SAVED (no new version created)
+            ARCHIVE: PUBLISHED → ARCHIVED
+            DEPRECATE: PUBLISHED → DEPRECATED
+        comment:
+          type: string
+          nullable: true
+          description: Optional approval or archive comment
+        reason:
+          type: string
+          nullable: true
+          description: Required when action = REJECT
+
+    OrgEnablementCreateRequest:
+      type: object
+      required: [organizationId, masterTemplateVersionId]
+      properties:
+        organizationId:
+          type: string
+          example: org-apollo-001
+        masterTemplateVersionId:
+          type: string
+          description: Must reference a PUBLISHED master template version
+          example: CP-HTN-001-V01
+        effectiveFrom:
+          type: string
+          format: date-time
+          example: "2024-04-01T00:00:00Z"
+        effectiveTo:
+          type: string
+          format: date-time
+          nullable: true
+
+    OrgEnablementUpdateRequest:
+      type: object
+      description: |
+        **`UPDATE`** (default) — send at least one of `effectiveFrom` / `effectiveTo` to change the window.  
+        **`REVOKE`** — omit dates; revokes the enablement (same intent as legacy `DELETE` on this resource).
+      properties:
+        action:
+          type: string
+          enum: [UPDATE, REVOKE]
+          default: UPDATE
+        effectiveFrom:
+          type: string
+          format: date-time
+          nullable: true
+        effectiveTo:
+          type: string
+          format: date-time
+          nullable: true
+
+    TemplateMetaRow:
+      type: object
+      description: DynamoDB META row shape returned by META read APIs (`SK=META`).
+      required: [PK, SK, entityType, meta]
+      properties:
+        PK:
+          type: string
+          description: Partition key (`MASTER_TMPL#...` or `ORG_TMPL#...`)
+        SK:
+          type: string
+          description: Sort key — always `META` for this response
+          example: META
+        entityType:
+          type: string
+          enum: [MASTER_TEMPLATE, ORG_TEMPLATE]
+        meta:
+          $ref: '#/components/schemas/TemplateMeta'
+        schemaRef:
+          type: string
+          nullable: true
+          description: Optional pointer to latest or default large payload in S3
+
+    TemplateVersionSummary:
+      type: object
+      description: One `VERSION#*` row summary (list-versions APIs).
+      properties:
+        templateId:
+          type: string
+        templateVersionId:
+          type: string
+        organizationId:
+          type: string
+          nullable: true
+          description: Set for org template lists; null for master template lists
+        version:
+          type: integer
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        isActive:
+          type: boolean
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        schemaRef:
+          type: string
+          nullable: true
+
+    # ── Response data shapes ──────────────────────────────────────
+
+    TemplateSummaryData:
+      type: object
+      properties:
+        templateId:
+          type: string
+          example: CP-HTN-001
+        templateVersionId:
+          type: string
+          example: CP-HTN-001-V01
+        version:
+          type: integer
+          example: 1
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        schemaRef:
+          type: string
+          nullable: true
+          description: S3 URI for the version snapshot. Present when schema exceeds 50 KB.
+          example: s3://templates/CP-HTN-001/v1.json
+        derivedFromTemplateVersionId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    MasterTemplateListItem:
+      type: object
+      properties:
+        templateId:
+          type: string
+        templateVersionId:
+          type: string
+        templateName:
+          type: string
+        templateType:
+          $ref: '#/components/schemas/TemplateType'
+        category:
+          $ref: '#/components/schemas/TemplateCategory'
+        condition:
+          $ref: '#/components/schemas/Condition'
+        countries:
+          type: array
+          items:
+            type: string
+        version:
+          type: integer
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        isActive:
+          type: boolean
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    OrgTemplateListItem:
+      type: object
+      properties:
+        templateId:
+          type: string
+        templateVersionId:
+          type: string
+        templateName:
+          type: string
+        organizationId:
+          type: string
+        condition:
+          $ref: '#/components/schemas/Condition'
+        version:
+          type: integer
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        derivedFromTemplateVersionId:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrgEnablement:
+      type: object
+      properties:
+        enablementId:
+          type: string
+        organizationId:
+          type: string
+        masterTemplateVersionId:
+          type: string
+        templateName:
+          type: string
+          nullable: true
+        condition:
+          allOf:
+            - $ref: '#/components/schemas/Condition'
+          nullable: true
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CompatibleTemplateItem:
+      type: object
+      properties:
+        templateId:
+          type: string
+        templateVersionId:
+          type: string
+        templateName:
+          type: string
+        condition:
+          $ref: '#/components/schemas/Condition'
+        countries:
+          type: array
+          items:
+            type: string
+        duration:
+          $ref: '#/components/schemas/DurationType'
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ── API response wrappers ─────────────────────────────────────
+
+    ApiSuccessTemplateCreated:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateSummaryData'
+
+    ApiSuccessTemplateSummary:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateSummaryData'
+
+    ApiSuccessMasterTemplateList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/MasterTemplateListItem'
+                nextToken:
+                  type: string
+                  nullable: true
+                  description: DynamoDB pagination token for next page
+
+    ApiSuccessMasterTemplateVersion:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MasterTemplateRecord'
+
+    ApiSuccessMasterTemplateMeta:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateMetaRow'
+
+    ApiSuccessOrgTemplateMeta:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateMetaRow'
+
+    ApiSuccessTemplateVersionSummaryList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TemplateVersionSummary'
+                nextToken:
+                  type: string
+                  nullable: true
+                  description: Pagination token for next page
+
+    ApiSuccessOrgTemplateVersion:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MasterTemplateRecord'
+
+    ApiSuccessOrgTemplateList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OrgTemplateListItem'
+                nextToken:
+                  type: string
+                  nullable: true
+
+    ApiSuccessOrgEnablement:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/OrgEnablement'
+
+    ApiSuccessOrgEnablementList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OrgEnablement'
+
+    ApiSuccessCompatibleTemplateList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CompatibleTemplateItem'

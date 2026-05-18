@@ -1,0 +1,24 @@
+{
+  "name": "template-core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/template-core/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:template-service", "type:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "options": {
+        "outputPath": "dist/libs/template-core",
+        "main": "libs/template-core/src/index.ts",
+        "tsConfig": "libs/template-core/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/template-core/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

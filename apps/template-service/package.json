@@ -2,6 +2,14 @@
   "name": "@api-hub/template-service",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "deploy": "npx --no-install serverless deploy",
+    "offline": "npx --no-install serverless offline --stage dev",
+    "package": "npx --no-install serverless package",
+    "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts",
+    "test:watch": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts --watch",
+    "test:all": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts && node node_modules/jest/bin/jest.js --config=libs/template-core/jest.config.cts"
+  },
   "nx": {
     "name": "template-service",
     "targets": {

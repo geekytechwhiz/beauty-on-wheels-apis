@@ -2,6 +2,10 @@
 templateDynamoTableName: template-service-${self:provider.stage}
 eventBusName: template-service-bus-${self:provider.stage}
 templateEventsDlqName: template-events-dlq-${self:provider.stage}
+corsOrigin:
+  dev: '*'
+  stg: '*'
+  prd: '*'
 logLevel:
   dev: debug
   stg: info

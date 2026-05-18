@@ -37,6 +37,22 @@ export interface CreateMasterTemplateContext {
   input: CreateMasterTemplateInput;
 }
 
+const META_BODY_KEYS = [
+  'templateCode',
+  'templateName',
+  'templateType',
+  'status',
+  'version',
+] as const;
+
+function stripMetaBodyFields(body: Record<string, unknown>): Record<string, unknown> {
+  const documentFields = { ...body };
+  for (const key of META_BODY_KEYS) {
+    delete documentFields[key];
+  }
+  return documentFields;
+}
+
 export class TemplateEntityBuilder {
   static normalizeTemplateId(templateCode: string): string {
     const base = templateCode.trim().replace(/_/g, '-').toUpperCase();
@@ -137,14 +153,7 @@ export class TemplateEntityBuilder {
     body: Record<string, unknown>,
   ): TemplateDdbRecord {
     const meta = TemplateEntityBuilder.buildMeta(ctx);
-    const {
-      templateCode: _tc,
-      templateName: _tn,
-      templateType: _tt,
-      status: _st,
-      version: _v,
-      ...documentFields
-    } = body;
+    const documentFields = stripMetaBodyFields(body);
 
     const record: TemplateDdbRecord = {
       pk: TemplateKeyBuilder.toMasterPk(ctx.templateId),

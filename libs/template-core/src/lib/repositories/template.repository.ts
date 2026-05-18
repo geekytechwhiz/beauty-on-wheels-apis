@@ -4,7 +4,6 @@ import { TemplateEntityBuilder, type CreateMasterTemplateInput } from '../builde
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
 import {
   GSI2_TYPE_CATALOG,
-  GSI4_TEMPLATE_CODE,
   GSI5_MASTER_STATUS,
   TEMPLATE_META_SK,
   TEMPLATE_STATUS,

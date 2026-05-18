@@ -2,6 +2,8 @@ export function normalizeTemplateServiceError(
   e: unknown,
   context?: { logEvent?: string; correlationId?: string },
 ): never {
+  void context;
+
   if (e && typeof e === 'object' && 'statusCode' in e && 'code' in e) {
     throw e;
   }

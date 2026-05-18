@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { validateGetLinkedOrganizations } from '../validation/request.validators';
@@ -38,6 +38,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateGetLinkedOrganizations,
-});
+export const main = withApiHandler({ operation: 'getLinkedOrganizations', validator: validateGetLinkedOrganizations }, handler);

@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
 import { validateMetadataTypeParam } from '../validation/request.validators';
@@ -75,6 +75,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateMetadataTypeParam,
-});
+export const main = withApiHandler({ operation: 'getOrganizationMetadata', validator: validateMetadataTypeParam }, handler);

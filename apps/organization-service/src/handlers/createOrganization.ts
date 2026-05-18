@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { RoleRepository } from '../repositories/role.repository';
@@ -43,6 +43,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateCreateOrganization,
-});
+export const main = withApiHandler({ operation: 'createOrganization', validator: validateCreateOrganization }, handler);

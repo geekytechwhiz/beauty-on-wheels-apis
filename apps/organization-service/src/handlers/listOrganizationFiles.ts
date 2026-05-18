@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { validateOrganizationIdParam } from '../validation/request.validators';
@@ -14,6 +14,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return organizationService.listOrganizationFiles(organizationId);
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateOrganizationIdParam,
-});
+export const main = withApiHandler({ operation: 'listOrganizationFiles', validator: validateOrganizationIdParam }, handler);

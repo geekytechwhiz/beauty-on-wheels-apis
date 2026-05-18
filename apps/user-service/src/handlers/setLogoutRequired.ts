@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUserOrganizationRequest } from '../validation/request.validators';
@@ -18,6 +18,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return { logoutRequired: true };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUserOrganizationRequest,
-});
+export const main = withApiHandler({ operation: 'setLogoutRequired', validator: validateUserOrganizationRequest }, handler);

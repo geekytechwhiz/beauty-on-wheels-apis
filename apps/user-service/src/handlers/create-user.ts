@@ -1,4 +1,5 @@
-import { createChildLogger, createLogger } from "@api-hub/logger";
+import { createChildLogger, createLogger } from "@api-hub/observability";
+import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from "@api-hub/utils";
 import { publishUserCreatedEvent } from "../events/UserCreated";
 import { UserRepository } from "../repositories/user.repository";
@@ -18,7 +19,7 @@ function throwOrgError(message: string, code: string) {
   throw err;
 }
 
-export const handler = async (
+const handler = async (
   req: LambdaRequest<any> & {
     validatedCreateUser?: {
       userInfo: any;
@@ -187,3 +188,5 @@ export const handler = async (
 
   return { invitedUser: result.userID };
 };
+
+export const main = withApiHandler({ operation: 'createUser' }, handler);

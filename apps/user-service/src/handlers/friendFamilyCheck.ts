@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { FriendFamilyService } from '../services/friendFamily.service';
 import { validateFriendFamilyCheck } from '../validation/request.validators';
@@ -23,6 +23,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return mapping;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateFriendFamilyCheck,
-});
+export const main = withApiHandler({ operation: 'friendFamilyCheck', validator: validateFriendFamilyCheck }, handler);

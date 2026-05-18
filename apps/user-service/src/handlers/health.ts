@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 
 interface Params {
@@ -9,4 +9,4 @@ const handler = async (_req: LambdaRequest<Params>) => {
   return { status: 'ok', service: 'user-service' };
 };
 
-export const main = withLambdaHandler(handler);
+export const main = withApiHandler({ operation: 'health' }, handler);

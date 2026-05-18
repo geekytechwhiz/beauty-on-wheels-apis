@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateGetOrganizationUserCount } from '../validation/request.validators';
@@ -19,6 +19,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   );
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateGetOrganizationUserCount,
-});
+export const main = withApiHandler({ operation: 'getOrganizationUserCount', validator: validateGetOrganizationUserCount }, handler);

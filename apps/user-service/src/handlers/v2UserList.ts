@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { V2UserListService } from '../services/v2-user-list.service';
 import { validateV2UserList } from '../validation/request.validators';
@@ -63,6 +63,4 @@ const handler = async (
   return result;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateV2UserList,
-});
+export const main = withApiHandler({ operation: 'v2UserList', validator: validateV2UserList }, handler);

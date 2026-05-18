@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateAssignDoctor } from '../validation/request.validators';
@@ -20,6 +20,4 @@ const assignDoctorHandler = async (req: LambdaRequest<Record<string, unknown>, B
   return { message: 'Patient assigned to doctor successfully!' };
 };
 
-export const handler = withLambdaHandler(assignDoctorHandler, {
-  validator: validateAssignDoctor,
-});
+export const handler = withApiHandler({ operation: 'assignDoctor', validator: validateAssignDoctor }, assignDoctorHandler);

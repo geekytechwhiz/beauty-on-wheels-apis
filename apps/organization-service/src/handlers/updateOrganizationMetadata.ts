@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { updateOrganizationMetadataSchema } from '../validation/organization.validation';
@@ -25,9 +25,8 @@ const handler = async (req: LambdaRequest<Params>) => {
   return organizationService.updateOrganizationMetadata(organizationId, metadata, correlationId, updatedBy, version);
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: (req: any) => {
+export const main = withApiHandler({ operation: 'updateOrganizationMetadata', validator: (req: any) => {
     validateOrganizationIdParam(req);
     validateUpdateOrganizationMetadata(req);
   },
-});
+}, handler);

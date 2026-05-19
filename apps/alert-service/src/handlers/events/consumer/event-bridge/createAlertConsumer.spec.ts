@@ -39,9 +39,9 @@ jest.mock('@api-hub/event-platform', () => ({
 
 import { minimalAlertRecord } from '../../../../__tests__/handler-test-utils';
 import { alertCreateIngestSample } from '../../__tests__/event-test-fixtures';
-import { handler, main, processCreateAlert } from './create-alert.consumer';
+import { handler, main, processCreateAlert } from './createAlertConsumer';
 
-describe('create-alert.consumer', () => {
+describe('createAlertConsumer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

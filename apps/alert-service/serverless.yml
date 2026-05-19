@@ -476,7 +476,8 @@ functions:
   # Trigger kind is in payload.inputType (e.g. THRESHOLD_BREACH, MISSED_READING).
   # ──────────────────────────────────────────────────────────────────────────────
   onCreateAlert:
-    handler: src/handlers/events/consumer/event-bridge/create-alert.consumer.main
+    # No hyphens/extra dots in filename — Lambda parses handler as file.export (see createAlert.main).
+    handler: src/handlers/events/consumer/event-bridge/createAlertConsumer.main
     events:
       - eventBridge:
           eventBus:

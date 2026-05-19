@@ -11,6 +11,7 @@ import { buildEventExecutionPipeline, runMiddlewares } from '@api-hub/middleware
 import { consumeEvent } from '../engine/executor/consume-event';
 
 import { DomainIdempotencyStrategy } from '../core/idempotency/domain-idempotency.strategy';
+import { parseInboundEvent } from '../sdk/consumer/parse-inbound-event';
 
 import type { BaseEvent } from '../typings/base-event.types';
 import type { EventConsumerDeps } from '../typings/consumer.types';
@@ -109,6 +110,10 @@ export function createEventHandler<
     dlq: {
       enabled: true,
     },
+
+    mapRawToBaseEvent:
+      options.consumer?.mapRawToBaseEvent ??
+      ((raw: unknown) => parseInboundEvent(raw)),
   };
 
   /**
@@ -119,6 +124,8 @@ export function createEventHandler<
   const mergedDeps: EventConsumerDeps = {
     ...baseConsumerDeps,
     ...(options.consumer ?? {}),
+    mapRawToBaseEvent:
+      options.consumer?.mapRawToBaseEvent ?? baseConsumerDeps.mapRawToBaseEvent,
   };
 
   /**

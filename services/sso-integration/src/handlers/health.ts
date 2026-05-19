@@ -1,4 +1,4 @@
-import { APIGatewayProxyevent: any, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { APIGatewayProxyResult, Context, APIGatewayProxyEvent } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 
@@ -15,7 +15,7 @@ interface HealthResponse {
 }
 
 export async function handler(
-  event: APIGatewayProxyevent: any,
+  event: APIGatewayProxyEvent,
   context?: Context
 ): Promise<APIGatewayProxyResult> {
   const correlationId = extractCorrelationId(event);

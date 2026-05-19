@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateAssignUserToOrganization } from '../validation/request.validators';
@@ -16,6 +16,4 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return null;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateAssignUserToOrganization,
-});
+export const main = withApiHandler({ operation: 'assignUserToOrganization', validator: validateAssignUserToOrganization }, handler);

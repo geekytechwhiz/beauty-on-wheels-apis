@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { packageServiceClient } from '../clients/packageService.client';
 import { scheduleServiceClient } from '../clients/scheduleService.client';
@@ -120,6 +120,4 @@ const handler = async (
   }
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateListDoctorPatients,
-});
+export const main = withApiHandler({ operation: 'listUsers', validator: validateListDoctorPatients }, handler);

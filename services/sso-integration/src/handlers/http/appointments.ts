@@ -1,4 +1,4 @@
-import { APIGatewayProxyevent: any, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { APIGatewayProxyResult, Context, APIGatewayProxyEvent } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { getAppointmentSyncController } from '../../controllers/appointment-sync.controller';
@@ -6,7 +6,7 @@ import { getAppointmentSyncController } from '../../controllers/appointment-sync
 const logger = createLogger({ service: 'sso-integration', redactPII: true });
 
 export async function handler(
-  event: APIGatewayProxyevent: any,
+  event: APIGatewayProxyEvent,
   context?: Context
 ): Promise<APIGatewayProxyResult> {
   const correlationId = extractCorrelationId(event);

@@ -35,7 +35,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_bp7900",
               "supportedVitals": [
                 "bloodPressure",
@@ -121,7 +121,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_bp7000",
               "supportedVitals": [
                 "bloodPressure"
@@ -149,7 +149,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_bp5250",
               "supportedVitals": [
                 "bloodPressure"
@@ -387,7 +387,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_bp6350",
               "supportedVitals": [
                 "bloodPressure",
@@ -445,7 +445,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_rs3_intelli_it",
               "supportedVitals": [
                 "bloodPressure",
@@ -620,7 +620,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_hem_9601t_e3",
               "supportedVitals": [
                 "bloodPressure"
@@ -648,7 +648,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_hem_7600t_e",
               "supportedVitals": [
                 "bloodPressure"
@@ -704,7 +704,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_hem_7143t2_esl",
               "supportedVitals": [
                 "bloodPressure"
@@ -732,7 +732,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_hem_716Ct2_z",
               "supportedVitals": [
                 "bloodPressure"
@@ -760,7 +760,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_bp5255",
               "supportedVitals": [
                 "bloodPressure"
@@ -788,7 +788,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_hem_7146t2_ebk",
               "supportedVitals": [
                 "bloodPressure"
@@ -816,7 +816,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 1,
+              "templateId": 0,
               "deviceDetails": "deviceDetails_hem_7146t2_esl",
               "supportedVitals": [
                 "bloodPressure",
@@ -1125,7 +1125,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 9,
+              "templateId": 2,
               "deviceDetails": "deviceDetails_viva",
               "supportedVitals": [
                 "bodyComposition",
@@ -1236,7 +1236,7 @@
               "supportsUserAuthentication": false,
               "requiresPairing": false,
               "enabled": true,
-              "isAutoSyncSupported": false,
+              "isAutoSyncSupported": true,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/HealthSense.png",
               "externalVideoLink": "",
@@ -1277,7 +1277,7 @@
               "requiresPairing": false,
               "requireDataForPairing": true,
               "enabled": true,
-              "isAutoSyncSupported": false,
+              "isAutoSyncSupported": true,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/TR-CS20Q.png",
               "externalVideoLink": "",
@@ -1318,7 +1318,7 @@
               "requiresPairing": false,
               "requireDataForPairing": true,
               "enabled": true,
-              "isAutoSyncSupported": false,
+              "isAutoSyncSupported": true,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/TR-CS10B.png",
               "externalVideoLink": "",
@@ -1446,7 +1446,7 @@
               "externalVideoLink": "https://www.youtube.com/watch?v=jYodua72lXA",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 7,
+              "templateId": 10,
               "deviceDetails": "deviceDetails_hn_300t2_intelli_it",
               "supportedVitals": [
                 "weight",
@@ -1564,7 +1564,7 @@
               "supportsUserAuthentication": false,
               "requiresPairing": false,
               "enabled": true,
-              "isAutoSyncSupported": true,
+              "isAutoSyncSupported": false,
               "autoSyncDelay": 0,
               "deviceImage": "https://d3ihgxc81ym0ss.cloudfront.net/Oxi-PO3.png",
               "externalVideoLink": "",
@@ -1820,7 +1820,7 @@
           "companyIdentifier": 11718,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/andesfit.png",
           "devices": [
             {
               "name": "Samico GL",
@@ -1858,7 +1858,7 @@
           "companyIdentifier": 359,
           "enabled": true,
           "enableAllDevices": true,
-          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/Roche1.png",
+          "manufacturerImage": "https://d3ihgxc81ym0ss.cloudfront.net/asensia.png",
           "devices": [
             {
               "name": "Contour7926H",
@@ -1882,7 +1882,7 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
+              "templateId": 29,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
               "supportedVitals": [
                 "bloodGlucose",
@@ -1911,7 +1911,7 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
+              "templateId": 29,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
               "supportedVitals": [
                 "bloodGlucose",
@@ -1940,7 +1940,7 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
+              "templateId": 29,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
               "supportedVitals": [
                 "bloodGlucose",
@@ -1969,7 +1969,7 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
+              "templateId": 29,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
               "supportedVitals": [
                 "bloodGlucose",
@@ -1998,7 +1998,7 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
+              "templateId": 29,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
               "supportedVitals": [
                 "bloodGlucose",
@@ -2027,7 +2027,7 @@
               "externalVideoLink": " ",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 13,
+              "templateId": 29,
               "deviceDetails": "deviceDetails_fora_d40_glucose",
               "supportedVitals": [
                 "bloodGlucose",
@@ -2065,7 +2065,7 @@
               "externalVideoLink": "OMRON connect US/CAN App iOS Pairing Video",
               "animationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
               "pairingErrorAnimationLink": "https://d3ihgxc81ym0ss.cloudfront.net/devicePairingAnimation.json",
-              "templateId": 20,
+              "templateId": 28,
               "deviceDetails": "",
               "supportedVitals": [
                 "bloodGlucose",

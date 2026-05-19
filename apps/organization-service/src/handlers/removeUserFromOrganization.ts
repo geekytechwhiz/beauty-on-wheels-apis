@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { validateOrganizationIdAndUserIdParams } from '../validation/request.validators';
@@ -17,6 +17,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return null;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateOrganizationIdAndUserIdParams,
-});
+export const main = withApiHandler({ operation: 'removeUserFromOrganization', validator: validateOrganizationIdAndUserIdParams }, handler);

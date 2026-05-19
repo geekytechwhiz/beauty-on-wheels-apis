@@ -100,18 +100,18 @@ function buildExternalIdentityQueryKeys(
 }
 function buildExternalIdentityKeys(
   user: User,
-): Pick<UserDBItem, 'gsi1Pk' | 'gsi1Sk'> | {} {
+): Pick<UserDBItem, 'gsi1Pk' | 'gsi1Sk'> | object {
   const ext = user.externalIdentity;
 
   if (!ext) {
-    return {};
+    return {} as object;
   }
 
   const provider = ext.provider?.trim();
   const externalUserId = ext.externalUserId?.trim();
 
   if (!provider || !externalUserId) {
-    return {};
+    return {} as object;
   }
 
   const tenant =
@@ -119,7 +119,7 @@ function buildExternalIdentityKeys(
     ext.subdomain?.trim();
 
   if (!tenant) {
-    return {};
+    return {} as object;
   }
 
   const { gsi1Pk, gsi1Sk } = buildExternalIdentityQueryKeys(
@@ -1275,17 +1275,7 @@ export class UserRepository {
       'ALL': 'USER',
     };
     try {
-      console.info('listOrganizationUsers', organizationId, {
-        limit,
-        offset,
-        status,
-        filter,
-        specialty,
-        search,
-        sortBy,
-        sortOrder,
-        previouslyConsulted,
-      });
+       
 
       // First try with lowercase key names (pk/sk)
       try {
@@ -1406,10 +1396,7 @@ export class UserRepository {
 
         // If DynamoDB complains that PK is missing, the actual key schema is PK/SK – retry with uppercase keys
         if (name === 'ValidationException' && message.includes('PK')) {
-          console.info('listOrganizationUsers_retry_with_PK_SK', {
-            organizationId,
-            pk: userOrgPk(organizationId),
-          });
+          
 
           const queryLimit =
             typeof limit === 'number' && limit > 0

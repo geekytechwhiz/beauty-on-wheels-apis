@@ -21,6 +21,10 @@ var mockApplyAssignment: jest.Mock;
 // eslint-disable-next-line no-var
 var mockApplyPriority: jest.Mock;
 
+jest.mock('../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
   mockGetAlert = jest.fn();
@@ -68,7 +72,7 @@ function baseEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayPro
 function baseReq(overrides: Partial<LambdaRequest> = {}): LambdaRequest {
   const event = (overrides.event as APIGatewayProxyEvent | undefined) ?? baseEvent();
   return {
-    event: any,
+    event,
     params: {},
     body: undefined,
     query: {},
@@ -133,7 +137,7 @@ describe('AlertHttpController', () => {
   it('handleCreateAlert returns alert detail on success', async () => {
     const c = new AlertHttpController();
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const req = baseReq({
       validatedCreateAlert: {
@@ -145,14 +149,21 @@ describe('AlertHttpController', () => {
           inputType: 'MISSED_READING',
           sourceType: 'MONITORING_SERVICE',
           patientId: 'pat-1',
-          triggerTimestamp: '2026-01-15T10:00:00.000Z',
+          patientName: 'Jane Doe',
+          triggerTimestamp: Date.parse('2026-01-15T10:00:00.000Z'),
+          priority: 'P2',
+          groupingKey: 'pat-1|BP_SYSTOLIC|OPEN',
+          alertPolicyTemplateVersionId: 'policy-v1',
+          thresholdTemplateVersionId: 'thresh-v1',
+          assignSlaMinutes: 60,
+          resolveSlaMinutes: 240,
           evidencePayload: {
             inputType: 'MISSED_READING',
             appliesToType: 'VITAL_SIGN',
             linkedEntityCode: 'BP_SYSTOLIC',
             source: 'MONITORING_SERVICE',
-            eventTimestamp: '2026-01-15T09:00:00.000Z',
-            lastSuccessfulReadingTimestamp: '2026-01-14T09:00:00.000Z',
+            eventTimestamp: Date.parse('2026-01-15T09:00:00.000Z'),
+            lastSuccessfulReadingTimestamp: Date.parse('2026-01-14T09:00:00.000Z'),
             missedDuration: '24h',
             readingType: 'BLOOD_PRESSURE',
           },
@@ -188,14 +199,14 @@ describe('AlertHttpController', () => {
           inputType: 'MISSED_READING',
           sourceType: 'MONITORING_SERVICE',
           patientId: 'pat-1',
-          triggerTimestamp: '2026-01-15T10:00:00.000Z',
+          triggerTimestamp: Date.parse('2026-01-15T10:00:00.000Z'),
           evidencePayload: {
             inputType: 'MISSED_READING',
             appliesToType: 'VITAL_SIGN',
             linkedEntityCode: 'BP_SYSTOLIC',
             source: 'MONITORING_SERVICE',
-            eventTimestamp: '2026-01-15T09:00:00.000Z',
-            lastSuccessfulReadingTimestamp: '2026-01-14T09:00:00.000Z',
+            eventTimestamp: Date.parse('2026-01-15T09:00:00.000Z'),
+            lastSuccessfulReadingTimestamp: Date.parse('2026-01-14T09:00:00.000Z'),
             missedDuration: '24h',
             readingType: 'BLOOD_PRESSURE',
           },

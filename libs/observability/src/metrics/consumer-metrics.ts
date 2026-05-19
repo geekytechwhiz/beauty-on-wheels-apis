@@ -37,10 +37,32 @@ function safePublish(fn: (m: Metrics) => void): void {
   }
 }
 
+export type ConsumerMetricDimensions = {
+  transport?: string;
+  outcome?: string;
+};
+
+function addConsumerDimensions(
+  m: Metrics,
+  eventType?: string,
+  dimensions?: ConsumerMetricDimensions,
+): void {
+  addEventTypeDimension(m, eventType);
+  if (dimensions?.transport) {
+    m.addDimension('transport', dimensions.transport);
+  }
+  if (dimensions?.outcome) {
+    m.addDimension('outcome', dimensions.outcome);
+  }
+}
+
 /** Emitted when `EventConsumer` finishes with `processed`. */
-export function recordConsumerEventProcessed(eventType?: string): void {
+export function recordConsumerEventProcessed(
+  eventType?: string,
+  dimensions?: ConsumerMetricDimensions,
+): void {
   safePublish((m) => {
-    addEventTypeDimension(m, eventType);
+    addConsumerDimensions(m, eventType, dimensions);
     m.addMetric('TotalEventsProcessed', MetricUnit.Count, 1);
   });
 }
@@ -48,9 +70,12 @@ export function recordConsumerEventProcessed(eventType?: string): void {
 /**
  * Idempotent / duplicate key — not executed again.
  */
-export function recordConsumerDuplicateEvent(eventType?: string): void {
+export function recordConsumerDuplicateEvent(
+  eventType?: string,
+  dimensions?: ConsumerMetricDimensions,
+): void {
   safePublish((m) => {
-    addEventTypeDimension(m, eventType);
+    addConsumerDimensions(m, eventType, dimensions);
     m.addMetric('DuplicateEvents', MetricUnit.Count, 1);
   });
 }

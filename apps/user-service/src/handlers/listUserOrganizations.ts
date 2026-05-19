@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUserIdParam } from '../validation/request.validators';
@@ -14,6 +14,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return userService.listUserOrganizations(userId as string);
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUserIdParam,
-});
+export const main = withApiHandler({ operation: 'listUserOrganizations', validator: validateUserIdParam }, handler);

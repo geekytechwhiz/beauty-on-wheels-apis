@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 
@@ -13,4 +13,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return organizationService.getOrganizationCounts(correlationId);
 };
 
-export const main = withLambdaHandler(handler);
+export const main = withApiHandler({ operation: 'getOrganizationCount' }, handler);

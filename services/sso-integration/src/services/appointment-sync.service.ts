@@ -158,8 +158,8 @@ export class AppointmentSyncService extends BaseService {
       correlationId: context.correlationId,
       appointment: {
         externalId: String(appointment.appointmentId),
-        startTime: appointment.startTime,
-        endTime: appointment.endTime,
+        startTime: appointment.startTime ?? '',
+        endTime: appointment.endTime ?? '',
         status: String(appointment.status),
       },
       doctor: {
@@ -364,7 +364,7 @@ export class AppointmentSyncService extends BaseService {
     );
 
     await this.patientEventPublisher.publishPatientCreationEvent(
-      patientevent: any,
+        patientEvent,
       context.correlationId,
     );
 
@@ -506,8 +506,8 @@ export class AppointmentSyncService extends BaseService {
         externalAppointmentId: String(appointment.appointmentId),
         doctorExternalId: String(appointment.doctor.id),
         patientExternalId: String(appointment.patient.id),
-        startTime: appointment.startTime,
-        endTime: appointment.endTime,
+        startTime: appointment.startTime ?? '',
+        endTime: appointment.endTime ?? ''  ,
       })),
     };
 
@@ -1231,8 +1231,8 @@ export class AppointmentSyncService extends BaseService {
     const patientUserId = String(resolvedPatient.id);
 
     const scheduleFetchPayload: FetchSchedulesRequest = {
-      fromDate: new Date(appointment.startTime).getTime(),
-      toDate: new Date(appointment.endTime).getTime(),
+      fromDate: new Date(appointment.startTime ?? '').getTime(),
+      toDate: new Date(appointment.endTime ?? '').getTime(),
       organizationID: organizationId,
       doctorId: doctorUserId,
       userId: patientUserId,

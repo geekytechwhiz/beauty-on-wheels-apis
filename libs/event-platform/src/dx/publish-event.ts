@@ -4,14 +4,12 @@ import type { EventSchemaMeta, EventTransport } from '../core/schema/define-even
 import { getSchemaMeta } from '../core/schema/schema-meta';
 import type { PublishInput } from '../typings/publisher.types';
 import { getDxRuntimeOrThrow } from './context';
+import { publishWithPlan } from '../publishing/publish-orchestrator';
+import { resolvePublishPlan } from '../publishing/routing';
 
 export type PublishEventOverrides<Schema extends z.ZodTypeAny & { __meta: EventSchemaMeta }> =
   Omit<Partial<PublishInput<z.infer<Schema>>>, 'eventType' | 'source' | 'payload'>;
 
-/**
- * Publishes using the SDK {@link EventPublisher} configured via {@link configureEventDx}.
- * `eventType`, default `version`, and `source` come from `eventDef.__meta`.
- */
 export async function publishEvent<
   Schema extends z.ZodTypeAny & {
     __meta: EventSchemaMeta;
@@ -21,16 +19,17 @@ export async function publishEvent<
   payload: z.infer<Schema>,
   overrides?: PublishEventOverrides<Schema>,
 ): Promise<void> {
-
   const meta = getSchemaMeta(eventDef);
-
   const runtime = getDxRuntimeOrThrow();
+  const plan = resolvePublishPlan({
+    schemaTransport: meta.transport,
+    routing: runtime.routing,
+  });
 
-  const transport: EventTransport = 
-    runtime.publishers.eventbridge as unknown as EventTransport;
-
-  const publisher =
-    runtime.publishers[transport];
+  // `meta.transport` is the registry key ('eventbridge' | 'sns' | 'sqs').
+  // The value at runtime.publishers[transport] is the configured EventPublisher instance.
+  const transport: EventTransport = meta.transport;
+  const publisher = runtime.publishers[transport];
 
   if (!publisher) {
     throw new Error(
@@ -38,16 +37,20 @@ export async function publishEvent<
     );
   }
 
+  const { meta: overrideMeta, ...eventOverrides } = overrides ?? {};
+
   await publisher.publish(
     {
       eventType: meta.eventType,
       source: meta.source,
-      version:   meta.eventVersion,
-      payload,
+      version: meta.eventVersion,
+      ...eventOverrides,
+      payload, 
       meta: {
         ...meta,
-        ...overrides,
+        ...overrideMeta,
       },
+      ...overrides,
     },
   );
 }

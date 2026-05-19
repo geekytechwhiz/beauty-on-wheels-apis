@@ -1,6 +1,6 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
-import { DeviceUserEntry, Device } from '../models';
+import { DeviceUserEntry } from '../models';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceNotFoundError } from '../utils/errors';
 import * as crypto from 'crypto';
@@ -26,9 +26,9 @@ export class DeviceRepository {
   /**
    * Normalize deviceId for use in keys (uppercase, replace spaces with underscores)
    */
-  private normalizeDeviceId(deviceId: string): string {
-    return deviceId.toUpperCase().split(' ').join('_');
-  }
+  // private normalizeDeviceId(deviceId: string): string {
+  //   return deviceId.toUpperCase().split(' ').join('_');
+  // }
 
   /**
    * Create a user-device entry

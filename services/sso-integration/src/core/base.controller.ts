@@ -5,7 +5,7 @@ import {
   Logger,
   serializeError
 } from '@api-hub/observability'
-import { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda'
+import { APIGatewayProxyResult, APIGatewayProxyEvent } from 'aws-lambda'
 
 import { ApiResponse } from '@api-hub/utils'
 
@@ -25,9 +25,9 @@ export abstract class BaseController {
   protected readonly logger = baseLogger
 
   protected async execute(
-    event: APIGatewayProxyevent: any,
+    event: APIGatewayProxyEvent,
     handler: (
-      event: APIGatewayProxyevent: any,
+      event: APIGatewayProxyEvent,
       context: SSORequestContext,
       logger: Logger
     ) => Promise<any>
@@ -40,13 +40,13 @@ export abstract class BaseController {
     })
     const env = getEnvConfig()
     await getExternalTenantsByProvider(env.PROVIDER)
-    const context = buildSSORequestContext(event: any, correlationId) 
+    const context = buildSSORequestContext(event, correlationId) 
 
     const startTime = Date.now()
 
     try {
 
-      const result = await handler(event: any, context, requestLogger)
+      const result = await handler(event, context, requestLogger)
 
       const duration = Date.now() - startTime
 
@@ -63,7 +63,7 @@ export abstract class BaseController {
           severity: 'INFO'
         },
         {
-          requestId: correlationId
+          correlationId: correlationId
         }
       )
 

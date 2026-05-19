@@ -204,15 +204,14 @@ export class V2UserListRepository {
     };
 
     try {
-      let allItems: Record<string, unknown>[] = [];
-      let lastKey: Record<string, unknown> | undefined;
+      let allItems: Record<string, unknown>[] = []; 
 
       const result = await sendDoc<QueryCommandOutput>(
         docClient,
         new QueryCommand(queryParams),
       );
       allItems = (result.Items ?? []) as Record<string, unknown>[];
-      lastKey = result.LastEvaluatedKey;
+      const lastKey = result.LastEvaluatedKey;
 
       if (filters?.search) {
         allItems = applySearchFilter(allItems, filters.search);

@@ -1,4 +1,4 @@
-import { EventTransport } from '../core/schema/define-event';
+import type { EventTransport } from '../core/schema/define-event';
 
 import { EventConsumer } from '../sdk/consumer/event-consumer';
 import { EventPublisher } from '../sdk/publisher/event-publisher';
@@ -16,11 +16,6 @@ import type {
 import { setDxRuntime } from './context';
 
 export type ConfigureEventPlatformOptions = {
-  
-  serviceName: string;
- 
-  transport: EventTransport;
- 
   publishers: Partial<
     Record<EventTransport, EventPublishAdapter>
   >;
@@ -31,10 +26,7 @@ export type ConfigureEventPlatformOptions = {
  
   publisherOptions?: Omit<
     EventPublisherDeps,
-    | 'adapter'
-    | 'payloadSchemas'
-    | 'serviceName'
-    | 'logger'
+    'adapter' | 'payloadSchemas' | 'logger'
   > & {
     logger?: EventPublisherDeps['logger'];
   };
@@ -96,9 +88,6 @@ export function configureEventPlatform(
               EventPublisherDeps['payloadSchemas']
             >,
 
-          serviceName:
-            options.serviceName,
-
           ...options.publisherOptions,
         });
 
@@ -123,7 +112,6 @@ export function configureEventPlatform(
 
   setDxRuntime({
     publishers,
-
     consumer,
   });
 }

@@ -21,8 +21,8 @@ import {
 
 export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event: any, context);
-  const logger = createHandlerLogger(event: any, context);
+  const requestId = getRequestId(event, context);
+  const logger = createHandlerLogger(event, context);
   logger.info({ event: 'getPartnerLocation_received' });
 
   const partnerId = event.queryStringParameters?.partnerId;
@@ -31,7 +31,7 @@ export const main: any = async (event: any, context?: Context) => {
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId query parameter is required' }] }
     );
   }
@@ -39,7 +39,7 @@ export const main: any = async (event: any, context?: Context) => {
   if (!eloc) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'eloc query parameter is required' }] }
     );
   }
@@ -50,7 +50,7 @@ export const main: any = async (event: any, context?: Context) => {
     const result = await integrationService.getPartnerLocation(partnerId, eloc);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.LOCATION_RETRIEVED', responseOpts(event: any, requestId));
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.LOCATION_RETRIEVED', { correlationId: requestId, event });
   } catch (err) {
     logger.error({ event: 'getPartnerLocation_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
@@ -59,7 +59,7 @@ export const main: any = async (event: any, context?: Context) => {
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
-        responseOpts(event: any, requestId),
+        { correlationId: requestId, event },
         { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
       );
     }
@@ -68,7 +68,7 @@ export const main: any = async (event: any, context?: Context) => {
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
-        responseOpts(event: any, requestId),
+        { correlationId: requestId, event },
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
@@ -77,28 +77,28 @@ export const main: any = async (event: any, context?: Context) => {
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
-        responseOpts(event: any, requestId),
+        { correlationId: requestId, event },
         { code: 'INVALID_PARTNER_RESPONSE', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerAuthenticationError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.AUTH_FAILED',
-        responseOpts(event: any, requestId),
+        { correlationId: requestId, event },
         { code: 'AUTH_FAILED', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerNotFoundError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.NOT_FOUND',
-        responseOpts(event: any, requestId),
+        { correlationId: requestId, event },
         { code: 'NOT_FOUND', details: [{ message: err.message }] }
       );
     }
     if (err instanceof Error && err.message?.includes('not supported')) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_OPERATION',
-        responseOpts(event: any, requestId),
+        { correlationId: requestId, event },
         { code: 'UNSUPPORTED_OPERATION', details: [{ message: err.message }] }
       );
     }
@@ -106,7 +106,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/locations', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

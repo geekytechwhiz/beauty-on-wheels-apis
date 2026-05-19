@@ -66,4 +66,4 @@ export {
 
 export { logHttpRequest } from './http/log-http-request';
 
-export { createPerformanceTimer } from './http/performance-timer';
+export { logEventOperation, type EventOperationLogFields } from './logging/event-operation';

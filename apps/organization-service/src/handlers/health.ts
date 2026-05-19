@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
 import { setupScript } from '../utils/mitadata/setup-script/script';
@@ -23,4 +23,4 @@ const handler = async (_req: LambdaRequest<Params>) => {
   return { status: 'ok', service: 'organization-service' };
 };
 
-export const main = withLambdaHandler(handler);
+export const main = withApiHandler({ operation: 'health' }, handler);

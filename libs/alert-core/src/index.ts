@@ -41,4 +41,11 @@ export { createAlertPayloadFromHttpBody } from './lib/models/api/create-alert.ty
 export type { WorkflowInput, WorkflowResult } from './lib/models/api/alert-workflow.types';
 export type { AssignmentAction, AssignmentInput, AssignmentResult } from './lib/models/api/alert-assignment.types';
 export type { PriorityInput, PriorityResult } from './lib/models/api/alert-priority.types';
+export type { AlertPublishIntent } from './lib/models/events/alert-publish-intent';
+export {
+  buildCreatePublishIntents,
+  buildPriorityChangedIntent,
+  buildPublishIntentsFromActivityItems,
+  buildPublishIntentsFromWorkflowUpdate,
+} from './lib/events/build-alert-publish-intents';
 export { assertWorkflowClosureComment, workflowActionToUpdatePatch, type WorkflowPatchContext } from './lib/service/alert-workflow';

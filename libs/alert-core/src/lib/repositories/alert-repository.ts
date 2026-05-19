@@ -209,11 +209,11 @@ export class AlertRepository extends BaseRepository {
     const table = assertAlertTable();
 
     const alertId = randomUUID();
-    const idempotencyKey = input.inputEventId ?? randomUUID();
+    const idempotencyKey = input.inputEventId;
 
     const ctx = AlertEntityBuilder.buildCreateContext({
       alertId,
-      input: { ...input, inputEventId: idempotencyKey },
+      input,
     });
 
     const alertPut = AlertEntityBuilder.buildAlertRecord(ctx);

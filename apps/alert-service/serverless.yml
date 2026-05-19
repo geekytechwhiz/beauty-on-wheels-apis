@@ -6,7 +6,6 @@ configValidationMode: warn
 frameworkVersion: '3.x'
 
 plugins:
-  - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
@@ -67,6 +66,13 @@ provider:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}/index/*
 
+    # Outbound domain events (EventBridgeAdapter → PutEvents on this stack's bus)
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource:
+        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:custom.eventBusName}
+
     # X-Ray
     - Effect: Allow
       Action:
@@ -99,10 +105,21 @@ custom:
 
   alertDynamoTableName: alert-service-${self:provider.stage}
 
-  # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here
-  # (monitoring-service, device-monitoring, device-workflow, symptom-engine, engagement-service);
-  # consumers below subscribe per source + detail-type. Bus name + ARN are exported for cross-stack ImportValue.
+  # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here;
+  # bus name + ARN are exported for cross-stack ImportValue.
   eventBusName: alert-service-bus-${self:provider.stage}
+
+  # Generic create-alert ingest: one envelope detail-type (`CreateAlert.v1`); payload carries
+  # `inputType` + `sourceType`. Extend EventBridge sources as new producers are onboarded.
+  alertCreateIngest:
+    eventBridgeDetailType: CreateAlert.v1
+    sources:
+      - alert-service
+      - monitoring-service
+      - device-monitoring
+      - device-workflow
+      - symptom-engine
+      - engagement-service
 
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
   sourcemapsByStage:
@@ -158,10 +175,6 @@ custom:
     stg: info
     prd: warn
 
-  # serverless-plugin-warmup: declare default warmer (attach per-function `warmup` when needed)
-  warmup:
-    default: {}
-
   dotenv:
     logging: false
 
@@ -189,6 +202,15 @@ functions:
       - http:
           path: /health
           method: get
+          cors: true
+
+  # Postman → publish CreateAlert.v1 to alert bus (dev manual test; no authorizer).
+  testPublishCreateAlertIngest:
+    handler: src/handlers/http/testPublishCreateAlertIngest.main
+    events:
+      - http:
+          path: dev/events/ingest/create-alert
+          method: post
           cors: true
 
   createAlert:
@@ -450,13 +472,26 @@ functions:
             "500": Server error
 
   # ──────────────────────────────────────────────────────────────────────────────
-  # EventBridge consumers — alert ingest triggers
-  #
-  # Threshold breach is enabled; the remaining consumers stay commented until
-  # their entrypoints are added.
+  # EventBridge consumers — generic alert create ingest (CreateAlert.v1 envelope).
+  # Trigger kind is in payload.inputType (e.g. THRESHOLD_BREACH, MISSED_READING).
   # ──────────────────────────────────────────────────────────────────────────────
-  onThresholdBreach:
-    handler: src/handlers/eventbridge/onThresholdBreach.main
+  onCreateAlert:
+    # No hyphens/extra dots in filename — Lambda parses handler as file.export (see createAlert.main).
+    handler: src/handlers/events/consumer/event-bridge/createAlertConsumer.main
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - AlertServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.alertCreateIngest.sources}
+            detail-type:
+              - ${self:custom.alertCreateIngest.eventBridgeDetailType}
+
+  # Logs outbound events from alert-service (e.g. Alert.Created.v1 after ingest).
+  testEchoOutboundEvents:
+    handler: src/handlers/events/testEchoOutboundEvents.main
     events:
       - eventBridge:
           eventBus:
@@ -465,28 +500,18 @@ functions:
               - Arn
           pattern:
             source:
-              - monitoring-service
+              - alert-service
             detail-type:
-              - Threshold.Breach.v1
-  #
-  # onMissedReading:
-  #   handler: src/handlers/eventbridge/onMissedReading.main
-  #   timeout: 30
-  #   memorySize: 256
-  #   events:
-  #     - eventBridge:
-  #         eventBus:
-  #           Fn::GetAtt:
-  #             - AlertServiceBus
-  #             - Arn
-  #         pattern:
-  #           source:
-  #             - device-monitoring
-  #           detail-type:
-  #             - MISSED_READING
+              - Alert.Created.v1
+              - Alert.AssignmentChanged.v1
+              - Alert.StateChanged.v1
+              - Alert.Resolved.v1
+              - Alert.Dismissed.v1
+              - Alert.PriorityChanged.v1
+              - Alert.NoteAdded.v1
   #
   # onMissingDevice:
-  #   handler: src/handlers/eventbridge/onMissingDevice.main
+  #   handler: src/handlers/events/consumer/event-bridge/missing-device.consumer.main
   #   timeout: 30
   #   memorySize: 256
   #   events:
@@ -502,7 +527,7 @@ functions:
   #             - MISSING_DEVICE
   #
   # onSymptomRiskTrigger:
-  #   handler: src/handlers/eventbridge/onSymptomRiskTrigger.main
+  #   handler: src/handlers/events/consumer/event-bridge/symptom-risk-trigger.consumer.main
   #   timeout: 30
   #   memorySize: 256
   #   events:
@@ -518,7 +543,7 @@ functions:
   #             - SYMPTOM_RISK_TRIGGER
   #
   # onEngagementTrigger:
-  #   handler: src/handlers/eventbridge/onEngagementTrigger.main
+  #   handler: src/handlers/events/consumer/event-bridge/engagement-trigger.consumer.main
   #   timeout: 30
   #   memorySize: 256
   #   events:
@@ -548,8 +573,26 @@ resources:
           - Key: ManagedBy
             Value: serverless
 
-    # Explicit Lambda → EventBridge invoke permissions (mirrors apps/user-service/serverless.yml).
-    # Rule names follow Serverless Framework convention: <service>-<stage>-<funcName>-rule-1
+    # Explicit Lambda ← EventBridge permissions (required when using a custom bus name).
+    # Rule names: <service>-<stage>-<functionName>-rule-1
+    OnCreateAlertInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt OnCreateAlertLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onCreateAlert-rule-1
+
+    TestEchoOutboundEventsInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt TestEchoOutboundEventsLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-testEchoOutboundEvents-rule-1
+
     # OnThresholdBreachInvokePermission:
     #   Type: AWS::Lambda::Permission
     #   Properties:

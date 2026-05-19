@@ -1,7 +1,7 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { Context } from 'aws-lambda';
 import { DeviceSearchService } from '../services/device-searchService';
 import { deviceSearchSchema } from '../validation/device.validation';
 
@@ -116,4 +116,4 @@ const deviceSearchImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.search', deviceSearchImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.search' }, deviceSearchImpl);

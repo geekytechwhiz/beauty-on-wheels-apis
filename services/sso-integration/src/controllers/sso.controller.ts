@@ -4,6 +4,8 @@ import { BaseController } from '../core/base.controller'
 import { getLaunchService } from '../services/launch.service'
 import { extractLaunchParams } from '../validators/sso.validator'
 import { mapLaunchResponse } from '../mappers/launch-response.mapper'
+import { SSORequestContext } from '../types/common/context.types'
+import { Logger } from '@api-hub/logger'
 
 export class SSOController extends BaseController {
 
@@ -11,7 +13,7 @@ export class SSOController extends BaseController {
 
   async handleLaunch(event: APIGatewayProxyEvent) {
 
-    return super.execute(event: any, async (event: any, context, logger) => {
+    return super.execute(event, async (event: APIGatewayProxyEvent, context: SSORequestContext, logger: Logger) => {
 
       logger.info({
         event: 'sso_launch_request',
@@ -20,8 +22,7 @@ export class SSOController extends BaseController {
       })
 
       const { token } = extractLaunchParams(
-        event: any,
-        context.correlationId
+        event
       )
 
       const result = await this.launchService.processLaunch(

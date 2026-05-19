@@ -1,21 +1,20 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
-import { setCapabilitySchema } from '../validation/capability.schema';
+import type { Context } from 'aws-lambda';
 import { PartnerNotFoundError } from '../utils/errors';
 import {
-  getRequestId,
-  responseOpts,
   createHandlerLogger,
-  parseJsonBody,
   getPartnerService,
+  getRequestId,
+  parseJsonBody
 } from '../utils/handlerHelpers';
+import { setCapabilitySchema } from '../validation/capability.schema';
 
 export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event: any, context);
+  const requestId = getRequestId(event, context);
   const partnerId = event.pathParameters?.id;
-  const logger = createHandlerLogger(event: any, context, { partnerId });
+  const logger = createHandlerLogger(event, context, { partnerId });
   logger.info({ event: 'setPartnerCapability_received', partnerId });
 
   if (!partnerId) {
@@ -24,7 +23,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Missing partner id in path' }] }
     );
   }
@@ -36,7 +35,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -48,7 +47,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 422, duration, requestId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -63,7 +62,7 @@ export const main: any = async (event: any, context?: Context) => {
     const capability = await getPartnerService().setCapability(partnerId, validation.data);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 200, duration, requestId);
-    return ApiResponse.ok(capability, 'PARTNER.CAPABILITY_SET_SUCCESS', responseOpts(event: any, requestId));
+    return ApiResponse.ok(capability, 'PARTNER.CAPABILITY_SET_SUCCESS', { correlationId: requestId, event });
   } catch (err) {
     if (err instanceof PartnerNotFoundError) {
       logger.warn({ event: 'setPartnerCapability_partner_not_found', err: serializeError(err) });
@@ -71,7 +70,7 @@ export const main: any = async (event: any, context?: Context) => {
       logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 404, duration, requestId);
       return ApiResponse.notFound(
         'PARTNER.PARTNER_NOT_FOUND',
-        responseOpts(event: any, requestId),
+        { correlationId: requestId, event },
         { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
       );
     }
@@ -80,7 +79,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/partner/capability', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

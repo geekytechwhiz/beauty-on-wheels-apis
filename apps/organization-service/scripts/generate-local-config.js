@@ -683,7 +683,7 @@ function injectLocalAuthorizers(offlineDoc) {
 
 async function main() {
   const t0 = Date.now();
-  console.log(`> generate-local-config (stage=${STAGE}, region=${REGION})`);
+     
 
   if (!fs.existsSync(SLS_PATH)) {
     console.error(`  x serverless.yml not found at ${SLS_PATH}`);
@@ -723,9 +723,7 @@ async function main() {
     secretNames.forEach((s) => allSecrets.add(s));
   }
 
-  console.log(
-    `  · ${envDecls.length} env declarations, ${allSsm.size} unique SSM, ${allSecrets.size} unique secrets`
-  );
+ 
 
   // 3. Fetch values from AWS (batched).
   const [ssmValues, secretValues] = await Promise.all([
@@ -877,10 +875,7 @@ async function main() {
   // 6. Make sure the generated artefacts stay out of git.
   ensureGitignore();
 
-  console.log(
-    `  ✓ wrote .env.local (${resolvedEnv.size} keys), .env mirror, serverless.offline.yml`
-  );
-  console.log(`  ✓ done in ${Date.now() - t0}ms`);
+   
 }
 
 main().catch((err) => {

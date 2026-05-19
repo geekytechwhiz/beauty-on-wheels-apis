@@ -26,7 +26,11 @@ export function onEvent<Schema extends z.ZodTypeAny & { __meta: EventSchemaMeta 
   return (rawEvent: unknown, handleOptions?: HandleOptions) =>
     consumer?.handle(
       rawEvent,
-      async (baseEvent) => handler(baseEvent as unknown as OnEventHandlerArg<Schema>),
+      async (baseEvent) =>
+        handler({
+          ...(baseEvent.payload as object),
+          meta: baseEvent.meta,
+        } as OnEventHandlerArg<Schema>),
       handleOptions,
     ) as Promise<HandleResult>;
 }

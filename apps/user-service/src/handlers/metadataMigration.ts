@@ -64,8 +64,8 @@ export async function metadataMigration(event: APIGatewayProxyEvent, context?: C
         dryRun,
         duration: `${duration}ms`,
       },
-      'METADATA.MIGRATION_COMPLETED',
-      { requestId: correlationId, event },
+      { title: 'Metadata migration completed successfully', description: 'The metadata migration completed successfully.', severity: 'SUCCESS' },
+      { correlationId: correlationId, event },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -74,11 +74,8 @@ export async function metadataMigration(event: APIGatewayProxyEvent, context?: C
 
     return ApiResponse.internalServerError(
       'METADATA.MIGRATION_FAILED',
-      { requestId: correlationId, event },
-      {
-        code: 'MIGRATION_FAILED',
-        details: [{ message: (err as Error).message }],
-      },
+      
+      { correlationId: correlationId, event },
     );
   }
 }

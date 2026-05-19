@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { DomainIdempotencyStrategy } from '../core/idempotency/domain-idempotency.strategy';
-import { configureEventDx } from './configure-event-dx';
+import { configureEventPlatform } from './configure-event-pladtform';
 import { defineEvent } from './define-event';
 import { onEvent } from './on-event';
 import { publishEvent } from './publish-event';
@@ -24,9 +24,10 @@ describe('@api-hub/event-platform/dx', () => {
         source: 'orders-svc',
       });
 
-      configureEventDx({
+      configureEventPlatform({
         serviceName: 'test',
-        publishAdapter: { publish },
+        transport: 'eventbridge',
+        publishers: { eventbridge: { publish } },
         consumer: baseConsumerOptions(),
       });
 
@@ -48,13 +49,14 @@ describe('@api-hub/event-platform/dx', () => {
         source: 's',
       });
 
-      configureEventDx({
+      configureEventPlatform({
         serviceName: 'test',
-        publishAdapter: { publish },
+        transport: 'eventbridge',
+        publishers: { eventbridge: { publish } },
         consumer: baseConsumerOptions(),
       });
 
-      await publishEvent(schema, { x: 1 }, { version: '2.0.0', correlationId: 'cc' });
+      await publishEvent(schema, { x: 1 }, { version: '2.0.0', meta: { correlationId: 'cc' } });
 
       expect(publish).toHaveBeenCalledTimes(1);
       const envelope = publish.mock.calls[0][0];
@@ -71,9 +73,12 @@ describe('@api-hub/event-platform/dx', () => {
         source: 'orders-svc',
       });
 
-      configureEventDx({
+        configureEventPlatform({
         serviceName: 'test',
-        publishAdapter: { publish: jest.fn() },
+        transport: 'eventbridge',
+        publishers: {
+          eventbridge: { publish: jest.fn() },
+        },
         payloadSchemas: {
           'Order.Created': { '1.0.0': schema },
         },

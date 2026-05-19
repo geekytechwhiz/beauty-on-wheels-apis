@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -6,7 +7,7 @@ import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const globalDeviceRepository = new GlobalDeviceRepository();
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceGetImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -42,3 +43,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.internalServerError('DEVICE.RETRIEVAL_FAILED', { requestId: correlationId, event }, { code: 'RETRIEVAL_FAILED' });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.get', deviceGetImpl, { serviceName: 'device-service' });

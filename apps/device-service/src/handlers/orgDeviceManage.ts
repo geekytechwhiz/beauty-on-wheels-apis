@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -8,7 +9,7 @@ import { InvalidOrganizationError, DeviceNotFoundError } from '../utils/errors';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const orgDeviceService = new OrgDeviceService();
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const orgDeviceManageImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -120,3 +121,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.internalServerError('DEVICE.ORG_DEVICE_MANAGE_FAILED', { requestId: correlationId, event }, { code: 'ORG_DEVICE_MANAGE_FAILED' });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.orgManage', orgDeviceManageImpl, { serviceName: 'device-service' });

@@ -1,0 +1,143 @@
+flowchart LR
+
+%% =====================================================
+%% PRODUCERS
+%% =====================================================
+
+subgraph PRODUCERS["Event Producers"]
+
+TMP[Template Service]
+
+META[Metadata Registry]
+
+PKG[Package Service]
+
+end
+
+%% =====================================================
+%% EVENT BUS
+%% =====================================================
+
+subgraph BUS["Amazon EventBridge"]
+
+EB[Central Event Bus]
+
+end
+
+TMP --> EB
+META --> EB
+PKG --> EB
+
+%% =====================================================
+%% TEMPLATE EVENTS
+%% =====================================================
+
+subgraph TEMPLATEEVENTS["Template Events"]
+
+E1[TemplateCreated]
+
+E2[TemplatePublished]
+
+E3[OrgTemplateDerived]
+
+E4[OrgTemplatePublished]
+
+E5[UpgradeDraftCreated]
+
+E6[MetadataAllocated]
+
+E7[TemplateLinked]
+
+end
+
+EB --> TEMPLATEEVENTS
+
+%% =====================================================
+%% METADATA EVENTS
+%% =====================================================
+
+subgraph METAEVENTS["Metadata Events"]
+
+M1[MetadataValueCreated]
+
+M2[MetadataValueUpdated]
+
+M3[MetadataValueDeleted]
+
+M4[MetadataPublished]
+
+end
+
+EB --> METAEVENTS
+
+%% =====================================================
+%% PACKAGE EVENTS
+%% =====================================================
+
+subgraph PACKAGEEVENTS["Package Events"]
+
+P1[PackageCreated]
+
+P2[CarePlanLinked]
+
+P3[PackageAssigned]
+
+end
+
+EB --> PACKAGEEVENTS
+
+%% =====================================================
+%% RUNTIME CONSUMERS
+%% =====================================================
+
+subgraph CONSUMERS["Runtime Consumers"]
+
+RT1[Care Plan Runtime]
+
+RT2[Task Runtime]
+
+RT3[Alert Runtime]
+
+RT4[Search Indexer]
+
+RT5[Analytics]
+
+RT6[Notification Service]
+
+RT7[Audit Service]
+
+end
+
+EB --> RT1
+EB --> RT2
+EB --> RT3
+EB --> RT4
+EB --> RT5
+EB --> RT6
+EB --> RT7
+
+%% =====================================================
+%% EVENT FLOW
+%% =====================================================
+
+P3 -->|LinkedOrgCarePlanVersionID| RT1
+
+RT1 --> RT2
+RT1 --> RT3
+
+%% =====================================================
+%% EVENT RULES
+%% =====================================================
+
+R1["Events notify availability, NOT forced adoption"]
+
+R2["Runtime uses immutable published versions"]
+
+R3["Metadata changes do NOT auto-update org templates"]
+
+R4["Existing patient instances remain version-safe"]
+
+EB --> R1
+EB --> R2
+EB --> R3
+EB --> R4

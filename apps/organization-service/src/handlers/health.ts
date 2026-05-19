@@ -1,4 +1,5 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
 import { setupScript } from '../utils/mitadata/setup-script/script';
 

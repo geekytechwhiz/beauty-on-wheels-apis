@@ -1,4 +1,5 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateGetOrganizationUserCount } from '../validation/request.validators';
 
@@ -9,7 +10,7 @@ interface Params {
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId!;
+  const organizationId = req.params.organizationId ?? req.context.userContext?.organizationId ?? '';
   const { correlationId } = req.context;
   return userService.getOrganizationUserCounts(
     organizationId,

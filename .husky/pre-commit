@@ -1,0 +1,19 @@
+#!/bin/sh
+
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  . "$HOME/.nvm/nvm.sh"
+  nvm use >/dev/null 2>&1
+fi
+
+echo "Running lint-staged..."
+
+npx lint-staged
+
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  echo "❌ Lint failed. Commit blocked."
+  exit 1
+fi
+
+echo "✅ Pre-commit checks passed."

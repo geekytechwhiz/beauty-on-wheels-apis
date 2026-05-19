@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -33,7 +34,7 @@ const deviceAssignSchema = z.object({
   supportedVitals: z.array(z.string()).optional(),
 });
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceOrgAssignImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const awsRequestId = context ? extractAwsRequestId(context) : 'local';
   const correlationId = extractCorrelationId(event.headers);
@@ -309,3 +310,5 @@ async function assignDevicesToOrganization(
     { requestId: correlationId, event },
   );
 }
+
+export const handler = withStandardApiGatewayPipeline('device.orgAssign', deviceOrgAssignImpl, { serviceName: 'device-service' });

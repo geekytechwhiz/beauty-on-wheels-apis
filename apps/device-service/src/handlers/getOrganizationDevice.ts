@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import {
   createLogger,
@@ -13,7 +14,7 @@ import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const orgDeviceRepository = new OrgDeviceRepository();
 
-export const handler: APIGatewayProxyHandler = async (
+const getOrganizationDeviceImpl: APIGatewayProxyHandler = async (
   event,
   context?: Context,
 ) => {
@@ -90,3 +91,5 @@ export const handler: APIGatewayProxyHandler = async (
     );
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.getOrganization', getOrganizationDeviceImpl, { serviceName: 'device-service' });

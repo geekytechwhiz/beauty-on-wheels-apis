@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -31,7 +32,7 @@ const deviceRemoveSchema = z.object({
   supportedVitals: z.array(z.string()).optional(),
 });
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceOrgRemoveImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const awsRequestId = context ? extractAwsRequestId(context) : 'local';
   const correlationId = extractCorrelationId(event.headers);
@@ -307,3 +308,5 @@ async function removeDevicesFromOrganization(
     { requestId: correlationId, event },
   );
 }
+
+export const handler = withStandardApiGatewayPipeline('device.orgRemove', deviceOrgRemoveImpl, { serviceName: 'device-service' });

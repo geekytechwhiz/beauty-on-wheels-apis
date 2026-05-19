@@ -1,8 +1,14 @@
-import { withLambdaHandler } from '@api-hub/utils';
+import { withApiHandler } from '@api-hub/middleware';
 import { patchRelationSchema } from '../schemas/patchRelation.schema';
 import { inactivateRelationById } from '../services/relationService';
 
-export const main = withLambdaHandler(async (req) => {
+export const main =   withApiHandler(
+  {
+    operation: 'patchRelation',
+  },
+  async (req) => {
+  
+
   const input = patchRelationSchema.parse(req);
   return inactivateRelationById(input.pk, input.sk, input.userId);
 });

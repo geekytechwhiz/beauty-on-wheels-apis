@@ -11,7 +11,7 @@ export class EventBridgeAdapter {
     private readonly config: EventBridgeAdapterConfig,
     client?: EventBridgeClient,
   ) {
-    this.client = client ?? new EventBridgeClient({ region: config.region });
+    this.client = client ?? new EventBridgeClient({ region: process.env.AWS_REGION! });
   }
 
   getConfig(): Readonly<EventBridgeAdapterConfig> {

@@ -1,11 +1,11 @@
-import { SNSEvent, Context } from 'aws-lambda';
 import { createLogger, serializeError } from '@api-hub/logger';
-import { sendEmail, sendSms, sendPush } from '../services/notification.delivery';
+import { Context, SNSEvent } from 'aws-lambda';
 import type {
-  RecommendationNotificationRequestedData,
   PaymentStatusNotificationRequestedData,
+  RecommendationNotificationRequestedData,
 } from '../events/event.types';
 import { UserRepository } from '../repositories/user.repository';
+import { sendEmail, sendPush, sendSms } from '../services/notification.delivery';
 import { NotificationPayload } from '../types/api-types';
 
 const logger = createLogger({ service: 'notification-consumer', redactPII: true });
@@ -111,11 +111,17 @@ export const handler = async (event: SNSEvent, _context: Context) => {
   for (const record of event.Records || []) {
     try {
       if (!record.Sns || !record.Sns.Message) continue;
-      const envelope = JSON.parse(record.Sns.Message) as { eventType?: string; data?: NotificationPayload & Record<string, unknown> };
-      if (!envelope?.eventType || !envelope.data) continue;
+      const envelope = JSON.parse(record.Sns.Message) as {
+        eventType?: string;
+        payload?: NotificationPayload & Record<string, unknown>;
+        data?: NotificationPayload & Record<string, unknown>;
+      };
+      const data = (envelope.payload ?? envelope.data) as
+        | (NotificationPayload & Record<string, unknown>)
+        | undefined;
+      if (!envelope?.eventType || !data) continue;
 
       const eventType = envelope.eventType;
-      const data = envelope.data as NotificationPayload & Record<string, unknown>;
 
       let payload: NotificationPayload;
       if (eventType === 'UserCreatedNotificationRequested') {

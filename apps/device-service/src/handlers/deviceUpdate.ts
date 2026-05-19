@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -7,7 +8,7 @@ import { DeviceNotFoundError } from '../utils/errors';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const globalDeviceRepository = new GlobalDeviceRepository();
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceUpdateImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -74,3 +75,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.internalServerError('DEVICE.UPDATE_FAILED', { requestId: correlationId, event }, { code: 'UPDATE_FAILED' });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.update', deviceUpdateImpl, { serviceName: 'device-service' });

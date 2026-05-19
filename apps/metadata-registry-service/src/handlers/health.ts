@@ -1,3 +1,4 @@
+import { withLambdaHandler } from '@api-hub/middleware';
 import { withLambdaHandler } from '@api-hub/utils';
 import { healthRequestSchema } from '../schemas/health.schema';
 

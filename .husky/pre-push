@@ -1,0 +1,24 @@
+#!/bin/sh
+
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  . "$HOME/.nvm/nvm.sh"
+  nvm use >/dev/null 2>&1
+fi
+
+echo "Running affected lint..."
+
+pnpm run lint:affected
+
+if [ $? -ne 0 ]; then
+  echo "❌ Lint failed"
+  exit 1
+fi
+
+echo "Running affected tests..."
+
+NX_DAEMON=true pnpm run test:affected
+
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed"
+  exit 1
+fi

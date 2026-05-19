@@ -3,6 +3,9 @@
   "sync": {
     "applyChanges": true
   },
+  "affected": {
+    "defaultBase": "origin/dev"
+  },
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [

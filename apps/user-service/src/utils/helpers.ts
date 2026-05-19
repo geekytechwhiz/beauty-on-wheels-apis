@@ -179,6 +179,7 @@ export function mapPatientResponse(users: any[]): PatientResponse[] {
       gender: user.gender || '',
       medicalHistory: user.medicalHistory ?? null,
       dateOfBirth: user.dateOfBirth ?? null,
+      age: user.age ?? null,
     };
   });
 }

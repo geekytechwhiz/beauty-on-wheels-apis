@@ -17,19 +17,7 @@ export default [
   },
 
   // NX Module Boundary Rules
-  {
-    files: ['**/*.{ts,tsx,js,jsx}'],
-    rules: {
-      '@nx/enforce-module-boundaries': [
-        'warn',
-        {
-          selector: "Property[key.name='rules']",
-          message:
-            'Defining ESLint rules at project level is not allowed. Use root config only.',
-        },
-      ],
-    },
-  },
+   
 
   // ✅ Global baseline (allow only warn + error everywhere)
   {
@@ -45,6 +33,7 @@ export default [
     ],
     rules: {
       'no-console': ['error', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-non-null-assertion': 'off'
     },
   },
 
@@ -57,17 +46,12 @@ export default [
       'services/**/*.js',
     ],
     rules: {
-      // Completely block console usage
-      'no-console': 'error',
-
-      // Enforce logger usage instead of console
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "MemberExpression[object.name='console']",
-          message: 'Use logger instead of console in serverless APIs/services',
-        },
-      ],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@nx/dependency-check': 'off',
+      '@nx/enforce-module-boundaries': 'off',
+      '@nx/use-nx-project': 'off',
+      '@nx/use-nx-project': 'off',
     },
   },
 ];

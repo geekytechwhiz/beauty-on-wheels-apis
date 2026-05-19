@@ -1,5 +1,6 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
-import { UserService } from '../services/user.service'; 
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
+import { UserService } from '../services/user.service';
 
 const userService = new UserService();
 

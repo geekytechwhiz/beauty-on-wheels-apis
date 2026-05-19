@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -7,7 +8,7 @@ import { deviceRecommendationAddSchema } from '../validation/device.validation';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const recommendationService = new RecommendationService();
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRecommendationAddImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -95,3 +96,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.internalServerError('DEVICE.RECOMMENDATION_ADD_FAILED', { requestId: correlationId, event }, { code: 'RECOMMENDATION_ADD_FAILED' });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.recommendationAdd', deviceRecommendationAddImpl, { serviceName: 'device-service' });

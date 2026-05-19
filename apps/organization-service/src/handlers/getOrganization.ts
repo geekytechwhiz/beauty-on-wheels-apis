@@ -1,4 +1,5 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { SecretManagerService } from '@api-hub/service-clients';
 import { OrganizationService } from '../services/organization.service';
 import { UserRepository } from '../repositories/user.repository';

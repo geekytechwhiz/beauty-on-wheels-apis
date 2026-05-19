@@ -3,8 +3,7 @@
  */
 export type EventBridgeAdapterConfig = {
   /** Custom event bus name (PutEvents `EventBusName`). */
-  eventBusName: string;
-  region: string;
+  eventBusName: string; 
   /** PutEvents `Source`. */
   source: string;
   /** PutEvents `DetailType`; if omitted, `event.eventType` is used. */

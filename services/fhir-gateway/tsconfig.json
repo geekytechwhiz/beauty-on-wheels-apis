@@ -17,16 +17,13 @@
       "path": "../../libs/scope-mapping"
     },
     {
-      "path": "../../libs/fhir"
-    },
-    {
-      "path": "../../libs/canonical"
-    },
-    {
       "path": "../../libs/consent"
     },
     {
       "path": "../../libs/capability"
+    },
+    {
+      "path": "../../libs/canonical"
     }
   ]
 }

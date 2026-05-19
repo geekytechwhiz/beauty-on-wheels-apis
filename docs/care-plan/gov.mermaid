@@ -1,0 +1,129 @@
+flowchart TB
+
+%% =====================================================
+%% PLATFORM GOVERNANCE
+%% =====================================================
+
+subgraph PLATFORM["Platform Governance"]
+
+PA[Platform Admin]
+
+MASTER[Master Template]
+META[Metadata Registry]
+
+PA --> MASTER
+PA --> META
+
+end
+
+%% =====================================================
+%% TEMPLATE GOVERNANCE
+%% =====================================================
+
+subgraph TEMPLATE["Template Governance Engine"]
+
+SCOPE[Enabled Scope Engine]
+
+MGMT[Org Manageability Engine]
+
+ALLOC[Metadata Allocation Engine]
+
+COMPAT[Compatibility Validation Engine]
+
+VERSION[Version Governance]
+
+AUDIT[Audit & Lineage]
+
+end
+
+MASTER --> TEMPLATE
+
+%% =====================================================
+%% ENABLED SCOPE
+%% =====================================================
+
+subgraph ENABLEDSCOPE["Enabled Scope"]
+
+SC1[Sections]
+SC2[Entities]
+SC3[Fields]
+SC4[Metadata Values]
+
+end
+
+SCOPE --> ENABLEDSCOPE
+
+%% =====================================================
+%% MANAGEABILITY CONTROLS
+%% =====================================================
+
+subgraph CONTROLS["Manageability Controls"]
+
+C1[Can Add]
+C2[Can Remove]
+C3[Can Update]
+C4[Can Edit Default]
+C5[Can Change Metadata Values]
+C6[MetadataMode]
+C7[Min/Max Constraints]
+
+end
+
+MGMT --> CONTROLS
+
+%% =====================================================
+%% METADATA GOVERNANCE
+%% =====================================================
+
+subgraph METAGOV["Metadata Governance"]
+
+M1[Metadata Types]
+M2[Metadata Values]
+M3[Applicability Rules]
+M4[Metadata Versioning]
+M5[Metadata Filtering]
+
+end
+
+META --> METAGOV
+
+%% =====================================================
+%% ORG GOVERNANCE
+%% =====================================================
+
+subgraph ORG["Org Governance"]
+
+ORGADMIN[Org Admin]
+
+ORGTMPL[Derived Org Template]
+
+ORGCONFIG[Org Configurable Controls]
+
+ORGADMIN --> ORGTMPL
+
+ORGTMPL --> ORGCONFIG
+
+end
+
+%% =====================================================
+%% GOVERNANCE RULES
+%% =====================================================
+
+R1["Mandatory items cannot be removed"]
+
+R2["Org cannot widen master scope"]
+
+R3["Org only receives allocated metadata"]
+
+R4["Metadata defaults must belong to enabled set"]
+
+R5["Org permissions cannot exceed Super Admin controls"]
+
+R6["Published versions are immutable"]
+
+TEMPLATE --> R1
+TEMPLATE --> R2
+TEMPLATE --> R3
+TEMPLATE --> R4
+TEMPLATE --> R5
+TEMPLATE --> R6

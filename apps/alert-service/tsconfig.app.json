@@ -53,7 +53,13 @@
       "path": "../../libs/logger/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/event-platform/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
     },
     {
       "path": "../../libs/alert-core/tsconfig.lib.json"

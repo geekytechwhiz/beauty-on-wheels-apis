@@ -1,14 +1,15 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
+import { packageServiceClient } from '../clients/packageService.client';
+import { scheduleServiceClient } from '../clients/scheduleService.client';
 import { UserService } from '../services/user.service';
-import { validateListDoctorPatients } from '../validation/request.validators';
 import {
   mapAllPatientResponse,
-  mapLabPatientResponse,
   mapAssignedPatientResponse,
   mapDoctorPatientResponse,
+  mapLabPatientResponse,
 } from '../utils/helpers';
-import { scheduleServiceClient } from '../clients/scheduleService.client';
-import { packageServiceClient } from '../clients/packageService.client';
+import { validateListDoctorPatients } from '../validation/request.validators';
 
 const userService = new UserService();
 

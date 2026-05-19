@@ -128,6 +128,8 @@ src/
 - **Errors**: Custom classes in `utils/errors.ts` (e.g. `UserNotFoundError`, `UserAlreadyExistsError`); handlers map them to HTTP status and `ApiResponse.*`.
 - **Events**: Typed envelopes in `events/event.types.ts`; publishing via `events/event.publisher.ts` (SNS/EventBridge). Optional correlation ID and request context.
 
+See **[docs/engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md](engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md)** for `@api-hub/event-platform` + `@api-hub/middleware` consumer/producer patterns (pipelines, idempotency, retries).
+
 ---
 
 ## 5. Serverless Pattern
@@ -299,6 +301,7 @@ Each has its own `serverless.yml` and is deployed independently (e.g. `cd servic
 | Area | Location |
 |------|----------|
 | **Docs index** | `docs/README.md` |
+| **Event-driven guide** | `docs/engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md` |
 | **Architecture** | `docs/architecture/system-architecture.md` |
 | **Coding standards** | `docs/coding-standards/README.md`, `docs/coding-standards/api-response/` |
 | **API response usage** | `docs/coding-standards/api-response/API_RESPONSE_USAGE.md` |

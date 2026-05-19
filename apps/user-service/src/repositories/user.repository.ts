@@ -194,6 +194,7 @@ export interface ListOrganizationUsersOptions {
   /**
    * Field used for in-memory sorting. Defaults to "createdDate".
    */
+  userType?: string;
   sortBy?:
     | 'createdDate'
     | 'fullName'
@@ -622,10 +623,7 @@ export class UserRepository {
       pk: userPk(userId),
       skPrefix: 'ORG#',
     });
-    console.info({
-      event: 'user_orgs_list_start',
-      message: 'Listing user organizations',
-    });
+    
 
     try {
       const result = await sendDoc<QueryCommandOutput>(docClient,

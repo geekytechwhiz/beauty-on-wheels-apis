@@ -1,4 +1,5 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { validateGetExternalTenant } from '../validation/request.validators';
 

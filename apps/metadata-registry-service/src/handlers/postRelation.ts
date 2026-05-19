@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware';
 import { postRelationSchema } from '../schemas/postRelation.schema';
 import { createMetadataRelation } from '../services/relationService';
 

@@ -1,3 +1,4 @@
+import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
 import { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
 import { ApiResponse } from '@api-hub/utils';
@@ -12,7 +13,7 @@ const deviceService = new DeviceService();
 // Third-party apps by companyName (matching old structure)
 const ALLOWED_THIRD_PARTY_APPS = ['GOOGLEFIT', 'APPLEHEALTH', 'FITBIT', 'GARMIN', 'MANUAL'];
 
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -238,3 +239,5 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     return ApiResponse.internalServerError({ title: 'COMMON.INTERNAL_SERVER_ERROR', description: 'An unexpected error occurred', severity: 'ERROR' }, { requestId: correlationId }, { code: 'INTERNAL_SERVER_ERROR' });
   }
 };
+
+export const handler = withStandardApiGatewayPipeline('device.register', deviceRegisterImpl, { serviceName: 'device-service' });

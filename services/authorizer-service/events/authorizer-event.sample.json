@@ -1,5 +1,0 @@
-{
-  "type": "TOKEN",
-  "authorizationToken": "Bearer YOUR_JWT_HERE",
-  "methodArn": "arn:aws:execute-api:us-east-1:123456789012:abcdef/dev/GET/fhir/Patient/123"
-}

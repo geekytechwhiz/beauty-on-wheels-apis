@@ -1,10 +1,10 @@
-import type { EventBridgeEvent } from 'aws-lambda';
 import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
-import { assignUserRole } from '../services/role.service';
-import { userRoleAssignmentRequestedEventSchema } from '../validation/event.validation';
-import { UserRepository } from '../repositories/user.repository';
+import type { EventBridgeEvent } from 'aws-lambda';
 import { PackageRepository } from '../repositories/package.repositrory';
 import { RoleRepository } from '../repositories/role.repository';
+import { UserRepository } from '../repositories/user.repository';
+import { assignUserRole } from '../services/role.service';
+import { userRoleAssignmentRequestedEventSchema } from '../validation/event.validation';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userRepository = new UserRepository();
@@ -59,7 +59,13 @@ export const handler = async (event: UserRoleAssignmentRequestedEvent) => {
               orgFeatures,
               parsed.authHeader,
             )
-            .catch(() => {});
+            .catch(() => {
+              log.error({
+                event: 'user_role_assignment_event_failed',
+                durationMs: Date.now() - start,
+                err: serializeError(new Error('Failed to save role features')),
+              });
+            });
         }
       }
     }

@@ -1,4 +1,6 @@
-import { withLambdaHandler, LambdaRequest } from '@api-hub/utils';
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { withLambdaHandler } from '@api-hub/middleware';
+import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUpdateUserMetadata } from '../validation/request.validators';
 

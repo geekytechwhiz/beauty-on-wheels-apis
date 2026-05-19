@@ -38,4 +38,21 @@ export const handler = onEvent(CreateAlertEventSchema, async ({ payload, meta })
   await processCreateAlert(payload);
 });
 
-export const main = handler;
+type CreateAlertLambdaEvent = Parameters<typeof handler>[0];
+type CreateAlertLambdaContext = Parameters<typeof handler>[1];
+
+function logCreateAlertLambdaEvent(event: CreateAlertLambdaEvent): void {
+  logger.info({
+    event: 'create_alert_lambda_event_received',
+    message: 'CreateAlert Lambda event received before event-platform handler',
+    lambdaEvent: event,
+  });
+}
+
+export async function main(
+  event: CreateAlertLambdaEvent,
+  context: CreateAlertLambdaContext,
+): Promise<void> {
+  logCreateAlertLambdaEvent(event);
+  await handler(event, context);
+}

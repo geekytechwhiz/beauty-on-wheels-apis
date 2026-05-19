@@ -572,8 +572,26 @@ resources:
           - Key: ManagedBy
             Value: serverless
 
-    # Explicit Lambda → EventBridge invoke permissions (mirrors apps/user-service/serverless.yml).
-    # Rule names follow Serverless Framework convention: <service>-<stage>-<funcName>-rule-1
+    # Explicit Lambda ← EventBridge permissions (required when using a custom bus name).
+    # Rule names: <service>-<stage>-<functionName>-rule-1
+    OnCreateAlertInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt OnCreateAlertLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onCreateAlert-rule-1
+
+    TestEchoOutboundEventsInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt TestEchoOutboundEventsLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-testEchoOutboundEvents-rule-1
+
     # OnThresholdBreachInvokePermission:
     #   Type: AWS::Lambda::Permission
     #   Properties:

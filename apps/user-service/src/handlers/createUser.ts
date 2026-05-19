@@ -1,5 +1,5 @@
-import { createChildLogger, createLogger } from '@api-hub/logger';
-import { withLambdaHandler } from '@api-hub/middleware';
+import { createChildLogger, createLogger } from '@api-hub/observability';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { publishUserCreatedEvent } from '../events/UserCreated';
 import { publishUserRoleAssignmentRequestedEvent } from '../events/UserRoleAssignmentRequested';
@@ -222,6 +222,4 @@ const handler = async (
   return { invitedUser: result.userID };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateCreateUser,
-});
+export const main = withApiHandler({ operation: 'createUser', validator: validateCreateUser }, handler);

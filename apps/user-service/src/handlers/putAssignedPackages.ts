@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateAssignedPackages, validateUserOrganizationRequest } from '../validation/request.validators';
@@ -19,9 +19,7 @@ const handler = async (req: LambdaRequest<Params> & { validatedAssignedPackages?
   return { success: true };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: (req: any) => {
-    validateUserOrganizationRequest(req);
-    validateAssignedPackages(req);
-  },
-});
+export const main = withApiHandler({ operation: 'putAssignedPackages', validator: (req: any) => {
+  validateUserOrganizationRequest(req);
+  validateAssignedPackages(req);
+} }, handler);

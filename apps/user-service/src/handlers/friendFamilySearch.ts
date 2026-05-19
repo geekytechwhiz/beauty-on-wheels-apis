@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserRepository } from '../repositories/user.repository';
 import { CognitoService } from '../services/cognito.service';
@@ -7,7 +7,7 @@ import { assignUserRole } from '../services/role.service';
 import { UserService } from '../services/user.service';
 import { buildCreateUserPayloadFromFnfSearch, getUserIdAndOrganizationIdFromToken } from '../utils/helpers';
 import { validateFriendFamilySearch } from '../validation/request.validators';
-import { createLogger, serializeError } from '@api-hub/logger';
+import { createLogger, serializeError } from '@api-hub/observability';
 
 const friendFamilyService = new FriendFamilyService();
 const userService = new UserService();
@@ -101,6 +101,4 @@ const handler = async (req: LambdaRequest<any>) => {
   return inviteData;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateFriendFamilySearch,
-});
+export const main = withApiHandler({ operation: 'friendFamilySearch', validator: validateFriendFamilySearch }, handler);

@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, type QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
@@ -35,6 +35,4 @@ const handler = async (req: LambdaRequest<any> & { validatedListOrganizationUser
   return { items };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateListOrganizationUsersPost,
-});
+export const main = withApiHandler({ operation: 'listOrganizationUsersPost', validator: validateListOrganizationUsersPost }, handler);

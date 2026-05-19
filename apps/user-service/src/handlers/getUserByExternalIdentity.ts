@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 
@@ -47,4 +47,4 @@ const handler = async (req: LambdaRequest<any, ExternalQuery>) => {
   return user;
 };
 
-export const main = withLambdaHandler(handler);
+export const main = withApiHandler({ operation: 'getUserByExternalIdentity' }, handler);

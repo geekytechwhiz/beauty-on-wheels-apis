@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { UserService } from '../services/user.service';
@@ -56,6 +56,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return transformedUser;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUserOrganizationRequest,
-});
+  export const main = withApiHandler({ operation: 'getUser' }, handler);

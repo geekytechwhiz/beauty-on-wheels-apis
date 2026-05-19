@@ -1,5 +1,5 @@
 import { createChildLogger } from '@api-hub/observability';
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { Appointment } from '../models';
 import { UserRepository } from '../repositories/user.repository';
@@ -38,6 +38,4 @@ const handler = async (
   return createdAppointment;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateCreateAppointment,
-});
+export const main = withApiHandler({ operation: 'create.pending.appointment', validator: validateCreateAppointment }, handler);

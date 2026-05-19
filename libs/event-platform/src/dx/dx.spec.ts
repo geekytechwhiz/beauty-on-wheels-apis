@@ -54,12 +54,18 @@ describe('@api-hub/event-platform/dx', () => {
         consumer: baseConsumerOptions(),
       });
 
-      await publishEvent(schema, { x: 1 }, { version: '2.0.0', meta: { correlationId: 'cc' } });
+      await publishEvent(schema, { x: 1 }, {
+        version: '2.0.0',
+        idempotencyKey: 'idem-1',
+        meta: { correlationId: 'cc', tenantId: 'tenant-1' },
+      });
 
       expect(publish).toHaveBeenCalledTimes(1);
       const envelope = publish.mock.calls[0][0];
       expect(envelope.eventVersion).toBe('2.0.0');
+      expect(envelope.idempotencyKey).toBe('idem-1');
       expect(envelope.meta.correlationId).toBe('cc');
+      expect(envelope.meta.tenantId).toBe('tenant-1');
     });
   });
 

@@ -37,15 +37,18 @@ export async function publishEvent<
     );
   }
 
+  const { meta: overrideMeta, ...eventOverrides } = overrides ?? {};
+
   await publisher.publish(
     {
       eventType: meta.eventType,
       source: meta.source,
-      version:   meta.eventVersion,
+      version: meta.eventVersion,
+      ...eventOverrides,
       payload,
       meta: {
         ...meta,
-        ...overrides,
+        ...overrideMeta,
       },
     },
   );

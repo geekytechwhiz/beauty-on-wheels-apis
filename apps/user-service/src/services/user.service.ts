@@ -1347,12 +1347,10 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
 
       if (action === 'DEACTIVATE') {
         try {
-          const userTypeUpper = String(existing.userType || '').toUpperCase();
-          const isStaffLike = userTypeUpper === 'STAFF' || userTypeUpper === 'ADMIN';
           const phoneRaw = String(existing.phoneNumber || '').trim();
           const phoneCodeRaw = String(existing.phoneCode || '').trim();
           let notifyPhone: string | undefined;
-          if (phoneRaw && isStaffLike) {
+          if (phoneRaw) {
             if (phoneCodeRaw) {
               notifyPhone = phoneCodeRaw.startsWith('+')
                 ? `${phoneCodeRaw}${phoneRaw}`
@@ -1379,7 +1377,7 @@ userId: string, organizationId: string, patientId: string, options: { email?: bo
           } else {
             logger.info({
               event: 'service_activateDeactivateUser_sms_skipped',
-              reason: !isStaffLike ? 'not_staff_or_admin' : 'no_phone',
+              reason: 'no_phone',
             });
           }
         } catch (notifyErr) {

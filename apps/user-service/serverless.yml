@@ -326,7 +326,7 @@ functions:
             resultTtlInSeconds: 0
 
   healthV1:
-    handler: src/handlers/health.main
+    handler: src/handlers/v1/health.main
     events:
       - http:
           path: v1/health
@@ -365,7 +365,7 @@ functions:
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
   createUserV1:
-    handler: src/handlers/create-user.handler
+    handler: src/handlers/v1/create-user.handler
     
     memorySize: 256
     events:

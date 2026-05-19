@@ -26,8 +26,6 @@ describe('@api-hub/event-platform/dx', () => {
       });
 
       configureEventPlatform({
-        serviceName: 'test',
-        transport: 'eventbridge',
         publishers: { eventbridge: { publish } },
         consumer: baseConsumerOptions(),
       });
@@ -52,8 +50,6 @@ describe('@api-hub/event-platform/dx', () => {
       });
 
       configureEventPlatform({
-        serviceName: 'test',
-        transport: 'eventbridge',
         publishers: { eventbridge: { publish } },
         consumer: baseConsumerOptions(),
       });
@@ -77,8 +73,6 @@ describe('@api-hub/event-platform/dx', () => {
       });
 
         configureEventPlatform({
-        serviceName: 'test',
-        transport: 'eventbridge',
         publishers: {
           eventbridge: { publish: jest.fn() },
         },

@@ -28,8 +28,9 @@ describe('configureEventRuntime', () => {
     expect(mockConfigureEventPlatform).toHaveBeenCalledTimes(1);
     expect(mockConfigureEventPlatform).toHaveBeenCalledWith(
       expect.objectContaining({
-        transport: 'eventbridge',
-        serviceName: 'alert-service',
+        publishers: expect.objectContaining({
+          eventbridge: expect.anything(),
+        }),
       }),
     );
   });

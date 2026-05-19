@@ -12,9 +12,6 @@ export function configureEventRuntime(): void {
   }
 
   configureEventPlatform({
-    transport: 'eventbridge',
-    serviceName: 'alert-service',
-
     publishers: {
       eventbridge: new EventBridgeAdapter(
         {

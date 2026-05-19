@@ -105,10 +105,20 @@ custom:
 
   alertDynamoTableName: alert-service-${self:provider.stage}
 
-  # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here
-  # (monitoring-service, device-monitoring, device-workflow, symptom-engine, engagement-service);
-  # consumers below subscribe per source + detail-type. Bus name + ARN are exported for cross-stack ImportValue.
+  # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here;
+  # bus name + ARN are exported for cross-stack ImportValue.
   eventBusName: alert-service-bus-${self:provider.stage}
+
+  # Generic create-alert ingest: one envelope detail-type (`CreateAlert.v1`); payload carries
+  # `inputType` + `sourceType`. Extend EventBridge sources as new producers are onboarded.
+  alertCreateIngest:
+    eventBridgeDetailType: CreateAlert.v1
+    sources:
+      - monitoring-service
+      - device-monitoring
+      - device-workflow
+      - symptom-engine
+      - engagement-service
 
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
   sourcemapsByStage:
@@ -452,13 +462,11 @@ functions:
             "500": Server error
 
   # ──────────────────────────────────────────────────────────────────────────────
-  # EventBridge consumers — alert ingest triggers
-  #
-  # Threshold breach is enabled; the remaining consumers stay commented until
-  # their entrypoints are added.
+  # EventBridge consumers — generic alert create ingest (CreateAlert.v1 envelope).
+  # Trigger kind is in payload.inputType (e.g. THRESHOLD_BREACH, MISSED_READING).
   # ──────────────────────────────────────────────────────────────────────────────
-  onThresholdBreach:
-    handler: src/handlers/events/consumer/event-bridge/threshold-breach.consumer.main
+  onCreateAlert:
+    handler: src/handlers/events/consumer/event-bridge/create-alert.consumer.main
     events:
       - eventBridge:
           eventBus:
@@ -466,23 +474,9 @@ functions:
               - AlertServiceBus
               - Arn
           pattern:
-            source:
-              - monitoring-service
+            source: ${self:custom.alertCreateIngest.sources}
             detail-type:
-              - ThresholdBreach.v1
-  onMissedReading:
-    handler: src/handlers/events/consumer/event-bridge/missed-reading.consumer.main
-    events:
-      - eventBridge:
-          eventBus:
-            Fn::GetAtt:
-              - AlertServiceBus
-              - Arn
-          pattern:
-            source:
-              - device-monitoring
-            detail-type:
-              - MissedReading.v1
+              - ${self:custom.alertCreateIngest.eventBridgeDetailType}
   #
   # onMissingDevice:
   #   handler: src/handlers/events/consumer/event-bridge/missing-device.consumer.main

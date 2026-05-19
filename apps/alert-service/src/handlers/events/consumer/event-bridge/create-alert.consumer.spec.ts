@@ -27,7 +27,8 @@ jest.mock('@api-hub/alert-core', () => {
 
 jest.mock('@api-hub/event-platform', () => ({
   onEvent: jest.fn(
-    (_schema: unknown, fn: (event: { payload: unknown }) => Promise<void>) => fn,
+    (_schema: unknown, fn: (event: { payload: unknown }) => Promise<void>) =>
+      async (event: { payload: unknown }) => fn({ payload: event.payload, meta: {} as never }),
   ),
   publishEvent: jest.fn().mockResolvedValue(undefined),
   defineEvent: (schema: unknown, meta?: unknown) =>
@@ -37,10 +38,10 @@ jest.mock('@api-hub/event-platform', () => ({
 }));
 
 import { minimalAlertRecord } from '../../../../__tests__/handler-test-utils';
-import { missedReadingPayloadSample } from '../../__tests__/event-test-fixtures';
-import { handler, main } from './missed-reading.consumer';
+import { alertCreateIngestSample } from '../../__tests__/event-test-fixtures';
+import { handler, main, processCreateAlert } from './create-alert.consumer';
 
-describe('missed-reading.consumer', () => {
+describe('create-alert.consumer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -54,12 +55,12 @@ describe('missed-reading.consumer', () => {
     const intents = [{ kind: 'CREATED' as const, record }];
     mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: intents });
 
-    await handler({ payload: missedReadingPayloadSample } as never);
+    await processCreateAlert(alertCreateIngestSample);
 
     expect(mockCreateAlert).toHaveBeenCalledTimes(1);
     expect(mockCreateAlert.mock.calls[0][0]).toMatchObject({
-      inputType: 'MISSED_READING',
-      sourceType: 'DEVICE_MONITORING',
+      inputType: 'THRESHOLD_BREACH',
+      inputEventId: 'threshold-evt-1',
     });
     expect(mockPublishAlertIntents).toHaveBeenCalledWith(intents);
   });
@@ -72,8 +73,9 @@ describe('missed-reading.consumer', () => {
       publishIntents: [{ kind: 'CREATED', record }],
     });
 
-    await handler({ payload: missedReadingPayloadSample } as never);
+    await processCreateAlert(alertCreateIngestSample);
 
+    expect(mockCreateAlert).toHaveBeenCalledTimes(1);
     expect(mockPublishAlertIntents).not.toHaveBeenCalled();
   });
 });

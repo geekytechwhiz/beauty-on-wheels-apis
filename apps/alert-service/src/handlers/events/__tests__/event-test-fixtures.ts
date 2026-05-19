@@ -88,31 +88,42 @@ export function noteAddedIntent(record?: AlertDdbRecord): AlertPublishIntent {
   };
 }
 
-export const thresholdBreachPayloadSample = {
-  patientId: 'pat-1',
+export const alertCreateIngestSample = {
   organizationId: 'org-1',
-  metric: 'BP_SYSTOLIC',
-  currentValue: 190,
-  threshold: 140,
-  severityHint: 'CRITICAL',
-  triggeredAt: Date.parse('2026-01-15T10:00:00.000Z'),
   inputEventId: 'threshold-evt-1',
+  inputType: 'THRESHOLD_BREACH',
+  sourceType: 'MONITORING_SERVICE',
+  patientId: 'pat-1',
+  patientName: 'Jane Doe',
+  triggerTimestamp: Date.parse('2026-01-15T10:00:00.000Z'),
+  evidencePayload: {
+    metric: 'BP_SYSTOLIC',
+    currentValue: 190,
+    threshold: 140,
+    severityHint: 'CRITICAL',
+  },
   priority: 'P0',
   groupingKey: 'pat-1|BP|OPEN',
   appliesToType: 'VITAL_SIGN',
   linkedEntityCode: 'BP_SYSTOLIC',
+  severityHint: 'CRITICAL',
 };
 
-export const missedReadingPayloadSample = {
-  patientId: 'pat-1',
+export const missedReadingIngestSample = {
   organizationId: 'org-1',
-  readingType: 'BLOOD_PRESSURE',
-  linkedEntityCode: 'BP_SYSTOLIC',
-  lastSuccessfulReadingTimestamp: Date.parse('2026-01-14T09:00:00.000Z'),
-  missedDuration: '24h',
-  triggeredAt: Date.parse('2026-01-15T10:00:00.000Z'),
-  appliesToType: 'VITAL_SIGN',
   inputEventId: 'missed-evt-1',
+  inputType: 'MISSED_READING',
+  sourceType: 'DEVICE_MONITORING',
+  patientId: 'pat-1',
+  patientName: 'Jane Doe',
+  triggerTimestamp: Date.parse('2026-01-15T10:00:00.000Z'),
+  evidencePayload: {
+    readingType: 'BLOOD_PRESSURE',
+    linkedEntityCode: 'BP_SYSTOLIC',
+    lastSuccessfulReadingTimestamp: Date.parse('2026-01-14T09:00:00.000Z'),
+    missedDuration: '24h',
+  },
   priority: 'P2',
   groupingKey: 'pat-1|BP|OPEN',
+  appliesToType: 'VITAL_SIGN',
 };

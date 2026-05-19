@@ -16,11 +16,6 @@ import type {
 import { setDxRuntime } from './context';
 
 export type ConfigureEventPlatformOptions = {
-  
-  serviceName: string;
- 
-  transport: EventTransport;
- 
   publishers: Partial<
     Record<EventTransport, EventPublishAdapter>
   >;
@@ -31,10 +26,7 @@ export type ConfigureEventPlatformOptions = {
  
   publisherOptions?: Omit<
     EventPublisherDeps,
-    | 'adapter'
-    | 'payloadSchemas'
-    | 'serviceName'
-    | 'logger'
+    'adapter' | 'payloadSchemas' | 'logger'
   > & {
     logger?: EventPublisherDeps['logger'];
   };
@@ -95,9 +87,6 @@ export function configureEventPlatform(
             mergedSchemas as unknown as NonNullable<
               EventPublisherDeps['payloadSchemas']
             >,
-
-          serviceName:
-            options.serviceName,
 
           ...options.publisherOptions,
         });

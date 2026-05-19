@@ -1,4 +1,4 @@
-import type { APIGatewayProxyevent: any, APIGatewayProxyResult, Context } from 'aws-lambda';
+import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, createChildLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import {
@@ -36,28 +36,28 @@ async function toErrorResponse(
   if (err instanceof UserNotFoundError) {
     return ApiResponse.notFound(
       'USER.USER_NOT_FOUND',
-      { requestId: ctx.correlationId, event: ctx.event },
+      { correlationId: ctx.correlationId, event: ctx.event },
       { code: 'USER_NOT_FOUND', details: [{ message: err.message }] },
     );
   }
   if (err instanceof UserAlreadyExistsError) {
     return ApiResponse.conflict(
-      'USER.USER_ALREADY_EXISTS',
-      { requestId: ctx.correlationId, event: ctx.event },
+      { title: 'USER_ALREADY_EXISTS', description: 'User already exists', severity: 'ERROR' },
+      { correlationId: ctx.correlationId, event: ctx.event },
       { code: 'USER_ALREADY_EXISTS', details: [{ message: err.message }] },
     );
   }
   if (err instanceof OrganizationNotFoundError) {
     return ApiResponse.badRequest(
       'ORGANIZATION.NOT_FOUND',
-      { requestId: ctx.correlationId, event: ctx.event },
+      { correlationId: ctx.correlationId, event: ctx.event },
       { code: 'ORGANIZATION_NOT_FOUND', details: [{ message: err.message }] },
     );
   }
   if (err instanceof ValidationError) {
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      { requestId: ctx.correlationId, event: ctx.event },
+      { correlationId: ctx.correlationId, event: ctx.event },
       {
         code: 'VALIDATION_ERROR',
         details: err.details ?? [{ message: err.message }],
@@ -67,16 +67,13 @@ async function toErrorResponse(
   if (err instanceof InviteUpdateTooSoonError) {
     return ApiResponse.badRequest(
       'USER.INVITE_UPDATE_TOO_SOON',
-      { requestId: ctx.correlationId, event: ctx.event },
+      { correlationId: ctx.correlationId, event: ctx.event },
       {
         code: 'INVITE_UPDATE_TOO_SOON',
         details: [
           {
             message: err.message,
             field: err.field,
-            pendingHours: err.pendingHours,
-            pendingMinutes: err.pendingMinutes,
-            pendingTimeFormatted: err.pendingTimeFormatted,
           },
         ],
       },
@@ -84,8 +81,8 @@ async function toErrorResponse(
   }
   if (err instanceof FnfLimitReachedError) {
     return ApiResponse.conflict(
-      'USER.USER_CANNOT_INVITE_MORE_FNF',
-      { requestId: ctx.correlationId, event: ctx.event },
+      { title: 'USER_CANNOT_INVITE_MORE_FNF', description: 'User cannot invite more FNF', severity: 'ERROR' },
+      { correlationId: ctx.correlationId, event: ctx.event },
       { code: 'USER_CANNOT_INVITE_MORE_FNF', details: [{ message: 'USER_CANNOT_INVITE_MORE_FNF' }] },
     );
   }
@@ -94,21 +91,21 @@ async function toErrorResponse(
     if (domainErr.statusCode === 404) {
       return ApiResponse.notFound(
         'COMMON.NOT_FOUND',
-        { requestId: ctx.correlationId, event: ctx.event },
+        { correlationId: ctx.correlationId, event: ctx.event },
         { code: domainErr.code, details: [{ message: domainErr.message }] },
       );
     }
     if (domainErr.statusCode === 409) {
       return ApiResponse.conflict(
-        'COMMON.CONFLICT',
-        { requestId: ctx.correlationId, event: ctx.event },
+        { title: 'CONFLICT', description: 'Conflict', severity: 'ERROR' },
+        { correlationId: ctx.correlationId, event: ctx.event },
         { code: domainErr.code, details: [{ message: domainErr.message }] },
       );
     }
     if (domainErr.statusCode === 422) {
       return ApiResponse.unprocessableEntity(
-        'COMMON.VALIDATION_ERROR',
-        { requestId: ctx.correlationId, event: ctx.event },
+        { title: 'VALIDATION_ERROR', description: 'Validation error', severity: 'ERROR' },
+        { correlationId: ctx.correlationId, event: ctx.event },
         { code: domainErr.code, details: [{ message: domainErr.message }] },
       );
     }
@@ -116,8 +113,8 @@ async function toErrorResponse(
 
   ctx.logger.error({ event: 'handler_error', err: serializeError(err) });
   return ApiResponse.internalServerError(
-    'COMMON.INTERNAL_SERVER_ERROR',
-    { requestId: ctx.correlationId, event: ctx.event },
+    { title: 'INTERNAL_SERVER_ERROR', description: 'Internal server error', severity: 'ERROR' },
+    { correlationId: ctx.correlationId, event: ctx.event },
     { code: 'INTERNAL_SERVER_ERROR', details: [{ message: 'An unexpected error occurred' }] },
   );
 }
@@ -127,7 +124,7 @@ async function toErrorResponse(
  * Returns [parsed, null] or [null, errorResponse] so caller can short-circuit on error.
  */
 export async function parseJsonBody<T>(
-  event: APIGatewayProxyevent: any,
+  event: APIGatewayProxyEvent,
 ): Promise<[T | null, APIGatewayProxyResult | null]> {
   try {
     const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body ?? {};
@@ -144,14 +141,14 @@ export async function parseJsonBody<T>(
 }
 
 /** Create handler context (logger, correlationId) for the request */
-export function createHandlerContext(event: APIGatewayProxyevent: any, context?: Context): HandlerContext {
+export function createHandlerContext(event: APIGatewayProxyEvent, context?: Context): HandlerContext {
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, {
     correlationId,
     ...(awsRequestId && { awsRequestId }),
   });
-  return { correlationId, logger, event: any, context };
+  return { correlationId, logger, event, context };
 }
 
 type HandlerFn = (ctx: HandlerContext) => HandlerResult;
@@ -162,10 +159,10 @@ type HandlerFn = (ctx: HandlerContext) => HandlerResult;
  * - Errors are mapped to HTTP responses consistently
  * - logHttpRequest is called for success and failure
  */
-export function withBaseHandler(handler: HandlerFn, defaultPath = '/'): (event: APIGatewayProxyevent: any, context?: Context) => HandlerResult {
-  return async (event: APIGatewayProxyevent: any, context?: Context): Promise<APIGatewayProxyResult> => {
+export function withBaseHandler(handler: HandlerFn, defaultPath = '/'): (event: APIGatewayProxyEvent, context?: Context) => HandlerResult {
+    return async (event: APIGatewayProxyEvent, context?: Context): Promise<APIGatewayProxyResult> => {
     const startTime = Date.now();
-    const ctx = createHandlerContext(event: any, context);
+    const ctx = createHandlerContext(event, context);
     const method = event.httpMethod || 'GET';
     const path = event.path || defaultPath;
 

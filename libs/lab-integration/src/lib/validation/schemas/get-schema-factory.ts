@@ -46,6 +46,6 @@ export function getRescheduleOrderSchema(
   }
 }
 
-export function getCancelOrderSchema(_partnerId: string): CancelOrderSchema {
+export function getCancelOrderSchema(): CancelOrderSchema {
   return baseCancelOrderSchema;
 }

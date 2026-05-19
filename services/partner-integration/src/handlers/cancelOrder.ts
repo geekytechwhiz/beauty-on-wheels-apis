@@ -14,15 +14,15 @@ import * as integrationService from '../services/integration.service';
 
 export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event: any, context);
+  const requestId = getRequestId(event, context);
   const orderId = event.pathParameters?.orderId;
-  const logger = createHandlerLogger(event: any, context, { orderId });
+  const logger = createHandlerLogger(event, context, { orderId });
   logger.info({ event: 'cancelOrder_received', orderId });
 
   if (!orderId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Missing or invalid orderId in path' }] }
     );
   }
@@ -36,7 +36,7 @@ export const main: any = async (event: any, context?: Context) => {
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId is required (body or query)' }] }
     );
   }
@@ -47,7 +47,7 @@ export const main: any = async (event: any, context?: Context) => {
     logger.warn({ event: 'cancelOrder_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -69,12 +69,12 @@ export const main: any = async (event: any, context?: Context) => {
     );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/cancel', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.ORDER_CANCELLED', responseOpts(event: any, requestId));
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.ORDER_CANCELLED', { correlationId: requestId, event });
   } catch (err) {
     logger.error({ event: 'cancelOrder_error', err: serializeError(err), partnerId, orderId });
     const duration = Date.now() - startTime;
 
-    const handled = await handlePartnerIntegrationError(err, event: any, requestId);
+    const handled = await handlePartnerIntegrationError(err, event, requestId);
     if (handled) {
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/cancel', handled.statusCode, duration, requestId);
       return handled;
@@ -83,7 +83,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/cancel', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event: any, requestId),
+      responseOpts(event, requestId),    
       { code: 'INTERNAL_ERROR' }
     );
   }

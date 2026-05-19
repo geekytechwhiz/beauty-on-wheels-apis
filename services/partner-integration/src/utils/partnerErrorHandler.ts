@@ -1,4 +1,4 @@
-import type { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
+import type { APIGatewayProxyResult, APIGatewayProxyEvent } from 'aws-lambda';
 import { ApiResponse } from '@api-hub/utils';
 import {
   InvalidPartnerResponseError,
@@ -20,10 +20,10 @@ import { responseOpts } from './handlerHelpers';
  */
 export async function handlePartnerIntegrationError(
   err: unknown,
-  event: APIGatewayProxyevent: any,
+  event: APIGatewayProxyEvent,
   requestId: string
 ): Promise<APIGatewayProxyResult | null> {
-  const opts = () => responseOpts(event: any, requestId);
+  const opts = () => responseOpts(event, requestId);
   const details = (code: string, message: string) => ({ code, details: [{ message }] });
 
   if (err instanceof UnsupportedPartnerError) {

@@ -104,8 +104,8 @@ export class AppointmentIdempotencyService {
     const subdomain = context.integration?.subdomain ?? '';
     const tenant = loadTenantDetails(subdomain);
     const payload: FetchSchedulesRequest = {
-      fromDate: new Date(appointment.startTime).getTime(),
-      toDate: new Date(appointment.endTime).getTime(),
+      fromDate: new Date(appointment.startTime ?? '').getTime(),
+      toDate: new Date(appointment.endTime ?? '').getTime(),
       organizationID: tenant.organizationId,
       doctorId: String(doctorUser.userId),
       userId: String(patientUser.id),

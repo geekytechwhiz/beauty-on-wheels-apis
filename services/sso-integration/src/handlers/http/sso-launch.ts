@@ -1,5 +1,5 @@
 import {
-  APIGatewayProxyevent: any,
+  APIGatewayProxyEvent,
   APIGatewayProxyResult,
   Context
 } from 'aws-lambda';
@@ -23,7 +23,7 @@ const baseLogger = createLogger({
 const controller = new SSOController();
 
 export async function handler(
-  event: APIGatewayProxyevent: any,
+  event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> {
 

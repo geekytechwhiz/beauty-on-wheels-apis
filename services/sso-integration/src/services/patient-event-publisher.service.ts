@@ -36,7 +36,7 @@ export class PatientEventPublisher {
    * @param correlationId - Correlation ID for logging
    */
   async publishPatientCreationEvent(
-    event: PatientCreationevent: any,
+    event: PatientCreationEvent,
     correlationId: string,
   ): Promise<void> {
     const logger = createChildLogger(this.logger, { correlationId });

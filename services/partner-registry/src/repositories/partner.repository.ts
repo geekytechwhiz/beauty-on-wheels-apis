@@ -74,7 +74,7 @@ export class PartnerRepository {
           TableName: TABLE_NAME,
           Item: item as unknown as Record<string, unknown>,
           ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
-        })
+        }) as any
       );
       const logger = createChildLogger(baseLogger, { partnerId });
       logger.info({ event: 'partner_created' });
@@ -92,11 +92,11 @@ export class PartnerRepository {
 
   async getPartner(partnerId: string): Promise<Partner | null> {
     try {
-      const result = await ddbDocClient.send(
+      const result:any = await ddbDocClient.send(
         new GetCommand({
           TableName: TABLE_NAME,
           Key: { pk: pkPartner(partnerId), sk: skMeta() },
-        })
+        }) as any
       );
       if (!result.Item) return null;
       return sanitizePartner(result.Item as Record<string, unknown>);
@@ -273,7 +273,7 @@ export class PartnerRepository {
           ExpressionAttributeNames: names,
           ExpressionAttributeValues: values,
           ConditionExpression: 'attribute_exists(pk)',
-        })
+        }) as any
       );
       await this.writeAudit({ event: 'PARTNER_UPDATED', partnerId, at: now });
       return this.getPartner(partnerId);
@@ -300,18 +300,18 @@ export class PartnerRepository {
       new PutCommand({
         TableName: TABLE_NAME,
         Item: item,
-      })
+      }) as any
     );
     await this.writeAudit({ event: 'CAPABILITY_SET', partnerId, interopMode: input.interopMode, at: now });
     return { partnerId, interopMode: input.interopMode, version: input.version, updatedAt: now };
   }
 
   async getCapability(partnerId: string): Promise<PartnerCapability | null> {
-    const result = await ddbDocClient.send(
+    const result:any = await ddbDocClient.send(
       new GetCommand({
         TableName: TABLE_NAME,
         Key: { pk: pkPartner(partnerId), sk: skCapability() },
-      })
+      }) as any
     );
     if (!result.Item) return null;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -340,7 +340,7 @@ export class PartnerRepository {
           TableName: TABLE_NAME,
           Item: item,
           ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
-        })
+        }) as any
       );
       await this.writeAudit({
         event: 'ORG_PARTNER_LINKED',
@@ -358,7 +358,7 @@ export class PartnerRepository {
   }
 
   async listPartnersForOrg(organizationId: string): Promise<{ partnerId: string; organizationId: string; linkedAt: string; relationshipType?: string }[]> {
-    const result = await ddbDocClient.send(
+    const result:any = await ddbDocClient.send(
       new QueryCommand({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
@@ -366,9 +366,9 @@ export class PartnerRepository {
           ':pk': pkOrg(organizationId),
           ':sk': 'PARTNER#',
         },
-      })
+      }) as any
     );
-    const items = (result.Items ?? []).map((item) => ({
+    const items = (result.Items ?? []).map((item: any) => ({
       partnerId: (item as Record<string, string>).partnerId,
       organizationId: (item as Record<string, string>).organizationId,
       linkedAt: (item as Record<string, string>).linkedAt,
@@ -411,7 +411,7 @@ export class PartnerRepository {
           ':onboarding': onboarding,
           ':pendingStatus': 'PENDING_APPROVAL',
         },
-      })
+      }) as any
     );
     await this.writeAudit({ event: 'PARTNER_APPROVED', partnerId, approvedBy, at: now });
     return this.getPartner(partnerId);
@@ -449,7 +449,7 @@ export class PartnerRepository {
           ':onboarding': onboarding,
           ':pendingStatus': 'PENDING_APPROVAL',
         },
-      })
+      }) as any
     );
     await this.writeAudit({ event: 'PARTNER_REJECTED', partnerId, rejectionReason, at: now });
     return this.getPartner(partnerId);
@@ -468,7 +468,7 @@ export class PartnerRepository {
         new PutCommand({
           TableName: TABLE_NAME,
           Item: item,
-        })
+        }) as any
       );
     } catch (err) {
       baseLogger.warn({ event: 'audit_write_failed', err: serializeError(err) });

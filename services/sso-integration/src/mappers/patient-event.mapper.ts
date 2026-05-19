@@ -6,7 +6,7 @@ import { PHONE_CODE } from "../utils/constants";
 import { RoleIds } from "./user-creation.mapper";
 
 export function mapPatientEventToCreateUserPayload(
-  event: PatientCreationevent: any,
+  event: PatientCreationEvent,
   roleIds: RoleIds,
 ): PatientCreationPayload {
   const { patient, organizationID, provider, externalId } = event.data;

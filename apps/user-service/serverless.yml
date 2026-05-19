@@ -346,7 +346,7 @@ functions:
 
   
   createUser:
-    handler: src/handlers/v1/createUser.main
+    handler: src/handlers/createUser.main
     warmup:
       default:
         enabled: true

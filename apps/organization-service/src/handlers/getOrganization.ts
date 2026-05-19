@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { SecretManagerService } from '@api-hub/service-clients';
 import { OrganizationService } from '../services/organization.service';
@@ -327,6 +327,4 @@ const handler = async (req: LambdaRequest<Params>) => {
   return transformed;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateOrganizationIdParam,
-});
+export const main = withApiHandler({ operation: 'getOrganization', validator: validateOrganizationIdParam }, handler);

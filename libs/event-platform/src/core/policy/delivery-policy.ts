@@ -1,6 +1,4 @@
-import { ZodError } from 'zod';
-
-import { BaseError } from '@api-hub/utils';
+import { isNonRetryableFailure } from '../../reliability/failure-classifier';
 
 import type { DlqConfig } from '../dlq/dlq-config';
 
@@ -56,23 +54,7 @@ export type EvaluateDeliveryPolicyParams = {
  * True when the handler error should never be retried (poison / bad input).
  */
 export function isNonRetryableHandlerError(error: unknown): boolean {
-  if (error instanceof BaseError) {
-    if (error.retryable === false) {
-      return true;
-    }
-    if (error.retryable === true) {
-      return false;
-    }
-  }
-
-  if (!(error instanceof Error)) {
-    return false;
-  }
-  if (error instanceof ZodError) {
-    return true;
-  }
-  const n = error.name;
-  return n === 'ValidationError' || n === 'SchemaValidationError';
+  return isNonRetryableFailure(error);
 }
 
 /**

@@ -2,6 +2,10 @@
 
 export { consumeEvent } from './lib/event-platform';
 export {
+  createEventHandler,
+  type CreateEventHandlerOptions,
+} from './lib/create-event-handler';
+export {
   createSqsEventHandler,
   type CreateSqsEventHandlerOptions,
   type CreateSqsEventHandlerVisibilityHeartbeat,
@@ -118,6 +122,45 @@ export { IdempotencyState, idempotencyBeforeResultToState } from './core/idempot
 export { createSnsPublishEvent } from './sdk/publisher/create-sns-publish-event';
 export type { EventSchemaMeta } from './core/schema/define-event';
 export { defineEvent } from './core/schema/define-event';
-export { publishEvent } from './dx/publish-event'; 
+export { publishEvent } from './dx/publish-event';
 export { EventBridgeAdapter } from './adapters/eventbridge/eventbridge-adapter';
-export { configureEventPlatform, type ConfigureEventPlatformOptions } from './dx/configure-event-pladtform';
+export {
+  configureEventPlatform,
+  type ConfigureEventPlatformOptions,
+} from './dx/configure-event-pladtform';
+export type { PublishRoutingConfig, PublishPlan } from './publishing/routing';
+export { resolvePublishPlan } from './publishing/routing';
+export { publishWithPlan } from './publishing/publish-orchestrator';
+export type { NormalizedTransportEnvelope, NormalizedTransportKind } from './runtime/normalized-transport-envelope';
+export type { TransportProfile } from './runtime/transport-profile';
+export { createConsumerRuntime, createPerRecordLoggerConsumeOptions } from './runtime/create-consumer-runtime';
+export {
+  mapSingleTransportOutcome,
+  mapTransportHandlerResult,
+  TransportRetryRequiredError,
+} from './runtime/transport-outcome-mapper';
+export { buildEventRegistry, createDefaultConsumerDeps } from './runtime/build-event-registry';
+export { composeEventHandlerWithMiddleware } from './runtime/middleware-compose';
+export { readEnvelope, runFixtureThroughProfile } from './runtime/local-fixture-consumer';
+export { eventBridgeTransportProfile } from './transports/eventbridge/profile';
+export { sqsTransportProfile } from './transports/sqs/profile';
+export {
+  createDynamoStreamTransportProfile,
+  coerceDynamoStreamBatchResponse,
+} from './transports/dynamodb-stream/profile';
+export {
+  RetryableError,
+  NonRetryableError,
+  SchemaError,
+  DependencyError,
+} from './reliability/errors';
+export { classifyFailure, isNonRetryableFailure } from './reliability/failure-classifier';
+export {
+  registerEventDefinition,
+  getRegisteredEventDefinition,
+  listRegisteredEventDefinitions,
+  type RegisteredEventDefinition,
+  type EventClassification,
+} from './governance/event-registry';
+export { enforceRegisteredEventCompatibility } from './governance/schema-compatibility';
+export type { ReplayMetadata } from './governance/replay-metadata';

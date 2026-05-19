@@ -82,9 +82,18 @@ function transportSourceAndType(event: unknown): Pick<
       eventSource?: string;
       eventSourceARN?: string;
     };
+    const eventSource = r0.eventSource ?? r0.eventSourceARN;
+    const eventType =
+      eventSource === 'aws:sqs'
+        ? 'aws:sqs'
+        : eventSource === 'aws:dynamodb'
+          ? 'aws:dynamodb'
+          : eventSource === 'aws:kinesis'
+            ? 'aws:kinesis'
+            : eventSource;
     return {
-      source: r0.eventSource ?? r0.eventSourceARN,
-      eventType: 'aws:sqs',
+      source: eventSource,
+      eventType,
     };
   }
 

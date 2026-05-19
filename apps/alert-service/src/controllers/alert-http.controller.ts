@@ -111,7 +111,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event: any, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
 
     const input: WorkflowInput = {
       alertIds: v.alertIds,
@@ -165,7 +165,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event: any, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
 
     const result = await this.svc.applyAssignment(v.orgId, {
       alertIds: v.alertIds,
@@ -196,7 +196,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event: any, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
 
     const result = await this.svc.applyPriority(v.orgId, {
       alertIds: v.alertIds,
@@ -219,7 +219,7 @@ export class AlertHttpController {
       ], { retryable: false });
     }
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event: any, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     const row = await this.svc.getAlert(alertId, orgId);
     if (!row) {
@@ -238,7 +238,7 @@ export class AlertHttpController {
       ], { retryable: false });
     }
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event: any, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const notesOnly = (req.params as { notesOnly?: string }).notesOnly === 'true';
@@ -252,7 +252,7 @@ export class AlertHttpController {
    */
   async handleGetAlertMetadata(req: LambdaRequest) {
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event: any, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     return alertMetadataWorkaround;
   }
@@ -264,7 +264,7 @@ export class AlertHttpController {
   async handleListAlerts(req: LambdaRequest) {
     const event = req.event;
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(event: any, authHeader);
+    const orgId = getOrganizationIdForRequest(event, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const {
@@ -281,7 +281,7 @@ export class AlertHttpController {
       nextToken,
     } = parseListAlertsQuery(req.params as Record<string, string | string[] | undefined>);
     const limit = Math.min(100, Math.max(1, pageSize ?? 20));
-    const actorUserId = getActorUserIdForRequest(event: any, authHeader);
+    const actorUserId = getActorUserIdForRequest(event, authHeader);
 
     const { items, nextToken: nextPageToken } = await this.svc.listAlerts({
       organizationId: orgId,
@@ -313,7 +313,7 @@ export class AlertHttpController {
       ]);
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event: any, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     // Call core service to add a note. Expect the core to return the created activity record or similar.
     // Use a best-effort call name `addNote` on the service.

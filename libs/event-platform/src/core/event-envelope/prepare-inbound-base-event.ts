@@ -6,6 +6,7 @@ import type { EventConsumerDeps } from '../../typings/consumer.types';
 
 import { resolveSchema } from '../schema/schema-resolver';
 import { assertVersionCompatible } from '../versioning/version-compatibility';
+import { enforceRegisteredEventCompatibility } from '../../governance/schema-compatibility';
 
 /**
  * Ensures correlation exists for tracing and logs after {@link normalizeEventMeta}.
@@ -31,6 +32,8 @@ export function prepareInboundBaseEvent<T>(
   if (deps.versionCheck !== undefined) {
     assertVersionCompatible(baseEvent.eventVersion, deps.versionCheck);
   }
+
+  enforceRegisteredEventCompatibility(baseEvent.eventType, baseEvent.eventVersion);
 
   if (deps.payloadSchemas !== undefined) {
     const schema = resolveSchema(

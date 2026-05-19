@@ -29,6 +29,12 @@ export type EventMeta = {
   schemaRef?: string;
   causationId?: string;
   attributes?: Record<string, unknown>;
+  replay?: {
+    archiveId?: string;
+    replayedAt?: string;
+    originalEventId?: string;
+    replaySource?: string;
+  };
 };
 /** Canonical wire envelope — alias of {@link BaseEvent} for publishers/consumers. */
 export type EventEnvelope<T = unknown> = BaseEvent<T>;

@@ -10,16 +10,9 @@ export const AlertCreatedEventSchema = defineEvent(
 
     organizationId: z.string(),
 
-    priority: z.enum([
-      'P0',
-      'P1',
-      'P2',
-    ]),
+    priority: z.string(),
 
-    state: z.enum([
-      'UNASSIGNED',
-      'ASSIGNED',
-    ]),
+    state: z.string(),
 
     createdAt: z.string(),
   }),

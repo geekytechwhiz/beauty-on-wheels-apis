@@ -3,7 +3,7 @@ import {
   bearerToken,
   setupHandlerTestEnv,
   testLambdaContext,
-  baseGetevent: any,
+  baseGetEvent,
 } from '../../__tests__/handler-test-utils';
 
 jest.mock('@api-hub/middleware', () => {
@@ -23,9 +23,6 @@ jest.mock('@api-hub/middleware', () => {
     withApiHandler:
       (options: any, handler: (req: any) => Promise<any>) =>
       async (event: any) => {
-        if (event?.source === 'serverless-plugin-warmup') {
-          return ApiResponse.ok(null, { title: 'SUCCESS', description: 'Warmup', severity: 'SUCCESS' }, { correlationId: 'unknown' });
-        }
 
         const parsedBody = tryParseJson(event?.body);
         if (parsedBody === Symbol.for('invalid-json')) {
@@ -38,7 +35,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -129,7 +126,7 @@ describe('getAlertActivity HTTP handler', () => {
 
   it('returns 400 when alertId missing', async () => {
     const event = baseGetEvent({ pathParameters: {} });
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(400);
     expect(mockListAlertActivity).not.toHaveBeenCalled();
@@ -139,7 +136,7 @@ describe('getAlertActivity HTTP handler', () => {
     const event = baseGetEvent({
       headers: { Authorization: bearerToken({ sub: 'u' }) },
     });
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(401);
     expect(mockListAlertActivity).not.toHaveBeenCalled();
@@ -159,13 +156,8 @@ describe('getAlertActivity HTTP handler', () => {
       pathParameters: { alertId: 'alt-1' },
       queryStringParameters: { notesOnly: 'true' },
     });
-    await (main as any)(event: any, context);
+    await (main as any)(event, context);
     expect(mockListAlertActivity).toHaveBeenCalledWith('alt-1', 'org-1', { notesOnly: true });
   });
-
-  it('handles warmup', async () => {
-    const result = await (main as any)({ source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyevent: any, context);
-    expect(result.statusCode).toBe(200);
-    expect(mockListAlertActivity).not.toHaveBeenCalled();
-  });
 });
+

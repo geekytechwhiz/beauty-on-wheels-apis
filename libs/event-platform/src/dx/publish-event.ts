@@ -26,18 +26,29 @@ export async function publishEvent<
     routing: runtime.routing,
   });
 
-  await publishWithPlan(
-    runtime.publishers,
-    plan,
+  // `meta.transport` is the registry key ('eventbridge' | 'sns' | 'sqs').
+  // The value at runtime.publishers[transport] is the configured EventPublisher instance.
+  const transport: EventTransport = meta.transport;
+  const publisher = runtime.publishers[transport];
+
+  if (!publisher) {
+    throw new Error(
+      `Publisher for transport "${transport}" not found`,
+    );
+  }
+
+  const { meta: overrideMeta, ...eventOverrides } = overrides ?? {};
+
+  await publisher.publish(
     {
       eventType: meta.eventType,
       source: meta.source,
       version: meta.eventVersion,
-      payload,
-      operation: `event.publish.${meta.eventType}`,
+      ...eventOverrides,
+      payload, 
       meta: {
         ...meta,
-        ...overrides?.meta,
+        ...overrideMeta,
       },
       ...overrides,
     },

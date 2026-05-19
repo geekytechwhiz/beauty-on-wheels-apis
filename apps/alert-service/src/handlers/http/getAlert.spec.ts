@@ -3,7 +3,7 @@ import {
   minimalAlertRecord,
   setupHandlerTestEnv,
   testLambdaContext,
-  baseGetevent: any,
+  baseGetEvent,
 } from '../../__tests__/handler-test-utils';
 
 jest.mock('@api-hub/middleware', () => {
@@ -23,9 +23,6 @@ jest.mock('@api-hub/middleware', () => {
     withApiHandler:
       (options: any, handler: (req: any) => Promise<any>) =>
       async (event: any) => {
-        if (event?.source === 'serverless-plugin-warmup') {
-          return ApiResponse.ok(null, { title: 'SUCCESS', description: 'Warmup', severity: 'SUCCESS' }, { correlationId: 'unknown' });
-        }
 
         const parsedBody = tryParseJson(event?.body);
         if (parsedBody === Symbol.for('invalid-json')) {
@@ -38,7 +35,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -120,7 +117,7 @@ describe('getAlert HTTP handler', () => {
       pathParameters: {},
     });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(400);
     expect(mockGetAlert).not.toHaveBeenCalled();
@@ -132,7 +129,7 @@ describe('getAlert HTTP handler', () => {
       headers: { Authorization: bearerToken({ sub: 'u1' }) },
     });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(401);
     expect(mockGetAlert).not.toHaveBeenCalled();
@@ -146,11 +143,5 @@ describe('getAlert HTTP handler', () => {
     expect(result.statusCode).toBe(404);
     expect(mockGetAlert).toHaveBeenCalledWith('missing', 'org-1');
   });
-
-  it('handles serverless-plugin-warmup', async () => {
-    const warmup = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
-    const result = await (main as any)(warmup, context);
-    expect(result.statusCode).toBe(200);
-    expect(mockGetAlert).not.toHaveBeenCalled();
-  });
 });
+

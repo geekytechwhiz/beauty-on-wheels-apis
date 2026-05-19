@@ -1,4 +1,4 @@
-import type { APIGatewayProxyevent: any, Context } from 'aws-lambda';
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 import { ALERT_STATE, AlertKeyBuilder, type AlertDdbRecord } from '@api-hub/alert-core';
 
 export function bearerToken(payload: Record<string, unknown>): string {
@@ -76,6 +76,9 @@ export function baseGetEvent(overrides: Partial<APIGatewayProxyEvent> = {}): API
 export function setupHandlerTestEnv(): { restore: () => void } {
   process.env.ERROR_MESSAGES_CDN_URL =
     process.env.ERROR_MESSAGES_CDN_URL ?? 'https://d2p9v61861q1ox.cloudfront.net';
+  process.env.AWS_REGION = process.env.AWS_REGION ?? 'us-east-1';
+  process.env.ALERT_EVENT_BUS_NAME =
+    process.env.ALERT_EVENT_BUS_NAME ?? 'alert-service-bus-dev';
 
   const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
   const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);

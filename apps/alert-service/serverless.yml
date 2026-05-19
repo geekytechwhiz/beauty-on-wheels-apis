@@ -114,6 +114,7 @@ custom:
   alertCreateIngest:
     eventBridgeDetailType: CreateAlert.v1
     sources:
+      - alert-service
       - monitoring-service
       - device-monitoring
       - device-workflow
@@ -201,6 +202,15 @@ functions:
       - http:
           path: /health
           method: get
+          cors: true
+
+  # Postman → publish CreateAlert.v1 to alert bus (dev manual test; no authorizer).
+  testPublishCreateAlertIngest:
+    handler: src/handlers/http/testPublishCreateAlertIngest.main
+    events:
+      - http:
+          path: dev/events/ingest/create-alert
+          method: post
           cors: true
 
   createAlert:
@@ -477,6 +487,27 @@ functions:
             source: ${self:custom.alertCreateIngest.sources}
             detail-type:
               - ${self:custom.alertCreateIngest.eventBridgeDetailType}
+
+  # Logs outbound events from alert-service (e.g. Alert.Created.v1 after ingest).
+  testEchoOutboundEvents:
+    handler: src/handlers/events/testEchoOutboundEvents.main
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - AlertServiceBus
+              - Arn
+          pattern:
+            source:
+              - alert-service
+            detail-type:
+              - Alert.Created.v1
+              - Alert.AssignmentChanged.v1
+              - Alert.StateChanged.v1
+              - Alert.Resolved.v1
+              - Alert.Dismissed.v1
+              - Alert.PriorityChanged.v1
+              - Alert.NoteAdded.v1
   #
   # onMissingDevice:
   #   handler: src/handlers/events/consumer/event-bridge/missing-device.consumer.main

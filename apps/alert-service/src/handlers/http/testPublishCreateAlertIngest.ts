@@ -21,15 +21,23 @@ function correlationHeaderSnapshot(event: APIGatewayProxyEvent) {
   };
 }
 
+function resolvePublishCorrelationId(event: APIGatewayProxyEvent): string {
+  const contextCorrelationId = getContext().correlationId;
+  return contextCorrelationId && contextCorrelationId !== 'unknown'
+    ? contextCorrelationId
+    : extractCorrelationId(event);
+}
+
 /** Dev/Postman: POST body → publishEvent(CreateAlert.v1) → onCreateAlert consumer. */
 export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  const correlationId = extractCorrelationId(event);
+  const extractedCorrelationId = extractCorrelationId(event);
+  const correlationId = resolvePublishCorrelationId(event);
   const headerSnapshot = correlationHeaderSnapshot(event);
 
   logger.info({
     event: 'test_publish_create_alert_ingest_correlation',
     message: 'Publisher correlation resolution (testPublishCreateAlertIngest)',
-    extractedCorrelationId: correlationId,
+    extractedCorrelationId,
     publishMetaCorrelationId: correlationId,
     loggerContextCorrelationId: getContext().correlationId,
     ...headerSnapshot,

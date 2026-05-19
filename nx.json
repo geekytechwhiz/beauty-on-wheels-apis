@@ -39,7 +39,8 @@
       "plugin": "@nx/eslint/plugin",
       "options": {
         "targetName": "lint"
-      }
+      },
+      "exclude": ["api-center/**/*"]
     },
     {
       "plugin": "@nx/vite/plugin",

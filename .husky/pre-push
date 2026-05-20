@@ -5,20 +5,29 @@ if [ -s "$HOME/.nvm/nvm.sh" ]; then
   nvm use >/dev/null 2>&1
 fi
 
-echo "Running affected lint..."
+ZERO_SHA="0000000000000000000000000000000000000000"
 
-# NX_DAEMON=true pnpm run lint:affected
+run_affected_lint() {
+  NX_DAEMON=true NX_BASE=$1 NX_HEAD=$2 pnpm exec nx affected -t lint --parallel=10 --batch
+}
 
-if [ $? -ne 0 ]; then
-  echo "❌ Lint failed"
-  exit 1
-fi
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$local_sha" = "$ZERO_SHA" ]; then
+    continue
+  fi
 
-echo "Running affected tests..."
+  if [ "$remote_sha" = "$ZERO_SHA" ]; then
+    echo "Running affected lint (new branch, base=origin/dev)..."
+    run_affected_lint origin/dev "$local_sha"
+  else
+    echo "Running affected lint (base=$remote_sha, head=$local_sha)..."
+    run_affected_lint "$remote_sha" "$local_sha"
+  fi
 
-# NX_DAEMON=true pnpm run test:affected
+  if [ $? -ne 0 ]; then
+    echo "❌ Lint failed"
+    exit 1
+  fi
+done
 
-if [ $? -ne 0 ]; then
-  echo "❌ Tests failed"
-  exit 1
-fi
+echo "✅ Pre-push checks passed."

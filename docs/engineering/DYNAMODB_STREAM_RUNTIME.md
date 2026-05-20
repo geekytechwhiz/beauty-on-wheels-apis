@@ -1,6 +1,8 @@
-# DynamoDB Streams runtime (`createDynamoStreamHandler`)
+# DynamoDB Streams runtime (`createDynamoStreamHandler` / `onDynamoEvent`)
 
-This document describes the **first-class DynamoDB Streams** consumer added to `@api-hub/event-platform`. It mirrors the **SQS** path (`createSqsEventHandler`): same **middleware pipeline**, **`consumeEvent` → `processBatch` → `processSingle` → `orchestratePreparedConsumerEvent`**, idempotency, delivery policy, DLQ, tracing, and **per-record AsyncLocalStorage**.
+This document describes the **first-class DynamoDB Streams** consumer in `@api-hub/event-platform`. It mirrors the **SQS** path (`onQueue` / `createSqsEventHandler`): same **middleware pipeline**, **`createConsumerRuntime`**, **`consumeEvent` → `processBatch` → `processSingle` → `orchestratePreparedConsumerEvent`**, idempotency, delivery policy, DLQ, tracing, and **per-record AsyncLocalStorage**.
+
+See also [EVENT_PLATFORM_TRANSPORTS_GUIDE.md](./EVENT_PLATFORM_TRANSPORTS_GUIDE.md) §6.
 
 ## Developer API
 

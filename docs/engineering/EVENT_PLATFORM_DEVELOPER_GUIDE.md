@@ -8,8 +8,9 @@ Enterprise handbook for building **reliable, observable event consumers** on `@a
 
 | Document | Purpose |
 |----------|---------|
+| **[EVENT_PLATFORM_TRANSPORTS_GUIDE.md](./EVENT_PLATFORM_TRANSPORTS_GUIDE.md)** | **Step-by-step** EventBridge, SQS, Streams, publish, idempotency, observability |
 | [libs/event-platform/README.md](../../libs/event-platform/README.md) | Package overview, `BaseEvent` contract, team checklist |
-| [SQS_CREATE_SQS_EVENT_HANDLER.md](./SQS_CREATE_SQS_EVENT_HANDLER.md) | `createSqsEventHandler` deep dive and migration |
+| [SQS_CREATE_SQS_EVENT_HANDLER.md](./SQS_CREATE_SQS_EVENT_HANDLER.md) | `onQueue` / `createSqsEventHandler` deep dive and migration |
 | [SQS_PRODUCTION_READINESS.md](./SQS_PRODUCTION_READINESS.md) | SQS ops: alarms, FIFO, visibility, testing gaps |
 | [DYNAMODB_STREAM_RUNTIME.md](./DYNAMODB_STREAM_RUNTIME.md) | DynamoDB Streams runtime and normalization |
 
@@ -38,8 +39,8 @@ Enterprise handbook for building **reliable, observable event consumers** on `@a
 
 | Transport | Primary entry point | Notes |
 |-----------|---------------------|--------|
-| **EventBridge** | `createEventHandler` / `onEvent` | Lambda receives the EventBridge envelope; map with `parseInboundEvent` (see §3). |
-| **SQS** (including **SNS → SQS**) | `createSqsEventHandler` | Typed `SQSBatchResponse`, default `transportMode: 'sqs-native'`, per-message logger context. |
+| **EventBridge** | **`onEvent`** (`createEventHandler`) | `eventBridgeTransportProfile` unwraps `detail` via `parseInboundEvent`. |
+| **SQS** (including **SNS → SQS**) | **`onQueue`** (`createSqsEventHandler`) | Typed `SQSBatchResponse`, default `transportMode: 'sqs-native'`, per-message logger context. |
 | **DynamoDB Streams** | `createDynamoStreamHandler` / `onDynamoEvent` | Same stack as SQS; partial batch failures use stream `eventID`. |
 
 Publishing (out of scope for this guide) uses `EventPublisher`, `createSnsPublishEvent`, `EventBridgeAdapter`, etc. — see the package README.
@@ -185,13 +186,11 @@ export const handler = createEventHandler<
 });
 ```
 
-### Single-event wrapper — main package `onEvent` (limitations)
+### `onEvent` — EventBridge consumer (preferred)
 
-The **`onEvent` exported from `@api-hub/event-platform`** ([`define-event-handler.ts`](../../libs/event-platform/src/lib/define-event-handler.ts)) calls `createEventHandler` **without** `consumer.mapRawToBaseEvent`. It is only correct when the **Lambda root** `event` is already a full `BaseEvent` (uncommon for native EventBridge invokes).
+**`onEvent`** is an alias of **`createEventHandler`**. It uses **`createConsumerRuntime`** + **`eventBridgeTransportProfile`**, which maps the native EventBridge envelope (`detail`) to `BaseEvent` — you do **not** pass `mapRawToBaseEvent` manually.
 
-Handler signature: **`{ payload, meta }`** (not flattened).
-
-**For standard EventBridge envelopes, do not use this `onEvent` unless you wrap or remap the event yourself.** Prefer **`onEvent`** / **`createEventHandler`** with the EventBridge transport profile as shown above, even for a single schema.
+Handler input is **flattened payload + `meta`** (same shape as SQS consumers).
 
 **Publish bootstrap:** use **`configureEventPlatform`** + **`publishEvent`** for outbound events only. Consume with **`onEvent`** (EventBridge) or **`onQueue`** (SQS).
 
@@ -620,8 +619,8 @@ Then the **inner handler** runs `consumeEvent` (registry + consumer deps).
 
 1. **Envelope:** Always publish and consume a full **`BaseEvent`**; document `eventType` and semver `eventVersion`.
 2. **Schemas:** `defineEvent` + Zod; register every version consumers must accept.
-3. **EventBridge:** Always `mapRawToBaseEvent: (raw) => parseInboundEvent(raw)` (or equivalent) with `createEventHandler`.
-4. **SQS:** Use `createSqsEventHandler`; set `functionResponseType: ReportBatchItemFailures`; align **visibility timeout** with handler p95; use **visibility heartbeat** for long work.
+3. **EventBridge:** Use **`onEvent`**; configure `maximumRetryAttempts` + `destinations.onFailure`; wire `createDefaultSqsDlqStrategy()` when using app DLQ.
+4. **SQS:** Use **`onQueue`**; set `functionResponseType: ReportBatchItemFailures`; align **visibility timeout** with handler p95; use **visibility heartbeat** for long work.
 5. **DynamoDB:** Prefer `createDynamoStreamHandler` over deprecated `createStreamHandler`; order routes from most specific to least.
 6. **Idempotency:** Prefer domain conditionals; add **store** strategy when cross-instance dedupe is required.
 7. **Errors:** Use **`BaseError`** with explicit **`retryable`** for operational clarity.
@@ -634,7 +633,7 @@ Then the **inner handler** runs `consumeEvent` (registry + consumer deps).
 | Do not | Why |
 |--------|-----|
 | Wrap `createSqsEventHandler` and swallow all errors | Breaks partial batch semantics and metrics. |
-| Omit `mapRawToBaseEvent` for EventBridge | Raw EventBridge envelope is not a `BaseEvent`. |
+| Bypass `onEvent` / transport profile and parse `event.detail` manually | Loses unified outcome mapping, ALS, and retry semantics. |
 | Manually re-send to DLQ for normal failures | Use `dlq.strategy` + policy; let SQS redrive handle transport DLQ. |
 | Parse JSON only with `JSON.parse` and skip `parseInboundEvent` | Loses SNS unwrap and `BaseEvent` validation. |
 | Ignore idempotency on non-replay-safe writes | Duplicates will corrupt data under at-least-once delivery. |
@@ -648,13 +647,13 @@ Then the **inner handler** runs `consumeEvent` (registry + consumer deps).
 
 **Before:** Custom Lambda parsing `event.detail`, ad-hoc validation.
 
-**After:** `createEventHandler` + `parseInboundEvent` + `defineEvent` registry + middleware pipeline.
+**After:** `onEvent` + `defineEvent` registry + middleware pipeline (transport profile handles `parseInboundEvent`).
 
 ### SQS
 
 **Before:** `createEventHandler` + manual `mapRawToBaseEvent: parseInboundEvent` + manual `SQSBatchResponse`.
 
-**After:** `createSqsEventHandler` — typed batch response, defaults, per-message ALS. See [SQS_CREATE_SQS_EVENT_HANDLER.md](./SQS_CREATE_SQS_EVENT_HANDLER.md).
+**After:** `onQueue` — typed batch response, defaults, per-message ALS. See [SQS_CREATE_SQS_EVENT_HANDLER.md](./SQS_CREATE_SQS_EVENT_HANDLER.md).
 
 ### DynamoDB Streams
 

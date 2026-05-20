@@ -50,9 +50,7 @@ export function createEventHandler<
       ),
   });
 }
-
-/** Alias for {@link createEventHandler} — explicit EventBridge naming. */
-export const createEventBridgeEventHandler = createEventHandler;
+ 
 
 /** Preferred DX name for EventBridge Lambda consumers. Same as {@link createEventHandler}. */
 export const onEvent = createEventHandler;

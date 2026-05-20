@@ -1,4 +1,4 @@
-import { createChildLogger, createLogger } from '@api-hub/logger';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import { getUserServiceClient } from '@api-hub/service-clients';
 import { getTruTechAdapter } from '../adapters/trutech.adapter.ts';
 import { getSSOUserServiceClient } from '../clients/user-service.client';

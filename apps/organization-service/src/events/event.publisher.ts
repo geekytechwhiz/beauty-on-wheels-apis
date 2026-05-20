@@ -1,5 +1,5 @@
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { randomUUID } from 'crypto';
 import { EventEnvelope } from './event.types';
 

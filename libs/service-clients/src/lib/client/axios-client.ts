@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import axiosRetry from "axios-retry";
-import { createLogger, serializeError } from '@api-hub/logger';
+import { createLogger, serializeError } from '@api-hub/observability';
 
 
 const logger = createLogger({ service: "http-client", redactPII: true });

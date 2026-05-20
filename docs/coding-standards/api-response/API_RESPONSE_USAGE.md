@@ -20,7 +20,7 @@ export const handler = async (event: APIGatewayProxyEvent) => {
   return ApiResponse.ok(
     { userId: '123' },
     'USER.USER_CREATED_SUCCESS',  // ← Namespaced message key (fetches from CDN)
-    { requestId: correlationId, event }  // ← Include event for language detection
+    {  correlationId: correlationId, event }  // ← Include event for language detection
   );
 };
 ```
@@ -44,7 +44,7 @@ return ApiResponse.ok(
 return ApiResponse.ok(
   data,
   'USER.OPERATION_SUCCESS',  // Format: MODULE.MESSAGE_CODE
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 
 // With direct message
@@ -61,7 +61,7 @@ return ApiResponse.ok(
 return ApiResponse.created(
   { userId: newUser.id },
   'USER.USER_CREATED_SUCCESS',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 ```
 
@@ -71,7 +71,7 @@ return ApiResponse.created(
 return ApiResponse.accepted(
   { jobId: '456' },
   'COMMON.JOB_ACCEPTED',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 ```
 
@@ -83,7 +83,7 @@ return ApiResponse.accepted(
 // With message key (automatically uses getErrorMessage)
 return ApiResponse.badRequest(
   'COMMON.BAD_REQUEST',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'BAD_REQUEST', details: [{ message: 'Invalid input' }] }
 );
 
@@ -100,7 +100,7 @@ return ApiResponse.badRequest(
 ```typescript
 return ApiResponse.unauthorized(
   'COMMON.UNAUTHORIZED',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'UNAUTHORIZED' }
 );
 ```
@@ -110,7 +110,7 @@ return ApiResponse.unauthorized(
 ```typescript
 return ApiResponse.forbidden(
   'COMMON.FORBIDDEN',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'FORBIDDEN' }
 );
 ```
@@ -120,7 +120,7 @@ return ApiResponse.forbidden(
 ```typescript
 return ApiResponse.notFound(
   'USER.USER_NOT_FOUND',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'USER_NOT_FOUND' }
 );
 ```
@@ -130,7 +130,7 @@ return ApiResponse.notFound(
 ```typescript
 return ApiResponse.conflict(
   'USER.USER_ALREADY_EXISTS',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'USER_ALREADY_EXISTS' }
 );
 ```
@@ -140,7 +140,7 @@ return ApiResponse.conflict(
 ```typescript
 return ApiResponse.unprocessableEntity(
   'COMMON.VALIDATION_ERROR',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   {
     code: 'VALIDATION_ERROR',
     details: validation.error.issues.map(e => ({
@@ -156,7 +156,7 @@ return ApiResponse.unprocessableEntity(
 ```typescript
 return ApiResponse.internalServerError(
   'COMMON.INTERNAL_ERROR',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'INTERNAL_ERROR' }
 );
 ```
@@ -172,7 +172,7 @@ import { UserNotFoundError, UserAlreadyExistsError } from '../utils/errors';
 
 const userService = new UserService();
 
-export const createUser: APIGatewayProxyHandler = async (event) => {
+export const createUser: any = async (event) => {
   const correlationId = extractCorrelationId(event);
   
   let body;
@@ -182,7 +182,7 @@ export const createUser: APIGatewayProxyHandler = async (event) => {
     // Message key with event = CDN-based localized message
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'BAD_REQUEST' }
     );
   }
@@ -194,13 +194,13 @@ export const createUser: APIGatewayProxyHandler = async (event) => {
     return ApiResponse.created(
       { userId: user.id },
       'USER.USER_CREATED_SUCCESS',
-      { requestId: correlationId, event }
+      {  correlationId: correlationId, event }
     );
   } catch (err) {
     if (err instanceof UserAlreadyExistsError) {
       return ApiResponse.conflict(
         'USER.USER_ALREADY_EXISTS',
-        { requestId: correlationId, event },
+        {  correlationId: correlationId, event },
         { code: 'USER_ALREADY_EXISTS' }
       );
     }
@@ -208,7 +208,7 @@ export const createUser: APIGatewayProxyHandler = async (event) => {
     if (err instanceof UserNotFoundError) {
       return ApiResponse.notFound(
         'USER.USER_NOT_FOUND',
-        { requestId: correlationId, event },
+        {  correlationId: correlationId, event },
         { code: 'USER_NOT_FOUND' }
       );
     }
@@ -216,7 +216,7 @@ export const createUser: APIGatewayProxyHandler = async (event) => {
     // Generic error with CDN message (use COMMON for shared errors)
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'CREATE_USER_FAILED' }
     );
   }
@@ -280,7 +280,7 @@ Both patterns produce the same output structure:
 
 ## Language Detection
 
-When you pass a message key + event, the system:
+When you pass a message key + event: any, the system:
 
 1. Extracts language from `Accept-Language` header
 2. Fetches `${CDN_URL}/error-messages/${language}.json`
@@ -297,13 +297,13 @@ See [MESSAGE_RESOLVER_GUIDE.md](./MESSAGE_RESOLVER_GUIDE.md) for full CDN setup.
 
 ### Before (Manual CDN fetch):
 ```typescript
-const message = await getMessage(event, 'HEALTH_CHECK_OK');
+const message = await getMessage(event: any, 'HEALTH_CHECK_OK');
 return ApiResponse.ok(data, message, { requestId: correlationId });
 ```
 
 ### After (Automatic CDN fetch):
 ```typescript
-return ApiResponse.ok(data, 'HEALTH_CHECK_OK', { requestId: correlationId, event });
+return ApiResponse.ok(data, 'HEALTH_CHECK_OK', {  correlationId: correlationId, event });
 ```
 
 **Advantages:**
@@ -330,7 +330,7 @@ return ApiResponse.ok(data, message, { requestId, event });
 
 **Old:**
 ```typescript
-const message = await getMessage(event, 'SUCCESS_KEY');
+const message = await getMessage(event: any, 'SUCCESS_KEY');
 return ApiResponse.ok(data, message, { requestId });
 ```
 
@@ -368,7 +368,7 @@ ApiResponse.ok(data, 'KEY', { requestId });
 
 1. **Always pass event when using message keys**
    ```typescript
-   { requestId: correlationId, event }  // ✅
+   {  correlationId: correlationId, event }  // ✅
    ```
 
 2. **Use namespaced message keys for standard responses**

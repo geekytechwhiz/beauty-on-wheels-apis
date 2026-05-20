@@ -11,7 +11,7 @@ jest.mock('@api-hub/utils', () => ({
   },
 }));
 
-jest.mock('@api-hub/logger', () => ({
+jest.mock('@api-hub/observability', () => ({
   createLogger: () => ({
     info: jest.fn(),
     error: jest.fn(),

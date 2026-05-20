@@ -1,5 +1,5 @@
 import { DynamoDBStreamHandler } from 'aws-lambda';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { dynamoDBStreamEventSchema } from '../../validation/event.validation';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });

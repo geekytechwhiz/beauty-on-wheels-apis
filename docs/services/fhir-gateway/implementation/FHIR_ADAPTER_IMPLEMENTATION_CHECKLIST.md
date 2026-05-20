@@ -177,7 +177,7 @@ apps/user-service/
 ### Handler Pattern
 ```typescript
 export async function getPatient(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   context?: Context
 ): Promise<APIGatewayProxyResult> {
   const correlationId = extractCorrelationId(event);
@@ -197,7 +197,7 @@ export async function getPatient(
     
     return FhirResponse.ok(patient, correlationId);
   } catch (err) {
-    return FhirErrorHandler.handle(err, event, correlationId);
+    return FhirErrorHandler.handle(err, event: any, correlationId);
   }
 }
 ```

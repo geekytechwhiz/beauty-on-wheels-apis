@@ -37,10 +37,32 @@ function safePublish(fn: (m: Metrics) => void): void {
   }
 }
 
+export type ConsumerMetricDimensions = {
+  transport?: string;
+  outcome?: string;
+};
+
+function addConsumerDimensions(
+  m: Metrics,
+  eventType?: string,
+  dimensions?: ConsumerMetricDimensions,
+): void {
+  addEventTypeDimension(m, eventType);
+  if (dimensions?.transport) {
+    m.addDimension('transport', dimensions.transport);
+  }
+  if (dimensions?.outcome) {
+    m.addDimension('outcome', dimensions.outcome);
+  }
+}
+
 /** Emitted when `EventConsumer` finishes with `processed`. */
-export function recordConsumerEventProcessed(eventType?: string): void {
+export function recordConsumerEventProcessed(
+  eventType?: string,
+  dimensions?: ConsumerMetricDimensions,
+): void {
   safePublish((m) => {
-    addEventTypeDimension(m, eventType);
+    addConsumerDimensions(m, eventType, dimensions);
     m.addMetric('TotalEventsProcessed', MetricUnit.Count, 1);
   });
 }
@@ -48,9 +70,12 @@ export function recordConsumerEventProcessed(eventType?: string): void {
 /**
  * Idempotent / duplicate key — not executed again.
  */
-export function recordConsumerDuplicateEvent(eventType?: string): void {
+export function recordConsumerDuplicateEvent(
+  eventType?: string,
+  dimensions?: ConsumerMetricDimensions,
+): void {
   safePublish((m) => {
-    addEventTypeDimension(m, eventType);
+    addConsumerDimensions(m, eventType, dimensions);
     m.addMetric('DuplicateEvents', MetricUnit.Count, 1);
   });
 }
@@ -85,6 +110,96 @@ export function recordConsumerRetry(eventType?: string, retryCount?: number): vo
     addEventTypeDimension(m, eventType);
     m.addMetric('Retries', MetricUnit.Count, 1);
     m.addMetric('RetryCount', MetricUnit.Count, retryCount ?? 0);
+  });
+}
+
+/** Successful or failed SQS ChangeMessageVisibility (heartbeat) API call. */
+export function recordSqsVisibilityHeartbeatExtend(success: boolean): void {
+  safePublish((m) => {
+    m.addMetric('SqsVisibilityExtensions', MetricUnit.Count, 1);
+    m.addDimension('Outcome', success ? 'Success' : 'Failure');
+  });
+}
+
+/** Heartbeat tick skipped (e.g. Lambda almost out of time) — no SDK call. */
+export function recordSqsVisibilityHeartbeatSkipped(reason: string): void {
+  safePublish((m) => {
+    m.addMetric('SqsVisibilityHeartbeatsSkipped', MetricUnit.Count, 1);
+    m.addDimension('Reason', reason);
+  });
+}
+
+/** Heartbeat loop ended without extending (Lambda timeout guard). */
+export function recordSqsVisibilityHeartbeatLoopEnded(reason: string): void {
+  safePublish((m) => {
+    m.addMetric('SqsVisibilityHeartbeatLoopsEnded', MetricUnit.Count, 1);
+    m.addDimension('Reason', reason);
+  });
+}
+
+/** FIFO-aware SQS batch scheduling: one snapshot per Lambda batch. */
+export function recordSqsFifoBatchScheduleSnapshot(input: {
+  groupCount: number;
+  recordCount: number;
+}): void {
+  safePublish((m) => {
+    m.addMetric('SqsFifoBatchScheduleSnapshots', MetricUnit.Count, 1);
+    m.addDimension('GroupCount', String(Math.min(100, input.groupCount)));
+    m.addDimension('RecordCountBucket', fifoRecordCountBucket(input.recordCount));
+  });
+}
+
+function fifoRecordCountBucket(n: number): string {
+  if (n <= 1) {
+    return '1';
+  }
+  if (n <= 5) {
+    return '2-5';
+  }
+  if (n <= 10) {
+    return '6-10';
+  }
+  return '11+';
+}
+
+/** Deferred FIFO-lane tails (not executed this invocation; reported as batch failures). */
+export function recordSqsFifoBatchTailDeferred(count: number, reason: string): void {
+  if (count <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('SqsFifoBatchTailsDeferred', MetricUnit.Count, count);
+    m.addDimension('Reason', reason);
+  });
+}
+
+/** Poison short-circuit: receive count threshold met before handler ran. */
+export function recordSqsFifoBatchPoisonShortCircuit(count: number): void {
+  if (count <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('SqsFifoBatchPoisonShortCircuits', MetricUnit.Count, count);
+  });
+}
+
+/** One Lambda batch of DynamoDB stream records (before per-record processing). */
+export function recordDynamoStreamBatchDispatch(recordCount: number): void {
+  if (recordCount <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('DynamoStreamBatchRecordsReceived', MetricUnit.Count, recordCount);
+  });
+}
+
+/** Records that matched no route and were acked without handler execution. */
+export function recordDynamoStreamRecordFiltered(count: number): void {
+  if (count <= 0) {
+    return;
+  }
+  safePublish((m) => {
+    m.addMetric('DynamoStreamRecordsFiltered', MetricUnit.Count, count);
   });
 }
 

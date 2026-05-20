@@ -1,4 +1,4 @@
-import { createLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import { Context, SNSEvent } from 'aws-lambda';
 import type {
   PaymentStatusNotificationRequestedData,

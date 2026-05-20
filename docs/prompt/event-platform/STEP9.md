@@ -5,7 +5,7 @@ Before coding:
 
 Implement:
 
-- validate(event, schema)
+- validate(event: any, schema)
 
 - Support:
   - per eventType schema

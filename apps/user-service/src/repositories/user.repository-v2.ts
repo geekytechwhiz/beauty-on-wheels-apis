@@ -6,7 +6,7 @@ import {
   createLogger,
   createChildLogger,
   serializeError
-} from "@api-hub/logger";
+} from '@api-hub/observability';
 import { UserKeys } from "../domain/user.keys";
 
 const baseLogger = createLogger({

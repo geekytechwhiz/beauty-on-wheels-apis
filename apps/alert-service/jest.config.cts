@@ -1,5 +1,6 @@
- 
+
 const { readFileSync } = require('fs');
+const { coverageThreshold, collectCoverageFrom } = require('./jest.coverage.cjs');
 
 // Reading the SWC compilation config for the spec files
 const swcJestConfig = JSON.parse(
@@ -19,23 +20,14 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'html'],
   moduleNameMapper: {
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
-    '^@api-hub/logger$': '<rootDir>/../../libs/logger/src/index.ts',
-    '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
     '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
+    '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
     '^@api-hub/alert-core$': '<rootDir>/../../libs/alert-core/src/index.ts',
+    '^@api-hub/event-platform$': '<rootDir>/src/__tests__/mocks/event-platform.mock.ts',
   },
   coverageDirectory: '../../coverage/apps/alert-service',
   coverageReporters: ['text', 'text-summary', 'html', 'lcov'],
-  collectCoverageFrom: [
-    'src/controllers/**/*.ts',
-    'src/handlers/**/*.ts',
-    // Exclusions
-    '!src/**/*.spec.ts',
-    '!src/**/__tests__/**',
-    '!src/**/*.d.ts',
-    // Exclude index files
-    '!src/**/index.ts',
-    '!src/**/health.ts',
-  ],
+  coverageThreshold,
+  collectCoverageFrom,
   verbose: true,
 };

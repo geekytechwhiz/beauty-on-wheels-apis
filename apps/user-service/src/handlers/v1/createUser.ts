@@ -1,5 +1,5 @@
-import { createChildLogger, createLogger } from '@api-hub/logger';
 import { withApiHandler } from '@api-hub/middleware';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import { type LambdaRequest } from '@api-hub/utils';
 import { publishUserCreatedEvent } from '../../events/UserCreated';
 import { publishUserRoleAssignmentRequestedEvent } from '../../events/UserRoleAssignmentRequested';

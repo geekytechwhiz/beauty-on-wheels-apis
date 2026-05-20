@@ -1,3 +1,5 @@
+import type { AlertPublishIntent } from '../events/alert-publish-intent';
+
 export type AssignmentAction = 'ASSIGN' | 'REASSIGN' | 'UNASSIGN' | 'ASSIGN_TO_SELF';
 
 /** Orchestration input for POST `/alerts/assignment`. */
@@ -13,7 +15,6 @@ export interface AssignmentInput {
 }
 
 export interface AssignmentResult {
-  // Intentionally empty result shape; mutation endpoints return ids/results at the HTTP layer.
-  // (Kept as an interface for forward-compatible extension.)
+  publishIntents: AlertPublishIntent[];
 }
 

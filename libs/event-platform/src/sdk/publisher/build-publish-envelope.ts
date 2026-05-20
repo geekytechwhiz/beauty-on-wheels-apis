@@ -30,7 +30,7 @@ export function buildPublishEnvelope<T>(input: PublishInput<T>): BaseEvent<T> {
       idempotencyKey,
       payload: input.payload,
       meta: {
-        correlationId: input.correlationId ?? eventId,
+        correlationId: input.meta?.correlationId ?? eventId,
         publishedAt: timestamp,
         retryCount: 0,
       },

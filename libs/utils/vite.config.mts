@@ -67,7 +67,7 @@ export default defineConfig(() => ({
     },
     rollupOptions: {
       // External packages that should not be bundled into your library.
-      external: ['winston', 'crypto',  '@api-hub/logger'],
+      external: ['winston', 'crypto', '@api-hub/observability'],
     },
   },
 }));

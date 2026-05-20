@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { FriendFamilyService } from '../services/friendFamily.service';
 import { validateAddMemberFriendFamily } from '../validation/request.validators';
@@ -28,6 +28,4 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return friendFamilyService.addMember(organizationID, { ...addBody, userId }, authHeader);
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateAddMemberFriendFamily,
-});
+export const main = withApiHandler({ operation: 'friendFamilyAddMember', validator: validateAddMemberFriendFamily }, handler);

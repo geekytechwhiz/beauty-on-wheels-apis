@@ -1,4 +1,4 @@
-import { createLogger } from '@api-hub/logger';
+import { createLogger } from '@api-hub/observability';
 
 import { STATUS } from '../constants';
 import type {

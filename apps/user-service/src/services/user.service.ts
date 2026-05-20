@@ -1,4 +1,4 @@
-import { createChildLogger, createLogger, createPerformanceTimer, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger, createPerformanceTimer, serializeError } from '@api-hub/observability';
 import { randomUUID } from 'crypto';
 import { ulid } from 'ulid';
 import { publishEvent } from '../events/event.publisher';

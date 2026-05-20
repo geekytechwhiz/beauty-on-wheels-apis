@@ -1,5 +1,5 @@
-import { createChildLogger } from '@api-hub/logger';
 import { withApiHandler } from '@api-hub/middleware';
+import { createChildLogger } from '@api-hub/observability';
 import { type LambdaRequest } from '@api-hub/utils';
 import { Appointment } from '../../models';
 import { UserRepository } from '../../repositories/user.repository';

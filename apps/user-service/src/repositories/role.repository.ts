@@ -1,4 +1,4 @@
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { Feature, OrgFeature } from '../types/feature-types';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -102,7 +102,7 @@ export class RoleRepository {
       const body = (await response.json()) as { data?: { items?: unknown[] }; items?: unknown[] };
       logger.info({ event: 'get_user_permission_api_success' });
       const result = body?.data?.items ?? body;
-      const roleFeatures = Array.isArray(result) ? result : [];
+      const roleFeatures:any = Array.isArray(result) ? result : [];
       // Flatten: API returns items = [{ roleId, features: [f1, f2, ...] }, ...]; we need a single Feature[]
       let features: Feature[] = [];
       if (roleFeatures.length > 0) {

@@ -1,6 +1,6 @@
-import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/logger';
-import { ApiResponse } from '@api-hub/utils';
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
+import { ApiResponse } from '@api-hub/utils';
 
 // Import the migration script (JavaScript module)
 const { main } = require('../migration/script');
@@ -64,11 +64,7 @@ export async function metadataMigration(event: APIGatewayProxyEvent, context?: C
         dryRun,
         duration: `${duration}ms`,
       },
-      {
-        title: 'Metadata migration completed successfully',
-        description: 'The metadata migration completed successfully.',
-        severity: 'SUCCESS',
-      },
+      'METADATA.MIGRATION_COMPLETED',
       { correlationId: correlationId, event },
     );
   } catch (err) {
@@ -79,7 +75,10 @@ export async function metadataMigration(event: APIGatewayProxyEvent, context?: C
     return ApiResponse.internalServerError(
       'METADATA.MIGRATION_FAILED',
       { correlationId: correlationId, event },
-      { code: 'MIGRATION_FAILED', details: [{ message: (err as Error).message }] },
+      {
+        code: 'MIGRATION_FAILED',
+        details: [{ message: (err as Error).message }],
+      },
     );
   }
 }

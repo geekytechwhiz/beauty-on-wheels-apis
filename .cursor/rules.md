@@ -35,10 +35,12 @@ You can drop this into your repo as something like:
 Follow strict modular structure:
 
 ```
-/src
-  /modules
-    /<module-name>
-      controller.ts
+/apps,
+  /service
+    /<src>
+      config
+      controller
+      handler
       service.ts
       repository.ts
       domain.ts

@@ -121,14 +121,14 @@ NOTIFICATION.EMAIL_SENT
 return ApiResponse.created(
   { userId: newUser.id },
   'USER.USER_CREATED_SUCCESS',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 
 // Order service
 return ApiResponse.ok(
   order,
   'ORDER.ORDER_PLACED_SUCCESS',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 ```
 
@@ -138,21 +138,21 @@ return ApiResponse.ok(
 // User not found
 return ApiResponse.notFound(
   'USER.USER_NOT_FOUND',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'USER_NOT_FOUND' }
 );
 
 // Validation error (common)
 return ApiResponse.unprocessableEntity(
   'COMMON.VALIDATION_ERROR',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'VALIDATION_ERROR', details: errors }
 );
 
 // Reward already redeemed (info severity)
 return ApiResponse.conflict(
   'REWARDS.REWARD_ALREADY_REDEEMED',
-  { requestId: correlationId, event },
+  {  correlationId: correlationId, event },
   { code: 'REWARD_ALREADY_REDEEMED' }
 );
 ```

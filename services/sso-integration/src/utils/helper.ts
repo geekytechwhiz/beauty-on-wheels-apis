@@ -1,4 +1,4 @@
-import { createLogger } from "@api-hub/logger";
+import { createLogger } from '@api-hub/observability';
 import { getEnvConfig } from "../config/env"; 
 import { getCachedExternalTenantByTenantId } from "../services/external-tenant.service";
 

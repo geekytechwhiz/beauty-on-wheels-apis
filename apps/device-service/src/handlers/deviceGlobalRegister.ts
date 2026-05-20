@@ -1,6 +1,6 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { GlobalDeviceService } from '../services/globalDeviceService';
 import devicesData from '../utils/devices.json';
@@ -84,7 +84,7 @@ function extractDevicesFromJson(data: DeviceJson): Array<{
   return devices;
 }
 
-const deviceGlobalRegisterImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceGlobalRegisterImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -102,7 +102,7 @@ const deviceGlobalRegisterImpl: APIGatewayProxyHandler = async (event, context?:
       logger.warn({ event: 'deviceGlobalRegister_no_devices_found' });
       const duration = Date.now() - startTime;
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/global/register', 200, duration, correlationId);
-      return ApiResponse.ok([], 'DEVICE.NO_DEVICES_FOUND', { requestId: correlationId, event });
+      return ApiResponse.ok([], 'DEVICE.NO_DEVICES_FOUND', {  correlationId: correlationId, event });
     }
 
     logger.info({ event: 'deviceGlobalRegister_devices_extracted', count: devices.length });
@@ -120,13 +120,13 @@ const deviceGlobalRegisterImpl: APIGatewayProxyHandler = async (event, context?:
 
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/global/register', 201, duration, correlationId);
-    return ApiResponse.created(response, 'DEVICE.GLOBAL_DEVICE_REGISTERED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.created(response, 'DEVICE.GLOBAL_DEVICE_REGISTERED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     logger.error({ event: 'deviceGlobalRegister_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/global/register', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.GLOBAL_REGISTRATION_FAILED', { requestId: correlationId, event }, { code: 'REGISTRATION_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.GLOBAL_REGISTRATION_FAILED', {  correlationId: correlationId, event }, { code: 'REGISTRATION_FAILED' });
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.globalRegister', deviceGlobalRegisterImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.globalRegister' }, deviceGlobalRegisterImpl);

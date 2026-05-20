@@ -1,5 +1,5 @@
-/* eslint-disable no-warning-comments */
-/* eslint-disable no-unused-vars */
+ 
+ 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { dirname } from 'path';

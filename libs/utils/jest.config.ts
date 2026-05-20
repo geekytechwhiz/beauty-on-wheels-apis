@@ -9,7 +9,7 @@ const config: Config = {
   testMatch: ['**/*.spec.ts'],
   moduleNameMapper: {
     '^@api-hub/error-messages$': '<rootDir>/src/helper/__mocks__/error-messages.ts',
-    '^@api-hub/logger$': '<rootDir>/../logger/src/index.ts',
+    '^@api-hub/observability$': '<rootDir>/../observability/src/index.ts',
   },
   coverageDirectory: '../../test-output/jest/coverage/libs/utils',
 };

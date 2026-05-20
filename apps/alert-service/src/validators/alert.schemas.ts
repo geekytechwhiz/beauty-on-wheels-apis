@@ -35,38 +35,29 @@ const sourceTypeZ = z.enum([
   'USER_INTERFACE',
 ]);
 
-const appliesToTypeZ = z.enum(['VITAL_SIGN', 'DEVICE', 'SYMPTOM', 'ENGAGEMENT']);
-const severityHintZ = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
-const priorityZ = z.enum(['P0', 'P1', 'P2', 'P3']);
-
-const evEventTimestamp = z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1));
-const evSource = z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ);
-const evAppliesToType = z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), appliesToTypeZ);
-const evLinkedEntityCode = z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1));
+/** Unix epoch milliseconds (UTC). */
+const epochMsZ = z.number().int().nonnegative();
 
 /**
  * HTTP `evidencePayload` for create: §5.1.3.1 common fields plus exactly one variant’s type-specific keys. Strict.
  */
 const evidenceMissedReadingSchema = z.strictObject({
-  eventTimestamp: evEventTimestamp,
-  source: evSource,
+  eventTimestamp: epochMsZ,
+  source: sourceTypeZ,
   inputType: z.literal('MISSED_READING'),
-  appliesToType: evAppliesToType,
-  linkedEntityCode: evLinkedEntityCode,
-  lastSuccessfulReadingTimestamp: z.preprocess(
-    (v) => (typeof v === 'string' ? v.trim() : v),
-    z.string().min(1),
-  ),
-  missedDuration: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
-  readingType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
+  appliesToType: z.string(),
+  linkedEntityCode: z.string(),
+  lastSuccessfulReadingTimestamp: epochMsZ,
+  missedDuration: z.string(),
+  readingType: z.string(),
 });
 
 const evidenceMissingDeviceSchema = z.strictObject({
-  eventTimestamp: evEventTimestamp,
-  source: evSource,
+  eventTimestamp: epochMsZ,
+  source: sourceTypeZ,
   inputType: z.literal('MISSING_DEVICE'),
-  appliesToType: evAppliesToType,
-  linkedEntityCode: evLinkedEntityCode,
+  appliesToType: z.string(),
+  linkedEntityCode: z.string(),
   deviceLinked: z.boolean(),
 });
 
@@ -75,47 +66,34 @@ const evidencePayloadSchema = z.discriminatedUnion('inputType', [
   evidenceMissingDeviceSchema,
 ]);
 
-function assertIsoDateTime(value: string, path: (string | number)[], label: string, ctx: z.RefinementCtx): void {
-  const ts = Date.parse(value);
-  if (Number.isNaN(ts)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `${label} must be a valid ISO-8601 date-time`,
-      path,
-    });
-  }
-}
-
 /**
  * Request body (strict: unknown keys rejected). Organization ID is not an HTTP field.
  */
 export const createAlertHttpBodySchema = z
   .object({
-    inputEventId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
-    inputType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), createAlertInputTypeZ),
-    sourceType: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), sourceTypeZ),
-    patientId: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
-    patientName: z.string().trim().min(1).optional(),
-    actorName: z.string().trim().min(1).optional(),
-    carePlanInstanceId: z.string().trim().min(1).optional(),
-    packageAssignmentId: z.string().trim().min(1).optional(),
-    triggerTimestamp: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(1)),
-    severityHint: z.string().trim().pipe(severityHintZ).optional(),
-    priority: z.string().trim().pipe(priorityZ).optional(),
-    alertPolicyTemplateVersionId: z.string().trim().min(1).optional(),
-    thresholdTemplateVersionId: z.string().trim().min(1).optional(),
-    groupingKey: z.string().trim().min(1).optional(),
-    triggerSummary: z.string().trim().optional(),
-    triggerSummaryTemplateCode: z.string().trim().min(1).optional(),
+    inputEventId: z.string(),
+    inputType: createAlertInputTypeZ,
+    sourceType: sourceTypeZ,
+    patientId: z.string(),
+    patientName: z.string(),
+    actorName: z.string().optional(),
+    carePlanInstanceId: z.string().optional(),
+    packageAssignmentId: z.string().optional(),
+    triggerTimestamp: epochMsZ,
+    severityHint: z.string().optional(),
+    priority: z.string(),
+    alertPolicyTemplateVersionId: z.string(),
+    thresholdTemplateVersionId: z.string(),
+    groupingKey: z.string(),
+    triggerSummary: z.string().optional(),
+    triggerSummaryTemplateCode: z.string().optional(),
     triggerSummaryParams: z.record(z.string(), z.unknown()).optional(),
     evidencePayload: evidencePayloadSchema,
-    assignSlaMinutes: z.number().int().nonnegative().optional(),
-    resolveSlaMinutes: z.number().int().nonnegative().optional(),
+    assignSlaMinutes: z.number().int().nonnegative(),
+    resolveSlaMinutes: z.number().int().nonnegative(),
   })
   .strict()
   .superRefine((val, ctx) => {
-    assertIsoDateTime(val.triggerTimestamp, ['triggerTimestamp'], 'triggerTimestamp', ctx);
-
     if (val.evidencePayload.inputType !== val.inputType) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -138,17 +116,6 @@ export const createAlertHttpBodySchema = z
         message: 'triggerSummaryParams is required when triggerSummaryTemplateCode is set (use {} if no placeholders)',
         path: ['triggerSummaryParams'],
       });
-    }
-
-    const ev = val.evidencePayload;
-    assertIsoDateTime(ev.eventTimestamp, ['evidencePayload', 'eventTimestamp'], 'evidencePayload.eventTimestamp', ctx);
-    if (ev.inputType === 'MISSED_READING') {
-      assertIsoDateTime(
-        ev.lastSuccessfulReadingTimestamp,
-        ['evidencePayload', 'lastSuccessfulReadingTimestamp'],
-        'evidencePayload.lastSuccessfulReadingTimestamp',
-        ctx,
-      );
     }
   });
 
@@ -363,7 +330,7 @@ export const listAlertsQuerySchema = z
         const t = String(v).trim();
         return t === '' ? undefined : t;
       }, z.string().min(1).optional()),
-    priority: z.string().trim().toUpperCase().pipe(priorityZ).optional(),
+    priority: z.string().trim().optional(),
     inputType: z.string().trim().min(1).optional(),
     dateFrom: z.string().trim().min(1).optional(),
     dateTo: z.string().trim().min(1).optional(),

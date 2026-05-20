@@ -1,6 +1,6 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { z } from 'zod';
@@ -32,7 +32,7 @@ const deviceRemoveSchema = z.object({
   supportedVitals: z.array(z.string()).optional(),
 });
 
-const deviceOrgRemoveImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceOrgRemoveImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const awsRequestId = context ? extractAwsRequestId(context) : 'local';
   const correlationId = extractCorrelationId(event.headers);
@@ -48,7 +48,7 @@ const deviceOrgRemoveImpl: APIGatewayProxyHandler = async (event, context?: Cont
     logger.error({ event: 'deviceOrgRemove_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Validate request body
@@ -59,7 +59,7 @@ const deviceOrgRemoveImpl: APIGatewayProxyHandler = async (event, context?: Cont
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/remove/organizations', 400, duration, correlationId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e: any) => ({
@@ -93,7 +93,7 @@ const deviceOrgRemoveImpl: APIGatewayProxyHandler = async (event, context?: Cont
         title: 'Internal server error',
         description: 'An unexpected error occurred while syncing organization devices.',
       },
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'INTERNAL_SERVER_ERROR' },
     );
   }
@@ -173,8 +173,9 @@ async function removeDevicesFromOrganization(
       {
         title: 'Device unassign success',
         description: 'The device unassign completed successfully.',
+        severity: 'SUCCESS',
       },
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
     );
   }
 
@@ -232,7 +233,7 @@ async function removeDevicesFromOrganization(
         title: 'Device removal failed',
         description: 'All devices failed to be removed from the organization.',
       },
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'DEVICE_REMOVAL_FAILED',
         details: failedDevices.map((d) => ({
@@ -277,7 +278,7 @@ async function removeDevicesFromOrganization(
         },
         error: null,
         meta: {
-          requestId: correlationId,
+           correlationId: correlationId,
           timestamp: new Date().toISOString(),
           version: 'v1',
         },
@@ -304,9 +305,10 @@ async function removeDevicesFromOrganization(
     {
       title: 'Device unassign success',
       description: 'The device unassign completed successfully.',
+      severity: 'SUCCESS',
     },
-    { requestId: correlationId, event },
+    {  correlationId: correlationId, event },
   );
 }
 
-export const handler = withStandardApiGatewayPipeline('device.orgRemove', deviceOrgRemoveImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.orgRemove' }, deviceOrgRemoveImpl);

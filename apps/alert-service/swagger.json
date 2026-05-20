@@ -45,11 +45,11 @@
     },
     "AppliesToType": {
       "type": "string",
-      "enum": ["VITAL_SIGN", "DEVICE", "SYMPTOM", "ENGAGEMENT"]
+      "description": "Product-defined label for what the alert applies to (e.g. VITAL_SIGN, DEVICE)."
     },
     "SeverityHint": {
       "type": "string",
-      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      "description": "Optional severity label from the producer (any string; not restricted to LOW/MEDIUM/HIGH/CRITICAL)."
     },
     "EvidenceMissedReading": {
       "type": "object",

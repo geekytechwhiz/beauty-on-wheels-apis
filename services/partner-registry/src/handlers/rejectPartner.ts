@@ -1,17 +1,16 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
-import { rejectPartnerBodySchema } from '../validation/approveReject.schema';
-import { PartnerNotFoundError, PartnerInvalidStatusTransitionError } from '../utils/errors';
+import type { Context } from 'aws-lambda';
+import { PartnerInvalidStatusTransitionError, PartnerNotFoundError } from '../utils/errors';
 import {
-  getRequestId,
-  responseOpts,
   createHandlerLogger,
-  parseJsonBody,
   getPartnerService,
+  getRequestId,
+  parseJsonBody
 } from '../utils/handlerHelpers';
+import { rejectPartnerBodySchema } from '../validation/approveReject.schema';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const partnerId = event.pathParameters?.id;
@@ -24,7 +23,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Missing partner id in path' }] }
     );
   }
@@ -33,7 +32,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (body === null) {
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -42,7 +41,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'rejectPartner_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -57,12 +56,12 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     const partner = await getPartnerService().rejectPartner(partnerId, validation.data.rejectionReason);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 200, duration, requestId);
-    return ApiResponse.ok(partner, 'PARTNER.PARTNER_REJECTED_SUCCESS', responseOpts(event, requestId));
+    return ApiResponse.ok(partner, 'PARTNER.PARTNER_REJECTED_SUCCESS', { correlationId: requestId, event });
   } catch (err) {
     if (err instanceof PartnerNotFoundError) {
       return ApiResponse.notFound(
         'PARTNER.PARTNER_NOT_FOUND',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
       );
     }
@@ -70,8 +69,8 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       const duration = Date.now() - startTime;
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 409, duration, requestId);
       return ApiResponse.conflict(
-        'PARTNER.INVALID_STATUS_TRANSITION',
-        responseOpts(event, requestId),
+        { title: 'PARTNER.INVALID_STATUS_TRANSITION', description: 'PARTNER.INVALID_STATUS_TRANSITION', severity: 'ERROR' },
+        { correlationId: requestId, event },
         { code: 'INVALID_STATUS_TRANSITION', details: [{ message: err.message }] }
       );
     }
@@ -80,7 +79,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner/reject', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

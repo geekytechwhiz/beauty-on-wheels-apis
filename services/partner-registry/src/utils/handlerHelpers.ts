@@ -5,7 +5,7 @@ import {
   extractAwsRequestId,
   createChildLogger,
   type Logger,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { PartnerRepository } from '../repositories/partner.repository';
 import { PartnerService } from '../services/partner.service';
 
@@ -42,7 +42,7 @@ export function createHandlerLogger(
 /**
  * Parses event.body as JSON. Returns null if invalid.
  */
-export function parseJsonBody(event: APIGatewayProxyEvent): unknown | null {
+export function parseJsonBody(event: APIGatewayProxyEvent): any | null {
   try {
     return typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body ?? {};
   } catch {

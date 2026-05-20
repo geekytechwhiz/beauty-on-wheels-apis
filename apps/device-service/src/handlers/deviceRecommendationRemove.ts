@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { ApiResponse } from '@api-hub/utils';
 import { RecommendationService } from '../services/recommendationService';
 import { deviceRecommendationRemoveSchema } from '../validation/device.validation';
@@ -15,7 +15,7 @@ import { ERROR_CODES } from '../constants/errorCodes';
 
 const recommendationService = new RecommendationService();
 
-const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRecommendationRemoveImpl: any = async (event: any, context?: Context) => {
   const ctx = createHandlerContext(event, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
@@ -25,7 +25,7 @@ const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, con
   if (!parseResult.success) {
     return logAndRespond(
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.DEVICES_RECOMMENDATIONS_REMOVE, statusCode: 400, startTime, correlationId },
-      await ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
+      await ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
     );
   }
 
@@ -62,8 +62,9 @@ const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, con
         {
           title: 'Devices unrecommend success',
           description: 'The device recommendations were removed successfully.',
+          severity: 'SUCCESS',
         },
-        { requestId: correlationId, event: evt },
+        {  correlationId: correlationId, event: evt },
       ),
     );
   } catch (err) {
@@ -85,4 +86,4 @@ const deviceRecommendationRemoveImpl: APIGatewayProxyHandler = async (event, con
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.recommendationRemove', deviceRecommendationRemoveImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.recommendationRemove' }, deviceRecommendationRemoveImpl);

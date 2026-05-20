@@ -68,7 +68,7 @@ export class {Resource}NotFoundError extends Error {
 **Template Structure**:
 ```typescript
 export async function main(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   context?: Context
 ): Promise<APIGatewayProxyResult> {
   const startTime = Date.now();

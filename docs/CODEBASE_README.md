@@ -122,7 +122,7 @@ src/
 
 **Patterns:**
 
-- **Handlers**: Thin Lambda entrypoints; HTTP logic lives in a single `httpHandler.ts` (or similar) and is invoked by small handler files (e.g. `createUser.main` → `createUser(event, context)` from httpHandler).
+- **Handlers**: Thin Lambda entrypoints; HTTP logic lives in a single `httpHandler.ts` (or similar) and is invoked by small handler files (e.g. `createUser.main` → `createUser(event: any, context)` from httpHandler).
 - **Service vs repository**: **Repositories** = DynamoDB (and other persistence). **Services** = business logic + **external HTTP APIs** (e.g. Organization API, Role API, Cognito). Service-to-service calls use dedicated service modules (e.g. `organization.service.ts` with `getOrganization(organizationId, authHeader)`).
 - **Validation**: Zod schemas in `validation/`; handlers use `schema.safeParse(body)` then `ApiResponse.unprocessableEntity` on failure.
 - **Errors**: Custom classes in `utils/errors.ts` (e.g. `UserNotFoundError`, `UserAlreadyExistsError`); handlers map them to HTTP status and `ApiResponse.*`.
@@ -197,7 +197,7 @@ functions:
 ### 5.6 Services vs apps
 
 - **apps** (user-service, organization-service, device-service): Full REST APIs, many functions, DynamoDB, S3, SQS, SNS, EventBridge, Cognito.
-- **services/audit-service**: Few Lambda handlers (audit event, provenance), minimal IAM.
+- **services/audit-service**: Few Lambda handlers (audit event: any, provenance), minimal IAM.
 - **services/fhir-gateway**: `httpApi` routes for FHIR (Patient, Observation, metadata), serverless-esbuild, Nx path resolution.
 
 ---
@@ -208,7 +208,7 @@ functions:
 
 - **Library**: `@api-hub/utils` exposes **ApiResponse** (and related types).
 - **Unified shape**: `success`, `statusCode`, `message` (object with title/description/severity or resolved from CDN), `data`, `error`, `meta` (requestId, timestamp, version).
-- **Usage**: Prefer **message keys** (e.g. `USER.USER_CREATED_SUCCESS`, `COMMON.VALIDATION_ERROR`) so messages are resolved from CDN; pass `{ requestId: correlationId, event }` when needed for language.
+- **Usage**: Prefer **message keys** (e.g. `USER.USER_CREATED_SUCCESS`, `COMMON.VALIDATION_ERROR`) so messages are resolved from CDN; pass `{  correlationId: correlationId, event }` when needed for language.
 - **Examples**:
   - Success: `ApiResponse.ok(data, 'USER.USER_RETRIEVED_SUCCESS', { requestId, event })`
   - Created: `ApiResponse.created({ userID }, 'USER.USER_CREATED_SUCCESS', { requestId, event })`
@@ -302,6 +302,9 @@ Each has its own `serverless.yml` and is deployed independently (e.g. `cd servic
 |------|----------|
 | **Docs index** | `docs/README.md` |
 | **Event-driven guide** | `docs/engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md` |
+| **SQS Lambda handler (`createSqsEventHandler`)** | `docs/engineering/SQS_CREATE_SQS_EVENT_HANDLER.md` |
+| **SQS production readiness audit** | `docs/engineering/SQS_PRODUCTION_READINESS.md` |
+| **DynamoDB Streams runtime** | `docs/engineering/DYNAMODB_STREAM_RUNTIME.md` |
 | **Architecture** | `docs/architecture/system-architecture.md` |
 | **Coding standards** | `docs/coding-standards/README.md`, `docs/coding-standards/api-response/` |
 | **API response usage** | `docs/coding-standards/api-response/API_RESPONSE_USAGE.md` |

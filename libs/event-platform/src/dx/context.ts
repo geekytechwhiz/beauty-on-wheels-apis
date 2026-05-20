@@ -3,17 +3,14 @@ import { EventTransport } from '../core/schema/define-event';
 import type { EventConsumer } from '../sdk/consumer/event-consumer';
 import type { EventPublisher } from '../sdk/publisher/event-publisher';
 
+import type { PublishRoutingConfig } from '../publishing/routing';
+
 export type DxRuntime = {
-   
- 
   publishers: Partial<
     Record<EventTransport, EventPublisher>
   >;
-
-  /**
-   * Shared consumer runtime.
-   */
   consumer?: EventConsumer;
+  routing?: PublishRoutingConfig;
 };
 
 let runtime: DxRuntime | null = null;

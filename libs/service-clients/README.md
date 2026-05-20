@@ -156,7 +156,7 @@ logger.log(LogLevel.INFO, 'Custom log');
 ## Example: Complete Lambda Handler
 
 ```typescript
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyevent: any, APIGatewayProxyResult } from 'aws-lambda';
 import { extractLambdaContext, createLoggerWithContext } from '@api-hub/logger';
 
 export const handler = async (

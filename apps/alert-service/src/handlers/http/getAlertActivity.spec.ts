@@ -23,9 +23,6 @@ jest.mock('@api-hub/middleware', () => {
     withApiHandler:
       (options: any, handler: (req: any) => Promise<any>) =>
       async (event: any) => {
-        if (event?.source === 'serverless-plugin-warmup') {
-          return ApiResponse.ok(null, { title: 'SUCCESS', description: 'Warmup', severity: 'SUCCESS' }, { correlationId: 'unknown' });
-        }
 
         const parsedBody = tryParseJson(event?.body);
         if (parsedBody === Symbol.for('invalid-json')) {
@@ -162,10 +159,5 @@ describe('getAlertActivity HTTP handler', () => {
     await (main as any)(event, context);
     expect(mockListAlertActivity).toHaveBeenCalledWith('alt-1', 'org-1', { notesOnly: true });
   });
-
-  it('handles warmup', async () => {
-    const result = await (main as any)({ source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent, context);
-    expect(result.statusCode).toBe(200);
-    expect(mockListAlertActivity).not.toHaveBeenCalled();
-  });
 });
+

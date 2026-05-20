@@ -1,10 +1,12 @@
 export {
   createEventTracingHooks,
+  fireFifoBatchTailDeferred,
   fireProcessingFailure,
   fireProcessingStart,
   fireProcessingSuccess,
   type CreateEventTracingHooksOptions,
   type EventTracingHooks,
+  type FifoBatchTailDeferredContext,
 } from './event-tracing-hooks';
 export type {
   TraceContext,

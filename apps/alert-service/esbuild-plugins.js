@@ -8,9 +8,10 @@ module.exports = [
     setup(build) {
       const workspaceRoot = resolve(__dirname, '../..');
       const workspacePackages = {
-        '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
+        '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/alert-core': resolve(workspaceRoot, 'libs/alert-core/src/index.ts'),
+        '@api-hub/event-platform': resolve(workspaceRoot, 'libs/event-platform/src/index.ts'),
         '@api-hub/middleware': resolve(workspaceRoot, 'libs/middleware/src/index.ts'),
         '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
       };

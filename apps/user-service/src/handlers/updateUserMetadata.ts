@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { withLambdaHandler } from '@api-hub/middleware';
+ 
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUpdateUserMetadata } from '../validation/request.validators';
@@ -16,6 +16,4 @@ const handler = async (req: LambdaRequest<Params> & { validatedUpdateMetadata?: 
   return userService.updateUserMetadata(userId as string, metadata);
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUpdateUserMetadata,
-});
+export const main = withApiHandler({ operation: 'updateUserMetadata', validator: validateUpdateUserMetadata }, handler);

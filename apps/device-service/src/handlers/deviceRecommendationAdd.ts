@@ -1,6 +1,6 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { RecommendationService } from '../services/recommendationService';
 import { deviceRecommendationAddSchema } from '../validation/device.validation';
@@ -8,7 +8,7 @@ import { deviceRecommendationAddSchema } from '../validation/device.validation';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const recommendationService = new RecommendationService();
 
-const deviceRecommendationAddImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRecommendationAddImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -23,7 +23,7 @@ const deviceRecommendationAddImpl: APIGatewayProxyHandler = async (event, contex
     logger.error({ event: 'deviceRecommendationAdd_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/recommendations/add', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Authorization disabled - extract values from body
@@ -44,7 +44,7 @@ const deviceRecommendationAddImpl: APIGatewayProxyHandler = async (event, contex
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/recommendations/add', 400, duration, correlationId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e: any) => ({
@@ -86,15 +86,16 @@ const deviceRecommendationAddImpl: APIGatewayProxyHandler = async (event, contex
       {
         title: 'Device recommend success',
         description: 'The device recommend completed successfully.',
+        severity: 'SUCCESS',
       },
-      { requestId: correlationId, event }
+      {  correlationId: correlationId, event }
     );
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceRecommendationAdd_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/recommendations/add', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.RECOMMENDATION_ADD_FAILED', { requestId: correlationId, event }, { code: 'RECOMMENDATION_ADD_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.RECOMMENDATION_ADD_FAILED', {  correlationId: correlationId, event }, { code: 'RECOMMENDATION_ADD_FAILED' });
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.recommendationAdd', deviceRecommendationAddImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.recommendationAdd' }, deviceRecommendationAddImpl);

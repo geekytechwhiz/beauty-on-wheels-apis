@@ -6,7 +6,7 @@ Shared utilities and patterns for **reusability**, **readability**, and **mainta
 
 | Utility | Purpose |
 |--------|--------|
-| **utils/handlerContext.ts** | `createHandlerContext(event, context)` → `{ startTime, correlationId, awsRequestId, logger, event }`. Use at the start of every handler. |
+| **utils/handlerContext.ts** | `createHandlerContext(event: any, context)` → `{ startTime, correlationId, awsRequestId, logger, event }`. Use at the start of every handler. |
 | **utils/requestParser.ts** | `parseRequestBody(event.body, logger, { parseErrorEvent: 'handlerName_parse_error' })` → `{ success, body? }`. No throw; return 400 when `!success`. |
 | **utils/authContext.ts** | `extractUserContext({ authorizer, body })` → `{ userId?, organizationId? }`. `validateUserContext(ctx)` for required auth. |
 | **utils/validationHelper.ts** | `validationErrorResponse(zodError, options)` → logs 422 and returns `ApiResponse.unprocessableEntity` with same details shape. |
@@ -19,8 +19,8 @@ Shared utilities and patterns for **reusability**, **readability**, and **mainta
 ## Standard handler shape
 
 ```ts
-export const handler: APIGatewayProxyHandler = async (event, context?: Context) => {
-  const ctx = createHandlerContext(event, context);
+export const handler: any = async (event: any, context?: Context) => {
+  const ctx = createHandlerContext(event: any, context);
   const { startTime, correlationId, logger } = ctx;
   const evt = ctx.event;
   logger.info({ event: 'handlerName_received' });
@@ -30,7 +30,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
   if (!parseResult.success) {
     return logAndRespond(
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.XXX, statusCode: 400, startTime, correlationId },
-      await ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
+      await ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event: evt }, { code: ERROR_CODES.BAD_REQUEST }),
     );
   }
 
@@ -49,7 +49,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
     const result = await someService.doWork(validation.data, correlationId);
     return logAndRespond(
       { logger, method: evt.httpMethod || HTTP_METHODS.POST, path: evt.path || PATHS.XXX, statusCode: 200, startTime, correlationId },
-      await ApiResponse.ok(result, '...', { requestId: correlationId, event: evt }),
+      await ApiResponse.ok(result, '...', {  correlationId: correlationId, event: evt }),
     );
   } catch (err) {
     return handleHandlerError(err, {
@@ -73,7 +73,7 @@ export const handler: APIGatewayProxyHandler = async (event, context?: Context) 
 
 ## How to refactor remaining handlers
 
-1. Replace inline `startTime`, `correlationId`, `logger` setup with `createHandlerContext(event, context)`.
+1. Replace inline `startTime`, `correlationId`, `logger` setup with `createHandlerContext(event: any, context)`.
 2. Replace inline `JSON.parse(event.body)` try/catch with `parseRequestBody(evt.body, logger, { parseErrorEvent: '...' })` and 400 on `!success`.
 3. Replace inline authorizer/claims with `extractUserContext({ authorizer, body })` (and `validateUserContext` if you need 401).
 4. Replace manual validation failure handling with `validationErrorResponse(validation.error, { ... })`.

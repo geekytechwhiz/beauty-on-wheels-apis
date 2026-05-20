@@ -1,7 +1,7 @@
 import { GetCommand, QueryCommand, type QueryCommandOutput, type GetCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { sendDoc } from '../utils/dynamodb-send';
-import { createLogger, createChildLogger } from '@api-hub/logger';
+import { createLogger, createChildLogger } from '@api-hub/observability';
 const logger = createLogger({ service: 'user-service', redactPII: true });
 
 const ORGANIZATION_TABLE_NAME = process.env.ORGANIZATION_TABLE || process.env.USER_TABLE || '';

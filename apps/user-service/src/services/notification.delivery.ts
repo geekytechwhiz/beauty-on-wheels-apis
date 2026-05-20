@@ -3,7 +3,7 @@ import {
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
 import axios from 'axios';
-import { createLogger, serializeError } from '@api-hub/logger';
+import { createLogger, serializeError } from '@api-hub/observability';
 import { renderTemplate } from '@api-hub/utils';
 
 const logger = createLogger({

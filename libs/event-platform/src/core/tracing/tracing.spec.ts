@@ -1,9 +1,9 @@
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
-import { createEventTracingHooks } from './event-tracing-hooks';
+import { createEventTracingHooks, fireFifoBatchTailDeferred } from './event-tracing-hooks';
 
 describe('createEventTracingHooks', () => {
-  it('logs received, processed, and failed via @api-hub/logger', () => {
+  it('logs received, processed, and failed via observability logger', () => {
     const info = jest.fn();
     const error = jest.fn();
     const logger = { info, error } as unknown as Logger;
@@ -45,5 +45,40 @@ describe('createEventTracingHooks', () => {
         correlationId: 'c1',
       }),
     );
+  });
+});
+
+describe('fireFifoBatchTailDeferred', () => {
+  it('invokes optional hook when present', () => {
+    const onFifoBatchTailDeferred = jest.fn();
+    fireFifoBatchTailDeferred(
+      { onFifoBatchTailDeferred },
+      {
+        schedulingLaneKey: 'fifo:g1',
+        skippedMessageIds: ['m2'],
+        reason: 'head_not_acked',
+        blockingMessageId: 'm1',
+        blockingBatchIndex: 0,
+      },
+    );
+    expect(onFifoBatchTailDeferred).toHaveBeenCalledTimes(1);
+  });
+
+  it('swallows hook errors', () => {
+    expect(() =>
+      fireFifoBatchTailDeferred(
+        {
+          onFifoBatchTailDeferred: () => {
+            throw new Error('boom');
+          },
+        },
+        {
+          schedulingLaneKey: 'fifo:g1',
+          skippedMessageIds: [],
+          reason: 'head_not_acked',
+          blockingBatchIndex: 0,
+        },
+      ),
+    ).not.toThrow();
   });
 });

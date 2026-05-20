@@ -1,6 +1,6 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
@@ -43,7 +43,7 @@ const applyListFilters = (devices: any[], category?: string, searchValue?: strin
   return filteredDevices;
 };
 
-const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceListImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -62,7 +62,7 @@ const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) 
       const validation = deviceListSchema.safeParse(requestData);
       if (!validation.success) {
         logger.error({ event: 'deviceList_validation_error', errors: validation.error.issues });
-        return ApiResponse.badRequest('DEVICE.INVALID_REQUEST_DATA', { requestId: correlationId, event });
+        return ApiResponse.badRequest('DEVICE.INVALID_REQUEST_DATA', {  correlationId: correlationId, event });
       }
     } else {
       // For GET requests, use query parameters (backward compatibility)
@@ -108,11 +108,8 @@ const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
       return ApiResponse.ok(
         { items: categoryNames },
-        {
-          title: 'Device category success',
-          description: 'The device category completed successfully.',
-        },
-        { requestId: correlationId, event }
+        'DEVICE.DEVICE_CATEGORY_SUCCESS',
+        {  correlationId: correlationId, event }
       );
     }
 
@@ -158,11 +155,8 @@ const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
       return ApiResponse.ok(
         { items: deviceList },
-        {
-          title: 'Device list success',
-          description: 'The device list completed successfully.',
-        },
-        { requestId: correlationId, event }
+        'DEVICE.DEVICE_LIST_SUCCESS',
+        {  correlationId: correlationId, event }
       );
     }
 
@@ -200,11 +194,8 @@ const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
       return ApiResponse.ok(
         { items: deviceList },
-        {
-          title: 'Device list success',
-          description: 'The device list completed successfully.',
-        },
-        { requestId: correlationId, event }
+        'DEVICE.DEVICE_LIST_SUCCESS',
+        {  correlationId: correlationId, event }
       );
     }
 
@@ -250,11 +241,8 @@ const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
       return ApiResponse.ok(
         { items: deviceList },
-        {
-          title: 'Device list success',
-          description: 'The device list completed successfully.',
-        },
-        { requestId: correlationId, event }
+        'DEVICE.DEVICE_LIST_SUCCESS',
+        {  correlationId: correlationId, event }
       );
     }
 
@@ -270,7 +258,7 @@ const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) 
       });
       const duration = Date.now() - startTime;
       logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/list', 200, duration, correlationId);
-      return ApiResponse.ok(devices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', { requestId: correlationId, event });
+      return ApiResponse.ok(devices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', {  correlationId: correlationId, event });
     }
 
     // Default: Return all global devices (backward compatibility)
@@ -290,13 +278,13 @@ const deviceListImpl: APIGatewayProxyHandler = async (event, context?: Context) 
     
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/list', 200, duration, correlationId);
-    return ApiResponse.ok(allDevices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.ok(allDevices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceList_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/list', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.LIST_RETRIEVAL_FAILED', { requestId: correlationId, event }, { code: 'LIST_RETRIEVAL_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.LIST_RETRIEVAL_FAILED', {  correlationId: correlationId, event }, { code: 'LIST_RETRIEVAL_FAILED' });
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.list', deviceListImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.list' }, deviceListImpl);

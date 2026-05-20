@@ -4,7 +4,7 @@ import {
   createChildLogger,
   extractCorrelationId,
   serializeError,
-} from '@api-hub/logger'
+} from '@api-hub/observability'
 
 import { BaseController } from '../core/base.controller'
 import { getEnvConfig } from '../config/env'
@@ -148,7 +148,7 @@ export class AppointmentSyncController extends BaseController {
             severity: 'SUCCESS'
           },
           {
-            requestId: correlationId,
+             correlationId: correlationId,
             headers: {
               'X-Correlation-Id': correlationId,
               'Cache-Control': 'private, max-age=60',

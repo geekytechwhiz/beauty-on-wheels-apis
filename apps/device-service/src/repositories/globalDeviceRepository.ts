@@ -1,7 +1,7 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import {  GlobalDevice, OrganizationDevice } from '../models';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { DeviceNotFoundError, DeviceAlreadyDeletedError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'global-device-repository' });
@@ -66,7 +66,7 @@ export class GlobalDeviceRepository {
         new PutCommand({
           TableName: this.tableName,
           Item: item,
-        }),
+        }) as any,
       );
       logger.info({ event: 'global_device_created', deviceId: data.deviceId, tableName: this.tableName });
       return item;
@@ -82,7 +82,7 @@ export class GlobalDeviceRepository {
   async getDevicesByCategory(category?: string, countryCode?: string): Promise<GlobalDevice[]> {
     const logger = createChildLogger(baseLogger, { category, countryCode });
     try {
-      let result;
+      let result:any;
       if (category) {
         // Query by category using sk4 index
         result = await this.docClient.send(
@@ -93,7 +93,7 @@ export class GlobalDeviceRepository {
               ':pk': 'DEVICE_LIST',
               ':sk4': category.toUpperCase(),
             },
-          }),
+          }) as any,
         );
       } else {
         // Get all devices
@@ -104,7 +104,7 @@ export class GlobalDeviceRepository {
             ExpressionAttributeValues: {
               ':pk': 'DEVICE_LIST',
             },
-          }),
+          }) as any,
         );
       }
 
@@ -133,14 +133,14 @@ export class GlobalDeviceRepository {
     const normalizedpk = organizationId.toUpperCase() === 'ROOT' ? 'DEVICE_LIST' : `ORG_DEVICES#${organizationId}`;
  
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk',
           ExpressionAttributeValues: {
             ':pk': normalizedpk,
           },
-        }),
+        }) as any,
       );
       return result.Items && result.Items.length > 0 ? (result.Items as OrganizationDevice[]) : [];
     } catch (err) {
@@ -156,7 +156,7 @@ export class GlobalDeviceRepository {
     const logger = createChildLogger(baseLogger, { deviceId });
     const normalizedDeviceId = this.normalizeDeviceId(deviceId);
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk',
@@ -165,7 +165,7 @@ export class GlobalDeviceRepository {
             ':pk': 'DEVICE_LIST',
             ':sk3': normalizedDeviceId,
           },
-        }),
+        }) as any,
       );
       return result.Items && result.Items.length > 0 ? (result.Items[0] as GlobalDevice) : null;
     } catch (err) {
@@ -192,18 +192,18 @@ export class GlobalDeviceRepository {
   async getCategories(): Promise<string[]> {
     const logger = createChildLogger(baseLogger, {});
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk',
           ExpressionAttributeValues: {
             ':pk': 'DEVICE_LIST',
           },
-        }),
+        }) as any,
       );
 
       const categories = new Set<string>();
-      (result.Items || []).forEach((item) => {
+      (result.Items || []).forEach((item: any) => {
         const device = item as GlobalDevice;
         if (device.category) {
           categories.add(device.category);
@@ -240,7 +240,7 @@ export class GlobalDeviceRepository {
 
       // Update the device to set enabled: false
       await this.docClient.send(
-        new UpdateCommand({
+          new UpdateCommand({
           TableName: this.tableName,
           Key: {
             pk: device.pk,
@@ -251,7 +251,7 @@ export class GlobalDeviceRepository {
             ':enabled': false,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
 
       // Return the device with updated enabled status
@@ -322,7 +322,7 @@ export class GlobalDeviceRepository {
               sk: existingDevice.sk,
             },
             ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-          }),
+          }) as any,
         );
 
         // Create new item with updated keys
@@ -330,7 +330,7 @@ export class GlobalDeviceRepository {
           new PutCommand({
             TableName: this.tableName,
             Item: updatedDeviceData,
-          }),
+          }) as any,
         );
 
         logger.info({ event: 'global_device_updated_with_category_change', deviceId, oldCategory: existingDevice.category, newCategory: updates.category });
@@ -378,7 +378,7 @@ export class GlobalDeviceRepository {
           ExpressionAttributeValues: expressionAttributeValues,
           ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
 
       // Get the updated device

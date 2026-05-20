@@ -1,4 +1,4 @@
-import { createLogger, createChildLogger } from '@api-hub/logger';
+import { createLogger, createChildLogger } from '@api-hub/observability';
 import { publishNotificationEvent } from '../events/notification-sns.publisher';
 import type {
   DeviceErrorNotificationRequestedData,

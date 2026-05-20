@@ -1,5 +1,5 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'event-publisher' });
 const eventBridge = new EventBridgeClient({ region: process.env.REGION || 'us-east-1' });

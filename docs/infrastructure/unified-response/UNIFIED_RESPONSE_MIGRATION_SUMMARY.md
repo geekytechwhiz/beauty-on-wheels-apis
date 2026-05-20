@@ -22,7 +22,7 @@ return ApiResponse.ok(
 return ApiResponse.ok(
   data,
   'USER.USER_RETRIEVED_SUCCESS',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 ```
 

@@ -1,6 +1,6 @@
 import { CognitoService } from './cognito.service';
 import { UserAlreadyExistsError } from '../utils/errors';
-import { serializeError } from '@api-hub/logger';
+import { serializeError } from '@api-hub/observability';
 
 export interface CognitoUserInput {
   email?: string;

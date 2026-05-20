@@ -1,4 +1,5 @@
 import type { PriorityBand } from '../types/priority-band.type';
+import type { AlertPublishIntent } from '../events/alert-publish-intent';
 
 export interface PriorityInput {
   alertIds: string[];
@@ -8,7 +9,7 @@ export interface PriorityInput {
 }
 
 export interface PriorityResult {
-  // Intentionally empty result shape; mutation endpoints return ids/results at the HTTP layer.
-  // (Kept as an interface for forward-compatible extension.)
+  publishIntents: AlertPublishIntent[];
 }
+
 

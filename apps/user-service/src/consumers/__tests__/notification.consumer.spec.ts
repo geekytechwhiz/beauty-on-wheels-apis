@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock logger before importing consumer to avoid module resolution errors
-vi.mock('@api-hub/logger', () => ({
+vi.mock('@api-hub/observability', () => ({
   createLogger: vi.fn(() => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() })),
   serializeError: vi.fn((err) => ({ message: err.message, stack: err.stack })),
 }));
@@ -70,7 +70,7 @@ describe('notification.consumer', () => {
     };
 
     const event = { Records: [{ Sns: { Message: JSON.stringify(envelope) } }] } as any;
-    const res = await handler(event, {} as any);
+    const res = await handler(event: any, {} as any);
     expect(sendEmail).toHaveBeenCalled();
     expect(sendSms).toHaveBeenCalled();
     expect(sendPush).toHaveBeenCalled();

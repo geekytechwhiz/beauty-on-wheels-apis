@@ -1,9 +1,6 @@
 'use strict';
 
-const USERS = {
-  admin: 'Myvital@2026',
-  dev: 'Myvital@2026'
-};
+
 
 const PUBLIC_EXTENSIONS = [
   '.js',
@@ -26,7 +23,10 @@ const PUBLIC_EXTENSIONS = [
   '.eot',
   '.wasm'
 ];
-
+const USERS = {
+  admin: 'Myvital@2026',
+  dev: 'Myvital@2026'
+};
 exports.handler = async (event) => {
   const request = event.Records[0].cf.request;
 

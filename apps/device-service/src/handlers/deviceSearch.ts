@@ -1,14 +1,14 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { Context } from 'aws-lambda';
 import { DeviceSearchService } from '../services/device-searchService';
 import { deviceSearchSchema } from '../validation/device.validation';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceSearchService = new DeviceSearchService();
 
-const deviceSearchImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceSearchImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -23,7 +23,7 @@ const deviceSearchImpl: APIGatewayProxyHandler = async (event, context?: Context
     logger.error({ event: 'deviceSearch_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/search', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Extract user context from authorizer
@@ -48,7 +48,7 @@ const deviceSearchImpl: APIGatewayProxyHandler = async (event, context?: Context
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/search', 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e: any) => ({
@@ -73,7 +73,7 @@ const deviceSearchImpl: APIGatewayProxyHandler = async (event, context?: Context
               description: 'Organization must be ROOT for organization-scoped device search',
               severity: 'ERROR',
             },
-            { requestId: correlationId, event },
+            {  correlationId: correlationId, event },
             { code: 'INVALID_ORGANIZATION' },
           );
         }
@@ -84,7 +84,7 @@ const deviceSearchImpl: APIGatewayProxyHandler = async (event, context?: Context
         if (!validation.data.organizationID) {
           const duration = Date.now() - startTime;
           logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/search', 400, duration, correlationId);
-          return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'organizationID is required for patient action' }] });
+          return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'organizationID is required for patient action' }] });
         }
         result = await deviceSearchService.getPatientDevices(validation.data.organizationID, validation.data.countryCode);
         break;
@@ -100,20 +100,20 @@ const deviceSearchImpl: APIGatewayProxyHandler = async (event, context?: Context
       default: {
         const duration = Date.now() - startTime;
         logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/search', 400, duration, correlationId);
-        return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid action' }] });
+        return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST', details: [{ message: 'Invalid action' }] });
       }
     }
 
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/search', 200, duration, correlationId);
-    return ApiResponse.ok(result, { title: 'DEVICE.DEVICE_SEARCH_SUCCESS', description: 'Device search successful', severity: 'SUCCESS' }, { requestId: correlationId, event });
+    return ApiResponse.ok(result, { title: 'DEVICE.DEVICE_SEARCH_SUCCESS', description: 'Device search successful', severity: 'SUCCESS' }, {  correlationId: correlationId, event });
   } catch (err) {
     return ApiResponse.internalServerError({
       title: 'DEVICE.SEARCH_FAILED',
       description: 'Device search failed',
       severity: 'ERROR',
-    }, { requestId: correlationId, event }, { code: 'SEARCH_FAILED' });
+    }, {  correlationId: correlationId, event }, { code: 'SEARCH_FAILED' });
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.search', deviceSearchImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.search' }, deviceSearchImpl);

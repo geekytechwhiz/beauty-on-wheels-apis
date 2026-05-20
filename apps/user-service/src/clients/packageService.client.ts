@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 

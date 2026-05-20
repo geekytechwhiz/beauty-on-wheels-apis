@@ -1,12 +1,13 @@
 import { BaseEvent } from '../typings/base-event.types';
 import { z } from 'zod';
 
-import { DlqConfig } from '../core/dlq/dlq-config';
-import { IdempotencyStrategy } from '../core/idempotency/idempotency-strategy';
+import type { DlqConfig } from '../core/dlq/dlq-config';
+import type { IdempotencyStrategy } from '../core/idempotency/idempotency-strategy';
 import type { RetryStrategy } from '../core/retry/retry.types';
 import type { ResolveSchemaOptions } from '../core/schema/schema-resolver';
 import type { TransportMode } from '../core/policy/delivery-policy';
-import { EventTracingHooks } from '../core/tracing/event-tracing-hooks';
+import type { EventTracingHooks } from '../core/tracing/event-tracing-hooks';
+import type { TransportProfile } from '../runtime/transport-profile';
 
 export type PayloadSchemaRegistry = Partial<Record<string, z.ZodType<unknown>>>;
 
@@ -73,6 +74,11 @@ export type EventConsumerDeps = {
   mapRawToBaseEvent?: (raw: unknown) => BaseEvent;
 
   /**
+   * Transport profile selected at handler factory time (not auto-detected per invocation).
+   */
+  transportProfile?: TransportProfile;
+
+  /**
    * When unset: `framework-managed` if {@link transportRetry} is set, otherwise `sqs-native`.
    */
   transportMode?: TransportMode;
@@ -81,6 +87,25 @@ export type EventConsumerDeps = {
    * Max concurrent record processing for batch consumers (SQS partial batch). Default: unbounded.
    */
   batchConcurrency?: number;
+
+  /**
+   * When true, SQS batch work is scheduled so records sharing the same FIFO `MessageGroupId` run
+   * serially while different groups (and standard-queue “ungrouped” lanes) run with up to
+   * {@link batchConcurrency} concurrent handlers. Later messages in a lane are not executed if an
+   * earlier message in that lane is not acked this invocation (ordering + partial batch parity).
+   */
+  sqsFifoGroupScheduling?: boolean;
+
+  /**
+   * With {@link sqsFifoGroupScheduling}, skip the handler when `ApproximateReceiveCount` meets or
+   * exceeds this value and surface `needs_transport_retry` (batch failure) to isolate poison retries.
+   */
+  sqsFifoPoisonReceiveCountThreshold?: number;
+
+  /**
+   * When true, a failed idempotency `afterSuccess` commit surfaces as a retryable failure.
+   */
+  strictIdempotencyAfterSuccess?: boolean;
 
   /**
    * When set, retries re-publish the raw transport payload (e.g. SQS) instead of failing the Lambda.

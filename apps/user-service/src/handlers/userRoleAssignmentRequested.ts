@@ -1,10 +1,10 @@
-import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
 import type { EventBridgeEvent } from 'aws-lambda';
-import { PackageRepository } from '../repositories/package.repositrory';
-import { RoleRepository } from '../repositories/role.repository';
-import { UserRepository } from '../repositories/user.repository';
+import { createChildLogger, createLogger, serializeError } from '@api-hub/observability';
 import { assignUserRole } from '../services/role.service';
 import { userRoleAssignmentRequestedEventSchema } from '../validation/event.validation';
+import { UserRepository } from '../repositories/user.repository';
+import { PackageRepository } from '../repositories/package.repositrory';
+import { RoleRepository } from '../repositories/role.repository';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userRepository = new UserRepository();

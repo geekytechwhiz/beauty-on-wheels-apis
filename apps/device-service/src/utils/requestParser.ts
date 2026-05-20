@@ -1,5 +1,5 @@
-import { serializeError } from '@api-hub/logger';
-import type { Logger } from '@api-hub/logger';
+import { serializeError } from '@api-hub/observability';
+import type { Logger } from '@api-hub/observability';
 import type { ParseRequestBodyResult } from '../types/deviceRegistration.types';
 
 export interface ParseRequestBodyOptions {

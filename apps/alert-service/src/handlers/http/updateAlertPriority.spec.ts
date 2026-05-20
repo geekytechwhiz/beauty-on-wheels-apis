@@ -24,9 +24,6 @@ jest.mock('@api-hub/middleware', () => {
     withApiHandler:
       (options: any, handler: (req: any) => Promise<any>) =>
       async (event: any) => {
-        if (event?.source === 'serverless-plugin-warmup') {
-          return ApiResponse.ok(null, { title: 'SUCCESS', description: 'Warmup', severity: 'SUCCESS' }, { correlationId: 'unknown' });
-        }
 
         const parsedBody = tryParseJson(event?.body);
         if (parsedBody === Symbol.for('invalid-json')) {
@@ -78,6 +75,10 @@ jest.mock('@api-hub/middleware', () => {
 // eslint-disable-next-line no-var
 var mockApplyPriority: jest.Mock;
 
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@api-hub/alert-core', () => {
   mockApplyPriority = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/alert-core')>('@api-hub/alert-core');
@@ -121,7 +122,7 @@ describe('updateAlertPriority HTTP handler', () => {
   }
 
   it('returns 200 with alertIds for single-select', async () => {
-    mockApplyPriority.mockResolvedValue({});
+    mockApplyPriority.mockResolvedValue({ publishIntents: [] });
 
     const result = await (main as any)(
       baseEvent({ alertIds: [alertId], priority: 'P1' }),
@@ -146,12 +147,6 @@ describe('updateAlertPriority HTTP handler', () => {
     expect(result.statusCode).toBe(422);
     expect(mockApplyPriority).not.toHaveBeenCalled();
   });
-
-  it('handles serverless-plugin-warmup', async () => {
-    const warmup = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
-    const result = await (main as any)(warmup, context);
-    expect(result.statusCode).toBe(200);
-    expect(mockApplyPriority).not.toHaveBeenCalled();
-  });
 });
+
 

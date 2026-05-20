@@ -1,5 +1,5 @@
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import { OrgDevice } from '../models';
 import { DeviceNotFoundError, InvalidOrganizationError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';

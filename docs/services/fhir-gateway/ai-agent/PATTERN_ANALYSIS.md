@@ -125,7 +125,7 @@ libs/fhir/
 
 ```typescript
 export async function main(
-  event: APIGatewayProxyEvent,
+  event: APIGatewayProxyevent: any,
   context?: Context
 ): Promise<APIGatewayProxyResult> {
   // 1. Initialize timing and extract IDs

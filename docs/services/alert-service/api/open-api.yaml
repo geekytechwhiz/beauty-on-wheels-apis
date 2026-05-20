@@ -259,11 +259,11 @@ components:
 
     AppliesToType:
       type: string
-      enum: [VITAL_SIGN, DEVICE, SYMPTOM, ENGAGEMENT]
+      description: Product-defined label for what the alert applies to.
 
     Priority:
       type: string
-      enum: [P0, P1, P2, P3]
+      description: Product-defined priority label (e.g. P0–P3 or org-specific codes).
 
     AlertState:
       type: string
@@ -277,7 +277,7 @@ components:
 
     SeverityHint:
       type: string
-      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+      description: Optional severity label from the caller (any string).
 
     EvidencePayload:
       type: object

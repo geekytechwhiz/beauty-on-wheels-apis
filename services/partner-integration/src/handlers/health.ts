@@ -1,9 +1,9 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { getRequestId, responseOpts, createHandlerLogger } from '../utils/handlerHelpers';
-import { logHttpRequest } from '@api-hub/logger';
+import { logHttpRequest } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const logger = createHandlerLogger(event, context);
@@ -13,6 +13,6 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   return ApiResponse.ok(
     { status: 'ok', service: 'partner-integration' },
     'HEALTH.HEALTH_CHECK_OK',
-    responseOpts(event, requestId)
+    { correlationId: requestId, event }
   );
 };

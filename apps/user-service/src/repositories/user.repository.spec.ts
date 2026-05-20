@@ -9,7 +9,7 @@ vi.mock('../utils/db.config', () => ({
   },
 }));
 
-vi.mock('@api-hub/logger', () => ({
+vi.mock('@api-hub/observability', () => ({
   createLogger: vi.fn(() => ({
     info: vi.fn(),
     error: vi.fn(),

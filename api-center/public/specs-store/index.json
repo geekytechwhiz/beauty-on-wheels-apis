@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-05-13T18:00:38.282Z",
+  "generatedAt": "2026-05-14T10:27:52.903Z",
   "services": [
     {
-      "name": "user-service",
-      "latestVersion": "v1.0.0",
+      "name": "ABC",
+      "latestVersion": "v0.1.0",
       "versions": [
         {
-          "serviceName": "user-service",
-          "version": "v1.0.0",
-          "key": "specs-store/user-service/v1.0.0/openapi.json",
-          "extension": "json",
-          "contentType": "application/json",
+          "serviceName": "ABC",
+          "version": "v0.1.0",
+          "key": "specs-store/ABC/v0.1.0/openapi.yaml",
+          "extension": "yaml",
+          "contentType": "application/yaml",
           "status": "approved",
-          "lastModified": "2026-05-13T17:52:50.247Z",
-          "size": 48763
+          "lastModified": "2026-05-14T10:07:56.391Z",
+          "size": 74157
         }
       ]
     }

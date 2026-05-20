@@ -1,18 +1,12 @@
 import {
-  createChildLogger,
-  createLogger,
-  extractAwsRequestId,
-  extractCorrelationId,
-  logHttpRequest,
-  serializeError,
-} from '@api-hub/logger';
-import { withLambdaHandler } from '@api-hub/middleware';
-import { ApiResponse, type LambdaRequest } from '@api-hub/utils';
-import {
   APIGatewayProxyEvent,
   APIGatewayProxyResult,
   Context,
 } from 'aws-lambda';
+ 
+import { withApiHandler } from '@api-hub/middleware';
+import { ApiResponse, type LambdaRequest } from '@api-hub/utils';
+ 
 import { scheduleServiceClient } from '../clients/scheduleService.client';
 import { SchedulePreferences } from '../models/Schedule';
 import { UserService } from '../services/user.service';
@@ -20,6 +14,7 @@ import { UserNotFoundError } from '../utils/errors';
 import { getAuthorizerOrganizationId, getAuthorizerUserId } from '../utils/helpers';
 import { validateUpdateUser } from '../validation/request.validators';
 import { updateUserSchema } from '../validation/user.validation';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, createChildLogger, logHttpRequest } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();
@@ -893,7 +888,7 @@ const handler = async (req: LambdaRequest<any>) => {
     body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {}),
   };
   const context = { awsRequestId: req.context?.awsRequestId } as Context;
-  const res = await updateUser(event, context);
+  const res = await updateUser(event , context);
   const parsed = (() => {
     try {
       return JSON.parse(res.body || '{}');
@@ -911,7 +906,5 @@ const handler = async (req: LambdaRequest<any>) => {
   return parsed;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUpdateUser,
-});
+export const main = withApiHandler({ operation: 'updateUser', validator: validateUpdateUser }, handler);
 

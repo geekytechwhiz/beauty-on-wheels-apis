@@ -1,11 +1,4 @@
-import {
-  createChildLogger,
-  createLogger,
-  extractAwsRequestId,
-  extractCorrelationId,
-  logHttpRequest,
-  serializeError,
-} from '@api-hub/logger';
+ 
 import { withApiHandler } from '@api-hub/middleware';
 import { ApiResponse, type LambdaRequest } from '@api-hub/utils';
 import {
@@ -20,6 +13,7 @@ import { UserNotFoundError } from '../../utils/errors';
 import { getAuthorizerOrganizationId, getAuthorizerUserId } from '../../utils/helpers';
 import { validateUpdateUser } from '../../validation/request.validators';
 import { updateUserSchema } from '../../validation/user.validation';
+import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 const userService = new UserService();

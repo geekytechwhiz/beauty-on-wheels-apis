@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { batchWriteItems } from './dynamodb';
-import { CATEGORY, DEVICE_LIST, SCRIPT_EXECUTE_COMPLETED, ERROR, S3_BUCKET, S3_KEY, FILE_KEY, FILE_TYPE_KEY, DEVICE_TABLE, REGION } from './constants';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { readFile } from 'fs';
-import { promisify } from 'util';
 import * as path from 'path';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { DevicesData, DeviceDynamoDBItem } from './types';
+import { promisify } from 'util';
+import { CATEGORY, DEVICE_LIST, DEVICE_TABLE, ERROR, FILE_KEY, FILE_TYPE_KEY, S3_BUCKET, S3_KEY } from './constants';
+import { batchWriteItems } from './dynamodb';
+import { DeviceDynamoDBItem, DevicesData } from './types';
 
 // Helper to get the device-service root directory
 // In CodeBuild, we run from device-service root, so __dirname is deviceScripts/device-list/dist/

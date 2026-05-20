@@ -1,7 +1,7 @@
 import {
   createChildLogger,
   createLogger,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { serializeError } from '@api-hub/observability';
 import { BaseError, handleError, toBaseError } from '@api-hub/utils';
 

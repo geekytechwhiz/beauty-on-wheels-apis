@@ -1,1 +1,0 @@
-{"name": "outbound-delivery", "$schema": "../../node_modules/nx/schemas/project-schema.json", "sourceRoot": "services/outbound-delivery/src", "projectType": "application", "tags": ["type:service"], "targets": {"test": {"executor": "@nx/jest:jest", "options": {"jestConfig": "services/outbound-delivery/jest.config.ts", "passWithNoTests": true}}}}

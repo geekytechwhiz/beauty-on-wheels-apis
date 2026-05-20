@@ -1,11 +1,11 @@
-import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import type { Context, APIGatewayProxyEvent } from 'aws-lambda';
 import {
   createLogger,
   extractCorrelationId,
   extractAwsRequestId,
   createChildLogger,
   type Logger,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 export const baseLogger = createLogger({ service: 'partner-integration', redactPII: true });
 
@@ -13,7 +13,7 @@ export function getRequestId(event: APIGatewayProxyEvent, context?: Context): st
   return extractCorrelationId(event) || (context && extractAwsRequestId(context)) || 'unknown';
 }
 
-export function responseOpts(event: APIGatewayProxyEvent, requestId: string) {
+export function responseOpts(event: any, requestId: string):any {
   return { requestId, event };
 }
 

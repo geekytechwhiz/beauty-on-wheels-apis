@@ -1,6 +1,6 @@
 import { S3Event } from 'aws-lambda';
 import { UserService } from '../../../services/user.service';
-import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/observability';
 import { s3EventSchema } from '../../../validation/user.validation';
 import { InvalidEventError } from '../../../utils/errors';
 import { generateFileId } from '../../../utils/helpers';

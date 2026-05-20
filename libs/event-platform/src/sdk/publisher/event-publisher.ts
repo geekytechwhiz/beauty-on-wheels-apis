@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { createLogger, type Logger } from '@api-hub/logger';
+import { createLogger, type Logger } from '@api-hub/observability';
 import { getLoggerContext } from '@api-hub/observability';
 import type { EventPublishAdapter } from './event-publish-adapter';
 import type { PublishInput } from '../../typings/publisher.types';

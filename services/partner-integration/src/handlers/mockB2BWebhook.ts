@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import {
   getRequestId,
@@ -20,9 +20,9 @@ import {
   PartnerNotFoundError,
 } from '@api-hub/lab-integration';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event, context);
+  const requestId = getRequestId(event, context);  
   const logger = createHandlerLogger(event, context);
   logger.info({ event: 'mockB2BWebhook_received' });
 
@@ -31,7 +31,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId query parameter is required' }] }
     );
   }
@@ -40,7 +40,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!body || typeof body !== 'object') {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Request body is required' }] }
     );
   }
@@ -53,7 +53,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!webhookRequest.booking_id || !webhookRequest.webhook_type) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'booking_id and webhook_type are required' }] }
     );
   }
@@ -68,7 +68,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/webhooks/mock', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.WEBHOOK_MOCKED', responseOpts(event, requestId));
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.WEBHOOK_MOCKED', { correlationId: requestId, event });
   } catch (err) {
     logger.error({ event: 'mockB2BWebhook_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
@@ -77,7 +77,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/webhooks/mock', 400, duration, requestId);
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_PARTNER',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'UNSUPPORTED_PARTNER', details: [{ message: err.message }] }
       );
     }
@@ -86,7 +86,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
@@ -95,28 +95,28 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       return ApiResponse.error(
         502,
         'PARTNER_INTEGRATION.INVALID_PARTNER_RESPONSE',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'INVALID_PARTNER_RESPONSE', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerAuthenticationError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.AUTH_FAILED',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'AUTH_FAILED', details: [{ message: err.message }] }
       );
     }
     if (err instanceof PartnerNotFoundError) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.NOT_FOUND',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'NOT_FOUND', details: [{ message: err.message }] }
       );
     }
     if (err instanceof Error && err.message?.includes('not supported')) {
       return ApiResponse.badRequest(
         'PARTNER_INTEGRATION.UNSUPPORTED_OPERATION',
-        responseOpts(event, requestId),
+          { correlationId: requestId, event },
         { code: 'UNSUPPORTED_OPERATION', details: [{ message: err.message }] }
       );
     }
@@ -124,7 +124,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/webhooks/mock', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

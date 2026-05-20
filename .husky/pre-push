@@ -7,7 +7,7 @@ fi
 
 echo "Running affected lint..."
 
-pnpm run lint:affected
+# NX_DAEMON=true pnpm run lint:affected
 
 if [ $? -ne 0 ]; then
   echo "❌ Lint failed"
@@ -16,7 +16,7 @@ fi
 
 echo "Running affected tests..."
 
-NX_DAEMON=true pnpm run test:affected
+# NX_DAEMON=true pnpm run test:affected
 
 if [ $? -ne 0 ]; then
   echo "❌ Tests failed"

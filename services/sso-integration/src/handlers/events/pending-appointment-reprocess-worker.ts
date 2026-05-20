@@ -3,7 +3,7 @@ import {
   createLogger,
   extractAwsRequestId,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { Context, SQSEvent } from 'aws-lambda';
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 
@@ -23,7 +23,7 @@ const baseLogger = createLogger({
  * via Scheduler service API, then re-enqueues each to AppointmentSyncQueue for processing.
  */
 export async function handler(
-  event: SQSEvent,
+  event: SQSEvent,   
   context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;

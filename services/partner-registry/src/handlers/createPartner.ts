@@ -1,17 +1,16 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
+import type { Context } from 'aws-lambda';
 import type { CreatePartnerInput } from '../models/partner.model';
-import { createPartnerSchema } from '../validation/createPartner.schema';
 import {
-  getRequestId,
-  responseOpts,
   createHandlerLogger,
-  parseJsonBody,
   getPartnerService,
+  getRequestId,
+  parseJsonBody
 } from '../utils/handlerHelpers';
+import { createPartnerSchema } from '../validation/createPartner.schema';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const logger = createHandlerLogger(event, context);
@@ -22,7 +21,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'createPartner_invalid_json' });
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -32,7 +31,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'createPartner_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -50,7 +49,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.created(
       { partnerId: partner.partnerId, partner },
       'PARTNER.PARTNER_CREATED_SUCCESS',
-      responseOpts(event, requestId)
+      { correlationId: requestId, event }
     );
   } catch (err) {
     logger.error({ event: 'createPartner_error', err: serializeError(err) });
@@ -58,7 +57,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/partner', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

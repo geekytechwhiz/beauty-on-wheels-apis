@@ -1,7 +1,7 @@
 import { PutCommand, QueryCommand, DeleteCommand, UpdateCommand, type QueryCommandInput, type QueryCommandOutput, type PutCommandOutput, type DeleteCommandOutput, type UpdateCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { docClient } from '../utils/db.config';
 import { sendDoc } from '../utils/dynamodb-send';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 

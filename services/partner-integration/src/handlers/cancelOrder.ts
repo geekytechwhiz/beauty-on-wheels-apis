@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { getCancelOrderSchema } from '@api-hub/lab-integration';
 import {
@@ -12,7 +12,7 @@ import {
 import { handlePartnerIntegrationError } from '../utils/partnerErrorHandler';
 import * as integrationService from '../services/integration.service';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const orderId = event.pathParameters?.orderId;
@@ -22,7 +22,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!orderId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Missing or invalid orderId in path' }] }
     );
   }
@@ -36,7 +36,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId is required (body or query)' }] }
     );
   }
@@ -47,7 +47,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'cancelOrder_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -69,7 +69,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/cancel', 200, duration, requestId);
-    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.ORDER_CANCELLED', responseOpts(event, requestId));
+    return ApiResponse.ok(result, 'PARTNER_INTEGRATION.ORDER_CANCELLED', { correlationId: requestId, event });
   } catch (err) {
     logger.error({ event: 'cancelOrder_error', err: serializeError(err), partnerId, orderId });
     const duration = Date.now() - startTime;
@@ -83,7 +83,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders/cancel', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      responseOpts(event, requestId),    
       { code: 'INTERNAL_ERROR' }
     );
   }

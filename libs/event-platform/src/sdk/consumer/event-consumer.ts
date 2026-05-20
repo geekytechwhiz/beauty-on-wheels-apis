@@ -37,7 +37,7 @@ export class EventConsumer {
   ): Promise<HandleResult> {
     const fallbackCorrelation =
       handleOptions?.correlationId ?? getContext().correlationId;
-    let parsed: BaseEvent | undefined;
+    let parsed: BaseEvent 
 
     try {
       parsed = parseInboundEvent(event, {

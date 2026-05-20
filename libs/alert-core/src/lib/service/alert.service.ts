@@ -1,7 +1,5 @@
 import { randomUUID } from 'crypto';
 
-import type { Logger } from '@api-hub/logger';
-
 import { AlertWorkflowAction } from '../constants/alert-workflow-action';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 import { AlertEntityBuilder } from '../builder/alert-entity.builder';
@@ -15,7 +13,7 @@ import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
 import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
 import type { PriorityInput, PriorityResult } from '../models/api/alert-priority.types';
-import { AlertActivityType } from '../constants/alert-activity-type'; 
+import { AlertActivityType } from '../constants/alert-activity-type';
 import {
   assertWorkflowClosureComment,
   workflowActionToUpdatePatch,
@@ -23,6 +21,12 @@ import {
 import { BaseAlertService } from './base-alert.service';
 import type { CreateAlertPayload, ListAlertsParams, ListAlertsResult } from '../models/api/create-alert.types';
 import { decodeListAlertsCursor, encodeListAlertsCursor } from '../utils/alert.utils';
+import type { AlertPublishIntent } from '../models/events/alert-publish-intent';
+import {
+  buildCreatePublishIntents,
+  buildPriorityChangedIntent,
+  buildPublishIntentsFromWorkflowUpdate,
+} from '../events/build-alert-publish-intents';
 
 /** Persisted alert row (alias for HTTP/service consumers). */
 export type AlertRecord = AlertDdbRecord;
@@ -47,17 +51,17 @@ function buildTriggerSummary(input: CreateAlertRequest): string {
  * Alert use-cases: idempotency, upstream validation, listing, workflow mutations.
  */
 export class AlertService extends BaseAlertService {
-  constructor(repo?: AlertRepository, log?: Logger) {
+  constructor(repo?: AlertRepository, log?: any) {
     super(repo, log);
   }
 
   async createAlert(
     payload: CreateAlertPayload,
-    authHeader?: string,
-  ): Promise<{ record: AlertDdbRecord; duplicate: boolean }> {
+    _authHeader?: string,
+  ): Promise<{ record: AlertDdbRecord; duplicate: boolean; publishIntents: AlertPublishIntent[] }> {
     const input: CreateAlertRequest = { ...payload };
 
-    const idempotencyKey = input.inputEventId ?? randomUUID(); // TODO: Remove this once we have a proper idempotency key
+    const idempotencyKey = input.inputEventId;
     const resolvedSummary = buildTriggerSummary(input);
     const keyed: CreateAlertRequest = {
       ...input,
@@ -80,7 +84,7 @@ export class AlertService extends BaseAlertService {
         alertId: resolution.alertId,
         organizationId: input.organizationId,
       });
-      return { record: resolution, duplicate: true };
+      return { record: resolution, duplicate: true, publishIntents: [] };
     }
 
     // await Promise.all([
@@ -90,7 +94,8 @@ export class AlertService extends BaseAlertService {
 
     try {
       const record = await this.repo.createAlert(keyed);
-      return { record, duplicate: false };
+      const publishIntents = buildCreatePublishIntents(record);
+      return { record, duplicate: false, publishIntents };
     } catch (e: unknown) {
       const name = e && typeof e === 'object' && 'name' in e ? String((e as { name: string }).name) : '';
       if (name === 'TransactionCanceledException' || e instanceof DuplicateEventError) {
@@ -103,7 +108,7 @@ export class AlertService extends BaseAlertService {
             alertId: again.alertId,
             organizationId: input.organizationId,
           });
-          return { record: again, duplicate: true };
+          return { record: again, duplicate: true, publishIntents: [] };
         }
       }
       throw e;
@@ -126,16 +131,13 @@ export class AlertService extends BaseAlertService {
     return this.repo.queryAlertActivities(alertId, opts);
   }
 
-  /**
-   * Add an operational note to an alert's activity timeline.
-   */
   async addNote(
     alertId: string,
     organizationId: string,
     comment: string,
     performedByUserId?: string,
     performedByDisplayName?: string,
-  ): Promise<AlertActivityRecord> {
+  ): Promise<{ activity: AlertActivityRecord; publishIntents: AlertPublishIntent[] }> {
     const existing = await this.getAlert(alertId, organizationId);
     if (!existing) {
       const e = new Error('Alert not found') as Error & { statusCode?: number; code?: string };
@@ -145,8 +147,26 @@ export class AlertService extends BaseAlertService {
     }
 
     const performer = performedByUserId?.trim() || 'SYSTEM';
-    const activity = await this.repo.addNoteActivity(alertId, organizationId, comment, performer, performedByDisplayName);
-    return activity as AlertActivityRecord;
+    const activity = await this.repo.addNoteActivity(
+      alertId,
+      organizationId,
+      comment,
+      performer,
+      performedByDisplayName,
+    );
+    const activityRecord = activity as AlertActivityRecord;
+    return {
+      activity: activityRecord,
+      publishIntents: [
+        {
+          kind: 'NOTE_ADDED',
+          activity: activityRecord,
+          alertId,
+          organizationId,
+          patientId: existing.patientId,
+        },
+      ],
+    };
   }
 
   async listAlerts(params: ListAlertsParams): Promise<ListAlertsResult> {
@@ -242,7 +262,10 @@ export class AlertService extends BaseAlertService {
     return this.repo.queryOrgAlerts(organizationId, q);
   }
 
-  listUserAlerts(userId: string, q: { state?: AlertState; limit?: number }): Promise<AlertDdbRecord[]> {
+  listUserAlerts(
+    userId: string,
+    q: { state?: AlertState; limit?: number },
+  ): Promise<AlertDdbRecord[]> {
     return this.repo.queryUserAlerts(userId, q);
   }
 
@@ -288,9 +311,8 @@ export class AlertService extends BaseAlertService {
       dismissReason: effectiveDismiss,
     };
     const succeeded: string[] = [];
+    const publishIntents: AlertPublishIntent[] = [];
 
-    // Apply the mutation to each alert concurrently to reduce end-to-end latency for bulk updates.
-    // Note: `succeeded` / `failed` ordering is not guaranteed when run in parallel.
     await Promise.all(
       toProcess.map(async ({ id, row }) => {
         try {
@@ -309,31 +331,15 @@ export class AlertService extends BaseAlertService {
           });
           if (updated) {
             succeeded.push(id);
-
-            const nextState = patch.alertState;
-            if (nextState && nextState !== row.alertState) {
-              const activityType =
-                nextState === ALERT_STATE.RESOLVED
-                  ? AlertActivityType.AlertResolved
-                  : nextState === ALERT_STATE.DISMISSED
-                    ? AlertActivityType.AlertDismissed
-                    : AlertActivityType.AlertStateChanged;
-
-              await this.publishStateChangedEventSafe({
-                alertId: row.alertId,
-                organizationId: row.organizationId,
-                previousState: row.alertState,
-                newState: nextState,
-                activityType,
+            publishIntents.push(
+              ...buildPublishIntentsFromWorkflowUpdate({
+                existing: row,
+                patch,
                 performedBy: input.performedByUserId?.trim() || 'SYSTEM',
                 performedByDisplayName: input.performedByDisplayName,
-                activityComment:
-                  nextState === ALERT_STATE.RESOLVED || nextState === ALERT_STATE.DISMISSED
-                    ? patch.closureComment ?? undefined
-                    : undefined,
-                occurredAt: new Date(nowMs).toISOString(),
-              });
-            }
+                nowMs,
+              }),
+            );
           } else {
             failed.push({ alertId: id, code: 'NOT_FOUND', message: 'Alert not found during update' });
           }
@@ -351,6 +357,7 @@ export class AlertService extends BaseAlertService {
     return {
       succeeded,
       failed,
+      publishIntents,
     };
   }
 
@@ -410,11 +417,9 @@ export class AlertService extends BaseAlertService {
     const nowMs = Date.now();
     const performedBy = input.performedByUserId?.trim() || 'SYSTEM';
     const performedByDisplayName = input.performedByDisplayName;
+    const publishIntents: AlertPublishIntent[] = [];
 
     const updates = loaded.map((row) => {
-      // Per-row patch: only transition state on the forward edge UNASSIGNED -> ASSIGNED for assignment actions.
-      // UNASSIGN clears the assignee but retains the current state; ASSIGN/REASSIGN/ASSIGN_TO_SELF from
-      // ASSIGNED / IN_PROGRESS / WAITING also retains state and only updates assignee fields.
       const patch: UpdateAlertRequest =
         input.action === 'UNASSIGN'
           ? { assignedToUserId: null, assignedToDisplayName: null }
@@ -436,36 +441,23 @@ export class AlertService extends BaseAlertService {
         performedByDisplayName,
         nowMs,
       });
+
+      publishIntents.push(
+        ...buildPublishIntentsFromWorkflowUpdate({
+          existing: row,
+          patch,
+          performedBy,
+          performedByDisplayName,
+          nowMs,
+        }),
+      );
+
       return { existing: row, patch, activityItems, performedByUserId: performedBy };
     });
 
     await this.repo.updateAlertsTransaction(updates);
 
-    const stateChangePublishes = updates
-      .filter((update) => {
-        const nextState = update.patch.alertState;
-        return Boolean(nextState && nextState !== update.existing.alertState);
-      })
-      .map(async (update) => {
-        const nextState = update.patch.alertState as AlertState;
-        await this.publishStateChangedEventSafe({
-          alertId: update.existing.alertId,
-          organizationId: update.existing.organizationId,
-          previousState: update.existing.alertState,
-          newState: nextState,
-          activityType:
-            update.existing.alertState === ALERT_STATE.UNASSIGNED &&
-            nextState === ALERT_STATE.ASSIGNED
-              ? AlertActivityType.AlertAssigned
-              : AlertActivityType.AlertStateChanged,
-          performedBy,
-          performedByDisplayName,
-          occurredAt: new Date(nowMs).toISOString(),
-        });
-      });
-    await Promise.all(stateChangePublishes);
-
-    return {};
+    return { publishIntents };
   }
 
   async applyPriority(
@@ -489,6 +481,7 @@ export class AlertService extends BaseAlertService {
     const nowMs = Date.now();
     const performedBy = input.performedByUserId?.trim() || 'SYSTEM';
     const performedByDisplayName = input.performedByDisplayName;
+    const publishIntents: AlertPublishIntent[] = [];
 
     const updates = loaded.map((row) => {
       const patch: UpdateAlertRequest = { priority: input.priority };
@@ -504,44 +497,19 @@ export class AlertService extends BaseAlertService {
           newPriority: input.priority,
         }),
       ];
+      publishIntents.push(
+        buildPriorityChangedIntent({
+          existing: row,
+          newPriority: input.priority,
+          performedBy,
+          performedByDisplayName,
+          nowMs,
+        }),
+      );
       return { existing: row, patch, activityItems };
     });
 
     await this.repo.updateAlertsTransaction(updates);
-    return {};
-  }
-
-  private async publishStateChangedEventSafe(input: {
-    alertId: string;
-    organizationId: string;
-    previousState: AlertState;
-    newState: AlertState;
-    activityType:
-      | AlertActivityType.AlertAssigned
-      | AlertActivityType.AlertReassigned
-      | AlertActivityType.AlertStateChanged
-      | AlertActivityType.AlertResolved
-      | AlertActivityType.AlertDismissed;
-    performedBy: string;
-    performedByDisplayName?: string;
-    activityComment?: string;
-    occurredAt: string;
-  }): Promise<void> {
-    try {
-      await publishAlertStateChangedEvent(input, input.alertId);
-    } catch (error) {
-      this.log.warn({
-        event: 'alert_state_changed_publish_failed',
-        message: 'Alert state changed event publish failed after persistence',
-        alertId: input.alertId,
-        organizationId: input.organizationId,
-        previousState: input.previousState,
-        newState: input.newState,
-        error:
-          error instanceof Error
-            ? { name: error.name, message: error.message, stack: error.stack }
-            : { name: 'UnknownError', message: String(error) },
-      });
-    }
+    return { publishIntents };
   }
 }

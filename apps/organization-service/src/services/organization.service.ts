@@ -1,6 +1,6 @@
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { UserRepository } from '../repositories/user.repository';
-import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createPerformanceTimer, createChildLogger } from '@api-hub/observability';
 import { SecretManagerService } from '@api-hub/service-clients';
 import {
   Organization,

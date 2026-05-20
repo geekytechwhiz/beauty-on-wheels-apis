@@ -27,7 +27,7 @@ export default defineConfig(() => ({
     },
     rollupOptions: {
       external: [
-        '@api-hub/logger',
+        '@api-hub/observability',
         '@aws-sdk/client-cognito-identity-provider',
       ],
     },

@@ -1,4 +1,4 @@
-import { createChildLogger, createLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, createLogger, serializeError } from '@api-hub/observability';
 import type { EventBridgeEvent } from 'aws-lambda';
 import { PackageRepository } from '../../repositories/package.repositrory';
 import { RoleRepository } from '../../repositories/role.repository';

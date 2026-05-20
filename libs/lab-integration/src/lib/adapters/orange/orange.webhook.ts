@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
-import { isCanonicalLabEventType } from '@api-hub/integration-events';
-import type { CanonicalLabEventType } from '@api-hub/integration-events';
+import { isCanonicalLabEventType,CanonicalLabEventType } from '../../types/canonicalLabEventTypes';     
+ 
 import type { CanonicalLabWebhookResult, LabWebhookAdapter, WebhookParseOptions } from '../base/webhook.types';
 
 /**

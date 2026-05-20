@@ -9,8 +9,6 @@ import {
 } from '../models/user/UserDTO';
 import { getOrganization } from '../services/organization.service';
 export class UserValidationService { 
-  constructor() { 
-  }
    
 
   static async validateOrganization(

@@ -80,7 +80,7 @@ import {
 return ApiResponse.created(
   { deviceId: result.deviceId },
   'DEVICE.DEVICE_PAIRED_SUCCESS',
-  { requestId: correlationId, event }
+  {  correlationId: correlationId, event }
 );
 ```
 
@@ -132,7 +132,7 @@ import { DeviceNotFoundError } from '../utils/errors';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -149,7 +149,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'BAD_REQUEST' },
     );
   }
@@ -167,7 +167,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e: any) => ({
@@ -185,7 +185,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.created(
       { deviceId: result.deviceId, configDeviceId: result.configDeviceId },
       'DEVICE.DEVICE_PAIRED_SUCCESS',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -193,7 +193,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 404, duration, correlationId);
       return ApiResponse.notFound(
         'DEVICE.DEVICE_NOT_FOUND',
-        { requestId: correlationId, event },
+        {  correlationId: correlationId, event },
         { code: 'DEVICE_NOT_FOUND' },
       );
     }
@@ -201,7 +201,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 500, duration, correlationId);
     return ApiResponse.internalServerError(
       'DEVICE.REGISTRATION_FAILED',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'REGISTRATION_FAILED' },
     );
   }

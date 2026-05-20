@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 import type { BaseEvent } from '../../typings/base-event.types';
-import { EventSchemaError } from './event-schema-error';
+import { EventSchemaError } from '@api-hub/middleware';
 import { validate, validatePayloadByEventType } from './validate';
 
-describe('validate(event, schema)', () => {
+describe('validate and validatePayloadByEventType', () => {
   it('returns parsed data when valid', () => {
     const schema = z.object({ a: z.number() });
     expect(validate({ a: 1 }, schema)).toEqual({ a: 1 });

@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { getCreateOrderSchema } from '@api-hub/lab-integration';
 import {
@@ -12,7 +12,7 @@ import {
 import { handlePartnerIntegrationError } from '../utils/partnerErrorHandler';
 import * as integrationService from '../services/integration.service';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const logger = createHandlerLogger(event, context);
@@ -23,7 +23,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'createOrder_invalid_json' });
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -32,7 +32,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (!partnerId) {
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId is required' }] }
     );
   }
@@ -43,7 +43,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'createOrder_validation_error', errors: validation.error.issues });
     return ApiResponse.unprocessableEntity(
       'COMMON.VALIDATION_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       {
         code: 'VALIDATION_ERROR',
         details: validation.error.issues.map((e) => ({
@@ -65,7 +65,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     );
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 201, duration, requestId);
-    return ApiResponse.created(result, 'PARTNER_INTEGRATION.ORDER_CREATED', responseOpts(event, requestId));
+    return ApiResponse.created(result, 'PARTNER_INTEGRATION.ORDER_CREATED', { correlationId: requestId, event });
   } catch (err) {
     logger.error({ event: 'createOrder_error', err: serializeError(err), partnerId });
     const duration = Date.now() - startTime;
@@ -79,7 +79,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/orders', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+        { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

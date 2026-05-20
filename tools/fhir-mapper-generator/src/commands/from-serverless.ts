@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-warning-comments */
+ 
+ 
 import { Command } from 'commander';
 import { ServerlessParser, type ServerlessFunction } from '../core/serverless-parser.js';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -38,7 +38,7 @@ export function registerFromServerlessCommand(program: Command) {
         // console.log(`\n📊 Found ${getFunctions.length} GET function(s) with path parameters:\n`);
 
         // Display available functions
-        getFunctions.forEach((func, index) => {
+        getFunctions.forEach((func) => {
           // console.log(`${index + 1}. ${func.name}`);
           // console.log(`   Path: ${func.path}`);
           // console.log(`   Handler: ${func.handler}`);
@@ -303,7 +303,7 @@ ${stringify(config)}`;
   // console.log('   2. Update apiEndpoint for each to match your microservice API');
   // console.log('   3. Add field mappings based on your API response structure');
   // console.log('   4. Generate code for each:');
-  // eslint-disable-next-line no-unused-vars
+   
   generatedFiles.forEach(() => {
     // console.log(`      fhir-mapper generate -c ${file}`);
   });

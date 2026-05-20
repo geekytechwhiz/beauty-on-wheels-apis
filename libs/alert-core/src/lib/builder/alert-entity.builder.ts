@@ -8,8 +8,7 @@ import { ACTIVITY_TYPE_ALERT_CREATED, ALERT_METADATA_SK } from '../constants/ale
 import { AlertActivityType } from '../constants/alert-activity-type';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
-import { defaultAssignSlaMinutes, defaultResolveSlaMinutes } from '../models/domain/alert-context';
-import { parseIsoToEpochMs, toEpochMs } from '../utils/alert-time';
+import { toEpochMs } from '../utils/alert-time';
 
 const MS_PER_MINUTE = 60_000;
 
@@ -17,7 +16,7 @@ export interface CreateAlertContext {
   alertId: string;
   /** Write time, Unix epoch ms (UTC). */
   nowMs: number;
-  /** Parsed from HTTP `triggerTimestamp` (ISO) → ms. */
+  /** From create request `triggerTimestamp` (epoch ms). */
   triggerMs: number;
   input: CreateAlertRequest;
   groupingKey: string;
@@ -42,19 +41,15 @@ export class AlertEntityBuilder {
   static buildCreateContext(params: { alertId: string; input: CreateAlertRequest }): CreateAlertContext {
     const { alertId, input } = params;
 
-    const triggerMs = parseIsoToEpochMs(input.triggerTimestamp);
+    const triggerMs = Math.floor(input.triggerTimestamp);
     const nowMs = Date.now();
-
-    const groupingKey =
-      input.groupingKey ??
-      `${input.patientId}|${input.linkedEntityCode ?? 'GENERIC'}|OPEN`; // TODO: for the grouping key it follows the grouping strategy so we need to change this once we have a proper grouping strategy
 
     return {
       alertId,
       nowMs,
       triggerMs,
       input,
-      groupingKey,
+      groupingKey: input.groupingKey,
     };
   }
 
@@ -67,10 +62,8 @@ export class AlertEntityBuilder {
     const pk = AlertKeyBuilder.toAlertPk(alertId);
     const sk = ALERT_METADATA_SK;
 
-    // SLA minutes: caller-provided wins, otherwise env (`ENV_*_SLA_MINUTES`) → constants (`DEFAULT_*_SLA_MINUTES`).
-    // `0` means "no SLA tracked": store the value as-is and skip due-at math (assignSlaDueAt = createdAt sentinel).
-    const assignSlaMinutes = input.assignSlaMinutes ?? defaultAssignSlaMinutes();
-    const resolveSlaMinutes = input.resolveSlaMinutes ?? defaultResolveSlaMinutes();
+    const assignSlaMinutes = input.assignSlaMinutes;
+    const resolveSlaMinutes = input.resolveSlaMinutes;
     const assignSlaDueAt = assignSlaMinutes > 0 ? nowMs + assignSlaMinutes * MS_PER_MINUTE : nowMs;
 
     return {
@@ -85,9 +78,9 @@ export class AlertEntityBuilder {
       organizationId: input.organizationId,
       patientId: input.patientId,
       patientName: input.patientName,
-      actorName: input.actorName,
+      actorName: input.actorName || 'SYSTEM',
 
-      inputEventId: input.inputEventId!,
+      inputEventId: input.inputEventId,
       inputType: input.inputType,
       sourceType: input.sourceType,
 
@@ -99,7 +92,7 @@ export class AlertEntityBuilder {
 
       evidencePayload: input.evidencePayload,
 
-      priority: input.priority ?? 'P2',
+      priority: input.priority,
       alertState: ALERT_STATE.UNASSIGNED,
 
       groupingKey,
@@ -319,7 +312,7 @@ export class AlertEntityBuilder {
         // Subsequent reassignments do NOT reset resolveSlaDueAt or rewrite GSI5.
         const isFirstAssignment = !existing.assignedToUserId;
         if (isFirstAssignment) {
-          const minutes = existing.resolveSlaMinutes ?? defaultResolveSlaMinutes();
+          const minutes = existing.resolveSlaMinutes;
           if (minutes > 0) {
             const due = nowMs + minutes * MS_PER_MINUTE;
             if (existing.resolveSlaMinutes == null) setField('resolveSlaMinutes', minutes);
@@ -390,7 +383,7 @@ export class AlertEntityBuilder {
     nowMs: number;
   }): Record<string, unknown>[] {
     const { existing, patch } = params;
-    let nowMs = params.nowMs;
+    const nowMs = params.nowMs;
     const performedBy = params.performedBy?.trim() || 'SYSTEM';
     const performedByDisplayName = params.performedByDisplayName;
 

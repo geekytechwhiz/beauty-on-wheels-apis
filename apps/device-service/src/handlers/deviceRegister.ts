@@ -1,10 +1,10 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { deviceRegistrationSchema } from '../validation/device.validation';
-import { DeviceNotFoundError, DeviceNotInOrganizationError } from '../utils/errors';
+import { DeviceNotInOrganizationError } from '../utils/errors';
 import { completeUserTask } from '../utils/task-completion';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
@@ -13,7 +13,7 @@ const deviceService = new DeviceService();
 // Third-party apps by companyName (matching old structure)
 const ALLOWED_THIRD_PARTY_APPS = ['GOOGLEFIT', 'APPLEHEALTH', 'FITBIT', 'GARMIN', 'MANUAL'];
 
-const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceRegisterImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -28,7 +28,7 @@ const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Conte
     logger.error({ event: 'deviceRegister_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
-    return ApiResponse.badRequest({ title: 'COMMON.INVALID_JSON', description: 'Request body is not valid JSON', severity: 'ERROR' }, { requestId: correlationId }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest({ title: 'COMMON.INVALID_JSON', description: 'Request body is not valid JSON', severity: 'ERROR' }, { correlationId: correlationId }, { code: 'BAD_REQUEST' });
   }
 
   // Extract user context from authorizer (Cognito)
@@ -62,14 +62,14 @@ const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Conte
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
-    return ApiResponse.badRequest({ title: 'COMMON.VALIDATION_ERROR', description: 'userId and organizationId are required', severity: 'ERROR' }, { requestId: correlationId }, { code: 'VALIDATION_ERROR', details: [{ field: 'userId/organizationId', message: 'userId and organizationId are required' }] });
+    return ApiResponse.badRequest({ title: 'COMMON.VALIDATION_ERROR', description: 'userId and organizationId are required', severity: 'ERROR' }, { correlationId: correlationId }, { code: 'VALIDATION_ERROR', details: [{ field: 'userId/organizationId', message: 'userId and organizationId are required' }] });
   }
 
   const devices = (body as any)?.devices;
   if (!devices || !Array.isArray(devices) || devices.length === 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
-    return ApiResponse.badRequest({ title: 'COMMON.VALIDATION_ERROR', description: 'devices array is required', severity: 'ERROR' }, { requestId: correlationId }, { code: 'VALIDATION_ERROR', details: [{ field: 'devices', message: 'devices array is required' }] });
+    return ApiResponse.badRequest({ title: 'COMMON.VALIDATION_ERROR', description: 'devices array is required', severity: 'ERROR' }, { correlationId: correlationId }, { code: 'VALIDATION_ERROR', details: [{ field: 'devices', message: 'devices array is required' }] });
   }
 
   const messageArr: Array<{
@@ -230,14 +230,14 @@ const deviceRegisterImpl: APIGatewayProxyHandler = async (event, context?: Conte
     return ApiResponse.created(
       { items: messageArr },
       { title: 'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS', description: 'Device registration processed successfully', severity: 'SUCCESS' },
-      { requestId: correlationId },
+      { correlationId: correlationId },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceRegister_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 500, duration, correlationId);
-    return ApiResponse.internalServerError({ title: 'COMMON.INTERNAL_SERVER_ERROR', description: 'An unexpected error occurred', severity: 'ERROR' }, { requestId: correlationId }, { code: 'INTERNAL_SERVER_ERROR' });
+    return ApiResponse.internalServerError({ title: 'COMMON.INTERNAL_SERVER_ERROR', description: 'An unexpected error occurred', severity: 'ERROR' }, { correlationId: correlationId }, { code: 'INTERNAL_SERVER_ERROR' });
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.register', deviceRegisterImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.register' }, deviceRegisterImpl);

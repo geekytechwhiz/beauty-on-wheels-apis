@@ -4,7 +4,7 @@ const { sendEmail, sendSms, sendPush } = await import('../notification.delivery'
 vi.mock('axios');
 
 // Mock logger to avoid module resolution issues
-vi.mock('@api-hub/logger', () => ({
+vi.mock('@api-hub/observability', () => ({
   createLogger: vi.fn(() => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() })),
   serializeError: vi.fn((err) => ({ message: err.message, stack: err.stack })),
 }));

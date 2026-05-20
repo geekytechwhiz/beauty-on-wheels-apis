@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, createChildLogger } from '@api-hub/logger';
-import type { Logger } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId, createChildLogger } from '@api-hub/observability';
+import type { Logger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 

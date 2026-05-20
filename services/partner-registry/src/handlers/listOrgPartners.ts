@@ -1,14 +1,13 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
+import type { Context } from 'aws-lambda';
 import {
-  getRequestId,
-  responseOpts,
   createHandlerLogger,
   getPartnerService,
+  getRequestId
 } from '../utils/handlerHelpers';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
   const orgId = event.pathParameters?.orgId;
@@ -21,7 +20,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Missing organization id in path' }] }
     );
   }
@@ -33,7 +32,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.ok(
       { items: partners },
       'PARTNER.PARTNERS_LIST_SUCCESS',
-      responseOpts(event, requestId)
+      { correlationId: requestId, event }
     );
   } catch (err) {
     logger.error({ event: 'listOrgPartners_error', err: serializeError(err) });
@@ -41,7 +40,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

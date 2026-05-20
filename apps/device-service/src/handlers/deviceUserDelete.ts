@@ -1,6 +1,6 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { DeviceNotFoundError } from '../utils/errors';
@@ -8,7 +8,7 @@ import { DeviceNotFoundError } from '../utils/errors';
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
 
-const deviceUserDeleteImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceUserDeleteImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -22,7 +22,7 @@ const deviceUserDeleteImpl: APIGatewayProxyHandler = async (event, context?: Con
     logger.error({ event: 'deviceUserDelete_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   const bodyObj = body as Record<string, unknown>;
@@ -58,7 +58,7 @@ const deviceUserDeleteImpl: APIGatewayProxyHandler = async (event, context?: Con
   if (!userId || configDeviceIds.length === 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { requestId: correlationId, event }, {
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, {
       code: 'BAD_REQUEST',
       details: [{
         message: !userId
@@ -80,18 +80,18 @@ const deviceUserDeleteImpl: APIGatewayProxyHandler = async (event, context?: Con
     return ApiResponse.ok(
       configDeviceIds.length === 1 ? { message: 'Device deleted successfully' } : { results },
       'DEVICE.DEVICE_DELETED_SUCCESS',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof DeviceNotFoundError) {
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 404, duration, correlationId);
-      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', { requestId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
+      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', {  correlationId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
     }
     logger.error({ event: 'deviceUserDelete_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.DELETE_FAILED', { requestId: correlationId, event }, { code: 'DELETE_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.DELETE_FAILED', {  correlationId: correlationId, event }, { code: 'DELETE_FAILED' });
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.userDelete', deviceUserDeleteImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.userDelete' }, deviceUserDeleteImpl);

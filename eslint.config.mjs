@@ -13,11 +13,33 @@ export default [
       '**/out-tsc',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
+      '**/swagger/**',
+      '**/esbuild/**',
+      '**/__tests__/**',
+      '**/jest.config.*.timestamp*',
+      'api-center/**',
     ],
   },
 
-  // NX Module Boundary Rules
-   
+  // Nx module boundaries (options must match the rule schema — see Nx ESLint plugin docs)
+  {
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'warn',
+        {
+          enforceBuildableLibDependency: true,
+          allow: [],
+          depConstraints: [
+            {
+              sourceTag: '*',
+              onlyDependOnLibsWithTags: ['*'],
+            },
+          ],
+        },
+      ],
+    },
+  },
 
   // ✅ Global baseline (allow only warn + error everywhere)
   {

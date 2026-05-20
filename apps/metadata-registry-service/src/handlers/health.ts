@@ -1,5 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
-import { withLambdaHandler } from '@api-hub/utils';
+import { withLambdaHandler } from '@api-hub/middleware'; 
 import { healthRequestSchema } from '../schemas/health.schema';
 
 export const main = withLambdaHandler(async (req) => {

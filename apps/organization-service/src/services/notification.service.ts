@@ -1,6 +1,6 @@
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 import type { OrganizationActivatedNotificationRequestedData } from '../events/event.types';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });

@@ -1,6 +1,6 @@
 import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 import {
   Organization,
   OrganizationMetadata,

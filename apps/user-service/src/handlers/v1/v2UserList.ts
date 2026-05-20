@@ -49,7 +49,7 @@ const handler = async (
       field: sort?.field ?? 'createdDate',
       order: sort?.order ?? 'DESC',
     },
-    requestId: correlationId,
+     correlationId: correlationId,
     authUserId,
     authHeader: authHeader ?? undefined,
   });

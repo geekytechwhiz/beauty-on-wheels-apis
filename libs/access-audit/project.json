@@ -1,7 +1,0 @@
-{
-  "name": "access-audit",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/access-audit/src",
-  "projectType": "library",
-  "tags": ["scope:audit", "type:lib","type:shared"]
-}

@@ -34,7 +34,7 @@ export function consumeEvent(
     }
 
     return processSingle({
-      raw: rawEvent,
+      raw: rawevent: any,
       deps,
       registry,
       beforeDispatch,
@@ -50,11 +50,11 @@ export function consumeEvent(
 
   const stack = buildEventExecutionPipeline<void, TContext>({
     operation: options.operation,
-  }) as Array<Middleware<TEvent, void, TContext>>;
+  }) as Array<Middleware<Tevent: any, void, TContext>>;
 
   return runMiddlewares(
     stack,
-    wrappedHandler as unknown as Handler<TEvent, void, TContext>,
+    wrappedHandler as unknown as Handler<Tevent: any, void, TContext>,
   );
 ```
 
@@ -236,7 +236,7 @@ export function buildEventExecutionPipeline<
   TResult = unknown,
   TContext = unknown,
 >(options: { operation: string }): Array<
-  Middleware<MiddlewarePipelineEvent, TResult, TContext>
+  Middleware<MiddlewarePipelineevent: any, TResult, TContext>
 > {
   const tracer = getTracerForService(getConfig().serviceName);
   return [
@@ -260,11 +260,11 @@ Index **0** is the **outer** wrapper ([`runMiddlewares`](../../libs/middleware/s
  * Composes middleware and a final handler. Each middleware calls `next()` to continue the chain.
  * Optional global `hooks` run outside the per-link chain (before all / after success / on failure).
  */
-export function runMiddlewares<TEvent, TResult, TContext = unknown>(
-  middlewares: Middleware<TEvent, TResult, TContext>[],
-  handler: Handler<TEvent, TResult, TContext>,
-  options?: MiddlewareEngineOptions<TEvent, TResult, TContext>
-): (event: TEvent, context: TContext) => Promise<TResult> {
+export function runMiddlewares<Tevent: any, TResult, TContext = unknown>(
+  middlewares: Middleware<Tevent: any, TResult, TContext>[],
+  handler: Handler<Tevent: any, TResult, TContext>,
+  options?: MiddlewareEngineOptions<Tevent: any, TResult, TContext>
+): (event: Tevent: any, context: TContext) => Promise<TResult> {
 ```
 
 ### Per-middleware responsibilities
@@ -277,8 +277,8 @@ export function runMiddlewares<TEvent, TResult, TContext = unknown>(
 export function asyncErrorMiddleware<
   TResult = unknown,
   TContext = unknown,
->(): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
-  return async ({ event, next }) => {
+>(): Middleware<MiddlewarePipelineevent: any, TResult, TContext> {
+  return async ({ event: any, next }) => {
     try {
       return await next();
     } catch (error: unknown) {
@@ -323,14 +323,14 @@ export const errorMiddleware = asyncErrorMiddleware;
 export function contextMiddleware<
   TResult = unknown,
   TContext = unknown,
->(): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
+>(): Middleware<MiddlewarePipelineevent: any, TResult, TContext> {
   return async ({
-    event,
+    event: any,
     context,
     next,
-  }: MiddlewareParams<MiddlewarePipelineEvent, TResult, TContext>) => {
+  }: MiddlewareParams<MiddlewarePipelineevent: any, TResult, TContext>) => {
     
-    applyStandardEventContext(event, context);
+    applyStandardEventContext(event: any, context);
     return next();
   };
 }
@@ -349,11 +349,11 @@ export function invocationContextMiddleware<
   TResult = unknown,
   TContext = unknown,
 >(options: { operation: string }): Middleware<
-  MiddlewarePipelineEvent,
+  MiddlewarePipelineevent: any,
   TResult,
   TContext
 > {
-  return async ({ event, next }) => {
+  return async ({ event: any, next }) => {
     const e = event as MiddlewarePipelineEvent;
     e.__context = { ...e.__context, operation: options.operation };
     return next();
@@ -373,8 +373,8 @@ export function invocationContextMiddleware<
 export function loggerMiddleware<
   TResult = unknown,
   TContext = unknown,
->(): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
-  return async ({ event, next }) => {
+>(): Middleware<MiddlewarePipelineevent: any, TResult, TContext> {
+  return async ({ event: any, next }) => {
     const ctx = loggerContextFromEvent(event);
     return withLoggerContext(ctx, async () => {
       return await next();
@@ -401,7 +401,7 @@ export function tracerMiddleware<
 >(
   tracer: Tracer,
   options?: TracerMiddlewareOptions,
-): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
+): Middleware<MiddlewarePipelineevent: any, TResult, TContext> {
 ```
 
 #### `performanceMiddleware`
@@ -446,7 +446,7 @@ export function performanceMiddleware<
     return handleIdempotencyContention({
       rawForDelivery,
       deps,
-      baseEvent,
+      baseevent: any,
       traceCtx,
     });
   }
@@ -585,7 +585,7 @@ export class SqsRetryStrategy implements RetryStrategy {
   constructor(private queueUrl: string) {}
 
   async scheduleRetry({
-    rawEvent,
+    rawevent: any,
     retryCount: _retryCount,
     delayMs,
   }: {
@@ -727,7 +727,7 @@ Align operational DLQ/retry expectations with **`evaluateDeliveryPolicy`** + AWS
   async publish(event: BaseEvent): Promise<void> {
     await this.client.send(
       new PutEventsCommand({
-        Entries: [toPutEventsEntry(event, this.config)],
+        Entries: [toPutEventsEntry(event: any, this.config)],
       }),
     );
   }
@@ -738,7 +738,7 @@ Align operational DLQ/retry expectations with **`evaluateDeliveryPolicy`** + AWS
 ```typescript
 /** Maps a {@link BaseEvent} to a single PutEvents entry (no side effects). */
 export function toPutEventsEntry(
-  event: BaseEvent,
+  event: Baseevent: any,
   config: Pick<EventBridgeAdapterConfig, 'eventBusName' | 'source' | 'detailType'>,
 ): PutEventsRequestEntry {
   return {
@@ -826,7 +826,7 @@ export function defineEvent<T extends z.ZodTypeAny>(
 import type { MiddlewarePipelineEvent } from '@api-hub/middleware';
 import {
   createEventHandler,
-  defineEvent,
+  defineevent: any,
   DynamoDbIdempotencyStore,
   StoreIdempotencyStrategy,
 } from '@api-hub/event-platform';
@@ -865,12 +865,12 @@ function mapRawEventBridgeToBaseEvent(raw: unknown) {
 }
 
 export const handler = createEventHandler<
-  MiddlewarePipelineEvent,
+  MiddlewarePipelineevent: any,
   Context
 >({
   operation: 'myentity.created',
   consumer: {
-    mapRawToBaseEvent: mapRawEventBridgeToBaseEvent,
+    mapRawToBaseEvent: mapRawEventBridgeToBaseevent: any,
     idempotencyStrategy: new StoreIdempotencyStrategy(
       new DynamoDbIdempotencyStore(),
     ),

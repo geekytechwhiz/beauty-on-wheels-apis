@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
 /**
  * User context required for device registration.

@@ -1,4 +1,4 @@
-import { createChildLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, serializeError } from '@api-hub/observability';
 import { BaseClient } from '@api-hub/service-clients';
 import axios from 'axios';
 import { SSORequestContext } from '../types/common/context.types';
@@ -29,7 +29,8 @@ export class SSOUserServiceClient extends BaseClient {
     const externalUserId = params.externalId;
     const subdomain = context.integration.subdomain;
 
-    console.info('findUserByExternalId_lookup', {
+    this.logger.info({
+      event: 'findUserByExternalId_lookup',
       externalUserId,
       subdomain,
       provider: context.integration.providerId,
@@ -53,16 +54,20 @@ export class SSOUserServiceClient extends BaseClient {
       // User-service model uses userID; SSO expects id
       const userId = (userPayload?.userID ?? userPayload?.id) as string | undefined;
       if (!userId) {
-        console.info('findUserByExternalId_service_not_found', {
+        this.logger.info({
+          event: 'findUserByExternalId_service_not_found',
           externalUserId,
-          tenant: subdomain,
+          subdomain,
+          provider: context.integration.providerId,
         });
         return null;
       }
 
-      console.info('findUserByExternalId_success', {
+      this.logger.info({
+        event: 'findUserByExternalId_success',
         externalUserId,
         userId,
+        provider: context.integration.providerId,
       });
 
       // Normalize to SSO User: user-service uses userID, emailAddress, organizationID, externalIdentity
@@ -120,10 +125,12 @@ export class SSOUserServiceClient extends BaseClient {
     const rawUserId = invitedUser;
 
     if (!rawUserId) {
-      console.error('createDoctor_user_id_missing', {
+      this.logger.error({
+        event: 'createDoctor_user_id_missing',
         subdomain: context.integration.subdomain,
         externalUserId: payload.externalIdentity?.externalUserId,
         responseBody: body,
+        provider: context.integration.providerId,
       });
 
       throw SSOError.userServiceError(
@@ -142,9 +149,11 @@ export class SSOUserServiceClient extends BaseClient {
       organizationId: payload.organizationID,  
     };
 
-    console.info('createDoctor_success', {
+    this.logger.info({
+      event: 'createDoctor_success',
       externalUserId: result.externalUserId,
       userId: result.userId,
+      provider: context.integration.providerId,
     });
 
     return result;
@@ -162,9 +171,11 @@ export class SSOUserServiceClient extends BaseClient {
       return await this.createDoctor(payload, context);
     } catch (err) {
       if ((err as any).code === 'ECONNABORTED') {
-        console.warn('createDoctor_timeout_retry', {
+        this.logger.warn({
+          event: 'createDoctor_timeout_retry',
           ...logBase,
           retryAttempt: 1,
+          provider: context.integration.providerId,
         });
         return this.createDoctor(payload, context);
       }
@@ -174,9 +185,11 @@ export class SSOUserServiceClient extends BaseClient {
         err.response?.status === 409 &&
         externalUserId
       ) {
-        console.info('createDoctor_conflict_fetching_existing', {
+        this.logger.info({
+          event: 'createDoctor_conflict_fetching_existing',
           ...logBase,
           retryAttempt: 0,
+          provider: context.integration.providerId,
         });
         const userExistenceValidator = new UserExistenceValidator(
           this,
@@ -189,9 +202,11 @@ export class SSOUserServiceClient extends BaseClient {
         );
 
         if (existenceResult.userServiceUser) {
-          console.info('createDoctor_conflict_resolved_existing', {
+          this.logger.info({
+            event: 'createDoctor_conflict_resolved_existing',
             ...logBase,
             doctorUserId: existenceResult.userServiceUser.id,
+            provider: context.integration.providerId,
           });
           const organizationId = getOrganizationId(subdomain);
           return {
@@ -300,8 +315,8 @@ export class SSOUserServiceClient extends BaseClient {
         doctorUserId: pending.doctorUserId ?? pending.doctorExternalId,
         patientExternalId: pending.patientExternalId,
         doctorExternalId: pending.doctorExternalId,
-        startTime: new Date(pending.appointment.startTime).getTime(),
-        endTime: new Date(pending.appointment.endTime).getTime(),
+        startTime: new Date(pending.appointment.startTime ?? '').getTime(),
+        endTime: new Date(pending.appointment.endTime ?? '').getTime(),
         status: 'PENDING',
         sourceSystem: context.sourceSystem,
       };

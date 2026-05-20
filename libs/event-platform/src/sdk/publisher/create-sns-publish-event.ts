@@ -1,4 +1,4 @@
-import { createLogger, type Logger } from '@api-hub/logger';
+import { createLogger, type Logger } from '@api-hub/observability';
 
 import type { EventEnvelope } from '../../typings/base-event.types';
 
@@ -80,11 +80,21 @@ export function createSnsPublishEvent(
         source: evt.source ?? options.defaultSource,
         version: evt.eventVersion ?? '1.0.0',
         payload: evt.payload,
-        correlationId: finalCorrelationId,
+        
         eventId: evt.eventId,
         timestamp: evt.timestamp,
         idempotencyKey: evt.idempotencyKey,
-        meta: evt.meta,
+        meta: evt?.meta ?? { correlationId: finalCorrelationId,
+           publishedAt: evt.timestamp ?? new Date().toISOString(),
+          retryCount: 0,
+          schemaRef: `${evt.eventType}@${evt.eventVersion ?? '1.0.0'}`,
+          causationId: evt.eventId,
+          attributes: evt.meta?.attributes ?? {},
+          tenantId: evt.meta?.tenantId,
+          userId: evt.meta?.userId,
+          channel: evt.meta?.channel,
+          environment: evt.meta?.environment,
+        },
       });
     } catch (err: unknown) {
       const name = (err as { name?: string })?.name;

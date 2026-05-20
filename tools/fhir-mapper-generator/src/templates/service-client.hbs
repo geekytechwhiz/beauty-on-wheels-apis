@@ -8,7 +8,7 @@
 
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { {{responseType}} } from '@api-hub/fhir';
-import { createLogger } from '@api-hub/logger';
+import { createLogger } from '@api-hub/observability';
 
 const logger = createLogger({ service: 'fhir-gateway', redactPII: true });
 

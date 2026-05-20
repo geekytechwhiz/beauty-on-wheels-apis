@@ -1,6 +1,6 @@
 import { ddbDocClient } from '@api-hub/utils';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/logger';
+import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: 'device-mapping-repository' });
 
@@ -75,7 +75,7 @@ export class DeviceMappingRepository {
           TableName: this.tableName,
           Item: item,
           ConditionExpression: 'attribute_not_exists(pk) OR attribute_not_exists(sk)',
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_user_mapping_created', deviceId, userId });
       return item;
@@ -101,14 +101,14 @@ export class DeviceMappingRepository {
     const logger = createChildLogger(baseLogger, { deviceId, userId });
     try {
       await this.docClient.send(
-        new DeleteCommand({
+          new DeleteCommand({
           TableName: this.tableName,
           Key: {
             pk: `DEVICE#${deviceId}`,
             sk: `DEVICE_USER#${userId}`,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_user_mapping_deleted', deviceId, userId });
     } catch (err) {
@@ -128,14 +128,14 @@ export class DeviceMappingRepository {
   async getDeviceUserMapping(deviceId: string, userId: string): Promise<DeviceUserMapping | null> {
     const logger = createChildLogger(baseLogger, { deviceId, userId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
           Key: {
             pk: `DEVICE#${deviceId}`,
             sk: `DEVICE_USER#${userId}`,
           },
-        }),
+        }) as any,
       );
       return (result.Item as DeviceUserMapping) || null;
     } catch (err) {
@@ -150,7 +150,7 @@ export class DeviceMappingRepository {
   async listDeviceUsers(deviceId: string): Promise<DeviceUserMapping[]> {
     const logger = createChildLogger(baseLogger, { deviceId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -158,7 +158,7 @@ export class DeviceMappingRepository {
             ':pk': `DEVICE#${deviceId}`,
             ':skPrefix': 'DEVICE_USER#',
           },
-        }),
+        }) as any,
       );
       return (result.Items || []) as DeviceUserMapping[];
     } catch (err) {
@@ -189,7 +189,7 @@ export class DeviceMappingRepository {
           TableName: this.tableName,
           Item: item,
           ConditionExpression: 'attribute_not_exists(pk) OR attribute_not_exists(sk)',
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_org_mapping_created', deviceId, organizationId });
       return item;
@@ -222,7 +222,7 @@ export class DeviceMappingRepository {
             sk: `DEVICE_ORG#${organizationId}`,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_org_mapping_deleted', deviceId, organizationId });
     } catch (err) {
@@ -242,14 +242,14 @@ export class DeviceMappingRepository {
   async getDeviceOrgMapping(deviceId: string, organizationId: string): Promise<DeviceOrgMapping | null> {
     const logger = createChildLogger(baseLogger, { deviceId, organizationId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
           Key: {
             pk: `DEVICE#${deviceId}`,
             sk: `DEVICE_ORG#${organizationId}`,
           },
-        }),
+        }) as any,
       );
       return (result.Item as DeviceOrgMapping) || null;
     } catch (err) {
@@ -264,7 +264,7 @@ export class DeviceMappingRepository {
   async listDeviceOrganizations(deviceId: string): Promise<DeviceOrgMapping[]> {
     const logger = createChildLogger(baseLogger, { deviceId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -272,7 +272,7 @@ export class DeviceMappingRepository {
             ':pk': `DEVICE#${deviceId}`,
             ':skPrefix': 'DEVICE_ORG#',
           },
-        }),
+        }) as any,
       );
       return (result.Items || []) as DeviceOrgMapping[];
     } catch (err) {
@@ -306,7 +306,7 @@ export class DeviceMappingRepository {
         new PutCommand({
           TableName: this.tableName,
           Item: item,
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_metadata_upserted', deviceId });
       return item;
@@ -322,14 +322,14 @@ export class DeviceMappingRepository {
   async getDeviceMetadata(deviceId: string): Promise<DeviceMetadata | null> {
     const logger = createChildLogger(baseLogger, { deviceId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
           Key: {
             pk: `DEVICE#${deviceId}`,
             sk: 'DEVICE_METADATA',
           },
-        }),
+        }) as any,
       );
       return (result.Item as DeviceMetadata) || null;
     } catch (err) {
@@ -344,14 +344,14 @@ export class DeviceMappingRepository {
   async deviceExists(deviceId: string): Promise<boolean> {
     const logger = createChildLogger(baseLogger, { deviceId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new GetCommand({
           TableName: this.tableName,
           Key: {
             pk: `DEVICE#${deviceId}`,
             sk: 'DEVICE_DETAILS',
           },
-        }),
+        }) as any,
       );
       return !!result.Item;
     } catch (err) {
@@ -392,7 +392,7 @@ export class DeviceMappingRepository {
         new PutCommand({
           TableName: this.tableName,
           Item: item,
-        }),
+        }) as any,
       );
       logger.info({ event: 'device_file_reference_created', deviceId, fileId });
       return item;
@@ -408,7 +408,7 @@ export class DeviceMappingRepository {
   async listDeviceFiles(deviceId: string): Promise<DeviceFileReference[]> {
     const logger = createChildLogger(baseLogger, { deviceId });
     try {
-      const result = await this.docClient.send(
+      const result:any = await this.docClient.send(
         new QueryCommand({
           TableName: this.tableName,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -416,7 +416,7 @@ export class DeviceMappingRepository {
             ':pk': `DEVICE#${deviceId}`,
             ':skPrefix': 'DEVICE_FILE#',
           },
-        }),
+        }) as any ,
       );
       return (result.Items || []) as DeviceFileReference[];
     } catch (err) {

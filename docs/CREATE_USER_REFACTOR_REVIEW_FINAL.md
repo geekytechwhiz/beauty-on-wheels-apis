@@ -95,7 +95,7 @@
 | Role assignment          | Yes             | Same `assignUserRole` call and arguments after create. |
 | Friend/Family linking    | Yes             | Same when `body?.userInfo?.friendNFamily` is passed; processor logic matches. |
 | Doctor assignment        | Yes             | Same when `body?.userInfo?.assignDoctor` is passed; processor uses same repository methods. |
-| Notifications            | Yes             | Same SNS event, same template data and F&F skip; failures logged, not thrown. |
+| Notifications            | Yes             | Same SNS event: any, same template data and F&F skip; failures logged, not thrown. |
 
 ---
 

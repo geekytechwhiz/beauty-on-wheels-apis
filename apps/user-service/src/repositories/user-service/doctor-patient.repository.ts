@@ -15,7 +15,7 @@ import {
   createLogger,
   createChildLogger,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { KeyBuilder } from '@api-hub/utils';
 
 const baseLogger = createLogger({

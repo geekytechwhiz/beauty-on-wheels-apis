@@ -1,7 +1,7 @@
 import { QueryCommand, type QueryCommandOutput } from "@aws-sdk/lib-dynamodb";
 import { docClient } from "../../utils/db.config";
 import { sendDoc } from "../../utils/dynamodb-send";
-import { createLogger, createChildLogger, serializeError } from "@api-hub/logger";
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 
 const baseLogger = createLogger({ service: "user-service", redactPII: true });
 

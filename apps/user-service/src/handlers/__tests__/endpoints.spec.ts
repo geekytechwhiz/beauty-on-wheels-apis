@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
-import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import type { APIGatewayProxyevent: any, Context } from 'aws-lambda';
 
 vi.mock('../../services/user.service', () => {
   const assignDoctor = vi.fn();
@@ -50,7 +50,7 @@ vi.mock('@api-hub/utils', () => ({
   },
 }));
 
-vi.mock('@api-hub/logger', () => ({
+vi.mock('@api-hub/observability', () => ({
   createLogger: vi.fn(() => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() })),
   createChildLogger: vi.fn(() => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() })),
   extractCorrelationId: vi.fn(() => 'test-correlation-id'),
@@ -115,7 +115,7 @@ describe('assignDoctor', () => {
       }),
     });
 
-    const result = await assignDoctor(event, createMockContext());
+    const result = await assignDoctor(event: any, createMockContext());
 
     expect(__userServiceMocks.assignDoctor).toHaveBeenCalledWith('org-1', expect.any(Object), expect.any(Object), 'test-correlation-id');
     expect(mockOk).toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe('assignDoctor', () => {
     mockBadRequest.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: 'not json' });
 
-    await assignDoctor(event, createMockContext());
+    await assignDoctor(event: any, createMockContext());
 
     expect(mockBadRequest).toHaveBeenCalled();
     expect(__userServiceMocks.assignDoctor).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe('assignDoctor', () => {
       }),
     });
 
-    const result = await assignDoctor(event, createMockContext());
+    const result = await assignDoctor(event: any, createMockContext());
 
     expect(mockNotFound).toHaveBeenCalled();
     expect(result.statusCode).toBe(404);
@@ -166,7 +166,7 @@ describe('listDoctorPatients', () => {
       body: JSON.stringify({ organizationId: 'org-1', doctorId: 'doctor-1' }),
     });
 
-    const result = await listDoctorPatients(event, createMockContext());
+    const result = await listDoctorPatients(event: any, createMockContext());
 
     expect(__userServiceMocks.listDoctorPatients).toHaveBeenCalledWith('doctor-1', 'org-1');
     expect(mockOk).toHaveBeenCalledWith(expect.objectContaining({ users: expect.any(Array) }), expect.any(String), expect.any(Object));
@@ -178,7 +178,7 @@ describe('listDoctorPatients', () => {
     mockUnprocessableEntity.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: JSON.stringify({}) });
 
-    await listDoctorPatients(event, createMockContext());
+    await listDoctorPatients(event: any, createMockContext());
 
     expect(mockUnprocessableEntity).toHaveBeenCalled();
     expect(__userServiceMocks.listDoctorPatients).not.toHaveBeenCalled();
@@ -213,7 +213,7 @@ describe('friendFamilySearch', () => {
       requestContext: { authorizer: { userID: 'user-1', organizationID: 'org-1' } } as any,
     });
 
-    const result = await friendFamilySearch(event, createMockContext());
+    const result = await friendFamilySearch(event: any, createMockContext());
 
     expect(__friendFamilyMocks.searchFnf).toHaveBeenCalled();
     expect(mockOk).toHaveBeenCalledWith(expect.objectContaining({ invitedUser: 'member-1' }), expect.any(String), expect.any(Object));
@@ -234,7 +234,7 @@ describe('friendFamilySearch', () => {
       }),
     });
 
-    await friendFamilySearch(event, createMockContext());
+    await friendFamilySearch(event: any, createMockContext());
 
     expect(mockUnauthorized).toHaveBeenCalled();
   });
@@ -263,7 +263,7 @@ describe('friendFamilyAddMember', () => {
       requestContext: { authorizer: { userID: 'user-1' } } as any,
     });
 
-    const result = await friendFamilyAddMember(event, createMockContext());
+    const result = await friendFamilyAddMember(event: any, createMockContext());
 
     expect(__friendFamilyMocks.addMember).toHaveBeenCalledWith('org-1', expect.objectContaining({ memberId: 'member-1', userName: 'User One' }), undefined);
     expect(mockOk).toHaveBeenCalled();
@@ -288,7 +288,7 @@ describe('friendFamilyAddMember', () => {
       }),
     });
 
-    const result = await friendFamilyAddMember(event, createMockContext());
+    const result = await friendFamilyAddMember(event: any, createMockContext());
 
     expect(mockNotFound).toHaveBeenCalled();
     expect(result.statusCode).toBe(404);
@@ -316,7 +316,7 @@ describe('friendFamilyUpdate', () => {
       requestContext: { authorizer: { userID: 'user-1' } } as any,
     });
 
-    const result = await friendFamilyUpdate(event, createMockContext());
+    const result = await friendFamilyUpdate(event: any, createMockContext());
 
     expect(__friendFamilyMocks.updateMember).toHaveBeenCalledWith('user-1', 'org-1', expect.objectContaining({ memberId: 'member-1', fullName: 'Updated Name' }));
     expect(mockOk).toHaveBeenCalled();
@@ -332,7 +332,7 @@ describe('friendFamilyUpdate', () => {
       requestContext: { authorizer: { userID: 'user-1' } } as any,
     });
 
-    const result = await friendFamilyUpdate(event, createMockContext());
+    const result = await friendFamilyUpdate(event: any, createMockContext());
 
     expect(mockBadRequest).toHaveBeenCalledWith('FRIEND_FAMILY.MEMBER_NOT_FOUND', expect.any(Object), expect.any(Object));
     expect(result.statusCode).toBe(400);
@@ -353,7 +353,7 @@ describe('friendFamilyFetch', () => {
       requestContext: { authorizer: { userID: 'user-1' } } as any,
     });
 
-    const result = await friendFamilyFetch(event, createMockContext());
+    const result = await friendFamilyFetch(event: any, createMockContext());
 
     expect(__friendFamilyMocks.fetchMembers).toHaveBeenCalledWith('user-1');
     expect(mockOk).toHaveBeenCalledWith(expect.objectContaining({ invitee: [], inviter: [] }), 'FRIEND_FAMILY.FETCH_SUCCESS', expect.any(Object));
@@ -365,7 +365,7 @@ describe('friendFamilyFetch', () => {
     mockBadRequest.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: JSON.stringify({}) });
 
-    await friendFamilyFetch(event, createMockContext());
+    await friendFamilyFetch(event: any, createMockContext());
 
     expect(mockBadRequest).toHaveBeenCalled();
     expect(__friendFamilyMocks.fetchMembers).not.toHaveBeenCalled();
@@ -385,7 +385,7 @@ describe('friendFamilyDelete', () => {
       body: JSON.stringify({ userID: 'user-1', memberID: 'member-1', organizationID: 'org-1' }),
     });
 
-    const result = await friendFamilyDelete(event, createMockContext());
+    const result = await friendFamilyDelete(event: any, createMockContext());
 
     expect(__friendFamilyMocks.deleteMember).toHaveBeenCalledWith('user-1', 'member-1', 'org-1');
     expect(mockCreated).toHaveBeenCalledWith(expect.objectContaining({ userID: 'user-1', memberID: 'member-1' }), 'FRIEND_FAMILY.DELETE_SUCCESS', expect.any(Object));
@@ -400,7 +400,7 @@ describe('friendFamilyDelete', () => {
       body: JSON.stringify({ userID: 'user-1', memberID: 'member-1' }),
     });
 
-    const result = await friendFamilyDelete(event, createMockContext());
+    const result = await friendFamilyDelete(event: any, createMockContext());
 
     expect(mockBadRequest).toHaveBeenCalledWith('FRIEND_FAMILY.FNF_DOES_NOT_EXIST', expect.any(Object), expect.any(Object));
     expect(result.statusCode).toBe(400);
@@ -411,7 +411,7 @@ describe('friendFamilyDelete', () => {
     mockUnprocessableEntity.mockResolvedValue({ statusCode: 400, body: '{}' });
     const event = createMockEvent({ body: JSON.stringify({}) });
 
-    await friendFamilyDelete(event, createMockContext());
+    await friendFamilyDelete(event: any, createMockContext());
 
     expect(mockUnprocessableEntity).toHaveBeenCalled();
     expect(__friendFamilyMocks.deleteMember).not.toHaveBeenCalled();

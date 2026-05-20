@@ -1,14 +1,14 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/logger';
+import { withApiHandler } from '@api-hub/middleware';
+import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
+import { Context } from 'aws-lambda';
 import { DeviceMappingService } from '../services/deviceMappingService';
 import { DeviceNotFoundError } from '../utils/errors';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceMappingService = new DeviceMappingService();
 
-const deviceMetadataUpdateImpl: APIGatewayProxyHandler = async (event, context?: Context) => {
+const deviceMetadataUpdateImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -25,7 +25,7 @@ const deviceMetadataUpdateImpl: APIGatewayProxyHandler = async (event, context?:
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/devices/{deviceId}/metadata', 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      { requestId: correlationId, event },
+      { correlationId: correlationId, event },
       {
         code: 'BAD_REQUEST',
         details: [{ message: 'deviceId is required in path parameters' }],
@@ -41,7 +41,7 @@ const deviceMetadataUpdateImpl: APIGatewayProxyHandler = async (event, context?:
     logger.error({ event: 'deviceMetadataUpdate_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/devices/{deviceId}/metadata', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', { requestId: correlationId, event }, { code: 'BAD_REQUEST' });
+    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
   }
 
   // Validate body contains metadata
@@ -52,7 +52,7 @@ const deviceMetadataUpdateImpl: APIGatewayProxyHandler = async (event, context?:
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/devices/{deviceId}/metadata', 400, duration, correlationId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       {
         code: 'BAD_REQUEST',
         details: [{ message: 'metadata object is required in request body' }],
@@ -64,18 +64,18 @@ const deviceMetadataUpdateImpl: APIGatewayProxyHandler = async (event, context?:
     const result = await deviceMappingService.upsertDeviceMetadata(deviceId, metadata, correlationId);
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/devices/{deviceId}/metadata', 200, duration, correlationId);
-    return ApiResponse.ok(result, 'DEVICE.DEVICE_METADATA_UPDATED_SUCCESS', { requestId: correlationId, event });
+    return ApiResponse.ok(result, 'DEVICE.DEVICE_METADATA_UPDATED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceMetadataUpdate_error', err: serializeError(err) });
     logHttpRequest(logger, event.httpMethod || 'PUT', event.path || '/devices/{deviceId}/metadata', 500, duration, correlationId);
 
     if (err instanceof DeviceNotFoundError) {
-      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', { requestId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
+      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', {  correlationId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
     }
 
-    return ApiResponse.internalServerError('DEVICE.METADATA_UPDATE_FAILED', { requestId: correlationId, event }, { code: 'METADATA_UPDATE_FAILED' });
+    return ApiResponse.internalServerError('DEVICE.METADATA_UPDATE_FAILED', {  correlationId: correlationId, event }, { code: 'METADATA_UPDATE_FAILED' });
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.metadataUpdate', deviceMetadataUpdateImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.metadataUpdate' }, deviceMetadataUpdateImpl);

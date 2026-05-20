@@ -1,5 +1,5 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/logger';
+import { APIGatewayProxyResult, Context, APIGatewayProxyEvent } from 'aws-lambda';
+import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { getAppointmentSyncController } from '../../controllers/appointment-sync.controller';
 
@@ -43,7 +43,7 @@ export async function handler(
 
     return ApiResponse.internalServerError(
       { title: 'Internal Server Error', description: 'An unexpected error occurred', severity: 'ERROR' },
-      { requestId: correlationId, event },
+      {  correlationId: correlationId, event },
       { code: 'INTERNAL_ERROR' },
     );
   }

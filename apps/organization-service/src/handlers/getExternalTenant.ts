@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { validateGetExternalTenant } from '../validation/request.validators';
@@ -22,6 +22,4 @@ const handler = async (req: LambdaRequest<Record<string, never>>) => {
   return resolved;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateGetExternalTenant,
-});
+export const main = withApiHandler({ operation: 'getExternalTenant', validator: validateGetExternalTenant }, handler);

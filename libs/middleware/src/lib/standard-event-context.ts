@@ -1,6 +1,6 @@
 import type { Context } from 'aws-lambda';
 
-import { resolveCorrelationIdForHttp } from '@api-hub/logger';
+import { resolveCorrelationIdForHttp } from '@api-hub/observability';
 
 import type { ExecutionContext, MiddlewarePipelineEvent } from './types';
 import { randomUUID } from 'node:crypto';
@@ -9,7 +9,7 @@ const awsRequestIdFromLambdaContext = (lambdaContext: unknown): string =>
   (lambdaContext as Context).awsRequestId || 'unknown-request-id';
 
 /** Re-export for callers that imported correlation helpers from `@api-hub/middleware`. */
-export { extractCorrelationId, resolveCorrelationIdForHttp } from '@api-hub/logger';
+export { extractCorrelationId, resolveCorrelationIdForHttp } from '@api-hub/observability';
 
 /**
  * SQS: message attributes, body JSON, or `messageId` (prefixed) as a stable id.
@@ -82,9 +82,18 @@ function transportSourceAndType(event: unknown): Pick<
       eventSource?: string;
       eventSourceARN?: string;
     };
+    const eventSource = r0.eventSource ?? r0.eventSourceARN;
+    const eventType =
+      eventSource === 'aws:sqs'
+        ? 'aws:sqs'
+        : eventSource === 'aws:dynamodb'
+          ? 'aws:dynamodb'
+          : eventSource === 'aws:kinesis'
+            ? 'aws:kinesis'
+            : eventSource;
     return {
-      source: r0.eventSource ?? r0.eventSourceARN,
-      eventType: 'aws:sqs',
+      source: eventSource,
+      eventType,
     };
   }
 

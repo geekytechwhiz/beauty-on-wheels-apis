@@ -1,5 +1,5 @@
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-import { createLogger, serializeError } from '@api-hub/logger';
+import { createLogger, serializeError } from '@api-hub/observability';
 
 const lambdaClient = new LambdaClient({ region: process.env.REGION || 'us-east-1' });
 const logger = createLogger({ service: 'organization-service', redactPII: true });
@@ -8,7 +8,7 @@ const logger = createLogger({ service: 'organization-service', redactPII: true }
  * Invoke Lambda function to get mobile screens/onboarding screens
  * @param functionName - The name of the Lambda function to invoke
  * @param params - Parameters to pass to the Lambda function
- * @param invocationType - Type of invocation (RequestResponse, Event, or DryRun)
+ * @param invocationType - Type of invocation (RequestResponse, event: any, or DryRun)
  * @returns The data from the Lambda response (data?.items || data) or null on error
  */
 export const getMobileScreens = async (

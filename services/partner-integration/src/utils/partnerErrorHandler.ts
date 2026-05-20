@@ -1,4 +1,4 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import type { APIGatewayProxyResult, APIGatewayProxyEvent } from 'aws-lambda';
 import { ApiResponse } from '@api-hub/utils';
 import {
   InvalidPartnerResponseError,

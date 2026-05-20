@@ -10,6 +10,11 @@ export type { ProcessSingleOutcome, ProcessSingleResult } from './process-outcom
 export { isAckedWithoutBatchFailure } from './process-outcomes';
 import type { ProcessSingleResult } from './process-outcomes';
 
+import { recordDynamoStreamRecordFiltered } from '@api-hub/observability';
+
+import { StreamRecordFilteredError } from '../../dynamo-stream/stream-record-filtered.error';
+import { effectiveTransportMode } from '../../typings/consumer.types';
+
 export async function processSingle({
   raw,
   deps,
@@ -24,9 +29,16 @@ export async function processSingle({
   let partial: BaseEvent<any> | undefined;
 
   try {
-    partial = deps.mapRawToBaseEvent
-      ? deps.mapRawToBaseEvent(raw)
-      : (raw as BaseEvent<any>);
+    if (deps.transportProfile) {
+      const envelope = deps.transportProfile.parseInbound(raw);
+      partial = deps.mapRawToBaseEvent
+        ? deps.mapRawToBaseEvent(raw)
+        : deps.transportProfile.mapToBaseEvent(envelope);
+    } else {
+      partial = deps.mapRawToBaseEvent
+        ? deps.mapRawToBaseEvent(raw)
+        : (raw as BaseEvent<any>);
+    }
     if (partial == null) {
       throw new Error('Event mapping produced no event');
     }
@@ -39,6 +51,12 @@ export async function processSingle({
       beforeDispatch,
     });
   } catch (err) {
+    if (err instanceof StreamRecordFilteredError) {
+      if (effectiveTransportMode(deps) === 'dynamodb-stream') {
+        recordDynamoStreamRecordFiltered(1);
+      }
+      return { outcome: 'success' };
+    }
     return handlePreparationFailure(err, raw, deps, partial);
   }
 }

@@ -5,29 +5,28 @@ import { BaseRepository } from '@api-hub/utils';
 import { AlertEntityBuilder } from '../builder/alert-entity.builder';
 import { AlertKeyBuilder } from '../builder/alert-key.builder';
 import {
+  ACTIVITY_TYPE_NOTE_ADDED,
   ALERT_METADATA_SK,
+  GROUP_MEMBERSHIP_SK_PREFIX,
   GSI1_ORG_QUEUE,
   GSI2_USER_QUEUE,
   GSI3_PATIENT,
   GSI4_ORG_WIDE,
-  GROUP_MEMBERSHIP_SK_PREFIX,
-  ACTIVITY_TYPE_NOTE_ADDED,
 } from '../constants/alert.constants';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
 
-import type { AlertActivity } from '../models/domain/alert-activity.model';
-import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import type { CreateAlertRequest } from '../models/api/create-alert.request';
 import type { UpdateAlertRequest } from '../models/api/update-alert.request';
+import type { AlertActivity } from '../models/domain/alert-activity.model';
+import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
-import { publishEvent } from '@api-hub/event-platform';
+import { padEpochMs13 } from '../utils/alert-time';
 import {
   assertAlertTable,
   isEventConditionalFailure,
   toPublicActivity,
 } from '../utils/alert.utils';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
-import { padEpochMs13 } from '../utils/alert-time';
 
 /** Filters shared by TEAM (GSI4), MY (GSI2), and PATIENT (GSI3) list queries (HTTP list semantics). */
 export type AlertListStructuredFilters = {
@@ -210,11 +209,11 @@ export class AlertRepository extends BaseRepository {
     const table = assertAlertTable();
 
     const alertId = randomUUID();
-    const idempotencyKey = input.inputEventId ?? randomUUID();
+    const idempotencyKey = input.inputEventId;
 
     const ctx = AlertEntityBuilder.buildCreateContext({
       alertId,
-      input: { ...input, inputEventId: idempotencyKey },
+      input,
     });
 
     const alertPut = AlertEntityBuilder.buildAlertRecord(ctx);
@@ -297,7 +296,7 @@ export class AlertRepository extends BaseRepository {
       ...filterBuilt.ExpressionAttributeValues,
     };
 
-    let items = await this.query<AlertDdbRecord>({
+    const items = await this.query<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI3_PATIENT,
       KeyConditionExpression: 'gsi3pk = :p',
@@ -325,7 +324,7 @@ export class AlertRepository extends BaseRepository {
       ...filterBuilt.ExpressionAttributeValues,
     };
 
-    let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
+    const { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI3_PATIENT,
       KeyConditionExpression: 'gsi3pk = :p',
@@ -376,7 +375,7 @@ export class AlertRepository extends BaseRepository {
     const table = assertAlertTable();
     const state = opts.state ?? ALERT_STATE.UNASSIGNED;
 
-    let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
+    const response = await this.queryPage<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI1_ORG_QUEUE,
       KeyConditionExpression: 'gsi1pk = :pk',
@@ -387,7 +386,8 @@ export class AlertRepository extends BaseRepository {
       Limit: opts.limit ?? 50,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
     });
-
+    const { lastEvaluatedKey } = response;
+    let items=response.items;
     if (opts.unassignedOnly) {
       items = items.filter((a) => !a.assignedToUserId);
     }
@@ -498,7 +498,7 @@ export class AlertRepository extends BaseRepository {
 
     const built = buildGsi2UserListParams(userId, opts);
 
-    let { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
+    const { items, lastEvaluatedKey } = await this.queryPage<AlertDdbRecord>({
       TableName: table,
       IndexName: GSI2_USER_QUEUE,
       KeyConditionExpression: built.KeyConditionExpression,

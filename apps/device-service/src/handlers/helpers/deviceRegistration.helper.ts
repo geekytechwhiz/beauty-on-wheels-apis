@@ -1,4 +1,4 @@
-import { serializeError } from '@api-hub/logger';
+import { serializeError } from '@api-hub/observability';
 import { DeviceService } from '../../services/deviceService';
 import { deviceRegistrationSchema } from '../../validation/device.validation';
 import type { DeviceRegistrationResultItem } from '../../types/deviceRegistration.types';
@@ -39,7 +39,13 @@ export async function registerDevices(params: RegisterDevicesParams): Promise<De
           {
             userId: validatedPayload.userId,
             organizationId: validatedPayload.organizationId,
-            devices: device,
+            configDeviceId: device.configDeviceId,
+            displayName: device.displayName,
+            deviceCategory: device.deviceCategory,
+            companyName: device.companyName,
+            modelName: device.modelName,
+            deviceCategoryNum:
+              device.deviceCategoryNum !== undefined ? String(device.deviceCategoryNum) : undefined,
           },
           correlationId,
         );

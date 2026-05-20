@@ -1,6 +1,6 @@
 import type { APIGatewayProxyResult } from 'aws-lambda';
-import { logHttpRequest } from '@api-hub/logger';
-import type { Logger } from '@api-hub/logger';
+import { logHttpRequest } from '@api-hub/observability';
+import type { Logger } from '@api-hub/observability';
 
 export interface LogAndRespondOptions {
   logger: Logger;

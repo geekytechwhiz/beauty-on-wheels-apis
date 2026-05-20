@@ -1,19 +1,18 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/logger';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
-import {
-  getRequestId,
-  responseOpts,
-  createHandlerLogger,
-  parseJsonBody,
-} from '../utils/handlerHelpers';
+import type { Context } from 'aws-lambda';
 import { processInboundWebhook } from '../services/webhook.service';
+import {
+  createHandlerLogger,
+  getRequestId,
+  parseJsonBody
+} from '../utils/handlerHelpers';
 import { PartnerUnavailableError } from '../utils/integrationErrors';
 
-export const main: APIGatewayProxyHandler = async (event, context?: Context) => {
+export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const requestId = getRequestId(event, context);
-  const logger = createHandlerLogger(event, context);
+  const logger = createHandlerLogger(event, context);    
   logger.info({ event: 'webhookLabEvent_received' });
 
   const partnerId = event.pathParameters?.partnerId;
@@ -21,7 +20,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'webhookLabEvent_missing_partner_id' });
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'partnerId is required in path' }] }
     );
   }
@@ -34,7 +33,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logger.warn({ event: 'webhookLabEvent_invalid_json' });
     return ApiResponse.badRequest(
       'COMMON.INVALID_JSON',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Invalid JSON body' }] }
     );
   }
@@ -44,9 +43,9 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
   if (event.headers) {
     for (const [key, value] of Object.entries(event.headers)) {
       if (value) {
-        headers[key.toLowerCase()] = value;
+        headers[key.toLowerCase()] = value as string;
         // Also keep original case for compatibility
-        headers[key] = value;
+        headers[key] = value as string;
       }
     }
   }
@@ -62,14 +61,14 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
         return ApiResponse.error(
           401,
           'PARTNER_INTEGRATION.WEBHOOK_SIGNATURE_INVALID',
-          responseOpts(event, requestId),
+          { correlationId: requestId, event },
           { code: 'WEBHOOK_SIGNATURE_INVALID', details: [{ message: 'Webhook signature validation failed' }] }
         );
       }
       
       return ApiResponse.unprocessableEntity(
         'PARTNER_INTEGRATION.WEBHOOK_NOT_ACCEPTED',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'WEBHOOK_NOT_ACCEPTED', details: [{ message: 'Webhook payload could not be parsed or mapped to a known event type' }] }
       );
     }
@@ -77,7 +76,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     return ApiResponse.ok(
       { accepted: result.accepted, eventId: result.eventId },
       'PARTNER_INTEGRATION.WEBHOOK_ACCEPTED',
-      responseOpts(event, requestId)
+      { correlationId: requestId, event }
     );
   } catch (err) {
     logger.error({ event: 'webhookLabEvent_error', err: serializeError(err), partnerId });
@@ -90,14 +89,14 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
       if (isNotFound) {
         return ApiResponse.notFound(
           'PARTNER_INTEGRATION.PARTNER_NOT_FOUND',
-          responseOpts(event, requestId),
+          { correlationId: requestId, event },
           { code: 'PARTNER_NOT_FOUND', details: [{ message: err.message }] }
         );
       }
       return ApiResponse.error(
         503,
         'PARTNER_INTEGRATION.PARTNER_UNAVAILABLE',
-        responseOpts(event, requestId),
+        { correlationId: requestId, event },
         { code: 'PARTNER_UNAVAILABLE', details: [{ message: err.message }] }
       );
     }
@@ -105,7 +104,7 @@ export const main: APIGatewayProxyHandler = async (event, context?: Context) => 
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/webhooks/labs', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

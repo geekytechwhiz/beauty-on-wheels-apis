@@ -7,7 +7,7 @@ import {
   extractAwsRequestId,
   createChildLogger,
   logHttpRequest,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 import { createdResponse, successResponse } from './response.middleware';
 import { handleError } from './error.middleware';
@@ -20,10 +20,10 @@ const baseLogger = createLogger({
 });
 
 export interface LambdaHandlerOptions {
+  successMessageKey?: string;
   validator?: (request: any) => void | Promise<void>;
   /** When true, respond with HTTP 201 Created instead of 200 OK */
-  useCreated?: boolean;
-  successMessageKey?: string;
+  useCreated?: boolean; 
 }
 
 export const withLambdaHandler =

@@ -4,7 +4,7 @@ This is the MOST IMPORTANT layer.
 
 Implement:
 
-consumer.handle(event, handler)
+consumer.handle(event: any, handler)
 
 Flow:
 1. Parse event

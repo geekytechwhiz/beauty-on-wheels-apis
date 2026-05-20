@@ -2,7 +2,7 @@ import {
   createChildLogger,
   createLogger,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { UserValidationRepository } from '../repositories/userValidation.repository';
 
 const baseLogger = createLogger({

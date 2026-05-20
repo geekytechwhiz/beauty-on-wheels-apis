@@ -1,48 +1,24 @@
 import type { z } from 'zod';
 
-import {
-  buildEventExecutionPipeline,
-  runMiddlewares,
-} from '@api-hub/middleware';
-
-import type {
-  Handler,
-  Middleware,
-  MiddlewarePipelineEvent,
-} from '@api-hub/middleware';
+import { buildEventExecutionPipeline, Handler, runMiddlewares, type Middleware, type MiddlewarePipelineEvent } from '@api-hub/middleware';
 
 import { consumeEvent } from '../engine/executor/consume-event';
 
 import { DomainIdempotencyStrategy } from '../core/idempotency/domain-idempotency.strategy';
+import { parseInboundEvent } from '../sdk/consumer/parse-inbound-event';
 
 import type { BaseEvent } from '../typings/base-event.types';
-import type { EventConsumerDeps } from '../typings/consumer.types';
-import type { VersionedPayloadSchemas } from '../typings/consumer.types';
-
+import type { EventConsumerDeps, VersionedPayloadSchemas } from '../typings/consumer.types';
+import { OperationName } from '../runtime/middleware-compose';
+import { EventHandlerEntry } from '../runtime/build-event-registry';
 import { getSchemaMeta } from '../core/schema/schema-meta';
-
-type EventHandlerEntry<TSchema extends z.ZodTypeAny> = {
-  schema: TSchema;
-
-  handler: (
-    input: z.infer<TSchema> & {
-      meta: BaseEvent['meta'];
-    },
-    context: unknown,
-  ) => Promise<void>;
-};
-
-type OperationName =
-  `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
 
 export type CreateEventHandlerOptions<
   TEvent extends MiddlewarePipelineEvent,
   TContext = unknown,
 > = {
   operation: OperationName;
-
   consumer?: Partial<EventConsumerDeps>;
-
   events: EventHandlerEntry<z.ZodTypeAny>[];
 };
 
@@ -112,6 +88,10 @@ export function createEventHandler<
     dlq: {
       enabled: true,
     },
+
+    mapRawToBaseEvent:
+      options.consumer?.mapRawToBaseEvent ??
+      ((raw: unknown) => parseInboundEvent(raw)),
   };
 
   /**
@@ -122,6 +102,8 @@ export function createEventHandler<
   const mergedDeps: EventConsumerDeps = {
     ...baseConsumerDeps,
     ...(options.consumer ?? {}),
+    mapRawToBaseEvent:
+      options.consumer?.mapRawToBaseEvent ?? baseConsumerDeps.mapRawToBaseEvent,
   };
 
   /**

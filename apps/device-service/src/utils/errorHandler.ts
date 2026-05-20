@@ -1,4 +1,4 @@
-import { logHttpRequest, serializeError, type Logger } from '@api-hub/logger';
+import { logHttpRequest, serializeError, type Logger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ERROR_CODES } from '../constants/errorCodes';
@@ -56,7 +56,7 @@ export function mapDomainErrorToResponse(err: unknown): MappedErrorResponse | nu
  * Preserves exact external contract: 500, DEVICE.REGISTRATION_FAILED, code REGISTRATION_FAILED.
  *
  * @param err - Caught error from business logic
- * @param context - CorrelationId, event, path, method
+ * @param context - CorrelationId, event: any, path, method
  * @param logHttpRequest - Logger for HTTP request metrics
  * @param logger - Structured logger for error details
  * @param startTime - Handler start time for duration
@@ -78,14 +78,18 @@ export async function handleDeviceRegistrationError(
 
   return ApiResponse.internalServerError(
     'DEVICE.REGISTRATION_FAILED',
-    { requestId: context.correlationId, event: context.event },
+    { correlationId: context.correlationId, event: context.event },
     { code: ERROR_CODES.REGISTRATION_FAILED },
   );
 }
 
+/** Any Error subclass constructor (instanceof-only; args vary by domain error). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DomainErrorConstructor = abstract new (...args: any[]) => Error;
+
 /** Domain error mapping: Error constructor -> HTTP response params. */
 export type DomainErrorMapping = Array<
-  [new (message?: string) => Error, { statusCode: number; messageKey: string; code: string }]
+  [DomainErrorConstructor, { statusCode: number; messageKey: string; code: string }]
 >;
 
 export interface GenericHandlerErrorOptions {
@@ -118,12 +122,12 @@ export async function handleHandlerError(
       logHttpRequest(logger, method, path, statusCode, duration, correlationId);
       const response =
         statusCode === 404
-          ? ApiResponse.notFound(messageKey, { requestId: correlationId, event }, { code })
+          ? ApiResponse.notFound(messageKey, {  correlationId: correlationId, event }, { code })
           : statusCode === 400
-            ? ApiResponse.badRequest(messageKey, { requestId: correlationId, event }, { code })
+            ? ApiResponse.badRequest(messageKey, {  correlationId: correlationId, event }, { code })
             : statusCode === 409
-              ? ApiResponse.conflict({ title: messageKey, description: messageKey, severity: 'ERROR' }, { requestId: correlationId, event }, { code })
-              : ApiResponse.internalServerError(messageKey, { requestId: correlationId, event }, { code });
+              ? ApiResponse.conflict({ title: messageKey, description: messageKey, severity: 'ERROR' }, {  correlationId: correlationId, event }, { code })
+              : ApiResponse.internalServerError(messageKey, {  correlationId: correlationId, event }, { code });
       return response;
     }
   }
@@ -132,7 +136,7 @@ export async function handleHandlerError(
   logHttpRequest(logger, method, path, 500, duration, correlationId);
   return ApiResponse.internalServerError(
     defaultMessageKey,
-    { requestId: correlationId, event },
+    {  correlationId: correlationId, event },
     { code: defaultCode },
   );
 }

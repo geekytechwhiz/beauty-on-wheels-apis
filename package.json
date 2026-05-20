@@ -42,7 +42,7 @@
     "fix:imports:light": "FIX_IMPORTS_SKIP_CLEAN=1 FIX_IMPORTS_SKIP_BUILD=1 ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
     "fix:imports:sh": "sh tools/file-import/fix-imports.sh",
     "lint": "nx run-many --target=lint --all --parallel=10",
-    "lint:fix": "nx run-many --target=lint --all --parallel=10 --fix",
+    "lint:fix": "nx run-many --target=lint --all --parallel=25 --fix",
     "prepare": "husky"
   },
   "private": true,

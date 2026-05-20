@@ -1,6 +1,14 @@
-import type { Logger } from '@api-hub/logger';
+import type { Logger } from '@api-hub/observability';
 
 import type { TraceContext, TraceFailureContext } from './trace-context';
+
+export type FifoBatchTailDeferredContext = {
+  schedulingLaneKey: string;
+  skippedMessageIds: string[];
+  reason: 'head_not_acked' | 'poison_receive_count_threshold';
+  blockingMessageId?: string;
+  blockingBatchIndex: number;
+};
 
 export type EventTracingHooks = {
   onEventReceived: (ctx: TraceContext) => void;
@@ -13,6 +21,12 @@ export type EventTracingHooks = {
     ctx: TraceContext & { attempt: number; delayMs?: number; reason?: string },
   ) => void;
   onDlq?: (ctx: TraceFailureContext & { reason?: string }) => void;
+  /**
+   * FIFO-aware batch scheduling: later records in the same scheduling lane (same SQS FIFO
+   * `MessageGroupId`) were not executed in this invocation because an earlier record in that lane was
+   * not acked (ordering + partial batch).
+   */
+  onFifoBatchTailDeferred?: (ctx: FifoBatchTailDeferredContext) => void;
 };
 
 export type CreateEventTracingHooksOptions = {
@@ -21,7 +35,7 @@ export type CreateEventTracingHooksOptions = {
   component?: string;
 };
 
-/** Default hooks using `@api-hub/logger` — no extra observability stack. */
+/** Default hooks using `@api-hub/observability` structured logger — no extra stack. */
 export function createEventTracingHooks(
   options: CreateEventTracingHooksOptions,
 ): EventTracingHooks {
@@ -94,5 +108,16 @@ export function fireProcessingFailure(
     hooks.onFailure(f);
   } else {
     hooks?.onEventFailed(f);
+  }
+}
+
+export function fireFifoBatchTailDeferred(
+  hooks: EventTracingHooks | undefined,
+  ctx: FifoBatchTailDeferredContext,
+): void {
+  try {
+    hooks?.onFifoBatchTailDeferred?.(ctx);
+  } catch {
+    /* non-fatal */
   }
 }

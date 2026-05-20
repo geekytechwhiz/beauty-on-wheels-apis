@@ -27,7 +27,10 @@ import {
 } from '../validators/request.validators';
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 import alertMetadataWorkaround from '../data/alert-metadata-workaround.json';  
-import { publishAlertCreated } from '../handlers/events/publisher/alert-publisher';
+import { publishAlertIntents } from '../handlers/events/publisher/alert-publisher';
+import { configureEventRuntime } from '../handlers/events/bootstrap/event-runtime';
+
+configureEventRuntime();
 
 let alertService: AlertService | undefined;
 function getAlertService(): AlertService {
@@ -49,6 +52,10 @@ function unauthorizedOrgError(): BaseError {
 
 export class AlertHttpController {
   private readonly svc = getAlertService();
+
+  private ensureEventRuntime(): void {
+    configureEventRuntime();
+  }
 
   /**
    * POST /alerts — body validated by {@link validateCreateAlertRequest} in `withApiHandler`; tenant + actor
@@ -83,8 +90,11 @@ export class AlertHttpController {
     );
 
     try {
-      const { record } = await this.svc.createAlert(createInput, v.authHeader);
-      await publishAlertCreated({payload: record as any});
+      this.ensureEventRuntime();
+      const { record, duplicate, publishIntents } = await this.svc.createAlert(createInput, v.authHeader);
+      if (!duplicate) {
+        await publishAlertIntents(publishIntents, requestLogger);
+      }
       return toAlertDetail(record);
     } catch (e: unknown) {
       normalizeAlertServiceError(e, {
@@ -111,7 +121,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     const input: WorkflowInput = {
       alertIds: v.alertIds,
@@ -141,7 +151,8 @@ export class AlertHttpController {
       });
     }
 
-    await publishAlertCreated({payload: input as any});
+    this.ensureEventRuntime();
+    await publishAlertIntents(result.publishIntents, req.context.logger);
     return {
       alertIds: v.alertIds,
       succeeded: result.succeeded,
@@ -165,7 +176,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     const result = await this.svc.applyAssignment(v.orgId, {
       alertIds: v.alertIds,
@@ -176,7 +187,8 @@ export class AlertHttpController {
       assigneeDisplayName: v.assigneeDisplayName,
     });
 
-    void result;
+    this.ensureEventRuntime();
+    await publishAlertIntents(result.publishIntents, req.context.logger);
     return { alertIds: v.alertIds };
   }
 
@@ -196,7 +208,7 @@ export class AlertHttpController {
       );
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     const result = await this.svc.applyPriority(v.orgId, {
       alertIds: v.alertIds,
@@ -204,10 +216,9 @@ export class AlertHttpController {
       performedByUserId: performedByUserId ?? undefined,
       performedByDisplayName: v.performedByDisplayName,
     });
-     
-    void result;
 
-
+    this.ensureEventRuntime();
+    await publishAlertIntents(result.publishIntents, req.context.logger);
     return { alertIds: v.alertIds };
   }
 
@@ -219,7 +230,7 @@ export class AlertHttpController {
       ], { retryable: false });
     }
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     const row = await this.svc.getAlert(alertId, orgId);
     if (!row) {
@@ -238,7 +249,7 @@ export class AlertHttpController {
       ], { retryable: false });
     }
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const notesOnly = (req.params as { notesOnly?: string }).notesOnly === 'true';
@@ -252,7 +263,7 @@ export class AlertHttpController {
    */
   async handleGetAlertMetadata(req: LambdaRequest) {
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event, authHeader);
+    const orgId = getOrganizationIdForRequest(req.event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
     return alertMetadataWorkaround;
   }
@@ -264,7 +275,7 @@ export class AlertHttpController {
   async handleListAlerts(req: LambdaRequest) {
     const event = req.event;
     const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(event, authHeader);
+    const orgId = getOrganizationIdForRequest(event as any, authHeader);
     if (!orgId) throw unauthorizedOrgError();
 
     const {
@@ -281,7 +292,7 @@ export class AlertHttpController {
       nextToken,
     } = parseListAlertsQuery(req.params as Record<string, string | string[] | undefined>);
     const limit = Math.min(100, Math.max(1, pageSize ?? 20));
-    const actorUserId = getActorUserIdForRequest(event, authHeader);
+    const actorUserId = getActorUserIdForRequest(event as any, authHeader);
 
     const { items, nextToken: nextPageToken } = await this.svc.listAlerts({
       organizationId: orgId,
@@ -313,11 +324,11 @@ export class AlertHttpController {
       ]);
     }
 
-    const performedByUserId = getActorUserIdForRequest(req.event, v.authHeader);
+    const performedByUserId = getActorUserIdForRequest(req.event as any, v.authHeader);
 
     // Call core service to add a note. Expect the core to return the created activity record or similar.
     // Use a best-effort call name `addNote` on the service.
-    const activity = await this.svc.addNote(
+    const { activity, publishIntents } = await this.svc.addNote(
       v.alertId,
       v.orgId,
       v.comment,
@@ -325,6 +336,8 @@ export class AlertHttpController {
       v.performedByDisplayName,
     );
 
+    this.ensureEventRuntime();
+    await publishAlertIntents(publishIntents, req.context.logger);
     return activity;
   }
 }

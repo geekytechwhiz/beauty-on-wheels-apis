@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { OrganizationService } from './organization.service';
 import { OrgConfigEntityType, OrgConfigStatus } from '../models';
 
-jest.mock('@api-hub/logger', () => ({
+jest.mock('@api-hub/observability', () => ({
   createLogger: () => ({
     info: jest.fn(),
     error: jest.fn(),

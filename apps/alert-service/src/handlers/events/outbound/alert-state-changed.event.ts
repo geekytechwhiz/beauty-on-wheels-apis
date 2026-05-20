@@ -1,18 +1,17 @@
 import { defineEvent } from '@api-hub/event-platform';
 import { z } from 'zod';
 
-export const AlertStateChangedSchema = defineEvent(
+export const AlertStateChangedEventSchema = defineEvent(
   z.object({
     alertId: z.string(),
     patientId: z.string(),
-    orgId: z.string(),
-
+    organizationId: z.string(),
+    activityType: z.string(),
     previousState: z.string(),
     currentState: z.string(),
-
-    changedBy: z.string(),
-
-    changedAt: z.string(),
+    performedBy: z.string(),
+    performedByDisplayName: z.string().optional(),
+    occurredAt: z.string(),
   }),
   {
     eventType: 'Alert.StateChanged.v1',

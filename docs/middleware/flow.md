@@ -1,25 +1,29 @@
-Incoming Event
-   ↓
-1. contextMiddleware
-   ↓
-2. invocationContextMiddleware
-   ↓
-3. loggerMiddleware (inject context into logger)
-   ↓
-4. tracerMiddleware
-   ↓
-5. schemaValidationMiddleware
-   ↓
-6. idempotencyMiddleware (only for write APIs)
-   ↓
-7. performanceMiddleware (start timer)
-   ↓
-8. Business Handler
-   ↓
-9. responseMiddleware
-   ↓
-10. performanceMiddleware (end timer)
-   ↓
-11. errorMiddleware (catch any failure globally)
-   ↓
-Response
+# Middleware execution flow
+
+## HTTP API (`buildApiExecutionPipeline`)
+
+Incoming request
+
+1. `httpApiErrorMiddleware` (outermost wrapper)
+2. `contextMiddleware`
+3. `invocationContextMiddleware`
+4. `loggerMiddleware`
+5. `tracerMiddleware`
+6. `requestParserMiddleware`
+7. `schemaValidationMiddleware` (optional)
+8. `performanceMiddleware`
+9. Business handler
+
+## Async events (`buildEventExecutionPipeline`)
+
+Incoming event
+
+1. `asyncErrorMiddleware` (outermost wrapper)
+2. `contextMiddleware`
+3. `invocationContextMiddleware`
+4. `loggerMiddleware`
+5. `tracerMiddleware`
+6. `performanceMiddleware`
+7. Business handler
+
+Reliability (idempotency, retry, DLQ, transport outcome mapping) belongs in `@api-hub/event-platform`, not in the HTTP/async middleware stack.

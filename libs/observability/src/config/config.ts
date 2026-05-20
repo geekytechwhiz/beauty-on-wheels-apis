@@ -50,7 +50,7 @@ function getDefaultInput(): ObservabilityConfigInput {
     serviceName: process.env.SERVICE_NAME ?? 'unknown-service',
     logLevel: normalizeLogLevel(process.env.LOG_LEVEL),
     sampling: {
-      info: Number(process.env.LOG_SAMPLE_INFO ?? 0.1),
+      info: Number(process.env.LOG_SAMPLE_INFO ?? 1),
       debug: Number(process.env.LOG_SAMPLE_DEBUG ?? 0.01),
     },
     redactPII: process.env.REDACT_PII !== 'false',
@@ -71,7 +71,7 @@ function resolveConfig(input: ObservabilityConfigInput): ObservabilityConfig {
     logLevel,
     logLevelFloor: LEVEL_TO_FLOOR[logLevel],
     sampling: {
-      info: clamp01(sampling.info ?? 0.1),
+      info: clamp01(sampling.info ?? 1),
       debug: clamp01(sampling.debug ?? 0.01),
     },
     redactPII: input.redactPII ?? true,

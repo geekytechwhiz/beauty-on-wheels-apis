@@ -1,4 +1,5 @@
 import { AlertWorkflowAction } from '../../constants/alert-workflow-action';
+import type { AlertPublishIntent } from '../events/alert-publish-intent';
 
 export type WorkflowActionValue = AlertWorkflowAction;
 
@@ -23,5 +24,6 @@ export interface WorkflowInput {
 export interface WorkflowResult {
   succeeded: string[];
   failed: { alertId: string; code: string; message: string }[];
+  publishIntents: AlertPublishIntent[];
 }
 

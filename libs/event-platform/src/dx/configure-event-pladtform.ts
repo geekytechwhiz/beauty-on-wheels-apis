@@ -1,12 +1,8 @@
-import { EventTransport } from '../core/schema/define-event';
+import type { EventTransport } from '../core/schema/define-event';
 
-import { EventConsumer } from '../sdk/consumer/event-consumer';
 import { EventPublisher } from '../sdk/publisher/event-publisher';
 
-import type {
-  EventConsumerDeps,
-  VersionedPayloadSchemas,
-} from '../typings/consumer.types';
+import type { VersionedPayloadSchemas } from '../typings/consumer.types';
 
 import type {
   EventPublishAdapter,
@@ -16,114 +12,47 @@ import type {
 import { setDxRuntime } from './context';
 
 export type ConfigureEventPlatformOptions = {
-  
-  serviceName: string;
- 
-  transport: EventTransport;
- 
-  publishers: Partial<
-    Record<EventTransport, EventPublishAdapter>
-  >;
- 
+  publishers: Partial<Record<EventTransport, EventPublishAdapter>>;
   payloadSchemas?: VersionedPayloadSchemas;
- 
-  consumer?: EventConsumerDeps;
- 
   publisherOptions?: Omit<
     EventPublisherDeps,
-    | 'adapter'
-    | 'payloadSchemas'
-    | 'serviceName'
-    | 'logger'
+    'adapter' | 'payloadSchemas' | 'logger'
   > & {
     logger?: EventPublisherDeps['logger'];
   };
 };
 
 /**
- * Singleton wiring for DX helpers
- * (`publishEvent`, `onEvent`).
- *
- * Builds internal publisher registry
- * and shared consumer runtime.
+ * Singleton wiring for DX publish helpers (`publishEvent`).
  */
 export function configureEventPlatform(
   options: ConfigureEventPlatformOptions,
 ): void {
-  // ---------------------------------------------------
-  // Resolve schemas
-  // ---------------------------------------------------
+  const payloadSchemas = options.payloadSchemas;
 
-  const mergedSchemas =
-    options.payloadSchemas ??
-    options.consumer?.payloadSchemas;
-
-  // ---------------------------------------------------
-  // Create consumer runtime
-  // ---------------------------------------------------
-
-  const consumer =
-    options.consumer
-      ? new EventConsumer({
-          ...options.consumer,
-
-          ...(mergedSchemas !== undefined
-            ? {
-                payloadSchemas: mergedSchemas,
-              }
-            : {}),
-        })
-      : undefined;
-
-  // ---------------------------------------------------
-  // Build publisher registry
-  // ---------------------------------------------------
-
-  const publishers = Object.entries(
-    options.publishers,
-  ).reduce(
+  const publishers = Object.entries(options.publishers).reduce(
     (acc, [transport, adapter]) => {
       if (!adapter) {
         return acc;
       }
 
-      acc[transport as EventTransport] =
-        new EventPublisher({
-          adapter,
-
-          payloadSchemas:
-            mergedSchemas as unknown as NonNullable<
-              EventPublisherDeps['payloadSchemas']
-            >,
-
-          serviceName:
-            options.serviceName,
-
-          ...options.publisherOptions,
-        });
+      acc[transport as EventTransport] = new EventPublisher({
+        adapter,
+        payloadSchemas:
+          payloadSchemas as unknown as NonNullable<
+            EventPublisherDeps['payloadSchemas']
+          >,
+        ...options.publisherOptions,
+      });
 
       return acc;
     },
-    {} as Partial<
-      Record<EventTransport, EventPublisher>
-    >,
+    {} as Partial<Record<EventTransport, EventPublisher>>,
   );
 
-  // ---------------------------------------------------
-  // Safety validation
-  // ---------------------------------------------------
+  if (Object.keys(publishers).length === 0) {
+    throw new Error('At least one publisher must be configured.');
+  }
 
-  if (
-    Object.keys(publishers).length === 0
-  ) {
-    throw new Error(
-      'At least one publisher must be configured.',
-    );
-  } 
-
-  setDxRuntime({
-    publishers,
-
-    consumer,
-  });
+  setDxRuntime({ publishers });
 }

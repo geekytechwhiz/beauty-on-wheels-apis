@@ -1,24 +1,24 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
-import { logHttpRequest, serializeError } from '@api-hub/observability';
-import { ApiResponse } from '@api-hub/utils';
-import {
-  getRequestId,
-  responseOpts,
-  createHandlerLogger,
-  parseJsonBody,
-} from '../utils/handlerHelpers';
-import * as integrationService from '../services/integration.service';
-import {
-  PartnerUnavailableError as ServicePartnerUnavailableError,
-  UnsupportedPartnerError,
-  InvalidPartnerResponseError as ServiceInvalidPartnerResponseError,
-} from '../utils/integrationErrors';
 import {
   InvalidPartnerResponseError,
-  PartnerUnavailableError,
   PartnerAuthenticationError,
   PartnerNotFoundError,
+  PartnerUnavailableError,
 } from '@api-hub/lab-integration';
+import { logHttpRequest, serializeError } from '@api-hub/observability';
+import { ApiResponse } from '@api-hub/utils';
+import type { Context } from 'aws-lambda';
+import * as integrationService from '../services/integration.service';
+import {
+  createHandlerLogger,
+  getRequestId,
+  parseJsonBody,
+  responseOpts,
+} from '../utils/handlerHelpers';
+import {
+  InvalidPartnerResponseError as ServiceInvalidPartnerResponseError,
+  PartnerUnavailableError as ServicePartnerUnavailableError,
+  UnsupportedPartnerError,
+} from '../utils/integrationErrors';
 
 export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();

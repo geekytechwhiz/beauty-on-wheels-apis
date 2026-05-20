@@ -87,13 +87,17 @@ export async function notifyUser(payload: {
         eventId,
         eventType: 'UserCreatedNotificationRequested',
         timestamp: new Date().toISOString(),
-        version: '1.0.0',
+        eventVersion: '1.0.0',
         source: payload.source || 'user-service',
-        correlationId: payload.correlationId,
         idempotencyKey: eventId,
         payload: data,
+        meta: {
+          correlationId: payload.correlationId ?? randomUUID(),
+          publishedAt: new Date().toISOString(),
+          retryCount: 0,
+        },
       },
-      payload.correlationId,
+      payload.correlationId ?? randomUUID(),
     );
 
     logger.info({

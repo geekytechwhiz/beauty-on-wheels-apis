@@ -29,9 +29,16 @@ export async function processSingle({
   let partial: BaseEvent<any> | undefined;
 
   try {
-    partial = deps.mapRawToBaseEvent
-      ? deps.mapRawToBaseEvent(raw)
-      : (raw as BaseEvent<any>);
+    if (deps.transportProfile) {
+      const envelope = deps.transportProfile.parseInbound(raw);
+      partial = deps.mapRawToBaseEvent
+        ? deps.mapRawToBaseEvent(raw)
+        : deps.transportProfile.mapToBaseEvent(envelope);
+    } else {
+      partial = deps.mapRawToBaseEvent
+        ? deps.mapRawToBaseEvent(raw)
+        : (raw as BaseEvent<any>);
+    }
     if (partial == null) {
       throw new Error('Event mapping produced no event');
     }

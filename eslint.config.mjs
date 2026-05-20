@@ -13,6 +13,11 @@ export default [
       '**/out-tsc',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
+      '**/swagger/**',
+      '**/esbuild/**',
+      '**/__tests__/**',
+      '**/jest.config.*.timestamp*',
+      'api-center/**',
     ],
   },
 

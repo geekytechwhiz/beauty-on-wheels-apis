@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
@@ -31,7 +31,7 @@ const deviceDeleteMultipleImpl: any = async (event: any, context?: Context) => {
   const userId = authorizer?.userID || authorizer?.userId || (event as any).userID || (body as any).userID;
 
   // Validation
-  const validation = deviceDeleteMultipleSchema.safeParse({ ...body, userId });
+  const validation = deviceDeleteMultipleSchema.safeParse({ ...(body as Record<string, unknown>), userId });
   if (!validation.success) {
     logger.warn({ event: 'deviceDeleteMultiple_validation_error', errors: validation.error.issues });
     const duration = Date.now() - startTime;
@@ -70,4 +70,4 @@ const deviceDeleteMultipleImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.deleteMultiple', deviceDeleteMultipleImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.deleteMultiple' }, deviceDeleteMultipleImpl);

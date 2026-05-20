@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { validateLinkUnlinkOrganization } from '../validation/request.validators';
@@ -30,6 +30,4 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return { message: actionNormalized === 'LINK' ? 'Org linked successfully' : 'Org unlinked successfully' };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateLinkUnlinkOrganization,
-});
+export const main = withApiHandler({ operation: 'linkUnlinkOrganization', validator: validateLinkUnlinkOrganization }, handler);

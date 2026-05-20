@@ -7,6 +7,7 @@
     "offline": "npx --no-install serverless offline --stage dev",
     "package": "npx --no-install serverless package",
     "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/alert-service/jest.config.cts",
+    "test:coverage": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/alert-service/jest.config.cts --coverage",
     "test:watch": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/alert-service/jest.config.cts --watch",
     "test:all": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/alert-service/jest.config.cts && node node_modules/jest/bin/jest.js --config=libs/alert-core/jest.config.cts",
     "test:all:report": "cd ../.. && node scripts/print-alert-test-summary.mjs",
@@ -98,7 +99,6 @@
     "serverless-auto-swagger": "^3.1.0",
     "serverless-dotenv-plugin": "^6.0.0",
     "serverless-esbuild": "^1.57.0",
-    "serverless-offline": "^13.9.0",
-    "serverless-plugin-warmup": "^8.4.1"
+    "serverless-offline": "^13.9.0"
   }
 }

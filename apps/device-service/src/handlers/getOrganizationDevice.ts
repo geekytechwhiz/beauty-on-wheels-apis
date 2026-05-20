@@ -1,5 +1,5 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
-import { APIGatewayProxyHandler, Context } from 'aws-lambda';
+import { withApiHandler } from '@api-hub/middleware';
+import { Context } from 'aws-lambda';
 import {
   createLogger,
   extractCorrelationId,
@@ -92,4 +92,4 @@ const getOrganizationDeviceImpl: any = async (
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.getOrganization', getOrganizationDeviceImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.getOrganization' }, getOrganizationDeviceImpl);

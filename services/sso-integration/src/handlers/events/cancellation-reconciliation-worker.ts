@@ -51,7 +51,7 @@ function validateMessageBody(body: CancellationReconciliationMessage): void {
 }
 
 export async function handler(
-  event: SQSevent: any,
+  event: SQSEvent,
   context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;

@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 
@@ -37,4 +37,4 @@ const handler = async (
   );
 };
 
-export const main = withLambdaHandler(handler);
+export const main = withApiHandler({ operation: 'getUserOrganization' }, handler);

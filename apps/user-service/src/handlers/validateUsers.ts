@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserValidationService } from '../services/userValidation.service';
 import { validateValidateUsers } from '../validation/request.validators';
@@ -25,6 +25,4 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return { exists: false };
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateValidateUsers,
-});
+export const main = withApiHandler({ operation: 'validateUsers', validator: validateValidateUsers }, handler);

@@ -13,8 +13,7 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 
 import {    CognitoUserContext, CognitoUserClaims } from '../types/user/user.types';
-import { cognitoPhone } from '@api-hub/utils';
-import { get } from 'http';
+import { cognitoPhone } from '@api-hub/utils'; 
 
 const baseLogger = createLogger({
   service: 'sso-integration',

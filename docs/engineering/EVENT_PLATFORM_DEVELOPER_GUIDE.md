@@ -191,11 +191,9 @@ The **`onEvent` exported from `@api-hub/event-platform`** ([`define-event-handle
 
 Handler signature: **`{ payload, meta }`** (not flattened).
 
-**For standard EventBridge envelopes, do not use this `onEvent` unless you wrap or remap the event yourself.** Prefer **`createEventHandler`** with `parseInboundEvent` as shown above, even for a single schema.
+**For standard EventBridge envelopes, do not use this `onEvent` unless you wrap or remap the event yourself.** Prefer **`onEvent`** / **`createEventHandler`** with the EventBridge transport profile as shown above, even for a single schema.
 
-### Optional DX path — `@api-hub/event-platform/dx`
-
-A different **`onEvent`** lives under **`@api-hub/event-platform/dx`** ([`dx/on-event.ts`](../../libs/event-platform/src/dx/on-event.ts)): it uses `EventConsumer.handle` from **`configureEventPlatform`**. Use that path only when you adopt the DX runtime (`configureEventPlatform`); it is not the same as `createEventHandler` + middleware stack documented in §2 for the factories above.
+**Publish bootstrap:** use **`configureEventPlatform`** + **`publishEvent`** for outbound events only. Consume with **`onEvent`** (EventBridge) or **`onQueue`** (SQS).
 
 ### Sample EventBridge payload (AWS → Lambda)
 

@@ -24,7 +24,7 @@ const baseLogger = createLogger({
  * then re-enqueues the appointment to AppointmentSyncQueue for full processing.
  */
 export async function handler(
-  event: SQSevent: any,
+  event: SQSEvent,
   context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;

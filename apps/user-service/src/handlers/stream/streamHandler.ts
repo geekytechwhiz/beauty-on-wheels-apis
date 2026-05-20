@@ -1,4 +1,4 @@
-import { DynamoDBStreamevent: any, DynamoDBRecord } from 'aws-lambda';
+import { DynamoDBStreamEvent } from 'aws-lambda';
 import { createLogger, extractCorrelationId, serializeError, createChildLogger } from '@api-hub/observability';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 

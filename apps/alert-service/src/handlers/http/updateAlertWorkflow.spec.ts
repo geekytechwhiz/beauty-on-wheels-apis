@@ -24,9 +24,6 @@ jest.mock('@api-hub/middleware', () => {
     withApiHandler:
       (options: any, handler: (req: any) => Promise<any>) =>
       async (event: any) => {
-        if (event?.source === 'serverless-plugin-warmup') {
-          return ApiResponse.ok(null, { title: 'SUCCESS', description: 'Warmup', severity: 'SUCCESS' }, { correlationId: 'unknown' });
-        }
 
         const parsedBody = tryParseJson(event?.body);
         if (parsedBody === Symbol.for('invalid-json')) {
@@ -39,7 +36,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -77,6 +74,10 @@ jest.mock('@api-hub/middleware', () => {
 
 // eslint-disable-next-line no-var
 var mockApplyWorkflow: jest.Mock;
+
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@api-hub/alert-core', () => {
   mockApplyWorkflow = jest.fn();
@@ -124,6 +125,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
+      publishIntents: [],
     });
 
     const result = await (main as any)(baseEvent({ alertIds: [alertId], action: 'START_WORK' }), context);
@@ -150,6 +152,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [alertId],
       failed: [],
+      publishIntents: [],
     });
 
     await (main as any)(
@@ -195,6 +198,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
           message: 'RESUME is not valid from state UNASSIGNED',
         },
       ],
+      publishIntents: [],
     });
 
     const result = await (main as any)(baseEvent({ alertIds: [alertId], action: 'RESUME_WORK' }), context);
@@ -207,6 +211,7 @@ describe('updateAlertWorkflow HTTP handler', () => {
     mockApplyWorkflow.mockResolvedValue({
       succeeded: [],
       failed: [{ alertId, code: 'NOT_FOUND', message: 'Alert not found' }],
+      publishIntents: [],
     });
 
     const result = await (main as any)(baseEvent({ alertIds: [alertId], action: 'START_WORK' }), context);
@@ -225,11 +230,5 @@ describe('updateAlertWorkflow HTTP handler', () => {
     expect(result.statusCode).toBe(422);
     expect(mockApplyWorkflow).not.toHaveBeenCalled();
   });
-
-  it('handles serverless-plugin-warmup', async () => {
-    const warmup = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
-    const result = await (main as any)(warmup, context);
-    expect(result.statusCode).toBe(200);
-    expect(mockApplyWorkflow).not.toHaveBeenCalled();
-  });
 });
+

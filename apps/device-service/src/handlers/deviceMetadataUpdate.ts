@@ -1,4 +1,4 @@
-import { withStandardApiGatewayPipeline } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { createChildLogger, createLogger, extractAwsRequestId, extractCorrelationId, logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { Context } from 'aws-lambda';
@@ -78,4 +78,4 @@ const deviceMetadataUpdateImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withStandardApiGatewayPipeline('device.metadataUpdate', deviceMetadataUpdateImpl, { serviceName: 'device-service' });
+export const handler = withApiHandler({ operation: 'device.metadataUpdate' }, deviceMetadataUpdateImpl);

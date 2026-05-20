@@ -1,4 +1,4 @@
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateUpdateRecentInvite } from '../validation/request.validators';
@@ -13,6 +13,4 @@ const handler = async (req: LambdaRequest<any> & { validatedUpdateRecentInvite?:
   return userService.updateRecentInvite(userId, organizationId, patientId, { email, sms }, correlationId);
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUpdateRecentInvite,
-});
+export const main = withApiHandler({ operation: 'updateRecentInvite', validator: validateUpdateRecentInvite }, handler);

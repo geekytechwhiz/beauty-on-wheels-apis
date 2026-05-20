@@ -4,7 +4,7 @@ import {
   Context,
 } from 'aws-lambda';
  
-import { withLambdaHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { ApiResponse, type LambdaRequest } from '@api-hub/utils';
  
 import { scheduleServiceClient } from '../clients/scheduleService.client';
@@ -906,7 +906,5 @@ const handler = async (req: LambdaRequest<any>) => {
   return parsed;
 };
 
-export const main = withLambdaHandler(handler, {
-  validator: validateUpdateUser,
-});
+export const main = withApiHandler({ operation: 'updateUser', validator: validateUpdateUser }, handler);
 

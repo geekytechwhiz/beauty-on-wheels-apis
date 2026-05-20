@@ -74,7 +74,7 @@ function shouldToleratePublishFailure(err: unknown, code: string): boolean {
 }
 
 export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: string): Promise<void> {
-  const finalCorrelationId = evt.correlationId || correlationId;
+  const finalCorrelationId = evt.meta?.correlationId || correlationId || randomUUID();
   const logger = createChildLogger(baseLogger, { correlationId: finalCorrelationId, eventType: evt.eventType });
 
   try {
@@ -86,8 +86,11 @@ export async function publishEvent<T>(evt: EventEnvelope<T>, correlationId?: str
     const envelope: EventEnvelope<T> = {
       ...evt,
       eventId: evt.eventId || randomUUID(),
-      occurredAt: evt.occurredAt || new Date().toISOString(),
-      correlationId: finalCorrelationId,
+      timestamp: evt.timestamp || new Date().toISOString(),
+      meta: {
+        ...evt.meta,
+        correlationId: finalCorrelationId,
+      },
     };
 
     const message = JSON.stringify(envelope);

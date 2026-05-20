@@ -1,18 +1,17 @@
-import type { APIGatewayProxyHandler, Context } from 'aws-lambda';
 import { logHttpRequest, serializeError } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
+import type { Context } from 'aws-lambda';
 import {
-  getRequestId,
-  responseOpts,
   createHandlerLogger,
   getPartnerService,
+  getRequestId
 } from '../utils/handlerHelpers';
 
 export const main: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
-  const requestId = getRequestId(event: any, context);
+  const requestId = getRequestId(event, context);
   const orgId = event.pathParameters?.orgId;
-  const logger = createHandlerLogger(event: any, context, { organizationId: orgId });
+  const logger = createHandlerLogger(event, context, { organizationId: orgId });
   logger.info({ event: 'listOrgPartners_received', organizationId: orgId });
 
   if (!orgId) {
@@ -21,7 +20,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 400, duration, requestId);
     return ApiResponse.badRequest(
       'COMMON.BAD_REQUEST',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'BAD_REQUEST', details: [{ message: 'Missing organization id in path' }] }
     );
   }
@@ -33,7 +32,7 @@ export const main: any = async (event: any, context?: Context) => {
     return ApiResponse.ok(
       { items: partners },
       'PARTNER.PARTNERS_LIST_SUCCESS',
-      responseOpts(event: any, requestId)
+      { correlationId: requestId, event }
     );
   } catch (err) {
     logger.error({ event: 'listOrgPartners_error', err: serializeError(err) });
@@ -41,7 +40,7 @@ export const main: any = async (event: any, context?: Context) => {
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/organization/partners', 500, duration, requestId);
     return ApiResponse.internalServerError(
       'COMMON.INTERNAL_ERROR',
-      responseOpts(event: any, requestId),
+      { correlationId: requestId, event },
       { code: 'INTERNAL_ERROR' }
     );
   }

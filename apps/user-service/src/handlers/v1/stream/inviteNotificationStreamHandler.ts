@@ -1,10 +1,10 @@
-import { DynamoDBStreamEvent } from 'aws-lambda';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
+import { createChildLogger, createLogger, serializeError } from '@api-hub/observability';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
-import axios from 'axios';
-import { INVITE_EMAIL_SUBJECT, INVITE_EMAIL_MESSAGE, WELCOME_MESSAGE, WELCOME_DLT_CONTENT_ID, PORTAL_LINK } from '../../../utils/constants';
+import { DynamoDBStreamEvent } from 'aws-lambda';
+import axios     from 'axios';
 import { sendEmail } from '../../../services/notification.delivery';
 import { getOrganizationFromDynamo } from '../../../services/organization.service';
+import { INVITE_EMAIL_MESSAGE, INVITE_EMAIL_SUBJECT } from '../../../utils/constants';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
 
@@ -51,13 +51,9 @@ async function processRecord(
   const newItem = unmarshall(record.dynamodb.NewImage as Record<string, any>);
   const oldItem = record.dynamodb.OldImage
     ? unmarshall(record.dynamodb.OldImage as Record<string, any>)
-    : {};
-    console.log("NEW ITEM",newItem)
-    console.log("OLD ITEM",oldItem)
+    : {};  
   const newInviteDetails = newItem.inviteDetails as InviteDetails | undefined;
   const oldInviteDetails = oldItem.inviteDetails as InviteDetails | undefined;
-  console.log("NEW INVITE DETAILS",newInviteDetails)
-  console.log("OLD INVITE DETAILS",oldInviteDetails)
   // Skip if inviteDetails is not present in the new image or is an empty object
   if (!newInviteDetails || (typeof newInviteDetails === 'object' && Object.keys(newInviteDetails).length === 0)) {
     logger.info({ 
@@ -102,7 +98,6 @@ async function processRecord(
   if (organizationID) {
     try {
       const org = await getOrganizationFromDynamo(organizationID);
-      console.log("ORG RESPONSE : ",org)
       if (org && typeof org === 'object') {
         const orgData = org as any;
         const orgInfo: any = orgData.organizationInfo || {};
@@ -156,9 +151,6 @@ async function processRecord(
   organizationName = organizationName || 'No Organization';
   organizationAddress = organizationAddress || '';
   organizationInfo = typeof organizationInfo === 'string' ? organizationInfo : String(organizationInfo);
-  console.log("ORGANIZATION NAME : ",organizationName)
-  console.log("ORGANIZATION ADDRESS : ",organizationAddress)
-  console.log("ORGANIZATION INFO : ",organizationInfo)
   const recordLogger = createChildLogger(baseLogger, { correlationId, userId, organizationID, sequenceNumber });
 
   recordLogger.info({

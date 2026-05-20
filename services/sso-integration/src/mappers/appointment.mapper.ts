@@ -17,7 +17,7 @@ export class AppointmentMapper {
   ): ScheduleCreateRequest {
     const startTime = appointment.startTime;
     const endTime = appointment.endTime;
-    const scheduleDate = startTime.split('T')[0];
+    const scheduleDate = startTime?.split('T')[0] ?? '';
   
     const organizationID =
       patientUser.tenantId || context.integration.subdomain;
@@ -25,8 +25,8 @@ export class AppointmentMapper {
     const externalAppointmentId = String(appointment.appointmentId);
 
     return {
-      startTime,
-      endTime,
+      startTime: startTime ?? '',
+      endTime: endTime ?? ''  ,
       scheduleDate,
       appointmentType: 'ONLINE',
       owner: {

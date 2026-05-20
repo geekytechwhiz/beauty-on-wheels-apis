@@ -23,9 +23,6 @@ jest.mock('@api-hub/middleware', () => {
     withApiHandler:
       (options: any, handler: (req: any) => Promise<any>) =>
       async (event: any) => {
-        if (event?.source === 'serverless-plugin-warmup') {
-          return ApiResponse.ok(null, { title: 'SUCCESS', description: 'Warmup', severity: 'SUCCESS' }, { correlationId: 'unknown' });
-        }
 
         const parsedBody = tryParseJson(event?.body);
         if (parsedBody === Symbol.for('invalid-json')) {
@@ -38,7 +35,7 @@ jest.mock('@api-hub/middleware', () => {
 
         const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
         const req = {
-          event: any,
+          event,
           params: event?.queryStringParameters ?? {},
           body: parsedBody,
           query: {},
@@ -85,6 +82,10 @@ jest.mock('@api-hub/middleware', () => {
 // eslint-disable-next-line no-var
 var mockCreateAlert: jest.Mock;
 
+jest.mock('../../handlers/events/publisher/alert-publisher', () => ({
+  publishAlertIntents: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@api-hub/alert-core', () => {
   mockCreateAlert = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/alert-core')>('@api-hub/alert-core');
@@ -113,20 +114,31 @@ describe('createAlert HTTP handler', () => {
     mockCreateAlert.mockReset();
   });
 
+  const EPOCH_TRIGGER = Date.parse('2026-01-15T10:00:00.000Z');
+  const EPOCH_EVIDENCE = Date.parse('2026-01-15T09:00:00.000Z');
+  const EPOCH_LAST_READING = Date.parse('2026-01-14T09:00:00.000Z');
+
   function validMissedReadingBody(): Record<string, unknown> {
     return {
       inputEventId: 'evt-unique-1',
       inputType: 'MISSED_READING',
       sourceType: 'MONITORING_SERVICE',
       patientId: 'pat-1',
-      triggerTimestamp: '2026-01-15T10:00:00.000Z',
+      patientName: 'Jane Doe',
+      triggerTimestamp: EPOCH_TRIGGER,
+      priority: 'P2',
+      groupingKey: 'pat-1|BP_SYSTOLIC|OPEN',
+      alertPolicyTemplateVersionId: 'policy-v1',
+      thresholdTemplateVersionId: 'thresh-v1',
+      assignSlaMinutes: 60,
+      resolveSlaMinutes: 240,
       evidencePayload: {
-        eventTimestamp: '2026-01-15T09:00:00.000Z',
+        eventTimestamp: EPOCH_EVIDENCE,
         source: 'MONITORING_SERVICE',
         inputType: 'MISSED_READING',
         appliesToType: 'VITAL_SIGN',
         linkedEntityCode: 'BP_SYSTOLIC',
-        lastSuccessfulReadingTimestamp: '2026-01-14T09:00:00.000Z',
+        lastSuccessfulReadingTimestamp: EPOCH_LAST_READING,
         missedDuration: '24h',
         readingType: 'BLOOD_PRESSURE',
       },
@@ -154,7 +166,7 @@ describe('createAlert HTTP handler', () => {
 
   it('returns 200 with alert detail when createAlert succeeds', async () => {
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const result = await (main as any)(baseEvent(), context);
 
@@ -196,16 +208,23 @@ describe('createAlert HTTP handler', () => {
       sourceType: 'DEVICE_MONITORING',
       inputEventId: 'evt-device-1',
     });
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const bodyObj = {
       inputEventId: 'evt-device-1',
       inputType: 'MISSING_DEVICE',
       sourceType: 'DEVICE_MONITORING',
       patientId: 'pat-1',
-      triggerTimestamp: '2026-01-15T10:00:00.000Z',
+      patientName: 'John Smith',
+      triggerTimestamp: EPOCH_TRIGGER,
+      priority: 'P1',
+      groupingKey: 'pat-1|GLUCOSE_METER|OPEN',
+      alertPolicyTemplateVersionId: 'policy-v1',
+      thresholdTemplateVersionId: 'thresh-v1',
+      assignSlaMinutes: 30,
+      resolveSlaMinutes: 120,
       evidencePayload: {
-        eventTimestamp: '2026-01-15T09:00:00.000Z',
+        eventTimestamp: EPOCH_EVIDENCE,
         source: 'DEVICE_MONITORING',
         inputType: 'MISSING_DEVICE',
         appliesToType: 'DEVICE',
@@ -215,7 +234,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bodyObj) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(200);
     expect(mockCreateAlert).toHaveBeenCalledTimes(1);
@@ -257,7 +276,7 @@ describe('createAlert HTTP handler', () => {
       headers: { Authorization: bearerToken({ sub: 'user-only' }) },
     });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect([401, 422]).toContain(result.statusCode);
     const body = JSON.parse(result.body ?? '{}') as {
@@ -278,7 +297,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
@@ -295,7 +314,7 @@ describe('createAlert HTTP handler', () => {
     };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     const body = JSON.parse(result.body ?? '{}') as { error: { code?: string } | null };
@@ -307,7 +326,7 @@ describe('createAlert HTTP handler', () => {
     const bad = { ...validMissedReadingBody(), unknownField: true };
     const event = baseEvent({ body: JSON.stringify(bad) });
 
-    const result = await (main as any)(event: any, context);
+    const result = await (main as any)(event, context);
 
     expect(result.statusCode).toBe(422);
     expect(mockCreateAlert).not.toHaveBeenCalled();
@@ -315,7 +334,7 @@ describe('createAlert HTTP handler', () => {
 
   it('accepts optional assignSlaMinutes / resolveSlaMinutes and forwards them to the service', async () => {
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const body = {
       ...validMissedReadingBody(),
@@ -334,19 +353,19 @@ describe('createAlert HTTP handler', () => {
     expect(payload.resolveSlaMinutes).toBe(120);
   });
 
-  it('omitting SLA minutes leaves them undefined on the payload (builder applies defaults)', async () => {
+  it('forwards required SLA minutes from the HTTP body to the service', async () => {
     const record = minimalAlertRecord();
-    mockCreateAlert.mockResolvedValue({ record, duplicate: false });
+    mockCreateAlert.mockResolvedValue({ record, duplicate: false, publishIntents: [{ kind: 'CREATED', record }] });
 
     const result = await (main as any)(baseEvent(), context);
 
     expect(result.statusCode).toBe(200);
     const payload = mockCreateAlert.mock.calls[0][0] as {
-      assignSlaMinutes?: number;
-      resolveSlaMinutes?: number;
+      assignSlaMinutes: number;
+      resolveSlaMinutes: number;
     };
-    expect(payload.assignSlaMinutes).toBeUndefined();
-    expect(payload.resolveSlaMinutes).toBeUndefined();
+    expect(payload.assignSlaMinutes).toBe(60);
+    expect(payload.resolveSlaMinutes).toBe(240);
   });
 
   it('returns 422 when assignSlaMinutes is negative or non-integer', async () => {
@@ -359,11 +378,5 @@ describe('createAlert HTTP handler', () => {
       expect(mockCreateAlert).not.toHaveBeenCalled();
     }
   });
-
-  it('handles serverless-plugin-warmup payload with 200', async () => {
-    const warmupEvent = { source: 'serverless-plugin-warmup' } as unknown as APIGatewayProxyEvent;
-    const result = await (main as any)(warmupevent: any, context);
-    expect(result.statusCode).toBe(200);
-    expect(mockCreateAlert).not.toHaveBeenCalled();
-  });
 });
+

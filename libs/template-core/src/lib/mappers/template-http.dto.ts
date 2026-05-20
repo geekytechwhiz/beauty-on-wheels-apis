@@ -12,6 +12,18 @@ export interface TemplateSummaryData {
   publishedAt?: string | null;
 }
 
+export interface TemplateVersionSummary {
+  templateId: string;
+  templateVersionId: string;
+  organizationId: string | null;
+  version: number;
+  status: string;
+  isActive: boolean;
+  publishedAt?: string | null;
+  createdAt?: string | null;
+  schemaRef?: string | null;
+}
+
 export interface MasterTemplateListItem {
   templateId: string;
   templateVersionId: string;
@@ -37,6 +49,21 @@ export function toTemplateSummary(record: TemplateDdbRecord): TemplateSummaryDat
     createdAt: meta.createdAt,
     updatedAt: meta.lastModifiedAt ?? null,
     publishedAt: meta.publishedAt ?? null,
+  };
+}
+
+export function toVersionSummary(record: TemplateDdbRecord): TemplateVersionSummary {
+  const meta = record.meta;
+  return {
+    templateId: meta.templateId,
+    templateVersionId: meta.templateVersionId,
+    organizationId: null,
+    version: meta.version ?? 1,
+    status: meta.status ?? 'DRAFT',
+    isActive: meta.isActive ?? true,
+    publishedAt: meta.publishedAt ?? null,
+    createdAt: meta.createdAt ?? null,
+    schemaRef: record.schemaRef ?? null,
   };
 }
 

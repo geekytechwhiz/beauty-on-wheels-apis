@@ -430,11 +430,46 @@ Repeat for all 16 endpoints. Keep `health` without authorizer.
 
 ---
 
-*Last updated: Sprint 1 — create/list master templates implemented.*
+*Last updated: Sprint 1 — create/list/get-meta/get-versions master templates implemented.*
 
 ---
 
 ## 11. Implemented APIs (Sprint 1) — run & test
+
+### 11.0 Quick start (local)
+
+From **repo root** (`api-hub`):
+
+**Git Bash / WSL / macOS:**
+
+```bash
+# 1) Install dependencies (once)
+pnpm install
+
+# 2) Start template-service (Serverless Offline on port 3000)
+pnpm template-service:offline
+```
+
+**PowerShell (Windows):**
+
+```powershell
+# Ensure Node is on PATH (adjust if you use nvm-windows)
+$env:Path = "$env:LOCALAPPDATA\nvm;C:\nvm4w\nodejs;" + $env:Path
+
+cd C:\Users\MehulManubhaiChhotal\Documents\api-hub   # your clone path
+pnpm install
+pnpm template-service:offline
+```
+
+**Verify** (new terminal — service must stay running in the first):
+
+```bash
+curl -s http://localhost:3000/health
+```
+
+Expected: JSON with `success: true` (or similar health payload).
+
+**Stop:** `Ctrl+C` in the terminal running offline.
 
 ### 11.1 Status
 
@@ -442,6 +477,8 @@ Repeat for all 16 endpoints. Keep `health` without authorizer.
 |-----|--------|-------|
 | `POST /templates/master` | Done | `createMasterTemplate.ts`, `template-http.controller.ts`, `template.service.ts` |
 | `GET /templates/master` | Done | `listMasterTemplates.ts`, same controller/service |
+| `GET /templates/master/{templateId}/meta` | Done | `getMasterTemplateMeta.ts` |
+| `GET /templates/master/{templateId}/versions` | Done | `getMasterTemplateVersions.ts` |
 | `GET /health` | Done | `health.ts` |
 
 ### 11.2 Prerequisites
@@ -463,22 +500,72 @@ AWS credentials must allow DynamoDB read/write on `template-service-dev`.
 
 ### 11.3 Start server (offline)
 
-From repo root:
+#### Option A — from repo root (recommended)
+
+Uses the root `package.json` script (nodemon watches `src` and restarts on file changes):
 
 ```bash
 pnpm template-service:offline
 ```
 
-Or from the app folder:
+**PowerShell:**
+
+```powershell
+$env:Path = "$env:LOCALAPPDATA\nvm;C:\nvm4w\nodejs;" + $env:Path
+pnpm template-service:offline
+```
+
+#### Option B — from the app folder
 
 ```bash
 cd apps/template-service
 pnpm offline
 ```
 
-Default URL: `http://localhost:3000` (see `serverless.yml` → `serverless-offline.httpPort`).
+**PowerShell:**
 
-**Note:** Alert-service also uses port `3000`. Run only one at a time, or change `httpPort` in `serverless.yml`.
+```powershell
+cd apps\template-service
+pnpm offline
+```
+
+#### Option C — serverless directly (no file watch)
+
+```bash
+cd apps/template-service
+npx serverless offline --stage dev
+```
+
+#### Runtime details
+
+| Setting | Value |
+|---------|--------|
+| Base URL | `http://localhost:3000` |
+| Stage in URL | **No** stage prefix (`noPrependStageInUrl: true` in `serverless.yml`) |
+| Port | `3000` (`serverless-offline.httpPort`) |
+| DynamoDB table (dev) | `template-service-dev` |
+| AWS region | `us-east-1` |
+
+**Examples after start:**
+
+```text
+GET  http://localhost:3000/health
+POST http://localhost:3000/templates/master
+GET  http://localhost:3000/templates/master?status=DRAFT
+GET  http://localhost:3000/templates/master/CP-HTN-STANDARD/meta
+GET  http://localhost:3000/templates/master/CP-HTN-STANDARD/versions
+```
+
+**Note:** `alert-service` also uses port `3000`. Run only one at a time, or change `httpPort` in `apps/template-service/serverless.yml` → `custom.serverless-offline.httpPort`.
+
+**Troubleshooting start:**
+
+| Issue | Fix |
+|-------|-----|
+| `pnpm` / `node` not found | Install Node 22+ and pnpm; reopen terminal |
+| Port 3000 in use | Stop other offline services or change `httpPort` |
+| DynamoDB errors on API calls | Configure AWS credentials; table `template-service-dev` must exist in `us-east-1` |
+| 403 before Lambda | API Gateway authorizer ARN (offline may still validate `Authorization` header — use `$TOKEN` from §11.5) |
 
 ### 11.4 Unit tests
 
@@ -727,7 +814,132 @@ curl -s "http://localhost:3000/templates/master?status=DRAFT&nextToken=PASTE_TOK
 }
 ```
 
-### 11.9 PowerShell — full flow
+### 11.9 GET `/templates/master/{templateId}/meta`
+
+Returns the **META** header row (`sk=META`) for a master template — lightweight read without loading a full version snapshot.
+
+#### Path parameter
+
+| Param | Required | Example |
+|-------|----------|---------|
+| `templateId` | Yes | `CP-HTN-STANDARD` (from create response `data.templateId`) |
+
+#### cURL
+
+```bash
+curl -s "http://localhost:3000/templates/master/CP-HTN-STANDARD/meta" \
+  -H "Authorization: $TOKEN"
+```
+
+**Success response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "pk": "MASTER_TMPL#CP-HTN-STANDARD",
+    "sk": "META",
+    "entityType": "MASTER_TEMPLATE",
+    "meta": {
+      "templateId": "CP-HTN-STANDARD",
+      "templateVersionId": "CP-HTN-STANDARD-V01",
+      "templateName": "Hypertension Management Plan",
+      "templateType": "CARE_PLAN",
+      "version": 1,
+      "status": "DRAFT",
+      "isActive": true
+    }
+  }
+}
+```
+
+**Errors:** `404` if META row does not exist.
+
+### 11.10 GET `/templates/master/{templateId}/versions`
+
+Single endpoint for **list**, **latest**, or **point** version read (OpenAPI `getMasterTemplateVersionsQuery`).
+
+#### Path parameter
+
+| Param | Required | Example |
+|-------|----------|---------|
+| `templateId` | Yes | `CP-HTN-STANDARD` |
+
+#### Query parameters
+
+| Query | Required | Behavior |
+|-------|----------|----------|
+| *(omit `version`)* | — | List all `VERSION#*` rows (paginated) |
+| `version=latest` | No | Latest snapshot; optional `resolve=ACTIVE` (default), `LATEST_PUBLISHED`, `LATEST_ANY` |
+| `version=V01` or `001` | No | Point read → `SK=VERSION#001` |
+| `status` | No | **List mode only** — filter by `meta.status` |
+| `limit` | No | List mode page size (default 25, max 100) |
+| `nextToken` | No | List mode pagination |
+
+#### List all versions
+
+```bash
+curl -s "http://localhost:3000/templates/master/CP-HTN-STANDARD/versions" \
+  -H "Authorization: $TOKEN"
+```
+
+#### List with status filter
+
+```bash
+curl -s "http://localhost:3000/templates/master/CP-HTN-STANDARD/versions?status=DRAFT" \
+  -H "Authorization: $TOKEN"
+```
+
+#### Latest version (active pointer from META)
+
+```bash
+curl -s "http://localhost:3000/templates/master/CP-HTN-STANDARD/versions?version=latest" \
+  -H "Authorization: $TOKEN"
+```
+
+#### Latest published
+
+```bash
+curl -s "http://localhost:3000/templates/master/CP-HTN-STANDARD/versions?version=latest&resolve=LATEST_PUBLISHED" \
+  -H "Authorization: $TOKEN"
+```
+
+#### Point read by version id
+
+```bash
+curl -s "http://localhost:3000/templates/master/CP-HTN-STANDARD/versions?version=V01" \
+  -H "Authorization: $TOKEN"
+```
+
+**List success (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "templateId": "CP-HTN-STANDARD",
+        "templateVersionId": "CP-HTN-STANDARD-V01",
+        "organizationId": null,
+        "version": 1,
+        "status": "DRAFT",
+        "isActive": true,
+        "publishedAt": null,
+        "createdAt": "2026-05-15T...",
+        "schemaRef": null
+      }
+    ],
+    "nextToken": null
+  }
+}
+```
+
+**Single version success (200):** full DynamoDB version item (`pk`, `sk`, `meta`, optional `schemaRef`, care-plan fields).
+
+**Errors:** `404` if template or version not found.
+
+### 11.11 PowerShell — full flow
 
 ```powershell
 $env:Path = "C:\nvm4w\nodejs;" + $env:Path
@@ -754,7 +966,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/templates/master?status=DRAFT&temp
   -Headers @{ Authorization = $TOKEN }
 ```
 
-### 11.10 Troubleshooting
+### 11.12 Troubleshooting
 
 | Symptom | Cause / fix |
 |---------|-------------|
@@ -764,6 +976,6 @@ Invoke-RestMethod -Uri "http://localhost:3000/templates/master?status=DRAFT&temp
 | List empty after create | Forgot `?status=DRAFT` (default list = **published** GSI2 only) |
 | 403 before handler | API Gateway authorizer in AWS (offline may still reference authorizer ARN) |
 
-### 11.11 Next APIs (not yet implemented)
+### 11.13 Next APIs (not yet implemented)
 
-Continue with section 8 Sprint 2: meta, versions, update master, then org + lifecycle + enablements.
+Continue with section 8 Sprint 2: update master version, org templates, lifecycle, enablements, compatible list.

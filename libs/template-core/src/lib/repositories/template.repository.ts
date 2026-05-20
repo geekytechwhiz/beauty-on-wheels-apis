@@ -8,9 +8,11 @@ import {
   TEMPLATE_META_SK,
   TEMPLATE_STATUS,
   TEMPLATE_TYPE_CARE_PLAN,
+  VERSION_SK_PREFIX,
   type TemplateStatus,
 } from '../constants/template.constants';
 import type { ListMasterTemplatesParams } from '../models/api/list-master.types';
+import type { ListMasterVersionsParams } from '../models/api/get-master-versions.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import { assertTemplateTable, decodeListCursor, encodeListCursor } from '../utils/template.utils';
 
@@ -60,6 +62,61 @@ export class TemplateRepository extends BaseRepository {
     return this.get<TemplateDdbRecord>(table, {
       pk: TemplateKeyBuilder.toMasterPk(templateId),
       sk: TEMPLATE_META_SK,
+    });
+  }
+
+  async getMasterVersion(templateId: string, versionSk: string): Promise<TemplateDdbRecord | null> {
+    const table = assertTemplateTable();
+    return this.get<TemplateDdbRecord>(table, {
+      pk: TemplateKeyBuilder.toMasterPk(templateId),
+      sk: TemplateKeyBuilder.toVersionSk(versionSk),
+    });
+  }
+
+  async queryMasterVersionsPage(
+    templateId: string,
+    opts: {
+      limit: number;
+      exclusiveStartKey?: Record<string, unknown>;
+      status?: TemplateStatus;
+    },
+  ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertTemplateTable();
+    const eav: Record<string, unknown> = {
+      ':pk': TemplateKeyBuilder.toMasterPk(templateId),
+      ':skPrefix': VERSION_SK_PREFIX,
+    };
+    const filterParts: string[] = [];
+    if (opts.status) {
+      eav[':status'] = opts.status;
+      filterParts.push('meta.#status = :status');
+    }
+
+    return this.queryPage<TemplateDdbRecord>({
+      TableName: table,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      ExpressionAttributeValues: eav,
+      ...(filterParts.length
+        ? {
+            FilterExpression: filterParts.join(' AND '),
+            ExpressionAttributeNames: { '#status': 'status' },
+          }
+        : {}),
+      ScanIndexForward: false,
+      Limit: opts.limit,
+      ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
+    });
+  }
+
+  async listMasterVersions(
+    params: ListMasterVersionsParams,
+  ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+    const exclusiveStartKey = decodeListCursor(params.nextToken);
+    return this.queryMasterVersionsPage(params.templateId, {
+      limit,
+      exclusiveStartKey,
+      status: params.status,
     });
   }
 

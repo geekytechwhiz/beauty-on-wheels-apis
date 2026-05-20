@@ -5,7 +5,12 @@ import {
 } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
-import type { ValidatedCreateMaster, ValidatedListMaster } from '../validators/request.validators';
+import type {
+  ValidatedCreateMaster,
+  ValidatedGetMasterMeta,
+  ValidatedGetMasterVersions,
+  ValidatedListMaster,
+} from '../validators/request.validators';
 
 let templateService: TemplateService | undefined;
 
@@ -83,6 +88,70 @@ export class TemplateHttpController {
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_master_templates_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleGetMasterMeta(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedGetMasterMeta?: ValidatedGetMasterMeta })
+      .validatedGetMasterMeta;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.getMasterTemplateMeta(v.templateId);
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'get_master_template_meta_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleGetMasterVersions(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedGetMasterVersions?: ValidatedGetMasterVersions })
+      .validatedGetMasterVersions;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    const { templateId, query } = v;
+
+    try {
+      const result = await this.svc.getMasterTemplateVersions({
+        templateId,
+        version: query.version,
+        resolve: query.resolve,
+        status: query.status as TemplateStatus | undefined,
+        nextToken: query.nextToken,
+        limit: query.limit ?? 25,
+      });
+
+      if (result.mode === 'list') {
+        return {
+          items: result.items,
+          ...(result.nextToken ? { nextToken: result.nextToken } : {}),
+        };
+      }
+
+      return result.record;
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'get_master_template_versions_error',
         correlationId: req.context.correlationId as string,
       });
     }

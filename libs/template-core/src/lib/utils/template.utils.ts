@@ -1,4 +1,5 @@
-import { ENV_TEMPLATE_TABLE } from '../constants/template.constants';
+import { ENV_TEMPLATE_TABLE, VERSION_SK_PREFIX } from '../constants/template.constants';
+import { TemplateKeyBuilder } from '../builder/template-key.builder';
 
 export function assertTemplateTable(): string {
   const table = process.env[ENV_TEMPLATE_TABLE];
@@ -34,6 +35,35 @@ function invalidListCursor(): never {
   const e = new Error('Invalid nextToken') as Error & { statusCode: number; code: string };
   e.statusCode = 400;
   e.code = 'VALIDATION_ERROR';
+  throw e;
+}
+
+/** Map API version query (`V01`, `001`, `VERSION#001`) to DynamoDB sort key. */
+export function normalizeVersionToSk(version: string): string {
+  const trimmed = version.trim();
+  if (trimmed.toUpperCase().startsWith(VERSION_SK_PREFIX)) {
+    return TemplateKeyBuilder.toVersionSk(trimmed);
+  }
+  const vSuffix = trimmed.match(/^V(\d+)$/i);
+  if (vSuffix) {
+    return `${VERSION_SK_PREFIX}${String(parseInt(vSuffix[1], 10)).padStart(3, '0')}`;
+  }
+  if (/^\d+$/.test(trimmed)) {
+    return `${VERSION_SK_PREFIX}${String(parseInt(trimmed, 10)).padStart(3, '0')}`;
+  }
+  return TemplateKeyBuilder.toVersionSk(trimmed);
+}
+
+export function templateVersionIdToSk(templateVersionId: string): string | undefined {
+  const match = templateVersionId.match(/-V(\d+)$/i);
+  if (!match) return undefined;
+  return `${VERSION_SK_PREFIX}${String(parseInt(match[1], 10)).padStart(3, '0')}`;
+}
+
+export function templateNotFoundError(message = 'Master template not found'): never {
+  const e = new Error(message) as Error & { statusCode: number; code: string };
+  e.statusCode = 404;
+  e.code = 'NOT_FOUND';
   throw e;
 }
 

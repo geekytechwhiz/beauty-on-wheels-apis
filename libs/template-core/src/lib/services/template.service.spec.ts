@@ -40,6 +40,20 @@ describe('TemplateEntityBuilder.normalizeTemplateId', () => {
   });
 });
 
+describe('version utils', () => {
+  const { normalizeVersionToSk, templateVersionIdToSk } = jest.requireActual<
+    typeof import('../utils/template.utils')
+  >('../utils/template.utils');
+
+  it('normalizes V01 to VERSION#001', () => {
+    expect(normalizeVersionToSk('V01')).toBe('VERSION#001');
+  });
+
+  it('maps templateVersionId to sort key', () => {
+    expect(templateVersionIdToSk('CP-HTN-STANDARD-V01')).toBe('VERSION#001');
+  });
+});
+
 describe('TemplateService', () => {
   it('maps create response via toCreateResponse', () => {
     const svc = new TemplateService();

@@ -47,6 +47,33 @@ export const listMasterTemplatesQuerySchema = z.object({
 
 export type ListMasterTemplatesQuery = z.infer<typeof listMasterTemplatesQuerySchema>;
 
+export const getMasterVersionsQuerySchema = z.object({
+  version: z.string().trim().min(1).optional(),
+  resolve: z.enum(['ACTIVE', 'LATEST_PUBLISHED', 'LATEST_ANY']).optional(),
+  status: templateStatusZ.optional(),
+  nextToken: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export type GetMasterVersionsQuery = z.infer<typeof getMasterVersionsQuerySchema>;
+
+export const templateIdPathSchema = z.object({
+  templateId: z.string().trim().min(1),
+});
+
+export function parseGetMasterVersionsQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): GetMasterVersionsQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      params[key] = Array.isArray(value) ? value[0] : value;
+    }
+  }
+  return getMasterVersionsQuerySchema.parse(params);
+}
+
 export function parseListMasterTemplatesQuery(
   raw: Record<string, string | string[] | undefined> | null | undefined,
 ): ListMasterTemplatesQuery {

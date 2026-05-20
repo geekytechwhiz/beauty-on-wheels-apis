@@ -3,6 +3,7 @@ export * from './lib/builder/template-key.builder';
 export * from './lib/builder/template-entity.builder';
 export * from './lib/models/persistence/template-ddb.model';
 export * from './lib/models/api/list-master.types';
+export * from './lib/models/api/get-master-versions.types';
 export * from './lib/repositories/template.repository';
 export * from './lib/services/template.service';
 export * from './lib/mappers/template-http.dto';

@@ -198,6 +198,65 @@ functions:
             "401": Unauthorized
             "500": Server error
 
+  getMasterTemplateMeta:
+    handler: src/handlers/http/getMasterTemplateMeta.main
+    events:
+      - http:
+          path: templates/master/{templateId}/meta
+          method: get
+          summary: Get master template META row
+          description: Returns the META header item for a master template (lightweight read).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — master template META
+            "401": Unauthorized
+            "404": Not found
+            "500": Server error
+
+  getMasterTemplateVersions:
+    handler: src/handlers/http/getMasterTemplateVersions.main
+    events:
+      - http:
+          path: templates/master/{templateId}/versions
+          method: get
+          summary: Master template versions
+          description: List VERSION rows, or read latest / point version via query `version`.
+          queryStringParameters:
+            version:
+              required: false
+              type: string
+            resolve:
+              required: false
+              type: string
+            nextToken:
+              required: false
+              type: string
+            limit:
+              required: false
+              type: integer
+            status:
+              required: false
+              type: string
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — version list or single version
+            "400": Bad request
+            "401": Unauthorized
+            "404": Not found
+            "500": Server error
+
 resources:
   - ${file(./infra/resources/events/event-bus.yml)}
   - ${file(./infra/resources/events/dlq.yml)}

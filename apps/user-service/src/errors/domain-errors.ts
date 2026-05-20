@@ -33,17 +33,19 @@ export class DomainError extends Error {
   }
 }
 
-/** Generic not-found (subclass for specific resources to preserve instanceof checks) */
-export class NotFoundError extends DomainError {
-  constructor(resource: string, id: string) {
-    super(`${resource} not found: ${id}`, `${resource.toUpperCase()}_NOT_FOUND`, 404);
-  }
-}
+
 
 /** Generic conflict (e.g. duplicate resource) */
 export class ConflictError extends DomainError {
   constructor(message: string, code = 'CONFLICT') {
     super(message, code, 409);
+  }
+}
+
+/** Generic not-found (subclass for specific resources to preserve instanceof checks) */
+export class NotFoundError extends DomainError {
+  constructor(resource: string, id: string) {
+    super(`${resource} not found: ${id}`, `${resource.toUpperCase()}_NOT_FOUND`, 404);
   }
 }
 

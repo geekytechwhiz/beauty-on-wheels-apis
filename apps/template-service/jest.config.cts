@@ -26,7 +26,7 @@ module.exports = {
     '!src/**/__tests__/**',
     '!src/**/*.d.ts',
     '!src/**/index.ts',
-    '!src/**/health.ts',
+    '!src/handlers/http/health.ts',
   ],
   verbose: true,
 };

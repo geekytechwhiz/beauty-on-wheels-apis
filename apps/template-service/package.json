@@ -74,5 +74,8 @@
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {},
+  "engines": {
+    "node": ">=22"
+  }
 }

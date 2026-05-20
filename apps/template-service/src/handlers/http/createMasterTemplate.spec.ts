@@ -80,13 +80,18 @@ jest.mock('@api-hub/middleware', () => {
   };
 });
 
-const mockCreateMaster = jest.fn();
+/** Mock must be set in factory before handler loads (Jest hoist). */
+// eslint-disable-next-line no-var
+var mockCreateMaster: jest.Mock;
 
-jest.mock('../../controllers/template-http.controller', () => ({
-  getTemplateHttpController: () => ({
-    handleCreateMaster: mockCreateMaster,
-  }),
-}));
+jest.mock('../../controllers/template-http.controller', () => {
+  mockCreateMaster = jest.fn();
+  return {
+    getTemplateHttpController: () => ({
+      handleCreateMaster: mockCreateMaster,
+    }),
+  };
+});
 
 import { main } from './createMasterTemplate';
 
@@ -110,7 +115,7 @@ describe('createMasterTemplate handler', () => {
       {
         httpMethod: 'POST',
         path: '/dev/templates/master',
-        headers: { Authorization: bearerToken({ sub: 'anon' }) },
+        headers: {},
         body: JSON.stringify(minimalCreateMasterBody()),
       } as unknown as APIGatewayProxyEvent,
       testLambdaContext(),

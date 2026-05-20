@@ -2,14 +2,9 @@
   "name": "@api-hub/metadata-registry-service",
   "version": "0.0.1",
   "private": true,
-   
-  "dependencies": {
-    
-  },
-  "pnpm": {
-    
-  },
-  "devDependencies": {
-  
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=22"
   }
 }

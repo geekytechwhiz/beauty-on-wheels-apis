@@ -45,20 +45,19 @@ jest.mock('@api-hub/middleware', () => {
   };
 });
 
-jest.mock('../../controllers/template-http.controller', () => ({
-  getTemplateHttpController: jest.fn(),
-}));
+// eslint-disable-next-line no-var
+var mockGetMasterVersions: jest.Mock;
 
-import { getTemplateHttpController } from '../../controllers/template-http.controller';
-import { main } from './getMasterTemplateVersions';
-
-const mockGetMasterVersions = jest.fn();
-
-beforeAll(() => {
-  (getTemplateHttpController as jest.Mock).mockReturnValue({
-    handleGetMasterVersions: mockGetMasterVersions,
-  });
+jest.mock('../../controllers/template-http.controller', () => {
+  mockGetMasterVersions = jest.fn();
+  return {
+    getTemplateHttpController: () => ({
+      handleGetMasterVersions: mockGetMasterVersions,
+    }),
+  };
 });
+
+import { main } from './getMasterTemplateVersions';
 
 describe('getMasterTemplateVersions handler', () => {
   let restoreEnv: () => void;

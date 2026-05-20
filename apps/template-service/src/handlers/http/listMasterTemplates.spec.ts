@@ -45,13 +45,17 @@ jest.mock('@api-hub/middleware', () => {
   };
 });
 
-const mockListMaster = jest.fn();
+// eslint-disable-next-line no-var
+var mockListMaster: jest.Mock;
 
-jest.mock('../../controllers/template-http.controller', () => ({
-  getTemplateHttpController: () => ({
-    handleListMaster: mockListMaster,
-  }),
-}));
+jest.mock('../../controllers/template-http.controller', () => {
+  mockListMaster = jest.fn();
+  return {
+    getTemplateHttpController: () => ({
+      handleListMaster: mockListMaster,
+    }),
+  };
+});
 
 import { main } from './listMasterTemplates';
 
@@ -76,7 +80,7 @@ describe('listMasterTemplates handler', () => {
         httpMethod: 'GET',
         path: '/dev/templates/master',
         queryStringParameters: { status: 'DRAFT' },
-        headers: { Authorization: bearerToken({ sub: 'anon' }) },
+        headers: {},
         body: null,
       } as unknown as APIGatewayProxyEvent,
       testLambdaContext(),

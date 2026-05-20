@@ -232,12 +232,17 @@ export class TemplateRepository extends BaseRepository {
           ...filters,
         });
 
-    const deduped = dedupeByTemplateId(page.items);
-    return { items: deduped, lastEvaluatedKey: page.lastEvaluatedKey };
+    const items = keepOneListItemPerMasterTemplate(page.items);
+    return { items, lastEvaluatedKey: page.lastEvaluatedKey };
   }
 }
 
-function dedupeByTemplateId(items: TemplateDdbRecord[]): TemplateDdbRecord[] {
+/**
+ * GSI2 (published catalog) and GSI5 (status queue) can return multiple VERSION rows
+ * for the same master templateId. The list API exposes one row per template — keep the
+ * first item encountered per templateId (query order is newest-first via ScanIndexForward).
+ */
+function keepOneListItemPerMasterTemplate(items: TemplateDdbRecord[]): TemplateDdbRecord[] {
   const seen = new Map<string, TemplateDdbRecord>();
   for (const item of items) {
     const id = item.meta?.templateId;

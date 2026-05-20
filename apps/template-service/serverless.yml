@@ -116,7 +116,7 @@ custom:
 
 functions:
   health:
-    handler: src/handlers/health.main
+    handler: src/handlers/http/health.main
     events:
       - http:
           path: /health

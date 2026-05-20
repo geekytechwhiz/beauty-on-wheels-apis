@@ -63,7 +63,7 @@ apps/template-service/
 │   │   ├── org-template-http.controller.ts  # org list/update/clone/versions
 │   │   └── enablement-http.controller.ts
 │   └── handlers/http/
-│       ├── health.ts
+│       ├── health.ts              # GET /health (with other HTTP handlers)
 │       ├── createMasterTemplate.ts
 │       ├── listMasterTemplates.ts
 │       ├── getMasterTemplateMeta.ts
@@ -479,7 +479,7 @@ Expected: JSON with `success: true` (or similar health payload).
 | `GET /templates/master` | Done | `listMasterTemplates.ts`, same controller/service |
 | `GET /templates/master/{templateId}/meta` | Done | `getMasterTemplateMeta.ts` |
 | `GET /templates/master/{templateId}/versions` | Done | `getMasterTemplateVersions.ts` |
-| `GET /health` | Done | `health.ts` |
+| `GET /health` | Done | `handlers/http/health.ts` |
 
 ### 11.2 Prerequisites
 
@@ -497,6 +497,29 @@ pnpm install
 For `dev`: `TEMPLATE_TABLE=template-service-dev`, `TEMPLATE_EVENT_BUS_NAME=template-service-bus-dev`, `AWS_REGION=us-east-1` are set automatically when you run `serverless offline --stage dev` or deploy.
 
 AWS credentials must allow DynamoDB read/write on `template-service-dev`.
+
+#### Service URLs (`infra/config/infra-custom.yml` → `stageUrls`)
+
+Values are already aligned with **`services/sso-integration/serverless.yml`** (same API Gateway invoke URLs used across the platform).
+
+| Stage | User service base URL | Organization service base URL |
+|-------|----------------------|------------------------------|
+| dev | `https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev` | `https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev` |
+| stg | `https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg` | `https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg` |
+| prd | `https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd` | `https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd` |
+
+**If you need to refresh URLs** (new deploy / new API Gateway):
+
+1. **AWS Console:** API Gateway → APIs → open **user-service** or **organization-service** API → **Stages** → `dev` / `stg` / `prd` → copy **Invoke URL** (no trailing slash).
+2. **CLI from repo root:**
+   ```bash
+   cd apps/user-service && npx serverless info --stage dev
+   cd apps/organization-service && npx serverless info --stage dev
+   ```
+3. Update `apps/template-service/infra/config/infra-custom.yml` under `stageUrls.<stage>`.
+4. Cross-check `services/sso-integration/serverless.yml` → `custom.stageUrls` so all services stay in sync.
+
+**Note:** `organization-service` also documents `userServiceUrl` with a `/user` suffix for internal routes; `USER_SERVICE_BASE_URL` here is the **API stage root** (clients append paths).
 
 ### 11.3 Start server (offline)
 

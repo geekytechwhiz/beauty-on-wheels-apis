@@ -1,7 +1,7 @@
 import type { AlertPublishIntent } from '@api-hub/alert-core';
 import type { AlertDdbRecord } from '@api-hub/alert-core';
 import type { Logger } from '@api-hub/observability';
-import { getContext } from '@api-hub/observability';
+import { getContext, recordPublishFailure } from '@api-hub/observability';
 import { publishEvent } from '@api-hub/event-platform';
 
 import {
@@ -36,6 +36,7 @@ async function publishSafe(
   try {
     await fn();
   } catch (error) {
+    recordPublishFailure(eventName, error);
     logger?.warn({
       event: `${eventName}_publish_failed`,
       message: `${eventName} event publish failed after persistence`,

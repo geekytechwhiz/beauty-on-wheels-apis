@@ -79,11 +79,16 @@ export function noteAddedIntent(record?: AlertDdbRecord): AlertPublishIntent {
     patientId: r.patientId,
     activity: {
       activityId: 'act-1',
+      id: 'act-1',
       activityType: AlertActivityType.NoteAdded,
       activityTimestamp: Date.parse('2026-01-15T11:00:00.000Z'),
       activityComment: 'Note text',
       performedBy: 'actor-1',
       performedByDisplayName: 'Actor One',
+      alertId: r.alertId,
+      organizationId: r.organizationId,
+      createdAt: Date.parse('2026-01-15T11:00:00.000Z'),
+      updatedAt: Date.parse('2026-01-15T11:00:00.000Z'),
     },
   };
 }

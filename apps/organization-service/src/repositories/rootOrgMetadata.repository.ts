@@ -1,4 +1,4 @@
-import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand, QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '@api-hub/utils';
 import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
 
@@ -36,7 +36,7 @@ export class RootOrgMetadataRepository {
       },
     };
     try {
-      const { Items } = await ddbDocClient.send(new QueryCommand(params));
+      const { Items } = await ddbDocClient.send(new QueryCommand(params) as any) as QueryCommandOutput  ;
       const permissions = Items?.[0]?.permissions;
       return Array.isArray(permissions) ? permissions : [];
     } catch (err) {
@@ -58,12 +58,12 @@ export class RootOrgMetadataRepository {
       const results: any[] = [];
       let lastEvaluatedKey: Record<string, unknown> | undefined;
       do {
-        const res = await ddbDocClient.send(
+        const res :any = await ddbDocClient.send(
           new QueryCommand({
             ...params,
             ...(lastEvaluatedKey ? { ExclusiveStartKey: lastEvaluatedKey } : {}),
-          }),
-        );
+          }) as any,
+        )
         if (res.Items) results.push(...res.Items);
         lastEvaluatedKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
       } while (lastEvaluatedKey);
@@ -89,7 +89,7 @@ export class RootOrgMetadataRepository {
       },
       KeyConditionExpression: '#pk = :pk AND #sk = :sk',
     };
-    const { Items } = await ddbDocClient.send(new QueryCommand(params));
+    const { Items } = await ddbDocClient.send(new QueryCommand(params) as any) as QueryCommandOutput;
     return (Items?.[0]?.attributes ?? undefined) as Record<string, unknown> | undefined;
   }
 
@@ -123,7 +123,7 @@ export class RootOrgMetadataRepository {
       new PutCommand({
         TableName: tableName,
         Item: item,
-      })
+      }) as any,
     );
   }
 }

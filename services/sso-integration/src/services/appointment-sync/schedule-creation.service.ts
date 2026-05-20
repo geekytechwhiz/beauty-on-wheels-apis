@@ -259,7 +259,7 @@ export class ScheduleCreationService {
         // JSON.stringify({ payload, correlationId: context.correlationId }),
       // );
       try {
-        const response = await this.scheduleClient.updateServiceStatus(
+          await this.scheduleClient.updateServiceStatus(
           payload,
           context,
         );

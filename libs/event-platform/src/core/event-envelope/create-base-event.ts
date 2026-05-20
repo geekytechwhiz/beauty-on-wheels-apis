@@ -1,5 +1,15 @@
-import { generateEventId, nowIso } from '../../utils/helpers';
+import { randomUUID } from 'node:crypto';
 import type { BaseEvent, EventMeta } from '../../typings/base-event.types';
+
+ 
+
+export function generateEventId(): string {
+  return randomUUID();
+}
+
+export function nowIso(): string {
+  return new Date().toISOString();
+}
 
 export type CreateBaseEventInput<T> = {
   eventType: string;

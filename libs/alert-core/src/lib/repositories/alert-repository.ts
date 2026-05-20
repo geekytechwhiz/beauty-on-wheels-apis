@@ -224,7 +224,13 @@ export class AlertRepository extends BaseRepository {
     try {
       await this.transactWrite({
         TransactItems: [
-          { Put: { TableName: table, Item: eventPut as unknown as Record<string, unknown> } },
+          {
+            Put: {
+              TableName: table,
+              Item: eventPut as unknown as Record<string, unknown>,
+              ConditionExpression: 'attribute_not_exists(pk)',
+            },
+          },
           { Put: { TableName: table, Item: alertPut as unknown as Record<string, unknown> } },
           { Put: { TableName: table, Item: activityPut as unknown as Record<string, unknown> } },
           groupMembershipPut,

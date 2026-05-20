@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { OrganizationRepository } from './organization.repository';
@@ -37,7 +38,7 @@ describe('OrganizationRepository organization config versioning', () => {
   it('creates first config version when none exists', async () => {
     mockSend
       .mockResolvedValueOnce({ Items: [] })
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce({} as never);
 
     const result = await repository.createOrganizationConfigVersion('org-1', {
       supportedCountries: ['IN'],
@@ -78,7 +79,7 @@ describe('OrganizationRepository organization config versioning', () => {
             createdAt: 1,
             updatedAt: 1,
           },
-        ],
+        ] as any,
       })
       .mockResolvedValueOnce({});
 

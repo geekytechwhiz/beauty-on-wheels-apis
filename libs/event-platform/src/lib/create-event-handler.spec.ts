@@ -7,6 +7,12 @@ import { BaseError } from '@api-hub/utils';
 
 import { defineEvent } from '../core/schema/define-event';
 import { createEventHandler } from './create-event-handler';
+import type { Context } from 'aws-lambda';
+
+const lambdaContext = {
+  awsRequestId: 'req-test-eb-1',
+  getRemainingTimeInMillis: () => 300_000,
+} as unknown as Context;
 
 const ThresholdSchema = defineEvent(
   z.object({
@@ -68,7 +74,7 @@ describe('createEventHandler', () => {
           meta: { correlationId: 'corr-1' },
         },
       },
-      {},
+      lambdaContext,
     );
   });
 
@@ -113,7 +119,7 @@ describe('createEventHandler', () => {
             meta: { correlationId: 'corr-2' },
           },
         },
-        {},
+        lambdaContext,
       ),
     ).rejects.toBeInstanceOf(BaseError);
   });

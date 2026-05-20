@@ -99,6 +99,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",
+    "@jest/globals": "^30.0.2",
     "@nx/esbuild": "22.3.3",
     "@nx/eslint": "22.3.3",
     "@nx/eslint-plugin": "22.3.3",

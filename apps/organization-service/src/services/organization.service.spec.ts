@@ -22,7 +22,7 @@ jest.mock('@api-hub/observability', () => ({
 }));
 
 jest.mock('../events/event.publisher', () => ({
-  publishEvent: jest.fn().mockResolvedValue(undefined),
+  publishEvent: jest.fn().mockResolvedValue(undefined as never),
 }));
 
 describe('OrganizationService organizationConfig updates', () => {

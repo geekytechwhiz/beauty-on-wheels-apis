@@ -1,30 +1,29 @@
-import { GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { createChildLogger, createLogger, serializeError } from '@api-hub/observability';
 import { ddbDocClient } from '@api-hub/utils';
-import { createLogger, serializeError, createChildLogger } from '@api-hub/observability';
+import { DeleteCommand, GetCommand, PutCommand, QueryCommand, TransactWriteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
   Organization,
-  OrganizationMetadata,
-  OrganizationFile,
-  OrganizationUser,
-  OrganizationLink,
-  OrganizationUpdate,
-  OrgConfigEntity,
   OrganizationConfigPatch,
+  OrganizationFile,
+  OrganizationLink,
+  OrganizationMetadata,
+  OrganizationUpdate,
+  OrganizationUser,
+  OrgConfigEntity,
   OrgConfigEntityType,
   OrgConfigStatus,
 } from '../models';
-import { OrganizationNotFoundError, OrganizationAlreadyExistsError } from '../utils/errors';
+import { OrganizationAlreadyExistsError, OrganizationNotFoundError } from '../utils/errors';
 import {
-  organizationPk,
   organizationDetailsSk,
-  organizationUserSk,
-  organizationMetadataSk,
   organizationFileSk,
-  organizationUsersSk,
   organizationLinkPk,
   organizationLinkSk,
+  organizationMetadataSk,
+  organizationPk,
   organizationUpdatesPk,
   organizationUpdatesSk,
+  organizationUserSk
 } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
@@ -115,8 +114,8 @@ export class OrganizationRepository {
           TableName: ORGANIZATION_TABLE_NAME,
           Item: item,
           ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
-        }),
-      );
+        }) as any,
+      ) as any;
       const logger = createChildLogger(baseLogger, { organizationId: organization.organizationId });
       logger.info({ event: 'organization_created', message: 'Organization created' });
     } catch (err: unknown) {
@@ -141,14 +140,14 @@ export class OrganizationRepository {
           sk: organizationDetailsSk(),
         },
       });
-      const result = await ddbDocClient.send(
+      const result:any = await ddbDocClient.send(
         new GetCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           Key: {
             pk: organizationPk(organizationId),
             sk: organizationDetailsSk(),
           },
-        }),
+        }) as any,
       );
       if (!result.Item || result.Item.deleted === true) {
         return null;
@@ -464,7 +463,7 @@ export class OrganizationRepository {
           ExpressionAttributeNames: Object.keys(exprNames).length > 0 ? exprNames : undefined,
           ExpressionAttributeValues: exprValues,
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.info({ event: 'organization_updated', message: 'Organization updated' });
@@ -495,7 +494,7 @@ export class OrganizationRepository {
             ':modifiedDate': now,
           },
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.info({ event: 'organization_deleted', message: 'Organization deleted' });
@@ -545,7 +544,7 @@ export class OrganizationRepository {
           ExpressionAttributeNames: exprNames,
           ExpressionAttributeValues: exprValues,
           ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.info({ event: 'organization_status_updated', status });
@@ -597,7 +596,7 @@ export class OrganizationRepository {
           queryParams.ExclusiveStartKey = lastEvaluatedKey;
         }
 
-        const response = await ddbDocClient.send(new QueryCommand(queryParams as any));
+        const response:any = await ddbDocClient.send(new QueryCommand(queryParams as any) as any);
 
         const items = (response.Items ?? []) as OrgConfigEntity[];
 
@@ -691,7 +690,7 @@ export class OrganizationRepository {
       await ddbDocClient.send(
         new TransactWriteCommand({
           TransactItems: transactItems as any,
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
       logger.info({ event: 'organization_config_version_created' });
@@ -726,7 +725,7 @@ export class OrganizationRepository {
           queryParams.ExclusiveStartKey = lastEvaluatedKey;
         }
         
-        const response = await ddbDocClient.send(new QueryCommand(queryParams));
+        const response:any  = await ddbDocClient.send(new QueryCommand(queryParams) as any);
         
         if (response.Items) {
           organizations.push(...(response.Items as Array<{ organizationType?: string; deleted?: boolean }>));
@@ -789,7 +788,7 @@ export class OrganizationRepository {
         new PutCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           Item: item,
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId, userId });
       logger.info({ event: 'organization_user_assigned', message: 'User assigned to organization' });
@@ -813,7 +812,7 @@ export class OrganizationRepository {
             pk: organizationPk(organizationId),
             sk: organizationUserSk(userId),
           },
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId, userId });
       logger.info({ event: 'organization_user_removed', message: 'User removed from organization' });
@@ -854,13 +853,13 @@ export class OrganizationRepository {
           new PutCommand({
             TableName: ORGANIZATION_TABLE_NAME,
             Item: fromOrgLink,
-          }),
+          }) as any,
         ),
         ddbDocClient.send(
           new PutCommand({
             TableName: ORGANIZATION_TABLE_NAME,
             Item: toOrgLink,
-          }),
+          }) as any,
         ),
       ]);
       const logger = createChildLogger(baseLogger, { fromOrg, toOrg });
@@ -882,7 +881,7 @@ export class OrganizationRepository {
               pk: organizationLinkPk(fromOrg),
               sk: organizationLinkSk(toOrg),
             },
-          }),
+          }) as any,
         ),
         ddbDocClient.send(
           new DeleteCommand({
@@ -891,7 +890,7 @@ export class OrganizationRepository {
               pk: organizationLinkPk(toOrg),
               sk: organizationLinkSk(fromOrg),
             },
-          }),
+          }) as any,
         ),
       ]);
       const logger = createChildLogger(baseLogger, { fromOrg, toOrg });
@@ -934,7 +933,7 @@ export class OrganizationRepository {
       if (exclusiveStartKey) {
         params.ExclusiveStartKey = exclusiveStartKey;
       }
-      const response = await ddbDocClient.send(new QueryCommand(params));
+      const response:any = await ddbDocClient.send(new QueryCommand(params) as any);
       const rawItems = (response.Items || []) as OrganizationLink[];
       const items: { linkedOrgId: string; fromOrg: string; sk1?: string }[] = [];
       for (const item of rawItems) {
@@ -981,7 +980,7 @@ export class OrganizationRepository {
         new PutCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           Item: item,
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.info({ event: 'organization_update_audit_created', message: 'Organization update audit created' });
@@ -1015,7 +1014,7 @@ export class OrganizationRepository {
         new PutCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           Item: item,
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId });
       logger.info({ event: 'organization_metadata_updated', message: 'Organization metadata updated' });
@@ -1028,14 +1027,14 @@ export class OrganizationRepository {
 
   async getOrganizationMetadata(organizationId: string): Promise<OrganizationMetadata | null> {
     try {
-      const result = await ddbDocClient.send(
+      const result:any = await ddbDocClient.send(
         new GetCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           Key: {
             pk: organizationPk(organizationId),
             sk: organizationMetadataSk(),
           },
-        }),
+        }) as any,
       );
 
       if (!result.Item) {
@@ -1180,7 +1179,7 @@ export class OrganizationRepository {
           delete params.ExclusiveStartKey;
         }
 
-        const response = await ddbDocClient.send(new QueryCommand(params));
+        const response:any = await ddbDocClient.send(new QueryCommand(params) as any);
         if (response.Items?.length) {
           items.push(...(response.Items as Organization[]));
         }
@@ -1232,7 +1231,7 @@ export class OrganizationRepository {
         new PutCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           Item: item,
-        }),
+        }) as any,
       );
       const logger = createChildLogger(baseLogger, { organizationId: organizationFile.organizationId, fileId: organizationFile.fileId });
       logger.info({ event: 'organization_file_created', message: 'Organization file created' });
@@ -1249,7 +1248,7 @@ export class OrganizationRepository {
 
   async listOrganizationFiles(organizationId: string): Promise<OrganizationFile[]> {
     try {
-      const result = await ddbDocClient.send(
+      const result:any = await ddbDocClient.send(
         new QueryCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
@@ -1257,7 +1256,7 @@ export class OrganizationRepository {
             ':pk': organizationPk(organizationId),
             ':skPrefix': 'ORG_FILE#',
           },
-        }),
+        }) as any,
       );
 
       return (result.Items ?? []) as OrganizationFile[];
@@ -1277,14 +1276,14 @@ export class OrganizationRepository {
         ':gsi2pk': `PROVIDER#${resolvedProvider}`,
         ':gsi2sk': `LOOKUP#${normalizedSubdomain}#`,
       };
-      const response = await ddbDocClient.send(
+      const response:any = await ddbDocClient.send(
         new QueryCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           IndexName: 'GSI2',
           KeyConditionExpression: 'gsi2pk = :gsi2pk AND begins_with(gsi2sk, :gsi2sk)',
           ExpressionAttributeValues: exprValues,
           Limit: 1,
-        }),
+        }) as any,
       );
       const item = (response.Items?.[0] as Organization | undefined) ?? null;
       if (!item || item.deleted === true) {
@@ -1302,7 +1301,7 @@ export class OrganizationRepository {
     const resolvedProvider = provider.trim().toUpperCase();
     if (!resolvedProvider) return [];
     try {
-      const response = await ddbDocClient.send(
+      const response:any = await ddbDocClient.send(
         new QueryCommand({
           TableName: ORGANIZATION_TABLE_NAME,
           IndexName: 'GSI2',
@@ -1310,12 +1309,12 @@ export class OrganizationRepository {
           ExpressionAttributeValues: {
             ':gsi2pk': `PROVIDER#${resolvedProvider}`,
           },
-        }),
+        }) as any,
       );
       return (response.Items ?? [])
-        .map((item) => item as Organization)
-        .filter((item) => item.deleted !== true)
-        .map((item) => this.sanitizeOrganization(item));
+        .map((item:any) => item as Organization)
+        .filter((item:any) => item.deleted !== true)
+        .map((item:any) => this.sanitizeOrganization(item));
     } catch (err) {
       const logger = createChildLogger(baseLogger, { provider: resolvedProvider });
       logger.error({ event: 'organization_get_by_provider_error', err: serializeError(err) });

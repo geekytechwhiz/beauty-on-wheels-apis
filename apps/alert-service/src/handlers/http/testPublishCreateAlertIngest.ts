@@ -48,7 +48,6 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
     await publishEvent(CreateAlertEventSchema, payload, {
       meta: {
-        correlationId,
         tenantId: payload.organizationId,
       },
       idempotencyKey: payload.inputEventId.trim(),

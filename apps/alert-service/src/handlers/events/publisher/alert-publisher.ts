@@ -1,7 +1,7 @@
 import type { AlertPublishIntent } from '@api-hub/alert-core';
 import type { AlertDdbRecord } from '@api-hub/alert-core';
 import type { Logger } from '@api-hub/observability';
-import { getContext, recordPublishFailure } from '@api-hub/observability';
+import { recordPublishFailure } from '@api-hub/observability';
 import { publishEvent } from '@api-hub/event-platform';
 
 import {
@@ -49,11 +49,6 @@ async function publishSafe(
   }
 }
 
-function currentCorrelationId(fallback: string): string {
-  const correlationId = getContext().correlationId;
-  return correlationId && correlationId !== 'unknown' ? correlationId : fallback;
-}
-
 export async function publishAlertCreated(
   record: AlertDdbRecord,
   logger?: Logger,
@@ -64,7 +59,6 @@ export async function publishAlertCreated(
     () =>
       publishEvent(AlertCreatedEventSchema, payload, {
         meta: {
-          correlationId: currentCorrelationId(payload.alertId),
           tenantId: payload.organizationId,
         },
       }),
@@ -82,7 +76,6 @@ export async function publishAlertAssignmentChanged(
     () =>
       publishEvent(AlertAssignmentChangedEventSchema, payload, {
         meta: {
-          correlationId: currentCorrelationId(payload.alertId),
           tenantId: payload.organizationId,
         },
       }),
@@ -100,7 +93,6 @@ export async function publishAlertStateChanged(
     () =>
       publishEvent(AlertStateChangedEventSchema, payload, {
         meta: {
-          correlationId: currentCorrelationId(payload.alertId),
           tenantId: payload.organizationId,
         },
       }),
@@ -118,7 +110,6 @@ export async function publishAlertResolved(
     () =>
       publishEvent(AlertResolvedEventSchema, payload, {
         meta: {
-          correlationId: currentCorrelationId(payload.alertId),
           tenantId: payload.organizationId,
         },
       }),
@@ -136,7 +127,6 @@ export async function publishAlertDismissed(
     () =>
       publishEvent(AlertDismissedEventSchema, payload, {
         meta: {
-          correlationId: currentCorrelationId(payload.alertId),
           tenantId: payload.organizationId,
         },
       }),
@@ -154,7 +144,6 @@ export async function publishAlertPriorityChanged(
     () =>
       publishEvent(AlertPriorityChangedEventSchema, payload, {
         meta: {
-          correlationId: currentCorrelationId(payload.alertId),
           tenantId: payload.organizationId,
         },
       }),
@@ -172,7 +161,6 @@ export async function publishAlertNoteAdded(
     () =>
       publishEvent(AlertNoteAddedEventSchema, payload, {
         meta: {
-          correlationId: currentCorrelationId(payload.alertId),
           tenantId: payload.organizationId,
         },
       }),

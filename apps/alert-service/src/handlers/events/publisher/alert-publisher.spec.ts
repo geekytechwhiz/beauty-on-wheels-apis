@@ -31,6 +31,14 @@ jest.mock('@api-hub/event-platform', () => ({
 
 const mockPublishEvent = publishEvent as jest.Mock;
 
+function createdRecord() {
+  const intent = createdIntent();
+  if (intent.kind !== 'CREATED') {
+    throw new Error('Expected CREATED intent');
+  }
+  return intent.record;
+}
+
 describe('alert-publisher', () => {
   const logger = { warn: jest.fn() };
 
@@ -40,7 +48,7 @@ describe('alert-publisher', () => {
   });
 
   it('publishAlertCreated publishes with meta', async () => {
-    const record = createdIntent().record;
+    const record = createdRecord();
     await publishAlertCreated(record, logger as never);
 
     expect(mockPublishEvent).toHaveBeenCalledWith(
@@ -50,14 +58,14 @@ describe('alert-publisher', () => {
         organizationId: record.organizationId,
       }),
       expect.objectContaining({
-        meta: { correlationId: record.alertId, tenantId: record.organizationId },
+        meta: { tenantId: record.organizationId },
       }),
     );
   });
 
   it('publishAlertCreated logs warning on publish failure', async () => {
     mockPublishEvent.mockRejectedValueOnce(new Error('bus down'));
-    await publishAlertCreated(createdIntent().record, logger as never);
+    await publishAlertCreated(createdRecord(), logger as never);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ event: 'alert_created_publish_failed' }),
     );
@@ -65,13 +73,13 @@ describe('alert-publisher', () => {
 
   it('publishAlertCreated logs non-Error failures', async () => {
     mockPublishEvent.mockRejectedValueOnce('fail');
-    await publishAlertCreated(createdIntent().record);
+    await publishAlertCreated(createdRecord());
     expect(mockPublishEvent).toHaveBeenCalled();
   });
 
   it('publishAlertCreated swallows failure when logger is omitted', async () => {
     mockPublishEvent.mockRejectedValueOnce(new Error('no logger'));
-    await expect(publishAlertCreated(createdIntent().record)).resolves.toBeUndefined();
+    await expect(publishAlertCreated(createdRecord())).resolves.toBeUndefined();
   });
 
   it('publishAlertAssignmentChanged publishes payload', async () => {

@@ -1,32 +1,31 @@
-import { randomUUID } from 'crypto';
 
+import { AlertEntityBuilder } from '../builder/alert-entity.builder';
+import { AlertActivityType } from '../constants/alert-activity-type';
 import { AlertWorkflowAction } from '../constants/alert-workflow-action';
 import { DuplicateEventError } from '../errors/duplicate-event.error';
-import { AlertEntityBuilder } from '../builder/alert-entity.builder';
-import { AlertRepository } from '../repositories/alert-repository';
-import type { CreateAlertRequest } from '../models/api/create-alert.request';
-import type { UpdateAlertRequest } from '../models/api/update-alert.request';
-import type { AlertActivity } from '../models/domain/alert-activity.model';
-import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
-import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
-import { organizationIdsMatch } from '../utils/organization-ids-match';
-import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
-import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
-import type { PriorityInput, PriorityResult } from '../models/api/alert-priority.types';
-import { AlertActivityType } from '../constants/alert-activity-type';
-import {
-  assertWorkflowClosureComment,
-  workflowActionToUpdatePatch,
-} from './alert-workflow';
-import { BaseAlertService } from './base-alert.service';
-import type { CreateAlertPayload, ListAlertsParams, ListAlertsResult } from '../models/api/create-alert.types';
-import { decodeListAlertsCursor, encodeListAlertsCursor } from '../utils/alert.utils';
-import type { AlertPublishIntent } from '../models/events/alert-publish-intent';
 import {
   buildCreatePublishIntents,
   buildPriorityChangedIntent,
   buildPublishIntentsFromWorkflowUpdate,
 } from '../events/build-alert-publish-intents';
+import type { AssignmentInput, AssignmentResult } from '../models/api/alert-assignment.types';
+import type { PriorityInput, PriorityResult } from '../models/api/alert-priority.types';
+import type { WorkflowInput, WorkflowResult } from '../models/api/alert-workflow.types';
+import type { CreateAlertRequest } from '../models/api/create-alert.request';
+import type { CreateAlertPayload, ListAlertsParams, ListAlertsResult } from '../models/api/create-alert.types';
+import type { UpdateAlertRequest } from '../models/api/update-alert.request';
+import type { AlertActivity } from '../models/domain/alert-activity.model';
+import type { AlertPublishIntent } from '../models/events/alert-publish-intent';
+import type { AlertDdbRecord } from '../models/persistence/alert-ddb.model';
+import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
+import { AlertRepository } from '../repositories/alert-repository';
+import { decodeListAlertsCursor, encodeListAlertsCursor } from '../utils/alert.utils';
+import { organizationIdsMatch } from '../utils/organization-ids-match';
+import {
+  assertWorkflowClosureComment,
+  workflowActionToUpdatePatch,
+} from './alert-workflow';
+import { BaseAlertService } from './base-alert.service';
 
 /** Persisted alert row (alias for HTTP/service consumers). */
 export type AlertRecord = AlertDdbRecord;

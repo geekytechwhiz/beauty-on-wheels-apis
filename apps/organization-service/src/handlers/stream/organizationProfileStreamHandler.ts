@@ -22,7 +22,7 @@ export const main: DynamoDBStreamHandler = async (event) => {
 
     for (const record of event.Records) {
       try {
-        const item = record.dynamodb.NewImage || record.dynamodb.OldImage;
+        const item:any = record.dynamodb.NewImage || record.dynamodb.OldImage;
         if (!item) {
           logger.warn({ event: 'organizationProfileStreamHandler_no_item', eventID: record.eventID });
           continue;

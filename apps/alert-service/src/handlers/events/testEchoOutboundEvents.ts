@@ -1,6 +1,28 @@
 import type { EventBridgeEvent } from 'aws-lambda';
 
-/** Dev: logs outbound alert-service bus events (e.g. Alert.Created.v1 after onCreateAlert). */
-export async function main(event: EventBridgeEvent<string, unknown>): Promise<void> {
-  console.log('ALERT_OUTBOUND_EVENT', JSON.stringify(event, null, 2));
+import { createLogger } from '@api-hub/observability';
+
+const logger = createLogger({ service: 'alert-service', redactPII: true });
+
+type OutboundDetail = {
+  eventId?: string;
+  eventType?: string;
+  meta?: { correlationId?: string; tenantId?: string };
+};
+
+/**
+ * Dev/diagnostic consumer: logs outbound alert-service EventBridge events on the bus.
+ */
+export async function main(event: EventBridgeEvent<string, OutboundDetail>): Promise<void> {
+  logger.info({
+    event: 'alert_outbound_echo',
+    source: event.source,
+    detailType: event['detail-type'],
+    eventId: event.detail?.eventId,
+    eventType: event.detail?.eventType,
+    correlationId: event.detail?.meta?.correlationId,
+    tenantId: event.detail?.meta?.tenantId,
+  });
 }
+
+export const handler = main;

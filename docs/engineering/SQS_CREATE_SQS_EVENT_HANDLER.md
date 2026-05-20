@@ -1,8 +1,8 @@
-# SQS Lambda: `createSqsEventHandler`
+# SQS Lambda: `onQueue` / `createSqsEventHandler`
 
 ## Purpose
 
-`createSqsEventHandler` is the **first-class** entry point for **Lambda + SQS** consumers. It mirrors `createEventHandler` DX while:
+**`onQueue`** (alias of **`createSqsEventHandler`**) is the **first-class** entry point for **Lambda + SQS** consumers. It mirrors **`onEvent`** (EventBridge) DX while:
 
 - Returning a typed **`SQSBatchResponse`** (partial batch failures).
 - Parsing **SQS** records and **SNS → SQS** subscription envelopes via shared transport normalization + `parseInboundEvent`.
@@ -18,7 +18,7 @@ For **production readiness** (retry, DLQ, FIFO, visibility, observability, alarm
 ```typescript
 import type { SQSEvent, Context, SQSBatchResponse } from 'aws-lambda';
 import { z } from 'zod';
-import { createSqsEventHandler, defineEvent } from '@api-hub/event-platform';
+import { onQueue, defineEvent } from '@api-hub/event-platform';
 
 const AlertCreatedSchema = defineEvent(
   z.object({ alertId: z.string() }),
@@ -30,7 +30,7 @@ const AlertCreatedSchema = defineEvent(
   },
 );
 
-export const handler = createSqsEventHandler({
+export const handler = onQueue({
   operation: 'alert.created',
   events: [
     {
@@ -66,7 +66,7 @@ export const handler = createEventHandler({
 ```typescript
 import { createSqsEventHandler } from '@api-hub/event-platform';
 
-export const handler = createSqsEventHandler({
+export const handler = onQueue({
   operation: 'alert.created',
   consumer: { batchConcurrency: 5 },
   events: [{ schema: AlertCreatedSchema, handler: async (e) => { ... } }],
@@ -143,7 +143,7 @@ When **`fifoGroupScheduling: true`** (or **`consumer.sqsFifoGroupScheduling: tru
 - **Observability**: Structured logs **`sqs_fifo_batch_schedule`**, **`sqs_fifo_batch_tail_deferred`**, **`sqs_fifo_batch_poison_short_circuit`** (`logType: 'sqs_fifo_batch'`). Metrics **`SqsFifoBatchScheduleSnapshots`**, **`SqsFifoBatchTailsDeferred`**, **`SqsFifoBatchPoisonShortCircuits`**. Tracing hook **`onFifoBatchTailDeferred`** on **`EventTracingHooks`** (see **`fireFifoBatchTailDeferred`**).
 
 ```typescript
-export const handler = createSqsEventHandler({
+export const handler = onQueue({
   operation: 'orders.updated',
   fifoGroupScheduling: true,
   fifoPoisonReceiveCountThreshold: 8,

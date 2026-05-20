@@ -128,30 +128,22 @@ const baseConsumerDeps: EventConsumerDeps = {
 };
 ```
 
-### Pattern B — Package `onEvent` (single schema)
+### Pattern B — `onEvent` (EventBridge, preferred name)
 
-File: [`libs/event-platform/src/lib/define-event-handler.ts`](../../libs/event-platform/src/lib/define-event-handler.ts) — re-exported from [`libs/event-platform/src/index.ts`](../../libs/event-platform/src/index.ts).
+**`onEvent`** is an alias of **`createEventHandler`** — same API as Pattern A. Use it for all new EventBridge consumers:
 
 ```typescript
-export function onEvent<TSchema extends z.ZodTypeAny>(
-  schema: TSchema,
-  handler: (input: {
-    payload: z.infer<TSchema>;
-    meta: EventSchemaMeta;
-  }) => Promise<void>,
-) {
-  const { eventType } = getSchemaMeta(schema);
+import { onEvent, defineEvent } from '@api-hub/event-platform';
 
-  return createEventHandler({
-    operation: eventType as any,
-    events: [{ schema, handler }],
-  });
-}
+export const handler = onEvent({
+  operation: 'order.created.processed',
+  events: [{ schema: OrderCreatedSchema, handler: async (input) => { /* flattened payload + meta */ } }],
+});
 ```
 
-**Note:** Types here say **`{ payload, meta }`**, but **`createEventHandler`** passes **`{ ...payload, meta }`** at runtime (see Pattern A). Implement handlers against the **flattened** shape to match runtime behavior.
+The removed DX **`onEvent(schema, handler)`** singleton (former `define-event-handler.ts`) is **not** supported. Consume only via **`onEvent({ operation, events })`** or **`onQueue`** for SQS.
 
-**Do not confuse** with [`libs/event-platform/src/dx/on-event.ts`](../../libs/event-platform/src/dx/on-event.ts) (`EventConsumer.handle`) — that module is **`@api-hub/event-platform/dx`**, not the default barrel export.
+**Publish-only DX:** `configureEventPlatform` + `publishEvent` — see [EVENT_PLATFORM_TRANSPORTS_GUIDE.md](./EVENT_PLATFORM_TRANSPORTS_GUIDE.md).
 
 ### Pattern C — Legacy / raw Lambda (no platform pipeline)
 

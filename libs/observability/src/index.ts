@@ -48,6 +48,7 @@ export {
 } from './metrics/consumer-metrics';
 
 export { publishMiddlewarePipelineMetrics } from './metrics/middleware-metrics';
+export { recordPublishFailure, recordPublishSuccess } from './metrics/publisher-metrics';
 
 export { recordUpstreamRetryAttempts } from './metrics/upstream-metrics';
 
@@ -66,4 +67,5 @@ export {
 
 export { logHttpRequest } from './http/log-http-request';
 
+export { createPerformanceTimer } from './http/performance-timer';
 export { logEventOperation, type EventOperationLogFields } from './logging/event-operation';

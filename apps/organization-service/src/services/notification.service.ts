@@ -74,13 +74,17 @@ export async function notifyAdminForOrganizationActivated(payload: {
         eventId,
         eventType: 'OrganizationActivatedNotificationRequested',
         timestamp: new Date().toISOString(),
-        version: '1.0.0',
-        source: 'organization-service',
-        correlationId: payload.correlationId,
+        source: 'organization-service', 
         idempotencyKey: eventId,
         payload: data,
+        meta: {
+          correlationId: payload.correlationId ?? randomUUID(),
+          publishedAt: new Date().toISOString(),
+          retryCount: 0,
+        },
+        eventVersion: '1.0.0',
       },
-      payload.correlationId,
+      payload.correlationId ?? randomUUID(),
     );
     logger.info({ event: 'notify_admin_organization_activated_published', channels, template: data.template });
   } catch (err) {

@@ -44,6 +44,10 @@ export type CreateSqsEventHandlerOptions<TContext extends Context = Context> = {
   fifoPoisonReceiveCountThreshold?: number;
 };
 
+/** Preferred name for SQS Lambda consumers (alias of {@link createSqsEventHandler}). */
+export type OnQueueOptions<TContext extends Context = Context> =
+  CreateSqsEventHandlerOptions<TContext>;
+
 function normalizeVisibilityHeartbeatInput(
   input: CreateSqsEventHandlerOptions['visibilityHeartbeat'],
 ):
@@ -171,3 +175,6 @@ export function createSqsEventHandler<TContext extends Context = Context>(
       buildSqsBatchResponseFromConsumeResult(event as unknown as SQSEvent, result),
   }) as unknown as (event: SQSEvent, context: TContext) => Promise<SQSBatchResponse>;
 }
+
+/** Preferred DX name for SQS Lambda consumers. Same as {@link createSqsEventHandler}. */
+export const onQueue = createSqsEventHandler;

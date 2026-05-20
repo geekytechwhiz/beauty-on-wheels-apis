@@ -9,6 +9,7 @@ import { AlertActivityType } from '../constants/alert-activity-type';
 import { UpdateAlertRequest } from '../models/api/update-alert.request';
 import { ALERT_STATE, type AlertState } from '../models/types/alert-state.type';
 import { toEpochMs } from '../utils/alert-time';
+import { PriorityBand } from '../models/types/priority-band.type';
 
 const MS_PER_MINUTE = 60_000;
 
@@ -92,7 +93,7 @@ export class AlertEntityBuilder {
 
       evidencePayload: input.evidencePayload,
 
-      priority: input.priority,
+      priority: input.priority as PriorityBand,
       alertState: ALERT_STATE.UNASSIGNED,
 
       groupingKey,

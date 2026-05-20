@@ -10,7 +10,7 @@ export type BaseEvent<T = unknown> = {
   eventType: string;
   eventVersion: string;
   timestamp: string;
-  source: string;
+  source: string; 
   idempotencyKey: string;
   payload: T;
   meta: EventMeta;

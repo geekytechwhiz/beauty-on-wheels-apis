@@ -45,6 +45,8 @@ provider:
     ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
     ALERT_EVENT_BUS_NAME: ${self:custom.eventBusName}
     ALERT_EVENTS_TOPIC_ARN: ${env:ALERT_EVENTS_TOPIC_ARN, ''}
+    DLQ_QUEUE_URL: !Ref AlertCreateConsumerDLQ
+    EVENT_DLQ_QUEUE_URL: !Ref AlertCreateConsumerDLQ
 
   tags:
     Service: ${self:service}
@@ -65,6 +67,13 @@ provider:
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}
         - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.alertDynamoTableName}/index/*
+
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - !GetAtt AlertCreateConsumerDLQ.Arn
 
     # Outbound domain events (EventBridgeAdapter → PutEvents on this stack's bus)
     - Effect: Allow
@@ -478,6 +487,14 @@ functions:
   onCreateAlert:
     # No hyphens/extra dots in filename — Lambda parses handler as file.export (see createAlert.main).
     handler: src/handlers/events/consumer/event-bridge/createAlertConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - AlertCreateConsumerDLQ
+            - Arn
     events:
       - eventBridge:
           eventBus:
@@ -560,6 +577,19 @@ functions:
 
 resources:
   Resources:
+    AlertCreateConsumerDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-${self:service}-create-alert-dlq
+        MessageRetentionPeriod: 1209600
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: Purpose
+            Value: DLQ
+
     # EventBridge bus that all upstream alert-trigger producers publish to.
     AlertServiceBus:
       Type: AWS::Events::EventBus

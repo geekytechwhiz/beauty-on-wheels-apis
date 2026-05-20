@@ -1,3 +1,7 @@
+import {
+  buildEventBridgePerMessageLoggerContext,
+  correlationHintFromEventBridge,
+} from '../../lib/event-bridge-per-message-context';
 import { parseInboundEvent } from '../../sdk/consumer/parse-inbound-event';
 import { normalizeTransportToPayloadCandidate } from '../../sdk/consumer/transport-normalize';
 import type { BaseEvent } from '../../typings/base-event.types';
@@ -6,25 +10,7 @@ import type { TransportProfile } from '../../runtime/transport-profile';
 import type { ProcessSingleResult } from '../../engine/processor/process-outcomes';
 import { mapSingleTransportOutcome } from '../../runtime/transport-outcome-mapper';
 
-function correlationHintFromEventBridge(raw: unknown): string | undefined {
-  if (raw === null || typeof raw !== 'object') {
-    return undefined;
-  }
-  const detail = (raw as { detail?: { meta?: { correlationId?: string }; correlationId?: string } })
-    .detail;
-  if (!detail || typeof detail !== 'object') {
-    return undefined;
-  }
-  const fromMeta = detail.meta?.correlationId;
-  if (typeof fromMeta === 'string' && fromMeta.trim().length > 0) {
-    return fromMeta.trim();
-  }
-  const legacy = detail.correlationId;
-  if (typeof legacy === 'string' && legacy.trim().length > 0) {
-    return legacy.trim();
-  }
-  return undefined;
-}
+export { correlationHintFromEventBridge };
 
 export const eventBridgeTransportProfile: TransportProfile = {
   transport: 'eventbridge',
@@ -52,5 +38,12 @@ export const eventBridgeTransportProfile: TransportProfile = {
     }
     mapSingleTransportOutcome(first, { supportsPartialBatch: false });
     return undefined;
+  },
+  perRecordLoggerContext(envelope, operation, lambdaAwsRequestId) {
+    return buildEventBridgePerMessageLoggerContext({
+      rawRecord: envelope.raw,
+      operation,
+      lambdaAwsRequestId,
+    });
   },
 };

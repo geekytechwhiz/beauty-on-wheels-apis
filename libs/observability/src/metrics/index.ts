@@ -7,3 +7,4 @@ export {
   recordConsumerFailure,
   recordConsumerRetry,
 } from './consumer-metrics';
+export { recordPublishFailure, recordPublishSuccess } from './publisher-metrics';

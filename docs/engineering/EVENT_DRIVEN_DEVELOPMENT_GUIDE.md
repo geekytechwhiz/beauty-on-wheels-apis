@@ -149,9 +149,7 @@ export function onEvent<TSchema extends z.ZodTypeAny>(
 }
 ```
 
-**Note:** Types here say **`{ payload, meta }`**, but **`createEventHandler`** passes **`{ ...payload, meta }`** at runtime (see Pattern A). Implement handlers against the **flattened** shape to match runtime behavior.
-
-**Do not confuse** with [`libs/event-platform/src/dx/on-event.ts`](../../libs/event-platform/src/dx/on-event.ts) (`EventConsumer.handle`) — that module is **`@api-hub/event-platform/dx`**, not the default barrel export.
+**Note:** Types here say **`{ payload, meta }`**, but **`createEventHandler`** passes **`{ ...payload, meta }`** at runtime (see Pattern A). Implement handlers against the **flattened** shape to match runtime behavior. Prefer **`onEvent({ operation, events })`** for new EventBridge consumers.
 
 ### Pattern C — Legacy / raw Lambda (no platform pipeline)
 

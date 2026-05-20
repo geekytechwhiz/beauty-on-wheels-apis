@@ -98,7 +98,7 @@ onEvent
 
 
 
-Two APIs: [lib/define-event-handler.ts](libs/event-platform/src/lib/define-event-handler.ts) (wraps createEventHandler) vs [dx/on-event.ts](libs/event-platform/src/dx/on-event.ts) (EventConsumer.handle + DX runtime)
+Use **`onEvent({ operation, events })`** for EventBridge consumers ([create-event-handler.ts](libs/event-platform/src/lib/create-event-handler.ts)). Legacy single-schema sugar: [define-event-handler.ts](libs/event-platform/src/lib/define-event-handler.ts) (`onSingleEvent`, deprecated).
 
 
 
@@ -659,7 +659,7 @@ Keep public exports stable; add createEventHandler, TransportProfile, Normalized
 
 
 
-Deprecate (do not remove) [create-stream-handler.ts](libs/event-platform/src/lib/create-stream-handler.ts) and DX [on-event.ts](libs/event-platform/src/dx/on-event.ts) in favor of unified onEvent wrapper; maintain re-exports for one release cycle.
+Deprecate (do not remove) [create-stream-handler.ts](libs/event-platform/src/lib/create-stream-handler.ts) in favor of `onDynamoEvent` / `createDynamoStreamHandler`; maintain re-exports for one release cycle.
 
 
 

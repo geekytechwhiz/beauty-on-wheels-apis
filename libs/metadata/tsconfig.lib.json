@@ -8,15 +8,17 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
-    
+
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"],
   "references": [
-    
-    { "path": "../observability/tsconfig.lib.json" }, 
-    { "path": "../utils/tsconfig.lib.json" },
-    { "path": "../canonical/tsconfig.lib.json" }
+    {
+      "path": "../observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../utils/tsconfig.lib.json"
+    }
   ]
 }

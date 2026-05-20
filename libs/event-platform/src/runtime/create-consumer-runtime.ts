@@ -7,7 +7,8 @@ import {
   consumeEvent,
   type ConsumeEventOptions,
 } from '../engine/executor/consume-event';
-import type { EventConsumerDeps } from '../typings/consumer.types';
+import type { EventConsumerDeps, VersionedPayloadSchemas } from '../typings/consumer.types';
+import { validateConsumerDlqConfig } from '../infra/dlq-integration';
 import {
   buildEventRegistry,
   createDefaultConsumerDeps,
@@ -37,7 +38,7 @@ export type CreateConsumerRuntimeOptions<
 
 function mergeConsumerDeps(
   profile: TransportProfile,
-  payloadSchemas: EventConsumerDeps['payloadSchemas'],
+  payloadSchemas: VersionedPayloadSchemas,
   consumer?: Partial<EventConsumerDeps>,
 ): EventConsumerDeps {
   const mapRawToBaseEvent =
@@ -45,14 +46,10 @@ function mergeConsumerDeps(
     ((raw: unknown) => profile.mapToBaseEvent(profile.parseInbound(raw)));
 
   return createDefaultConsumerDeps(payloadSchemas, {
-    transportMode: profile.defaultTransportMode,
-    transportProfile: profile,
-    mapRawToBaseEvent,
     ...consumer,
     transportMode: consumer?.transportMode ?? profile.defaultTransportMode,
-    mapRawToBaseEvent:
-      consumer?.mapRawToBaseEvent ??
-      ((raw: unknown) => profile.mapToBaseEvent(profile.parseInbound(raw))),
+    transportProfile: profile,
+    mapRawToBaseEvent,
     payloadSchemas,
   });
 }
@@ -64,6 +61,8 @@ export function createConsumerRuntime<
 >(
   options: CreateConsumerRuntimeOptions<TEvent, TResult, TContext>,
 ): (event: TEvent, context: TContext) => Promise<TResult> {
+  validateConsumerDlqConfig(options.consumer);
+
   const { payloadSchemas, registry } = buildEventRegistry(options.events);
   const mergedDeps = mergeConsumerDeps(
     options.profile,

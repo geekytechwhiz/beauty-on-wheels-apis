@@ -127,6 +127,7 @@ const handler = async (
       userId: result.userID,
       email: userInfo?.contact?.email ?? "",
       name: userInfo?.name ?? userInfo?.fullName ?? "",
+      organizationId : organizationID,
     });
     log.info({
       event: "create_user_user_created_event_published",

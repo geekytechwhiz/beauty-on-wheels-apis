@@ -510,7 +510,7 @@ importers:
   libs/consent: {}
 
   libs/event-platform:
-  libs/event-platform:
+   
     dependencies:
       '@api-hub/middleware':
         specifier: workspace:*

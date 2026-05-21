@@ -10,8 +10,14 @@ import {
   parseListOrgTemplatesQuery,
   templateIdPathSchema,
   templateVersionPathSchema,
+  createOrgEnablementBodySchema,
   type CloneTemplateBody,
   type CreateMasterTemplateBody,
+  type CreateOrgEnablementBody,
+  parseListCompatibleTemplatesQuery,
+  type ListCompatibleTemplatesQuery,
+  type UpdateOrgTemplateBody,
+  updateOrgTemplateBodySchema,
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
   type ListOrgTemplatesQuery,
@@ -286,5 +292,80 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
     query,
     actorUserId,
   };
+}
+
+export type ValidatedUpdateOrgVersion = ValidatedTemplateVersionPath & {
+  organizationId: string;
+  body: UpdateOrgTemplateBody;
+};
+
+export type ValidatedCreateEnablement = {
+  actorUserId: string;
+  body: CreateOrgEnablementBody;
+};
+
+export type ValidatedListCompatible = {
+  query: ListCompatibleTemplatesQuery;
+  actorUserId: string;
+};
+
+export async function validateUpdateOrgTemplateVersionRequest(req: LambdaRequest): Promise<void> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const path = templateVersionPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateId and versionId are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req);
+  const body = updateOrgTemplateBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedUpdateOrgVersion?: ValidatedUpdateOrgVersion }).validatedUpdateOrgVersion =
+    {
+      templateId: path.data.templateId,
+      versionId: path.data.versionId,
+      organizationId,
+      actorUserId,
+      body,
+    };
+}
+
+export async function validateCreateOrgEnablementRequest(req: LambdaRequest): Promise<void> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const body = createOrgEnablementBodySchema.parse(req.body ?? {});
+  resolveOrganizationId(req, body.organizationId);
+
+  (req as LambdaRequest & { validatedCreateEnablement?: ValidatedCreateEnablement }).validatedCreateEnablement =
+    {
+      actorUserId,
+      body,
+    };
+}
+
+export async function validateListCompatibleTemplatesRequest(req: LambdaRequest): Promise<void> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const query = parseListCompatibleTemplatesQuery(
+    req.params as Record<string, string | string[] | undefined>,
+  );
+
+  (req as LambdaRequest & { validatedListCompatible?: ValidatedListCompatible }).validatedListCompatible =
+    {
+      query,
+      actorUserId,
+    };
 }
 

@@ -17,6 +17,8 @@ import type { TemplateMeta } from '../models/persistence/template-ddb.model';
 import { TEMPLATE_STATUS } from '../constants/template.constants';
 import { OrgTemplateRepository, listOrgNextToken } from '../repositories/org-template.repository';
 import { TemplateRepository } from '../repositories/template.repository';
+import { OrgTemplateOpsService } from './org-template-ops.service';
+import type { UpdateOrgTemplateVersionParams } from '../models/api/org-update.types';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import {
   normalizeVersionToSk,
@@ -27,6 +29,8 @@ import {
 } from '../utils/template.utils';
 
 export class OrgTemplateService {
+  private readonly orgOps = new OrgTemplateOpsService();
+
   constructor(
     private readonly orgRepo = new OrgTemplateRepository(),
     private readonly masterRepo = new TemplateRepository(),
@@ -188,7 +192,15 @@ export class OrgTemplateService {
     return pickHighestVersionRow(items);
   }
 
+  async updateOrgTemplateVersion(params: UpdateOrgTemplateVersionParams) {
+    return this.orgOps.updateOrgTemplateVersion(params);
+  }
+
   toCreateResponse(record: TemplateDdbRecord) {
+    return toTemplateSummary(record);
+  }
+
+  toSummary(record: TemplateDdbRecord) {
     return toTemplateSummary(record);
   }
 }

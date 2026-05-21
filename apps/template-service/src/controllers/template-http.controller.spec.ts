@@ -10,6 +10,10 @@ import { TemplateHttpController } from './template-http.controller';
 const mockCreateMasterTemplate = jest.fn();
 const mockListMasterTemplates = jest.fn();
 const mockToCreateResponse = jest.fn();
+const mockUpdateMasterTemplateVersion = jest.fn();
+const mockTransitionMasterTemplateStatus = jest.fn();
+const mockListCompatibleTemplates = jest.fn();
+const mockToSummary = jest.fn();
 
 jest.mock('@api-hub/template-core', () => {
   const actual = jest.requireActual<typeof import('@api-hub/template-core')>('@api-hub/template-core');
@@ -19,6 +23,10 @@ jest.mock('@api-hub/template-core', () => {
       createMasterTemplate: mockCreateMasterTemplate,
       listMasterTemplates: mockListMasterTemplates,
       toCreateResponse: mockToCreateResponse,
+      updateMasterTemplateVersion: mockUpdateMasterTemplateVersion,
+      transitionMasterTemplateStatus: mockTransitionMasterTemplateStatus,
+      listCompatibleTemplates: mockListCompatibleTemplates,
+      toSummary: mockToSummary,
     })),
   };
 });
@@ -53,6 +61,10 @@ describe('TemplateHttpController', () => {
     mockCreateMasterTemplate.mockReset();
     mockListMasterTemplates.mockReset();
     mockToCreateResponse.mockReset();
+    mockUpdateMasterTemplateVersion.mockReset();
+    mockTransitionMasterTemplateStatus.mockReset();
+    mockListCompatibleTemplates.mockReset();
+    mockToSummary.mockReset();
   });
 
   it('handleCreateMaster throws 500 when validation missing', async () => {
@@ -117,5 +129,74 @@ describe('TemplateHttpController', () => {
     expect(mockListMasterTemplates).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'DRAFT', limit: 25 }),
     );
+  });
+
+  it('handleUpdateMasterVersion returns summary', async () => {
+    const record = minimalMasterTemplateRecord();
+    mockUpdateMasterTemplateVersion.mockResolvedValue(record);
+    mockToSummary.mockReturnValue({
+      templateId: record.meta.templateId,
+      templateVersionId: record.meta.templateVersionId,
+      version: 2,
+      status: 'DRAFT',
+    });
+
+    const c = new TemplateHttpController();
+    const out = await c.handleUpdateMasterVersion(
+      baseReq({
+        validatedUpdateMasterVersion: {
+          templateId: 'CP-HTN-001',
+          versionId: 'V01',
+          body: { meta: { templateName: 'Updated' } },
+          actorUserId: 'user-1',
+        },
+      } as unknown as LambdaRequest),
+    );
+
+    expect(out.version).toBe(2);
+    expect(mockUpdateMasterTemplateVersion).toHaveBeenCalled();
+  });
+
+  it('handleStatusTransition returns summary', async () => {
+    const record = minimalMasterTemplateRecord({ meta: { ...minimalMasterTemplateRecord().meta, status: 'IN_REVIEW' } });
+    mockTransitionMasterTemplateStatus.mockResolvedValue(record);
+    mockToSummary.mockReturnValue({
+      templateId: record.meta.templateId,
+      status: 'IN_REVIEW',
+    });
+
+    const c = new TemplateHttpController();
+    const out = await c.handleStatusTransition(
+      baseReq({
+        validatedStatusTransition: {
+          templateId: 'CP-HTN-001',
+          versionId: 'V01',
+          body: { action: 'SUBMIT_REVIEW' },
+          actorUserId: 'user-1',
+        },
+      } as unknown as LambdaRequest),
+    );
+
+    expect(out.status).toBe('IN_REVIEW');
+  });
+
+  it('handleListCompatible delegates to service', async () => {
+    mockListCompatibleTemplates.mockResolvedValue({ items: [] });
+
+    const c = new TemplateHttpController();
+    await c.handleListCompatible(
+      baseReq({
+        validatedListCompatible: {
+          query: { condition: 'HYPERTENSION', country: 'IN', duration: 'MONTHS_6' },
+        },
+      } as unknown as LambdaRequest),
+    );
+
+    expect(mockListCompatibleTemplates).toHaveBeenCalledWith({
+      condition: 'HYPERTENSION',
+      country: 'IN',
+      duration: 'MONTHS_6',
+      templateType: undefined,
+    });
   });
 });

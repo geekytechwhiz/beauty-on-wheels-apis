@@ -10,6 +10,7 @@ import type {
   ValidatedGetMasterMeta,
   ValidatedGetMasterVersions,
   ValidatedListMaster,
+  ValidatedListCompatible,
   ValidatedStatusTransition,
   ValidatedTemplateVersionPath,
   ValidatedUpdateMasterVersion,
@@ -184,6 +185,34 @@ export class TemplateHttpController {
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'update_master_template_version_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleListCompatible(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedListCompatible?: ValidatedListCompatible })
+      .validatedListCompatible;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.listCompatibleTemplates({
+        condition: v.query.condition,
+        country: v.query.country,
+        duration: v.query.duration,
+        templateType: v.query.templateType,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'list_compatible_templates_error',
         correlationId: req.context.correlationId as string,
       });
     }

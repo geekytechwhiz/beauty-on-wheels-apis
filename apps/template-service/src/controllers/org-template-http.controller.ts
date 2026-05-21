@@ -9,6 +9,7 @@ import type {
   ValidatedCloneOrgTemplate,
   ValidatedGetOrgVersions,
   ValidatedListOrg,
+  ValidatedUpdateOrgVersion,
 } from '../validators/request.validators';
 
 let orgTemplateService: OrgTemplateService | undefined;
@@ -93,6 +94,36 @@ export class OrgTemplateHttpController {
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'get_org_template_versions_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleUpdateOrgVersion(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedUpdateOrgVersion?: ValidatedUpdateOrgVersion })
+      .validatedUpdateOrgVersion;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const record = await this.svc.updateOrgTemplateVersion({
+        organizationId: v.organizationId,
+        templateId: v.templateId,
+        versionId: v.versionId,
+        body: v.body,
+        actorUserId: v.actorUserId,
+      });
+      return this.svc.toSummary(record);
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'update_org_template_version_error',
         correlationId: req.context.correlationId as string,
       });
     }

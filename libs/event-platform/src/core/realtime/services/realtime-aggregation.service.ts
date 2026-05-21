@@ -12,7 +12,10 @@ import type { RealtimeMessage } from '../types/realtime-message.type';
 const logger = createLogger();
 
 export class RealtimeAggregationService {
-  constructor(private readonly realtimePublisher: RealtimePublisher) {}
+  private readonly realtimePublisher: RealtimePublisher;
+  constructor(realtimePublisher: RealtimePublisher) {
+    this.realtimePublisher = realtimePublisher;
+  }
 
   buildGroupKey(message: RealtimeAggregateMessage): string {
     const organizationId =

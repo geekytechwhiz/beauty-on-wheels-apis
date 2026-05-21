@@ -1,6 +1,7 @@
 import {
   createRealtimeAggregationPublisher,
-  NoopRealtimePublisher,
+  resolveSocketRealtimePublisher,
+  resetSocketRealtimePublisherCache,
   type RealtimeAggregationPublisher,
   type RealtimePublisher,
 } from '@api-hub/event-platform';
@@ -21,10 +22,10 @@ export function getAlertRealtimeAggregationPublisher(): RealtimeAggregationPubli
 }
  
 export function getAlertRealtimePublisher(): RealtimePublisher {
-  // Replace with your AppSync/API GW publisher when ready.
-  return new NoopRealtimePublisher();
+  return resolveSocketRealtimePublisher();
 }
- 
+
 export function resetAlertRealtimePublisherCache(): void {
   cachedAggregationPublisher = null;
+  resetSocketRealtimePublisherCache();
 }

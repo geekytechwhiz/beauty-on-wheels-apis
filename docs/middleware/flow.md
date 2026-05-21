@@ -52,7 +52,66 @@ sequenceDiagram
   MW->>COL: drain pending
   MW->>RS: process each event
   RS->>RP: publish([message])
+  RP->>SRP: SocketRealtimePublisher when REALTIME_SOCKET_ENABLED
+  SRP->>SS: ApiGatewaySocketService
+  SS->>API: postToConnection
 ```
+
+### Socket transport architecture (`REALTIME_SOCKET_ENABLED=true`)
+
+```mermaid
+flowchart TD
+  subgraph publisher [RealtimePublisher]
+    SRP[SocketRealtimePublisher]
+    SRP --> SS[SocketService]
+    SS --> AGS[ApiGatewaySocketService]
+    AGS --> CR[ConnectionResolver]
+    CR --> NCR[NoopConnectionResolver]
+    AGS --> APIGW[ApiGatewayManagementApi postToConnection]
+    APIGW --> Clients[Web / Mobile]
+  end
+```
+
+When `REALTIME_SOCKET_ENABLED` is not `true`, `resolveSocketRealtimePublisher()` returns `NoopRealtimePublisher` (safe default for tests and local).
+
+Environment variables:
+
+- `REALTIME_SOCKET_ENABLED` — enable socket fan-out (default off)
+- `WEBSOCKET_API_ENDPOINT` — API Gateway Management API URL for `postToConnection`
+
+### Socket publish sequence
+
+```mermaid
+sequenceDiagram
+  participant SRP as SocketRealtimePublisher
+  participant SS as ApiGatewaySocketService
+  participant CR as ConnectionResolver
+  participant API as ApiGatewayManagementApi
+
+  SRP->>SRP: derive destinations from RealtimeMessage
+  loop each destination
+    SRP->>SS: publish(destination, envelope)
+    SS->>CR: resolve(destination)
+    CR-->>SS: connectionIds
+    alt no connections
+      SS->>SS: log and continue
+    else
+      loop each connectionId
+        SS->>API: postToConnection
+      end
+    end
+  end
+```
+
+### Recipient routing examples (socket destinations)
+
+| Input on `RealtimeMessage` | Socket destination key |
+|----------------------------|-------------------------|
+| `recipientIds: ['DOC123']` | `USER#DOC123` |
+| `payload.organizationId: 'ORG1'`, `channel: 'TEAM_ALERTS'` | `ORG#ORG1#TEAM_ALERTS` |
+| `payload.patientId: 'PAT001'` | `PATIENT#PAT001` |
+
+Helper: `buildSocketDestinationKey()` in `@api-hub/event-platform`. Connection lookup is via `ConnectionResolver` (currently `NoopConnectionResolver` returning `[]` until a connection repository exists).
 
 ### Realtime aggregation architecture (`aggregate=true`)
 
@@ -78,6 +137,8 @@ flowchart TD
     Q --> H[realtimeAggregationSqsHandler]
     H --> RAS[RealtimeAggregationService]
     RAS --> RP2[resolveInfrastructureRealtimePublisher]
+    RP2 --> SRP2[SocketRealtimePublisher]
+    SRP2 --> SS2[ApiGatewaySocketService]
   end
 ```
 
@@ -192,7 +253,7 @@ onRealtimeAggregate:
         functionResponseType: ReportBatchItemFailures
 ```
 
-Override the final delivery transport in event-platform via `resolveInfrastructureRealtimePublisher()` (AppSync/WebSocket when ready).
+Final delivery transport: `resolveInfrastructureRealtimePublisher()` → `resolveSocketRealtimePublisher()` → `SocketRealtimePublisher` → `ApiGatewaySocketService` when `REALTIME_SOCKET_ENABLED=true`; otherwise `NoopRealtimePublisher`.
 
 ### Advanced: custom consumer options
 
@@ -232,6 +293,7 @@ RealtimeAggregationEventSourceMapping:
 Environment variables:
 
 - Producer: `REALTIME_AGGREGATION_QUEUE_URL`
+- Socket: `REALTIME_SOCKET_ENABLED`, `WEBSOCKET_API_ENDPOINT`
 - Consumer DLQ: `DLQ_QUEUE_URL` / `EVENT_DLQ_QUEUE_URL`
 
 Metrics emitted during aggregation:

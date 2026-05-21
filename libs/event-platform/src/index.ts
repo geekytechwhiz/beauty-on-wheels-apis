@@ -92,7 +92,29 @@ export {
   REALTIME_AGGREGATE_EVENT_TYPE,
 } from './core/realtime/schemas/realtime-aggregate.event';
 export { RealtimeEventService } from './core/realtime/services/realtime-event.service';
-export { NoopRealtimePublisher } from './core/realtime/services/noop-realtime-publisher.service';
+export type { SocketService, SocketPublishContext } from './core/realtime/interfaces/socket-service.interface';
+export type { ConnectionResolver } from './core/realtime/interfaces/connection-resolver.interface';
+export { buildSocketDestinationKey, type SocketDestinationInput } from './core/realtime/utils/build-socket-destination-key';
+export { deriveSocketDestinations } from './core/realtime/utils/derive-socket-destinations';
+export { NoopConnectionResolver } from './core/realtime/services/noop-connection-resolver.service';
+export {
+  ApiGatewaySocketService,
+  type ApiGatewaySocketServiceOptions,
+} from './core/realtime/services/api-gateway-socket.service';
+export { SocketRealtimePublisher } from './core/realtime/publishers/socket-realtime-publisher.service';
+export {
+  resolveConnectionResolver,
+  resetConnectionResolverCache,
+} from './core/realtime/services/resolve-connection-resolver';
+export {
+  resolveSocketService,
+  resetSocketServiceCache,
+  isRealtimeSocketEnabled,
+} from './core/realtime/services/resolve-socket-service';
+export {
+  resolveSocketRealtimePublisher,
+  resetSocketRealtimePublisherCache,
+} from './core/realtime/services/resolve-socket-realtime-publisher';
 export { RealtimeAggregationService } from './core/realtime/services/realtime-aggregation.service';
 export {
   RealtimeAggregationPublisher,

@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import type { MiddlewarePipelineEvent } from '@api-hub/middleware';
+import type { LambdaInvocationContext, MiddlewarePipelineEvent } from '@api-hub/middleware';
 
 import {
   createConsumerRuntime,
@@ -49,7 +49,7 @@ export function createEventHandler<
       createPerRecordLoggerConsumeOptions(
         eventBridgeTransportProfile,
         options.operation,
-        lambdaContext,
+        lambdaContext as LambdaInvocationContext,
       ),
   });
 }

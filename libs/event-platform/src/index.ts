@@ -92,11 +92,27 @@ export {
   REALTIME_AGGREGATE_EVENT_TYPE,
 } from './core/realtime/schemas/realtime-aggregate.event';
 export { RealtimeEventService } from './core/realtime/services/realtime-event.service';
+export { NoopRealtimePublisher } from './core/realtime/services/noop-realtime-publisher.service';
 export type { SocketService, SocketPublishContext } from './core/realtime/interfaces/socket-service.interface';
 export type { ConnectionResolver } from './core/realtime/interfaces/connection-resolver.interface';
 export { buildSocketDestinationKey, type SocketDestinationInput } from './core/realtime/utils/build-socket-destination-key';
 export { deriveSocketDestinations } from './core/realtime/utils/derive-socket-destinations';
-export { NoopConnectionResolver } from './core/realtime/services/noop-connection-resolver.service';
+export {
+  deriveConnectDestinations,
+  parseCommaSeparatedList,
+} from './core/realtime/utils/derive-connect-destinations';
+export type { ConnectionStore } from './core/realtime/interfaces/connection-store.interface';
+export {
+  DynamoDbConnectionStore,
+  createDynamoDbConnectionStore,
+  type DynamoDbConnectionStoreOptions,
+} from './core/realtime/infra/dynamodb-connection-store';
+export { connectionPk, connectionSk } from './core/realtime/infra/connection-keys';
+export { DynamoDbConnectionResolver } from './core/realtime/services/dynamodb-connection-resolver.service';
+export {
+  resolveConnectionStore,
+  resetConnectionStoreCache,
+} from './core/realtime/services/resolve-connection-store';
 export {
   ApiGatewaySocketService,
   type ApiGatewaySocketServiceOptions,
@@ -106,6 +122,17 @@ export {
   resolveConnectionResolver,
   resetConnectionResolverCache,
 } from './core/realtime/services/resolve-connection-resolver';
+export {
+  createWebSocketConnectHandler,
+  createWebSocketDisconnectHandler,
+  websocketConnectHandler,
+  websocketConnectMain,
+  websocketDisconnectHandler,
+  websocketDisconnectMain,
+  type WebSocketConnectHandlerOptions,
+  type WebSocketConnectContextInput,
+  type WebSocketDisconnectHandlerOptions,
+} from './handlers/websocket-connection.handler';
 export {
   resolveSocketService,
   resetSocketServiceCache,

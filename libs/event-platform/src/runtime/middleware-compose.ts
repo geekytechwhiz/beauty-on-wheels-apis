@@ -13,8 +13,10 @@ import {
   drainRealtimePending,
   runWithRealtimeCollector,
 } from '../core/realtime/realtime-invocation-collector';
-import { NoopRealtimePublisher } from '../core/realtime/services/noop-realtime-publisher.service';
+import { resolveSocketRealtimePublisher } from '../core/realtime/services/resolve-socket-realtime-publisher';
+import { isRealtimeSocketEnabled } from '../core/realtime/services/resolve-socket-service';
 import { RealtimeEventService } from '../core/realtime/services/realtime-event.service';
+import { resolveInfrastructureRealtimePublisher } from '../core/realtime/services/resolve-infrastructure-realtime-publisher';
 
 export type OperationName =
   `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
@@ -39,7 +41,11 @@ export function composeEventHandlerWithMiddleware<
   const stack: Array<Middleware<TEvent, TResult, TContext>> = [...baseStack];
 
   if (options.realtime?.enabled) {
-    const publisher = options.realtimePublisher ?? new NoopRealtimePublisher();
+    const publisher =
+      options.realtimePublisher ??
+      (isRealtimeSocketEnabled()
+        ? resolveSocketRealtimePublisher()
+        : resolveInfrastructureRealtimePublisher());
     const realtimeEventService = new RealtimeEventService(
       publisher,
       options.realtimeAggregationPublisher,

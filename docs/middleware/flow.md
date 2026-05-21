@@ -111,7 +111,30 @@ sequenceDiagram
 | `payload.organizationId: 'ORG1'`, `channel: 'TEAM_ALERTS'` | `ORG#ORG1#TEAM_ALERTS` |
 | `payload.patientId: 'PAT001'` | `PATIENT#PAT001` |
 
-Helper: `buildSocketDestinationKey()` in `@api-hub/event-platform`. Connection lookup is via `ConnectionResolver` (currently `NoopConnectionResolver` returning `[]` until a connection repository exists).
+Helper: `buildSocketDestinationKey()` in `@api-hub/event-platform`. Connection lookup uses `DynamoDbConnectionResolver` → `REALTIME_CONNECTIONS_TABLE` (GSI `DestinationIndex`).
+
+### WebSocket connection storage (DynamoDB)
+
+| Attribute | Example | Notes |
+|-----------|---------|-------|
+| `pk` | `CONN#abc123` | Partition key |
+| `sk` | `SUB#USER#DOC123` | Sort key — one row per subscription |
+| `destination` | `USER#DOC123` | GSI hash key (`DestinationIndex`) |
+| `connectionId` | `abc123` | GSI range key |
+| `ttl` | epoch seconds | Auto-expire orphaned connections |
+
+**Handlers** (platform-owned):
+
+```yaml
+websocketConnect:
+  handler: ../../libs/event-platform/src/handlers/websocket-connection.handler.websocketConnectMain
+websocketDisconnect:
+  handler: ../../libs/event-platform/src/handlers/websocket-connection.handler.websocketDisconnectMain
+```
+
+**Connect query params:** `?channels=ALERTS,TEAM_ALERTS&organizationId=ORG1` (plus authorizer `userId`). Registers destinations via `deriveConnectDestinations`.
+
+**Env:** `REALTIME_CONNECTIONS_TABLE`, `WEBSOCKET_API_ENDPOINT`
 
 ### Realtime aggregation architecture (`aggregate=true`)
 

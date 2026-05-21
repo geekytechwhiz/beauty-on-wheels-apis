@@ -1,12 +1,15 @@
 import { z } from 'zod';
 
-export const userCreatedEventSchema = z.object({
-  eventName: z.literal('UserCreated.v1'),
-  correlationId: z.string(),
-  userId: z.string(),
-  email: z.union([z.email(), z.literal('')]),
-  name: z.string()
-});
+export const userCreatedDataSchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+  organizationId: z.string().min(1, 'organizationId is required'),
+  email: z.string().optional(),
+  fullName: z.string().optional(),
+  firstName: z.string().optional(),
+  correlationId: z.string().optional(),
+}).passthrough();
+
+export const userCreatedEventSchema = userCreatedDataSchema;;
 
 export const userProfileUpdatedEventSchema = z.object({
   eventName: z.literal('UserProfileUpdated.v1'),

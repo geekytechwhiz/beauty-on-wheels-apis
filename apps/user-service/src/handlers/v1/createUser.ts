@@ -150,12 +150,12 @@ const handler = async (
   const userCreatedEventStart = Date.now();
   eventPromises.push(
     publishUserCreatedEvent({
-      eventName: 'UserCreated.v1',
-      correlationId: correlationId ?? '',
       userId: result.userID,
-      email: userInfo?.contact?.email ?? '',
-      name: userInfo?.name ?? userData.fullName ?? '',
-      organizationId : organizationID,
+      organizationId: organizationID,
+      email: userInfo?.contact?.email || undefined,
+      fullName: userInfo?.fullName ?? userInfo?.name ?? userData.fullName,
+      firstName: userInfo?.firstName,
+      correlationId: correlationId || undefined,
     })
       .then(() => {
         log.info({

@@ -155,6 +155,7 @@ const handler = async (
       userId: result.userID,
       email: userInfo?.contact?.email ?? '',
       name: userInfo?.name ?? userData.fullName ?? '',
+      organizationId : organizationID,
     })
       .then(() => {
         log.info({

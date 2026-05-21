@@ -28,7 +28,7 @@ export interface TemplateMeta {
 export interface TemplateDdbRecord {
   pk: string;
   sk: string;
-  entityType: 'MASTER_TEMPLATE';
+  entityType: 'MASTER_TEMPLATE' | 'ORG_TEMPLATE';
 
   meta: TemplateMeta;
 

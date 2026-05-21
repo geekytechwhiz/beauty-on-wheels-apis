@@ -7,6 +7,9 @@ import type { RetryStrategy } from '../core/retry/retry.types';
 import type { ResolveSchemaOptions } from '../core/schema/schema-resolver';
 import type { TransportMode } from '../core/policy/delivery-policy';
 import type { EventTracingHooks } from '../core/tracing/event-tracing-hooks';
+import type { RealtimeConsumerConfig } from '../core/realtime/interfaces/realtime-config.interface';
+import type { RealtimePublisher } from '../core/realtime/interfaces/realtime-publisher.interface';
+import type { RealtimeAggregationPublisher } from '../core/realtime/publishers/realtime-aggregation.publisher';
 import type { TransportProfile } from '../runtime/transport-profile';
 
 export type PayloadSchemaRegistry = Partial<Record<string, z.ZodType<unknown>>>;
@@ -112,6 +115,15 @@ export type EventConsumerDeps = {
    * If unset, Lambda fails / partial-batch failure so the queue drives redelivery up to {@link RetryOptions.maxAttempts}.
    */
   transportRetry?: RetryStrategy;
+
+  /** Optional realtime fan-out after successful business handler execution. */
+  realtime?: RealtimeConsumerConfig;
+
+  /** Override default {@link NoopRealtimePublisher}; used by tests and future transports. */
+  realtimePublisher?: RealtimePublisher;
+
+  /** Publishes to SQS aggregation queue when {@link RealtimeConsumerConfig.aggregate} is true. */
+  realtimeAggregationPublisher?: RealtimeAggregationPublisher;
 };
 
 export function effectiveTransportMode(deps: EventConsumerDeps): TransportMode {

@@ -2,6 +2,10 @@
  * Centralized middleware type definitions. No logging, cloud SDKs, or domain-specific logic.
  */
 
+export type {
+  LambdaInvocationContext,
+} from '@api-hub/observability';
+
 /** Minimal event shape; specialize per transport (e.g. APIGW, SQS, EventBridge). */
 export type BaseEvent = Record<string, unknown>;
 
@@ -136,6 +140,8 @@ export interface ExecutionContext {
   userId?: string;
   /** Tenant or organization scoping when available. */
   tenantId?: string;
+  /** Whether realtime fan-out is enabled for this handler invocation. */
+  realtimeEnabled?: boolean;
   [key: string]: unknown;
 }
 

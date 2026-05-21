@@ -1,7 +1,8 @@
 import type { z } from 'zod';
 
+import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { MiddlewarePipelineEvent } from '@api-hub/middleware';
-import type { Context, SQSBatchResponse, SQSEvent } from 'aws-lambda';
+import type { SQSBatchResponse, SQSEvent } from 'aws-lambda';
 import { SQSClient } from '@aws-sdk/client-sqs';
 
 import {
@@ -35,7 +36,9 @@ export type CreateSqsEventHandlerVisibilityHeartbeat =
       hooks?: SqsVisibilityHeartbeatHooks;
     };
 
-export type CreateSqsEventHandlerOptions<TContext extends Context = Context> = {
+export type CreateSqsEventHandlerOptions<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+> = {
   operation: OperationName;
   consumer?: Partial<EventConsumerDeps>;
   events: EventHandlerEntry<z.ZodTypeAny>[];
@@ -45,7 +48,9 @@ export type CreateSqsEventHandlerOptions<TContext extends Context = Context> = {
 };
 
 /** Preferred name for SQS Lambda consumers (alias of {@link createSqsEventHandler}). */
-export type OnQueueOptions<TContext extends Context = Context> =
+export type OnQueueOptions<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+> =
   CreateSqsEventHandlerOptions<TContext>;
 
 function normalizeVisibilityHeartbeatInput(
@@ -90,7 +95,9 @@ function normalizeVisibilityHeartbeatInput(
   };
 }
 
-export function createSqsEventHandler<TContext extends Context = Context>(
+export function createSqsEventHandler<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+>(
   options: CreateSqsEventHandlerOptions<TContext>,
 ): (event: SQSEvent, context: TContext) => Promise<SQSBatchResponse> {
   const visibilityHeartbeatOpts =

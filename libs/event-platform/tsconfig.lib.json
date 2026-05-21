@@ -26,7 +26,7 @@
     },
     {
       "path": "../middleware/tsconfig.lib.json"
-    }
+    },
   ],
   "exclude": [
     "jest.config.ts",

@@ -9,10 +9,16 @@ export {
   correlationHintFromEventBridge,
 } from './lib/event-bridge-per-message-context';
    
-export {
+export { 
   createDynamoStreamHandler, 
 } from './lib/create-dynamo-stream-handler';
-export { onDynamoEvent } from './lib/on-dynamo-event'; 
+export {
+  createSqsEventHandler,
+  onQueue,
+  type CreateSqsEventHandlerOptions,
+  type OnQueueOptions,
+} from './lib/create-sqs-event-handler';
+export { onDynamoEvent } from './lib/on-dynamo-event';
 export { 
   unwrapSnsNotificationPayload,
 } from './sdk/consumer/transport-normalize';
@@ -51,6 +57,9 @@ export type { EventSchemaMeta } from './core/schema/define-event';
 export { defineEvent } from './core/schema/define-event';
 export { publishEvent } from './dx/publish-event';
 export { EventBridgeAdapter } from './adapters/eventbridge/eventbridge-adapter';
+export { SqsAdapter } from './adapters/sqs/sqs-adapter';
+export type { SqsAdapterConfig } from './adapters/sqs/sqs-adapter-config';
+export { EventPublisher } from './sdk/publisher/event-publisher';
 export {
   configureEventPlatform,
   type ConfigureEventPlatformOptions,
@@ -69,3 +78,36 @@ export {
 } from './governance/event-registry';
 export { enforceRegisteredEventCompatibility } from './governance/schema-compatibility';
 export type { ReplayMetadata } from './governance/replay-metadata';
+
+export type { RealtimeConsumerConfig } from './core/realtime/interfaces/realtime-config.interface';
+export type { RealtimePublisher } from './core/realtime/interfaces/realtime-publisher.interface';
+export type { RecipientResolver } from './core/realtime/interfaces/recipient-resolver.interface';
+export type { EventTransformer } from './core/realtime/interfaces/event-transformer.interface';
+export type { RealtimeMessage } from './core/realtime/types/realtime-message.type';
+export type { RealtimeRecipient } from './core/realtime/types/realtime-recipient.type';
+export type { RealtimeAggregateMessage } from './core/realtime/types/realtime-aggregate-message.type';
+export {
+  RealtimeAggregateEventSchema,
+  RealtimeAggregatePayloadSchema,
+  REALTIME_AGGREGATE_EVENT_TYPE,
+} from './core/realtime/schemas/realtime-aggregate.event';
+export { RealtimeEventService } from './core/realtime/services/realtime-event.service';
+export { NoopRealtimePublisher } from './core/realtime/services/noop-realtime-publisher.service';
+export { RealtimeAggregationService } from './core/realtime/services/realtime-aggregation.service';
+export {
+  RealtimeAggregationPublisher,
+  createRealtimeAggregationPublisher,
+  type RealtimeAggregationPublisherOptions,
+} from './core/realtime/publishers/realtime-aggregation.publisher';
+export {
+  createRealtimeAggregationConsumer,
+  createDefaultRealtimeAggregationConsumer,
+  createDefaultRealtimeAggregationConsumerOptions,
+  type CreateRealtimeAggregationConsumerOptions,
+} from './core/realtime/consumers/realtime-aggregation.consumer';
+export {
+  handler as realtimeAggregationSqsHandler,
+  main as realtimeAggregationSqsMain,
+} from './handlers/realtime-aggregation-sqs.handler';
+export { resolveInfrastructureRealtimePublisher } from './core/realtime/services/resolve-infrastructure-realtime-publisher';
+export { ALERT_REALTIME_EVENTS } from './core/contracts/alert.events';

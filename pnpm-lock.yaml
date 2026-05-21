@@ -473,9 +473,7 @@ importers:
       '@api-hub/event-platform':
         specifier: workspace:*
         version: link:../event-platform
-      '@api-hub/event-platform':
-        specifier: workspace:*
-        version: link:../event-platform
+       
       '@api-hub/observability':
         specifier: workspace:*
         version: link:../observability

@@ -473,9 +473,7 @@ importers:
       '@api-hub/event-platform':
         specifier: workspace:*
         version: link:../event-platform
-      '@api-hub/event-platform':
-        specifier: workspace:*
-        version: link:../event-platform
+       
       '@api-hub/observability':
         specifier: workspace:*
         version: link:../observability
@@ -491,9 +489,7 @@ importers:
       zod:
         specifier: ^4.2.1
         version: 4.2.1
-      zod:
-        specifier: ^4.2.1
-        version: 4.2.1
+       
 
   libs/auth:
     dependencies:
@@ -514,7 +510,7 @@ importers:
   libs/consent: {}
 
   libs/event-platform:
-  libs/event-platform:
+   
     dependencies:
       '@api-hub/middleware':
         specifier: workspace:*
@@ -26592,8 +26588,7 @@ snapshots:
     dependencies:
       chalk: 5.6.2
       commander: 14.0.2
-      debug: 4.4.3(supports-color@8.1.1)
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@8.1.1) 
       lilconfig: 3.1.3
       listr2: 8.3.3
       micromatch: 4.0.8
@@ -29379,8 +29374,7 @@ snapshots:
       mime: 2.6.0
       qs: 6.14.0
       readable-stream: 3.6.2
-      semver: 7.7.4
-      semver: 7.7.4
+      semver: 7.7.4 
     transitivePeerDependencies:
       - supports-color
 

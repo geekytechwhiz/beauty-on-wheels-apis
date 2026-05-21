@@ -37,6 +37,14 @@ export interface CreateMasterTemplateContext {
   input: CreateMasterTemplateInput;
 }
 
+export interface MasterVersionWriteContext {
+  templateId: string;
+  templateVersionId: string;
+  versionNum: number;
+  versionSk: string;
+  nowIso: string;
+}
+
 const META_BODY_KEYS = [
   'templateCode',
   'templateName',
@@ -61,6 +69,41 @@ export class TemplateEntityBuilder {
 
   static buildVersionId(templateId: string, versionNum: number): string {
     return `${templateId}-V${String(versionNum).padStart(2, '0')}`;
+  }
+
+  static buildVersionWriteContext(
+    templateId: string,
+    versionNum: number,
+    nowIso = new Date().toISOString(),
+  ): MasterVersionWriteContext {
+    const templateVersionId = TemplateEntityBuilder.buildVersionId(templateId, versionNum);
+    const versionSk = `${VERSION_SK_PREFIX}${String(versionNum).padStart(3, '0')}`;
+    return { templateId, templateVersionId, versionNum, versionSk, nowIso };
+  }
+
+  static buildMetaFromExisting(
+    existing: TemplateMeta,
+    overrides: Partial<TemplateMeta>,
+    ctx: MasterVersionWriteContext,
+    actorUserId?: string,
+  ): TemplateMeta {
+    const status = (overrides.status ?? existing.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
+    return {
+      ...existing,
+      ...overrides,
+      templateId: ctx.templateId,
+      templateVersionId: ctx.templateVersionId,
+      version: ctx.versionNum,
+      status,
+      isActive: status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
+      isLatestVersion: true,
+      lastModifiedAt: ctx.nowIso,
+      lastModifiedBy: overrides.lastModifiedBy ?? actorUserId ?? existing.lastModifiedBy,
+      publishedAt:
+        status === TEMPLATE_STATUS.PUBLISHED
+          ? overrides.publishedAt ?? ctx.nowIso
+          : overrides.publishedAt ?? existing.publishedAt ?? null,
+    };
   }
 
   static buildCreateContext(input: CreateMasterTemplateInput): CreateMasterTemplateContext {
@@ -113,7 +156,7 @@ export class TemplateEntityBuilder {
     };
   }
 
-  private static applyGsiKeys(record: TemplateDdbRecord, meta: TemplateMeta): void {
+  static applyGsiKeys(record: TemplateDdbRecord, meta: TemplateMeta): void {
     const templateType = meta.templateType ?? TEMPLATE_TYPE_CARE_PLAN;
     const status = meta.status ?? TEMPLATE_STATUS.DRAFT;
     const lastModifiedAt = meta.lastModifiedAt ?? new Date().toISOString();
@@ -133,6 +176,9 @@ export class TemplateEntityBuilder {
         meta.templateId,
         meta.templateVersionId,
       );
+    } else {
+      delete record.gsi2pk;
+      delete record.gsi2sk;
     }
   }
 
@@ -163,6 +209,33 @@ export class TemplateEntityBuilder {
       ...documentFields,
     };
 
+    TemplateEntityBuilder.applyGsiKeys(record, meta);
+    return record;
+  }
+
+  static buildMetaRowFromMeta(meta: TemplateMeta, templateId: string): TemplateDdbRecord {
+    const record: TemplateDdbRecord = {
+      pk: TemplateKeyBuilder.toMasterPk(templateId),
+      sk: TEMPLATE_META_SK,
+      entityType: ENTITY_TYPE_MASTER_TEMPLATE,
+      meta,
+    };
+    TemplateEntityBuilder.applyGsiKeys(record, meta);
+    return record;
+  }
+
+  static buildVersionRowFromMeta(
+    meta: TemplateMeta,
+    ctx: MasterVersionWriteContext,
+    documentFields: Record<string, unknown>,
+  ): TemplateDdbRecord {
+    const record: TemplateDdbRecord = {
+      pk: TemplateKeyBuilder.toMasterPk(ctx.templateId),
+      sk: ctx.versionSk,
+      entityType: ENTITY_TYPE_MASTER_TEMPLATE,
+      meta,
+      ...documentFields,
+    };
     TemplateEntityBuilder.applyGsiKeys(record, meta);
     return record;
   }

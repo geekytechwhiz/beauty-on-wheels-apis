@@ -59,8 +59,8 @@ apps/template-service/
 │   │   ├── enablement.schemas.ts
 │   │   └── request.validators.ts     # JWT + business rules
 │   ├── controllers/
-│   │   ├── template-http.controller.ts      # master + lifecycle + compatible
-│   │   ├── org-template-http.controller.ts  # org list/update/clone/versions
+│   │   ├── template-http.controller.ts      # master + lifecycle
+│   │   ├── org-template-http.controller.ts  # org clone / versions / list (Sprint 3)
 │   │   └── enablement-http.controller.ts
 │   └── handlers/http/
 │       ├── health.ts              # GET /health (with other HTTP handlers)
@@ -69,11 +69,11 @@ apps/template-service/
 │       ├── getMasterTemplateMeta.ts
 │       ├── getMasterTemplateVersions.ts
 │       ├── updateMasterTemplateVersion.ts
+│       ├── transitionTemplateStatus.ts
 │       ├── cloneOrgTemplate.ts
 │       ├── getOrgTemplateVersions.ts
 │       ├── listOrgTemplates.ts
 │       ├── updateOrgTemplateVersion.ts
-│       ├── transitionTemplateStatus.ts
 │       ├── createOrgEnablement.ts
 │       ├── searchOrgEnablements.ts
 │       ├── listOrgEnablementsByOrg.ts
@@ -166,8 +166,8 @@ authorizer:
 | 1 | POST | `/templates/master` | `createMasterTemplate` | `createMasterTemplate.ts` | `handleCreateMaster` | TransactWrite: `META` + `VERSION#001` |
 | 2 | GET | `/templates/master` | `listMasterTemplates` | `listMasterTemplates.ts` | `handleListMaster` | Query **GSI2**; FilterExpression for category/condition/country/status |
 | 3 | GET | `/templates/master/{templateId}/meta` | `getMasterTemplateMeta` | `getMasterTemplateMeta.ts` | `handleGetMasterMeta` | GetItem `pk=MASTER_TMPL#id`, `sk=META` |
-| 4 | GET | `/templates/master/{templateId}/versions` | `getMasterTemplateVersions` | `getMasterTemplateVersions.ts` | `handleGetMasterVersions` | Query `pk` + `begins_with(sk,'VERSION#')` OR `version=latest` / `version={id}` |
-| 5 | PUT | `/templates/master/{templateId}/versions/{versionId}` | `updateMasterTemplateVersion` | `updateMasterTemplateVersion.ts` | `handleUpdateMasterVersion` | UpdateItem VERSION (+ merge META if needed) |
+| 4 | GET | `/templates/master/{templateId}/versions` | `getMasterTemplateVersionsQuery` | `getMasterTemplateVersions.ts` | `handleGetMasterVersions` | List, `?version=latest` (+ `resolve`), or `?version={versionId}` — **OpenAPI unified read** |
+| 5 | PUT | `/templates/master/{templateId}/versions/{versionId}` | `updateMasterTemplateVersion` | `updateMasterTemplateVersion.ts` | `handleUpdateMasterVersion` | New `VERSION#` row + META when editable status |
 | 6 | POST | `/templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone` | `cloneOrgTemplate` | `cloneOrgTemplate.ts` | `handleCloneToOrg` | Put new `ORG_TMPL#org#newId` + `VERSION#001` |
 | 7 | GET | `/templates/organizations/{organizationId}/{templateId}/versions` | `getOrgTemplateVersions` | `getOrgTemplateVersions.ts` | `handleGetOrgVersions` | Query org partition; `version=meta` → `sk=META` |
 | 8 | GET | `/templates/org` | `listOrgTemplates` | `listOrgTemplates.ts` | `handleListOrg` | Query **GSI1** `gsi1pk=ORG#<orgId>` |
@@ -324,14 +324,30 @@ Query param `version`:
 
 Return full document or summary per OpenAPI response schema.
 
-### 5.4 PUT `/templates/org/{templateId}/versions/{versionId}` (required)
+**Master reads (no separate GET paths in OpenAPI):**
+
+| Need | Curl query |
+|------|------------|
+| Specific version | `?version=V01` |
+| Latest active | `?version=latest` (default `resolve=ACTIVE`) |
+| Latest published | `?version=latest&resolve=LATEST_PUBLISHED` |
+
+### 5.4 PUT `/templates/master/{templateId}/versions/{versionId}`
+
+- **Body:** `MasterTemplateUpdateRequest` (`meta`, `steps`, `links`, …).
+- **Allowed statuses:** `DRAFT`, `SAVED`, `IN_REVIEW` only.
+- **Write:** new `VERSION#` snapshot + update `META` (increment `version`).
+- **Response:** `ApiSuccessTemplateSummary`.
+- **Errors:** `409` if published/archived/deprecated.
+
+### 5.5 PUT `/templates/org/{templateId}/versions/{versionId}` (required)
 
 - **Org id:** from JWT only (ignore body override unless spec allows).
 - **Validate:** downstream rules — fields with `downstream.update = NO` on master cannot change on org.
 - **Update:** VERSION row + optionally merge into META.
 - **Rewrite:** `gsi1pk`/`gsi1sk` if status or `lastModifiedAt` changes.
 
-### 5.5 POST `.../status` (lifecycle — required)
+### 5.6 POST `.../status` (lifecycle — required)
 
 | action | Transition |
 |--------|------------|
@@ -343,19 +359,19 @@ Return full document or summary per OpenAPI response schema.
 
 Resolve master vs org by caller scope + `templateId` (document in controller).
 
-### 5.6 Clone org template
+### 5.7 Clone org template
 
 - **Read** source: `ORG_TMPL#org#templateId` + `VERSION#versionId` (or master source per spec).
 - **Write** new partition `ORG_TMPL#org#newTemplateId`, `VERSION#001`.
 - Set `derivedFromTemplateVersionId` in `meta`.
 
-### 5.7 Enablements
+### 5.8 Enablements
 
 - Only **published** master versions can be enabled.
 - **Create:** validate master exists and `status=PUBLISHED`.
 - **PATCH:** `action=UPDATE` (dates) or `REVOKE` (soft revoke / remove from active GSI projections).
 
-### 5.8 GET `/templates/compatible`
+### 5.9 GET `/templates/compatible`
 
 - Query GSI2 (published masters), filter by `condition`, `countries`, `duration`, linking rules in OpenAPI.
 
@@ -430,7 +446,7 @@ Repeat for all 16 endpoints. Keep `health` without authorizer.
 
 ---
 
-*Last updated: Sprint 1 — create/list/get-meta/get-versions master templates implemented.*
+*Last updated: Sprint 3 — org clone, org versions read, org list (GSI1) per OpenAPI.*
 
 ---
 
@@ -478,7 +494,12 @@ Expected: JSON with `success: true` (or similar health payload).
 | `POST /templates/master` | Done | `createMasterTemplate.ts`, `template-http.controller.ts`, `template.service.ts` |
 | `GET /templates/master` | Done | `listMasterTemplates.ts`, same controller/service |
 | `GET /templates/master/{templateId}/meta` | Done | `getMasterTemplateMeta.ts` |
-| `GET /templates/master/{templateId}/versions` | Done | `getMasterTemplateVersions.ts` |
+| `GET /templates/master/{templateId}/versions` (list / latest / point read) | Done | `getMasterTemplateVersions.ts` |
+| `PUT /templates/master/{templateId}/versions/{versionId}` | Done | `updateMasterTemplateVersion.ts` |
+| `POST /templates/{templateId}/versions/{versionId}/status` | Done | `transitionTemplateStatus.ts` |
+| `POST /templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone` | Done | `cloneOrgTemplate.ts` |
+| `GET /templates/organizations/{organizationId}/{templateId}/versions` | Done | `getOrgTemplateVersions.ts` |
+| `GET /templates/org` | Done | `listOrgTemplates.ts` |
 | `GET /health` | Done | `handlers/http/health.ts` |
 
 ### 11.2 Prerequisites
@@ -962,7 +983,87 @@ curl -s "http://localhost:3000/templates/master/CP-HTN-STANDARD/versions?version
 
 **Errors:** `404` if template or version not found.
 
-### 11.11 PowerShell — full flow
+### 11.11 PUT `/templates/master/{templateId}/versions/{versionId}` (update)
+
+**Allowed only when status is `DRAFT`, `SAVED`, or `IN_REVIEW`.** Writes a **new** `VERSION#` row and updates `META` (increments `version`).
+
+```bash
+curl -s -X PUT "http://localhost:3000/templates/master/CP-HTN-STANDARD/versions/V01" \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "meta": {
+      "templateName": "Hypertension Management Plan v2",
+      "description": "Updated BP threshold rules",
+      "lastModifiedBy": "platform-admin-1"
+    }
+  }'
+```
+
+**Success (200):** `data` = `TemplateSummaryData` with new `version` and `templateVersionId`.
+
+**Errors:** `409` if status is `PUBLISHED` / `ARCHIVED` / `DEPRECATED`.
+
+### 11.12 POST `/templates/{templateId}/versions/{versionId}/status` (lifecycle)
+
+| action | Transition |
+|--------|------------|
+| `SUBMIT_REVIEW` | `DRAFT` or `SAVED` → `IN_REVIEW` |
+| `PUBLISH` | `IN_REVIEW` → `PUBLISHED` (new immutable `VERSION#` row + GSI2) |
+| `REJECT` | `IN_REVIEW` → `DRAFT` (`reason` required) |
+| `ARCHIVE` | `PUBLISHED` → `ARCHIVED` |
+| `DEPRECATE` | `PUBLISHED` → `DEPRECATED` |
+
+#### Submit for review
+
+```bash
+curl -s -X POST "http://localhost:3000/templates/CP-HTN-STANDARD/versions/V01/status" \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"SUBMIT_REVIEW","comment":"Ready for platform review"}'
+```
+
+#### Publish
+
+```bash
+curl -s -X POST "http://localhost:3000/templates/CP-HTN-STANDARD/versions/V01/status" \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"PUBLISH","comment":"Approved for rollout"}'
+```
+
+#### Reject (reason required)
+
+```bash
+curl -s -X POST "http://localhost:3000/templates/CP-HTN-STANDARD/versions/V01/status" \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"REJECT","reason":"Threshold rules incomplete"}'
+```
+
+#### Typical flow (create → review → publish)
+
+Use **`templateId`** and **`versionId`** from the create response (`data.templateVersionId` ends with `-V01` → path segment `V01`). Status transitions update **both** `SK=META` and the matching `VERSION#` row.
+
+```bash
+# 1) Create (DRAFT)
+curl -s -X POST "http://localhost:3000/templates/master" -H "Authorization: $TOKEN" -H "Content-Type: application/json" -d '{"templateCode":"CP_HTN_FLOW","templateName":"Flow Test Plan","status":"DRAFT","version":1}'
+
+# 2) Submit review (use templateId + versionId from create response, e.g. V01)
+curl -s -X POST "http://localhost:3000/templates/CP-HTN-FLOW/versions/V01/status" -H "Authorization: $TOKEN" -H "Content-Type: application/json" -d '{"action":"SUBMIT_REVIEW"}'
+
+# 2b) Verify status (META row)
+curl -s "http://localhost:3000/templates/master/CP-HTN-FLOW/meta" -H "Authorization: $TOKEN"
+# Expect data.meta.status = IN_REVIEW
+
+# 3) Publish
+curl -s -X POST "http://localhost:3000/templates/CP-HTN-FLOW/versions/V01/status" -H "Authorization: $TOKEN" -H "Content-Type: application/json" -d '{"action":"PUBLISH"}'
+
+# 4) Read latest published (OpenAPI query form)
+curl -s "http://localhost:3000/templates/master/CP-HTN-FLOW/versions?version=latest&resolve=LATEST_PUBLISHED" -H "Authorization: $TOKEN"
+```
+
+### 11.13 PowerShell — full flow
 
 ```powershell
 $env:Path = "C:\nvm4w\nodejs;" + $env:Path
@@ -989,7 +1090,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/templates/master?status=DRAFT&temp
   -Headers @{ Authorization = $TOKEN }
 ```
 
-### 11.12 Troubleshooting
+### 11.14 Troubleshooting
 
 | Symptom | Cause / fix |
 |---------|-------------|
@@ -999,6 +1100,33 @@ Invoke-RestMethod -Uri "http://localhost:3000/templates/master?status=DRAFT&temp
 | List empty after create | Forgot `?status=DRAFT` (default list = **published** GSI2 only) |
 | 403 before handler | API Gateway authorizer in AWS (offline may still reference authorizer ARN) |
 
-### 11.13 Next APIs (not yet implemented)
+### 11.15 POST clone — `POST /templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone`
 
-Continue with section 8 Sprint 2: update master version, org templates, lifecycle, enablements, compatible list.
+Clones a **PUBLISHED** master version into a new org template (`SAVED`). Path `templateId` / `versionId` = **master** ids.
+
+```bash
+curl -s -X POST "http://localhost:3000/templates/organizations/ROOT/CP-HTN-STANDARD/versions/V01/clone" \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"newTemplateName":"Org Hypertension Plan","inheritLinks":true}'
+```
+
+### 11.16 GET org versions — `GET /templates/organizations/{organizationId}/{templateId}/versions`
+
+Query: list (omit `version`), `version=meta`, `version=latest`, `version=V01` (+ `resolve` for latest).
+
+```bash
+curl -s "http://localhost:3000/templates/organizations/ROOT/CP-HTN-STANDARD-ORG-ROOT/versions?version=meta" \
+  -H "Authorization: $TOKEN"
+```
+
+### 11.17 GET list org — `GET /templates/org`
+
+```bash
+curl -s "http://localhost:3000/templates/org?status=SAVED" \
+  -H "Authorization: $TOKEN"
+```
+
+### 11.18 Next APIs (not yet implemented)
+
+`PUT /templates/org/{templateId}/versions/{versionId}`, enablements (5 ops), `GET /templates/compatible`, org-scoped `POST .../status`.

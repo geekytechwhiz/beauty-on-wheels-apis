@@ -45,7 +45,8 @@ function isExternal(id: string): boolean {
     id === 'zod' ||
     id === 'tslib' ||
     id === 'node:crypto' ||
-    id === 'crypto'
+    id === 'crypto' ||
+    id === 'node:async_hooks'
   );
 }
 

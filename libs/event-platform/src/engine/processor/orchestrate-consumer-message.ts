@@ -21,6 +21,7 @@ import {
   fireProcessingStart,
   fireProcessingSuccess,
 } from '../../core/tracing/event-tracing-hooks';
+import { recordRealtimeSuccess } from '../../core/realtime/realtime-invocation-collector';
 import { traceContextFromEvent } from '../../core/tracing/trace-context';
 import type { BaseEvent } from '../../typings/base-event.types';
 import type { EventConsumerDeps } from '../../typings/consumer.types';
@@ -331,6 +332,7 @@ async function runSingleHandlerAttempt(params: {
 
   fireProcessingSuccess(deps.tracing, traceCtx);
   recordConsumerEventProcessed(baseEvent.eventType);
+  recordRealtimeSuccess(baseEvent, deps);
   return { outcome: 'success' };
 }
 
@@ -415,6 +417,7 @@ async function runInProcessHandlerAttempts(params: {
       outcome: 'success',
     });
     logConsumerOutcome(deps, current, 'success');
+    recordRealtimeSuccess(current, deps);
     return { outcome: 'success' };
   }
 

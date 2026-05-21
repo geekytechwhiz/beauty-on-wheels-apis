@@ -33,9 +33,6 @@
     "tsup": "^8.x",
     "typescript": "^5.x"
   },
-  "peerDependencies": {
-    "aws-lambda": "^1.0.0"
-  },
   "engines": {
     "node": ">=18"
   }

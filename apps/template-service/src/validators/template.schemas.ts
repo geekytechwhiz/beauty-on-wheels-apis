@@ -138,6 +138,50 @@ export const listOrgTemplatesQuerySchema = z.object({
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
 
+export const updateOrgTemplateBodySchema = z
+  .object({
+    meta: z.record(z.string(), z.unknown()).optional(),
+    overrides: z.record(z.string(), z.unknown()).optional(),
+    steps: z.array(z.unknown()).optional(),
+    links: z.record(z.string(), z.unknown()).optional(),
+    carePlanAttributes: z.record(z.string(), z.unknown()).optional(),
+    templateTypeConfig: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
+export type UpdateOrgTemplateBody = z.infer<typeof updateOrgTemplateBodySchema>;
+
+export const createOrgEnablementBodySchema = z.object({
+  organizationId: z.string().trim().min(1),
+  masterTemplateVersionId: z.string().trim().min(1),
+  effectiveFrom: z.string().trim().min(1).optional(),
+  effectiveTo: z.string().nullable().optional(),
+});
+
+export type CreateOrgEnablementBody = z.infer<typeof createOrgEnablementBodySchema>;
+
+export const listCompatibleTemplatesQuerySchema = z.object({
+  condition: z.string().trim().min(1),
+  country: z.string().trim().min(1),
+  duration: z.string().trim().min(1).optional(),
+  templateType: z.string().trim().min(1).optional(),
+});
+
+export type ListCompatibleTemplatesQuery = z.infer<typeof listCompatibleTemplatesQuerySchema>;
+
+export function parseListCompatibleTemplatesQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): ListCompatibleTemplatesQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      params[key] = Array.isArray(value) ? value[0] : value;
+    }
+  }
+  return listCompatibleTemplatesQuerySchema.parse(params);
+}
+
 export function parseListOrgTemplatesQuery(
   raw: Record<string, string | string[] | undefined> | null | undefined,
 ): ListOrgTemplatesQuery {

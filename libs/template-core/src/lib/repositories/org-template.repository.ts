@@ -84,6 +84,36 @@ export class OrgTemplateRepository extends BaseRepository {
     });
   }
 
+  async saveOrgMetaAndVersion(
+    metaRow: TemplateDdbRecord,
+    versionRow: TemplateDdbRecord,
+    opts?: { requireNewVersionSk?: boolean },
+  ): Promise<void> {
+    const table = assertTemplateTable();
+    const versionCondition = opts?.requireNewVersionSk
+      ? 'attribute_not_exists(pk)'
+      : undefined;
+
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Put: {
+            TableName: table,
+            Item: metaRow as unknown as Record<string, unknown>,
+            ConditionExpression: 'attribute_exists(pk)',
+          },
+        },
+        {
+          Put: {
+            TableName: table,
+            Item: versionRow as unknown as Record<string, unknown>,
+            ...(versionCondition ? { ConditionExpression: versionCondition } : {}),
+          },
+        },
+      ],
+    });
+  }
+
   async createOrgTemplate(metaRow: TemplateDdbRecord, versionRow: TemplateDdbRecord): Promise<void> {
     const table = assertTemplateTable();
     await this.transactWrite({

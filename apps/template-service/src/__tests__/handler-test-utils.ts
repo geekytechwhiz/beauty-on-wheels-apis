@@ -96,6 +96,123 @@ export function baseGetMasterListEvent(
   } as unknown as APIGatewayProxyEvent;
 }
 
+export function authHeaders(orgId = 'ROOT', userId = 'user-1') {
+  return {
+    Authorization: bearerToken({
+      'custom:organizationID': orgId,
+      'custom:userID': userId,
+    }),
+  };
+}
+
+export function publishedMasterTemplateRecord(
+  overrides: Partial<TemplateDdbRecord> = {},
+): TemplateDdbRecord {
+  return minimalMasterTemplateRecord({
+    gsi2pk: 'TYPE#CARE_PLAN#SCOPE#MASTER',
+    gsi2sk: 'PUB#2024-04-01T00:00:00Z#CP-HTN-001#CP-HTN-001-V01',
+    meta: {
+      templateId: 'CP-HTN-001',
+      templateVersionId: 'CP-HTN-001-V01',
+      templateCode: 'CP_HTN_STANDARD',
+      templateName: 'Hypertension Management Plan',
+      templateType: 'CARE_PLAN',
+      condition: 'HYPERTENSION',
+      countries: ['IN'],
+      version: 1,
+      status: 'PUBLISHED',
+      isActive: true,
+      publishedAt: '2024-04-01T00:00:00Z',
+      createdAt: '2024-01-01T00:00:00Z',
+      lastModifiedAt: '2024-04-01T00:00:00Z',
+    },
+    carePlanAttributes: {
+      duration: { durationType: 'MONTHS_6' },
+    },
+    ...overrides,
+  });
+}
+
+/** Shared Jest mock factory for `@api-hub/middleware` withApiHandler (used in handler specs). */
+export function createWithApiHandlerMock() {
+  const { ApiResponse } = jest.requireActual<typeof import('@api-hub/utils')>('@api-hub/utils');
+
+  function tryParseJson(body: unknown): unknown {
+    if (typeof body !== 'string') return body;
+    if (body.trim() === '') return undefined;
+    try {
+      return JSON.parse(body);
+    } catch {
+      return Symbol.for('invalid-json');
+    }
+  }
+
+  return {
+    withApiHandler:
+      (
+        options: {
+          bodySchema?: { parse: (b: unknown) => unknown };
+          validator?: (req: unknown) => Promise<void>;
+        },
+        handler: (req: unknown) => Promise<unknown>,
+      ) =>
+      async (event: import('aws-lambda').APIGatewayProxyEvent) => {
+        const parsedBody = tryParseJson(event?.body);
+        if (parsedBody === Symbol.for('invalid-json')) {
+          return ApiResponse.unprocessableEntity(
+            { title: 'INVALID_JSON', description: 'Invalid JSON body', severity: 'ERROR' },
+            { correlationId: 'test-correlation-id' },
+            { code: 'INVALID_JSON' },
+          );
+        }
+
+        const authHeader = event?.headers?.Authorization ?? event?.headers?.authorization;
+        const req = {
+          event,
+          params: { ...(event?.pathParameters ?? {}), ...(event?.queryStringParameters ?? {}) },
+          body: parsedBody,
+          pathParameters: event?.pathParameters ?? undefined,
+          context: {
+            correlationId: 'test-correlation-id',
+            awsRequestId: 'test-aws-request-id',
+            logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+            authHeader,
+          },
+        };
+
+        try {
+          if (options?.bodySchema) {
+            req.body = options.bodySchema.parse(req.body);
+          }
+          if (options?.validator) {
+            await options.validator(req);
+          }
+          const out = await handler(req);
+          return ApiResponse.ok(
+            out,
+            { title: 'SUCCESS', description: 'Request processed successfully', severity: 'SUCCESS' },
+            { correlationId: 'test-correlation-id' },
+          );
+        } catch (e: unknown) {
+          const err = e as { name?: string; statusCode?: number; code?: string; message?: string };
+          if (err?.name === 'ZodError') {
+            return ApiResponse.unprocessableEntity(
+              { title: 'VALIDATION_ERROR', description: 'Validation failed', severity: 'ERROR' },
+              { correlationId: 'test-correlation-id' },
+              { code: 'VALIDATION_ERROR' },
+            );
+          }
+          return ApiResponse.error(
+            err?.statusCode ?? 500,
+            { title: err?.code ?? 'INTERNAL_ERROR', description: err?.message ?? 'Error', severity: 'ERROR' },
+            { correlationId: 'test-correlation-id' },
+            { code: err?.code ?? 'INTERNAL_ERROR' },
+          );
+        }
+      },
+  };
+}
+
 export function setupHandlerTestEnv(): { restore: () => void } {
   process.env.ERROR_MESSAGES_CDN_URL =
     process.env.ERROR_MESSAGES_CDN_URL ?? 'https://d2p9v61861q1ox.cloudfront.net';

@@ -24,6 +24,8 @@ import {
   templateVersionIdToSk,
 } from '../utils/template.utils';
 import { TemplateMasterOpsService } from './template-master-ops.service';
+import { CompatibleTemplatesService } from './compatible-templates.service';
+import type { ListCompatibleTemplatesParams } from '../models/api/compatible-templates.types';
 import type {
   TransitionMasterStatusParams,
   UpdateMasterVersionParams,
@@ -31,6 +33,7 @@ import type {
 
 export class TemplateService {
   private readonly masterOps = new TemplateMasterOpsService(this.repo);
+  private readonly compatibleSvc = new CompatibleTemplatesService(this.repo);
 
   constructor(private readonly repo = new TemplateRepository()) {}
 
@@ -155,6 +158,10 @@ export class TemplateService {
 
   async transitionMasterTemplateStatus(params: TransitionMasterStatusParams) {
     return this.masterOps.transitionMasterTemplateStatus(params);
+  }
+
+  async listCompatibleTemplates(params: ListCompatibleTemplatesParams) {
+    return this.compatibleSvc.listCompatibleTemplates(params);
   }
 
   toCreateResponse(record: TemplateDdbRecord) {

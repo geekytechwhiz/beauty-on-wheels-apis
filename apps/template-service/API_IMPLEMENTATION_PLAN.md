@@ -59,9 +59,9 @@ apps/template-service/
 │   │   ├── enablement.schemas.ts
 │   │   └── request.validators.ts     # JWT + business rules
 │   ├── controllers/
-│   │   ├── template-http.controller.ts      # master + lifecycle
-│   │   ├── org-template-http.controller.ts  # org clone / versions / list (Sprint 3)
-│   │   └── enablement-http.controller.ts
+│   │   ├── template-http.controller.ts      # master + lifecycle + compatible
+│   │   ├── org-template-http.controller.ts  # org clone / versions / list / update
+│   │   └── enablement-http.controller.ts    # create enablement
 │   └── handlers/http/
 │       ├── health.ts              # GET /health (with other HTTP handlers)
 │       ├── createMasterTemplate.ts
@@ -74,12 +74,12 @@ apps/template-service/
 │       ├── getOrgTemplateVersions.ts
 │       ├── listOrgTemplates.ts
 │       ├── updateOrgTemplateVersion.ts
+│       ├── listCompatibleTemplates.ts
 │       ├── createOrgEnablement.ts
 │       ├── searchOrgEnablements.ts
 │       ├── listOrgEnablementsByOrg.ts
 │       ├── getOrgEnablementById.ts
-│       ├── updateOrgEnablement.ts
-│       └── listCompatibleTemplates.ts
+│       └── updateOrgEnablement.ts
 
 libs/template-core/
 ├── src/
@@ -446,7 +446,7 @@ Repeat for all 16 endpoints. Keep `health` without authorizer.
 
 ---
 
-*Last updated: Sprint 3 — org clone, org versions read, org list (GSI1) per OpenAPI.*
+*Last updated: Sprint 4 — org update, compatible list, create enablement per OpenAPI.*
 
 ---
 
@@ -500,6 +500,9 @@ Expected: JSON with `success: true` (or similar health payload).
 | `POST /templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone` | Done | `cloneOrgTemplate.ts` |
 | `GET /templates/organizations/{organizationId}/{templateId}/versions` | Done | `getOrgTemplateVersions.ts` |
 | `GET /templates/org` | Done | `listOrgTemplates.ts` |
+| `PUT /templates/org/{templateId}/versions/{versionId}` | Done | `updateOrgTemplateVersion.ts` |
+| `GET /templates/compatible` | Done | `listCompatibleTemplates.ts` |
+| `POST /org-enablements` | Done | `createOrgEnablement.ts` |
 | `GET /health` | Done | `handlers/http/health.ts` |
 
 ### 11.2 Prerequisites
@@ -1098,6 +1101,8 @@ Invoke-RestMethod -Uri "http://localhost:3000/templates/master?status=DRAFT&temp
 | 422 | Missing `templateName` or empty `templateCode` |
 | 409 | `templateCode` already exists (change code or delete META in DynamoDB) |
 | List empty after create | Forgot `?status=DRAFT` (default list = **published** GSI2 only) |
+| Compatible 500 ValidationException | DynamoDB filter type mismatch on `meta.condition` — fixed: filter in app after GSI2 query |
+| Compatible empty `items` | No **PUBLISHED** templates in GSI2 — run `PUBLISH` on a master version first |
 | 403 before handler | API Gateway authorizer in AWS (offline may still reference authorizer ARN) |
 
 ### 11.15 POST clone — `POST /templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone`
@@ -1127,6 +1132,88 @@ curl -s "http://localhost:3000/templates/org?status=SAVED" \
   -H "Authorization: $TOKEN"
 ```
 
-### 11.18 Next APIs (not yet implemented)
+### 11.18 PUT org update — `PUT /templates/org/{templateId}/versions/{versionId}`
 
-`PUT /templates/org/{templateId}/versions/{versionId}`, enablements (5 ops), `GET /templates/compatible`, org-scoped `POST .../status`.
+`organizationId` from **JWT only** (not in path). Same editable rules as master (`DRAFT` / `SAVED` / `IN_REVIEW`).
+
+```bash
+curl -s -X PUT "http://localhost:3000/templates/org/CP-HTN-STANDARD-ORG-ROOT/versions/V01" \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "meta": {
+      "templateName": "Org Hypertension Plan v2",
+      "description": "Customised for org patients"
+    },
+    "overrides": {
+      "careTeam": { "doctor": { "name": "Dr Sharma" } }
+    }
+  }'
+```
+
+### 11.19 GET compatible — `GET /templates/compatible`
+
+Published masters for package linking (queries **GSI2**, filters in application code). **`condition`** and **`country`** are required. Templates must be **PUBLISHED** (in GSI2) — run lifecycle `PUBLISH` first.
+
+```bash
+# Required params only
+curl -s "http://localhost:3000/templates/compatible?condition=HYPERTENSION&country=IN" \
+  -H "Authorization: $TOKEN"
+
+# Optional duration filter (must match carePlanAttributes.duration.durationType on template)
+curl -s "http://localhost:3000/templates/compatible?condition=HYPERTENSION&country=IN&duration=MONTHS_6" \
+  -H "Authorization: $TOKEN"
+```
+
+**If you get `ValidationException` (400):** restart offline after pull; usually fixed by not using invalid DynamoDB `FilterExpression` on mixed meta types.
+
+**If `items` is empty:** no **PUBLISHED** master in GSI2 for that condition/country — publish a template first:
+
+```bash
+curl -s -X POST "http://localhost:3000/templates/CP-HTN-STANDARD/versions/V01/status" \
+  -H "Authorization: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"action":"PUBLISH"}'
+```
+
+### 11.20 POST enablement — `POST /org-enablements`
+
+Links an org to a **PUBLISHED** master `masterTemplateVersionId`.
+
+```bash
+curl -s -X POST "http://localhost:3000/org-enablements" \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organizationId": "ROOT",
+    "masterTemplateVersionId": "CP-HTN-STANDARD-V01",
+    "effectiveFrom": "2026-05-20T00:00:00Z",
+    "effectiveTo": null
+  }'
+```
+
+### 11.21 Recommended flow (clone → edit → enable → link)
+
+```bash
+# 1) Clone published master to org (SAVED)
+curl -s -X POST "http://localhost:3000/templates/organizations/ROOT/CP-HTN-STANDARD/versions/V01/clone" \
+  -H "Authorization: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"newTemplateName":"Org HTN Plan"}'
+
+# 2) Edit org copy (use org templateId from step 1)
+curl -s -X PUT "http://localhost:3000/templates/org/<ORG_TEMPLATE_ID>/versions/V01" \
+  -H "Authorization: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"meta":{"templateName":"Org HTN Plan customised"}}'
+
+# 3) Enable master for org (package visibility)
+curl -s -X POST "http://localhost:3000/org-enablements" \
+  -H "Authorization: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"organizationId":"ROOT","masterTemplateVersionId":"CP-HTN-STANDARD-V01"}'
+
+# 4) Find compatible published templates for linking UI
+curl -s "http://localhost:3000/templates/compatible?condition=HYPERTENSION&country=IN" \
+  -H "Authorization: $TOKEN"
+```
+
+### 11.22 Next APIs (not yet implemented)
+
+`GET /org-enablements`, `GET /org-enablements/{orgId}`, `GET/PATCH /org-enablements/id/{enablementId}`, org-scoped `POST .../status`.

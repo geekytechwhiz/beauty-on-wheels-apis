@@ -9,7 +9,7 @@ import {
   type TemplateStatus,
 } from '../constants/template.constants';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
-import { TemplateEntityBuilder } from './template-entity.builder';
+import { TemplateEntityBuilder, type MasterVersionWriteContext } from './template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
 
 export type CloneOrgTemplateContext = {
@@ -179,6 +179,24 @@ export class OrgTemplateEntityBuilder {
       ...documentFields,
     };
     OrgTemplateEntityBuilder.applyOrgGsiKeys(record, meta, ctx.organizationId);
+    return record;
+  }
+
+  static buildOrgVersionRowFromMeta(
+    meta: TemplateMeta,
+    organizationId: string,
+    templateId: string,
+    ctx: MasterVersionWriteContext,
+    documentFields: Record<string, unknown>,
+  ): TemplateDdbRecord {
+    const record: TemplateDdbRecord = {
+      pk: TemplateKeyBuilder.toOrgPk(organizationId, templateId),
+      sk: ctx.versionSk,
+      entityType: ENTITY_TYPE_ORG_TEMPLATE,
+      meta,
+      ...documentFields,
+    };
+    OrgTemplateEntityBuilder.applyOrgGsiKeys(record, meta, organizationId);
     return record;
   }
 }

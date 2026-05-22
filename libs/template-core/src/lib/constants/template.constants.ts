@@ -7,6 +7,10 @@ export const ENTITY_TYPE_ORG_TEMPLATE = 'ORG_TEMPLATE' as const;
 export const ORG_TMPL_PK_PREFIX = 'ORG_TMPL#' as const;
 export const GSI1_ORG_PK_PREFIX = 'ORG#' as const;
 export const GSI1_ORG_TMPL_SK_PREFIX = 'TMPL#' as const;
+export const GSI1_ENABLE_SK_PREFIX = 'ENABLE#' as const;
+
+export const ENTITY_TYPE_ORG_ENABLEMENT = 'ORG_ENABLEMENT' as const;
+export const ENABLE_PK_PREFIX = 'ENABLE#' as const;
 
 export const GSI1_ORG_INDEX = 'GSI1' as const;
 export const GSI2_TYPE_CATALOG = 'GSI2' as const;

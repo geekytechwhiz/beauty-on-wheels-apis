@@ -22,6 +22,23 @@ export class TemplateKeyBuilder {
     return `TMPL#${templateType.trim()}#${status}#${lastModifiedAt}#${templateId.trim()}`;
   }
 
+  static toEnablePk(enablementId: string): string {
+    const id = enablementId.trim();
+    return id.startsWith('ENABLE#') ? id : `ENABLE#${id}`;
+  }
+
+  static buildGsi1EnableSk(effectiveFrom: string, enablementId: string): string {
+    return `ENABLE#${effectiveFrom}#${enablementId.trim()}`;
+  }
+
+  static buildGsi3Pk(masterTemplateVersionId: string): string {
+    return `MSTR_VER#${masterTemplateVersionId.trim()}`;
+  }
+
+  static buildGsi3Sk(organizationId: string, enablementId: string): string {
+    return `ORG#${organizationId.trim()}#${enablementId.trim()}`;
+  }
+
   static toVersionSk(versionId: string): string {
     const id = versionId.trim();
     return id.startsWith('VERSION#') ? id : `VERSION#${id}`;

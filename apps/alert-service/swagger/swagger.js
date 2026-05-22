@@ -26,6 +26,102 @@
         }
       }
     },
+    "/alerts/workflow": {
+      "post": {
+        "summary": "Apply alert workflow command",
+        "description": "Command-style workflow for one alert. Body requires `action` (START_WORK, WAIT, RESUME, RESOLVE, DISMISS, or aliases ASSIGN, MOVE_TO_WAITING, RESUME_WORK). RESOLVE/DISMISS require `reasonCode`; when reasonCode is OTHER, `comment` or `closureComment` is required. ASSIGN requires `assignedToUserId`. Organization from JWT only.\n",
+        "operationId": "updateAlertWorkflow.post.alerts/workflow",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail in envelope `data`"
+          },
+          "400": {
+            "description": "Bad request (e.g. missing path context)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Alert not found"
+          }
+        }
+      }
+    },
+    "/alerts/assignment": {
+      "post": {
+        "summary": "Apply alert assignment action",
+        "description": "Assignment actions for one or many alerts. Body requires `alertIds` and `action` (ASSIGN, REASSIGN, UNASSIGN, ASSIGN_TO_SELF). ASSIGN/REASSIGN require `assignToUserId`. ASSIGN_TO_SELF derives assignee from JWT. **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.\n",
+        "operationId": "updateAlertAssignment.post.alerts/assignment",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "409": {
+            "description": "Not allowed from terminal state"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/alerts/priority": {
+      "patch": {
+        "summary": "Update alert priority",
+        "description": "Priority update for one or many alerts. Body requires `alertIds` and `priority` (P0..P3). **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.\n",
+        "operationId": "updateAlertPriority.patch.alerts/priority",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
     "/alerts": {
       "get": {
         "summary": "List alerts (Team, My, or Patient)",
@@ -56,6 +152,7 @@
             "in": "query",
             "name": "state",
             "type": "string",
+            "description": "Filter by alert workflow/UI state — UNASSIGNED, ASSIGNED, IN_PROGRESS, WAITING, RESOLVED, DISMISSED",
             "required": false
           },
           {
@@ -74,7 +171,7 @@
             "in": "query",
             "name": "assignment",
             "type": "string",
-            "description": "UNASSIGNED or ASSIGNED (Team queue)",
+            "description": "Assignee user id to filter by (persisted assignedToUserId — same id as workflow ASSIGN)",
             "required": false
           },
           {
@@ -110,7 +207,19 @@
         ],
         "responses": {
           "200": {
-            "description": "200 response"
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       },
@@ -137,7 +246,25 @@
         ],
         "responses": {
           "200": {
-            "description": "200 response"
+            "description": "OK — AlertDetail in envelope (new alert or same-org idempotent replay on inputEventId)"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict (e.g. IDEMPOTENCY_KEY_IN_USE for different org)"
+          },
+          "422": {
+            "description": "Validation or business rule error"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }
@@ -163,36 +290,19 @@
         ],
         "responses": {
           "200": {
-            "description": "200 response"
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update assignment / state / SLA flag",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "alertId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "in": "body",
-            "name": "body",
-            "required": false,
-            "schema": {
-              "$ref": "#/definitions/PatchAlertRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
             "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }
@@ -200,7 +310,7 @@
     "/alerts/{alertId}/activity": {
       "get": {
         "summary": "Get alert activity timeline",
-        "description": "Full activity / audit list for the alert (newest first; single response, no pagination). Tenant from JWT only.",
+        "description": "Activity / audit list for the alert (newest first; no pagination). Tenant from JWT only. Optional query Optional query `notesOnly=true` or `false` (`true` = NOTE_ADDED only). 404 when alert not found for org.\n",
         "operationId": "getAlertActivity.get.alerts/{alertId}/activity",
         "consumes": [
           "application/json"
@@ -218,83 +328,122 @@
         ],
         "responses": {
           "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/alerts/{alertId}/notes": {
+      "post": {
+        "summary": "Add an operational note",
+        "description": "Add a note to the alert activity timeline. Organization comes from JWT.",
+        "operationId": "addAlertNote.post.alerts/{alertId}/notes",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/NoteRequest"
+            }
+          },
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created (NOTE_ADDED activity)"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Illegal state transition (ILLEGAL_TRANSITION)"
+          },
+          "422": {
+            "description": "Validation (body, reason codes, OTHER without comment, MISSING_REASON_CODE)"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/dev/events/ingest/create-alert": {
+      "post": {
+        "summary": "testPublishCreateAlertIngest",
+        "description": "",
+        "operationId": "testPublishCreateAlertIngest.post.dev/events/ingest/create-alert",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
             "description": "200 response"
           }
         }
       }
     },
-    "/organizations/{organizationId}/alerts": {
+    "/alerts/metadata": {
       "get": {
-        "summary": "Org work queue (GSI2)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "summary": "Alert UI metadata (workaround)",
+        "description": "Static lists for priorities, workflow statuses, resolve reasons, and dismiss reasons until a metadata registry is available. Organization scope from JWT; response is the same for all tenants.\n",
+        "operationId": "getAlertMetadata.get.alerts/metadata",
+        "consumes": [
+          "application/json"
         ],
-        "parameters": [
-          {
-            "name": "organizationId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "state",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "unassignedOnly",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "integer"
-          }
+        "produces": [
+          "application/json"
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "OK"
-          }
-        }
-      }
-    },
-    "/users/{userId}/alerts": {
-      "get": {
-        "summary": "User queue (GSI3)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "type": "string"
           },
-          {
-            "name": "state",
-            "in": "query",
-            "required": false,
-            "type": "string"
+          "401": {
+            "description": "Unauthorized"
           },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "integer"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }
@@ -332,21 +481,11 @@
     },
     "AppliesToType": {
       "type": "string",
-      "enum": [
-        "VITAL_SIGN",
-        "DEVICE",
-        "SYMPTOM",
-        "ENGAGEMENT"
-      ]
+      "description": "Product-defined label for what the alert applies to (e.g. VITAL_SIGN, DEVICE)."
     },
     "SeverityHint": {
       "type": "string",
-      "enum": [
-        "LOW",
-        "MEDIUM",
-        "HIGH",
-        "CRITICAL"
-      ]
+      "description": "Optional severity label from the producer (any string; not restricted to LOW/MEDIUM/HIGH/CRITICAL)."
     },
     "EvidenceMissedReading": {
       "type": "object",
@@ -478,7 +617,7 @@
     },
     "CreateAlertRequest": {
       "type": "object",
-      "description": "Create-alert body; organization from JWT. Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload. evidencePayload is EvidenceMissedReading or EvidenceMissingDevice (strict). Unknown top-level properties rejected.",
+      "description": "Create-alert body; organization from JWT. Required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload. Optional: patientName, actorName (client display names). evidencePayload is EvidenceMissedReading or EvidenceMissingDevice (strict). Unknown top-level properties rejected.",
       "additionalProperties": false,
       "required": [
         "inputEventId",
@@ -512,6 +651,14 @@
         "patientId": {
           "type": "string",
           "description": "Required."
+        },
+        "patientName": {
+          "type": "string",
+          "description": "Optional. Patient display name from the UI; stored for list/detail."
+        },
+        "actorName": {
+          "type": "string",
+          "description": "Optional. Display name of the API caller (actor); not from JWT."
         },
         "carePlanInstanceId": {
           "type": "string",
@@ -581,12 +728,14 @@
       "example": {
         "inputEventId": "ui-missed-reading-001",
         "inputType": "MISSED_READING",
-        "sourceType": "DEVICE_MONITORING",
+        "sourceType": "MONITORING_SERVICE",
         "patientId": "pat-123",
+        "patientName": "Jane Doe",
+        "actorName": "Dr. Smith",
         "triggerTimestamp": "2026-04-17T10:00:00.000Z",
         "evidencePayload": {
           "eventTimestamp": "2026-04-17T10:00:00.000Z",
-          "source": "DEVICE_MONITORING",
+          "source": "MONITORING_SERVICE",
           "inputType": "MISSED_READING",
           "appliesToType": "VITAL_SIGN",
           "linkedEntityCode": "BP_SYSTOLIC",
@@ -625,6 +774,174 @@
         "slaBreachIndicator": false
       }
     },
+    "AlertIds": {
+      "type": "array",
+      "description": "One or many alert ids (single-select = array of one element).",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "maxItems": 100
+    },
+    "WorkflowAction": {
+      "type": "string",
+      "enum": [
+        "ASSIGN",
+        "START_WORK",
+        "MOVE_TO_WAITING",
+        "RESUME_WORK",
+        "RESOLVE",
+        "DISMISS"
+      ]
+    },
+    "WorkflowRequest": {
+      "type": "object",
+      "required": [
+        "alertIds",
+        "action",
+        "performedByDisplayName"
+      ],
+      "properties": {
+        "alertIds": {
+          "$ref": "#/definitions/AlertIds"
+        },
+        "action": {
+          "$ref": "#/definitions/WorkflowAction"
+        },
+        "assignedToUserId": {
+          "type": "string"
+        },
+        "assigneeDisplayName": {
+          "type": "string"
+        },
+        "reasonCode": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "closureComment": {
+          "type": "string"
+        },
+        "performedByDisplayName": {
+          "type": "string"
+        }
+      },
+      "example": {
+        "alertIds": [
+          "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        ],
+        "action": "START_WORK",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
+    "AssignmentAction": {
+      "type": "string",
+      "enum": [
+        "ASSIGN",
+        "ASSIGN_TO_SELF",
+        "REASSIGN",
+        "UNASSIGN"
+      ]
+    },
+    "AssignmentRequest": {
+      "type": "object",
+      "required": [
+        "action",
+        "performedByDisplayName"
+      ],
+      "properties": {
+        "action": {
+          "$ref": "#/definitions/AssignmentAction"
+        },
+        "assignToUserId": {
+          "type": "string",
+          "description": "Required for ASSIGN and REASSIGN."
+        },
+        "assigneeDisplayName": {
+          "type": "string",
+          "description": "Required for ASSIGN, REASSIGN, and ASSIGN_TO_SELF."
+        },
+        "performedByDisplayName": {
+          "type": "string"
+        }
+      },
+      "example": {
+        "action": "ASSIGN",
+        "assignToUserId": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+        "assigneeDisplayName": "Dr Smith",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
+    "AssignmentRequestBody": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": [
+            "alertIds"
+          ],
+          "properties": {
+            "alertIds": {
+              "$ref": "#/definitions/AlertIds"
+            }
+          }
+        },
+        {
+          "$ref": "#/definitions/AssignmentRequest"
+        }
+      ]
+    },
+    "PriorityUpdateRequestBody": {
+      "type": "object",
+      "required": [
+        "alertIds",
+        "priority",
+        "performedByDisplayName"
+      ],
+      "properties": {
+        "alertIds": {
+          "$ref": "#/definitions/AlertIds"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "P3"
+          ]
+        },
+        "performedByDisplayName": {
+          "type": "string"
+        }
+      },
+      "example": {
+        "alertIds": [
+          "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        ],
+        "priority": "P1",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
+    "NoteRequest": {
+      "type": "object",
+      "required": [
+        "comment",
+        "performedByDisplayName"
+      ],
+      "properties": {
+        "comment": {
+          "type": "string"
+        },
+        "performedByDisplayName": {
+          "type": "string"
+        }
+      },
+      "example": {
+        "comment": "Reviewed alert; will follow up.",
+        "performedByDisplayName": "Nurse Lee"
+      }
+    },
     "ActivityType": {
       "type": "string",
       "enum": [
@@ -641,6 +958,238 @@
         "PRIORITY_CHANGED"
       ]
     },
+    "EpochMillis": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Unix epoch milliseconds (UTC) for alert SLA instants and activity rows."
+    },
+    "PaginatedAlerts": {
+      "type": "object",
+      "description": "`data` for GET /alerts — items are AlertDetail (`toAlertDetail`).",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AlertDetail"
+          }
+        },
+        "nextToken": {
+          "type": "string",
+          "description": "Opaque pagination cursor."
+        }
+      }
+    },
+    "AlertSummary": {
+      "type": "object",
+      "description": "Subset of persisted alert fields exposed on detail; instants are epoch ms (`toAlertDetail`).",
+      "properties": {
+        "alertId": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string"
+        },
+        "alertState": {
+          "type": "string"
+        },
+        "inputType": {
+          "type": "string"
+        },
+        "sourceType": {
+          "type": "string"
+        },
+        "triggerSummary": {
+          "type": "string"
+        },
+        "triggerTimestamp": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "groupingKey": {
+          "type": "string"
+        },
+        "patientId": {
+          "type": "string"
+        },
+        "patientName": {
+          "type": "string"
+        },
+        "actorName": {
+          "type": "string"
+        },
+        "assignedToUserId": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "assignedToDisplayName": {
+          "type": "string"
+        },
+        "slaBreachIndicator": {
+          "type": "boolean"
+        },
+        "assignSlaDueAt": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "resolveSlaDueAt": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "createdAt": {
+          "$ref": "#/definitions/EpochMillis"
+        }
+      }
+    },
+    "AlertDetail": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AlertSummary"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "inputEventId": {
+              "type": "string"
+            },
+            "orgId": {
+              "type": "string"
+            },
+            "evidencePayload": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "groupId": {
+              "type": "string"
+            },
+            "assignedAt": {
+              "$ref": "#/definitions/EpochMillis"
+            },
+            "assignedBy": {
+              "type": "string"
+            },
+            "statusUpdatedAt": {
+              "$ref": "#/definitions/EpochMillis"
+            },
+            "statusUpdatedBy": {
+              "type": "string"
+            },
+            "closureComment": {
+              "type": "string"
+            },
+            "resolutionCode": {
+              "type": "string"
+            },
+            "dismissReason": {
+              "type": "string"
+            },
+            "assignSla": {
+              "type": "integer"
+            },
+            "resolveSla": {
+              "type": "integer"
+            },
+            "assignSlaBreachedAt": {
+              "$ref": "#/definitions/EpochMillis"
+            },
+            "resolveSlaBreachedAt": {
+              "$ref": "#/definitions/EpochMillis"
+            },
+            "updatedAt": {
+              "$ref": "#/definitions/EpochMillis"
+            },
+            "carePlanInstanceId": {
+              "type": "string"
+            },
+            "packageAssignmentId": {
+              "type": "string"
+            },
+            "alertPolicyTemplateVersionId": {
+              "type": "string"
+            },
+            "thresholdTemplateVersionId": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "SuccessEnvelopeAlertDetail": {
+      "type": "object",
+      "description": "ApiResponse.ok body with AlertDetail in `data` (POST /alerts, GET /alerts/{id}).",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "example": true
+        },
+        "statusCode": {
+          "type": "integer",
+          "example": 200
+        },
+        "message": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "severity": {
+              "type": "string"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/definitions/AlertDetail"
+        },
+        "error": {
+          "type": "object",
+          "x-nullable": true
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "version": {
+              "type": "string",
+              "enum": [
+                "v1"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "SuccessEnvelopePaginatedAlerts": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /alerts.",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "example": true
+        },
+        "statusCode": {
+          "type": "integer",
+          "example": 200
+        },
+        "message": {
+          "type": "object"
+        },
+        "data": {
+          "$ref": "#/definitions/PaginatedAlerts"
+        },
+        "error": {
+          "type": "object",
+          "x-nullable": true
+        },
+        "meta": {
+          "type": "object"
+        }
+      }
+    },
     "ActivityRecord": {
       "type": "object",
       "description": "One audit / timeline row for an alert.",
@@ -655,8 +1204,7 @@
           "$ref": "#/definitions/ActivityType"
         },
         "activityTimestamp": {
-          "type": "string",
-          "format": "date-time"
+          "$ref": "#/definitions/EpochMillis"
         },
         "performedBy": {
           "type": "string"
@@ -666,6 +1214,34 @@
         },
         "activityComment": {
           "type": "string"
+        },
+        "previousState": {
+          "type": "string"
+        },
+        "newState": {
+          "type": "string"
+        },
+        "previousPriority": {
+          "type": "string"
+        },
+        "newPriority": {
+          "type": "string"
+        },
+        "previousAssignee": {
+          "type": "string"
+        },
+        "newAssignee": {
+          "type": "string"
+        },
+        "previousAssigneeDisplayName": {
+          "type": "string"
+        },
+        "newAssigneeDisplayName": {
+          "type": "string"
+        },
+        "evidencePayload": {
+          "type": "object",
+          "additionalProperties": true
         }
       }
     },
@@ -689,7 +1265,7 @@
             "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
             "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
             "activityType": "ALERT_CREATED",
-            "activityTimestamp": "2026-04-17T10:05:00.000Z",
+            "activityTimestamp": 1735890300000,
             "performedBy": "SYSTEM"
           }
         ]
@@ -730,7 +1306,7 @@
               "activityId": "a1b2c3d4-0000-0000-0000-000000000001",
               "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
               "activityType": "ALERT_CREATED",
-              "activityTimestamp": "2026-04-17T10:05:00.000Z",
+              "activityTimestamp": 1735890300000,
               "performedBy": "SYSTEM"
             }
           ]

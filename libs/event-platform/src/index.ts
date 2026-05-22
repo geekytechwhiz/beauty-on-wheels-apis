@@ -91,8 +91,7 @@ export {
   RealtimeAggregatePayloadSchema,
   REALTIME_AGGREGATE_EVENT_TYPE,
 } from './core/realtime/schemas/realtime-aggregate.event';
-export { RealtimeEventService } from './core/realtime/services/realtime-event.service';
-export { NoopRealtimePublisher } from './core/realtime/services/noop-realtime-publisher.service';
+export { RealtimeEventService } from './core/realtime/services/realtime-event.service'; 
 export type { SocketService, SocketPublishContext } from './core/realtime/interfaces/socket-service.interface';
 export type { ConnectionResolver } from './core/realtime/interfaces/connection-resolver.interface';
 export { buildSocketDestinationKey, type SocketDestinationInput } from './core/realtime/utils/build-socket-destination-key';

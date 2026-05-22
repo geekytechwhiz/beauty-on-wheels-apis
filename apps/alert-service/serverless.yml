@@ -629,6 +629,21 @@ functions:
           functionResponseType: ReportBatchItemFailures
 resources:
   Resources:
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: UNAUTHORIZED
+        StatusCode: '401'
+        ResponseParameters:
+          gatewayresponse.header.X-Content-Type-Options: "'nosniff'"
+          gatewayresponse.header.X-XSS-Protection: "'1'"
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.X-Frame-Options: "'DENY'"
+        ResponseTemplates:
+          application/json: "{\"success\":false,\"message\":$context.error.messageString,\"errorCode\":\"INVALID_TOKEN\",\"statusCode\":401}"
+
     AlertCreateConsumerDLQ:
       Type: AWS::SQS::Queue
       Properties:

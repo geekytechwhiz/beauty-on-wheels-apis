@@ -1,0 +1,13 @@
+flowchart TD
+
+A[Chat Events] --> D[Shared WebSocket Layer]
+
+B[Alert Events] --> D
+
+C[Patient Events] --> D
+
+E[Appointment Events] --> D
+
+D --> F[Web App]
+
+D --> G[Mobile App]

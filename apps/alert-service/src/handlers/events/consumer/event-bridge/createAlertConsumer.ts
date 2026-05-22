@@ -18,8 +18,6 @@ configureEventRuntime();
 
 const alertService = new AlertService();
 
-const realtimeAggregateEnabled = process.env.ALERT_REALTIME_AGGREGATE === 'true';
-
 export async function processCreateAlert(payload: AlertCreateIngestPayload): Promise<void> {
   const { publishIntents, duplicate } = await alertService.createAlert(
     mapIngestPayloadToCreateAlert(payload),
@@ -35,13 +33,11 @@ export const handler = onEvent({
   consumer: {
     ...buildAlertEventConsumerDeps(),
     realtimePublisher: getAlertRealtimePublisher(),
-    realtimeAggregationPublisher: realtimeAggregateEnabled
-      ? getAlertRealtimeAggregationPublisher()
-      : undefined,
+    realtimeAggregationPublisher: getAlertRealtimeAggregationPublisher(),
   },
   realtime: {
-    enabled: process.env.ALERT_REALTIME_ENABLED === 'true',
-    aggregate: realtimeAggregateEnabled,
+    enabled: true,
+    aggregate: true,
     resolver: alertRecipientResolver,
     transformer: alertCreatedRealtimeTransformer,
   },

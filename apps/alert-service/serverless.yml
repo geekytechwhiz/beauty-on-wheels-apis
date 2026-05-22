@@ -527,8 +527,6 @@ functions:
     environment:
       REALTIME_AGGREGATION_QUEUE_URL:
         Ref: RealtimeAggregationQueue
-      ALERT_REALTIME_ENABLED: ${env:ALERT_REALTIME_ENABLED, 'false'}
-      ALERT_REALTIME_AGGREGATE: ${env:ALERT_REALTIME_AGGREGATE, 'false'}
     maximumRetryAttempts: 2
     destinations:
       onFailure:

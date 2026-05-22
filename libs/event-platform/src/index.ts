@@ -18,12 +18,6 @@ export {
 export { 
   createDynamoStreamHandler, 
 } from './lib/create-dynamo-stream-handler';
-export {
-  createSqsEventHandler,
-  onQueue,
-  type CreateSqsEventHandlerOptions,
-  type OnQueueOptions,
-} from './lib/create-sqs-event-handler';
 export { onDynamoEvent } from './lib/on-dynamo-event';
 export { 
   unwrapSnsNotificationPayload,

@@ -1,0 +1,333 @@
+{
+  "resource": "TestReport",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "testScript",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "result",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "score",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "tester",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "issued",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "participant",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "participant.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "participant.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "participant.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "participant.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "participant.uri",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "participant.display",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "setup",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "setup.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "setup.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.action",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "setup.action.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "setup.action.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.action.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.action.operation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "setup.action.operation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "setup.action.operation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.action.operation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.action.operation.result",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "setup.action.operation.message",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "setup.action.operation.detail",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "setup.action.assert",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "setup.action.assert.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "setup.action.assert.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.action.assert.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "setup.action.assert.result",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "setup.action.assert.message",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "setup.action.assert.detail",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "test",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "test.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "test.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "test.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "test.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "test.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "test.action",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "test.action.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "test.action.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "test.action.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "test.action.operation"
+    },
+    {
+      "source": "",
+      "target": "test.action.assert"
+    },
+    {
+      "source": "",
+      "target": "teardown",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "teardown.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "teardown.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "teardown.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "teardown.action",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "teardown.action.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "teardown.action.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "teardown.action.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "teardown.action.operation"
+    }
+  ]
+}

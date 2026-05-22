@@ -1,0 +1,349 @@
+{
+  "resource": "Shareable CodeSystem",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "CodeSystem"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.caseSensitive",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.valueSet",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.hierarchyMeaning",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.compositional",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.versionNeeded",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.content",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.supplements",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.count",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter.operator",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.filter.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property.uri",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.property.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.display",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.definition",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.designation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.designation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.designation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.designation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.designation.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.designation.use",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.designation.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.property",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.property.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.property.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.property.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.property.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.property.value[x]",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "CodeSystem.concept.concept"
+    }
+  ]
+}

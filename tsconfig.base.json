@@ -31,6 +31,8 @@
       "@api-hub/consent": ["libs/consent/src/index.ts"],
       "@api-hub/capability": ["libs/capability/src/index.ts"],
       "@api-hub/terminology": ["libs/terminology/src/index.ts"],
+      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
+      "@api-hub/middleware": ["libs/middleware/src/index.ts"],
       "@api-hub/partners": ["libs/partners/src/index.ts"],
       "@api-hub/integration-events": ["libs/integration-events/src/index.ts"],
       "@api-hub/lab-integration": ["libs/lab-integration/src/index.ts"],

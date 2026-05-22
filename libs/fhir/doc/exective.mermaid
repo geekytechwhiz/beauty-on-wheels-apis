@@ -1,0 +1,29 @@
+flowchart TD
+
+Edge --> US[user-service FHIR endpoint]
+Edge --> OS[organization-service FHIR endpoint]
+Edge --> DS[device-service FHIR endpoint]
+
+US --> UDB[(User DB)]
+OS --> ODB[(Org DB)]
+DS --> DDB[(Device DB)]
+
+CORE["@your-org/fhir-core"]
+AWS["@your-org/fhir-aws"]
+PROF["@your-org/fhir-profiles"]
+
+US -.-> CORE
+US -.-> AWS
+US -.-> PROF
+
+OS -.-> CORE
+OS -.-> AWS
+OS -.-> PROF
+
+DS -.-> CORE
+DS -.-> AWS
+DS -.-> PROF
+
+EXT[Other Repos] -. npm install .-> CORE
+EXT -. npm install .-> AWS
+EXT -. npm install .-> PROF

@@ -1,0 +1,301 @@
+{
+  "resource": "CarePlan",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "instantiatesCanonical",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "instantiatesUri",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "replaces",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "partOf",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "intent",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "created",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "author",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "contributor",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "careTeam",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "addresses",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "goal",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "activity",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "activity.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "activity.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "activity.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "activity.outcomeCodeableConcept",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "activity.outcomeReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "activity.progress",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "activity.reference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "activity.detail",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.kind",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.instantiatesCanonical",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.instantiatesUri",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.goal",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.statusReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.doNotPerform",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.scheduled[x]",
+      "fieldType": "Timing"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.performer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.product[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.dailyAmount",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "activity.detail.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

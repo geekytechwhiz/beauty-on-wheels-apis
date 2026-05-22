@@ -1,0 +1,101 @@
+{
+  "resource": "Slot",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "serviceCategory",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "serviceType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specialty",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "appointmentType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "schedule",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "start",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "end",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "overbooked",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "comment",
+      "fieldType": "string"
+    }
+  ]
+}

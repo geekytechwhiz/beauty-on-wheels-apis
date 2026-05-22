@@ -1,0 +1,261 @@
+{
+  "resource": "CoverageEligibilityRequest",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "serviced[x]",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "created",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "enterer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "provider",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "insurer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "facility",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.information",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.appliesToAll",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "insurance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "insurance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "insurance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "insurance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "insurance.focal",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "insurance.coverage",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "insurance.businessArrangement",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "item",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.supportingInfoSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.productOrService",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.modifier",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.provider",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "item.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "item.unitPrice",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.facility",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "item.diagnosis",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.diagnosis.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.diagnosis.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.diagnosis.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.diagnosis.diagnosis[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail",
+      "fieldType": "Reference"
+    }
+  ]
+}

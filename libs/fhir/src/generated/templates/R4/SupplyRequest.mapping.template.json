@@ -1,0 +1,146 @@
+{
+  "resource": "SupplyRequest",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "item[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "parameter",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "parameter.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "parameter.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "parameter.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "parameter.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "parameter.value[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "occurrence[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "authoredOn",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "requester",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "supplier",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "deliverFrom",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "deliverTo",
+      "fieldType": "Reference"
+    }
+  ]
+}

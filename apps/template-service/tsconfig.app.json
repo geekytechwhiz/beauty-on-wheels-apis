@@ -32,10 +32,17 @@
     "eslint.config.mjs"
   ],
   "references": [
-    { "path": "../../libs/observability/tsconfig.lib.json" },
-    { "path": "../../libs/event-platform/tsconfig.lib.json" },
-    { "path": "../../libs/utils/tsconfig.lib.json" },
-    { "path": "../../libs/middleware/tsconfig.lib.json" },
-    { "path": "../../libs/template-core/tsconfig.lib.json" }
+    {
+      "path": "../../libs/observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/template-core/tsconfig.lib.json"
+    }
   ]
 }

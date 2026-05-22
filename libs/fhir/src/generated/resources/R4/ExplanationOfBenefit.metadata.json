@@ -1,0 +1,2057 @@
+{
+  "resource": "ExplanationOfBenefit",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "ExplanationOfBenefit",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.subType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.use",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.billablePeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.created",
+      "type": [
+        "dateTime"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.enterer",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.insurer",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.provider",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.priority",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.fundsReserveRequested",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.fundsReserve",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.related",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.related.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.related.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.related.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.related.claim",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.related.relationship",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.related.reference",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.prescription",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.originalPrescription",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payee",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payee.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payee.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.payee.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.payee.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payee.party",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.referral",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.facility",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.claim",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.claimResponse",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.outcome",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.disposition",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.preAuthRef",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.preAuthRefPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.provider",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.responsible",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.role",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.careTeam.qualification",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.timing[x]",
+      "type": [
+        "date",
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.value[x]",
+      "type": [
+        "boolean",
+        "string",
+        "Quantity",
+        "Attachment",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.supportingInfo.reason",
+      "type": [
+        "Coding"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.diagnosis[x]",
+      "type": [
+        "CodeableConcept",
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.onAdmission",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.diagnosis.packageCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.procedure[x]",
+      "type": [
+        "CodeableConcept",
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.procedure.udi",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.precedence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.insurance",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.insurance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.insurance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.insurance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.insurance.focal",
+      "type": [
+        "boolean"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.insurance.coverage",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.insurance.preAuthRef",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.accident",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.accident.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.accident.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.accident.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.accident.date",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.accident.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.accident.location[x]",
+      "type": [
+        "Address",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.careTeamSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.diagnosisSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.procedureSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.informationSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.revenue",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.programCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.serviced[x]",
+      "type": [
+        "date",
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.location[x]",
+      "type": [
+        "CodeableConcept",
+        "Address",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.udi",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.bodySite",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.subSite",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.encounter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication.reason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication.amount",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.adjudication.value",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.revenue",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.programCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.udi",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.revenue",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.programCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.udi",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.item.detail.subDetail.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.itemSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.subDetailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.provider",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.programCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.serviced[x]",
+      "type": [
+        "date",
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.location[x]",
+      "type": [
+        "CodeableConcept",
+        "Address",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.bodySite",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.subSite",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.addItem.detail.subDetail.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.total",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.total.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.total.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.total.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.total.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.total.amount",
+      "type": [
+        "Money"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.adjustment",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.adjustmentReason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.date",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.amount",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.payment.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.formCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.form",
+      "type": [
+        "Attachment"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote.number",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote.type",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote.text",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.processNote.language",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.excluded",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.network",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.unit",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.term",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.financial",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.financial.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.financial.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.financial.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.financial.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.financial.allowed[x]",
+      "type": [
+        "unsignedInt",
+        "string",
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ExplanationOfBenefit.benefitBalance.financial.used[x]",
+      "type": [
+        "unsignedInt",
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "fhir",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/fhir/src",
+  "projectType": "library",
+  "tags": ["type:lib", "type:shared"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/fhir/jest.config.js",
+        "passWithNoTests": false
+      }
+    }
+  }
+}

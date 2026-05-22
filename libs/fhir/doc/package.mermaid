@@ -1,0 +1,29 @@
+flowchart TD
+    subgraph Service Repo
+        H[Handler / Route]
+        D[Domain Service]
+        R[Repository / Data Access]
+        C[Canonical Domain Model]
+    end
+
+    subgraph Shared NPM Packages
+        M["@your-org/fhir-aws\nmiddleware / transport glue"]
+        F["@your-org/fhir-core\nFHIR transformation primitives"]
+        P["@your-org/fhir-profiles\nmappings / tenant overrides"]
+    end
+
+    subgraph Infrastructure
+        DB[(Database)]
+        AUTH[JWT / Scope Provider]
+    end
+
+    H --> M
+    H --> D
+    D --> C
+    D --> R
+    R --> DB
+
+    M --> AUTH
+    M --> F
+    F --> P
+    F --> C

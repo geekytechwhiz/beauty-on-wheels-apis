@@ -1,0 +1,279 @@
+{
+  "resource": "Profile for Catalog",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "Composition"
+    },
+    {
+      "source": "",
+      "target": "Composition.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Composition.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "Composition.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Composition.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Composition.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "Composition.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "Composition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "Composition.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Composition.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Composition.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Composition.subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "Composition.author",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Composition.confidentiality",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Composition.attester",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Composition.attester.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Composition.attester.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.attester.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.attester.mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Composition.attester.time",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "Composition.attester.party",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.custodian",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.relatesTo",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Composition.relatesTo.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Composition.relatesTo.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.relatesTo.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.relatesTo.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Composition.relatesTo.target[x]",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "Composition.event",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Composition.event.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Composition.event.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.event.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.event.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Composition.event.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "Composition.event.detail",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.section",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.author",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.focus",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.orderedBy",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.entry",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.emptyReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Composition.section.section"
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "resource": "ClinicalImpression",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "effective[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "assessor",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "previous",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "problem",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "investigation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "investigation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "investigation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "investigation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "investigation.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "investigation.item",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "protocol",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "summary",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "finding",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "finding.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "finding.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "finding.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "finding.itemCodeableConcept",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "finding.itemReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "finding.basis",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "prognosisCodeableConcept",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "prognosisReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

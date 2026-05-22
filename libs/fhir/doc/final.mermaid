@@ -1,0 +1,45 @@
+flowchart TD
+    A[Incoming API Gateway Request] --> B[Request Context Builder]
+    B --> C[Authorization Header Extractor]
+    C --> D[JWT Decode]
+    D --> E[Scope Parser]
+    E --> F{FHIR Scope Allowed?}
+
+    F -- No --> G[Build OperationOutcome]
+    G --> H[Return 403 application/fhir+json]
+
+    F -- Yes --> I[Resolve Tenant Id / Client Id]
+    I --> J[Run Request Validator]
+    J --> K{Valid Request?}
+
+    K -- No --> L[Build OperationOutcome]
+    L --> M[Return 400 application/fhir+json]
+
+    K -- Yes --> N[Invoke Domain Handler]
+    N --> O[Fetch Domain Data]
+    O --> P[Return Canonical Model]
+
+    P --> Q[Transformation Service]
+    Q --> R[Mapping Resolver]
+    R --> S[Base Mapping Registry]
+    R --> T[Client Override Registry]
+
+    S --> U[Resolved Mapping]
+    T --> U
+
+    U --> V[Generic Mapper / Typed Adapter]
+    V --> W[Terminology Normalizer]
+    W --> X[FHIR Validator]
+
+    X --> Y{FHIR Valid?}
+
+    Y -- No --> Z[Build OperationOutcome]
+    Z --> AA[Return 422 application/fhir+json]
+
+    Y -- Yes --> AB{Single Resource or Collection?}
+    AB -- Single --> AC[Return Patient / Resource]
+    AB -- Collection --> AD[Build Bundle searchset]
+
+    AC --> AE[Raw FHIR Response Writer]
+    AD --> AE
+    AE --> AF[HTTP Response application/fhir+json]

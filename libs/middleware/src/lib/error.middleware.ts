@@ -5,6 +5,11 @@ import {
 import { serializeError } from '@api-hub/observability';
 import { BaseError, handleError, toBaseError } from '@api-hub/utils';
 
+import { FhirValidationError } from '@api-hub/fhir';
+
+import {
+  fhirValidationErrorResponse,
+} from './fhir/fhir-error-response';
 import { EventSchemaError } from './event-schema/event-schema-error';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
 
@@ -41,7 +46,6 @@ export function httpApiErrorMiddleware<
     try {
       return await next();
     } catch (error: unknown) {
-      const appError = normalizePipelineError(error);
       const raw = (event as MiddlewarePipelineEvent).__context;
       const correlationId = raw?.correlationId ?? 'unknown';
       const awsRequestId = raw?.awsRequestId ?? 'unknown-request-id';
@@ -49,6 +53,28 @@ export function httpApiErrorMiddleware<
         correlationId,
         awsRequestId,
       });
+
+      if (error instanceof FhirValidationError) {
+        const fhirError = error;
+
+        logger.error({
+          event: 'http_pipeline_error',
+          operation: raw?.operation,
+          correlationId,
+          traceId: raw?.traceId,
+          'error.code': fhirError.code,
+          'error.retryable': false,
+          err: serializeError(fhirError),
+        });
+
+        return fhirValidationErrorResponse(fhirError, {
+          correlationId,
+          logger,
+          skipLog: true,
+        }) as TResult;
+      }
+
+      const appError = normalizePipelineError(error);
 
       logger.error({
         event: 'http_pipeline_error',

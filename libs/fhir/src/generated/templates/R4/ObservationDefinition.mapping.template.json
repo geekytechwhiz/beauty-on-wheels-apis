@@ -1,0 +1,201 @@
+{
+  "resource": "ObservationDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "permittedDataType",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "multipleResultsAllowed",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "method",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "preferredReportName",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails.customaryUnit",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails.unit",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails.conversionFactor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "quantitativeDetails.decimalPrecision",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.category",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.range",
+      "fieldType": "Range"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.context",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.appliesTo",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.gender",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.age",
+      "fieldType": "Range"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.gestationalAge",
+      "fieldType": "Range"
+    },
+    {
+      "source": "",
+      "target": "qualifiedInterval.condition",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "validCodedValueSet",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "normalCodedValueSet",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "abnormalCodedValueSet",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "criticalCodedValueSet",
+      "fieldType": "Reference"
+    }
+  ]
+}

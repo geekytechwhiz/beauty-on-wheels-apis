@@ -1,0 +1,106 @@
+{
+  "resource": "OrganizationAffiliation",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "active",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "organization",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "participatingOrganization",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "network",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specialty",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "healthcareService",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "telecom",
+      "fieldType": "ContactPoint"
+    },
+    {
+      "source": "",
+      "target": "endpoint",
+      "fieldType": "Reference"
+    }
+  ]
+}

@@ -58,18 +58,20 @@ export class ApiResponse {
     options: ResponseOptions,
   ): APIGatewayProxyResult {
 
-    return createResponse(
-      200,
-      {
-        success: true,
-        statusCode: 200,
-        message: typeof message === 'string' ? { title: message, description: message, severity: 'SUCCESS' } : message,
-        data: normalizeData(data),
-        error: null,
-        meta: buildMeta(options),
-      },
-      options.headers
-    );
+    const body: ApiResponseBody<T> = {
+      success: true,
+      statusCode: 200,
+      message: typeof message === 'string' ? { title: message, description: message, severity: 'SUCCESS' } : message,
+      data: normalizeData(data),
+      error: null,
+      meta: buildMeta(options),
+    };
+
+    if (options.fhir !== undefined) {
+      body.fhir = options.fhir;
+    }
+
+    return createResponse(200, body, options.headers);
   }
 
   static created<T>(

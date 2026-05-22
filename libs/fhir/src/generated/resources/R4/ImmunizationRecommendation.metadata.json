@@ -1,0 +1,278 @@
+{
+  "resource": "ImmunizationRecommendation",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "ImmunizationRecommendation",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.authority",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.vaccineCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.targetDisease",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.contraindicatedVaccineCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.forecastStatus",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.forecastReason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.dateCriterion",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.dateCriterion.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.dateCriterion.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.dateCriterion.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.dateCriterion.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.dateCriterion.value",
+      "type": [
+        "dateTime"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.series",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.doseNumber[x]",
+      "type": [
+        "positiveInt",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.seriesDoses[x]",
+      "type": [
+        "positiveInt",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.supportingImmunization",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationRecommendation.recommendation.supportingPatientInformation",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "resource": "MedicinalProductAuthorization",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "country",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "statusDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "restoreDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "validityPeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "dataExclusivityPeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "dateOfFirstAuthorization",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "internationalBirthDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "legalBasis",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.country",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.legalStatusOfSupply",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "jurisdictionalAuthorization.validityPeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "holder",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "regulator",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "procedure",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "procedure.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "procedure.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "procedure.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "procedure.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "procedure.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "procedure.date[x]",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "procedure.application"
+    }
+  ]
+}

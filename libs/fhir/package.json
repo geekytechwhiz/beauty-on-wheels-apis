@@ -1,0 +1,35 @@
+{
+  "name": "@api-hub/fhir",
+  "version": "0.0.1",
+  "scripts": {
+    "generate:resources": "ts-node --project scripts/tsconfig.json scripts/generate-resources.ts"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@api-hub/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "nx": {
+    "name": "fhir"
+  },
+  "dependencies": {
+    "@ahryman40k/ts-fhir-types": "^4.0.39",
+    "@api-hub/terminology": "workspace:*",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "fs-extra": "^11.3.5",
+    "glob": "^13.0.0"
+  }
+}

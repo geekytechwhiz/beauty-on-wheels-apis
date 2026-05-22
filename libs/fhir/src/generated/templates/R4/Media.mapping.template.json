@@ -1,0 +1,156 @@
+{
+  "resource": "Media",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "partOf",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "modality",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "view",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "created[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "issued",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "operator",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "bodySite",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "deviceName",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "device",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "height",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "width",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "frames",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "duration",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "content",
+      "fieldType": "Attachment"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

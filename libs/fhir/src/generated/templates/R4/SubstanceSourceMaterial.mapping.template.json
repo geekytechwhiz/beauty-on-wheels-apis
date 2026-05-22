@@ -1,0 +1,316 @@
+{
+  "resource": "SubstanceSourceMaterial",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "sourceMaterialClass",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "sourceMaterialType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "sourceMaterialState",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organismId",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "organismName",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "parentSubstanceId",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "parentSubstanceName",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "countryOfOrigin",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "geographicalLocation",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "developmentStage",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "fractionDescription",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "fractionDescription.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "fractionDescription.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "fractionDescription.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "fractionDescription.fraction",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "fractionDescription.materialType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "organism.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "organism.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.family",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.genus",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.species",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.intraspecificType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.intraspecificDescription",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "organism.author",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "organism.author.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "organism.author.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.author.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.author.authorType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.author.authorDescription",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.maternalOrganismId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.maternalOrganismName",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.paternalOrganismId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.paternalOrganismName",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "organism.hybrid.hybridType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral.kingdom",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral.phylum",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral.class",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "organism.organismGeneral.order",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "partDescription",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "partDescription.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "partDescription.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "partDescription.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "partDescription.part",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "partDescription.partLocation",
+      "fieldType": "CodeableConcept"
+    }
+  ]
+}

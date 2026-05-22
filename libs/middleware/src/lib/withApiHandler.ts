@@ -15,6 +15,11 @@ import type {
   MiddlewarePipelineEvent,
   RequestBuildEvent,
 } from './types';
+import type { FhirHandlerOptions } from './fhir/transform-to-fhir-response';
+import {
+  isFhirEnabled,
+  transformToFhirResponse,
+} from './fhir/transform-to-fhir-response';
 import { successResponse } from './response.middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
@@ -41,7 +46,12 @@ export type   withApiHandlerOptions = {
   /**
    * Optional request-level validation (e.g. tenant resolution) after body parsing.
    */
-  validator?:RequestValidator
+  validator?:RequestValidator;
+  /**
+   * When set, adds a strict FHIR projection as a sibling `fhir` field on the response
+   * while preserving the canonical handler payload in `data`.
+   */
+  fhir?: FhirHandlerOptions;
 };
 
 function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
@@ -95,7 +105,7 @@ export function withApiHandler<
       correlationId,
       awsRequestId,
     });
-
+  
     const req = buildRequestContext(event as unknown as RequestBuildEvent);
     const ctxFields = {
       ...(req.context as unknown as Record<string, unknown>),
@@ -123,8 +133,23 @@ export function withApiHandler<
 
     const correlationIdFromContext =
       (req.context as { correlationId?: string }).correlationId ?? 'unknown';
-     
-    return successResponse(result, undefined, { correlationId :correlationIdFromContext}) as TResult;
+
+    if (isFhirEnabled(options.fhir) && result) {
+      const fhirBundle = await transformToFhirResponse(
+        result,
+        options.fhir!,
+        req,
+      );
+
+      return successResponse(result, undefined, {
+        correlationId: correlationIdFromContext,
+        fhir: fhirBundle,
+      }) as TResult;
+    }
+
+    return successResponse(result, undefined, {
+      correlationId: correlationIdFromContext,
+    }) as TResult;
   };
 
   return runMiddlewares(stack, adaptedHandler) 

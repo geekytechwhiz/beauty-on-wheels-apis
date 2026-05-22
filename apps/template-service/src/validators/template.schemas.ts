@@ -61,6 +61,41 @@ export const templateIdPathSchema = z.object({
   templateId: z.string().trim().min(1),
 });
 
+export const templateVersionPathSchema = z.object({
+  templateId: z.string().trim().min(1),
+  versionId: z.string().trim().min(1),
+});
+
+export const updateMasterTemplateBodySchema = z
+  .object({
+    meta: z.record(z.string(), z.unknown()).optional(),
+    steps: z.array(z.unknown()).optional(),
+    links: z.record(z.string(), z.unknown()).optional(),
+    carePlanAttributes: z.record(z.string(), z.unknown()).optional(),
+    templateTypeConfig: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
+export type UpdateMasterTemplateBody = z.infer<typeof updateMasterTemplateBodySchema>;
+
+export const statusTransitionBodySchema = z
+  .object({
+    action: z.enum(['SUBMIT_REVIEW', 'PUBLISH', 'REJECT', 'ARCHIVE', 'DEPRECATE']),
+    comment: z.string().nullable().optional(),
+    reason: z.string().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.action === 'REJECT' && !data.reason?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'reason is required when action is REJECT',
+        path: ['reason'],
+      });
+    }
+  });
+
+export type StatusTransitionBody = z.infer<typeof statusTransitionBodySchema>;
+
 export function parseGetMasterVersionsQuery(
   raw: Record<string, string | string[] | undefined> | null | undefined,
 ): GetMasterVersionsQuery {
@@ -72,6 +107,92 @@ export function parseGetMasterVersionsQuery(
     }
   }
   return getMasterVersionsQuerySchema.parse(params);
+}
+
+export const cloneTemplateBodySchema = z.object({
+  newTemplateName: z.string().trim().min(1).max(150).optional(),
+  inheritLinks: z.boolean().optional(),
+});
+
+export type CloneTemplateBody = z.infer<typeof cloneTemplateBodySchema>;
+
+export const orgTemplatePathSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  templateId: z.string().trim().min(1),
+});
+
+export const orgClonePathSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  templateId: z.string().trim().min(1),
+  versionId: z.string().trim().min(1),
+});
+
+export const listOrgTemplatesQuerySchema = z.object({
+  organizationId: z.string().trim().min(1).optional(),
+  condition: z.string().trim().min(1).optional(),
+  status: templateStatusZ.optional(),
+  templateType: z.string().trim().min(1).optional(),
+  specialty: z.string().trim().min(1).optional(),
+  nextToken: z.string().trim().min(1).optional(),
+});
+
+export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
+
+export const updateOrgTemplateBodySchema = z
+  .object({
+    meta: z.record(z.string(), z.unknown()).optional(),
+    overrides: z.record(z.string(), z.unknown()).optional(),
+    steps: z.array(z.unknown()).optional(),
+    links: z.record(z.string(), z.unknown()).optional(),
+    carePlanAttributes: z.record(z.string(), z.unknown()).optional(),
+    templateTypeConfig: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
+export type UpdateOrgTemplateBody = z.infer<typeof updateOrgTemplateBodySchema>;
+
+export const createOrgEnablementBodySchema = z.object({
+  organizationId: z.string().trim().min(1),
+  masterTemplateVersionId: z.string().trim().min(1),
+  effectiveFrom: z.string().trim().min(1).optional(),
+  effectiveTo: z.string().nullable().optional(),
+});
+
+export type CreateOrgEnablementBody = z.infer<typeof createOrgEnablementBodySchema>;
+
+export const listCompatibleTemplatesQuerySchema = z.object({
+  condition: z.string().trim().min(1),
+  country: z.string().trim().min(1),
+  duration: z.string().trim().min(1).optional(),
+  templateType: z.string().trim().min(1).optional(),
+});
+
+export type ListCompatibleTemplatesQuery = z.infer<typeof listCompatibleTemplatesQuerySchema>;
+
+export function parseListCompatibleTemplatesQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): ListCompatibleTemplatesQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      params[key] = Array.isArray(value) ? value[0] : value;
+    }
+  }
+  return listCompatibleTemplatesQuerySchema.parse(params);
+}
+
+export function parseListOrgTemplatesQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): ListOrgTemplatesQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      params[key] = Array.isArray(value) ? value[0] : value;
+    }
+  }
+  return listOrgTemplatesQuerySchema.parse(params);
 }
 
 export function parseListMasterTemplatesQuery(

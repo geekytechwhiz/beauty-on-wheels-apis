@@ -10,6 +10,10 @@ import type {
   ValidatedGetMasterMeta,
   ValidatedGetMasterVersions,
   ValidatedListMaster,
+  ValidatedListCompatible,
+  ValidatedStatusTransition,
+  ValidatedTemplateVersionPath,
+  ValidatedUpdateMasterVersion,
 } from '../validators/request.validators';
 
 let templateService: TemplateService | undefined;
@@ -152,6 +156,92 @@ export class TemplateHttpController {
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'get_master_template_versions_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleUpdateMasterVersion(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedUpdateMasterVersion?: ValidatedUpdateMasterVersion })
+      .validatedUpdateMasterVersion;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const record = await this.svc.updateMasterTemplateVersion({
+        templateId: v.templateId,
+        versionId: v.versionId,
+        body: v.body,
+        actorUserId: v.actorUserId,
+      });
+      return this.svc.toSummary(record);
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'update_master_template_version_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleListCompatible(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedListCompatible?: ValidatedListCompatible })
+      .validatedListCompatible;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.listCompatibleTemplates({
+        condition: v.query.condition,
+        country: v.query.country,
+        duration: v.query.duration,
+        templateType: v.query.templateType,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'list_compatible_templates_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleStatusTransition(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedStatusTransition?: ValidatedStatusTransition })
+      .validatedStatusTransition;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const record = await this.svc.transitionMasterTemplateStatus({
+        templateId: v.templateId,
+        versionId: v.versionId,
+        body: v.body,
+        actorUserId: v.actorUserId,
+      });
+      return this.svc.toSummary(record);
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'transition_master_template_status_error',
         correlationId: req.context.correlationId as string,
       });
     }

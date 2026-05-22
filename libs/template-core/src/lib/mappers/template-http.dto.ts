@@ -24,6 +24,18 @@ export interface TemplateVersionSummary {
   schemaRef?: string | null;
 }
 
+export interface OrgTemplateListItem {
+  templateId: string;
+  templateVersionId: string;
+  templateName?: string;
+  organizationId: string;
+  condition?: string;
+  version: number;
+  status: string;
+  derivedFromTemplateVersionId?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface MasterTemplateListItem {
   templateId: string;
   templateVersionId: string;
@@ -52,12 +64,53 @@ export function toTemplateSummary(record: TemplateDdbRecord): TemplateSummaryDat
   };
 }
 
-export function toVersionSummary(record: TemplateDdbRecord): TemplateVersionSummary {
+export function toOrgVersionSummary(
+  record: TemplateDdbRecord,
+  organizationId: string,
+): TemplateVersionSummary {
   const meta = record.meta;
   return {
     templateId: meta.templateId,
     templateVersionId: meta.templateVersionId,
-    organizationId: null,
+    organizationId,
+    version: meta.version ?? 1,
+    status: meta.status ?? 'DRAFT',
+    isActive: meta.isActive ?? true,
+    publishedAt: meta.publishedAt ?? null,
+    createdAt: meta.createdAt ?? null,
+    schemaRef: record.schemaRef ?? null,
+  };
+}
+
+export function toOrgListItem(
+  record: TemplateDdbRecord,
+  organizationId: string,
+): OrgTemplateListItem {
+  const meta = record.meta;
+  return {
+    templateId: meta.templateId,
+    templateVersionId: meta.templateVersionId,
+    templateName: meta.templateName,
+    organizationId,
+    condition: firstString(meta.condition ?? meta.conditions),
+    version: meta.version ?? 1,
+    status: meta.status ?? 'DRAFT',
+    derivedFromTemplateVersionId:
+      (meta.derivedFromTemplateVersionId as string | undefined) ?? null,
+    updatedAt: meta.lastModifiedAt ?? null,
+  };
+}
+
+export function toVersionSummary(record: TemplateDdbRecord): TemplateVersionSummary {
+  const meta = record.meta;
+  const orgId =
+    typeof meta.ownerOrgId === 'string' && meta.ownerOrgId.trim()
+      ? meta.ownerOrgId.trim()
+      : null;
+  return {
+    templateId: meta.templateId,
+    templateVersionId: meta.templateVersionId,
+    organizationId: orgId,
     version: meta.version ?? 1,
     status: meta.status ?? 'DRAFT',
     isActive: meta.isActive ?? true,

@@ -1,6 +1,7 @@
 import { BaseEvent, EventMeta } from "../typings/base-event.types";
 
 import type { Logger } from '@api-hub/observability';
+import type { EventTransport } from '../core/schema/define-event';
 import { PayloadSchemaRegistry } from "./consumer.types";
 
 export type PublishInput<T> = { 
@@ -19,6 +20,7 @@ export type PublishInput<T> = {
    
 
 export type EventPublishAdapter = {
+  readonly transport: EventTransport;
   publish<T = unknown>(event: BaseEvent<T>): Promise<void>;
 };
 

@@ -104,6 +104,7 @@ export class EventPublisher {
       } catch (err) {
         this.log.error({
           event: 'event_publish_schema_validation_failed',
+          transport: this.deps.adapter.transport,
           eventType: event.eventType,
           eventVersion: event.eventVersion,
           err: serializeErr(err),
@@ -117,6 +118,7 @@ export class EventPublisher {
      * ----------------------------- */
     this.log.info({
       event: 'event_publish_attempt',
+      transport: this.deps.adapter.transport,
       eventType: event.eventType,
       eventVersion: event.eventVersion,
       eventId: event.eventId,
@@ -132,6 +134,7 @@ export class EventPublisher {
 
       this.log.info({
         event: 'event_publish_success',
+        transport: this.deps.adapter.transport,
         eventType: event.eventType,
         eventVersion: event.eventVersion,
         eventId: event.eventId,
@@ -140,6 +143,7 @@ export class EventPublisher {
     } catch (err) {
       this.log.error({
         event: 'event_publish_error',
+        transport: this.deps.adapter.transport,
         eventType: event.eventType,
         eventVersion: event.eventVersion,
         eventId: event.eventId,

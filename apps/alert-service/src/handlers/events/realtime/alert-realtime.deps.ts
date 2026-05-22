@@ -5,7 +5,12 @@ import {
   type RealtimeAggregationPublisher,
   type RealtimePublisher,
 } from '@api-hub/event-platform';
- 
+
+/** Aggregate-only consumers enqueue to SQS; socket publish runs in realtimeAggregation. */
+export const alertRealtimeNoopPublisher: RealtimePublisher = {
+  publish: async () => {},
+};
+
 let cachedAggregationPublisher: RealtimeAggregationPublisher | undefined | null = null;
  
 export function getAlertRealtimeAggregationPublisher(): RealtimeAggregationPublisher | undefined {

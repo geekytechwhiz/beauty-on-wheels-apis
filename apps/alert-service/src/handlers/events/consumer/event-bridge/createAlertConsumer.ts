@@ -10,8 +10,8 @@ import { publishAlertIntents } from '../../publisher/alert-publisher';
 import { alertCreatedRealtimeTransformer } from '../../realtime/alert-created-realtime.transformer';
 import { alertRecipientResolver } from '../../realtime/alert-recipient.resolver';
 import {
+  alertRealtimeNoopPublisher,
   getAlertRealtimeAggregationPublisher,
-  getAlertRealtimePublisher,
 } from '../../realtime/alert-realtime.deps';
 
 configureEventRuntime();
@@ -32,7 +32,7 @@ export const handler = onEvent({
   operation: ALERT_REALTIME_EVENTS.ALERT_CREATED,
   consumer: {
     ...buildAlertEventConsumerDeps(),
-    realtimePublisher: getAlertRealtimePublisher(),
+    realtimePublisher: alertRealtimeNoopPublisher,
     realtimeAggregationPublisher: getAlertRealtimeAggregationPublisher(),
   },
   realtime: {

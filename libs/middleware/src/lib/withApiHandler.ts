@@ -1,4 +1,4 @@
-import type { Context } from 'aws-lambda';
+import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { z } from 'zod';
 
 import {
@@ -60,7 +60,7 @@ function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
     typeof lambdaContext === 'object' &&
     'awsRequestId' in lambdaContext
   ) {
-    return extractAwsRequestId(lambdaContext as Context);
+    return extractAwsRequestId(lambdaContext as LambdaInvocationContext);
   }
   return 'unknown-request-id';
 }

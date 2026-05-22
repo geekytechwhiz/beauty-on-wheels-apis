@@ -18,7 +18,9 @@
     "@api-hub/fhir": "workspace:*",
     "@api-hub/observability": "workspace:*",
     "@api-hub/utils": "workspace:*",
-    "aws-lambda": "^1.0.7",
     "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159"
   }
 }

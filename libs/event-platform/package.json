@@ -26,15 +26,20 @@
   "dependencies": {
     "@api-hub/middleware": "workspace:*",
     "@api-hub/observability": "workspace:*",
-    "@api-hub/utils": "workspace:*",
+    "@api-hub/utils": "workspace:*", 
     "@aws-sdk/client-dynamodb": "^3.996.0",
     "@aws-sdk/client-sqs": "^3.1001.0",
     "@aws-sdk/util-dynamodb": "^3.996.0",
-    "aws-lambda": "^1.0.7",
     "@aws-sdk/client-eventbridge": "^3.958.0",
     "@aws-sdk/client-sns": "^3.958.0",
+    "aws-lambda": "^1.0.7",
     "zod": "^4.2.1",
     "vite": "^7.0.0",
-    "vite-plugin-dts": "~4.5.0"
+    "vite-plugin-dts": "~4.5.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.958.0",
+    "@aws-lambda-powertools/tracer": "^2.33.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159"
   }
 }

@@ -16,6 +16,7 @@ export * from './lib/schema-validation.middleware';
 export * from './lib/standard-lambda-middleware';
 export * from './lib/tracer-singleton';
 export * from './lib/tracer.middleware';
+export * from './lib/realtime/realtime.middleware';
 export * from './lib/event-schema/validate';
 export * from './lib/event-schema/event-schema-error';
 export * from './lib/fhir/transform-to-fhir-response';

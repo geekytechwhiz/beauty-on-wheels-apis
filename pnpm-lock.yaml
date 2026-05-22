@@ -548,6 +548,9 @@ importers:
       '@api-hub/utils':
         specifier: workspace:*
         version: link:../utils
+      '@aws-sdk/client-apigatewaymanagementapi':
+        specifier: ^3.958.0
+        version: 3.984.0
       '@aws-sdk/client-dynamodb':
         specifier: ^3.996.0
         version: 3.1045.0
@@ -575,6 +578,10 @@ importers:
       zod:
         specifier: ^4.2.1
         version: 4.2.1
+    devDependencies:
+      '@types/aws-lambda':
+        specifier: ^8.10.159
+        version: 8.10.159
 
   libs/fhir:
     dependencies:
@@ -608,12 +615,13 @@ importers:
       '@api-hub/utils':
         specifier: workspace:*
         version: link:../utils
-      aws-lambda:
-        specifier: ^1.0.7
-        version: 1.0.7
       zod:
         specifier: ^4.2.1
         version: 4.2.1
+    devDependencies:
+      '@types/aws-lambda':
+        specifier: ^8.10.159
+        version: 8.10.159
 
   libs/observability:
     dependencies:
@@ -623,9 +631,6 @@ importers:
       '@aws-lambda-powertools/metrics':
         specifier: ^2.x
         version: 2.33.0
-      aws-lambda:
-        specifier: ^1.0.0
-        version: 1.0.7
     devDependencies:
       '@types/jest':
         specifier: ^29.x

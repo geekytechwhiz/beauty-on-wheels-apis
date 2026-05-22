@@ -19,11 +19,22 @@ import {
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import {
   normalizeVersionToSk,
+  pickHighestVersionRow,
   templateNotFoundError,
   templateVersionIdToSk,
 } from '../utils/template.utils';
+import { TemplateMasterOpsService } from './template-master-ops.service';
+import { CompatibleTemplatesService } from './compatible-templates.service';
+import type { ListCompatibleTemplatesParams } from '../models/api/compatible-templates.types';
+import type {
+  TransitionMasterStatusParams,
+  UpdateMasterVersionParams,
+} from '../models/api/master-version-ops.types';
 
 export class TemplateService {
+  private readonly masterOps = new TemplateMasterOpsService(this.repo);
+  private readonly compatibleSvc = new CompatibleTemplatesService(this.repo);
+
   constructor(private readonly repo = new TemplateRepository()) {}
 
   async createMasterTemplate(
@@ -135,22 +146,29 @@ export class TemplateService {
 
     if (resolve === 'LATEST_PUBLISHED') {
       const published = items.filter((r) => r.meta?.status === TEMPLATE_STATUS.PUBLISHED);
-      return pickHighestVersion(published.length ? published : items);
+      return pickHighestVersionRow(published.length ? published : items);
     }
 
-    return pickHighestVersion(items);
+    return pickHighestVersionRow(items);
+  }
+
+  async updateMasterTemplateVersion(params: UpdateMasterVersionParams) {
+    return this.masterOps.updateMasterTemplateVersion(params);
+  }
+
+  async transitionMasterTemplateStatus(params: TransitionMasterStatusParams) {
+    return this.masterOps.transitionMasterTemplateStatus(params);
+  }
+
+  async listCompatibleTemplates(params: ListCompatibleTemplatesParams) {
+    return this.compatibleSvc.listCompatibleTemplates(params);
   }
 
   toCreateResponse(record: TemplateDdbRecord) {
     return toTemplateSummary(record);
   }
-}
 
-function pickHighestVersion(items: TemplateDdbRecord[]): TemplateDdbRecord | null {
-  if (items.length === 0) return null;
-  return items.reduce((best, cur) => {
-    const bestVer = best.meta?.version ?? 0;
-    const curVer = cur.meta?.version ?? 0;
-    return curVer >= bestVer ? cur : best;
-  });
+  toSummary(record: TemplateDdbRecord) {
+    return toTemplateSummary(record);
+  }
 }

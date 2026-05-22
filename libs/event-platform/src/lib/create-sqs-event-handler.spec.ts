@@ -1,7 +1,8 @@
 /**
  * @jest-environment node
  */
-import type { Context, SQSRecord, SQSEvent } from 'aws-lambda';
+import type { LambdaInvocationContext } from '@api-hub/observability';
+import type { SQSRecord, SQSEvent } from 'aws-lambda';
 import { z } from 'zod';
 
 import { getContext } from '@api-hub/observability';
@@ -61,7 +62,7 @@ const AlertCreatedSchema = defineEvent(z.object({ alertId: z.string() }), {
 const lambdaContext = {
   awsRequestId: 'req-test-1',
   getRemainingTimeInMillis: () => 300_000,
-} as unknown as Context;
+} satisfies LambdaInvocationContext;
 
 describe('createSqsEventHandler', () => {
   it('returns empty batchItemFailures when all messages succeed', async () => {

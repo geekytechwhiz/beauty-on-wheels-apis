@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Handler } from 'aws-lambda';
-
 import { withContext } from '../core/context';
+import type { LambdaInvocationContext } from '../types/lambda-invocation';
+
+export type LambdaHandler<TEvent, TResult> = (
+  event: TEvent,
+  context: LambdaInvocationContext,
+  callback?: (err?: unknown, result?: TResult) => void,
+) => void | Promise<TResult>;
 
 /** API Gateway (REST or HTTP API) proxy-ish event shape. */
 export type ApiGatewayLikeEvent = {
@@ -15,8 +20,8 @@ export type ApiGatewayLikeEvent = {
  * Wrap an HTTP API Lambda handler: correlation id from headers or API Gateway request id, else new UUID.
  */
 export function withHttpObservability<TEvent extends ApiGatewayLikeEvent, TResult>(
-  handler: Handler<TEvent, TResult>
-): Handler<TEvent, TResult> {
+  handler: LambdaHandler<TEvent, TResult>,
+): LambdaHandler<TEvent, TResult> {
   return ((event, context, callback) => {
     const correlationId =
       correlationIdFromHttpEvent(event) ??
@@ -27,7 +32,7 @@ export function withHttpObservability<TEvent extends ApiGatewayLikeEvent, TResul
     return withContext({ correlationId, awsRequestId }, () =>
       handler(event, context, callback) as Promise<TResult> | TResult
     );
-  }) as Handler<TEvent, TResult>;
+  }) as LambdaHandler<TEvent, TResult>;
 }
 
 function correlationIdFromHttpEvent(event: ApiGatewayLikeEvent): string | undefined {

@@ -8,7 +8,26 @@ export function normalizeTemplateServiceError(
     throw e;
   }
 
-  const err = e as Error & { name?: string };
+  const err = e as Error & { name?: string; message?: string };
+  if (err?.name === 'ValidationException') {
+    const msg = err.message ?? 'DynamoDB query validation failed';
+    const isIndexMissing = /index|Index|GSI/i.test(msg);
+    const bad = new Error(msg) as Error & { statusCode: number; code: string };
+    bad.statusCode = isIndexMissing ? 503 : 400;
+    bad.code = isIndexMissing ? 'SERVICE_UNAVAILABLE' : 'VALIDATION_ERROR';
+    throw bad;
+  }
+
+  if (err?.name === 'ResourceNotFoundException') {
+    const bad = new Error(err.message ?? 'Template table or index not found') as Error & {
+      statusCode: number;
+      code: string;
+    };
+    bad.statusCode = 503;
+    bad.code = 'SERVICE_UNAVAILABLE';
+    throw bad;
+  }
+
   if (err?.name === 'ConditionalCheckFailedException' || err?.name === 'TransactionCanceledException') {
     const conflict = new Error('Master template already exists') as Error & {
       statusCode: number;

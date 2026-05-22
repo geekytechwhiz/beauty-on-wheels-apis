@@ -50,6 +50,12 @@ export {
 export { publishMiddlewarePipelineMetrics } from './metrics/middleware-metrics';
 export { recordPublishFailure, recordPublishSuccess } from './metrics/publisher-metrics';
 
+export {
+  recordAggregationEventsPublished,
+  recordAggregationEventsReceived,
+  recordAggregationGroupsCreated,
+} from './metrics/realtime-aggregation-metrics';
+
 export { recordUpstreamRetryAttempts } from './metrics/upstream-metrics';
 
 export {
@@ -63,7 +69,15 @@ export {
   extractCorrelationId,
   extractAwsRequestId,
   resolveCorrelationIdForHttp,
+  type ApiGatewayCorrelationEvent,
 } from './http/correlation';
+
+export {
+  awsRequestIdFromInvocationContext,
+  type LambdaInvocationContext,
+} from './types/lambda-invocation';
+
+export type { LambdaHandler } from './middleware/http';
 
 export { logHttpRequest } from './http/log-http-request';
 

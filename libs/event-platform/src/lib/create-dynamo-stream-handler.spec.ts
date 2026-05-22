@@ -2,7 +2,8 @@
  * @jest-environment node
  */
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
-import type { Context, DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';
+import type { LambdaInvocationContext } from '@api-hub/observability';
+import type { DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';
 import { z } from 'zod';
 
 import { getContext } from '@api-hub/observability';
@@ -66,7 +67,7 @@ function streamRecord(overrides: Partial<DynamoDBRecord> = {}): DynamoDBRecord {
 const lambdaContext = {
   awsRequestId: 'ddb-req-1',
   getRemainingTimeInMillis: () => 300_000,
-} as unknown as Context;
+} satisfies LambdaInvocationContext;
 
 describe('createDynamoStreamHandler', () => {
   it('processes INSERT and returns empty batchItemFailures', async () => {

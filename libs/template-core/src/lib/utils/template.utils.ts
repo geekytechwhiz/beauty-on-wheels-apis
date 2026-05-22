@@ -1,5 +1,6 @@
 import { ENV_TEMPLATE_TABLE, VERSION_SK_PREFIX } from '../constants/template.constants';
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
+import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 
 export function assertTemplateTable(): string {
   const table = process.env[ENV_TEMPLATE_TABLE];
@@ -60,11 +61,34 @@ export function templateVersionIdToSk(templateVersionId: string): string | undef
   return `${VERSION_SK_PREFIX}${String(parseInt(match[1], 10)).padStart(3, '0')}`;
 }
 
+export function templateConflictError(message: string): never {
+  const e = new Error(message) as Error & { statusCode: number; code: string };
+  e.statusCode = 409;
+  e.code = 'CONFLICT';
+  throw e;
+}
+
+export function templateValidationError(message: string): never {
+  const e = new Error(message) as Error & { statusCode: number; code: string };
+  e.statusCode = 400;
+  e.code = 'VALIDATION_ERROR';
+  throw e;
+}
+
 export function templateNotFoundError(message = 'Master template not found'): never {
   const e = new Error(message) as Error & { statusCode: number; code: string };
   e.statusCode = 404;
   e.code = 'NOT_FOUND';
   throw e;
+}
+
+export function pickHighestVersionRow(items: TemplateDdbRecord[]): TemplateDdbRecord | null {
+  if (items.length === 0) return null;
+  return items.reduce((best, cur) => {
+    const bestVer = best.meta?.version ?? 0;
+    const curVer = cur.meta?.version ?? 0;
+    return curVer >= bestVer ? cur : best;
+  });
 }
 
 export function firstString(value: unknown): string | undefined {

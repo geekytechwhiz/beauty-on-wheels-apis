@@ -25,34 +25,43 @@ function appendListFilters(
   eav: Record<string, unknown>,
   filterParts: string[],
   filters: MasterListFilters,
+  names: Record<string, string>,
 ): void {
+  names['#meta'] = 'meta';
+
   if (filters.category?.trim()) {
     eav[':category'] = filters.category.trim();
+    names['#category'] = 'category';
+    names['#conditions'] = 'conditions';
     filterParts.push(
-      '(meta.category = :category OR contains(meta.category, :category) OR contains(meta.conditions, :category))',
+      '(#meta.#category = :category OR contains(#meta.#category, :category) OR contains(#meta.#conditions, :category))',
     );
   }
   if (filters.condition?.trim()) {
     eav[':condition'] = filters.condition.trim();
-    filterParts.push(
-      '(meta.condition = :condition OR contains(meta.conditions, :condition))',
-    );
+    // Only use contains on conditions list — equality on meta.condition fails when stored as a list.
+    filterParts.push('contains(#meta.#conditions, :condition)');
   }
   if (filters.country?.trim()) {
     eav[':country'] = filters.country.trim();
-    filterParts.push('contains(meta.countries, :country)');
+    filterParts.push('contains(#meta.#countries, :country)');
   }
   if (filters.language?.trim()) {
     eav[':language'] = filters.language.trim();
-    filterParts.push('contains(meta.languages, :language)');
+    names['#languages'] = 'languages';
+    filterParts.push('contains(#meta.#languages, :language)');
   }
   if (filters.specialty?.trim()) {
     eav[':specialty'] = filters.specialty.trim();
-    filterParts.push('contains(meta.specialty, :specialty)');
+    names['#specialty'] = 'specialty';
+    filterParts.push('contains(#meta.#specialty, :specialty)');
   }
   if (filters.templateCode?.trim()) {
     eav[':templateCode'] = filters.templateCode.trim();
-    filterParts.push('(meta.templateCode = :templateCode OR begins_with(meta.templateCode, :templateCode))');
+    names['#templateCode'] = 'templateCode';
+    filterParts.push(
+      '(#meta.#templateCode = :templateCode OR begins_with(#meta.#templateCode, :templateCode))',
+    );
   }
 }
 
@@ -148,6 +157,41 @@ export class TemplateRepository extends BaseRepository {
     return versionRow;
   }
 
+  async saveMasterMetaAndVersion(
+    metaRow: TemplateDdbRecord,
+    versionRow: TemplateDdbRecord,
+    opts?: { requireNewVersionSk?: boolean },
+  ): Promise<void> {
+    const table = assertTemplateTable();
+    const versionCondition = opts?.requireNewVersionSk
+      ? 'attribute_not_exists(pk)'
+      : undefined;
+
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Put: {
+            TableName: table,
+            Item: metaRow as unknown as Record<string, unknown>,
+            ConditionExpression: 'attribute_exists(pk)',
+          },
+        },
+        {
+          Put: {
+            TableName: table,
+            Item: versionRow as unknown as Record<string, unknown>,
+            ...(versionCondition ? { ConditionExpression: versionCondition } : {}),
+          },
+        },
+      ],
+    });
+  }
+
+  async putMasterRecord(record: TemplateDdbRecord): Promise<void> {
+    const table = assertTemplateTable();
+    await this.put(table, record);
+  }
+
   async queryMasterCatalogGsi2Page(
     templateType: string,
     opts: {
@@ -160,7 +204,8 @@ export class TemplateRepository extends BaseRepository {
       ':pk': TemplateKeyBuilder.buildGsi2Pk(templateType),
     };
     const filterParts: string[] = [];
-    appendListFilters(eav, filterParts, opts);
+    const names: Record<string, string> = {};
+    appendListFilters(eav, filterParts, opts, names);
 
     return this.queryPage<TemplateDdbRecord>({
       TableName: table,
@@ -170,7 +215,12 @@ export class TemplateRepository extends BaseRepository {
       ScanIndexForward: false,
       Limit: opts.limit,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
-      ...(filterParts.length ? { FilterExpression: filterParts.join(' AND ') } : {}),
+      ...(filterParts.length
+        ? {
+            FilterExpression: filterParts.join(' AND '),
+            ExpressionAttributeNames: names,
+          }
+        : {}),
     });
   }
 
@@ -186,7 +236,8 @@ export class TemplateRepository extends BaseRepository {
       ':pk': TemplateKeyBuilder.buildGsi5Pk(status),
     };
     const filterParts: string[] = [];
-    appendListFilters(eav, filterParts, opts);
+    const names: Record<string, string> = {};
+    appendListFilters(eav, filterParts, opts, names);
 
     return this.queryPage<TemplateDdbRecord>({
       TableName: table,
@@ -196,7 +247,12 @@ export class TemplateRepository extends BaseRepository {
       ScanIndexForward: false,
       Limit: opts.limit,
       ...(opts.exclusiveStartKey ? { ExclusiveStartKey: opts.exclusiveStartKey } : {}),
-      ...(filterParts.length ? { FilterExpression: filterParts.join(' AND ') } : {}),
+      ...(filterParts.length
+        ? {
+            FilterExpression: filterParts.join(' AND '),
+            ExpressionAttributeNames: names,
+          }
+        : {}),
     });
   }
 

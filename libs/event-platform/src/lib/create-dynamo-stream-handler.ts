@@ -6,8 +6,9 @@ import type {
   MiddlewarePipelineEvent,
 } from '@api-hub/middleware';
 import { buildEventExecutionPipeline, runMiddlewares } from '@api-hub/middleware';
-import type { Context, DynamoDBStreamEvent } from 'aws-lambda';
+import type { DynamoDBStreamEvent } from 'aws-lambda';
 import {
+  type LambdaInvocationContext,
   recordDynamoStreamBatchDispatch,
   withLoggerContext,
   type LoggerContext,
@@ -45,7 +46,9 @@ export type CreateDynamoStreamHandlerEventEntry = DynamoStreamRoute & {
 
 export type CreateDynamoStreamHandlerOperationName = DynamoStreamOperationName;
 
-export type CreateDynamoStreamHandlerOptions<TContext extends Context = Context> = {
+export type CreateDynamoStreamHandlerOptions<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+> = {
     operation: DynamoStreamOperationName;
 
     /**
@@ -92,7 +95,9 @@ function coerceDynamoStreamBatchResponse(
  * {@link orchestratePreparedConsumerEvent}, middleware from {@link buildEventExecutionPipeline},
  * per-record ALS, typed partial batch failures (`eventID` identifiers).
  */
-export function createDynamoStreamHandler<TContext extends Context = Context>(
+export function createDynamoStreamHandler<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+>(
   options: CreateDynamoStreamHandlerOptions<TContext>,
 ): (event: DynamoDBStreamEvent, context: TContext) => Promise<DynamoStreamBatchResponse> {
   const payloadSchemas: VersionedPayloadSchemas = {};

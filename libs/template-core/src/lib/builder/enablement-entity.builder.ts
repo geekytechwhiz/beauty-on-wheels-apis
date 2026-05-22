@@ -51,4 +51,18 @@ export class EnablementEntityBuilder {
     };
     return record;
   }
+
+  static applyDateUpdates(
+    record: EnablementDdbRecord,
+    updates: { effectiveFrom?: string | null; effectiveTo?: string | null },
+  ): EnablementDdbRecord {
+    const meta: EnablementMeta = { ...record.meta };
+    if (updates.effectiveFrom !== undefined && updates.effectiveFrom !== null) {
+      meta.effectiveFrom = updates.effectiveFrom.trim();
+    }
+    if (updates.effectiveTo !== undefined) {
+      meta.effectiveTo = updates.effectiveTo;
+    }
+    return EnablementEntityBuilder.buildRow(meta);
+  }
 }

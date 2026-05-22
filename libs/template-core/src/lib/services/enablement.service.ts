@@ -3,7 +3,11 @@ import { TEMPLATE_STATUS } from '../constants/template.constants';
 import type {
   CreateOrgEnablementParams,
   EnablementDdbRecord,
+  ListOrgEnablementsByOrgParams,
   OrgEnablementDto,
+  OrgEnablementListResult,
+  SearchOrgEnablementsParams,
+  UpdateOrgEnablementParams,
 } from '../models/api/enablement.types';
 import { EnablementRepository } from '../repositories/enablement.repository';
 import { TemplateRepository } from '../repositories/template.repository';
@@ -76,6 +80,98 @@ export class EnablementService {
 
       await this.enablementRepo.putEnablement(row);
       return this.toDto(row);
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  async searchOrgEnablements(params: SearchOrgEnablementsParams): Promise<OrgEnablementListResult> {
+    try {
+      const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+      const orgId = params.organizationId?.trim();
+      const masterVer = params.masterTemplateVersionId?.trim();
+
+      if (!orgId && !masterVer) {
+        templateValidationError(
+          'At least one of organizationId or masterTemplateVersionId query parameter is required',
+        );
+      }
+
+      let records: EnablementDdbRecord[];
+
+      if (masterVer && !orgId) {
+        records = await this.enablementRepo.queryEnablementsByMasterVersionGsi3(masterVer, limit);
+      } else if (orgId) {
+        records = await this.enablementRepo.queryEnablementsByOrgGsi1(orgId, limit);
+        if (masterVer) {
+          records = records.filter((r) => r.meta.masterTemplateVersionId === masterVer);
+        }
+      } else {
+        records = [];
+      }
+
+      return { items: records.map((r) => this.toDto(r)) };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  async listOrgEnablementsByOrg(
+    params: ListOrgEnablementsByOrgParams,
+  ): Promise<OrgEnablementListResult> {
+    try {
+      const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+      const records = await this.enablementRepo.queryEnablementsByOrgGsi1(
+        params.organizationId,
+        limit,
+      );
+      return { items: records.map((r) => this.toDto(r)) };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  async getOrgEnablementById(enablementId: string): Promise<OrgEnablementDto> {
+    try {
+      const record = await this.enablementRepo.getEnablement(enablementId);
+      if (!record) {
+        templateNotFoundError('Org enablement not found');
+      }
+      return this.toDto(record);
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  async updateOrgEnablement(
+    params: UpdateOrgEnablementParams,
+  ): Promise<OrgEnablementDto | null> {
+    try {
+      const action = params.body.action ?? 'UPDATE';
+      const record = await this.enablementRepo.getEnablement(params.enablementId);
+      if (!record) {
+        templateNotFoundError('Org enablement not found');
+      }
+
+      if (action === 'REVOKE') {
+        await this.enablementRepo.deleteEnablement(params.enablementId);
+        return null;
+      }
+
+      const hasFrom = params.body.effectiveFrom !== undefined && params.body.effectiveFrom !== null;
+      const hasTo = params.body.effectiveTo !== undefined;
+      if (!hasFrom && !hasTo) {
+        templateValidationError(
+          'At least one of effectiveFrom or effectiveTo is required when action is UPDATE',
+        );
+      }
+
+      const updated = EnablementEntityBuilder.applyDateUpdates(record, {
+        effectiveFrom: params.body.effectiveFrom,
+        effectiveTo: params.body.effectiveTo,
+      });
+      await this.enablementRepo.putEnablementOverwrite(updated);
+      return this.toDto(updated);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }

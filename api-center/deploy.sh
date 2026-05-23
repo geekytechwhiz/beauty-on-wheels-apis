@@ -133,7 +133,7 @@ echo "🔄 Invalidating CloudFront..."
 
 aws cloudfront create-invalidation \
   --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
-  --paths "/*"
+  --paths "/index.html" "/favicon.ico"
 
 echo "========================================="
 echo "🎉 DEPLOY SUCCESS"

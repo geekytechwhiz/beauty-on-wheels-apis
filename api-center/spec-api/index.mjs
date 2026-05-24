@@ -9,6 +9,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import yaml from 'js-yaml';
 
 const SPEC_STATUS = 'x-api-center-status';
@@ -22,15 +23,15 @@ function env(name, fallback = '') {
 }
 
 function bucket() {
-  return env('S3_BUCKET');
+  return env('S3_BUCKET', 'dev-mvx-developer-hub');
 }
 
 function s3AppPrefix() {
-  return env('S3_APP_PREFIX').replace(/^\/+|\/+$/g, '');
+  return env('S3_APP_PREFIX', 'uploads').replace(/^\/+|\/+$/g, '');
 }
 
 function specsPrefix() {
-  return env('SPECS_PREFIX', 'specs-store').replace(/^\/+|\/+$/g, '');
+  return env('SPECS_PREFIX', 'api-specs').replace(/^\/+|\/+$/g, '');
 }
 
 function s3SpecsRoot() {
@@ -327,6 +328,24 @@ async function invalidateSpecPaths(catalogKeys) {
   await invalidatePaths(Array.from(paths));
 }
 
+async function getSignedUploadUrl(key, contentType, expiresIn = 3600) {
+  const command = new PutObjectCommand({
+    Bucket: bucket(),
+    Key: key,
+    ContentType: contentType,
+    CacheControl: 'no-cache,no-store,must-revalidate',
+  });
+  return getSignedUrl(s3, command, { expiresIn });
+}
+
+async function getSignedDownloadUrl(key, expiresIn = 3600) {
+  const command = new GetObjectCommand({
+    Bucket: bucket(),
+    Key: key,
+  });
+  return getSignedUrl(s3, command, { expiresIn });
+}
+
 export async function handler(event) {
   try {
     const method = event.requestContext?.http?.method ?? event.httpMethod ?? 'GET';
@@ -346,6 +365,73 @@ export async function handler(event) {
       return jsonResponse(200, {
         extension: resolved.extension,
         text: resolved.text,
+      });
+    }
+
+    if (method === 'POST' && pathname === '/presigned-upload') {
+      const body = JSON.parse(await readBody(event));
+      if (!body.fileName) {
+        return errorResponse(400, 'fileName is required.');
+      }
+
+      const serviceName = normalizeSegment(body.serviceName ?? '', 'Service name');
+      const version = normalizeSegment(body.version ?? '', 'Version');
+      const extension = extensionFromFileName(body.fileName);
+      if (!extension) {
+        return errorResponse(400, 'Only .yaml, .yml, and .json files are supported.');
+      }
+
+      const relativePath = `${serviceName}/${version}/openapi.${extension}`;
+      const key = toS3Key(relativePath);
+      const contentType = getContentType(extension);
+      const uploadUrl = await getSignedUploadUrl(key, contentType);
+      return jsonResponse(200, { uploadUrl, key, contentType });
+    }
+
+    if (method === 'POST' && pathname === '/upload-complete') {
+      const body = JSON.parse(await readBody(event));
+      if (!body.fileName || !body.key) {
+        return errorResponse(400, 'fileName and key are required.');
+      }
+
+      const serviceName = normalizeSegment(body.serviceName ?? '', 'Service name');
+      const version = normalizeSegment(body.version ?? '', 'Version');
+      const extension = extensionFromFileName(body.fileName);
+      if (!extension) {
+        return errorResponse(400, 'Only .yaml, .yml, and .json files are supported.');
+      }
+
+      const expectedKey = toS3Key(`${serviceName}/${version}/openapi.${extension}`);
+      if (body.key !== expectedKey) {
+        return errorResponse(400, 'Upload key does not match the expected spec location.');
+      }
+
+      const rawText = await getObjectText(body.key);
+      const parsed = parseOpenApiText(rawText, extension);
+      await putObjectText(
+        body.key,
+        serializeSpecWithStatus(parsed, extension, 'approved'),
+        getContentType(extension),
+      );
+      await writeCatalogIndex();
+      const created = await findVersion(serviceName, version);
+      if (!created) {
+        return errorResponse(500, 'Unable to index uploaded OpenAPI document.');
+      }
+      await invalidateSpecPaths([created.key]);
+      return jsonResponse(200, created);
+    }
+
+    if (method === 'GET' && pathname === '/presigned-download') {
+      const params = event.queryStringParameters ?? {};
+      const resolved = await resolveSpecFile(params.serviceName ?? '', params.version ?? '');
+      if (!resolved) {
+        return errorResponse(404, 'OpenAPI file not found for this service/version.');
+      }
+      const downloadUrl = await getSignedDownloadUrl(resolved.key);
+      return jsonResponse(200, {
+        downloadUrl,
+        extension: resolved.extension,
       });
     }
 

@@ -2,7 +2,7 @@
 # Sync api-center dist to S3 with safe ordering so index.html never references deleted hashed assets.
 #
 # Usage (from repo root or api-center): set bucket and region, then run.
-#   export API_CENTER_S3_BUCKET=dev-ccm-localization
+#   export API_CENTER_S3_BUCKET=dev-mvx-developer-hub
 #   export API_CENTER_S3_PREFIX=dev-mvx-developer-hub
 #   export API_CENTER_S3_REGION=us-east-1
 #   bash api-center/scripts/publish-dist-to-s3.sh

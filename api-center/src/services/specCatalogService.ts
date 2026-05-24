@@ -124,21 +124,38 @@ export function getCatalogSummary(): {
   specsPrefix: string;
   indexKey: string;
   localWriteEnabled: boolean;
+  s3Enabled: boolean;
 } {
   const specsPrefix = getSpecsPrefix();
   return {
     specsPrefix,
     indexKey: `${getSpecApiBase()}/catalog`,
     localWriteEnabled: canWriteSpecsLocally(),
+    s3Enabled: isS3SpecStoreEnabled(),
   };
 }
 
-/** True when spec writes can reach a backend (Vite dev middleware or deployed spec API). */
-export function canWriteSpecsLocally(): boolean {
+/** True when the frontend should upload/download spec bytes directly via S3 presigned URLs. */
+export function isS3SpecStoreEnabled(): boolean {
+  return import.meta.env.VITE_ENABLE_S3_SPEC_STORE === 'true';
+}
+
+/** True when the spec store API (local Vite middleware or deployed Lambda) is reachable. */
+export function canUseSpecStoreApi(): boolean {
   if (import.meta.env.DEV) {
     return import.meta.env.VITE_ENABLE_LOCAL_SPEC_API !== 'false';
   }
   return getRemoteSpecApiBase() !== null;
+}
+
+/** True when spec writes can reach a backend (Vite dev middleware or deployed spec API). */
+export function canWriteSpecsLocally(): boolean {
+  return canUseSpecStoreApi();
+}
+
+/** True when spec reads can use the store API (S3-backed in production). */
+export function canFetchSpecsFromStore(): boolean {
+  return canUseSpecStoreApi();
 }
 
 function withCacheBust(url: string): string {
@@ -159,6 +176,15 @@ async function fetchPublicText(url: string, options?: { cacheBust?: boolean }): 
   }
 
   return response.text();
+}
+
+async function loadPublicSpecText(key: string, options?: { cacheBust?: boolean }): Promise<string> {
+  return fetchPublicText(publicAssetUrl(key), options);
+}
+
+export interface SpecDocumentText {
+  extension: SpecFileExtension;
+  text: string;
 }
 
 function normalizeSegment(value: string, label: string): string {
@@ -484,27 +510,57 @@ function parseCatalogIndex(rawValue: unknown): PublicCatalogIndex {
   };
 }
 
-async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<PublicCatalogIndex> {
-  try {
-    const parsed = await localApiJson<unknown>('/catalog', {
+/** Fetch the OpenAPI catalog from the spec store API (reads S3 in production). */
+export async function fetchSpecCatalog(): Promise<PublicCatalogIndex> {
+  const parsed = await localApiJson<unknown>('/catalog', {
+    method: 'GET',
+  });
+  return parseCatalogIndex(parsed);
+}
+
+/** Fetch raw OpenAPI document text from the spec store API (reads S3 in production). */
+export async function fetchSpecDocumentText({
+  serviceName,
+  version,
+}: {
+  serviceName: string;
+  version: string;
+}): Promise<SpecDocumentText> {
+  const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
+  const normalizedVersion = normalizeSegment(version, 'Version');
+
+  return localApiJson<SpecDocumentText>(
+    `/document?serviceName=${encodeURIComponent(normalizedServiceName)}&version=${encodeURIComponent(
+      normalizedVersion,
+    )}`,
+    {
       method: 'GET',
-    });
-    return parseCatalogIndex(parsed);
-  } catch {
+    },
+  );
+}
+
+async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<PublicCatalogIndex> {
+  if (canFetchSpecsFromStore()) {
     try {
-      const text = await fetchPublicText(publicAssetUrl(`${getSpecsPrefix()}/index.json`));
-      return parseCatalogIndex(JSON.parse(text) as unknown);
+      return await fetchSpecCatalog();
     } catch {
-      if (options?.allowMissing) {
-        return {
-          generatedAt: new Date().toISOString(),
-          services: [],
-        };
-      }
-      throw new Error(
-        `Unable to load the spec catalog. Tried ${getSpecApiBase()}/catalog and static ${getSpecsPrefix()}/index.json.`,
-      );
+      // fall through to static catalog
     }
+  }
+
+  try {
+    const text = await fetchPublicText(publicAssetUrl(`${getSpecsPrefix()}/index.json`));
+    return parseCatalogIndex(JSON.parse(text) as unknown);
+  } catch {
+    if (options?.allowMissing) {
+      return {
+        generatedAt: new Date().toISOString(),
+        services: [],
+      };
+    }
+    throw new Error(
+      `Unable to load the spec catalog. Tried ${getSpecApiBase()}/catalog and static ${getSpecsPrefix()}/index.json.`,
+    );
   }
 }
 
@@ -604,6 +660,45 @@ export async function uploadSpec({
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
   const validatedFile = await validateOpenApiFile(file);
+
+  if (isS3SpecStoreEnabled()) {
+    const presigned = await localApiJson<{
+      uploadUrl: string;
+      key: string;
+      contentType: string;
+    }>('/presigned-upload', {
+      method: 'POST',
+      body: JSON.stringify({
+        serviceName: normalizedServiceName,
+        version: normalizedVersion,
+        fileName: file.name,
+      }),
+    });
+
+    const uploadResponse = await fetch(presigned.uploadUrl, {
+      method: 'PUT',
+      body: validatedFile.normalizedText,
+      headers: {
+        'Content-Type': presigned.contentType,
+      },
+    });
+    if (!uploadResponse.ok) {
+      throw new Error(
+        `S3 upload failed. Received ${uploadResponse.status} ${uploadResponse.statusText}.`,
+      );
+    }
+
+    return localApiJson<OpenApiSpecFile>('/upload-complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        serviceName: normalizedServiceName,
+        version: normalizedVersion,
+        fileName: file.name,
+        key: presigned.key,
+      }),
+    });
+  }
+
   const contentBase64 = utf8FileToBase64(validatedFile.normalizedText);
 
   return localApiJson<OpenApiSpecFile>('/upload', {
@@ -643,6 +738,61 @@ export async function getSpecUrl({
   return publicAssetUrl(resolved.key);
 }
 
+export async function loadSpecText({
+  serviceName,
+  version,
+}: {
+  serviceName: string;
+  version: string;
+}): Promise<SpecDocumentText> {
+  const resolved = await resolveSpecVersion({ serviceName, version });
+
+  if (isS3SpecStoreEnabled() && canFetchSpecsFromStore()) {
+    try {
+      const presigned = await localApiJson<{
+        downloadUrl: string;
+        extension: SpecFileExtension;
+      }>(
+        `/presigned-download?serviceName=${encodeURIComponent(resolved.serviceName)}&version=${encodeURIComponent(
+          resolved.version,
+        )}`,
+        {
+          method: 'GET',
+        },
+      );
+      const response = await fetch(presigned.downloadUrl, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(
+          `S3 download failed. Received ${response.status} ${response.statusText}.`,
+        );
+      }
+      return {
+        extension: presigned.extension,
+        text: await response.text(),
+      };
+    } catch {
+      // fall through to API/static paths
+    }
+  }
+
+  if (canFetchSpecsFromStore()) {
+    try {
+      return await fetchSpecDocumentText({
+        serviceName: resolved.serviceName,
+        version: resolved.version,
+      });
+    } catch {
+      // fall through to static asset
+    }
+  }
+
+  const text = await loadPublicSpecText(resolved.key, { cacheBust: true });
+  return {
+    extension: resolved.extension,
+    text,
+  };
+}
+
 export async function loadEditableSpecDocument({
   serviceName,
   version,
@@ -650,22 +800,9 @@ export async function loadEditableSpecDocument({
   serviceName: string;
   version: string;
 }): Promise<EditableSpecDocument> {
+  const { extension, text } = await loadSpecText({ serviceName, version });
   const resolved = await resolveSpecVersion({ serviceName, version });
-  let text: string;
-  try {
-    const response = await localApiJson<{ extension: SpecFileExtension; text: string }>(
-      `/document?serviceName=${encodeURIComponent(resolved.serviceName)}&version=${encodeURIComponent(
-        resolved.version,
-      )}`,
-      {
-        method: 'GET',
-      },
-    );
-    text = response.text;
-  } catch {
-    text = await fetchPublicText(publicAssetUrl(resolved.key));
-  }
-  const parsedSpec = parseOpenApiText(text, resolved.extension);
+  const parsedSpec = parseOpenApiText(text, extension);
 
   return {
     serviceName: resolved.serviceName,

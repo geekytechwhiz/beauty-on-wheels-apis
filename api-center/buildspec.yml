@@ -5,9 +5,10 @@ env:
   variables:
     NODE_ENV: "production"
     AWS_REGION: "us-east-1"
-    S3_BUCKET: "dev-ccm-localization"
+    S3_BUCKET: "dev-mvx-developer-hub"
     S3_PREFIX: "dev-mvx-developer-hub"
-    SPECS_PREFIX: "specs-store"
+    S3_APP_PREFIX: "uploads"
+    SPECS_PREFIX: "api-specs"
     VITE_PUBLIC_BASE_PATH: "/dev-mvx-developer-hub/"
     DISTRIBUTION_ID: "E8KSJDLFA898A"
     LAMBDA_NAME: "developer-hub-dev-basic-auth"
@@ -96,7 +97,7 @@ phases:
 
       - |
         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        SPEC_API_ENV="Variables={S3_BUCKET=$S3_BUCKET,S3_APP_PREFIX=$S3_PREFIX,SPECS_PREFIX=$SPECS_PREFIX,CLOUDFRONT_DISTRIBUTION_ID=$DISTRIBUTION_ID}"
+        SPEC_API_ENV="Variables={S3_BUCKET=$S3_BUCKET,S3_APP_PREFIX=$S3_APP_PREFIX,SPECS_PREFIX=$SPECS_PREFIX,CLOUDFRONT_DISTRIBUTION_ID=$DISTRIBUTION_ID}"
 
         if aws lambda get-function \
           --function-name "$SPEC_API_LAMBDA_NAME" \

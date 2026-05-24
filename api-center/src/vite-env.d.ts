@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly VITE_SPECS_PREFIX: string | undefined;
   /** Default `specs-store/index.json` under `public/`. */
   readonly VITE_SPECS_INDEX_KEY: string | undefined;
+  /** When `true`, upload/download spec bytes via S3 presigned URLs instead of proxying through the API. */
+  readonly VITE_ENABLE_S3_SPEC_STORE: string | undefined;
   readonly VITE_STORYBOOK_URL: string | undefined;
 }
 

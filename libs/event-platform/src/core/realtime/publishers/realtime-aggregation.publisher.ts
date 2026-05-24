@@ -1,5 +1,5 @@
 import { SqsAdapter } from '../../../adapters/sqs/sqs-adapter';
-import { EventPublisher } from '../../../sdk/publisher/event-publisher';
+import { EventPublisher, type EventPublisherDeps } from '../../../sdk/publisher/event-publisher';
 import {
   REALTIME_AGGREGATE_EVENT_TYPE,
   RealtimeAggregateEventSchema,
@@ -55,8 +55,10 @@ export function createRealtimeAggregationPublisher(
   const eventPublisher = new EventPublisher({
     adapter,
     payloadSchemas: {
-      [REALTIME_AGGREGATE_EVENT_TYPE]: RealtimeAggregatePayloadSchema,
-    },
+      [REALTIME_AGGREGATE_EVENT_TYPE]: {
+        [RealtimeAggregateEventSchema.__meta.eventVersion]: RealtimeAggregatePayloadSchema,
+      },
+    } as unknown as EventPublisherDeps['payloadSchemas'],
     serviceName: 'realtime-aggregation-publisher',
   });
 

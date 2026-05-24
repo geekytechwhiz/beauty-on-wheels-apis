@@ -24,10 +24,14 @@ function publicBaseFromEnv(raw) {
  *
  * Local spec API is enabled for dev and preview by default.
  * Specs are stored on disk at `API_CENTER_SPECS_DIR` (defaults to `api-center/specs-store`).
+ * Set `API_CENTER_USE_S3=true` with `S3_BUCKET=dev-mvx-developer-hub`, `S3_APP_PREFIX=uploads`,
+ * and `SPECS_PREFIX=api-specs` (full S3 path: `uploads/api-specs`) to use S3 in local dev.
+ * Pair with `VITE_ENABLE_S3_SPEC_STORE=true` for presigned URL transfer.
  */
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, __dirname, '');
     const localSpecApiEnabled = true;
+    const useS3 = env.API_CENTER_USE_S3 === 'true';
     return {
         root: __dirname,
         base: publicBaseFromEnv(env.VITE_PUBLIC_BASE_PATH),
@@ -39,6 +43,7 @@ export default defineConfig(({ mode }) => {
             localSpecApiPlugin({
                 enabled: localSpecApiEnabled,
                 specsPrefix: env.VITE_SPECS_PREFIX,
+                useS3,
             }),
         ],
         server: {

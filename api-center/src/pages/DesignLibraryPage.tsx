@@ -36,7 +36,7 @@ export function DesignLibraryPage() {
   if ((designsQuery.data?.length ?? 0) === 0) {
     return (
       <Alert severity="info">
-        No Figma designs were found. Add entries to `public/figma/designs.json` in the repo to populate the Design Library.
+        No Figma designs were found. Add entries to `public/figma/designs.json` in this repo to populate the Design Library.
       </Alert>
     );
   }

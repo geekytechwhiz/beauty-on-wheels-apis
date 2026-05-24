@@ -1,0 +1,25 @@
+sequenceDiagram
+
+participant Web
+participant Socket
+participant SubscriptionStore
+participant EventBridge
+participant RT as Realtime Middleware
+
+Web->>Socket: connect()
+
+Web->>Socket: subscribe(PATIENT#PAT101)
+
+Socket->>SubscriptionStore: Store subscription
+
+EventBridge->>RT: VitalUpdated.v1
+
+RT->>SubscriptionStore: Find subscribers for PATIENT#PAT101
+
+SubscriptionStore-->>RT: DoctorA
+
+RT->>Socket: Push update
+
+Socket->>Web: VITAL_UPDATED
+
+Web->>Web: invalidateQueries()

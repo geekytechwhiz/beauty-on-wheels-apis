@@ -349,9 +349,16 @@ export default function App({
     : servicesQuery.isLoading
       ? 'Catalog loading'
       : `${servicesQuery.data?.length ?? 0} services`;
-  const catalogTooltip = `Static catalog · public/${catalogSummary.specsPrefix}/ · ${catalogSummary.indexKey}`;
+  const catalogTooltip = catalogSummary.s3Enabled
+    ? `S3-backed catalog · ${catalogSummary.indexKey}`
+    : `Static catalog · public/${catalogSummary.specsPrefix}/ · ${catalogSummary.indexKey}`;
   const writeAccessMessage =
-    'Editing specs in the browser is only available when the local spec API is running.';
+    'Editing specs requires the deployed spec write API (or local dev server).';
+  const uploadTooltip = localSpecWriteEnabled
+    ? catalogSummary.s3Enabled
+      ? 'Upload an OpenAPI spec (writes directly to S3 via presigned URL)'
+      : 'Upload an OpenAPI spec (writes to public/specs-store in dev)'
+    : writeAccessMessage;
   const editorParseState = useMemo(() => {
     if (!editorText.trim()) {
       return { parsedSpec: null, error: null };
@@ -521,7 +528,7 @@ export default function App({
               sx={{ mr: 1, fontWeight: 700 }}
             />
           </Tooltip>
-          <Tooltip title={localSpecWriteEnabled ? 'Upload an OpenAPI spec (writes to public/specs-store in dev)' : writeAccessMessage}>
+          <Tooltip title={uploadTooltip}>
             <span>
               <IconButton
                 color="inherit"
@@ -689,8 +696,14 @@ export default function App({
 
         {!localSpecWriteEnabled && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Read-only mode: specs are served as static files from the build. Enable local spec writes in dev
-            to upload, delete, or change review status from the UI.
+            Read-only mode: specs are served as static files. Upload, delete, and status changes
+            require the spec write API (deployed Lambda) or local dev server.
+          </Alert>
+        )}
+        {localSpecWriteEnabled && catalogSummary.s3Enabled && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            S3 mode: spec uploads and downloads use presigned URLs. The catalog is still loaded via
+            the spec store API.
           </Alert>
         )}
 

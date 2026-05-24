@@ -53,10 +53,9 @@ phases:
       - echo "DEPLOYING SPEC WRITE API"
       - echo "========================================"
 
-      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      - echo "ACCOUNT_ID=$ACCOUNT_ID"
-
       - |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "ACCOUNT_ID=${ACCOUNT_ID}"
         if aws iam get-role --role-name "$SPEC_API_ROLE_NAME" >/dev/null 2>&1; then
           echo "Spec API IAM role already exists"
         else
@@ -117,6 +116,7 @@ phases:
       - cd -
 
       - |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         SPEC_API_ENV="Variables={S3_BUCKET=$S3_BUCKET,S3_APP_PREFIX=$S3_PREFIX,SPECS_PREFIX=$SPECS_PREFIX,CLOUDFRONT_DISTRIBUTION_ID=$DISTRIBUTION_ID}"
         if aws lambda get-function \
           --function-name "$SPEC_API_LAMBDA_NAME" \
@@ -182,7 +182,7 @@ phases:
           --query FunctionUrl \
           --output text)
         SPEC_API_URL="${SPEC_API_URL%/}"
-        echo "Spec API URL: $SPEC_API_URL"
+        echo "Spec API URL ${SPEC_API_URL}"
         printf 'export VITE_SPEC_API_BASE_URL=%s\n' "$SPEC_API_URL" > api-center/.spec-api-env.sh
 
   build:
@@ -215,50 +215,40 @@ phases:
       - test -n "$LAMBDA_NAME"
       - test -n "$ROLE_NAME"
 
-      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      - S3_DEST="s3://$S3_BUCKET/$S3_PREFIX"
-      - echo "Deploy target: $S3_DEST"
-
       - echo "========================================"
       - echo "DEPLOYING FRONTEND TO S3"
       - echo "========================================"
 
       - |
+        S3_DEST="s3://${S3_BUCKET}/${S3_PREFIX}"
+        echo "Deploy target ${S3_DEST}"
         aws s3 sync \
           api-center/dist/assets \
-          "$S3_DEST/assets" \
+          "${S3_DEST}/assets" \
           --region "$AWS_REGION" \
           --cache-control "public,max-age=31536000,immutable"
-
-      - |
         if [ -f "api-center/dist/favicon.ico" ]; then
           aws s3 cp \
             api-center/dist/favicon.ico \
-            "$S3_DEST/favicon.ico" \
+            "${S3_DEST}/favicon.ico" \
             --region "$AWS_REGION" \
             --cache-control "public,max-age=86400"
         fi
-
-      - |
         aws s3 sync \
           api-center/dist \
-          "$S3_DEST" \
+          "${S3_DEST}" \
           --region "$AWS_REGION" \
           --exclude "assets/*" \
           --exclude "index.html" \
           --cache-control "no-cache,no-store,must-revalidate"
-
-      - |
         aws s3 cp \
           api-center/dist/index.html \
-          "$S3_DEST/index.html" \
+          "${S3_DEST}/index.html" \
           --region "$AWS_REGION" \
           --content-type "text/html" \
           --cache-control "no-cache,no-store,must-revalidate"
-
-      - |
         aws s3 cp \
-          "$S3_DEST/index.html" \
+          "${S3_DEST}/index.html" \
           --region "$AWS_REGION" \
           - | grep dev-mvx-developer-hub || true
 
@@ -301,7 +291,12 @@ phases:
       - zip -rq function.zip .
       - cd -
 
+      - echo "========================================"
+      - echo "DEPLOYING LAMBDA AND UPDATING CLOUDFRONT"
+      - echo "========================================"
+
       - |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         if aws lambda get-function \
           --function-name "$LAMBDA_NAME" \
           --region "$AWS_REGION" >/dev/null 2>&1; then
@@ -314,44 +309,35 @@ phases:
             --function-name "$LAMBDA_NAME" \
             --runtime nodejs18.x \
             --handler index.handler \
-            --role "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME" \
+            --role "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}" \
             --zip-file fileb://api-center/edge-auth/function.zip \
             --region "$AWS_REGION"
         fi
-
-      - aws lambda wait function-updated \
+        aws lambda wait function-updated \
           --function-name "$LAMBDA_NAME" \
           --region "$AWS_REGION"
-
-      - |
         VERSION=$(aws lambda publish-version \
           --function-name "$LAMBDA_NAME" \
           --region "$AWS_REGION" \
           --query Version \
           --output text)
-        echo "Published Lambda@Edge version=$VERSION"
-
-      - echo "========================================"
-      - echo "UPDATING CLOUDFRONT"
-      - echo "========================================"
-
-      - aws cloudfront get-distribution-config --id "$DISTRIBUTION_ID" > cf.json
-      - ETAG=$(jq -r '.ETag' cf.json)
-      - jq '.DistributionConfig' cf.json > dist.json
-      - |
-        LAMBDA_ARN="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$LAMBDA_NAME:$VERSION"
+        echo "Published Lambda@Edge version=${VERSION}"
+        aws cloudfront get-distribution-config --id "$DISTRIBUTION_ID" > cf.json
+        ETAG=$(jq -r '.ETag' cf.json)
+        jq '.DistributionConfig' cf.json > dist.json
+        LAMBDA_ARN="arn:aws:lambda:${AWS_REGION}:${ACCOUNT_ID}:function:${LAMBDA_NAME}:${VERSION}"
         jq ".DefaultCacheBehavior.LambdaFunctionAssociations = {
           \"Quantity\": 1,
           \"Items\": [{
             \"EventType\": \"viewer-request\",
-            \"LambdaFunctionARN\": \"$LAMBDA_ARN\"
+            \"LambdaFunctionARN\": \"${LAMBDA_ARN}\"
           }]
         }" dist.json > updated.json
-      - |
         aws cloudfront update-distribution \
           --id "$DISTRIBUTION_ID" \
           --if-match "$ETAG" \
           --distribution-config file://updated.json
+        echo "CloudFront update completed"
 
       - echo "========================================"
       - echo "INVALIDATING CACHE"
@@ -363,7 +349,7 @@ phases:
           --paths "/$S3_PREFIX/*" "/$S3_PREFIX/index.html" "/$S3_PREFIX/favicon.ico"
 
       - echo "Deployment completed successfully"
-      - echo "App URL: https://d2p9v61861q1ox.cloudfront.net/$S3_PREFIX/"
+      - 'echo "App URL https://d2p9v61861q1ox.cloudfront.net/${S3_PREFIX}/"'
 
 artifacts:
   base-directory: api-center/dist

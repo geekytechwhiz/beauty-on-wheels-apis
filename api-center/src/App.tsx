@@ -351,7 +351,7 @@ export default function App({
       : `${servicesQuery.data?.length ?? 0} services`;
   const catalogTooltip = `Static catalog · public/${catalogSummary.specsPrefix}/ · ${catalogSummary.indexKey}`;
   const writeAccessMessage =
-    'Editing specs in the browser is only available when the local spec API is running.';
+    'Editing specs requires the deployed spec write API (or local dev server).';
   const editorParseState = useMemo(() => {
     if (!editorText.trim()) {
       return { parsedSpec: null, error: null };
@@ -689,8 +689,8 @@ export default function App({
 
         {!localSpecWriteEnabled && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Read-only mode: specs are served as static files from the build. Enable local spec writes in dev
-            to upload, delete, or change review status from the UI.
+            Read-only mode: specs are served as static files. Upload, delete, and status changes
+            require the spec write API (deployed Lambda) or local dev server.
           </Alert>
         )}
 

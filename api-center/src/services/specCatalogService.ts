@@ -87,6 +87,22 @@ const SEMVER_PATTERN = /^(v?)(\d+)(?:\.(\d+))?(?:\.(\d+))?$/i;
 /** Dev/preview-only JSON API mount (not the same path as static `public/{specsPrefix}/`). */
 const LOCAL_SPEC_API = '/__api-center/specs-store';
 
+function getRemoteSpecApiBase(): string | null {
+  const raw = import.meta.env.VITE_SPEC_API_BASE_URL?.trim();
+  if (!raw) {
+    return null;
+  }
+  return raw.replace(/\/$/, '');
+}
+
+/** Active spec catalog API base (local Vite middleware or deployed Lambda Function URL). */
+export function getSpecApiBase(): string {
+  if (import.meta.env.DEV) {
+    return LOCAL_SPEC_API;
+  }
+  return getRemoteSpecApiBase() ?? LOCAL_SPEC_API;
+}
+
 function getSpecsPrefix(): string {
   const rawPrefix = import.meta.env.VITE_SPECS_PREFIX?.trim();
   if (!rawPrefix) {
@@ -112,14 +128,17 @@ export function getCatalogSummary(): {
   const specsPrefix = getSpecsPrefix();
   return {
     specsPrefix,
-    indexKey: `${LOCAL_SPEC_API}/catalog`,
+    indexKey: `${getSpecApiBase()}/catalog`,
     localWriteEnabled: canWriteSpecsLocally(),
   };
 }
 
-/** Dev server local API for writing into `public/specs-store` (see vite plugin). */
+/** True when spec writes can reach a backend (Vite dev middleware or deployed spec API). */
 export function canWriteSpecsLocally(): boolean {
-  return true;
+  if (import.meta.env.DEV) {
+    return import.meta.env.VITE_ENABLE_LOCAL_SPEC_API !== 'false';
+  }
+  return getRemoteSpecApiBase() !== null;
 }
 
 function withCacheBust(url: string): string {
@@ -483,14 +502,14 @@ async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<P
         };
       }
       throw new Error(
-        `Unable to load the spec catalog. Tried ${LOCAL_SPEC_API}/catalog and static ${getSpecsPrefix()}/index.json.`,
+        `Unable to load the spec catalog. Tried ${getSpecApiBase()}/catalog and static ${getSpecsPrefix()}/index.json.`,
       );
     }
   }
 }
 
 async function localApiJson<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${LOCAL_SPEC_API}${path}`, {
+  const response = await fetch(`${getSpecApiBase()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -515,7 +534,7 @@ async function localApiJson<T>(path: string, init: RequestInit): Promise<T> {
     return JSON.parse(text) as T;
   } catch {
     throw new Error(
-      `Expected JSON from ${LOCAL_SPEC_API}${path}, but received non-JSON content.`,
+      `Expected JSON from ${getSpecApiBase()}${path}, but received non-JSON content.`,
     );
   }
 }
@@ -580,7 +599,7 @@ export async function uploadSpec({
   file,
 }: UploadSpecInput): Promise<OpenApiSpecFile> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Upload is only available when the local spec API is reachable.');
+    throw new Error('Upload is only available when the spec write API is configured.');
   }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
@@ -663,7 +682,7 @@ export async function saveEditedSpecVersion({
   yamlText,
 }: SaveEditedSpecInput): Promise<OpenApiSpecFile> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Saving is only available when the local spec API is reachable.');
+    throw new Error('Saving is only available when the spec write API is configured.');
   }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
@@ -695,7 +714,7 @@ export async function updateSpecReviewStatus({
   status: SpecReviewStatus;
 }): Promise<OpenApiSpecFile> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Status updates are only available when the local spec API is reachable.');
+    throw new Error('Status updates are only available when the spec write API is configured.');
   }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
@@ -712,7 +731,7 @@ export async function updateSpecReviewStatus({
 
 export async function deleteSpecVersion(input: DeleteSpecVersionInput): Promise<void> {
   if (!canWriteSpecsLocally()) {
-    throw new Error('Delete is only available when the local spec API is reachable.');
+    throw new Error('Delete is only available when the spec write API is configured.');
   }
   const normalizedServiceName = normalizeSegment(input.serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(input.version, 'Version');

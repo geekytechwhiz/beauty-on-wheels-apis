@@ -1,271 +1,325 @@
 version: 0.2
 
 env:
-shell: bash
-variables:
-NODE_ENV: "production"
-AWS_REGION: "us-east-1" 
-S3_BUCKET: "dev-ccm-localization"
-S3_PREFIX: "dev-mvx-developer-hub"
-SPECS_PREFIX: "specs-store"
+  shell: bash
+  variables:
+    NODE_ENV: "production"
+    AWS_REGION: "us-east-1"
+    S3_BUCKET: "dev-ccm-localization"
+    S3_PREFIX: "dev-mvx-developer-hub"
+    SPECS_PREFIX: "specs-store"
+    VITE_PUBLIC_BASE_PATH: "/dev-mvx-developer-hub/"
+    DISTRIBUTION_ID: "E8KSJDLFA898A"
+    LAMBDA_NAME: "developer-hub-dev-basic-auth"
+    ROLE_NAME: "developer-hub-dev-us-east-1-lambdaRole"
+    SPEC_API_LAMBDA_NAME: "developer-hub-dev-spec-api"
+    SPEC_API_ROLE_NAME: "developer-hub-dev-spec-api-role"
+    KEEP_LAST_N: "2"
+    DRY_RUN: "false"
 
-VITE_PUBLIC_BASE_PATH: "/dev-mvx-developer-hub/"
-
-DISTRIBUTION_ID: "E8KSJDLFA898A"
-
-LAMBDA_NAME: "developer-hub-dev-basic-auth"
-ROLE_NAME: "developer-hub-dev-us-east-1-lambdaRole"
-
-SPEC_API_LAMBDA_NAME: "developer-hub-dev-spec-api"
-SPEC_API_ROLE_NAME: "developer-hub-dev-spec-api-role"
-
-KEEP_LAST_N: "2"
-DRY_RUN: "false" 
 phases:
-install:
-runtime-versions:
-nodejs: 22
-commands:
-- node --version
-- npm --version
-- apt-get update
-- apt-get install -y jq zip
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - node --version
+      - npm --version
+      - apt-get update
+      - apt-get install -y jq zip
 
-pre_build:
-  commands:
-  - npm --prefix api-center install --include=dev
-  - npm install @aws-sdk/client-lambda --no-fund --no-audit
+  pre_build:
+    commands:
+      - npm --prefix api-center install --include=dev
+      - npm install @aws-sdk/client-lambda --no-fund --no-audit
 
+      - echo "Deploying spec write API"
+      - |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "ACCOUNT_ID=${ACCOUNT_ID}"
 
-  - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        if aws iam get-role --role-name "$SPEC_API_ROLE_NAME" >/dev/null 2>&1; then
+          echo "Spec API IAM role already exists"
+        else
+          printf '%s\n' \
+          '{' \
+          '  "Version": "2012-10-17",' \
+          '  "Statement": [' \
+          '    {' \
+          '      "Effect": "Allow",' \
+          '      "Principal": { "Service": "lambda.amazonaws.com" },' \
+          '      "Action": "sts:AssumeRole"' \
+          '    }' \
+          '  ]' \
+          '}' > spec-api-trust.json
 
-  - |
-    SPEC_API_ENV="Variables={S3_BUCKET=$S3_BUCKET,S3_APP_PREFIX=$S3_PREFIX,SPECS_PREFIX=$SPECS_PREFIX,CLOUDFRONT_DISTRIBUTION_ID=$DISTRIBUTION_ID}"
+          aws iam create-role \
+            --role-name "$SPEC_API_ROLE_NAME" \
+            --assume-role-policy-document file://spec-api-trust.json
 
-    if aws lambda get-function \
-      --function-name "$SPEC_API_LAMBDA_NAME" \
-      --region "$AWS_REGION" >/dev/null 2>&1; then
+          aws iam attach-role-policy \
+            --role-name "$SPEC_API_ROLE_NAME" \
+            --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-      echo "Updating Spec API Lambda"
+          printf '%s\n' \
+          '{' \
+          '  "Version": "2012-10-17",' \
+          '  "Statement": [' \
+          '    {' \
+          '      "Effect": "Allow",' \
+          '      "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:ListBucket"],' \
+          '      "Resource": [' \
+          "        \"arn:aws:s3:::$S3_BUCKET\"," \
+          "        \"arn:aws:s3:::$S3_BUCKET/*\"" \
+          '      ]' \
+          '    },' \
+          '    {' \
+          '      "Effect": "Allow",' \
+          '      "Action": "cloudfront:CreateInvalidation",' \
+          "      \"Resource\": \"arn:aws:cloudfront::$ACCOUNT_ID:distribution/$DISTRIBUTION_ID\"" \
+          '    }' \
+          '  ]' \
+          '}' > spec-api-policy.json
 
-      aws lambda update-function-code \
-        --function-name "$SPEC_API_LAMBDA_NAME" \
-        --zip-file fileb://api-center/spec-api/function.zip \
-        --region "$AWS_REGION"
+          aws iam put-role-policy \
+            --role-name "$SPEC_API_ROLE_NAME" \
+            --policy-name developer-hub-spec-api-s3 \
+            --policy-document file://spec-api-policy.json
 
-    fi
- 
+          sleep 20
+        fi
 
-build:
-  commands:
-  - source api-center/.spec-api-env.sh || true
+      - npm install --prefix api-center/spec-api --omit=dev
+      - cd api-center/spec-api
+      - rm -f function.zip
+      - zip -rq function.zip index.mjs package.json node_modules
+      - cd -
 
+      - |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        SPEC_API_ENV="Variables={S3_BUCKET=$S3_BUCKET,S3_APP_PREFIX=$S3_PREFIX,SPECS_PREFIX=$SPECS_PREFIX,CLOUDFRONT_DISTRIBUTION_ID=$DISTRIBUTION_ID}"
 
-  - echo "Building frontend"
+        if aws lambda get-function \
+          --function-name "$SPEC_API_LAMBDA_NAME" \
+          --region "$AWS_REGION" >/dev/null 2>&1; then
+          echo "Updating spec API Lambda"
+          aws lambda update-function-code \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --zip-file fileb://api-center/spec-api/function.zip \
+            --region "$AWS_REGION"
+          aws lambda wait function-updated \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --region "$AWS_REGION"
+          aws lambda update-function-configuration \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --runtime nodejs22.x \
+            --handler index.handler \
+            --environment "$SPEC_API_ENV" \
+            --region "$AWS_REGION"
+        else
+          echo "Creating spec API Lambda"
+          aws lambda create-function \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --runtime nodejs22.x \
+            --handler index.handler \
+            --role "arn:aws:iam::${ACCOUNT_ID}:role/${SPEC_API_ROLE_NAME}" \
+            --zip-file fileb://api-center/spec-api/function.zip \
+            --environment "$SPEC_API_ENV" \
+            --region "$AWS_REGION"
+          aws lambda wait function-active \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --region "$AWS_REGION"
+        fi
 
-  - npm --prefix api-center run build
+        if ! aws lambda get-function-url-config \
+          --function-name "$SPEC_API_LAMBDA_NAME" \
+          --region "$AWS_REGION" >/dev/null 2>&1; then
+          aws lambda create-function-url-config \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --auth-type NONE \
+            --cors '{"AllowCredentials":false,"AllowHeaders":["content-type","authorization"],"AllowMethods":["*"],"AllowOrigins":["*"],"MaxAge":86400}' \
+            --region "$AWS_REGION"
+          aws lambda add-permission \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --statement-id FunctionURLAllowPublicAccess \
+            --action lambda:InvokeFunctionUrl \
+            --principal "*" \
+            --function-url-auth-type NONE \
+            --region "$AWS_REGION" || true
+        else
+          aws lambda update-function-url-config \
+            --function-name "$SPEC_API_LAMBDA_NAME" \
+            --cors '{"AllowCredentials":false,"AllowHeaders":["content-type","authorization"],"AllowMethods":["*"],"AllowOrigins":["*"],"MaxAge":86400}' \
+            --region "$AWS_REGION"
+        fi
 
-  - test -f api-center/dist/index.html
-  - test -d api-center/dist/assets
+        SPEC_API_URL=$(aws lambda get-function-url-config \
+          --function-name "$SPEC_API_LAMBDA_NAME" \
+          --region "$AWS_REGION" \
+          --query FunctionUrl \
+          --output text)
+        SPEC_API_URL="${SPEC_API_URL%/}"
+        echo "Spec API URL ${SPEC_API_URL}"
+        printf 'export VITE_SPEC_API_BASE_URL=%s\n' "$SPEC_API_URL" > api-center/.spec-api-env.sh
 
-  - echo "Generated assets:"
-  - cat api-center/dist/index.html | grep assets || true
- 
+  build:
+    commands:
+      - source api-center/.spec-api-env.sh
+      - echo "VITE_PUBLIC_BASE_PATH=${VITE_PUBLIC_BASE_PATH}"
+      - echo "VITE_SPEC_API_BASE_URL=${VITE_SPEC_API_BASE_URL}"
+      - npm --prefix api-center run build
+      - test -f api-center/dist/index.html
+      - test -d api-center/dist/assets
+      - cat api-center/dist/index.html | grep dev-mvx-developer-hub || true
 
-post_build:
-  commands:
+  post_build:
+    commands:
+      - node ./scripts/lambda-version.cleanup.js || true
+      - test -n "$AWS_REGION"
+      - test -n "$S3_BUCKET"
+      - test -n "$S3_PREFIX"
+      - test -n "$DISTRIBUTION_ID"
 
- 
-  - node ./scripts/lambda-version.cleanup.js || true
+      - |
+        S3_DEST="s3://${S3_BUCKET}/${S3_PREFIX}"
+        echo "Deploying frontend to ${S3_DEST}"
 
-  - test -n "$AWS_REGION"
-  - test -n "$S3_BUCKET"
-  - test -n "$S3_PREFIX"
-  - test -n "$DISTRIBUTION_ID"
+        aws s3 sync \
+          api-center/dist/assets \
+          "${S3_DEST}/assets" \
+          --region "$AWS_REGION" \
+          --cache-control "public,max-age=31536000,immutable"
 
-  - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        if [ -f "api-center/dist/favicon.ico" ]; then
+          aws s3 cp \
+            api-center/dist/favicon.ico \
+            "${S3_DEST}/favicon.ico" \
+            --region "$AWS_REGION" \
+            --cache-control "public,max-age=86400"
+        fi
 
-  - |
-    S3_DEST="s3://${S3_BUCKET}/${S3_PREFIX}"
+        aws s3 sync \
+          api-center/dist \
+          "${S3_DEST}" \
+          --region "$AWS_REGION" \
+          --exclude "assets/*" \
+          --exclude "index.html" \
+          --cache-control "no-cache,no-store,must-revalidate"
 
-    echo "Deploying frontend to ${S3_DEST}"
+        aws s3 cp \
+          api-center/dist/index.html \
+          "${S3_DEST}/index.html" \
+          --region "$AWS_REGION" \
+          --content-type "text/html" \
+          --cache-control "no-cache,no-store,must-revalidate"
 
-    aws s3 sync \
-      api-center/dist/assets \
-      "${S3_DEST}/assets" \
-      --region "$AWS_REGION" \
-      --cache-control "public,max-age=31536000,immutable"
+        aws s3 cp \
+          "${S3_DEST}/index.html" \
+          --region "$AWS_REGION" \
+          - | grep assets || true
 
-    if [ -f "api-center/dist/favicon.ico" ]; then
-      aws s3 cp \
-        api-center/dist/favicon.ico \
-        "${S3_DEST}/favicon.ico" \
-        --region "$AWS_REGION" \
-        --cache-control "public,max-age=86400"
-    fi
+      - |
+        if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
+          echo "Lambda@Edge IAM role already exists"
+        else
+          printf '%s\n' \
+          '{' \
+          '  "Version": "2012-10-17",' \
+          '  "Statement": [{' \
+          '    "Effect": "Allow",' \
+          '    "Principal": {' \
+          '      "Service": [' \
+          '        "lambda.amazonaws.com",' \
+          '        "edgelambda.amazonaws.com"' \
+          '      ]' \
+          '    },' \
+          '    "Action": "sts:AssumeRole"' \
+          '  }]' \
+          '}' > trust.json
 
-    aws s3 sync \
-      api-center/dist \
-      "${S3_DEST}" \
-      --region "$AWS_REGION" \
-      --exclude "assets/*" \
-      --exclude "index.html" \
-      --cache-control "no-cache,no-store,must-revalidate"
+          aws iam create-role \
+            --role-name "$ROLE_NAME" \
+            --assume-role-policy-document file://trust.json
 
-    aws s3 cp \
-      api-center/dist/index.html \
-      "${S3_DEST}/index.html" \
-      --region "$AWS_REGION" \
-      --content-type "text/html" \
-      --cache-control "no-cache,no-store,must-revalidate"
+          aws iam attach-role-policy \
+            --role-name "$ROLE_NAME" \
+            --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-  - echo "Verifying uploaded HTML"
+          sleep 20
+        fi
 
-  - |
-    aws s3 cp \
-      "${S3_DEST}/index.html" \
-      - \
-      --region "$AWS_REGION" | grep assets || true
+      - cd api-center/edge-auth
+      - rm -f function.zip
+      - zip -rq function.zip .
+      - cd -
 
-  - |
-    if aws iam get-role \
-      --role-name "$ROLE_NAME" >/dev/null 2>&1
-    then
-      echo "Role exists"
-    else
+      - |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-      printf '%s\n' \
-      '{' \
-      '  "Version":"2012-10-17",' \
-      '  "Statement":[{' \
-      '      "Effect":"Allow",' \
-      '      "Principal":{' \
-      '          "Service":["lambda.amazonaws.com","edgelambda.amazonaws.com"]' \
-      '      },' \
-      '      "Action":"sts:AssumeRole"' \
-      '  }]' \
-      '}' > trust.json
+        if aws lambda get-function \
+          --function-name "$LAMBDA_NAME" \
+          --region "$AWS_REGION" >/dev/null 2>&1; then
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_NAME" \
+            --zip-file fileb://api-center/edge-auth/function.zip \
+            --region "$AWS_REGION"
+        else
+          aws lambda create-function \
+            --function-name "$LAMBDA_NAME" \
+            --runtime nodejs18.x \
+            --handler index.handler \
+            --role "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}" \
+            --zip-file fileb://api-center/edge-auth/function.zip \
+            --region "$AWS_REGION"
+        fi
 
-      aws iam create-role \
-        --role-name "$ROLE_NAME" \
-        --assume-role-policy-document file://trust.json
+        aws lambda wait function-updated \
+          --function-name "$LAMBDA_NAME" \
+          --region "$AWS_REGION"
 
-      aws iam attach-role-policy \
-        --role-name "$ROLE_NAME" \
-        --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        VERSION=$(aws lambda publish-version \
+          --function-name "$LAMBDA_NAME" \
+          --region "$AWS_REGION" \
+          --query Version \
+          --output text)
 
-      sleep 20
-    fi
+        aws cloudfront get-distribution-config \
+          --id "$DISTRIBUTION_ID" > cf.json
 
-  - cd api-center/edge-auth
-  - rm -f function.zip
-  - zip -rq function.zip .
-  - cd -
+        ETAG=$(jq -r '.ETag' cf.json)
+        jq '.DistributionConfig' cf.json > dist.json
 
-  - |
-    if aws lambda get-function \
-      --function-name "$LAMBDA_NAME" \
-      --region "$AWS_REGION" >/dev/null 2>&1
-    then
+        LAMBDA_ARN="arn:aws:lambda:${AWS_REGION}:${ACCOUNT_ID}:function:${LAMBDA_NAME}:${VERSION}"
 
-      aws lambda update-function-code \
-        --function-name "$LAMBDA_NAME" \
-        --zip-file fileb://api-center/edge-auth/function.zip \
-        --region "$AWS_REGION"
+        jq --arg LAMBDA_ARN "$LAMBDA_ARN" '
+          .DefaultCacheBehavior.LambdaFunctionAssociations = {
+            "Quantity": 1,
+            "Items": [{
+              "EventType": "viewer-request",
+              "LambdaFunctionARN": $LAMBDA_ARN
+            }]
+          }
+        ' dist.json > updated.json
 
-      aws lambda wait function-updated \
-        --function-name "$LAMBDA_NAME" \
-        --region "$AWS_REGION"
+        aws cloudfront update-distribution \
+          --id "$DISTRIBUTION_ID" \
+          --if-match "$ETAG" \
+          --distribution-config file://updated.json
 
-    else
+        aws cloudfront create-invalidation \
+          --distribution-id "$DISTRIBUTION_ID" \
+          --paths \
+            "/${S3_PREFIX}/*" \
+            "/${S3_PREFIX}/index.html" \
+            "/${S3_PREFIX}/favicon.ico"
 
-      aws lambda create-function \
-        --function-name "$LAMBDA_NAME" \
-        --runtime nodejs18.x \
-        --handler index.handler \
-        --role "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}" \
-        --zip-file fileb://api-center/edge-auth/function.zip \
-        --region "$AWS_REGION"
-
-      aws lambda wait function-active \
-        --function-name "$LAMBDA_NAME" \
-        --region "$AWS_REGION"
-
-    fi
-
-  - |
-    VERSION=$(aws lambda publish-version \
-      --function-name "$LAMBDA_NAME" \
-      --region "$AWS_REGION" \
-      --query Version \
-      --output text)
-
-  - |
-    aws cloudfront get-distribution-config \
-      --id "$DISTRIBUTION_ID" > cf.json
-
-    ETAG=$(jq -r '.ETag' cf.json)
-
-    jq '.DistributionConfig' cf.json > dist.json
-
-    LAMBDA_ARN="arn:aws:lambda:${AWS_REGION}:${ACCOUNT_ID}:function:${LAMBDA_NAME}:${VERSION}"
-
-    jq --arg LAMBDA_ARN "$LAMBDA_ARN" '
-    .DefaultCacheBehavior.LambdaFunctionAssociations = {
-      "Quantity":1,
-      "Items":[
-        {
-          "EventType":"viewer-request",
-          "LambdaFunctionARN":$LAMBDA_ARN
-        }
-      ]
-    }
-    |
-    .DefaultCacheBehavior.AllowedMethods = {
-      "Quantity":7,
-      "Items":[
-        "GET",
-        "HEAD",
-        "OPTIONS",
-        "PUT",
-        "POST",
-        "PATCH",
-        "DELETE"
-      ],
-      "CachedMethods":{
-        "Quantity":2,
-        "Items":[
-          "GET",
-          "HEAD"
-        ]
-      }
-    }
-    ' dist.json > updated.json
-
-    aws cloudfront update-distribution \
-      --id "$DISTRIBUTION_ID" \
-      --if-match "$ETAG" \
-      --distribution-config file://updated.json
-
-  - |
-    aws cloudfront create-invalidation \
-      --distribution-id "$DISTRIBUTION_ID" \
-      --paths \
-      "/${S3_PREFIX}" \
-      "/${S3_PREFIX}/" \
-      "/${S3_PREFIX}/index.html" \
-      "/${S3_PREFIX}/favicon.ico" \
-      "/${S3_PREFIX}/assets/*"
-
-  - echo "App URL:"
-  - echo "https://d2p9v61861q1ox.cloudfront.net/${S3_PREFIX}/"
-
+        echo "Deployment completed"
+        echo "App URL https://d2p9v61861q1ox.cloudfront.net/${S3_PREFIX}/"
 
 artifacts:
-base-directory: api-center/dist
-files:
-- "**/*"
+  base-directory: api-center/dist
+  files:
+    - "**/*"
 
 cache:
-paths:
-- /root/.npm/**/*
+  paths:
+    - /root/.npm/**/*

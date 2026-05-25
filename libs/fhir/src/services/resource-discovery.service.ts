@@ -1,24 +1,62 @@
-import type { ResourceMapper } from '../interfaces/ResourceMapper';
-import { createDefaultResourceMappers } from '../registry/resource-mapper.registry';
+import { ResourceConfig } from '../types/resource.types';
+import { resourceRegistry } from '../registry/resource-registry';
+import { resolvePayloadResourceTypes } from '../utils/data-shape';
 
 export class ResourceDiscoveryService {
-  constructor(private readonly mappers: ResourceMapper[]) {}
+  discover(data: unknown, handlerResourceTypes?: string[]): ResourceConfig[] {
+    const resources = resourceRegistry.getAll();
 
-  static createDefault(
-    transformationService: Parameters<typeof createDefaultResourceMappers>[0],
-  ): ResourceDiscoveryService {
-    return new ResourceDiscoveryService(
-      createDefaultResourceMappers(transformationService),
-    );
-  }
+    /**
+     * Priority 1
+     * Explicit handler resource types
+     */
 
-  discover(data: unknown, explicitTypes?: string[]): ResourceMapper[] {
-    if (explicitTypes?.length) {
-      return this.mappers.filter((mapper) =>
-        explicitTypes.includes(mapper.resourceType),
+    if (handlerResourceTypes?.length) {
+      return resources.filter((resource) =>
+        handlerResourceTypes.includes(resource.resource),
       );
     }
 
-    return this.mappers.filter((mapper) => mapper.supports(data));
+    /**
+     * Priority 2
+     * Payload-declared resource type
+     */
+
+    const payloadTypes = resolvePayloadResourceTypes(data);
+
+    if (payloadTypes.length) {
+      return resources.filter((resource) =>
+        payloadTypes.includes(resource.resource),
+      );
+    }
+
+    /**
+     * Priority 3
+     * Detection rules
+     */
+
+    return resources.filter((resource) => {
+      const detection = resource.detection;
+
+      if (!detection?.enabled) {
+        return false;
+      }
+
+      const fields = detection.fields;
+
+      if (!fields.length) {
+        return false;
+      }
+
+      const matches = fields.filter((field:string) => hasValue(data, field));
+
+      return detection.strategy === 'ALL'
+        ? matches.length === fields.length
+        : matches.length > 0;
+    });
   }
+}
+
+function hasValue(data: any, field: string) {
+  return Boolean(data?.[field]);
 }

@@ -1,17 +1,10 @@
 import objectPath from 'object-path';
 
 import {
-  ClientMappingRegistry,
-  MappingRegistry,
   MappingResolver,
 } from '../resolver/mapping.resolver';
 
-import {
-  clientMappingRegistry,
-  defaultMappingRegistry,
-  ResourceMappingConfig,
-  MappingField,
-} from '../registry/mapping.registry';
+ 
 
 import { GenericMapper } from '../mapper/generic-fhir.mapper';
 
@@ -23,101 +16,114 @@ import {
 } from '../terminology/terminology.service';
 
 import { ResourceDiscoveryService } from './resource-discovery.service';
+
 import { isRecord } from '../utils/data-shape';
+import { FhirProjectionOptions, FhirTransformationConfig, MappingField, ResourceConfig } from '../types/resource.types';
+import { MappingRegistry, mappingRegistry } from '../registry/mapping.registry';
+import { clientMappingRegistry, DefaultClientMappingRegistry } from '../registry/client-mapping.registry';
 
-export interface FhirTransformationConfig {
-  baseUrl?: string;
-
-  validate?: boolean;
-
-  clientConfig?: Record<string, unknown>;
-
-  version?: 'R4' | 'R5';
-}
-
-export interface FhirProjectionOptions {
-  resourceTypes?: string[];
-  clientId?: string;
-  version?: 'R4' | 'R5';
-}
 
 export class FhirTransformationService {
-  private discoveryService?: ResourceDiscoveryService;
-
   constructor(
-    private readonly mappingResolver: MappingResolver = new MappingResolver(
-      defaultMappingRegistry as MappingRegistry,
-      clientMappingRegistry as ClientMappingRegistry,
+    private readonly mappingResolver = new MappingResolver(
+      mappingRegistry  as MappingRegistry,
+
+      clientMappingRegistry as DefaultClientMappingRegistry,
     ),
 
-    private readonly genericMapper: GenericMapper = new GenericMapper(),
+    private readonly genericMapper = new GenericMapper(),
 
     private readonly terminology: TerminologyService = defaultTerminologyService,
 
-    private readonly validator: FhirValidator = new FhirValidator(),
+    private readonly validator = new FhirValidator(),
 
-    discoveryService?: ResourceDiscoveryService,
-  ) {
-    this.discoveryService = discoveryService;
-  }
+    private readonly discoveryService = new ResourceDiscoveryService(),
+  ) {}
 
   /**
-   * Canonical → strict FHIR projection resources for one or more business objects.
-   * Auto-detects resource types unless explicit resourceTypes are provided.
+   * Canonical → projected FHIR resources
    */
+
   async transformToProjection(
     data: unknown,
+
     options: FhirProjectionOptions = {},
   ): Promise<Record<string, unknown>[]> {
-    const discovery = this.getDiscoveryService();
     const items = normalizeProjectionInput(data);
+
     const resources: Record<string, unknown>[] = [];
 
     for (const item of items) {
-      const mappers = discovery.discover(item, options.resourceTypes);
+      const configs = this.discoveryService.discover(
+        item,
 
-      for (const mapper of mappers) {
-        const resource = await mapper.map(item, options.clientId);
-        resources.push(resource);
+        options.resourceTypes,
+      );
+
+      for (const config of configs) {
+        const transformed = await this.transformCanonicalToFhir(
+          config.resource,
+
+          item,
+
+          options.clientId,
+
+          {
+            validate: true,
+
+            version: options.version,
+          },
+        );
+
+        resources.push(transformed);
       }
     }
 
     return resources;
   }
 
-  private getDiscoveryService(): ResourceDiscoveryService {
-    if (!this.discoveryService) {
-      this.discoveryService = ResourceDiscoveryService.createDefault(this);
-    }
-
-    return this.discoveryService;
-  }
-
   /**
-   * Canonical → hybrid FHIR-compatible payload.
-   * Preserves all canonical fields; adds mapped FHIR paths and extensions.
+   * Canonical → Hybrid FHIR
    */
+
   async transformCanonicalToHybridFhir<TCanonical>(
     resourceType: string,
+
     canonical: TCanonical,
+
     clientId?: string,
+
     config: FhirTransformationConfig = {},
   ): Promise<Record<string, unknown>> {
-    const mapping = this.resolveMapping(resourceType, clientId, config.version);
+    const mapping = this.resolveMapping(
+      resourceType,
+
+      clientId,
+
+      config.version,
+    );
 
     const hybrid = this.genericMapper.mapHybrid(
       canonical as Record<string, unknown>,
+
       mapping,
     );
 
-    this.normalizeTerminology(hybrid, mapping);
+    this.normalizeTerminology(
+      hybrid,
+
+      mapping,
+    );
 
     if (config.validate === true) {
       await this.validator.validateResource({
         resource: hybrid,
+
         resourceType,
+
         version: mapping.version,
-        profile: mapping.profile,
+
+        profile: mapping.profile.join(','),
       });
     }
 
@@ -127,6 +133,7 @@ export class FhirTransformationService {
   /**
    * Canonical → FHIR
    */
+
   async transformCanonicalToFhir<TCanonical>(
     resourceType: string,
 
@@ -135,44 +142,40 @@ export class FhirTransformationService {
     clientId?: string,
 
     config: FhirTransformationConfig = {},
-  ): Promise<any> {
-    const mapping = this.resolveMapping(resourceType, clientId, config.version);
+  ): Promise<Record<string, unknown>> {
+    const mapping = this.resolveMapping(
+      resourceType,
 
-    /**
-     * Step 1
-     * Canonical → FHIR
-     */
+      clientId,
 
-    const resource = this.genericMapper.mapStrict(
+      config.version,
+    );
+
+    const transformed = this.genericMapper.mapStrict(
       canonical as Record<string, unknown>,
+
       mapping,
     );
 
-    /**
-     * Step 2
-     * Terminology normalization
-     */
+    this.normalizeTerminology(
+      transformed,
 
-    this.normalizeTerminology(resource, mapping);
-
-    /**
-     * Step 3
-     * Validation
-     */
+      mapping,
+    );
 
     if (config.validate !== false) {
       await this.validator.validateResource({
-        resource,
+        resource: transformed,
 
         resourceType,
 
         version: mapping.version,
 
-        profile: mapping.profile,
+        profile: mapping.profile.join(','),
       });
     }
 
-    return resource;
+    return transformed;
   }
 
   /**
@@ -182,19 +185,29 @@ export class FhirTransformationService {
   async transformFhirToCanonical(
     resourceType: string,
 
-    resource: any,
+    resourceData: Record<string, unknown>,
 
     clientId?: string,
 
     config: FhirTransformationConfig = {},
-  ): Promise<any> {
-    const mapping = this.resolveMapping(resourceType, clientId, config.version);
+  ): Promise<Record<string, unknown>> {
+    const mapping = this.resolveMapping(
+      resourceType,
 
-    return this.genericMapper.reverseMap(resource, mapping);
+      clientId,
+
+      config.version,
+    );
+
+    return this.genericMapper.reverseMap(
+      resourceData,
+
+      mapping,
+    );
   }
 
   /**
-   * Common mapping resolution
+   * Mapping resolver
    */
 
   private resolveMapping(
@@ -203,21 +216,23 @@ export class FhirTransformationService {
     clientId?: string,
 
     version?: string,
-  ): ResourceMappingConfig {
+  ): ResourceConfig {
     const resolvedVersion = version ?? 'R4';
 
     try {
       return this.mappingResolver.resolve(
         resourceType,
+
         clientId ?? '',
+
         resolvedVersion,
       );
     } catch {
       const error: any = new Error(
         `FHIR mapping not found:
-          resource=${resourceType}
-          version=${resolvedVersion}
-          client=${clientId ?? ''}`,
+resource=${resourceType}
+version=${resolvedVersion}
+client=${clientId ?? ''}`,
       );
 
       error.statusCode = 500;
@@ -229,70 +244,64 @@ export class FhirTransformationService {
   }
 
   /**
-   * Metadata-driven terminology handling
+   * Terminology normalization
    */
 
   private normalizeTerminology(
-    resource: any,
+    resource: Record<string, unknown>,
 
-    mapping: ResourceMappingConfig,
+    mapping: ResourceConfig,
   ): void {
-    if (!mapping.fields?.length) return;
+    if (!mapping.fields?.length) {
+      return;
+    }
 
     for (const field of mapping.fields) {
-      this.normalizeField(resource, field);
+      this.normalizeField(
+        resource,
+
+        field,
+      );
     }
   }
 
   private normalizeField(
+    resource: Record<string, unknown>,
 
-    resource: any,
-
-    field: MappingField
-
-): void {
-
+    field: MappingField,
+  ): void {
     if (!field.system) {
-        return;
+      return;
     }
 
-    const value =
-        objectPath.get(
-            resource,
-            field.target
-        );
+    const value = objectPath.get(
+      resource,
 
-    if (
-        value === undefined ||
-        value === null
-    ) {
-        return;
+      field.target,
+    );
+
+    if (value === undefined || value === null) {
+      return;
     }
 
-    /**
-     * Normalize only primitive values
-     */
-
-    if (
-        typeof value !== 'string' &&
-        typeof value !== 'number'
-    ) {
-        return;
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      return;
     }
 
-    const normalized =
-    this.terminology.normalizeCode(
-        field.system,
-        String(value)
+    const normalized = this.terminology.normalizeCode(
+      field.system,
+
+      String(value),
     );
 
     objectPath.set(
-        resource,
-        field.target,
-        normalized.code
-    );
+      resource,
 
-}
+      field.target,
+
+      normalized.code,
+    );
+  }
 }
 
 function normalizeProjectionInput(data: unknown): unknown[] {

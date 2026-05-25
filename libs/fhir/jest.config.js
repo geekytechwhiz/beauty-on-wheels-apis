@@ -9,6 +9,7 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
+    '^src/(.*)$': '<rootDir>/src/$1',
     '^@api-hub/logger$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
     '^@api-hub/terminology$': '<rootDir>/../../libs/terminology/src/index.ts',

@@ -1,4 +1,7 @@
+import { bootstrapFhirLibrary } from '../bootstrap';
 import { GenericMapper } from '../mapper/generic-fhir.mapper';
+import { DefaultClientMappingRegistry } from '../registry/client-mapping.registry';
+import { MappingRegistry } from '../registry/mapping.registry';
 import { MappingResolver } from '../resolver/mapping.resolver';
 import { defaultTerminologyService } from '../terminology/terminology.service';
 import { FhirTransformationService } from './fhir-transformation.service';
@@ -7,6 +10,7 @@ import {
   FhirValidator,
 } from '../validator/fhir.validator';
 import {
+  asResourceConfig,
   canonicalPatient,
   clientPatientOverrideFixture,
   fhirPatientFromFixture,
@@ -15,16 +19,26 @@ import {
 } from '../testing/mapping.fixtures';
 
 describe('FhirTransformationService', () => {
-  const registry = {
-    Patient: {
-      R4: patientMappingFixture,
-    },
-  };
+  beforeAll(() => {
+    bootstrapFhirLibrary();
+  });
+
+  function createRegistry() {
+    const registry = new MappingRegistry();
+    registry.register(asResourceConfig(patientMappingFixture));
+    return registry;
+  }
+
+  function createClientRegistry(clientId = 'acme') {
+    const registry = new DefaultClientMappingRegistry();
+    registry.register(clientId, asResourceConfig(clientPatientOverrideFixture));
+    return registry;
+  }
 
   describe('transformCanonicalToFhir', () => {
     it('transforms canonical data to a FHIR Patient resource', async () => {
       const service = new FhirTransformationService(
-        new MappingResolver(registry),
+        new MappingResolver(createRegistry()),
       );
 
       const result = await service.transformCanonicalToFhir(
@@ -42,13 +56,7 @@ describe('FhirTransformationService', () => {
 
     it('applies client-specific mapping overrides', async () => {
       const service = new FhirTransformationService(
-        new MappingResolver(registry, {
-          acme: {
-            Patient: {
-              R4: clientPatientOverrideFixture,
-            },
-          },
-        }),
+        new MappingResolver(createRegistry(), createClientRegistry()),
       );
 
       const result = await service.transformCanonicalToFhir(
@@ -62,7 +70,7 @@ describe('FhirTransformationService', () => {
 
     it('supports explicit R4 version selection', async () => {
       const service = new FhirTransformationService(
-        new MappingResolver(registry),
+        new MappingResolver(createRegistry()),
       );
 
       const result = await service.transformCanonicalToFhir(
@@ -77,7 +85,7 @@ describe('FhirTransformationService', () => {
 
     it('throws when mapping is not found for resource/version', async () => {
       const service = new FhirTransformationService(
-        new MappingResolver(registry),
+        new MappingResolver(createRegistry()),
       );
 
       await expect(
@@ -108,7 +116,7 @@ describe('FhirTransformationService', () => {
       } as unknown as FhirValidator;
 
       const service = new FhirTransformationService(
-        new MappingResolver(registry),
+        new MappingResolver(createRegistry()),
         new GenericMapper(),
         defaultTerminologyService,
         validator,
@@ -127,7 +135,7 @@ describe('FhirTransformationService', () => {
       } as unknown as FhirValidator;
 
       const service = new FhirTransformationService(
-        new MappingResolver(registry),
+        new MappingResolver(createRegistry()),
         new GenericMapper(),
         defaultTerminologyService,
         validator,
@@ -172,7 +180,7 @@ describe('FhirTransformationService', () => {
       } as unknown as FhirValidator;
 
       const service = new FhirTransformationService(
-        new MappingResolver(registry),
+        new MappingResolver(createRegistry()),
         new GenericMapper(),
         defaultTerminologyService,
         validator,
@@ -189,7 +197,7 @@ describe('FhirTransformationService', () => {
   describe('transformFhirToCanonical', () => {
     it('transforms FHIR Patient back to canonical shape', async () => {
       const service = new FhirTransformationService(
-        new MappingResolver(registry),
+        new MappingResolver(createRegistry()),
       );
 
       const result = await service.transformFhirToCanonical(
@@ -205,13 +213,7 @@ describe('FhirTransformationService', () => {
 
     it('uses client overrides for reverse mapping', async () => {
       const service = new FhirTransformationService(
-        new MappingResolver(registry, {
-          acme: {
-            Patient: {
-              R4: clientPatientOverrideFixture,
-            },
-          },
-        }),
+        new MappingResolver(createRegistry(), createClientRegistry()),
       );
 
       const result = await service.transformFhirToCanonical(

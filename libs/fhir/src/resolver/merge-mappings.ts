@@ -1,12 +1,12 @@
 import {
   MappingField,
-  ResourceMappingConfig,
-} from '../registry/mapping.registry';
+  ResourceConfig,
+} from '../types/resource.types';
 
 export function mergeMappings(
-  base: ResourceMappingConfig,
-  clientOverride?: ResourceMappingConfig,
-): ResourceMappingConfig {
+  base: ResourceConfig,
+  clientOverride?: ResourceConfig,
+): ResourceConfig {
   if (!clientOverride?.fields?.length) {
     return base;
   }
@@ -34,7 +34,18 @@ export function mergeMappings(
     resource: base.resource,
     version: base.version,
     profile: clientOverride.profile ?? base.profile,
+    validation: base.validation,
+    detection: base.detection,
+    mapping: base.mapping,
+    aliases: base.aliases,
+    references: base.references, 
+    transformers: base.transformers,
+    clientOverrides: base.clientOverrides,
+    metadata: base.metadata,
     fields: mergedFields,
-    extensions: clientOverride.extensions ?? base.extensions,
+    extensions: [
+      ...(clientOverride.extensions ?? []),
+      ...(base.extensions ?? [])
+   ]
   };
 }

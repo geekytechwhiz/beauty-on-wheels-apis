@@ -1,11 +1,16 @@
+import { bootstrapFhirLibrary } from '../bootstrap';
 import { BundleBuilder } from '../builders/BundleBuilder';
-import { FhirTransformationService } from '../services/fhir-transformation.service';
-import { ResourceDiscoveryService } from '../services/resource-discovery.service';
-import { createDefaultResourceMappers } from '../registry/resource-mapper.registry';
 import { EXCLUDED_PLATFORM_FIELDS } from '../constants/excluded-fields';
+import { FhirTransformationService } from './fhir-transformation.service';
+import { ResourceDiscoveryService } from './resource-discovery.service';
 
 describe('FHIR projection layer', () => {
+  beforeAll(() => {
+    bootstrapFhirLibrary();
+  });
+
   const service = new FhirTransformationService();
+  const discovery = new ResourceDiscoveryService();
 
   describe('BundleBuilder', () => {
     it('builds a collection bundle from resources', () => {
@@ -27,34 +32,32 @@ describe('FHIR projection layer', () => {
   });
 
   describe('ResourceDiscoveryService', () => {
-    const discovery = ResourceDiscoveryService.createDefault(service);
-
-    it('auto-detects Patient from patientId', () => {
-      const mappers = discovery.discover({ patientId: '01K', mrn: 'PI-123' });
-      expect(mappers.map((m) => m.resourceType)).toEqual(['Patient']);
+    it('falls back to signal detection for Patient from patientId', () => {
+      const configs = discovery.discover({ patientId: '01K', mrn: 'PI-123' });
+      expect(configs.map((config) => config.resource)).toEqual(['Patient']);
     });
 
-    it('auto-detects Patient and Practitioner from mixed payload', () => {
-      const mappers = discovery.discover({
+    it('falls back to signal detection for Patient and Practitioner from mixed payload', () => {
+      const configs = discovery.discover({
         patientId: '01K',
         mrn: 'PI-123',
         reporterName: 'Dr Smith',
         reporterEmail: 'smith@test.com',
       });
 
-      expect(mappers.map((m) => m.resourceType)).toEqual([
+      expect(configs.map((config) => config.resource)).toEqual([
         'Patient',
         'Practitioner',
       ]);
     });
 
-    it('returns no mappers when nothing matches', () => {
-      const mappers = discovery.discover({ ok: true });
-      expect(mappers).toEqual([]);
+    it('returns no configs when nothing matches', () => {
+      const configs = discovery.discover({ ok: true });
+      expect(configs).toEqual([]);
     });
 
-    it('honors explicit resource override', () => {
-      const mappers = discovery.discover(
+    it('uses handler resourceTypes as primary selection', () => {
+      const configs = discovery.discover(
         {
           patientId: '01K',
           reporterName: 'Dr Smith',
@@ -63,7 +66,27 @@ describe('FHIR projection layer', () => {
         ['Patient'],
       );
 
-      expect(mappers.map((m) => m.resourceType)).toEqual(['Patient']);
+      expect(configs.map((config) => config.resource)).toEqual(['Patient']);
+    });
+
+    it('uses payload resourceType before signal detection', () => {
+      const configs = discovery.discover({
+        resourceType: 'Patient',
+        reporterName: 'Dr Smith',
+        reporterEmail: 'smith@test.com',
+      });
+
+      expect(configs.map((config) => config.resource)).toEqual(['Patient']);
+    });
+
+    it('uses payload resources array before signal detection', () => {
+      const configs = discovery.discover({
+        patientId: '01K',
+        reporterName: 'Dr Smith',
+        resources: ['Practitioner'],
+      });
+
+      expect(configs.map((config) => config.resource)).toEqual(['Practitioner']);
     });
   });
 
@@ -100,7 +123,7 @@ describe('FHIR projection layer', () => {
         reporterEmail: 'smith@test.com',
       });
 
-      expect(resources.map((r) => r.resourceType)).toEqual([
+      expect(resources.map((resource) => resource.resourceType)).toEqual([
         'Patient',
         'Practitioner',
       ]);
@@ -113,9 +136,9 @@ describe('FHIR projection layer', () => {
         organizationName: 'Acme Health',
       });
 
-      expect(resources.map((r) => r.resourceType)).toEqual([
-        'Patient',
+      expect(resources.map((resource) => resource.resourceType).sort()).toEqual([
         'Organization',
+        'Patient',
       ]);
     });
 
@@ -171,18 +194,6 @@ describe('FHIR projection layer', () => {
       for (const field of EXCLUDED_PLATFORM_FIELDS) {
         expect(patient[field]).toBeUndefined();
       }
-    });
-  });
-
-  describe('createDefaultResourceMappers', () => {
-    it('registers all default mappers in stable order', () => {
-      const mappers = createDefaultResourceMappers(service);
-      expect(mappers.map((m) => m.resourceType)).toEqual([
-        'Patient',
-        'Practitioner',
-        'RelatedPerson',
-        'Organization',
-      ]);
     });
   });
 });

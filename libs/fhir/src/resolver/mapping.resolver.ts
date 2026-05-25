@@ -1,31 +1,24 @@
-import {
-  ResourceMappingConfig,
-} from '../registry/mapping.registry';
-
+ 
+import { ResourceConfig } from '../types/resource.types';
 import { mergeMappings } from './merge-mappings';
+import { MappingRegistry } from '../registry/mapping.registry';
+import { DefaultClientMappingRegistry } from '../registry/client-mapping.registry';
 
-export interface MappingRegistry {
-  [resource: string]: {
-    [version: string]: ResourceMappingConfig;
-  };
-}
-
-export interface ClientMappingRegistry {
-  [clientId: string]: MappingRegistry;
-}
+ 
 
 export class MappingResolver {
+  
   constructor(
     private readonly registry: MappingRegistry,
-    private readonly clientRegistry: ClientMappingRegistry = {},
+    private readonly clientRegistry: DefaultClientMappingRegistry,
   ) {}
 
   resolve(
     resourceType: string,
     clientId = '',
     version = 'R4',
-  ): ResourceMappingConfig {
-    const baseMapping = this.registry[resourceType]?.[version];
+  ): ResourceConfig {
+    const baseMapping = this.registry.get(resourceType, version);
 
     if (!baseMapping) {
       throw new Error(
@@ -44,7 +37,7 @@ export class MappingResolver {
     }
 
     const clientOverride =
-      this.clientRegistry[clientId]?.[resourceType]?.[version];
+      this.clientRegistry.get(clientId, resourceType, version);
 
     return mergeMappings(baseMapping, clientOverride);
   }

@@ -1,19 +1,24 @@
+import { DefaultClientMappingRegistry } from '../registry/client-mapping.registry';
+import { MappingRegistry } from '../registry/mapping.registry';
 import { MappingResolver } from './mapping.resolver';
 import { mergeMappings } from './merge-mappings';
 import {
+  asResourceConfig,
   clientPatientOverrideFixture,
   patientMappingFixture,
 } from '../testing/mapping.fixtures';
 
 describe('mergeMappings', () => {
+  const baseConfig = asResourceConfig(patientMappingFixture);
+
   it('returns base mapping when client override is absent', () => {
-    expect(mergeMappings(patientMappingFixture)).toBe(patientMappingFixture);
+    expect(mergeMappings(baseConfig)).toBe(baseConfig);
   });
 
   it('overrides fields matched by target path', () => {
     const merged = mergeMappings(
-      patientMappingFixture,
-      clientPatientOverrideFixture,
+      baseConfig,
+      asResourceConfig(clientPatientOverrideFixture),
     );
 
     const idField = merged.fields.find((field) => field.target === 'id');
@@ -21,9 +26,19 @@ describe('mergeMappings', () => {
   });
 
   it('appends client-only fields', () => {
-    const merged = mergeMappings(patientMappingFixture, {
+    const merged = mergeMappings(baseConfig, {
       resource: 'Patient',
       version: 'R4',
+      profile: [],
+      validation: { enabled: true, level: 'BASIC', requiredFields: [] },
+      detection: { enabled: false, strategy: 'ANY', fields: [] },
+      mapping: { file: 'Patient.mapping.json' },
+      aliases: {},
+      references: [],
+      extensions: [],
+      transformers: [],
+      clientOverrides: true,
+      metadata: {},
       fields: [
         {
           source: 'tenantCode',
@@ -39,10 +54,19 @@ describe('mergeMappings', () => {
   });
 
   it('prefers client profile when override includes fields', () => {
-    const merged = mergeMappings(patientMappingFixture, {
+    const merged = mergeMappings(baseConfig, {
       resource: 'Patient',
       version: 'R4',
-      profile: 'http://example.org/StructureDefinition/CustomPatient',
+      profile: ['http://example.org/StructureDefinition/CustomPatient'],
+      validation: { enabled: true, level: 'BASIC', requiredFields: [] },
+      detection: { enabled: false, strategy: 'ANY', fields: [] },
+      mapping: { file: 'Patient.mapping.json' },
+      aliases: {},
+      references: [],
+      extensions: [],
+      transformers: [],
+      clientOverrides: true,
+      metadata: {},
       fields: [
         {
           source: 'externalPatientId',
@@ -52,37 +76,39 @@ describe('mergeMappings', () => {
       ],
     });
 
-    expect(merged.profile).toBe(
+    expect(merged.profile).toEqual([
       'http://example.org/StructureDefinition/CustomPatient',
-    );
+    ]);
   });
 });
 
 describe('MappingResolver', () => {
-  const registry = {
-    Patient: {
-      R4: patientMappingFixture,
-    },
-  };
+  function createRegistry() {
+    const registry = new MappingRegistry();
+    registry.register(asResourceConfig(patientMappingFixture));
+    return registry;
+  }
+
+  function createClientRegistry() {
+    const registry = new DefaultClientMappingRegistry();
+    registry.register(
+      'example',
+      asResourceConfig(clientPatientOverrideFixture),
+    );
+    return registry;
+  }
 
   it('resolves default mapping without client id', () => {
-    const resolver = new MappingResolver(registry);
+    const resolver = new MappingResolver(createRegistry());
 
     const mapping = resolver.resolve('Patient');
 
-    expect(mapping).toBe(patientMappingFixture);
+    expect(mapping.resource).toBe('Patient');
     expect(mapping.version).toBe('R4');
   });
 
   it('merges client overrides when client id is provided', () => {
-    const clientRegistry = {
-      example: {
-        Patient: {
-          R4: clientPatientOverrideFixture,
-        },
-      },
-    };
-    const resolver = new MappingResolver(registry, clientRegistry);
+    const resolver = new MappingResolver(createRegistry(), createClientRegistry());
 
     const mapping = resolver.resolve('Patient', 'example');
 
@@ -92,7 +118,7 @@ describe('MappingResolver', () => {
   });
 
   it('supports explicit version selection', () => {
-    const resolver = new MappingResolver(registry);
+    const resolver = new MappingResolver(createRegistry());
 
     const mapping = resolver.resolve('Patient', '', 'R4');
 
@@ -100,13 +126,13 @@ describe('MappingResolver', () => {
   });
 
   it('throws when resource mapping is missing', () => {
-    const resolver = new MappingResolver(registry);
+    const resolver = new MappingResolver(createRegistry());
 
     expect(() => resolver.resolve('Practitioner')).toThrow(/resource=Practitioner/);
   });
 
   it('throws when version mapping is missing', () => {
-    const resolver = new MappingResolver(registry);
+    const resolver = new MappingResolver(createRegistry());
 
     expect(() => resolver.resolve('Patient', '', 'R5')).toThrow(/version=R5/);
   });

@@ -1,6 +1,33 @@
+import type { ResourceConfig } from '../types/resource.types';
 import type { ResourceMappingConfig } from '../registry/mapping.registry';
 
 import patientR4Mapping from '../mappings/R4/Patient.mapping.json';
+
+export function asResourceConfig(
+  mapping: ResourceMappingConfig,
+): ResourceConfig {
+  const profile = mapping.profile;
+
+  return {
+    resource: mapping.resource,
+    version: mapping.version,
+    profile: Array.isArray(profile)
+      ? profile
+      : profile
+        ? [profile]
+        : [],
+    validation: { enabled: true, level: 'BASIC', requiredFields: [] },
+    detection: { enabled: false, strategy: 'ANY', fields: [] },
+    mapping: { file: `${mapping.resource}.mapping.json` },
+    aliases: {},
+    references: [],
+    extensions: mapping.extensions ?? [],
+    transformers: [],
+    clientOverrides: true,
+    metadata: {},
+    fields: mapping.fields ?? [],
+  };
+}
 
 export const canonicalPatient = {
   organizationID: 'org-123',

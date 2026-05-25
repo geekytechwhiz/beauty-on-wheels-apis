@@ -1,6 +1,8 @@
-# FHIR Implementation Flow (Current State)
+# FHIR Implementation Flow (Planned / Target State)
 
-This document describes the end-to-end FHIR request/response flow currently implemented in `libs/fhir`.
+> **Current vs planned:** This document describes the **target** end-to-end FHIR gateway flow (inbound FHIR, OAuth gates, HAPI validation, etc.). For what is **implemented today** in `@api-hub/fhir` and `withApiHandler`, see the [Developer Guide](../DEVELOPER_GUIDE.md).
+
+This document describes the end-to-end FHIR request/response flow planned for the FHIR gateway architecture.
 
 ## Scope
 

@@ -1,4 +1,6 @@
 import { APIGatewayProxyEvent } from "aws-lambda"; 
+import { FhirExtension } from "src/mapper/extension.builder";
+import { FhirValidator } from "src/validator/fhir.validator";
  
 
   
@@ -27,3 +29,19 @@ export interface UserContext {
   authHeader?: string;
 }
  
+export interface ResourceDefinition {
+
+  resourceType:string;
+
+  mapping:any;
+
+  detector?(
+     payload:any
+  ):boolean;
+
+  validator?:FhirValidator;
+
+  profile?:string;
+
+  extensions?:FhirExtension[];
+}

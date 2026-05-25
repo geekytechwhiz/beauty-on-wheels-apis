@@ -44,6 +44,7 @@
     "fhir:generate-resources": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-resources.ts",
     "fhir:generate-mappings": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-mappings.ts",
     "fhir:generate-scopes": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-scopes.ts",
+    "fhir:generate-config": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-config.ts",
     "fhir:test": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/src/test.ts",
     "lint": "nx run-many --target=lint --all --parallel=10",
     "lint:fix": "nx run-many --target=lint --all --parallel=25 --fix",
@@ -169,14 +170,7 @@
   "nx": {
     "includedScripts": [],
     "targets": {
-      "local-registry": {
-        "executor": "@nx/js:verdaccio",
-        "options": {
-          "port": 4873,
-          "config": ".verdaccio/config.yml",
-          "storage": "tmp/local-registry/storage"
-        }
-      }
+      
     }
   }
 }

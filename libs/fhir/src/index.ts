@@ -1,23 +1,19 @@
+import { bootstrapFhirLibrary } from './bootstrap';
+
+bootstrapFhirLibrary();
+
 export * from './services/fhir-transformation.service';
 export * from './services/resource-discovery.service';
 export * from './validator/fhir.validator';
 export * from './validator/operation-outcome.builder';
 export * from './registry/resource-metadata.registry';
-export * from './registry/mapping.registry';
-export * from './registry/resource-mapper.registry';
+export * from './registry/mapping.registry'; 
 export * from './resolver/mapping.resolver';
 export * from './mapper/generic-fhir.mapper';
 export * from './capability/capability.service';
 export * from './search/fhir-search.parser';
 export * from './terminology/terminology.service';
 export * from './types/core-types';
-export * from './types/fhir-bundle';
-export * from './interfaces/ResourceDetector';
-export * from './interfaces/ResourceMapper';
-export * from './builders/BundleBuilder';
-export * from './detectors/create-detector';
-export * from './mappers/PatientMapper';
-export * from './mappers/PractitionerMapper';
-export * from './mappers/RelatedPersonMapper';
-export * from './mappers/OrganizationMapper';
+export * from './types/fhir-bundle'; 
+export * from './builders/BundleBuilder'; 
 export * from './constants/excluded-fields';

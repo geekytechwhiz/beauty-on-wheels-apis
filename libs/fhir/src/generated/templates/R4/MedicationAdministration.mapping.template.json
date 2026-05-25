@@ -1,0 +1,211 @@
+{
+  "resource": "MedicationAdministration",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "instantiates",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "partOf",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "medication[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "context",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "supportingInformation",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "effective[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "performer",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "performer.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "performer.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "performer.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "performer.function",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "performer.actor",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "request",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "device",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "dosage",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "dosage.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "dosage.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "dosage.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "dosage.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "dosage.site",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "dosage.route",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "dosage.method",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "dosage.dose",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "dosage.rate[x]",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "eventHistory",
+      "fieldType": "Reference"
+    }
+  ]
+}

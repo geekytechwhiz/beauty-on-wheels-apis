@@ -16,9 +16,9 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  deploymentBucket:
-    name: ${self:provider.stage}-mvx-alert-service-bucket
-    serverSideEncryption: AES256
+  # deploymentBucket:
+  #   name: ${self:provider.stage}-mvx-alert-service-bucket
+  #   serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 
@@ -178,6 +178,7 @@ custom:
     swaggerPath: swagger
     excludeStages:
       - production
+      
 
   logLevel:
     dev: debug
@@ -233,12 +234,12 @@ functions:
           summary: Create alert
           description: Requires `inputEventId` (client/UI idempotency key), `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, and `evidencePayload`. Organization scope is taken from the JWT only, not the body.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK — AlertDetail in envelope (new alert or same-org idempotent replay on inputEventId)
             "400": Bad request
@@ -298,12 +299,12 @@ functions:
               required: false
               type: string
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK
             "400": Bad request
@@ -322,12 +323,12 @@ functions:
             Static lists for priorities, workflow statuses, resolve reasons, and dismiss reasons until a metadata
             registry is available. Organization scope from JWT; response is the same for all tenants.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK
             "401": Unauthorized
@@ -343,12 +344,12 @@ functions:
           summary: Get alert by id
           description: Alert detail for the authenticated organization (tenant from JWT only).
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK
             "401": Unauthorized
@@ -368,12 +369,12 @@ functions:
             or aliases ASSIGN, MOVE_TO_WAITING, RESUME_WORK). RESOLVE/DISMISS require `reasonCode`; when reasonCode is
             OTHER, `comment` or `closureComment` is required. ASSIGN requires `assignedToUserId`. Organization from JWT only.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK — updated alert detail in envelope `data`
             "400": Bad request (e.g. missing path context)
@@ -393,12 +394,12 @@ functions:
             ASSIGN/REASSIGN require `assignToUserId`. ASSIGN_TO_SELF derives assignee from JWT. **All-or-nothing**: if any alert fails,
             none are updated. Organization from JWT only.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
             "401": Unauthorized
@@ -418,12 +419,12 @@ functions:
             Priority update for one or many alerts. Body requires `alertIds` and `priority` (P0..P3).
             **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
             "401": Unauthorized
@@ -440,12 +441,12 @@ functions:
           description: Add a note to the alert activity timeline. Organization comes from JWT.
           bodyType: NoteRequest
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "201": Created (NOTE_ADDED activity)
             "400": Bad request
@@ -467,12 +468,12 @@ functions:
             Activity / audit list for the alert (newest first; no pagination). Tenant from JWT only. Optional query
             Optional query `notesOnly=true` or `false` (`true` = NOTE_ADDED only). 404 when alert not found for org.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+             # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
           responses:
             "200": OK
             "401": Unauthorized

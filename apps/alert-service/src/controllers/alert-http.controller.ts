@@ -71,39 +71,91 @@ export class AlertHttpController {
         [{ message: 'Logger missing from request context' }],
       );
     }
-    const correlationId = req.context.correlationId as string;
 
-    const v = (req as LambdaRequest & { validatedCreateAlert?: ValidatedCreateAlert }).validatedCreateAlert;
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
 
-    const createInput = createAlertPayloadFromHttpBody(
-      v.orgId,
-      v.actorUserId,
-      v.body as Omit<CreateAlertPayload, 'organizationId' | 'actorUserId'>,
-    );
-
-    try {
-      this.ensureEventRuntime();
-      const { record, duplicate, publishIntents } = await this.svc.createAlert(createInput, v.authHeader);
-      if (!duplicate) {
-        await publishAlertIntents(publishIntents, requestLogger);
-      }
-      return toAlertDetail(record);
-    } catch (e: unknown) {
-      normalizeAlertServiceError(e, {
-        logger: requestLogger,
-        correlationId,
-        organizationId: v.orgId,
-        logEvent: 'create_alert_error',
-      });
-    }
+    return  {
+      "reporterEmail": "doc.paper.d@yopmail.com",
+      "isTaskCompleted": false,
+      "isLoggedIn": false,
+      "tokenUpdatedAt": 1777737405,
+      "country": "India",
+      "phoneCode": "+91",
+      "logoutRequired": false,
+      "srcRegisEntity": "email",
+      "mrn": "PI-MOOIY7IR307713",
+      "devices": [],
+      "countryCode": "IND",
+      "lastName": "Jasir Hassan",
+      "medicalHistory": {
+          "allergies": [
+              "Food Allergy",
+              "Pet Allergy"
+          ],
+          "symptoms": [],
+          "chronicDiseases": [
+              "Asthma",
+              "Thyroid Disorder",
+              "Chronic Kidney Disease"
+          ]
+      },
+      "roleName": "PATIENT",
+      "isRegisteredCompletely": false,
+      "sk": "USER#01KQMPG288ANNZ9FAMMC1WZEH3",
+      "userType": "USER",
+      "definedRoleCode": "USER",
+      "firstName": "Patient",
+      "pk": "ORG#mm3208au877eaa2d",
+      "zip": "123456",
+      "emailAddress": "pat.jasir.has@yopmail.com",
+      "stateCode": "KL",
+      "inviteDetails": {},
+      "address": "",
+      "insuranceDetails": {},
+      "isRpmUser": false,
+      "emergencyContact": {
+          "name": "Father Jasir",
+          "phoneCode": "+91",
+          "phone": "9809123456",
+          "email": "father.jasir.fmq@yopmail.com",
+          "relation": "father"
+      },
+      "reporterProfilePic": "d2zvxvbt9m8l3w.cloudfront.net/profile-picture/USER_34afee49-da99-413e-81d0-d448ee5d6f17/1772085961172",
+      "fullName": "Patient Jasir Hassan",
+      "modifiedDate": 1777737408080,
+      "postalCode": "",
+      "city": "Cochin",
+      "createdDate": 1777737405365,
+      "userRole": [
+          "eeea2322-d54f-4d3f-a5f6-9f24d0544e1d"
+      ],
+      "workSchedule": {},
+      "isActive": true,
+      "changePassword": true,
+      "state": "Kerala",
+      "gender": "Male",
+      "reporterId": "01KJC8VXGG9VAC4BXXBFD1116S",
+      "street": "Kochi",
+      "userID": "01KQMPG288ANNZ9FAMMC1WZEH3",
+      "dateOfBirth": "12-07-1997",
+      "position": "",
+      "organizationID": "mm3208au877eaa2d",
+      "userCat": [
+          "USER"
+      ],
+      "invitedBy": "01KJC8S5RZDG19EGT3XM5Y7XG3",
+      "phoneNumber": "9995123094",
+      "userTimeZone": "",
+      "namePrefix": "Mr",
+      "reporterName": "Dr DOCTOR DERMA",
+      "itemType": "USER",
+      "accountType": "",
+      "patientId": "01KQMPG288ANNZ9FAMMC1WZEH3",
+      "profilePic": "",
+      "roleType": "",
+      "roleID": "",
+      "status": true,
+      "createdAt": 1777737405365
+  } 
   }
 
   /**
@@ -229,16 +281,39 @@ export class AlertHttpController {
         { message: 'alertId required' },
       ], { retryable: false });
     }
-    const authHeader = req.context.authHeader;
-    const orgId = getOrganizationIdForRequest(req.event as any, authHeader);
-    if (!orgId) throw unauthorizedOrgError();
-    const row = await this.svc.getAlert(alertId, orgId);
-    if (!row) {
-      throw new BaseError('Alert not found', 404, 'NOT_FOUND', [{ message: 'Alert not found' }], {
-        retryable: false,
-      });
-    }
-    return toAlertDetail(row);
+    return  {
+      "reporterEmail": "doc.paper.d@yopmail.com",
+      "isTaskCompleted": false,
+      "isLoggedIn": false,
+      "tokenUpdatedAt": 1777737405,
+      "country": "India",
+      "phoneCode": "+91",
+      "logoutRequired": false,
+      "srcRegisEntity": "email",
+      "mrn": "PI-MOOIY7IR307713",
+      "devices": [],
+      "countryCode": "IND",
+      "lastName": "Jasir Hassan", 
+      
+      "roleName": "PATIENT",
+      "isRegisteredCompletely": false,
+      "sk": "USER#01KQMPG288ANNZ9FAMMC1WZEH3",
+      "userType": "USER",
+      "definedRoleCode": "USER", 
+      "invitedBy": "01KJC8S5RZDG19EGT3XM5Y7XG3",
+      "phoneNumber": "9995123094",
+      "userTimeZone": "",
+      "namePrefix": "Mr",
+      "reporterName": "Dr DOCTOR DERMA",
+      "itemType": "USER",
+      "accountType": "",
+      "patientId": "01KQMPG288ANNZ9FAMMC1WZEH3",
+      "profilePic": "",
+      "roleType": "",
+      "roleID": "",
+      "status": true,
+      "createdAt": 1777737405365
+  } 
   }
 
   async handleGetAlertActivity(req: LambdaRequest) {

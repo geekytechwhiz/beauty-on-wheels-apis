@@ -3,6 +3,7 @@ import { ApiResponse, type Message } from '@api-hub/utils';
 
 interface ResponseOptions {
   correlationId?: string;
+  fhir?: unknown;
 }
 
 /**
@@ -23,7 +24,7 @@ export const successResponse = <T>(
   return ApiResponse.ok<T>(
     data,
     message,
-    { correlationId:requestId }
+    { correlationId: requestId, fhir: options.fhir }
   );
 };
 

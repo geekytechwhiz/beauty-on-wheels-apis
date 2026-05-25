@@ -1,0 +1,420 @@
+{
+  "resource": "Shareable Measure",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "Measure"
+    },
+    {
+      "source": "",
+      "target": "Measure.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Measure.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "Measure.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Measure.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Measure.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "Measure.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "Measure.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Measure.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "Measure.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.subtitle",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Measure.experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Measure.subject[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "Measure.publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "Measure.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "Measure.jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.usage",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "Measure.lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "Measure.effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "Measure.topic",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.author",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "Measure.editor",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "Measure.reviewer",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "Measure.endorser",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "Measure.relatedArtifact",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "Measure.library",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "Measure.disclaimer",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.scoring",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.compositeScoring",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.riskAdjustment",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.rateAggregation",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.rationale",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.clinicalRecommendationStatement",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.improvementNotation",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.definition",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.guidance",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Measure.group",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.population",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.population.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.population.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.population.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.population.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.population.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.population.criteria",
+      "fieldType": "Expression"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.criteria",
+      "fieldType": "Expression"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.component",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.component.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.component.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.component.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.component.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.component.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.group.stratifier.component.criteria",
+      "fieldType": "Expression"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData.usage",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Measure.supplementalData.criteria",
+      "fieldType": "Expression"
+    }
+  ]
+}

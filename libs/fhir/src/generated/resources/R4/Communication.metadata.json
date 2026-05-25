@@ -1,0 +1,294 @@
+{
+  "resource": "Communication",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "Communication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.instantiatesCanonical",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.instantiatesUri",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.basedOn",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.partOf",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.inResponseTo",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Communication.statusReason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.priority",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.medium",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.subject",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.topic",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.about",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.encounter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.sent",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.received",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.recipient",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.sender",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.reasonCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.reasonReference",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.payload",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.payload.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Communication.payload.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.payload.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Communication.payload.content[x]",
+      "type": [
+        "string",
+        "Attachment",
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Communication.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

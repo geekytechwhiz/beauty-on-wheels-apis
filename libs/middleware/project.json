@@ -4,12 +4,11 @@
   "sourceRoot": "libs/middleware/src",
   "projectType": "library",
   "tags": ["type:lib","type:shared"],
-  "// targets": "to see all targets run: nx show project middleware --web",
   "targets": {
     "test": {
       "executor": "@nx/jest:jest",
       "options": {
-        "jestConfig": "libs/middleware/jest.config.cts",
+        "jestConfig": "libs/middleware/jest.config.js",
         "passWithNoTests": false
       }
     }

@@ -1,0 +1,392 @@
+{
+  "resource": "Specimen",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "Specimen",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.accessionIdentifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.status",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.subject",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.receivedTime",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.parent",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.request",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.collection",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.collection.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.collection.collector",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.collected[x]",
+      "type": [
+        "dateTime",
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.duration",
+      "type": [
+        "Duration"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.method",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.bodySite",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.collection.fastingStatus[x]",
+      "type": [
+        "CodeableConcept",
+        "Duration"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.processing",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.processing.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.processing.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.processing.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.processing.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.processing.procedure",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.processing.additive",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.processing.time[x]",
+      "type": [
+        "dateTime",
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.container",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.container.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.container.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.container.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.container.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.container.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.container.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.container.capacity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.container.specimenQuantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.container.additive[x]",
+      "type": [
+        "CodeableConcept",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Specimen.condition",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Specimen.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

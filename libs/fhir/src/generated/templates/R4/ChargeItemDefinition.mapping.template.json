@@ -1,0 +1,250 @@
+{
+  "resource": "ChargeItemDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "derivedFromUri",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "partOf",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "replaces",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "instance",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "applicability",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "applicability.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "applicability.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "applicability.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "applicability.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "applicability.language",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "applicability.expression",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.applicability"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent.factor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "propertyGroup.priceComponent.amount",
+      "fieldType": "Money"
+    }
+  ]
+}

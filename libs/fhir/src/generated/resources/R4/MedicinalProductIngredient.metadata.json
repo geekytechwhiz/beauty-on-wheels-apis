@@ -1,0 +1,362 @@
+{
+  "resource": "MedicinalProductIngredient",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "MedicinalProductIngredient",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.role",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.allergenicIndicator",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.manufacturer",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.group",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.confidentiality",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.presentation",
+      "type": [
+        "Ratio"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.presentationLowLimit",
+      "type": [
+        "Ratio"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.concentration",
+      "type": [
+        "Ratio"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.concentrationLowLimit",
+      "type": [
+        "Ratio"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.measurementPoint",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.country",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.substance",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.strength",
+      "type": [
+        "Ratio"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.strengthLowLimit",
+      "type": [
+        "Ratio"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.measurementPoint",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.specifiedSubstance.strength.referenceStrength.country",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.substance",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.substance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.substance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.substance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductIngredient.substance.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductIngredient.substance.strength",
+      "type": [],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

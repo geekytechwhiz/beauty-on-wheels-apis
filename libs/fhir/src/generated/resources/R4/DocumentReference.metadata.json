@@ -1,0 +1,364 @@
+{
+  "resource": "DocumentReference",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "DocumentReference",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.masterIdentifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.docStatus",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.subject",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.date",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.author",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.authenticator",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.custodian",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.relatesTo",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.relatesTo.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.relatesTo.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.relatesTo.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.relatesTo.code",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.relatesTo.target",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.securityLabel",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.content",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.content.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.content.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.content.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.content.attachment",
+      "type": [
+        "Attachment"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.content.format",
+      "type": [
+        "Coding"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.context",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.context.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.context.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.context.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.context.encounter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.context.event",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "DocumentReference.context.period",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.context.facilityType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.context.practiceSetting",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.context.sourcePatientInfo",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "DocumentReference.context.related",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

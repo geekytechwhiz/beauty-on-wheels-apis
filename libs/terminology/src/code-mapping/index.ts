@@ -10,14 +10,18 @@ export interface MappedCoding {
   display?: string;
 }
 
+interface ReverseMappingEntry {
+  sourceSystem: string;
+  internalCode: string;
+}
+
 /**
  * Internal code (system + code) -> target system coding.
  * Add entries for your internal/partner systems (e.g. lab codes -> LOINC).
  */
-const MAPPING: Record<string, MappedCoding> = {
-  // Example: internal lab code -> LOINC (extend as needed)
-  // 'http://internal.example.com|cbc': { system: 'http://loinc.org', code: '58410-2', display: 'CBC' },
-};
+const MAPPING: Record<string, MappedCoding> = {};
+
+const REVERSE_MAPPING: Record<string, ReverseMappingEntry> = {};
 
 /**
  * Register a mapping from (internalSystem + '|' + internalCode) to a target coding.
@@ -26,10 +30,14 @@ const MAPPING: Record<string, MappedCoding> = {
 export function registerMapping(
   internalSystem: string,
   internalCode: string,
-  target: MappedCoding
+  target: MappedCoding,
 ): void {
   const key = `${internalSystem}|${internalCode}`;
   MAPPING[key] = target;
+  REVERSE_MAPPING[`${target.system}|${target.code}`] = {
+    sourceSystem: internalSystem,
+    internalCode,
+  };
 }
 
 /**
@@ -55,5 +63,21 @@ export function mapCode(
     const v = MAPPING[k];
     if (v.system === targetSystem) return v;
   }
+  return undefined;
+}
+
+/**
+ * Reverse map a target-system code back to an internal/partner code.
+ */
+export function reverseMapCode(
+  code: string,
+  system: string,
+  sourceSystem: string,
+): string | undefined {
+  const entry = REVERSE_MAPPING[`${system}|${code}`];
+  if (entry?.sourceSystem === sourceSystem) {
+    return entry.internalCode;
+  }
+
   return undefined;
 }

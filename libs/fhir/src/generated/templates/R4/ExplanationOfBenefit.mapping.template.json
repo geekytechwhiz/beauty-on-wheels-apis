@@ -1,0 +1,1275 @@
+{
+  "resource": "ExplanationOfBenefit",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "use",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "billablePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "created",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "enterer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "insurer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "provider",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "fundsReserveRequested",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "fundsReserve",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "related",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "related.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "related.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "related.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "related.claim",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "related.relationship",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "related.reference",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "prescription",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "originalPrescription",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "payee",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "payee.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "payee.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "payee.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "payee.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "payee.party",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "referral",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "facility",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "claim",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "claimResponse",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "outcome",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "disposition",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "preAuthRef",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "preAuthRefPeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "careTeam",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "careTeam.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "careTeam.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "careTeam.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "careTeam.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "careTeam.provider",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "careTeam.responsible",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "careTeam.role",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "careTeam.qualification",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.timing[x]",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.value[x]",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "supportingInfo.reason",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "diagnosis",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.diagnosis[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.onAdmission",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.packageCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "procedure",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "procedure.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "procedure.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "procedure.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "procedure.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "procedure.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "procedure.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "procedure.procedure[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "procedure.udi",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "precedence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "insurance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "insurance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "insurance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "insurance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "insurance.focal",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "insurance.coverage",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "insurance.preAuthRef",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "accident",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "accident.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "accident.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "accident.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "accident.date",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "accident.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "accident.location[x]",
+      "fieldType": "Address"
+    },
+    {
+      "source": "",
+      "target": "item",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.careTeamSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.diagnosisSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.procedureSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.informationSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.revenue",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.productOrService",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.modifier",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.programCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.serviced[x]",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "item.location[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "item.unitPrice",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.factor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "item.net",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.udi",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "item.bodySite",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.subSite",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "item.noteNumber",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication.reason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication.amount",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.adjudication.value",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "item.detail",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.detail.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.detail.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.detail.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.detail.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.detail.revenue",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.productOrService",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.modifier",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.programCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "item.detail.unitPrice",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.detail.factor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "item.detail.net",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.detail.udi",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "item.detail.noteNumber",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.detail.adjudication"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.sequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.revenue",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.productOrService",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.modifier",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.programCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.unitPrice",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.factor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.net",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.udi",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.noteNumber",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "item.detail.subDetail.adjudication"
+    },
+    {
+      "source": "",
+      "target": "addItem",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "addItem.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "addItem.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "addItem.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "addItem.itemSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "addItem.detailSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "addItem.subDetailSequence",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "addItem.provider",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "addItem.productOrService",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.modifier",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.programCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.serviced[x]",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "addItem.location[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "addItem.unitPrice",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "addItem.factor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "addItem.net",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "addItem.bodySite",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.subSite",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.noteNumber",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "addItem.adjudication"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.productOrService",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.modifier",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.unitPrice",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.factor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.net",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.noteNumber",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.adjudication"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.productOrService",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.modifier",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.unitPrice",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.factor",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.net",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.noteNumber",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "addItem.detail.subDetail.adjudication"
+    },
+    {
+      "source": "",
+      "target": "adjudication"
+    },
+    {
+      "source": "",
+      "target": "total",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "total.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "total.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "total.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "total.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "total.amount",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "payment",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "payment.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "payment.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "payment.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "payment.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "payment.adjustment",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "payment.adjustmentReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "payment.date",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "payment.amount",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "payment.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "formCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "form",
+      "fieldType": "Attachment"
+    },
+    {
+      "source": "",
+      "target": "processNote",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "processNote.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "processNote.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "processNote.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "processNote.number",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "processNote.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "processNote.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "processNote.language",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "benefitPeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.excluded",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.network",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.unit",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.term",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.financial",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.financial.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.financial.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.financial.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.financial.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.financial.allowed[x]",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "benefitBalance.financial.used[x]",
+      "fieldType": "unsignedInt"
+    }
+  ]
+}

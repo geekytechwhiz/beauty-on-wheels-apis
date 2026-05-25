@@ -1,0 +1,46 @@
+{
+  "resource": "Practitioner",
+  "version": "R4",
+  "profile": "http://hl7.org/fhir/StructureDefinition/Practitioner",
+  "fields": [
+    {
+      "source": "reporterId",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "practitionerId",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "reporterName",
+      "target": "name.0.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "reporterName",
+      "target": "name.0.given.0",
+      "fieldType": "string",
+      "transform": "firstName"
+    },
+    {
+      "source": "reporterName",
+      "target": "name.0.family",
+      "fieldType": "string",
+      "transform": "lastName"
+    },
+    {
+      "source": "reporterEmail",
+      "target": "telecom.0.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "telecom.0.system",
+      "fieldType": "literal",
+      "defaultValue": "email"
+    }
+  ],
+  "extensions": []
+}

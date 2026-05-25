@@ -1,0 +1,176 @@
+{
+  "resource": "FamilyMemberHistory",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "instantiatesCanonical",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "instantiatesUri",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "dataAbsentReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "relationship",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "sex",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "born[x]",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "age[x]",
+      "fieldType": "Age"
+    },
+    {
+      "source": "",
+      "target": "estimatedAge",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "deceased[x]",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "condition",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "condition.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "condition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "condition.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "condition.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "condition.outcome",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "condition.contributedToDeath",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "condition.onset[x]",
+      "fieldType": "Age"
+    },
+    {
+      "source": "",
+      "target": "condition.note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

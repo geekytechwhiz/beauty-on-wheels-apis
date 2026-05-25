@@ -1,0 +1,176 @@
+{
+  "resource": "CommunicationRequest",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "replaces",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "groupIdentifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "doNotPerform",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "medium",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "about",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "payload",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "payload.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "payload.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "payload.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "payload.content[x]",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "occurrence[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "authoredOn",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "requester",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "recipient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "sender",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

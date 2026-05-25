@@ -1,0 +1,52 @@
+flowchart LR
+    C1[Web / Mobile / Partner Apps]
+    C2[Internal Services]
+    C3[External Repos]
+
+    APIGW[API Gateway / Edge]
+
+    US[user-service]
+    OS[organization-service]
+    DS[device-service]
+    OTH[Other Domain Services]
+
+    CORE["@your-org/fhir-core\n- canonical -> FHIR adapters\n- mapping engine\n- bundle builder\n- OperationOutcome\n- validation contracts\n- terminology helpers"]
+    AWS["@your-org/fhir-aws\n- Lambda / API Gateway middleware\n- auth extraction\n- raw FHIR response writer"]
+    PROF["@your-org/fhir-profiles\n- base mappings\n- tenant/client overrides\n- profiles / config"]
+
+    DB1[(User DB)]
+    DB2[(Org DB)]
+    DB3[(Device DB)]
+    DB4[(Other DBs)]
+
+    C1 --> APIGW
+    C2 --> APIGW
+    APIGW --> US
+    APIGW --> OS
+    APIGW --> DS
+    APIGW --> OTH
+
+    US --> DB1
+    OS --> DB2
+    DS --> DB3
+    OTH --> DB4
+
+    US -. consumes .-> CORE
+    US -. consumes .-> AWS
+    US -. consumes .-> PROF
+
+    OS -. consumes .-> CORE
+    OS -. consumes .-> AWS
+    OS -. consumes .-> PROF
+
+    DS -. consumes .-> CORE
+    DS -. consumes .-> AWS
+    DS -. consumes .-> PROF
+
+    OTH -. consumes .-> CORE
+    OTH -. consumes .-> AWS
+    OTH -. consumes .-> PROF
+
+    C3 -. npm install .-> CORE
+    C3 -. npm install .-> AWS
+    C3 -. npm install .-> PROF

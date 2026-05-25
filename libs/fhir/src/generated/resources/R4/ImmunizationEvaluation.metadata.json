@@ -1,0 +1,182 @@
+{
+  "resource": "ImmunizationEvaluation",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "ImmunizationEvaluation",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationEvaluation.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationEvaluation.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationEvaluation.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationEvaluation.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationEvaluation.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.authority",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.targetDisease",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.immunizationEvent",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.doseStatus",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.doseStatusReason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImmunizationEvaluation.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.series",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.doseNumber[x]",
+      "type": [
+        "positiveInt",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImmunizationEvaluation.seriesDoses[x]",
+      "type": [
+        "positiveInt",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

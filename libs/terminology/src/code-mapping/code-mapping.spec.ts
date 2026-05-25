@@ -1,4 +1,4 @@
-import { mapCode, registerMapping, type MappedCoding } from './index';
+import { mapCode, registerMapping, reverseMapCode, type MappedCoding } from './index';
 
 describe('terminology code-mapping', () => {
   describe('mapCode', () => {
@@ -48,6 +48,17 @@ describe('terminology code-mapping', () => {
       };
       registerMapping('http://partner.com', 'hr', target);
       expect(mapCode('hr', 'http://partner.com', 'http://loinc.org')).toEqual(target);
+    });
+
+    it('supports reverse lookup from target code to internal code', () => {
+      registerMapping('http://partner.com', 'hr', {
+        system: 'http://loinc.org',
+        code: '8867-4',
+      });
+
+      expect(
+        reverseMapCode('8867-4', 'http://loinc.org', 'http://partner.com'),
+      ).toBe('hr');
     });
   });
 });

@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant Client
+    participant APIGW as API Gateway
+    participant FhirMW as withLambdaHandler
+    participant Handler as user-service getUser
+    participant UserSvc as UserService
+    participant OrgRepo as OrganizationRepository
+    participant FhirCore as FHIR Core Library
+
+    Client->>APIGW: GET /fhir/Patient/{userId}
+    APIGW->>FhirMW: Invoke Lambda
+    FhirMW->>FhirMW: Build request context\nparse auth\nvalidate request
+    FhirMW->>Handler: Call business handler
+    Handler->>UserSvc: getUser(userId, organizationId)
+    UserSvc-->>Handler: domain user
+    Handler->>OrgRepo: getOrganizationFromDB(organizationId)
+    OrgRepo-->>Handler: org metadata
+    Handler-->>FhirMW: canonical model
+    FhirMW->>FhirCore: canonical -> Patient
+    FhirCore-->>FhirMW: Patient resource or Bundle
+    FhirMW-->>APIGW: application/fhir+json
+    APIGW-->>Client: FHIR JSON

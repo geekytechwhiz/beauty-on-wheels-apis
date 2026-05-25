@@ -1,0 +1,156 @@
+{
+  "resource": "Goal",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "lifecycleStatus",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "achievementStatus",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "start[x]",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "target",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "target.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "target.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "target.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "target.measure",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "target.detail[x]",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "target.due[x]",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "statusDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "statusReason",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "expressedBy",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "addresses",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "outcomeCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "outcomeReference",
+      "fieldType": "Reference"
+    }
+  ]
+}

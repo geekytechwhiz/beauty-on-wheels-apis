@@ -1,0 +1,323 @@
+{
+  "resource": "MedicinalProductAuthorization",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "MedicinalProductAuthorization",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.subject",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.country",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdiction",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.status",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.statusDate",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.restoreDate",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.validityPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.dataExclusivityPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.dateOfFirstAuthorization",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.internationalBirthDate",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.legalBasis",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.country",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.jurisdiction",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.legalStatusOfSupply",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.jurisdictionalAuthorization.validityPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.holder",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.regulator",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure.date[x]",
+      "type": [
+        "Period",
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductAuthorization.procedure.application",
+      "type": [],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

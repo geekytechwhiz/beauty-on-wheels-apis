@@ -1,0 +1,316 @@
+{
+  "resource": "Appointment",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "Appointment",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.cancelationReason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.serviceCategory",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.serviceType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.specialty",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.appointmentType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.reasonCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.reasonReference",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.priority",
+      "type": [
+        "unsignedInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.supportingInformation",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.start",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.end",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.minutesDuration",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.slot",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.created",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.comment",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.patientInstruction",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.basedOn",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.participant",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.participant.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.participant.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.participant.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.participant.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Appointment.participant.actor",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.participant.required",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.participant.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.participant.period",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Appointment.requestedPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

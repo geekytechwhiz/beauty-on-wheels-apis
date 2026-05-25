@@ -1,0 +1,281 @@
+{
+  "resource": "ImagingStudy",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "modality",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "started",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "referrer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "interpreter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "endpoint",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "numberOfSeries",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "numberOfInstances",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "procedureReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "procedureCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "series",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "series.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "series.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "series.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "series.uid",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "series.number",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "series.modality",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "series.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "series.numberOfInstances",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "series.endpoint",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "series.bodySite",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "series.laterality",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "series.specimen",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "series.started",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "series.performer",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "series.performer.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "series.performer.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "series.performer.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "series.performer.function",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "series.performer.actor",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "series.instance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "series.instance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "series.instance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "series.instance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "series.instance.uid",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "series.instance.sopClass",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "series.instance.number",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "series.instance.title",
+      "fieldType": "string"
+    }
+  ]
+}

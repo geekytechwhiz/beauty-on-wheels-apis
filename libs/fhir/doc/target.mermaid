@@ -1,0 +1,37 @@
+flowchart TB
+    subgraph Current State
+        A1[Client] --> A2[API Gateway]
+        A2 --> A3[Shared FHIR Gateway / Middleware]
+        A3 --> A4[user-service]
+        A3 --> A5[organization-service]
+        A3 --> A6[other services]
+        A4 --> A7[(User DB)]
+        A5 --> A8[(Org DB)]
+    end
+
+    subgraph Target State
+        B1[Client] --> B2[API Gateway]
+        B2 --> B3[user-service FHIR endpoint]
+        B2 --> B4[organization-service FHIR endpoint]
+        B2 --> B5[other service FHIR endpoint]
+
+        B3 --> B6[(User DB)]
+        B4 --> B7[(Org DB)]
+        B5 --> B8[(Domain DBs)]
+
+        B9[@your-org/fhir-core]
+        B10[@your-org/fhir-aws]
+        B11[@your-org/fhir-profiles]
+
+        B3 -. uses .-> B9
+        B3 -. uses .-> B10
+        B3 -. uses .-> B11
+
+        B4 -. uses .-> B9
+        B4 -. uses .-> B10
+        B4 -. uses .-> B11
+
+        B5 -. uses .-> B9
+        B5 -. uses .-> B10
+        B5 -. uses .-> B11
+    end

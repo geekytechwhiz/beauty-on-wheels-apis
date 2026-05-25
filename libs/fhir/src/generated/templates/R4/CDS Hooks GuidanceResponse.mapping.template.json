@@ -1,0 +1,135 @@
+{
+  "resource": "CDS Hooks GuidanceResponse",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "GuidanceResponse"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.requestIdentifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.module[x]",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.module[x]",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.occurrenceDateTime",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.performer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.evaluationMessage",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.outputParameters",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.result",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "GuidanceResponse.dataRequirement",
+      "fieldType": "DataRequirement"
+    }
+  ]
+}

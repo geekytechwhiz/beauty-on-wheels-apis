@@ -1,0 +1,86 @@
+{
+  "resource": "Linkage",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "active",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "author",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "item",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "item.resource",
+      "fieldType": "Reference"
+    }
+  ]
+}

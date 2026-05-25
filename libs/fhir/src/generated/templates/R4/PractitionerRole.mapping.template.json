@@ -1,0 +1,176 @@
+{
+  "resource": "PractitionerRole",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "active",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "practitioner",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "organization",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specialty",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "healthcareService",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "telecom",
+      "fieldType": "ContactPoint"
+    },
+    {
+      "source": "",
+      "target": "availableTime",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "availableTime.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "availableTime.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "availableTime.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "availableTime.daysOfWeek",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "availableTime.allDay",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "availableTime.availableStartTime",
+      "fieldType": "time"
+    },
+    {
+      "source": "",
+      "target": "availableTime.availableEndTime",
+      "fieldType": "time"
+    },
+    {
+      "source": "",
+      "target": "notAvailable",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "notAvailable.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "notAvailable.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "notAvailable.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "notAvailable.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "notAvailable.during",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "availabilityExceptions",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "endpoint",
+      "fieldType": "Reference"
+    }
+  ]
+}

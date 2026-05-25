@@ -1,0 +1,126 @@
+{
+  "resource": "DeviceMetric",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "unit",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "source",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "parent",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "operationalStatus",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "color",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "measurementPeriod",
+      "fieldType": "Timing"
+    },
+    {
+      "source": "",
+      "target": "calibration",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "calibration.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "calibration.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "calibration.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "calibration.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "calibration.state",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "calibration.time",
+      "fieldType": "instant"
+    }
+  ]
+}

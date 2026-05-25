@@ -1,0 +1,386 @@
+{
+  "resource": "Bundle",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "Bundle",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.type",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.timestamp",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.total",
+      "type": [
+        "unsignedInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.link",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.link.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.link.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.link.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.link.relation",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.link.url",
+      "type": [
+        "uri"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.link",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.fullUrl",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.resource",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.search",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.search.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.search.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.search.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.search.mode",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.search.score",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.request.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.request.method",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request.url",
+      "type": [
+        "uri"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request.ifNoneMatch",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request.ifModifiedSince",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request.ifMatch",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.request.ifNoneExist",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.response",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.response.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.response.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.response.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Bundle.entry.response.status",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.response.location",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.response.etag",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.response.lastModified",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.entry.response.outcome",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Bundle.signature",
+      "type": [
+        "Signature"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

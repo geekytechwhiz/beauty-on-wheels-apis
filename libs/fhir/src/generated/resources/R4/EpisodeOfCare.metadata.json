@@ -1,0 +1,260 @@
+{
+  "resource": "EpisodeOfCare",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "EpisodeOfCare",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.statusHistory",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.statusHistory.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.statusHistory.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.statusHistory.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.statusHistory.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.statusHistory.period",
+      "type": [
+        "Period"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.diagnosis",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.diagnosis.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.diagnosis.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.diagnosis.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.diagnosis.condition",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.diagnosis.role",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.diagnosis.rank",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.managingOrganization",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.period",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.referralRequest",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.careManager",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "EpisodeOfCare.team",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "EpisodeOfCare.account",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

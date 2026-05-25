@@ -1,0 +1,644 @@
+{
+  "resource": "InsurancePlan",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "InsurancePlan",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.status",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.alias",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.period",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.ownedBy",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.administeredBy",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverageArea",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.contact",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.contact.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.contact.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.contact.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.contact.purpose",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.contact.name",
+      "type": [
+        "HumanName"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.contact.telecom",
+      "type": [
+        "ContactPoint"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.contact.address",
+      "type": [
+        "Address"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.endpoint",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.network",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverage.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverage.network",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.requirement",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.limit",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.limit.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.limit.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.limit.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.limit.value",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.coverage.benefit.limit.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.coverageArea",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.network",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost.groupSize",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost.cost",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.generalCost.comment",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost.applicability",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost.qualifiers",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "InsurancePlan.plan.specificCost.benefit.cost.value",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

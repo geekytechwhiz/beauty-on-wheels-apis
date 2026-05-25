@@ -19,3 +19,7 @@ export * from './lib/tracer.middleware';
 export * from './lib/realtime/realtime.middleware';
 export * from './lib/event-schema/validate';
 export * from './lib/event-schema/event-schema-error';
+export * from './lib/fhir/transform-to-fhir-response';
+export * from './lib/fhir/fhir-error-response';
+export * from './lib/fhir/fhir-success-response';
+export * from './lib/fhir/is-fhir-request';

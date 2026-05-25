@@ -1,0 +1,402 @@
+{
+  "resource": "ChargeItemDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "ChargeItemDefinition",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.url",
+      "type": [
+        "uri"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.version",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.title",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.derivedFromUri",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.partOf",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.replaces",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.experimental",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.publisher",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.contact",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.description",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.useContext",
+      "type": [
+        "UsageContext"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.jurisdiction",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.copyright",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.approvalDate",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.lastReviewDate",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.effectivePeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.instance",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.applicability",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.applicability.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.applicability.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.applicability.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.applicability.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.applicability.language",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.applicability.expression",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.applicability",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent.type",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ChargeItemDefinition.propertyGroup.priceComponent.amount",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

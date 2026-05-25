@@ -1,0 +1,604 @@
+{
+  "resource": "RiskEvidenceSynthesis",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "RiskEvidenceSynthesis",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.url",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.version",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.title",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.publisher",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.contact",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.description",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.useContext",
+      "type": [
+        "UsageContext"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.jurisdiction",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.copyright",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.approvalDate",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.lastReviewDate",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.effectivePeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.topic",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.author",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.editor",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.reviewer",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.endorser",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.relatedArtifact",
+      "type": [
+        "RelatedArtifact"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.synthesisType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.studyType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.population",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.exposure",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.outcome",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.sampleSize",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.sampleSize.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.sampleSize.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.sampleSize.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.sampleSize.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.sampleSize.numberOfStudies",
+      "type": [
+        "integer"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.sampleSize.numberOfParticipants",
+      "type": [
+        "integer"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.value",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.unitOfMeasure",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.denominatorCount",
+      "type": [
+        "integer"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.numeratorCount",
+      "type": [
+        "integer"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate.level",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate.from",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.riskEstimate.precisionEstimate.to",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.rating",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.certaintySubcomponent",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.certaintySubcomponent.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.certaintySubcomponent.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.certaintySubcomponent.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.certaintySubcomponent.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.certaintySubcomponent.rating",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "RiskEvidenceSynthesis.certainty.certaintySubcomponent.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

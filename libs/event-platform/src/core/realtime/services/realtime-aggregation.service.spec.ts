@@ -108,6 +108,66 @@ describe('RealtimeAggregationService', () => {
     });
   });
 
+  it('groups org-only messages using payload organizationId when recipients are empty', async () => {
+    const publisher: RealtimePublisher = { publish: jest.fn() };
+    const service = new RealtimeAggregationService(publisher);
+
+    const key = service.buildGroupKey({
+      recipients: [],
+      message: {
+        channel: 'ALERTS',
+        eventType: 'alert.created.processed',
+        recipientIds: [],
+        payload: { organizationId: 'org-1', realtimeNotifyScope: 'ORG' },
+      },
+      metadata: {
+        correlationId: 'corr-1',
+        eventId: 'evt-1',
+        eventType: 'CreateAlert.v1',
+        timestamp: '2026-01-01T00:00:00.000Z',
+      },
+    });
+
+    expect(key).toBe('org-1#ALERTS#alert.created.processed');
+  });
+
+  it('preserves organizationId on aggregated payload for org socket routing', async () => {
+    const published: unknown[] = [];
+    const publisher: RealtimePublisher = {
+      publish: async (messages) => {
+        published.push(...messages);
+      },
+    };
+    const service = new RealtimeAggregationService(publisher);
+
+    await service.groupAndPublish([
+      {
+        recipients: [],
+        message: {
+          channel: 'ALERTS',
+          eventType: 'alert.created.processed',
+          recipientIds: [],
+          payload: { organizationId: 'org-1', realtimeNotifyScope: 'ORG' },
+        },
+        metadata: {
+          correlationId: 'corr-1',
+          eventId: 'evt-1',
+          eventType: 'CreateAlert.v1',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    ]);
+
+    expect(published[0]).toMatchObject({
+      channel: 'ALERTS',
+      recipientIds: [],
+      payload: {
+        organizationId: 'org-1',
+        count: 1,
+      },
+    });
+  });
+
   it('propagates publisher failure', async () => {
     const publisher: RealtimePublisher = {
       publish: async () => {

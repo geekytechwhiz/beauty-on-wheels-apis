@@ -8,6 +8,7 @@ import {
 import type { RealtimePublisher } from '../interfaces/realtime-publisher.interface';
 import type { RealtimeAggregateMessage } from '../types/realtime-aggregate-message.type';
 import type { RealtimeMessage } from '../types/realtime-message.type';
+import { resolveOrganizationIdFromAggregateMessage } from '../utils/realtime-notify-scope';
 
 const logger = createLogger();
 
@@ -19,7 +20,7 @@ export class RealtimeAggregationService {
 
   buildGroupKey(message: RealtimeAggregateMessage): string {
     const organizationId =
-      message.recipients.find((r) => r.organizationId)?.organizationId ?? 'unknown';
+      resolveOrganizationIdFromAggregateMessage(message) ?? 'unknown';
     const { channel, eventType } = message.message;
     return `${organizationId}#${channel}#${eventType}`;
   }
@@ -46,14 +47,28 @@ export class RealtimeAggregationService {
       ...new Set(group.flatMap((item) => item.message.recipientIds)),
     ];
 
+    const organizationId = first.message.payload.organizationId;
+    const notifyScope = first.message.payload.realtimeNotifyScope;
+    const payload: Record<string, unknown> = {
+      type: first.message.eventType,
+      count: group.length,
+    };
+    if (typeof organizationId === 'string' && organizationId.trim()) {
+      payload.organizationId = organizationId.trim();
+    }
+    if (
+      notifyScope === 'ORG' ||
+      notifyScope === 'RECIPIENTS' ||
+      notifyScope === 'BOTH'
+    ) {
+      payload.realtimeNotifyScope = notifyScope;
+    }
+
     return {
       channel: first.message.channel,
       eventType: first.message.eventType,
       recipientIds,
-      payload: {
-        type: first.message.eventType,
-        count: group.length,
-      },
+      payload,
     };
   }
 

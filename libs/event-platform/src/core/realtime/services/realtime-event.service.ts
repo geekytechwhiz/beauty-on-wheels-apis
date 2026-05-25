@@ -2,6 +2,11 @@ import { createLogger } from '@api-hub/observability';
 
 import type { RealtimeAggregationPublisher } from '../publishers/realtime-aggregation.publisher';
 import type { RealtimeProcessContext, RealtimeProcessResult } from '../types/realtime-context.type';
+import {
+  canPublishToOrgDestination,
+  canPublishToRecipients,
+  resolveRealtimeNotifyScope,
+} from '../utils/realtime-notify-scope';
 
 const logger = createLogger();
 
@@ -16,14 +21,22 @@ export class RealtimeEventService {
     const recipients = await config.resolver.resolve(event);
     const recipientCount = recipients.length;
 
-    if (recipientCount === 0) {
+    const message = config.transformer.transform(event);
+    message.recipientIds = recipients.map((r) => r.userId);
+
+    const notifyScope = resolveRealtimeNotifyScope(message.payload);
+    const orgTarget = canPublishToOrgDestination(message);
+    const recipientTarget = canPublishToRecipients(message, recipientCount);
+
+    if (!orgTarget && !recipientTarget) {
       logger.info({
         event: 'realtime.process',
-        message: 'Realtime processing skipped — no recipients',
+        message: 'Realtime processing skipped — no targets for notify scope',
         correlationId,
         eventId: event.eventId,
         eventType: event.eventType,
-        recipientCount: 0,
+        recipientCount,
+        notifyScope,
         realtimeEnabled: config.enabled,
       });
       return { recipientCount: 0 };
@@ -37,13 +50,11 @@ export class RealtimeEventService {
         eventId: event.eventId,
         eventType: event.eventType,
         recipientCount,
+        notifyScope,
         realtimeEnabled: config.enabled,
       });
       return { recipientCount: 0 };
     }
-
-    const message = config.transformer.transform(event);
-    message.recipientIds = recipients.map((r) => r.userId);
 
     await this.aggregationPublisher.publish({
       recipients,
@@ -63,6 +74,8 @@ export class RealtimeEventService {
       eventId: event.eventId,
       eventType: event.eventType,
       recipientCount,
+      notifyScope,
+      organizationId: message.payload.organizationId,
       realtimeEnabled: config.enabled,
     });
 

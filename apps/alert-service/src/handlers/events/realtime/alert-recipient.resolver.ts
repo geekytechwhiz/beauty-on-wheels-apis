@@ -2,19 +2,27 @@ import type { BaseEvent } from '@api-hub/event-platform';
 import type { RecipientResolver } from '@api-hub/event-platform';
 
 import type { AlertCreateIngestPayload } from '../inbound/alert-create-ingest.payload';
-
-/** Dev placeholder until dynamic recipient lookup (assignee, org queue, etc.). */
-const DUMMY_ALERT_REALTIME_USER_IDS = ['test-user-1', 'test-user-2'] as const;
+import {
+  resolveAlertRealtimeNotifyScope,
+  shouldResolveAlertRecipients,
+} from './alert-realtime-notify-scope';
 
 export class AlertRecipientResolver implements RecipientResolver {
   async resolve(event: BaseEvent<unknown>) {
     const payload = event.payload as AlertCreateIngestPayload;
-    const organizationId = payload.organizationId;
+    const scope = resolveAlertRealtimeNotifyScope(payload);
 
-    return DUMMY_ALERT_REALTIME_USER_IDS.map((userId) => ({
-      userId,
-      organizationId,
-    }));
+    if (!shouldResolveAlertRecipients(scope)) {
+      return [];
+    }
+
+    const organizationId = payload.organizationId;
+    const userIds = payload.notifyUserIds ?? [];
+
+    return userIds
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .map((userId) => ({ userId, organizationId }));
   }
 }
 

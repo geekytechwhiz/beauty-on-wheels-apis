@@ -52,6 +52,42 @@ describe('RealtimeEventService', () => {
     });
   });
 
+  it('publishes org broadcast when resolver returns no recipients but message has organizationId', async () => {
+    const aggregated: unknown[] = [];
+    const aggregationPublisher: RealtimeAggregationPublisher = {
+      publish: async (data) => {
+        aggregated.push(data);
+      },
+    };
+
+    const service = new RealtimeEventService(aggregationPublisher);
+    await service.process({
+      event: { ...baseEvent, payload: { patientId: 'p1', organizationId: 'org-1' } },
+      config: {
+        ...config,
+        resolver: { resolve: async () => [] },
+        transformer: {
+          transform: () => ({
+            channel: 'ALERTS',
+            eventType: 'TEAM_ALERTS_UPDATED',
+            payload: { organizationId: 'org-1', realtimeNotifyScope: 'ORG' },
+            recipientIds: [],
+          }),
+        },
+      },
+    });
+
+    expect(aggregated).toHaveLength(1);
+    expect(aggregated[0]).toMatchObject({
+      recipients: [],
+      message: {
+        channel: 'ALERTS',
+        recipientIds: [],
+        payload: { organizationId: 'org-1' },
+      },
+    });
+  });
+
   it('skips when no aggregation publisher is configured', async () => {
     const service = new RealtimeEventService();
 

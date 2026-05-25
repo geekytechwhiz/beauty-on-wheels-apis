@@ -11,7 +11,7 @@ import { createDefaultSqsDlqStrategy } from '../../../infra/dlq-integration';
 import type { EventConsumerDeps } from '../../../typings/consumer.types';
 import type { MiddlewarePipelineEvent } from '@api-hub/middleware';
 import type { RealtimePublisher } from '../interfaces/realtime-publisher.interface';
-import { resolveInfrastructureRealtimePublisher } from '../services/resolve-infrastructure-realtime-publisher';
+import { resolveSocketRealtimePublisher } from '../services/resolve-socket-realtime-publisher';
 import { RealtimeAggregateEventSchema } from '../schemas/realtime-aggregate.event';
 import { RealtimeAggregationService } from '../services/realtime-aggregation.service';
 import {
@@ -59,7 +59,7 @@ export function createRealtimeAggregationConsumer<
   const getAggregationService = (): RealtimeAggregationService => {
     if (!aggregationService) {
       const realtimePublisher =
-        deps.realtimePublisher ?? resolveInfrastructureRealtimePublisher();
+        deps.realtimePublisher ?? resolveSocketRealtimePublisher();
       aggregationService =
         deps.aggregationService ??
         new RealtimeAggregationService(realtimePublisher);

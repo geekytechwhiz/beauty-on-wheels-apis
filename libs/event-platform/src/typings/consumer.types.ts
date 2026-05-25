@@ -8,7 +8,6 @@ import type { ResolveSchemaOptions } from '../core/schema/schema-resolver';
 import type { TransportMode } from '../core/policy/delivery-policy';
 import type { EventTracingHooks } from '../core/tracing/event-tracing-hooks';
 import type { RealtimeConsumerConfig } from '../core/realtime/interfaces/realtime-config.interface';
-import type { RealtimePublisher } from '../core/realtime/interfaces/realtime-publisher.interface';
 import type { RealtimeAggregationPublisher } from '../core/realtime/publishers/realtime-aggregation.publisher';
 import type { TransportProfile } from '../runtime/transport-profile';
 
@@ -119,10 +118,7 @@ export type EventConsumerDeps = {
   /** Optional realtime fan-out after successful business handler execution. */
   realtime?: RealtimeConsumerConfig;
 
-  /** Override default {@link NoopRealtimePublisher}; used by tests and future transports. */
-  realtimePublisher?: RealtimePublisher;
-
-  /** Publishes to SQS aggregation queue when {@link RealtimeConsumerConfig.aggregate} is true. */
+  /** Enqueues {@link RealtimeAggregateMessage} to the aggregation SQS queue after handler success. */
   realtimeAggregationPublisher?: RealtimeAggregationPublisher;
 };
 

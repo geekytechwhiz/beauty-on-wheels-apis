@@ -9,17 +9,13 @@ import { mapIngestPayloadToCreateAlert } from '../../mappers/alert-event-ingest.
 import { publishAlertIntents } from '../../publisher/alert-publisher';
 import { alertCreatedRealtimeTransformer } from '../../realtime/alert-created-realtime.transformer';
 import { alertRecipientResolver } from '../../realtime/alert-recipient.resolver';
-import {
-  alertRealtimeNoopPublisher,
-  getAlertRealtimeAggregationPublisher,
-} from '../../realtime/alert-realtime.deps';
+import { getAlertRealtimeAggregationPublisher } from '../../realtime/alert-realtime.deps';
 
 configureEventRuntime();
 
 const alertService = new AlertService();
 
 const realtimeEnabled = process.env.ALERT_REALTIME_ENABLED === 'true';
-const realtimeAggregateEnabled = process.env.ALERT_REALTIME_AGGREGATE === 'true';
 
 export async function processCreateAlert(payload: AlertCreateIngestPayload): Promise<void> {
   const { publishIntents, duplicate } = await alertService.createAlert(
@@ -35,14 +31,12 @@ export const handler = onEvent({
   operation: ALERT_REALTIME_EVENTS.ALERT_CREATED,
   consumer: {
     ...buildAlertEventConsumerDeps(),
-    realtimePublisher: alertRealtimeNoopPublisher,
-    realtimeAggregationPublisher: realtimeAggregateEnabled
-      ? getAlertRealtimeAggregationPublisher()
-      : undefined,
+    ...(realtimeEnabled && {
+      realtimeAggregationPublisher: getAlertRealtimeAggregationPublisher(),
+    }),
   },
   realtime: {
     enabled: realtimeEnabled,
-    aggregate: realtimeAggregateEnabled,
     resolver: alertRecipientResolver,
     transformer: alertCreatedRealtimeTransformer,
   },

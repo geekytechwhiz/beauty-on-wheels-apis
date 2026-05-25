@@ -7,16 +7,12 @@ import {
 } from '@api-hub/middleware';
 
 import type { RealtimeConsumerConfig } from '../core/realtime/interfaces/realtime-config.interface';
-import type { RealtimePublisher } from '../core/realtime/interfaces/realtime-publisher.interface';
 import type { RealtimeAggregationPublisher } from '../core/realtime/publishers/realtime-aggregation.publisher';
 import {
   drainRealtimePending,
   runWithRealtimeCollector,
 } from '../core/realtime/realtime-invocation-collector';
-import { resolveSocketRealtimePublisher } from '../core/realtime/services/resolve-socket-realtime-publisher';
-import { isRealtimeSocketEnabled } from '../core/realtime/services/resolve-socket-service';
 import { RealtimeEventService } from '../core/realtime/services/realtime-event.service';
-import { resolveInfrastructureRealtimePublisher } from '../core/realtime/services/resolve-infrastructure-realtime-publisher';
 
 export type OperationName =
   `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
@@ -31,7 +27,6 @@ export function composeEventHandlerWithMiddleware<
   operation: OperationName;
   handler: Handler<TEvent, TResult, TContext>;
   realtime?: RealtimeConsumerConfig;
-  realtimePublisher?: RealtimePublisher;
   realtimeAggregationPublisher?: RealtimeAggregationPublisher;
 }): (event: TEvent, context: TContext) => Promise<TResult> {
   const baseStack = buildEventExecutionPipeline<TResult, TContext>({
@@ -41,13 +36,7 @@ export function composeEventHandlerWithMiddleware<
   const stack: Array<Middleware<TEvent, TResult, TContext>> = [...baseStack];
 
   if (options.realtime?.enabled) {
-    const publisher =
-      options.realtimePublisher ??
-      (isRealtimeSocketEnabled()
-        ? resolveSocketRealtimePublisher()
-        : resolveInfrastructureRealtimePublisher());
     const realtimeEventService = new RealtimeEventService(
-      publisher,
       options.realtimeAggregationPublisher,
     );
     const config = options.realtime;

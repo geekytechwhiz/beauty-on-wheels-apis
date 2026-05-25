@@ -157,5 +157,4 @@ export {
   handler as realtimeAggregationSqsHandler,
   main as realtimeAggregationSqsMain,
 } from './handlers/realtime-aggregation-sqs.handler';
-export { resolveInfrastructureRealtimePublisher } from './core/realtime/services/resolve-infrastructure-realtime-publisher';
 export { ALERT_REALTIME_EVENTS } from './core/contracts/alert.events';

@@ -101,7 +101,6 @@ export function createConsumerRuntime<
     operation: options.operation as OperationName,
     handler,
     realtime: mergedDeps.realtime,
-    realtimePublisher: mergedDeps.realtimePublisher,
     realtimeAggregationPublisher: mergedDeps.realtimeAggregationPublisher,
   });
 }

@@ -2,7 +2,6 @@
  * @jest-environment node
  */
 import type { BaseEvent } from '../../../typings/base-event.types';
-import type { RealtimePublisher } from '../interfaces/realtime-publisher.interface';
 import type { RealtimeAggregationPublisher } from '../publishers/realtime-aggregation.publisher';
 import { RealtimeEventService } from './realtime-event.service';
 
@@ -31,35 +30,16 @@ const config = {
 };
 
 describe('RealtimeEventService', () => {
-  it('publishes directly when aggregate=false', async () => {
-    const published: unknown[] = [];
-    const publisher: RealtimePublisher = {
-      publish: async (messages) => {
-        published.push(...messages);
-      },
-    };
-
-    const service = new RealtimeEventService(publisher);
-    await service.process({ event: baseEvent, config: { ...config, aggregate: false } });
-
-    expect(published).toHaveLength(1);
-    expect(published[0]).toMatchObject({
-      channel: 'TEAM_ALERTS',
-      recipientIds: ['user-1'],
-    });
-  });
-
-  it('publishes to aggregation publisher when aggregate=true', async () => {
+  it('publishes to aggregation queue', async () => {
     const aggregated: unknown[] = [];
-    const publisher: RealtimePublisher = { publish: jest.fn() };
     const aggregationPublisher: RealtimeAggregationPublisher = {
       publish: async (data) => {
         aggregated.push(data);
       },
     };
 
-    const service = new RealtimeEventService(publisher, aggregationPublisher);
-    await service.process({ event: baseEvent, config: { ...config, aggregate: true } });
+    const service = new RealtimeEventService(aggregationPublisher);
+    await service.process({ event: baseEvent, config });
 
     expect(aggregated).toHaveLength(1);
     expect(aggregated[0]).toMatchObject({
@@ -70,19 +50,13 @@ describe('RealtimeEventService', () => {
         eventType: 'Alert.Created',
       },
     });
-    expect(publisher.publish).not.toHaveBeenCalled();
   });
 
-  it('skips aggregation when aggregate=true but no aggregation publisher', async () => {
-    const publisher: RealtimePublisher = { publish: jest.fn() };
-    const service = new RealtimeEventService(publisher);
+  it('skips when no aggregation publisher is configured', async () => {
+    const service = new RealtimeEventService();
 
-    const result = await service.process({
-      event: baseEvent,
-      config: { ...config, aggregate: true },
-    });
+    const result = await service.process({ event: baseEvent, config });
 
     expect(result.recipientCount).toBe(0);
-    expect(publisher.publish).not.toHaveBeenCalled();
   });
 });

@@ -581,17 +581,17 @@ functions:
           route: $connect
 
 
-  # websocketDisconnect:
-  #   handler: src/handlers/websocket/websocket-disconnect.handler.main
-  #   timeout: 10
-  #   memorySize: 256
-  #   environment:
-  #     REALTIME_CONNECTIONS_TABLE:
-  #       Ref: RealtimeConnectionsTable
+  websocketDisconnect:
+    handler: src/handlers/websocket/websocket-disconnect.main
+    timeout: 10
+    memorySize: 256
+    environment:
+      REALTIME_CONNECTIONS_TABLE:
+        Ref: RealtimeConnectionsTable
 
-  #   events:
-  #     - websocket:
-  #         route: $disconnect
+    events:
+      - websocket:
+          route: $disconnect
 
 
   realtimeAggregation:

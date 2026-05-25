@@ -88,13 +88,16 @@ provider:
 
     - Effect: Allow
       Action:
-        - dynamodb:PutItem
-        - dynamodb:DeleteItem
         - dynamodb:Query
-        - dynamodb:BatchWriteItem
       Resource:
-        - !GetAtt RealtimeConnectionsTable.Arn
-        - !Join ['/', [!GetAtt RealtimeConnectionsTable.Arn, 'index/*']]
+        - Fn::Sub:
+            - arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RealtimeTableName}
+            - RealtimeTableName:
+                Fn::ImportValue: ${self:provider.stage}-chat-service-RealtimeConnectionsTableName
+        - Fn::Sub:
+            - arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RealtimeTableName}/index/*
+            - RealtimeTableName:
+                Fn::ImportValue: ${self:provider.stage}-chat-service-RealtimeConnectionsTableName
 
     - Effect: Allow
       Action:
@@ -107,7 +110,7 @@ provider:
             - ':'
             - ${aws:accountId}
             - ':'
-            - Ref: WebsocketsApi
+            - Fn::ImportValue: ${self:provider.stage}-chat-service-WebSocketApiId
             - '/'
             - ${self:provider.stage}
             - '/POST/@connections/*'
@@ -567,32 +570,6 @@ functions:
               - Alert.Dismissed.v1
               - Alert.PriorityChanged.v1
               - Alert.NoteAdded.v1
-  websocketConnect:
-    handler: src/handlers/websocket/websocket-connect.main
-    timeout: 10
-    memorySize: 256
-    environment:
-      REALTIME_CONNECTIONS_TABLE:
-        Ref: RealtimeConnectionsTable
-
-    events:
-      - websocket:
-          route: $connect
-
-
-  websocketDisconnect:
-    handler: src/handlers/websocket/websocket-disconnect.main
-    timeout: 10
-    memorySize: 256
-    environment:
-      REALTIME_CONNECTIONS_TABLE:
-        Ref: RealtimeConnectionsTable
-
-    events:
-      - websocket:
-          route: $disconnect
-
-
   realtimeAggregation:
     handler: src/handlers/realtime/realtime-aggregation.main
     timeout: 30
@@ -600,21 +577,14 @@ functions:
 
     environment:
       REALTIME_CONNECTIONS_TABLE:
-        Ref: RealtimeConnectionsTable
+        Fn::ImportValue: ${self:provider.stage}-chat-service-RealtimeConnectionsTableName
       REALTIME_SOCKET_ENABLED: ${env:REALTIME_SOCKET_ENABLED, 'true'}
       EVENT_DLQ_QUEUE_URL:
         Ref: RealtimeAggregationDLQ
       DLQ_QUEUE_URL:
         Ref: RealtimeAggregationDLQ
       WEBSOCKET_API_ENDPOINT:
-        Fn::Join:
-          - ""
-          - - "https://"
-            - Ref: WebsocketsApi
-            - ".execute-api."
-            - ${self:provider.region}
-            - ".amazonaws.com/"
-            - ${self:provider.stage}
+        Fn::ImportValue: ${self:provider.stage}-chat-service-WebSocketApiEndpoint
 
     events:
       - sqs:
@@ -714,40 +684,6 @@ resources:
           maxReceiveCount: 3
 
 
-    RealtimeConnectionsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-
-        TableName: ${self:provider.stage}-${self:service}-realtime-connections
-
-        BillingMode: PAY_PER_REQUEST
-
-        AttributeDefinitions:
-          - AttributeName: pk
-            AttributeType: S
-          - AttributeName: sk
-            AttributeType: S
-          - AttributeName: destination
-            AttributeType: S
-
-        KeySchema:
-          - AttributeName: pk
-            KeyType: HASH
-          - AttributeName: sk
-            KeyType: RANGE
-
-        GlobalSecondaryIndexes:
-          - IndexName: DestinationIndex
-            KeySchema:
-              - AttributeName: destination
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-
-        TimeToLiveSpecification:
-          AttributeName: ttl
-          Enabled: true
-   
     # OnThresholdBreachInvokePermission:
     #   Type: AWS::Lambda::Permission
     #   Properties:
@@ -793,22 +729,21 @@ resources:
     #     SourceAccount: ${aws:accountId}
     #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
 
-  # Outputs:
-    # Exports unblock the TODOs in apps/user-service/serverless.yml:
-    #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
-    #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
-    # AlertServiceBusName:
-    #   Description: Name of the Alert Service Event Bus
-    #   Value:
-    #     Ref: AlertServiceBus
-    #   Export:
-    #     Name: ${self:provider.stage}-${self:service}-EventBusName
+  # Exports unblock the TODOs in apps/user-service/serverless.yml:
+  #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
+  #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
+  # AlertServiceBusName:
+  #   Description: Name of the Alert Service Event Bus
+  #   Value:
+  #     Ref: AlertServiceBus
+  #   Export:
+  #     Name: ${self:provider.stage}-${self:service}-EventBusName
 
-    # AlertServiceBusArn:
-    #   Description: ARN of the Alert Service Event Bus
-    #   Value:
-    #     Fn::GetAtt:
-    #       - AlertServiceBus
-    #       - Arn
-    #   Export:
-    #     Name: ${self:provider.stage}-${self:service}-EventBusArn
+  # AlertServiceBusArn:
+  #   Description: ARN of the Alert Service Event Bus
+  #   Value:
+  #     Fn::GetAtt:
+  #       - AlertServiceBus
+  #       - Arn
+  #   Export:
+  #     Name: ${self:provider.stage}-${self:service}-EventBusArn

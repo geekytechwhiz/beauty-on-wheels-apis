@@ -5,6 +5,7 @@ import type { RealtimePublisher } from '../interfaces/realtime-publisher.interfa
 import { resolveSocketService } from '../services/resolve-socket-service';
 import type { RealtimeMessage } from '../types/realtime-message.type';
 import { deriveSocketDestinations } from '../utils/derive-socket-destinations';
+import { isRealtimeSocketDebugEnabled } from '../utils/realtime-socket-debug';
 import { traceRealtimeAsync } from '../utils/trace-realtime-async';
 
 const logger = createLogger();
@@ -37,6 +38,27 @@ export class SocketRealtimePublisher implements RealtimePublisher {
         correlationId,
       });
       return;
+    }
+
+    if (isRealtimeSocketDebugEnabled()) {
+      logger.info({
+        event: 'realtime.socket.debug',
+        message: 'Realtime socket publish — derived destinations (debug)',
+        correlationId,
+        destinationsByMessage: destinationsByMessage.map(({ message, destinations }) => ({
+          eventType: message.eventType,
+          channel: message.channel,
+          recipientIds: message.recipientIds,
+          realtimeNotifyScope: message.payload.realtimeNotifyScope,
+          organizationId: message.payload.organizationId,
+          destinations,
+          envelope: {
+            type: message.eventType,
+            payload: message.payload,
+          },
+        })),
+        allDestinations: [...allDestinations],
+      });
     }
 
     const run = async (): Promise<void> => {

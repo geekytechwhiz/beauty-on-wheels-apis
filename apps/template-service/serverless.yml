@@ -461,6 +461,106 @@ functions:
             "409": Conflict
             "500": Server error
 
+  searchOrgEnablements:
+    handler: src/handlers/http/searchOrgEnablements.main
+    events:
+      - http:
+          path: org-enablements
+          method: get
+          summary: Search org enablements
+          description: Query GSI1 by organizationId and/or GSI3 by masterTemplateVersionId.
+          queryStringParameters:
+            organizationId:
+              required: false
+              type: string
+            masterTemplateVersionId:
+              required: false
+              type: string
+            nextToken:
+              required: false
+              type: string
+            limit:
+              required: false
+              type: integer
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — OrgEnablement list
+            "400": Bad request
+            "401": Unauthorized
+            "500": Server error
+
+  listOrgEnablementsByOrg:
+    handler: src/handlers/http/listOrgEnablementsByOrg.main
+    events:
+      - http:
+          path: org-enablements/{orgId}
+          method: get
+          summary: List enablements for organization
+          description: Query GSI1 PK=ORG#orgId with ENABLE# prefix on SK.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — OrgEnablement list
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+
+  getOrgEnablementById:
+    handler: src/handlers/http/getOrgEnablementById.main
+    events:
+      - http:
+          path: org-enablements/id/{enablementId}
+          method: get
+          summary: Get org enablement by id
+          description: Point read ENABLE#id / META.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — OrgEnablement
+            "401": Unauthorized
+            "404": Not found
+            "500": Server error
+
+  updateOrgEnablement:
+    handler: src/handlers/http/updateOrgEnablement.main
+    events:
+      - http:
+          path: org-enablements/id/{enablementId}
+          method: patch
+          summary: Update or revoke org enablement
+          description: PATCH with action UPDATE (dates) or REVOKE (delete row, 204).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — OrgEnablement (UPDATE)
+            "204": No content (REVOKE)
+            "400": Bad request
+            "401": Unauthorized
+            "404": Not found
+            "422": Validation error
+            "500": Server error
+
   transitionTemplateStatus:
     handler: src/handlers/http/transitionTemplateStatus.main
     events:

@@ -160,6 +160,59 @@ export const createOrgEnablementBodySchema = z.object({
 
 export type CreateOrgEnablementBody = z.infer<typeof createOrgEnablementBodySchema>;
 
+export const searchOrgEnablementsQuerySchema = z.object({
+  organizationId: z.string().trim().min(1).optional(),
+  masterTemplateVersionId: z.string().trim().min(1).optional(),
+  nextToken: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export type SearchOrgEnablementsQuery = z.infer<typeof searchOrgEnablementsQuerySchema>;
+
+export const enablementIdPathSchema = z.object({
+  enablementId: z.string().trim().min(1),
+});
+
+export const orgEnablementOrgPathSchema = z.object({
+  orgId: z.string().trim().min(1),
+});
+
+export const updateOrgEnablementBodySchema = z
+  .object({
+    action: z.enum(['UPDATE', 'REVOKE']).optional(),
+    effectiveFrom: z.string().trim().min(1).nullable().optional(),
+    effectiveTo: z.string().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const action = data.action ?? 'UPDATE';
+    if (action === 'UPDATE') {
+      const hasFrom = data.effectiveFrom !== undefined && data.effectiveFrom !== null;
+      const hasTo = data.effectiveTo !== undefined;
+      if (!hasFrom && !hasTo) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'effectiveFrom or effectiveTo is required when action is UPDATE',
+          path: ['effectiveFrom'],
+        });
+      }
+    }
+  });
+
+export type UpdateOrgEnablementBody = z.infer<typeof updateOrgEnablementBodySchema>;
+
+export function parseSearchOrgEnablementsQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): SearchOrgEnablementsQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      params[key] = Array.isArray(value) ? value[0] : value;
+    }
+  }
+  return searchOrgEnablementsQuerySchema.parse(params);
+}
+
 export const listCompatibleTemplatesQuerySchema = z.object({
   condition: z.string().trim().min(1),
   country: z.string().trim().min(1),

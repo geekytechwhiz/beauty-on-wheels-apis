@@ -10,6 +10,35 @@ export type CreateOrgEnablementParams = {
   actorUserId?: string;
 };
 
+export type SearchOrgEnablementsParams = {
+  organizationId?: string;
+  masterTemplateVersionId?: string;
+  nextToken?: string;
+  limit?: number;
+};
+
+export type ListOrgEnablementsByOrgParams = {
+  organizationId: string;
+  limit?: number;
+};
+
+export type UpdateOrgEnablementBody = {
+  action?: 'UPDATE' | 'REVOKE';
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+};
+
+export type UpdateOrgEnablementParams = {
+  enablementId: string;
+  body: UpdateOrgEnablementBody;
+  actorUserId?: string;
+};
+
+export type OrgEnablementListResult = {
+  items: OrgEnablementDto[];
+  nextToken?: string;
+};
+
 export interface OrgEnablementDto {
   enablementId: string;
   organizationId: string;

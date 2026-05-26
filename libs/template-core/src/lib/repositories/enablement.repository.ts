@@ -67,4 +67,17 @@ export class EnablementRepository extends BaseRepository {
       Limit: limit,
     });
   }
+
+  async putEnablementOverwrite(record: EnablementDdbRecord): Promise<void> {
+    const table = assertTemplateTable();
+    await this.put(table, record);
+  }
+
+  async deleteEnablement(enablementId: string): Promise<void> {
+    const table = assertTemplateTable();
+    await this.delete(table, {
+      pk: TemplateKeyBuilder.toEnablePk(enablementId),
+      sk: TEMPLATE_META_SK,
+    });
+  }
 }

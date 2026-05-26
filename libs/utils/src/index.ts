@@ -20,6 +20,7 @@ export * from './types/core-types';
 export * from './types/template.types';
 export * from './templates/template.renderer';
 export * from './repository/base-repository';
+export * from './repository/transact-write-errors';
 export * from './repository/key-builder';
 export * from './templates/renderTemplate';
 export * from './templates/template.registry';

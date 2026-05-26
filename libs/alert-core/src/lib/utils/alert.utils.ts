@@ -1,22 +1,16 @@
+import {
+  isConditionalWriteConflictAtIndex,
+  isTransactionCanceledException,
+} from '@api-hub/utils';
+
 import { AlertActivity } from "../models/domain/alert-activity.model";
 import { TRANSACT_INDEX_EVENT } from "../constants/alert.constants";
 
-export function  isTransactionCanceled(
-    err: unknown,
-  ): err is { name: string; CancellationReasons?: { Code?: string }[] } {
-    return (
-      !!err &&
-      typeof err === 'object' &&
-      (err as { name?: string }).name === 'TransactionCanceledException'
-    );
-  }
-  
-  export function  isEventConditionalFailure(err: unknown): boolean {
-    if (!isTransactionCanceled(err)) return false;
-    return (
-      (err.CancellationReasons ?? [])[TRANSACT_INDEX_EVENT]?.Code === 'ConditionalCheckFailed'
-    );
-  }
+export { isTransactionCanceledException as isTransactionCanceled };
+
+export function isEventConditionalFailure(err: unknown): boolean {
+  return isConditionalWriteConflictAtIndex(err, TRANSACT_INDEX_EVENT);
+}
   
   export function  toPublicActivity(raw: Record<string, unknown>): AlertActivity {
     const {

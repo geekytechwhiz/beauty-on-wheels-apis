@@ -9,6 +9,7 @@ Documentation for **`@api-hub/event-platform`**, **`@api-hub/middleware`**, and 
 | Document | Read when |
 |----------|-----------|
 | **[EVENT_PLATFORM_TRANSPORTS_GUIDE.md](./EVENT_PLATFORM_TRANSPORTS_GUIDE.md)** | **Primary handbook** — step-by-step EventBridge, SQS, DynamoDB Streams, publish, **correlation ID**, idempotency, observability |
+| **[IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](./IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md)** | **Idempotency split** — layer table: async (`event-platform`) vs HTTP (`middleware`) |
 | [EVENT_PLATFORM_DEVELOPER_GUIDE.md](./EVENT_PLATFORM_DEVELOPER_GUIDE.md) | Deep dive: orchestration internals, versioning, troubleshooting |
 | [EVENT_DRIVEN_DEVELOPMENT_GUIDE.md](./EVENT_DRIVEN_DEVELOPMENT_GUIDE.md) | Narrative EDD guide and migration patterns |
 | [SQS_CREATE_SQS_EVENT_HANDLER.md](./SQS_CREATE_SQS_EVENT_HANDLER.md) | SQS: visibility heartbeat, FIFO, partial batch |
@@ -46,8 +47,9 @@ All Lambda consumers use **`createConsumerRuntime`** + a **transport profile** +
 
 ### Idempotency
 
-- Default: **`DomainIdempotencyStrategy`** — handler/domain must dedupe (conditional DynamoDB writes, `{ duplicate: true }`).
-- Optional: **`StoreIdempotencyStrategy`** + `DynamoDbIdempotencyStore` when cross-instance pre-handler dedupe is required.
+- **Comparison table:** [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](./IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md)
+- **Async (event-platform):** default **`DomainIdempotencyStrategy`** — handler/domain must dedupe (conditional DynamoDB writes, `{ duplicate: true }`). Optional **`StoreIdempotencyStrategy`** + `DynamoDbIdempotencyStore` for cross-instance pre-handler dedupe.
+- **HTTP:** **no** idempotency middleware in `@api-hub/middleware` — use **domain conditional writes** (no HTTP `IDEMPOTENCY_TABLE`).
 
 ### Observability
 

@@ -14,6 +14,8 @@ Incoming request
 8. `performanceMiddleware`
 9. Business handler
 
+**HTTP idempotency** is not in this pipeline. Use **domain conditional writes** in repositories/services. See [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](../engineering/IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md).
+
 ## Async events (`buildEventExecutionPipeline`)
 
 Incoming event
@@ -29,7 +31,9 @@ Incoming event
 
 `realtimeMiddleware` calls `next()` first (steps 8 complete), then drains per-invocation successes collected inside `@api-hub/event-platform` after handler + idempotency `afterSuccess`. Realtime failures are logged and never fail the invocation.
 
-Reliability (idempotency, retry, DLQ, transport outcome mapping) belongs in `@api-hub/event-platform`, not in the HTTP/async middleware stack.
+**Async** reliability (event idempotency, retry, DLQ, transport outcome mapping) belongs in `@api-hub/event-platform` inside `consumeEvent` / `orchestratePreparedConsumerEvent`, not in `buildEventExecutionPipeline`.
+
+**HTTP** dedupe belongs in **domain tables** (conditional writes), not `@api-hub/middleware` — see [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](../engineering/IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md).
 
 ### Realtime sequence (direct publish, `aggregate=false`)
 

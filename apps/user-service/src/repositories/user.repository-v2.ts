@@ -1,4 +1,4 @@
-import { BaseRepository } from "@api-hub/utils";
+import { BaseRepository, ConditionalWriteConflictError } from "@api-hub/utils";
 import { UserRequestModel } from "../models/user/UserDTO";
 import { UserAlreadyExistsError } from "../utils/errors"; 
 
@@ -47,7 +47,10 @@ export class UserRepositoryV2 extends BaseRepository {
         userId: user.userID
       });
 
-      if (code === "ConditionalCheckFailedException") {
+      if (
+        err instanceof ConditionalWriteConflictError ||
+        code === "ConditionalCheckFailedException"
+      ) {
         throw new UserAlreadyExistsError(user.userID);
       }
 

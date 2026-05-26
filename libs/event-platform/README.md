@@ -77,6 +77,8 @@ Use `recordPublishFailure` from `@api-hub/observability` for non-critical outbou
 
 Default **`DomainIdempotencyStrategy`**: handlers must use conditional domain writes or explicit duplicate handling. Optional **`StoreIdempotencyStrategy`** + `DynamoDbIdempotencyStore` for cross-instance dedupe.
 
+**HTTP APIs** do not use this package for idempotency — use domain conditional writes in repositories. See **[Idempotency: event-platform vs HTTP](../../docs/engineering/IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md)**.
+
 Reference: alert-service — `EVENT#` conditional put + `{ duplicate: true }` in domain service.
 
 ---

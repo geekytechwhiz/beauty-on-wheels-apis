@@ -30,6 +30,7 @@ function sampleMessage(
       correlationId: 'corr-1',
       eventId: 'evt-1',
       eventType: 'Alert.Created',
+      eventVersion: '1.0.0',
       timestamp: '2026-01-01T00:00:00.000Z',
     },
     ...overrides,
@@ -67,7 +68,11 @@ describe('RealtimeAggregationService', () => {
       channel: 'TEAM_ALERTS',
       eventType: 'TEAM_ALERTS_UPDATED',
       recipientIds: ['user-1', 'user-2', 'user-3'],
-      payload: { type: 'TEAM_ALERTS_UPDATED', count: 3 },
+      payload: { count: 3 },
+      eventId: 'evt-1',
+      eventVersion: '1.0.0',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      meta: { correlationId: 'corr-1' },
     });
   });
 
@@ -105,6 +110,72 @@ describe('RealtimeAggregationService', () => {
     expect(published[0]).toMatchObject({
       recipientIds: ['user-1'],
       payload: { count: 2 },
+    });
+  });
+
+  it('groups org-only messages using payload organizationId when recipients are empty', async () => {
+    const publisher: RealtimePublisher = { publish: jest.fn() };
+    const service = new RealtimeAggregationService(publisher);
+
+    const key = service.buildGroupKey({
+      recipients: [],
+      message: {
+        channel: 'ALERTS',
+        eventType: 'Alert.Created.Processed',
+        recipientIds: [],
+        payload: { organizationId: 'org-1', realtimeNotifyScope: 'ORG' },
+      },
+      metadata: {
+        correlationId: 'corr-1',
+        eventId: 'evt-1',
+        eventType: 'CreateAlert.v1',
+        timestamp: '2026-01-01T00:00:00.000Z',
+      },
+    });
+
+    expect(key).toBe('org-1#ALERTS#Alert.Created.Processed');
+  });
+
+  it('preserves organizationId on aggregated payload for org socket routing', async () => {
+    const published: unknown[] = [];
+    const publisher: RealtimePublisher = {
+      publish: async (messages) => {
+        published.push(...messages);
+      },
+    };
+    const service = new RealtimeAggregationService(publisher);
+
+    await service.groupAndPublish([
+      {
+        recipients: [],
+        message: {
+          channel: 'ALERTS',
+          eventType: 'Alert.Created.Processed',
+          recipientIds: [],
+          payload: { organizationId: 'org-1', realtimeNotifyScope: 'ORG' },
+        },
+        metadata: {
+          correlationId: 'corr-1',
+          eventId: 'evt-1',
+          eventType: 'CreateAlert.v1',
+          eventVersion: '1.0.0',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          traceId: 'trace-1',
+        },
+      },
+    ]);
+
+    expect(published[0]).toMatchObject({
+      channel: 'ALERTS',
+      recipientIds: [],
+      eventId: 'evt-1',
+      eventVersion: '1.0.0',
+      meta: { correlationId: 'corr-1', traceId: 'trace-1' },
+      payload: {
+        organizationId: 'org-1',
+        count: 1,
+        realtimeNotifyScope: 'ORG',
+      },
     });
   });
 

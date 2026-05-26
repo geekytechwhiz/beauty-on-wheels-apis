@@ -5,6 +5,7 @@ import type { EventBridgeAdapterConfig } from './eventbridge-adapter-config';
 import { toPutEventsEntry } from './eventbridge-put-events';
 
 export class EventBridgeAdapter {
+  readonly transport = 'eventbridge' as const;
   private readonly client: EventBridgeClient;
 
   constructor(

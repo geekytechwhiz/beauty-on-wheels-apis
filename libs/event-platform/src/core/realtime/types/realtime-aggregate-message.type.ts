@@ -8,6 +8,8 @@ export type RealtimeAggregateMessage = {
     correlationId: string;
     eventId: string;
     eventType: string;
+    eventVersion: string;
     timestamp: string;
+    traceId?: string;
   };
 };

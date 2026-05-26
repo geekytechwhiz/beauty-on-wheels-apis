@@ -35,6 +35,7 @@ function aggregateBaseEvent(overrides: {
       correlationId: 'corr-1',
       eventId: 'evt-1',
       eventType: 'Alert.Created',
+      eventVersion: '1.0.0',
       timestamp: '2026-01-01T00:00:00.000Z',
     },
     ...overrides.payload,
@@ -111,7 +112,10 @@ describe('createRealtimeAggregationConsumer', () => {
     expect(result.batchItemFailures).toEqual([]);
     expect(published).toHaveLength(1);
     expect(published[0]).toMatchObject({
-      payload: { type: 'TEAM_ALERTS_UPDATED', count: 3 },
+      eventId: 'evt-1',
+      eventVersion: '1.0.0',
+      payload: { count: 3 },
+      meta: { correlationId: 'corr-1' },
     });
   });
 
@@ -148,7 +152,8 @@ describe('createRealtimeAggregationConsumer', () => {
     );
     expect(published).toHaveLength(1);
     expect(published[0]).toMatchObject({
-      payload: { type: 'TEAM_ALERTS_UPDATED', count: 1 },
+      payload: { count: 1 },
+      meta: { correlationId: 'corr-1' },
     });
   });
 

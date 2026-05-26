@@ -21,7 +21,9 @@ export const RealtimeAggregatePayloadSchema = z.object({
     correlationId: z.string(),
     eventId: z.string(),
     eventType: z.string(),
+    eventVersion: z.string(),
     timestamp: z.string(),
+    traceId: z.string().optional(),
   }),
 });
 

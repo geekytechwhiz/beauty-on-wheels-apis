@@ -1,13 +1,11 @@
 import {
   createRealtimeAggregationPublisher,
-  resolveSocketRealtimePublisher,
-  resetSocketRealtimePublisherCache,
   type RealtimeAggregationPublisher,
-  type RealtimePublisher,
 } from '@api-hub/event-platform';
- 
+
 let cachedAggregationPublisher: RealtimeAggregationPublisher | undefined | null = null;
- 
+
+/** SQS aggregation queue producer; socket publish runs in realtimeAggregation Lambda. */
 export function getAlertRealtimeAggregationPublisher(): RealtimeAggregationPublisher | undefined {
   if (cachedAggregationPublisher !== null) {
     return cachedAggregationPublisher;
@@ -20,12 +18,7 @@ export function getAlertRealtimeAggregationPublisher(): RealtimeAggregationPubli
 
   return cachedAggregationPublisher;
 }
- 
-export function getAlertRealtimePublisher(): RealtimePublisher {
-  return resolveSocketRealtimePublisher();
-}
 
 export function resetAlertRealtimePublisherCache(): void {
   cachedAggregationPublisher = null;
-  resetSocketRealtimePublisherCache();
 }

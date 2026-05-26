@@ -21,6 +21,12 @@ Mirrors `sso-integration` style env wiring:
 - `USER_SERVICE_PATIENT_LOOKUP_URL` — template with `{userId}`; if unset, HTTP patient validation is skipped.
 - `ORGANIZATION_SERVICE_LOOKUP_URL` — template with `{organizationId}`; if unset, org validation is skipped.
 
+## Realtime WebSocket
+
+Alert push uses the **chat-service** WebSocket API (not a separate alert API). Subscription rows live in `${stage}-chat-service-realtime-connections` (chat stack) and are written by chat `$connect` / `$disconnect` (`chat-service/src/alert-realtime/`). Clients connect to the chat WSS URL with `?channels=ALERTS`; aggregation runs in `realtimeAggregation` and imports chat table name + `WebSocketApiEndpoint`.
+
+**Deploy order:** **chat-service first** (table + WebSocket exports), then **alert-service** (imports from chat). Same stage in both stacks (e.g. `dev`). If migrating from `${stage}-alert-service-realtime-connections`, copy data or reconnect clients after the new table exists.
+
 ## Build & deploy
 
 - **Local**: from repo root `cd apps/alert-service && npx serverless offline --stage dev`

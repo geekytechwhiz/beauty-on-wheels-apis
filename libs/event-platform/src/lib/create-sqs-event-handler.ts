@@ -39,7 +39,7 @@ export type CreateSqsEventHandlerVisibilityHeartbeat =
 export type CreateSqsEventHandlerOptions<
   TContext extends LambdaInvocationContext = LambdaInvocationContext,
 > = {
-  operation: OperationName;
+  operation: string;
   consumer?: Partial<EventConsumerDeps>;
   events: EventHandlerEntry<z.ZodTypeAny>[];
   visibilityHeartbeat?: CreateSqsEventHandlerVisibilityHeartbeat;
@@ -140,7 +140,7 @@ export function createSqsEventHandler<
     consumeOptions: (lambdaContext) => {
       const base = createPerRecordLoggerConsumeOptions(
         sqsTransportProfile,
-        options.operation,
+         options.operation  as OperationName, 
         lambdaContext,
       );
       if (!visibilityHeartbeatOpts || !visibilitySqsClient) {
@@ -153,7 +153,7 @@ export function createSqsEventHandler<
               rawRecord: raw,
               queueUrl: visibilityHeartbeatOpts.queueUrl,
               getRemainingTimeInMillis: () =>
-                lambdaContext.getRemainingTimeInMillis(),
+                lambdaContext.getRemainingTimeInMillis?.() ?? 0,
               hooks: visibilityHeartbeatOpts.hooks,
               visibilityExtensionSeconds:
                 visibilityHeartbeatOpts.visibilityExtensionSeconds,

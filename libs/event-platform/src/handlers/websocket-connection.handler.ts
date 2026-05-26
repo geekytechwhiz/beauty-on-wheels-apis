@@ -129,10 +129,28 @@ export function createWebSocketDisconnectHandler(
   };
 }
 
-/** Default API Gateway WebSocket $connect handler. */
-export const websocketConnectHandler = createWebSocketConnectHandler();
+type WebSocketConnectHandler = ReturnType<typeof createWebSocketConnectHandler>;
+type WebSocketDisconnectHandler = ReturnType<typeof createWebSocketDisconnectHandler>;
+
+let defaultConnectHandler: WebSocketConnectHandler | undefined;
+let defaultDisconnectHandler: WebSocketDisconnectHandler | undefined;
+
+function getDefaultConnectHandler(): WebSocketConnectHandler {
+  defaultConnectHandler ??= createWebSocketConnectHandler();
+  return defaultConnectHandler;
+}
+
+function getDefaultDisconnectHandler(): WebSocketDisconnectHandler {
+  defaultDisconnectHandler ??= createWebSocketDisconnectHandler();
+  return defaultDisconnectHandler;
+}
+
+/** Default API Gateway WebSocket $connect handler (lazy — avoids env lookup at import time). */
+export const websocketConnectHandler: WebSocketConnectHandler = (event) =>
+  getDefaultConnectHandler()(event);
 export const websocketConnectMain = websocketConnectHandler;
 
-/** Default API Gateway WebSocket $disconnect handler. */
-export const websocketDisconnectHandler = createWebSocketDisconnectHandler();
+/** Default API Gateway WebSocket $disconnect handler (lazy — avoids env lookup at import time). */
+export const websocketDisconnectHandler: WebSocketDisconnectHandler = (event) =>
+  getDefaultDisconnectHandler()(event);
 export const websocketDisconnectMain = websocketDisconnectHandler;

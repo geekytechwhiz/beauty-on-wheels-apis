@@ -23,7 +23,7 @@ const config = {
     transform: () => ({
       channel: 'TEAM_ALERTS',
       eventType: 'TEAM_ALERTS_UPDATED',
-      payload: { alertId: 'a1' },
+      payload: { alertId: 'a1', realtimeNotifyScope: 'RECIPIENTS' },
       recipientIds: [],
     }),
   },
@@ -48,6 +48,8 @@ describe('RealtimeEventService', () => {
         correlationId: 'corr-1',
         eventId: 'evt-1',
         eventType: 'Alert.Created',
+        eventVersion: '1.0.0',
+        timestamp: '2026-01-01T00:00:00.000Z',
       },
     });
   });

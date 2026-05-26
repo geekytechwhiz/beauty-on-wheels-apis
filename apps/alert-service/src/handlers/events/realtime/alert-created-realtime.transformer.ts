@@ -1,4 +1,8 @@
-import { ALERT_REALTIME_EVENTS, type BaseEvent } from '@api-hub/event-platform';
+import {
+  ALERT_REALTIME_EVENT_VERSION,
+  ALERT_REALTIME_EVENTS,
+  type BaseEvent,
+} from '@api-hub/event-platform';
 import type { EventTransformer } from '@api-hub/event-platform';
 
 import type { AlertCreateIngestPayload } from '../inbound/alert-create-ingest.payload';
@@ -12,6 +16,7 @@ export class AlertCreatedRealtimeTransformer implements EventTransformer {
     return {
       channel: 'ALERTS',
       eventType: ALERT_REALTIME_EVENTS.ALERT_CREATED,
+      eventVersion: ALERT_REALTIME_EVENT_VERSION,
       recipientIds: [],
       payload: {
         organizationId: payload.organizationId,

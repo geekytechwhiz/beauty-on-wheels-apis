@@ -157,4 +157,8 @@ export {
   handler as realtimeAggregationSqsHandler,
   main as realtimeAggregationSqsMain,
 } from './handlers/realtime-aggregation-sqs.handler';
-export { ALERT_REALTIME_EVENTS } from './core/contracts/alert.events';
+export {
+  ALERT_REALTIME_EVENTS,
+  ALERT_REALTIME_EVENT_VERSION,
+} from './core/contracts/alert.events';
+export type { RealtimeSocketEnvelope } from './core/realtime/types/realtime-socket-envelope.type';

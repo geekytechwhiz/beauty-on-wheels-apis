@@ -63,7 +63,9 @@ export class RealtimeEventService {
         correlationId,
         eventId: event.eventId,
         eventType: event.eventType,
+        eventVersion: message.eventVersion ?? event.eventVersion,
         timestamp: event.timestamp,
+        traceId: event.meta.traceId,
       },
     });
 

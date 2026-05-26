@@ -50,7 +50,6 @@ export class RealtimeAggregationService {
     const organizationId = first.message.payload.organizationId;
     const notifyScope = first.message.payload.realtimeNotifyScope;
     const payload: Record<string, unknown> = {
-      type: first.message.eventType,
       count: group.length,
     };
     if (typeof organizationId === 'string' && organizationId.trim()) {
@@ -64,11 +63,20 @@ export class RealtimeAggregationService {
       payload.realtimeNotifyScope = notifyScope;
     }
 
+    const { metadata } = first;
+
     return {
       channel: first.message.channel,
       eventType: first.message.eventType,
       recipientIds,
       payload,
+      eventId: metadata.eventId,
+      eventVersion: metadata.eventVersion,
+      timestamp: metadata.timestamp,
+      meta: {
+        correlationId: metadata.correlationId,
+        ...(metadata.traceId ? { traceId: metadata.traceId } : {}),
+      },
     };
   }
 

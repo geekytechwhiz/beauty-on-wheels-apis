@@ -4,6 +4,7 @@ import { createLogger, getLoggerContext } from '@api-hub/observability';
 import type { RealtimePublisher } from '../interfaces/realtime-publisher.interface';
 import { resolveSocketService } from '../services/resolve-socket-service';
 import type { RealtimeMessage } from '../types/realtime-message.type';
+import { buildRealtimeSocketEnvelope } from '../utils/build-realtime-socket-envelope';
 import { deriveSocketDestinations } from '../utils/derive-socket-destinations';
 import { traceRealtimeAsync } from '../utils/trace-realtime-async';
 
@@ -41,15 +42,12 @@ export class SocketRealtimePublisher implements RealtimePublisher {
 
     const run = async (): Promise<void> => {
       for (const { message, destinations } of destinationsByMessage) {
-        const envelope = {
-          type: message.eventType,
-          payload: message.payload,
-        };
+        const envelope = buildRealtimeSocketEnvelope(message);
 
         for (const destination of destinations) {
           try {
             await resolveSocketService().publish(destination, envelope, {
-              correlationId,
+              correlationId: envelope.meta.correlationId ?? correlationId,
               eventType: message.eventType,
             });
           } catch (error) {

@@ -5,6 +5,13 @@ import type { SocketService } from '../interfaces/socket-service.interface';
 import type { RealtimeMessage } from '../types/realtime-message.type';
 import { SocketRealtimePublisher } from './socket-realtime-publisher.service';
 
+const mockPublish = jest.fn().mockResolvedValue(undefined);
+const mockSocketService: SocketService = { publish: mockPublish };
+
+jest.mock('../services/resolve-socket-service', () => ({
+  resolveSocketService: () => mockSocketService,
+}));
+
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');
   return {
@@ -37,40 +44,50 @@ function message(overrides: Partial<RealtimeMessage> = {}): RealtimeMessage {
 }
 
 describe('SocketRealtimePublisher', () => {
+  beforeEach(() => {
+    mockPublish.mockClear();
+    mockPublish.mockResolvedValue(undefined);
+  });
+
   it('publishes to user destination for single recipient', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const socketService: SocketService = { publish };
-    const publisher = new SocketRealtimePublisher(socketService);
+    const publisher = new SocketRealtimePublisher();
 
     await publisher.publish([
       message({
         recipientIds: ['DOC123'],
-        payload: { count: 1 },
+        payload: { count: 1, realtimeNotifyScope: 'RECIPIENTS' },
       }),
     ]);
 
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
       'USER#DOC123',
-      { type: 'TEAM_ALERTS_UPDATED', payload: { count: 1 } },
+      expect.objectContaining({
+        eventType: 'TEAM_ALERTS_UPDATED',
+        eventVersion: '1.0.0',
+        payload: { count: 1, realtimeNotifyScope: 'RECIPIENTS' },
+        meta: { correlationId: 'corr-1' },
+      }),
       { correlationId: 'corr-1', eventType: 'TEAM_ALERTS_UPDATED' },
     );
   });
 
   it('publishes to multiple user destinations', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const publisher = new SocketRealtimePublisher({ publish });
+    const publisher = new SocketRealtimePublisher();
 
     await publisher.publish([
-      message({ recipientIds: ['DOC123', 'DOC456'] }),
+      message({
+        recipientIds: ['DOC123', 'DOC456'],
+        payload: { realtimeNotifyScope: 'RECIPIENTS' },
+      }),
     ]);
 
-    expect(publish).toHaveBeenCalledTimes(2);
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledTimes(2);
+    expect(mockPublish).toHaveBeenCalledWith(
       'USER#DOC123',
       expect.any(Object),
       expect.any(Object),
     );
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
       'USER#DOC456',
       expect.any(Object),
       expect.any(Object),
@@ -78,40 +95,50 @@ describe('SocketRealtimePublisher', () => {
   });
 
   it('publishes to org channel from payload organizationId and message channel', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const publisher = new SocketRealtimePublisher({ publish });
+    const publisher = new SocketRealtimePublisher();
 
     await publisher.publish([
       message({
         recipientIds: [],
-        payload: { organizationId: 'ORG1', count: 20 },
+        payload: {
+          organizationId: 'ORG1',
+          count: 20,
+          realtimeNotifyScope: 'ORG',
+        },
       }),
     ]);
 
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
       'ORG#ORG1#TEAM_ALERTS',
-      { type: 'TEAM_ALERTS_UPDATED', payload: { organizationId: 'ORG1', count: 20 } },
+      expect.objectContaining({
+        eventType: 'TEAM_ALERTS_UPDATED',
+        payload: {
+          organizationId: 'ORG1',
+          count: 20,
+          realtimeNotifyScope: 'ORG',
+        },
+        meta: { correlationId: 'corr-1' },
+      }),
       expect.any(Object),
     );
   });
 
   it('publishes to patient destination when patientId is in payload', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const publisher = new SocketRealtimePublisher({ publish });
+    const publisher = new SocketRealtimePublisher();
 
     await publisher.publish([
       message({
         recipientIds: ['DOC123'],
-        payload: { patientId: 'PAT001' },
+        payload: { patientId: 'PAT001', realtimeNotifyScope: 'RECIPIENTS' },
       }),
     ]);
 
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
       'USER#DOC123',
       expect.any(Object),
       expect.any(Object),
     );
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
       'PATIENT#PAT001',
       expect.any(Object),
       expect.any(Object),
@@ -119,62 +146,63 @@ describe('SocketRealtimePublisher', () => {
   });
 
   it('swallows socket failures and continues other destinations', async () => {
-    const publish = jest
-      .fn()
+    mockPublish
       .mockRejectedValueOnce(new Error('socket down'))
       .mockResolvedValueOnce(undefined);
-    const publisher = new SocketRealtimePublisher({ publish });
+    const publisher = new SocketRealtimePublisher();
 
     await expect(
-      publisher.publish([message({ recipientIds: ['A', 'B'] })]),
+      publisher.publish([
+        message({
+          recipientIds: ['A', 'B'],
+          payload: { realtimeNotifyScope: 'RECIPIENTS' },
+        }),
+      ]),
     ).resolves.toBeUndefined();
-    expect(publish).toHaveBeenCalledTimes(2);
+    expect(mockPublish).toHaveBeenCalledTimes(2);
   });
 
   it('does nothing for empty messages array', async () => {
-    const publish = jest.fn();
-    const publisher = new SocketRealtimePublisher({ publish });
+    const publisher = new SocketRealtimePublisher();
 
     await publisher.publish([]);
 
-    expect(publish).not.toHaveBeenCalled();
+    expect(mockPublish).not.toHaveBeenCalled();
   });
 
   it('does not call socket when there are no destinations', async () => {
-    const publish = jest.fn();
-    const publisher = new SocketRealtimePublisher({ publish });
+    const publisher = new SocketRealtimePublisher();
 
     await publisher.publish([
       message({ recipientIds: [], payload: {} }),
     ]);
 
-    expect(publish).not.toHaveBeenCalled();
+    expect(mockPublish).not.toHaveBeenCalled();
   });
 
   it('publishes multiple messages with distinct org channels', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const publisher = new SocketRealtimePublisher({ publish });
+    const publisher = new SocketRealtimePublisher();
 
     await publisher.publish([
       message({
         channel: 'TEAM_ALERTS',
-        payload: { organizationId: 'ORG1' },
+        payload: { organizationId: 'ORG1', realtimeNotifyScope: 'ORG' },
         recipientIds: [],
       }),
       message({
         channel: 'ALERTS',
         eventType: 'ALERTS_UPDATED',
-        payload: { organizationId: 'ORG2' },
+        payload: { organizationId: 'ORG2', realtimeNotifyScope: 'ORG' },
         recipientIds: [],
       }),
     ]);
 
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
       'ORG#ORG1#TEAM_ALERTS',
       expect.any(Object),
       expect.objectContaining({ eventType: 'TEAM_ALERTS_UPDATED' }),
     );
-    expect(publish).toHaveBeenCalledWith(
+    expect(mockPublish).toHaveBeenCalledWith(
       'ORG#ORG2#ALERTS',
       expect.any(Object),
       expect.objectContaining({ eventType: 'ALERTS_UPDATED' }),

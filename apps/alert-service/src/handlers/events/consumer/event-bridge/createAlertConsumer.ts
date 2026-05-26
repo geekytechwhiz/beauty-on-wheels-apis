@@ -1,5 +1,5 @@
 import { AlertService } from '@api-hub/alert-core';
-import { ALERT_REALTIME_EVENTS, onEvent } from '@api-hub/event-platform';
+import { ALERT_EVENT_OPERATIONS, onEvent } from '@api-hub/event-platform';
 
 import { buildAlertEventConsumerDeps } from '../../bootstrap/event-consumer-deps';
 import { configureEventRuntime } from '../../bootstrap/event-runtime';
@@ -28,7 +28,7 @@ export async function processCreateAlert(payload: AlertCreateIngestPayload): Pro
 }
 
 export const handler = onEvent({
-  operation: ALERT_REALTIME_EVENTS.ALERT_CREATED,
+  operation: ALERT_EVENT_OPERATIONS.ON_CREATE_ALERT,
   consumer: {
     ...buildAlertEventConsumerDeps(),
     ...(realtimeEnabled && {

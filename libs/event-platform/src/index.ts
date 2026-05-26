@@ -158,6 +158,7 @@ export {
   main as realtimeAggregationSqsMain,
 } from './handlers/realtime-aggregation-sqs.handler';
 export {
+  ALERT_EVENT_OPERATIONS,
   ALERT_REALTIME_EVENTS,
   ALERT_REALTIME_EVENT_VERSION,
 } from './core/contracts/alert.events';

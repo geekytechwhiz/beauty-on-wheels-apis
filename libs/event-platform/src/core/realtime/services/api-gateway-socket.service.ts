@@ -12,7 +12,6 @@ import type {
   SocketPublishContext,
   SocketService,
 } from '../interfaces/socket-service.interface';
-import { isRealtimeSocketDebugEnabled } from '../utils/realtime-socket-debug';
 import { traceRealtimeAsync } from '../utils/trace-realtime-async';
 
 const logger = createLogger();
@@ -108,21 +107,6 @@ export class ApiGatewaySocketService implements SocketService {
       const connectionIds = await this.connectionResolver.resolve(destination);
       const connectionCount = connectionIds.length;
 
-      if (isRealtimeSocketDebugEnabled()) {
-        logger.info({
-          event: 'realtime.socket.debug',
-          message: 'Realtime socket publish — resolved connections (debug)',
-          destination,
-          connectionIds,
-          connectionCount,
-          websocketApiEndpoint: process.env.WEBSOCKET_API_ENDPOINT,
-          realtimeConnectionsTable: process.env.REALTIME_CONNECTIONS_TABLE,
-          correlationId,
-          eventType,
-          payload,
-        });
-      }
-
       logger.info({
         event: 'realtime.socket.publish',
         message: 'Realtime socket publish',
@@ -148,53 +132,16 @@ export class ApiGatewaySocketService implements SocketService {
         ),
       );
 
-      let successCount = 0;
-      let failureCount = 0;
-      const postResults: Array<{
-        connectionId: string;
-        status: 'fulfilled' | 'rejected';
-        staleConnection?: boolean;
-      }> = [];
-
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        const connectionId = connectionIds[i] ?? 'unknown';
-        if (result.status === 'fulfilled') {
-          successCount += 1;
-          if (isRealtimeSocketDebugEnabled()) {
-            postResults.push({ connectionId, status: 'fulfilled' });
-          }
-        } else {
-          failureCount += 1;
+        if (result.status === 'rejected') {
           logPublishFailure(result.reason, {
             destination,
-            connectionId,
+            connectionId: connectionIds[i] ?? 'unknown',
             correlationId,
             eventType,
           });
-          if (isRealtimeSocketDebugEnabled()) {
-            postResults.push({
-              connectionId,
-              status: 'rejected',
-              staleConnection: isStaleConnectionError(result.reason),
-            });
-          }
         }
-      }
-
-      if (isRealtimeSocketDebugEnabled()) {
-        logger.info({
-          event: 'realtime.socket.debug',
-          message: 'Realtime socket publish — postToConnection results (debug)',
-          destination,
-          connectionCount,
-          successCount,
-          failureCount,
-          postResults,
-          bodyPreview: body.length > 500 ? `${body.slice(0, 500)}…` : body,
-          correlationId,
-          eventType,
-        });
       }
     };
 

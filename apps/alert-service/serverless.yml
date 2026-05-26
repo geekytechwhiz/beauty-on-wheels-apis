@@ -579,8 +579,6 @@ functions:
       REALTIME_CONNECTIONS_TABLE:
         Fn::ImportValue: ${self:provider.stage}-chat-service-RealtimeConnectionsTableName
       REALTIME_SOCKET_ENABLED: ${env:REALTIME_SOCKET_ENABLED, 'true'}
-      # Set REALTIME_DEBUG_SOCKET=true for temporary publish debug logs; remove after E2E.
-      REALTIME_DEBUG_SOCKET: ${env:REALTIME_DEBUG_SOCKET, 'true'}
       EVENT_DLQ_QUEUE_URL:
         Ref: RealtimeAggregationDLQ
       DLQ_QUEUE_URL:

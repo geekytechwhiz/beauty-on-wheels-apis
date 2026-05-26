@@ -7,7 +7,7 @@ describe('deriveSocketDestinations', () => {
   it('targets org channel only when scope is ORG', () => {
     const destinations = deriveSocketDestinations({
       channel: 'ALERTS',
-      eventType: 'alert.created.processed',
+      eventType: 'Alert.Created.Processed',
       recipientIds: ['user-1'],
       payload: { organizationId: 'org-1', realtimeNotifyScope: 'ORG' },
     });
@@ -18,7 +18,7 @@ describe('deriveSocketDestinations', () => {
   it('targets users only when scope is RECIPIENTS', () => {
     const destinations = deriveSocketDestinations({
       channel: 'ALERTS',
-      eventType: 'alert.created.processed',
+      eventType: 'Alert.Created.Processed',
       recipientIds: ['user-1', 'user-2'],
       payload: { organizationId: 'org-1', realtimeNotifyScope: 'RECIPIENTS' },
     });
@@ -29,7 +29,7 @@ describe('deriveSocketDestinations', () => {
   it('targets org and users when scope is BOTH', () => {
     const destinations = deriveSocketDestinations({
       channel: 'ALERTS',
-      eventType: 'alert.created.processed',
+      eventType: 'Alert.Created.Processed',
       recipientIds: ['user-1'],
       payload: { organizationId: 'org-1', realtimeNotifyScope: 'BOTH' },
     });

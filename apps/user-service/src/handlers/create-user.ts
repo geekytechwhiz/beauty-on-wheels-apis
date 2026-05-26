@@ -122,11 +122,12 @@ const handler = async (
   const userCreatedEventStart = Date.now();
   try {
     await publishUserCreatedEvent({
-      eventName: "UserCreated.v1",
-      correlationId: correlationId ?? "",
       userId: result.userID,
-      email: userInfo?.contact?.email ?? "",
-      name: userInfo?.name ?? userInfo?.fullName ?? "",
+      organizationId: organizationID,
+      email: userInfo?.contact?.email || undefined,
+      fullName: userInfo?.fullName ?? userInfo?.name,
+      firstName: userInfo?.firstName,
+      correlationId: correlationId || undefined,
     });
     log.info({
       event: "create_user_user_created_event_published",

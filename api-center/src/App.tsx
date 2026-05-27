@@ -353,12 +353,12 @@ export default function App({
     ? `Yes3 S3 catalog · ${catalogSummary.indexKey}`
     : `Static catalog · public/${catalogSummary.specsPrefix}/ · ${catalogSummary.indexKey}`;
   const writeAccessMessage = catalogSummary.s3Enabled
-    ? 'Editing specs requires the Yes3 file API (VITE_YES3_API_BASE_URL).'
-    : 'Editing specs requires the deployed spec write API (or local dev server).';
+    ? 'Editing specs requires the Yes3 file API (override with VITE_YES3_API_BASE_URL).'
+    : 'Editing specs requires the deployed spec write API (or local dev server). Set VITE_ENABLE_S3_SPEC_STORE=false for local mode.';
   const uploadTooltip = localSpecWriteEnabled
     ? catalogSummary.s3Enabled
       ? 'Upload an OpenAPI spec (Yes3 presigned URL → S3)'
-      : 'Upload an OpenAPI spec (writes to public/specs-store in dev)'
+      : 'Upload an OpenAPI spec (local spec API or public/specs-store)'
     : writeAccessMessage;
   const editorParseState = useMemo(() => {
     if (!editorText.trim()) {
@@ -697,14 +697,14 @@ export default function App({
 
         {!localSpecWriteEnabled && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Read-only mode: specs are served as static files. Upload, delete, and status changes
-            require the Yes3 file API (set VITE_ENABLE_S3_SPEC_STORE=true) or the local spec API.
+            Read-only mode: upload, delete, and status changes require the Yes3 file API (default)
+            or the local spec API. Set VITE_ENABLE_S3_SPEC_STORE=false to use static public specs.
           </Alert>
         )}
         {localSpecWriteEnabled && catalogSummary.s3Enabled && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Yes3 S3 mode: the service catalog is listed from S3, and uploads/downloads use
-            presigned URLs via the Yes3 API.
+            Yes3 S3 mode (default): the catalog is listed from S3, and uploads/downloads use
+            presigned URLs via the Yes3 API. Set VITE_ENABLE_S3_SPEC_STORE=false for local mode.
           </Alert>
         )}
 

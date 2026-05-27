@@ -206,7 +206,10 @@ export function getCatalogSummary(): {
 
 /** True when the frontend should upload/download spec bytes directly via S3 presigned URLs. */
 export function isS3SpecStoreEnabled(): boolean {
-  // return import.meta.env.VITE_ENABLE_S3_SPEC_STORE === 'true';
+  const raw = import.meta.env.VITE_ENABLE_S3_SPEC_STORE?.trim().toLowerCase();
+  if (raw === 'false') {
+    return false;
+  }
   return true;
 }
 
@@ -220,12 +223,18 @@ export function canUseSpecStoreApi(): boolean {
 
 /** True when spec writes can reach a backend (Yes3 S3 API, Vite middleware, or spec Lambda). */
 export function canWriteSpecsLocally(): boolean {
-  return isS3SpecStoreEnabled() || canUseSpecStoreApi();
+  if (isS3SpecStoreEnabled()) {
+    return true;
+  }
+  return canUseSpecStoreApi();
 }
 
 /** True when spec reads can use a remote store (Yes3 S3 API or spec Lambda). */
 export function canFetchSpecsFromStore(): boolean {
-  return isS3SpecStoreEnabled() || canUseSpecStoreApi();
+  if (isS3SpecStoreEnabled()) {
+    return true;
+  }
+  return canUseSpecStoreApi();
 }
 
 function withCacheBust(url: string): string {
@@ -611,11 +620,10 @@ export async function fetchSpecDocumentText({
 
 async function loadCatalogFromYes3(): Promise<PublicCatalogIndex> {
   const files = await listFolderFiles({ folder: getYes3SpecsRoot() });
-  const catalogPrefix = getCatalogSpecsPrefix();
   const serviceMap = new Map<string, OpenApiSpecFile[]>();
 
   for (const file of files) {
-    const catalogKey = `${catalogPrefix}/${file.fileName}`;
+    const catalogKey = toCatalogKeyFromS3Key(file.key);
     const parsed = parseSpecFileKey(catalogKey, {
       lastModified: file.lastModified,
       size: file.size,
@@ -641,11 +649,7 @@ async function loadCatalogFromYes3(): Promise<PublicCatalogIndex> {
 
 async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<PublicCatalogIndex> {
   if (isS3SpecStoreEnabled()) {
-    try {
-      return await loadCatalogFromYes3();
-    } catch {
-      // fall through to spec API / static catalog
-    }
+    return loadCatalogFromYes3();
   }
 
   if (canUseSpecStoreApi()) {
@@ -838,22 +842,18 @@ export async function loadSpecText({
   const resolved = await resolveSpecVersion({ serviceName, version });
 
   if (isS3SpecStoreEnabled()) {
-    try {
-      const { folder, fileName } = toYes3Location(resolved.key);
-      const { downloadUrl } = await getDownloadUrl({ folder, fileName });
-      const response = await fetch(downloadUrl, { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error(
-          `S3 download failed. Received ${response.status} ${response.statusText}.`,
-        );
-      }
-      return {
-        extension: resolved.extension,
-        text: await response.text(),
-      };
-    } catch {
-      // fall through to API/static paths
+    const { folder, fileName } = toYes3Location(resolved.key);
+    const { downloadUrl } = await getDownloadUrl({ folder, fileName });
+    const response = await fetch(downloadUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(
+        `S3 download failed. Received ${response.status} ${response.statusText}.`,
+      );
     }
+    return {
+      extension: resolved.extension,
+      text: await response.text(),
+    };
   }
 
   if (canFetchSpecsFromStore()) {

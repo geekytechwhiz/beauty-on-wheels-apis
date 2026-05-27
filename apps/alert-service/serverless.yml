@@ -255,7 +255,7 @@ functions:
           method: get
           cors: true
   getUploadUrl:
-    handler: src/handlers/http/getUploadUrl.main
+    handler: src/handlers/http/getUploadUrl.handler
     events:
       - http:
           path: upload-url

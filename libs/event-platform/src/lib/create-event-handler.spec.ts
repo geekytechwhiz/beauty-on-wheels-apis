@@ -5,14 +5,20 @@ import { z } from 'zod';
 
 import { BaseError } from '@api-hub/utils';
 
+import type { IdempotencyStrategy } from '../core/idempotency/idempotency-strategy';
+import type { IdempotencyContext, IdempotencyResult } from '../core/idempotency/types';
+import type { EventTransformer } from '../core/realtime/interfaces/event-transformer.interface';
+import type { RealtimeAggregationPublisher } from '../core/realtime/publishers/realtime-aggregation.publisher';
+import type { RecipientResolver } from '../core/realtime/interfaces/recipient-resolver.interface';
+import type { LambdaInvocationContext } from '@api-hub/observability';
+
 import { defineEvent } from '../core/schema/define-event';
 import { createEventHandler } from './create-event-handler';
-import type { Context } from 'aws-lambda';
 
-const lambdaContext = {
+const lambdaContext: LambdaInvocationContext = {
   awsRequestId: 'req-test-eb-1',
   getRemainingTimeInMillis: () => 300_000,
-} as unknown as Context;
+};
 
 const ThresholdSchema = defineEvent(
   z.object({
@@ -122,5 +128,193 @@ describe('createEventHandler', () => {
         lambdaContext,
       ),
     ).rejects.toBeInstanceOf(BaseError);
+  });
+
+  describe('realtime', () => {
+    const ebDetail = {
+      eventId: 'evt-rt-1',
+      eventType: 'Threshold.Breach.v1',
+      eventVersion: '1.0.0',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      source: 'monitoring-service',
+      idempotencyKey: 'idem-rt-1',
+      payload: {
+        patientId: 'p1',
+        organizationId: 'org-1',
+        metric: 'hr',
+        currentValue: 120,
+        threshold: 100,
+        severity: 'HIGH' as const,
+        triggeredAt: '2026-01-01T00:00:00.000Z',
+      },
+      meta: { correlationId: 'corr-rt-1' },
+    };
+
+    const ebEvent = {
+      source: 'monitoring-service',
+      'detail-type': 'Threshold.Breach.v1',
+      detail: ebDetail,
+    };
+
+    const resolver: RecipientResolver = {
+      resolve: async () => [{ userId: 'user-1' }],
+    };
+
+    const transformer: EventTransformer = {
+      transform: (event) => ({
+        channel: 'alerts',
+        eventType: event.eventType,
+        payload: { patientId: (event.payload as { patientId: string }).patientId },
+        recipientIds: [],
+      }),
+    };
+
+    function createAggregationPublisher(
+      sink: unknown[],
+    ): RealtimeAggregationPublisher {
+      return {
+        publish: async (data) => {
+          sink.push(data);
+        },
+      };
+    }
+
+    it('enqueues aggregation message after business handler success', async () => {
+      const aggregated: unknown[] = [];
+      const handler = createEventHandler({
+        operation: 'threshold.breach',
+        consumer: {
+          retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
+          dlq: { enabled: false },
+          realtimeAggregationPublisher: createAggregationPublisher(aggregated),
+        },
+        realtime: {
+          enabled: true,
+          resolver,
+          transformer,
+        },
+        events: [
+          {
+            schema: ThresholdSchema,
+            handler: async () => {
+              /* success */
+            },
+          },
+        ],
+      });
+
+      await handler(ebEvent, lambdaContext);
+
+      expect(aggregated).toHaveLength(1);
+      expect(aggregated[0]).toMatchObject({
+        recipients: [{ userId: 'user-1' }],
+        message: {
+          channel: 'alerts',
+          recipientIds: ['user-1'],
+        },
+      });
+    });
+
+    it('does not enqueue when business handler fails', async () => {
+      const aggregated: unknown[] = [];
+      const handler = createEventHandler({
+        operation: 'threshold.breach',
+        consumer: {
+          retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
+          dlq: { enabled: false },
+          realtimeAggregationPublisher: createAggregationPublisher(aggregated),
+        },
+        realtime: {
+          enabled: true,
+          resolver,
+          transformer,
+        },
+        events: [
+          {
+            schema: ThresholdSchema,
+            handler: async () => {
+              throw new Error('handler failed');
+            },
+          },
+        ],
+      });
+
+      await expect(handler(ebEvent, lambdaContext)).rejects.toBeInstanceOf(BaseError);
+      expect(aggregated).toHaveLength(0);
+    });
+
+    it('does not enqueue on duplicate idempotency without running handler', async () => {
+      const aggregated: unknown[] = [];
+      const duplicateStrategy: IdempotencyStrategy = {
+        before: async (_ctx: IdempotencyContext): Promise<IdempotencyResult> =>
+          'DUPLICATE',
+        afterSuccess: async () => {
+          /* no-op */
+        },
+        onError: async () => {
+          /* no-op */
+        },
+      };
+
+      const businessHandler = jest.fn();
+
+      const handler = createEventHandler({
+        operation: 'threshold.breach',
+        consumer: {
+          retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
+          dlq: { enabled: false },
+          idempotencyStrategy: duplicateStrategy,
+          realtimeAggregationPublisher: createAggregationPublisher(aggregated),
+        },
+        realtime: {
+          enabled: true,
+          resolver,
+          transformer,
+        },
+        events: [
+          {
+            schema: ThresholdSchema,
+            handler: businessHandler,
+          },
+        ],
+      });
+
+      await handler(ebEvent, lambdaContext);
+
+      expect(businessHandler).not.toHaveBeenCalled();
+      expect(aggregated).toHaveLength(0);
+    });
+
+    it('does not fail event processing when aggregation publish throws', async () => {
+      const aggregationPublisher: RealtimeAggregationPublisher = {
+        publish: async () => {
+          throw new Error('publish failed');
+        },
+      };
+
+      const handler = createEventHandler({
+        operation: 'threshold.breach',
+        consumer: {
+          retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
+          dlq: { enabled: false },
+          realtimeAggregationPublisher: aggregationPublisher,
+        },
+        realtime: {
+          enabled: true,
+          resolver,
+          transformer,
+        },
+        events: [
+          {
+            schema: ThresholdSchema,
+            handler: async () => {
+              /* success */
+            },
+          },
+        ],
+      });
+
+      await expect(handler(ebEvent, lambdaContext)).resolves.toBeUndefined();
+    });
   });
 });

@@ -9,4 +9,19 @@ packages:
   - 'event-platform'
   - 'packages/eslint-mavrix'
   - 'tools'
+allowBuilds:
+  '@parcel/watcher': true
+  '@scarf/scarf': true
+  '@swc/core': true
+  '@tree-sitter-grammars/tree-sitter-yaml': true
+  aws-sdk: true
+  core-js: true
+  core-js-pure: true
+  es5-ext: true
+  esbuild: true
+  nx: true
+  serverless: true
+  tree-sitter: true
+  tree-sitter-json: true
+  unrs-resolver: true
 autoInstallPeers: true

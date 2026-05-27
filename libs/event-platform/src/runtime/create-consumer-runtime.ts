@@ -1,8 +1,11 @@
-import type { Context } from 'aws-lambda';
-
-import { withLoggerContext, type LoggerContext } from '@api-hub/observability';
+import {
+  type LambdaInvocationContext,
+  withLoggerContext,
+  type LoggerContext,
+} from '@api-hub/observability';
 import type { Handler, MiddlewarePipelineEvent } from '@api-hub/middleware';
 
+import type { RealtimeConsumerConfig } from '../core/realtime/interfaces/realtime-config.interface';
 import {
   consumeEvent,
   type ConsumeEventOptions,
@@ -26,14 +29,16 @@ export type CreateConsumerRuntimeOptions<
   TResult,
   TContext = unknown,
 > = {
-  operation: OperationName;
+  operation: string;
   profile: TransportProfile;
   events: EventHandlerEntry[];
   consumer?: Partial<EventConsumerDeps>;
+  realtime?: RealtimeConsumerConfig;
   consumeOptions?: (
     lambdaContext: TContext,
   ) => ConsumeEventOptions | undefined;
-  coerceResult?: (event: TEvent, result: unknown) => TResult;
+  onBatchStart?: () => void;
+  coerceResult?: (event: TEvent, result: unknown) => TResult | Promise<TResult>;
 };
 
 function mergeConsumerDeps(
@@ -47,6 +52,7 @@ function mergeConsumerDeps(
 
   return createDefaultConsumerDeps(payloadSchemas, {
     ...consumer,
+    realtime: consumer?.realtime,
     transportMode: consumer?.transportMode ?? profile.defaultTransportMode,
     transportProfile: profile,
     mapRawToBaseEvent,
@@ -64,17 +70,17 @@ export function createConsumerRuntime<
   validateConsumerDlqConfig(options.consumer);
 
   const { payloadSchemas, registry } = buildEventRegistry(options.events);
-  const mergedDeps = mergeConsumerDeps(
-    options.profile,
-    payloadSchemas,
-    options.consumer,
-  );
+  const mergedDeps = mergeConsumerDeps(options.profile, payloadSchemas, {
+    ...options.consumer,
+    ...(options.realtime ? { realtime: options.realtime } : {}),
+  });
 
   const outcomeOptions: TransportOutcomeMapperOptions = {
     supportsPartialBatch: options.profile.supportsPartialBatch,
   };
 
   const handler: Handler<TEvent, TResult, TContext> = async (event, lambdaContext) => {
+    options.onBatchStart?.();
     const consumeOptions = options.consumeOptions?.(lambdaContext);
     const consumed = consumeEvent(
       mergedDeps,
@@ -92,12 +98,16 @@ export function createConsumerRuntime<
   };
 
   return composeEventHandlerWithMiddleware({
-    operation: options.operation,
+    operation: options.operation as OperationName,
     handler,
+    realtime: mergedDeps.realtime,
+    realtimeAggregationPublisher: mergedDeps.realtimeAggregationPublisher,
   });
 }
 
-export function createPerRecordLoggerConsumeOptions<TContext extends Context>(
+export function createPerRecordLoggerConsumeOptions<
+  TContext extends LambdaInvocationContext,
+>(
   profile: TransportProfile,
   operation: OperationName,
   lambdaContext: TContext,

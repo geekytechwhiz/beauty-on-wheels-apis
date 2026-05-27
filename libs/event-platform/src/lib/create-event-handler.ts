@@ -1,7 +1,6 @@
 import type { z } from 'zod';
 
-import type { MiddlewarePipelineEvent } from '@api-hub/middleware';
-import type { Context } from 'aws-lambda';
+import type { LambdaInvocationContext, MiddlewarePipelineEvent } from '@api-hub/middleware';
 
 import {
   createConsumerRuntime,
@@ -9,6 +8,7 @@ import {
 } from '../runtime/create-consumer-runtime';
 import type { EventHandlerEntry } from '../runtime/build-event-registry';
 import type { OperationName } from '../runtime/middleware-compose';
+import type { RealtimeConsumerConfig } from '../core/realtime/interfaces/realtime-config.interface';
 import type { EventConsumerDeps } from '../typings/consumer.types';
 import { eventBridgeTransportProfile } from '../transports/eventbridge/profile';
 
@@ -18,6 +18,8 @@ export type CreateEventHandlerOptions<
 > = {
   operation: OperationName;
   consumer?: Partial<EventConsumerDeps>;
+  /** Optional realtime fan-out after successful handler execution. */
+  realtime?: RealtimeConsumerConfig;
   events: EventHandlerEntry<z.ZodTypeAny>[];
 };
 
@@ -42,11 +44,12 @@ export function createEventHandler<
     profile: eventBridgeTransportProfile,
     events: options.events,
     consumer: options.consumer,
+    realtime: options.realtime,
     consumeOptions: (lambdaContext) =>
       createPerRecordLoggerConsumeOptions(
         eventBridgeTransportProfile,
         options.operation,
-        lambdaContext as Context,
+        lambdaContext as LambdaInvocationContext,
       ),
   });
 }

@@ -74,6 +74,46 @@ provider:
         - sqs:GetQueueAttributes
       Resource:
         - !GetAtt AlertCreateConsumerDLQ.Arn
+        - !GetAtt RealtimeAggregationQueue.Arn
+
+    - Effect: Allow
+      Action:
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+        - sqs:ChangeMessageVisibility
+      Resource:
+        - !GetAtt RealtimeAggregationQueue.Arn
+        - !GetAtt RealtimeAggregationDLQ.Arn
+
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+      Resource:
+        - Fn::Sub:
+            - arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RealtimeTableName}
+            - RealtimeTableName:
+                Fn::ImportValue: ${self:provider.stage}-chat-service-RealtimeConnectionsTableName
+        - Fn::Sub:
+            - arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RealtimeTableName}/index/*
+            - RealtimeTableName:
+                Fn::ImportValue: ${self:provider.stage}-chat-service-RealtimeConnectionsTableName
+
+    - Effect: Allow
+      Action:
+        - execute-api:ManageConnections
+      Resource:
+        - !Join
+          - ''
+          - - 'arn:aws:execute-api:'
+            - ${self:provider.region}
+            - ':'
+            - ${aws:accountId}
+            - ':'
+            - Fn::ImportValue: ${self:provider.stage}-chat-service-WebSocketApiId
+            - '/'
+            - ${self:provider.stage}
+            - '/POST/@connections/*'
 
     # Outbound domain events (EventBridgeAdapter → PutEvents on this stack's bus)
     - Effect: Allow
@@ -487,6 +527,10 @@ functions:
   onCreateAlert:
     # No hyphens/extra dots in filename — Lambda parses handler as file.export (see createAlert.main).
     handler: src/handlers/events/consumer/event-bridge/createAlertConsumer.main
+    environment:
+      REALTIME_AGGREGATION_QUEUE_URL:
+        Ref: RealtimeAggregationQueue
+      ALERT_REALTIME_ENABLED: ${env:ALERT_REALTIME_ENABLED, 'true'}
     maximumRetryAttempts: 2
     destinations:
       onFailure:
@@ -526,55 +570,32 @@ functions:
               - Alert.Dismissed.v1
               - Alert.PriorityChanged.v1
               - Alert.NoteAdded.v1
-  #
-  # onMissingDevice:
-  #   handler: src/handlers/events/consumer/event-bridge/missing-device.consumer.main
-  #   timeout: 30
-  #   memorySize: 256
-  #   events:
-  #     - eventBridge:
-  #         eventBus:
-  #           Fn::GetAtt:
-  #             - AlertServiceBus
-  #             - Arn
-  #         pattern:
-  #           source:
-  #             - device-workflow
-  #           detail-type:
-  #             - MISSING_DEVICE
-  #
-  # onSymptomRiskTrigger:
-  #   handler: src/handlers/events/consumer/event-bridge/symptom-risk-trigger.consumer.main
-  #   timeout: 30
-  #   memorySize: 256
-  #   events:
-  #     - eventBridge:
-  #         eventBus:
-  #           Fn::GetAtt:
-  #             - AlertServiceBus
-  #             - Arn
-  #         pattern:
-  #           source:
-  #             - symptom-engine
-  #           detail-type:
-  #             - SYMPTOM_RISK_TRIGGER
-  #
-  # onEngagementTrigger:
-  #   handler: src/handlers/events/consumer/event-bridge/engagement-trigger.consumer.main
-  #   timeout: 30
-  #   memorySize: 256
-  #   events:
-  #     - eventBridge:
-  #         eventBus:
-  #           Fn::GetAtt:
-  #             - AlertServiceBus
-  #             - Arn
-  #         pattern:
-  #           source:
-  #             - engagement-service
-  #           detail-type:
-  #             - ENGAGEMENT_TRIGGER
+  realtimeAggregation:
+    handler: src/handlers/realtime/realtime-aggregation.main
+    timeout: 30
+    memorySize: 512
 
+    environment:
+      REALTIME_CONNECTIONS_TABLE:
+        Fn::ImportValue: ${self:provider.stage}-chat-service-RealtimeConnectionsTableName
+      REALTIME_SOCKET_ENABLED: ${env:REALTIME_SOCKET_ENABLED, 'true'}
+      EVENT_DLQ_QUEUE_URL:
+        Ref: RealtimeAggregationDLQ
+      DLQ_QUEUE_URL:
+        Ref: RealtimeAggregationDLQ
+      WEBSOCKET_API_ENDPOINT:
+        Fn::ImportValue: ${self:provider.stage}-chat-service-WebSocketApiEndpoint
+
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - RealtimeAggregationQueue
+              - Arn
+
+          batchSize: 20
+          maximumBatchingWindow: 2
+          functionResponseType: ReportBatchItemFailures
 resources:
   Resources:
     GatewayResponseUnauthorized:
@@ -638,6 +659,31 @@ resources:
         SourceAccount: ${aws:accountId}
         SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-testEchoOutboundEvents-rule-1
 
+    RealtimeAggregationDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-${self:service}-realtime-aggregation-dlq
+        MessageRetentionPeriod: 1209600
+
+
+    RealtimeAggregationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:provider.stage}-${self:service}-realtime-aggregation
+
+        VisibilityTimeout: 180
+
+        ReceiveMessageWaitTimeSeconds: 20
+
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - RealtimeAggregationDLQ
+              - Arn
+
+          maxReceiveCount: 3
+
+
     # OnThresholdBreachInvokePermission:
     #   Type: AWS::Lambda::Permission
     #   Properties:
@@ -683,22 +729,21 @@ resources:
     #     SourceAccount: ${aws:accountId}
     #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
 
-  # Outputs:
-    # Exports unblock the TODOs in apps/user-service/serverless.yml:
-    #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
-    #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
-    # AlertServiceBusName:
-    #   Description: Name of the Alert Service Event Bus
-    #   Value:
-    #     Ref: AlertServiceBus
-    #   Export:
-    #     Name: ${self:provider.stage}-${self:service}-EventBusName
+  # Exports unblock the TODOs in apps/user-service/serverless.yml:
+  #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
+  #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
+  # AlertServiceBusName:
+  #   Description: Name of the Alert Service Event Bus
+  #   Value:
+  #     Ref: AlertServiceBus
+  #   Export:
+  #     Name: ${self:provider.stage}-${self:service}-EventBusName
 
-    # AlertServiceBusArn:
-    #   Description: ARN of the Alert Service Event Bus
-    #   Value:
-    #     Fn::GetAtt:
-    #       - AlertServiceBus
-    #       - Arn
-    #   Export:
-    #     Name: ${self:provider.stage}-${self:service}-EventBusArn
+  # AlertServiceBusArn:
+  #   Description: ARN of the Alert Service Event Bus
+  #   Value:
+  #     Fn::GetAtt:
+  #       - AlertServiceBus
+  #       - Arn
+  #   Export:
+  #     Name: ${self:provider.stage}-${self:service}-EventBusArn

@@ -1,12 +1,21 @@
 import { randomUUID } from 'node:crypto';
 
-import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+import {
+  awsRequestIdFromInvocationContext,
+  type LambdaInvocationContext,
+} from '../types/lambda-invocation';
+
+/** API Gateway–like event for correlation extraction (no `aws-lambda` import). */
+export type ApiGatewayCorrelationEvent = {
+  headers?: Record<string, unknown>;
+  requestContext?: { requestId?: string };
+};
 
 /**
  * Extract correlation ID from API Gateway event (same rules as legacy `@api-hub/logger`).
  */
 export function extractCorrelationId(
-  event: APIGatewayProxyEvent | { headers?: Record<string, unknown> },
+  event: ApiGatewayCorrelationEvent | { headers?: Record<string, unknown> },
 ): string {
   if (event.headers) {
     const correlationId =
@@ -36,7 +45,7 @@ export function extractCorrelationId(
  */
 export function resolveCorrelationIdForHttp(
   event:
-    | APIGatewayProxyEvent
+    | ApiGatewayCorrelationEvent
     | {
         headers?: Record<string, unknown>;
         requestContext?: unknown;
@@ -90,6 +99,8 @@ export function resolveCorrelationIdForHttp(
   return randomUUID();
 }
 
-export function extractAwsRequestId(context: Context): string {
-  return context.awsRequestId || 'unknown-request-id';
+export function extractAwsRequestId(
+  context: LambdaInvocationContext | unknown,
+): string {
+  return awsRequestIdFromInvocationContext(context);
 }

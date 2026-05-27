@@ -1,0 +1,41 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "baseUrl": "../..",
+    "paths": {
+      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
+      "@api-hub/middleware": ["libs/middleware/src/index.ts"],
+      "@api-hub/observability": ["libs/observability/src/index.ts"],
+      "@api-hub/template-core": ["libs/template-core/src/index.ts"],
+      "@api-hub/utils": ["libs/utils/src/index.ts"]
+    },
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.json"],
+  "exclude": [
+    "out-tsc",
+    "dist",
+    "jest.config.ts",
+    "jest.config.cts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/__tests__/**",
+    "eslint.config.js",
+    "eslint.config.cjs",
+    "eslint.config.mjs"
+  ],
+  "references": [
+    { "path": "../../libs/observability/tsconfig.lib.json" },
+    { "path": "../../libs/event-platform/tsconfig.lib.json" },
+    { "path": "../../libs/utils/tsconfig.lib.json" },
+    { "path": "../../libs/middleware/tsconfig.lib.json" },
+    { "path": "../../libs/template-core/tsconfig.lib.json" }
+  ]
+}

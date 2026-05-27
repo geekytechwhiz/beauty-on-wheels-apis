@@ -1,0 +1,81 @@
+{
+  "name": "@api-hub/template-service",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "deploy": "npx --no-install serverless deploy",
+    "offline": "npx --no-install serverless offline --stage dev",
+    "package": "npx --no-install serverless package",
+    "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts",
+    "test:watch": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts --watch",
+    "test:all": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts && node node_modules/jest/bin/jest.js --config=libs/template-core/jest.config.cts"
+  },
+  "nx": {
+    "name": "template-service",
+    "targets": {
+      "prune-lockfile": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "executor": "@nx/js:prune-lockfile",
+        "outputs": [
+          "{workspaceRoot}/apps/template-service/dist/package.json",
+          "{workspaceRoot}/apps/template-service/dist/pnpm-lock.yaml"
+        ],
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "copy-workspace-modules": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "outputs": [
+          "{workspaceRoot}/apps/template-service/dist/workspace_modules"
+        ],
+        "executor": "@nx/js:copy-workspace-modules",
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "prune": {
+        "dependsOn": [
+          "prune-lockfile",
+          "copy-workspace-modules"
+        ],
+        "executor": "nx:noop"
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "@nx/js:node",
+        "defaultConfiguration": "development",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "buildTarget": "template-service:build",
+          "runBuildTargetDependencies": false
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "template-service:build:development"
+          },
+          "production": {
+            "buildTarget": "template-service:build:production"
+          }
+        }
+      },
+      "test": {
+        "options": {
+          "passWithNoTests": true
+        }
+      }
+    }
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=22"
+  }
+}

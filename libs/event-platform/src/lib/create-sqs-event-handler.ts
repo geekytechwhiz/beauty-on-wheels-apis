@@ -1,7 +1,8 @@
 import type { z } from 'zod';
 
+import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { MiddlewarePipelineEvent } from '@api-hub/middleware';
-import type { Context, SQSBatchResponse, SQSEvent } from 'aws-lambda';
+import type { SQSBatchResponse, SQSEvent } from 'aws-lambda';
 import { SQSClient } from '@aws-sdk/client-sqs';
 
 import {
@@ -35,8 +36,10 @@ export type CreateSqsEventHandlerVisibilityHeartbeat =
       hooks?: SqsVisibilityHeartbeatHooks;
     };
 
-export type CreateSqsEventHandlerOptions<TContext extends Context = Context> = {
-  operation: OperationName;
+export type CreateSqsEventHandlerOptions<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+> = {
+  operation: string;
   consumer?: Partial<EventConsumerDeps>;
   events: EventHandlerEntry<z.ZodTypeAny>[];
   visibilityHeartbeat?: CreateSqsEventHandlerVisibilityHeartbeat;
@@ -45,7 +48,9 @@ export type CreateSqsEventHandlerOptions<TContext extends Context = Context> = {
 };
 
 /** Preferred name for SQS Lambda consumers (alias of {@link createSqsEventHandler}). */
-export type OnQueueOptions<TContext extends Context = Context> =
+export type OnQueueOptions<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+> =
   CreateSqsEventHandlerOptions<TContext>;
 
 function normalizeVisibilityHeartbeatInput(
@@ -90,7 +95,9 @@ function normalizeVisibilityHeartbeatInput(
   };
 }
 
-export function createSqsEventHandler<TContext extends Context = Context>(
+export function createSqsEventHandler<
+  TContext extends LambdaInvocationContext = LambdaInvocationContext,
+>(
   options: CreateSqsEventHandlerOptions<TContext>,
 ): (event: SQSEvent, context: TContext) => Promise<SQSBatchResponse> {
   const visibilityHeartbeatOpts =
@@ -133,7 +140,7 @@ export function createSqsEventHandler<TContext extends Context = Context>(
     consumeOptions: (lambdaContext) => {
       const base = createPerRecordLoggerConsumeOptions(
         sqsTransportProfile,
-        options.operation,
+         options.operation  as OperationName, 
         lambdaContext,
       );
       if (!visibilityHeartbeatOpts || !visibilitySqsClient) {
@@ -146,7 +153,7 @@ export function createSqsEventHandler<TContext extends Context = Context>(
               rawRecord: raw,
               queueUrl: visibilityHeartbeatOpts.queueUrl,
               getRemainingTimeInMillis: () =>
-                lambdaContext.getRemainingTimeInMillis(),
+                lambdaContext.getRemainingTimeInMillis?.() ?? 0,
               hooks: visibilityHeartbeatOpts.hooks,
               visibilityExtensionSeconds:
                 visibilityHeartbeatOpts.visibilityExtensionSeconds,

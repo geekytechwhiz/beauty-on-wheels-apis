@@ -1,0 +1,24 @@
+{
+  "name": "template-service",
+  "projectType": "application",
+  "sourceRoot": "apps/template-service/src",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "dependsOn": ["^build"],
+      "options": {
+        "outputPath": "dist/apps/template-service",
+        "main": "apps/template-service/src/handlers/http/health.ts",
+        "tsConfig": "apps/template-service/tsconfig.app.json"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/template-service/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": ["type:app", "scope:template-service"]
+}

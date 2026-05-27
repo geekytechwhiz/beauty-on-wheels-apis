@@ -1,0 +1,5 @@
+Resources:
+  TemplateEventsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.bundle.templateEventsDlqName}

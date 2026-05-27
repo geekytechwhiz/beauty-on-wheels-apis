@@ -71,6 +71,15 @@
     },
     {
       "path": "./libs/middleware"
+    },
+    {
+      "path": "./apps/template-service"
+    },
+    {
+      "path": "./libs/template-core"
+    },
+    {
+      "path": "./apps/realtime-worker"
     }
   ]
 }

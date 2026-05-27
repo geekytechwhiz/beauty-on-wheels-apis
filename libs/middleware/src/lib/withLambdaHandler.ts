@@ -1,5 +1,7 @@
 import type { z } from 'zod';
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+
+import type { LambdaInvocationContext } from '@api-hub/observability';
 
 import { buildRequestContext } from './request-context.middleware';
 import { createStandardLambdaHttpMiddlewares } from './standard-lambda-middleware';
@@ -51,7 +53,7 @@ export interface LambdaHandlerOptions {
 function buildWithLambdaHandlerInner<TRequest, TResult>(
   handler: (request: TRequest) => Promise<TResult>,
   options: LambdaHandlerOptions,
-): Handler<APIGatewayProxyEvent, APIGatewayProxyResult, Context> {
+): Handler<APIGatewayProxyEvent, APIGatewayProxyResult, LambdaInvocationContext> {
   return async (event, context) => {
     const startTime = Date.now();
 
@@ -145,7 +147,7 @@ export const withLambdaHandler =
     handler: (request: TRequest) => Promise<TResult>,
     options: LambdaHandlerOptions = {},
   ) =>
-  async (event: APIGatewayProxyEvent, context: Context) => {
+  async (event: APIGatewayProxyEvent, context: LambdaInvocationContext) => {
     if (
       event &&
       typeof event === 'object' &&
@@ -160,13 +162,22 @@ export const withLambdaHandler =
 
     const inner = buildWithLambdaHandlerInner(handler, options);
     const operation = options.operation ?? 'apigateway';
-    const stack = createStandardLambdaHttpMiddlewares<APIGatewayProxyResult, Context>({
+    const stack = createStandardLambdaHttpMiddlewares<
+      APIGatewayProxyResult,
+      LambdaInvocationContext
+    >({
       serviceName: options.serviceName,
       operation,
       schema: options.schema,
     });
-    return runMiddlewares<APIGatewayProxyEvent, APIGatewayProxyResult, Context>(
-      stack as unknown as Array<Middleware<APIGatewayProxyEvent, APIGatewayProxyResult, Context>>,
+    return runMiddlewares<
+      APIGatewayProxyEvent,
+      APIGatewayProxyResult,
+      LambdaInvocationContext
+    >(
+      stack as unknown as Array<
+        Middleware<APIGatewayProxyEvent, APIGatewayProxyResult, LambdaInvocationContext>
+      >,
       inner,
     )(event, context);
   };

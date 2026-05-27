@@ -1,12 +1,10 @@
-import type { Context } from 'aws-lambda';
-
-import { resolveCorrelationIdForHttp } from '@api-hub/observability';
+import {
+  awsRequestIdFromInvocationContext,
+  resolveCorrelationIdForHttp,
+} from '@api-hub/observability';
 
 import type { ExecutionContext, MiddlewarePipelineEvent } from './types';
 import { randomUUID } from 'node:crypto';
-
-const awsRequestIdFromLambdaContext = (lambdaContext: unknown): string =>
-  (lambdaContext as Context).awsRequestId || 'unknown-request-id';
 
 /** Re-export for callers that imported correlation helpers from `@api-hub/middleware`. */
 export { extractCorrelationId, resolveCorrelationIdForHttp } from '@api-hub/observability';
@@ -42,7 +40,7 @@ export function correlationIdFromEventBridge(event: any): string | undefined {
  * (headers + requestContext + Lambda request id), then UUID.
  */
 export function resolveCorrelationId(event: any, lambdaContext?: unknown): string {
-  const awsRid = awsRequestIdFromLambdaContext(lambdaContext);
+  const awsRid = awsRequestIdFromInvocationContext(lambdaContext);
   return (
     correlationIdFromSqsEvent(event) ||
     correlationIdFromEventBridge(event) ||
@@ -148,7 +146,7 @@ export function buildStandardEventContext(
 
   return {
     correlationId: resolveCorrelationId(event, lambdaContext),
-    awsRequestId: awsRequestIdFromLambdaContext(lambdaContext),
+    awsRequestId: awsRequestIdFromInvocationContext(lambdaContext),
     source,
     eventType,
     traceId,

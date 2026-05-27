@@ -1,5 +1,10 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
 import { s3Service } from "../../controllers/file-upload.controller";
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Methods': 'GET,OPTIONS',
+};
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -23,6 +28,7 @@ export const handler = async (
     ) {
       return {
         statusCode: 400,
+        headers: corsHeaders,
         body: JSON.stringify({
           message: "Missing required fields"
         })
@@ -38,6 +44,7 @@ export const handler = async (
 
     return {
       statusCode: 200,
+      headers: corsHeaders,
       body: JSON.stringify(response)
     };
 
@@ -47,6 +54,7 @@ export const handler = async (
 
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({
         message: "Unable to generate upload URL"
       })

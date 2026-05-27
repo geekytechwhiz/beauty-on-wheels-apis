@@ -262,7 +262,26 @@ functions:
           path: dev/events/ingest/create-alert
           method: post
           cors: true
-
+          
+  getUploadUrl:
+    handler: src/handlers/http/getUploadUrl.main
+    events:
+      - http:
+          path: upload-url
+          method: post
+          cors: true
+          bodyType: UploadUrlRequest
+          summary: Get upload URL
+          description: Get an upload URL for a file
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+    environment:
+      S3_BUCKET: dev-mvx-developer-hub        
+ 
   createAlert:
     handler: src/handlers/http/createAlert.main
     events:

@@ -24,6 +24,7 @@ import {
 } from '../services/specCatalogService';
 
 export interface UploadOpenApiSpecValues {
+  fileName: string;
   serviceName: string;
   version: string;
   file: File;
@@ -117,7 +118,8 @@ export function UploadOpenApiSpec({
     onUpload({
       serviceName: serviceName.trim(),
       version: nextVersionState.nextVersion,
-      file,
+      fileName: file.name,
+      file: new File([file], file.name, { type: file.type }),
     });
   };
 

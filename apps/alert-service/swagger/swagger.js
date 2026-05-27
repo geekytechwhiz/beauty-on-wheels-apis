@@ -420,6 +420,47 @@
         }
       }
     },
+    "/upload-url": {
+      "post": {
+        "summary": "Get upload URL",
+        "description": "Get an upload URL for a file",
+        "operationId": "getUploadUrl.post.upload-url",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UploadUrlRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
     "/alerts/metadata": {
       "get": {
         "summary": "Alert UI metadata (workaround)",

@@ -16,9 +16,9 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  # deploymentBucket:
-  #   name: ${self:provider.stage}-mvx-alert-service-bucket
-  #   serverSideEncryption: AES256
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-alert-service-bucket
+    serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 
@@ -47,6 +47,7 @@ provider:
     ALERT_EVENTS_TOPIC_ARN: ${env:ALERT_EVENTS_TOPIC_ARN, ''}
     DLQ_QUEUE_URL: !Ref AlertCreateConsumerDLQ
     EVENT_DLQ_QUEUE_URL: !Ref AlertCreateConsumerDLQ
+    FILE_BUCKET: dev-mvx-developer-hub
 
   tags:
     Service: ${self:service}
@@ -253,6 +254,22 @@ functions:
           path: /health
           method: get
           cors: true
+  getUploadUrl:
+    handler: src/handlers/http/getUploadUrl.main
+    events:
+      - http:
+          path: upload-url
+          method: post
+          cors: true
+          bodyType: UploadUrlRequest
+          summary: Get upload URL for a file
+          description: Get an upload URL for a file
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
 
   # Postman → publish CreateAlert.v1 to alert bus (dev manual test; no authorizer).
   testPublishCreateAlertIngest:

@@ -31,7 +31,7 @@ export async function main(
     service: 'template-service',
     timestamp: new Date().toISOString(),
     requestId: awsRequestId || correlationId,
-    region: process.env.AWS_REGION,
+    region: process.env.AWS_REGION_TEMPLATE_SERVICE ,
     stage: process.env.NODE_ENV,
   };
 

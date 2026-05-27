@@ -280,7 +280,7 @@ functions:
             "403": Forbidden
             "500": Server error
     environment:
-      S3_BUCKET: dev-mvx-developer-hub        
+      FILE_BUCKET: dev-mvx-developer-hub        
  
   createAlert:
     handler: src/handlers/http/createAlert.main

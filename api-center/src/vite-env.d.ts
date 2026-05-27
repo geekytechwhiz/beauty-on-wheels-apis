@@ -13,7 +13,7 @@ interface ImportMetaEnv {
   readonly VITE_SPECS_PREFIX: string | undefined;
   /** Default `specs-store/index.json` under `public/`. */
   readonly VITE_SPECS_INDEX_KEY: string | undefined;
-  /** When `true`, upload/download spec bytes via S3 presigned URLs instead of proxying through the API. */
+  /** S3/Yes3 spec store is on by default. Set to `false` to use the local spec API and static public catalog. */
   readonly VITE_ENABLE_S3_SPEC_STORE: string | undefined;
   /** Yes3 file API base (upload/download/list presigned URLs). */
   readonly VITE_YES3_API_BASE_URL: string | undefined;

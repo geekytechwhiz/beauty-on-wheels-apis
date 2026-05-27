@@ -130,6 +130,17 @@ provider:
         - xray:PutTelemetryRecords
       Resource: '*'
 
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:GetObject
+        - s3:ListBucket
+        - s3:ListObjectsV2
+        - s3:DeleteObject
+      Resource:
+        - arn:aws:s3:::dev-mvx-developer-hub/*
+        - arn:aws:s3:::dev-mvx-developer-hub
+
 package:
   individually: true
   patterns:

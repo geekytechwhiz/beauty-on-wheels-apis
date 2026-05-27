@@ -10,6 +10,7 @@ env:
     S3_APP_PREFIX: "uploads"
     SPECS_PREFIX: "api-specs"
     VITE_PUBLIC_BASE_PATH: "/dev-mvx-developer-hub/"
+    VITE_ENABLE_S3_SPEC_STORE: "true"
     DISTRIBUTION_ID: "E8KSJDLFA898A"
     LAMBDA_NAME: "developer-hub-dev-basic-auth"
     ROLE_NAME: "developer-hub-dev-us-east-1-lambdaRole"

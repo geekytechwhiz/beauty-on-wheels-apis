@@ -7,12 +7,13 @@ import type { RealtimeMessage } from '../types/realtime-message.type';
 import { buildRealtimeSocketEnvelope } from '../utils/build-realtime-socket-envelope';
 import { deriveSocketDestinations } from '../utils/derive-socket-destinations';
 import { traceRealtimeAsync } from '../utils/trace-realtime-async';
+import { SocketService } from '../interfaces/socket-service.interface';
 
 const logger = createLogger();
 const tracer = getTracerForService('event-platform-realtime');
 
 export class SocketRealtimePublisher implements RealtimePublisher {
- 
+  constructor(private readonly socketService: SocketService) {}
 
   async publish(messages: RealtimeMessage[]): Promise<void> {
     if (messages.length === 0) {

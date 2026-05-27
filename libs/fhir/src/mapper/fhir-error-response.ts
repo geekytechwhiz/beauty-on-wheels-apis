@@ -1,9 +1,7 @@
 import type { APIGatewayProxyResult } from 'aws-lambda';
 
-import {
-  buildOperationOutcome,
-  FhirValidationError,
-} from '@api-hub/fhir';
+import { buildOperationOutcome } from '../validator/operation-outcome.builder';
+import { FhirValidationError } from '../validator/fhir.validator';
 import type { Logger } from '@api-hub/observability';
 import { serializeError } from '@api-hub/observability';
 

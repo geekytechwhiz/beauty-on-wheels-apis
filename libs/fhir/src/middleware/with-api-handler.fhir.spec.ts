@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 
-import { FhirValidationError } from '@api-hub/fhir';
+import { FhirValidationError } from '../validator/fhir.validator';
 
 jest.mock('@aws-lambda-powertools/tracer', () => ({
   Tracer: jest.fn().mockImplementation(() => ({
@@ -47,7 +47,7 @@ jest.mock('@api-hub/observability', () => {
   };
 });
 
-import { withApiHandler } from './withApiHandler';
+import { withApiHandler } from '@api-hub/middleware';
 
 describe('withApiHandler FHIR integration', () => {
   const context = { awsRequestId: 'aws-req-test' } as Context;
@@ -226,7 +226,7 @@ describe('withApiHandler FHIR integration', () => {
     const transformSpy = jest
       .spyOn(
         (
-          await import('@api-hub/fhir')
+          await import('../services/fhir-transformation.service')
         ).FhirTransformationService.prototype,
         'transformToProjection',
       )

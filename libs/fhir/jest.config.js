@@ -11,6 +11,12 @@ module.exports = {
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
     '^@api-hub/logger$': '<rootDir>/../../libs/observability/src/index.ts',
+    '^@api-hub/observability$':
+      '<rootDir>/../../libs/observability/src/index.ts',
+    '^@api-hub/middleware$':
+      '<rootDir>/../../libs/middleware/src/index.ts',
+    '^@api-hub/fhir$': '<rootDir>/src/index.ts',
+    '^@myvitalrx/platform-tools/fhir/middleware$': '<rootDir>/src/middleware/index.ts',
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
     '^@api-hub/terminology$': '<rootDir>/../../libs/terminology/src/index.ts',
   },

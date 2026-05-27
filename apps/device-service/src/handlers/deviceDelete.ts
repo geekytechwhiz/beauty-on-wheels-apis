@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@my';
 import { Context } from 'aws-lambda';
 import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
@@ -11,7 +11,7 @@ const globalDeviceRepository = new GlobalDeviceRepository();
 const deviceDeleteImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const awsRequestId = context ? extrac tAwsRequestId(context) : undefined;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'deviceDelete_received' });
 

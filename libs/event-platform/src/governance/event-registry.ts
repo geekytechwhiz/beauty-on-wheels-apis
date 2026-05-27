@@ -1,5 +1,5 @@
 import type { EventSchemaMeta } from '../core/schema/define-event';
-import type { VersionCompatibilityStrategy } from '../core/versioning/version-compatibility';
+import type { VersionCompatibilityStrategy } from '../typings/consumer.types';
 
 export type EventClassification = 'domain' | 'integration' | 'audit' | 'command' | 'notification';
 

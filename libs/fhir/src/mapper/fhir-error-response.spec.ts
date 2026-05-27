@@ -1,4 +1,4 @@
-import { FhirValidationError } from '@api-hub/fhir';
+import { FhirValidationError } from '../validator/fhir.validator';
 
 import { fhirValidationErrorResponse } from './fhir-error-response';
 

@@ -19,7 +19,16 @@
   "exclude": ["src/**/*.spec.ts", "src/tests/**"],
   "references": [
     {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
       "path": "../terminology/tsconfig.lib.json"
+    },
+    {
+      "path": "../observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../middleware/tsconfig.lib.json"
     }
   ]
 }

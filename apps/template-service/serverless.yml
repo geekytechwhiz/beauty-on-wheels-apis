@@ -304,286 +304,286 @@ functions:
             "409": Conflict
             "500": Server error
 
-  getOrgTemplateVersions:
-    handler: src/handlers/http/getOrgTemplateVersions.main
-    events:
-      - http:
-          path: templates/organizations/{organizationId}/{templateId}/versions
-          method: get
-          summary: Org template versions
-          description: List, meta, latest, or point read via query version (same as master).
-          queryStringParameters:
-            version:
-              required: false
-              type: string
-            resolve:
-              required: false
-              type: string
-            nextToken:
-              required: false
-              type: string
-            limit:
-              required: false
-              type: integer
-            status:
-              required: false
-              type: string
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "401": Unauthorized
-            "404": Not found
-            "500": Server error
+  # getOrgTemplateVersions:
+  #   handler: src/handlers/http/getOrgTemplateVersions.main
+  #   events:
+  #     - http:
+  #         path: templates/organizations/{organizationId}/{templateId}/versions
+  #         method: get
+  #         summary: Org template versions
+  #         description: List, meta, latest, or point read via query version (same as master).
+  #         queryStringParameters:
+  #           version:
+  #             required: false
+  #             type: string
+  #           resolve:
+  #             required: false
+  #             type: string
+  #           nextToken:
+  #             required: false
+  #             type: string
+  #           limit:
+  #             required: false
+  #             type: integer
+  #           status:
+  #             required: false
+  #             type: string
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK
+  #           "401": Unauthorized
+  #           "404": Not found
+  #           "500": Server error
 
-  listOrgTemplates:
-    handler: src/handlers/http/listOrgTemplates.main
-    events:
-      - http:
-          path: templates/org
-          method: get
-          summary: List organization templates
-          description: Query GSI1 by organizationId (from query or JWT).
-          queryStringParameters:
-            organizationId:
-              required: false
-              type: string
-            condition:
-              required: false
-              type: string
-            status:
-              required: false
-              type: string
-            templateType:
-              required: false
-              type: string
-            specialty:
-              required: false
-              type: string
-            nextToken:
-              required: false
-              type: string
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK — org template list
-            "401": Unauthorized
-            "500": Server error
+  # listOrgTemplates:
+  #   handler: src/handlers/http/listOrgTemplates.main
+  #   events:
+  #     - http:
+  #         path: templates/org
+  #         method: get
+  #         summary: List organization templates
+  #         description: Query GSI1 by organizationId (from query or JWT).
+  #         queryStringParameters:
+  #           organizationId:
+  #             required: false
+  #             type: string
+  #           condition:
+  #             required: false
+  #             type: string
+  #           status:
+  #             required: false
+  #             type: string
+  #           templateType:
+  #             required: false
+  #             type: string
+  #           specialty:
+  #             required: false
+  #             type: string
+  #           nextToken:
+  #             required: false
+  #             type: string
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK — org template list
+  #           "401": Unauthorized
+  #           "500": Server error
 
-  updateOrgTemplateVersion:
-    handler: src/handlers/http/updateOrgTemplateVersion.main
-    events:
-      - http:
-          path: templates/org/{templateId}/versions/{versionId}
-          method: put
-          summary: Update organization template version
-          description: Editable in DRAFT/SAVED/IN_REVIEW; organizationId from JWT.
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": Updated — TemplateSummaryData
-            "400": Bad request
-            "401": Unauthorized
-            "404": Not found
-            "409": Conflict
-            "422": Validation error
-            "500": Server error
+  # updateOrgTemplateVersion:
+  #   handler: src/handlers/http/updateOrgTemplateVersion.main
+  #   events:
+  #     - http:
+  #         path: templates/org/{templateId}/versions/{versionId}
+  #         method: put
+  #         summary: Update organization template version
+  #         description: Editable in DRAFT/SAVED/IN_REVIEW; organizationId from JWT.
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": Updated — TemplateSummaryData
+  #           "400": Bad request
+  #           "401": Unauthorized
+  #           "404": Not found
+  #           "409": Conflict
+  #           "422": Validation error
+  #           "500": Server error
 
-  listCompatibleTemplates:
-    handler: src/handlers/http/listCompatibleTemplates.main
-    events:
-      - http:
-          path: templates/compatible
-          method: get
-          summary: List compatible published templates
-          description: GSI2 published catalog filtered by condition, country, optional duration.
-          queryStringParameters:
-            condition:
-              required: true
-              type: string
-            country:
-              required: true
-              type: string
-            duration:
-              required: false
-              type: string
-            templateType:
-              required: false
-              type: string
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK — compatible template list
-            "400": Bad request
-            "401": Unauthorized
-            "500": Server error
+  # listCompatibleTemplates:
+  #   handler: src/handlers/http/listCompatibleTemplates.main
+  #   events:
+  #     - http:
+  #         path: templates/compatible
+  #         method: get
+  #         summary: List compatible published templates
+  #         description: GSI2 published catalog filtered by condition, country, optional duration.
+  #         queryStringParameters:
+  #           condition:
+  #             required: true
+  #             type: string
+  #           country:
+  #             required: true
+  #             type: string
+  #           duration:
+  #             required: false
+  #             type: string
+  #           templateType:
+  #             required: false
+  #             type: string
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK — compatible template list
+  #           "400": Bad request
+  #           "401": Unauthorized
+  #           "500": Server error
 
-  createOrgEnablement:
-    handler: src/handlers/http/createOrgEnablement.main
-    events:
-      - http:
-          path: org-enablements
-          method: post
-          summary: Create org enablement
-          description: Link organization to a published master template version.
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "201": Created — OrgEnablement
-            "400": Bad request
-            "401": Unauthorized
-            "404": Not found
-            "409": Conflict
-            "500": Server error
+  # createOrgEnablement:
+  #   handler: src/handlers/http/createOrgEnablement.main
+  #   events:
+  #     - http:
+  #         path: org-enablements
+  #         method: post
+  #         summary: Create org enablement
+  #         description: Link organization to a published master template version.
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "201": Created — OrgEnablement
+  #           "400": Bad request
+  #           "401": Unauthorized
+  #           "404": Not found
+  #           "409": Conflict
+  #           "500": Server error
 
-  searchOrgEnablements:
-    handler: src/handlers/http/searchOrgEnablements.main
-    events:
-      - http:
-          path: org-enablements
-          method: get
-          summary: Search org enablements
-          description: Query GSI1 by organizationId and/or GSI3 by masterTemplateVersionId.
-          queryStringParameters:
-            organizationId:
-              required: false
-              type: string
-            masterTemplateVersionId:
-              required: false
-              type: string
-            nextToken:
-              required: false
-              type: string
-            limit:
-              required: false
-              type: integer
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK — OrgEnablement list
-            "400": Bad request
-            "401": Unauthorized
-            "500": Server error
+  # searchOrgEnablements:
+  #   handler: src/handlers/http/searchOrgEnablements.main
+  #   events:
+  #     - http:
+  #         path: org-enablements
+  #         method: get
+  #         summary: Search org enablements
+  #         description: Query GSI1 by organizationId and/or GSI3 by masterTemplateVersionId.
+  #         queryStringParameters:
+  #           organizationId:
+  #             required: false
+  #             type: string
+  #           masterTemplateVersionId:
+  #             required: false
+  #             type: string
+  #           nextToken:
+  #             required: false
+  #             type: string
+  #           limit:
+  #             required: false
+  #             type: integer
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK — OrgEnablement list
+  #           "400": Bad request
+  #           "401": Unauthorized
+  #           "500": Server error
 
-  listOrgEnablementsByOrg:
-    handler: src/handlers/http/listOrgEnablementsByOrg.main
-    events:
-      - http:
-          path: org-enablements/{orgId}
-          method: get
-          summary: List enablements for organization
-          description: Query GSI1 PK=ORG#orgId with ENABLE# prefix on SK.
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK — OrgEnablement list
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+  # listOrgEnablementsByOrg:
+  #   handler: src/handlers/http/listOrgEnablementsByOrg.main
+  #   events:
+  #     - http:
+  #         path: org-enablements/{orgId}
+  #         method: get
+  #         summary: List enablements for organization
+  #         description: Query GSI1 PK=ORG#orgId with ENABLE# prefix on SK.
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK — OrgEnablement list
+  #           "401": Unauthorized
+  #           "403": Forbidden
+  #           "500": Server error
 
-  getOrgEnablementById:
-    handler: src/handlers/http/getOrgEnablementById.main
-    events:
-      - http:
-          path: org-enablements/id/{enablementId}
-          method: get
-          summary: Get org enablement by id
-          description: Point read ENABLE#id / META.
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK — OrgEnablement
-            "401": Unauthorized
-            "404": Not found
-            "500": Server error
+  # getOrgEnablementById:
+  #   handler: src/handlers/http/getOrgEnablementById.main
+  #   events:
+  #     - http:
+  #         path: org-enablements/id/{enablementId}
+  #         method: get
+  #         summary: Get org enablement by id
+  #         description: Point read ENABLE#id / META.
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK — OrgEnablement
+  #           "401": Unauthorized
+  #           "404": Not found
+  #           "500": Server error
 
-  updateOrgEnablement:
-    handler: src/handlers/http/updateOrgEnablement.main
-    events:
-      - http:
-          path: org-enablements/id/{enablementId}
-          method: patch
-          summary: Update or revoke org enablement
-          description: PATCH with action UPDATE (dates) or REVOKE (delete row, 204).
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK — OrgEnablement (UPDATE)
-            "204": No content (REVOKE)
-            "400": Bad request
-            "401": Unauthorized
-            "404": Not found
-            "422": Validation error
-            "500": Server error
+  # updateOrgEnablement:
+  #   handler: src/handlers/http/updateOrgEnablement.main
+  #   events:
+  #     - http:
+  #         path: org-enablements/id/{enablementId}
+  #         method: patch
+  #         summary: Update or revoke org enablement
+  #         description: PATCH with action UPDATE (dates) or REVOKE (delete row, 204).
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK — OrgEnablement (UPDATE)
+  #           "204": No content (REVOKE)
+  #           "400": Bad request
+  #           "401": Unauthorized
+  #           "404": Not found
+  #           "422": Validation error
+  #           "500": Server error
 
-  transitionTemplateStatus:
-    handler: src/handlers/http/transitionTemplateStatus.main
-    events:
-      - http:
-          path: templates/{templateId}/versions/{versionId}/status
-          method: post
-          summary: Transition template status
-          description: Lifecycle actions SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE (master templates).
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK — TemplateSummaryData
-            "400": Bad request
-            "401": Unauthorized
-            "404": Not found
-            "409": Conflict
-            "422": Validation error
-            "500": Server error
+  # transitionTemplateStatus:
+  #   handler: src/handlers/http/transitionTemplateStatus.main
+  #   events:
+  #     - http:
+  #         path: templates/{templateId}/versions/{versionId}/status
+  #         method: post
+  #         summary: Transition template status
+  #         description: Lifecycle actions SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE (master templates).
+  #         cors: *httpApiCors
+  #         authorizer:
+  #           name: common_authorizer
+  #           type: token
+  #           identitySource: method.request.header.Authorization
+  #           arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  #           resultTtlInSeconds: 0
+  #         responses:
+  #           "200": OK — TemplateSummaryData
+  #           "400": Bad request
+  #           "401": Unauthorized
+  #           "404": Not found
+  #           "409": Conflict
+  #           "422": Validation error
+  #           "500": Server error
 
 resources:
   - ${file(./infra/resources/events/event-bus.yml)}

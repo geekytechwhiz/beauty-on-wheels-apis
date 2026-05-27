@@ -206,7 +206,8 @@ export function getCatalogSummary(): {
 
 /** True when the frontend should upload/download spec bytes directly via S3 presigned URLs. */
 export function isS3SpecStoreEnabled(): boolean {
-  return import.meta.env.VITE_ENABLE_S3_SPEC_STORE === 'true';
+  // return import.meta.env.VITE_ENABLE_S3_SPEC_STORE === 'true';
+  return true;
 }
 
 /** True when the spec store API (local Vite middleware or deployed Lambda) is reachable. */

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T06:13:14.888Z",
+  "generatedAt": "2026-05-27T16:52:01.871Z",
   "services": [
     {
       "name": "ABC",
@@ -14,6 +14,38 @@
           "status": "approved",
           "lastModified": "2026-05-22T08:28:14.876Z",
           "size": 74157
+        }
+      ]
+    },
+    {
+      "name": "alert",
+      "latestVersion": "v0.1.0",
+      "versions": [
+        {
+          "serviceName": "alert",
+          "version": "v0.1.0",
+          "key": "specs-store/alert/v0.1.0/openapi.yaml",
+          "extension": "yaml",
+          "contentType": "application/yaml",
+          "status": "approved",
+          "lastModified": "2026-05-27T15:16:39.214Z",
+          "size": 74157
+        }
+      ]
+    },
+    {
+      "name": "mib-internal-apis",
+      "latestVersion": "v0.1.0",
+      "versions": [
+        {
+          "serviceName": "mib-internal-apis",
+          "version": "v0.1.0",
+          "key": "specs-store/mib-internal-apis/v0.1.0/openapi.yaml",
+          "extension": "yaml",
+          "contentType": "application/yaml",
+          "status": "approved",
+          "lastModified": "2026-05-27T16:37:24.564Z",
+          "size": 106509
         }
       ]
     }

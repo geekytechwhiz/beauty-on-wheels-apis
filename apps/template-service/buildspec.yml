@@ -1,0 +1,42 @@
+version: 0.2
+# Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
+# Deploy must (1) use the artifact template at apps/alert-service/packaged.yaml (see artifacts.files),
+# (2) use the same AWS account and region as this build so S3 keys in the template resolve.
+# Deploy CodeBuild: set ALERT_DEPLOY_GUARD_ONLY=true to run only the S3 head-object guard (before CF deploy).
+# Optional: PACKAGED_TEMPLATE (default apps/alert-service/packaged.yaml, relative to CODEBUILD_SRC_DIR).
+
+env:
+  shell: bash
+  variables:
+    STAGE: 'dev'
+    DEPLOYMENT_BUCKET: 'dev-mvx-template-service-bucket'
+    STACK_NAME: 'dev-template-service'
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Installing dependencies..."
+      - npm install --legacy-peer-deps
+
+  pre_build:
+    commands:
+      - echo "Making scripts executable..."
+      - chmod +x apps/template-service/ci/*.sh
+
+  build:
+    commands:
+      - echo "Starting build..."
+      - apps/template-service/ci/build.sh
+
+  post_build:
+    commands:
+      - echo "Running deployment verification..."
+      - apps/template-service/ci/verify-artifacts.sh
+
+artifacts:
+  files:
+    - apps/template-service/packaged.yaml
+    - apps/template-service/.serverless/**/*
+  discard-paths: no 

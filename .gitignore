@@ -99,3 +99,5 @@ apps/metadata-registry-service/*.zip
 apps/metadata-registry-service/.esbuild/
 apps/alert-service/.esbuild/
 apps/alert-service/swagger/
+apps/template-service/.esbuild/
+apps/template-service/swagger/

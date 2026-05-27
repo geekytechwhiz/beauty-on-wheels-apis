@@ -28,7 +28,11 @@ export function normalizeTemplateServiceError(
     throw bad;
   }
 
-  if (err?.name === 'ConditionalCheckFailedException' || err?.name === 'TransactionCanceledException') {
+  if (
+    err?.name === 'ConditionalWriteConflictError' ||
+    err?.name === 'ConditionalCheckFailedException' ||
+    err?.name === 'TransactionCanceledException'
+  ) {
     const conflict = new Error('Master template already exists') as Error & {
       statusCode: number;
       code: string;

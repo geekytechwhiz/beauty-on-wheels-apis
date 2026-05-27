@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { z } from 'zod';
 
@@ -15,6 +16,7 @@ import type {
   MiddlewarePipelineEvent,
   RequestBuildEvent,
 } from './types';
+import { loadFhirPeer, type FhirHandlerOptions } from './fhir-peer';
 import { successResponse } from './response.middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
@@ -41,7 +43,12 @@ export type   withApiHandlerOptions = {
   /**
    * Optional request-level validation (e.g. tenant resolution) after body parsing.
    */
-  validator?:RequestValidator
+  validator?:RequestValidator;
+  /**
+   * When set, adds a strict FHIR projection as a sibling `fhir` field on the response
+   * while preserving the canonical handler payload in `data`.
+   */
+  fhir?: FhirHandlerOptions;
 };
 
 function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
@@ -95,7 +102,7 @@ export function withApiHandler<
       correlationId,
       awsRequestId,
     });
-
+  
     const req = buildRequestContext(event as unknown as RequestBuildEvent);
     const ctxFields = {
       ...(req.context as unknown as Record<string, unknown>),
@@ -123,8 +130,24 @@ export function withApiHandler<
 
     const correlationIdFromContext =
       (req.context as { correlationId?: string }).correlationId ?? 'unknown';
-     
-    return successResponse(result, undefined, { correlationId :correlationIdFromContext}) as TResult;
+
+    const fhirPeer = await loadFhirPeer();
+    if (fhirPeer?.isFhirEnabled(options.fhir) && result) {
+      const fhirBundle = await fhirPeer.transformToFhirResponse(
+        result,
+        options.fhir!,
+        req,
+      );
+
+      return successResponse(result, undefined, {
+        correlationId: correlationIdFromContext,
+        fhir: fhirBundle,
+      }) as TResult;
+    }
+
+    return successResponse(result, undefined, {
+      correlationId: correlationIdFromContext,
+    }) as TResult;
   };
 
   return runMiddlewares(stack, adaptedHandler) 

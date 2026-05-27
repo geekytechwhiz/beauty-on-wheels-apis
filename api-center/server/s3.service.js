@@ -83,7 +83,7 @@ class S3Service {
             Bucket: this.bucketName,
             Key: key,
             ContentType: contentType,
-            CacheControl: 'no-cache,no-store,must-revalidate',
+            // CacheControl: 'no-cache,no-store,must-revalidate',
         });
         return getSignedUrl(this.s3, command, { expiresIn });
     }

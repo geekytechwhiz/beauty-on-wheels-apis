@@ -1,0 +1,324 @@
+{
+  "resource": "ObservationDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "ObservationDefinition",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.permittedDataType",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.multipleResultsAllowed",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.method",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.preferredReportName",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails.customaryUnit",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails.unit",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails.conversionFactor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.quantitativeDetails.decimalPrecision",
+      "type": [
+        "integer"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.category",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.range",
+      "type": [
+        "Range"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.context",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.appliesTo",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.gender",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.age",
+      "type": [
+        "Range"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.gestationalAge",
+      "type": [
+        "Range"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.qualifiedInterval.condition",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.validCodedValueSet",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.normalCodedValueSet",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.abnormalCodedValueSet",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ObservationDefinition.criticalCodedValueSet",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

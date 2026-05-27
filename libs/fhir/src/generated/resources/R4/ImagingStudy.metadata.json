@@ -1,0 +1,452 @@
+{
+  "resource": "ImagingStudy",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "ImagingStudy",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.modality",
+      "type": [
+        "Coding"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.subject",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.encounter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.started",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.basedOn",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.referrer",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.interpreter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.endpoint",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.numberOfSeries",
+      "type": [
+        "unsignedInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.numberOfInstances",
+      "type": [
+        "unsignedInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.procedureReference",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.procedureCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.location",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.reasonCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.reasonReference",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.uid",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.number",
+      "type": [
+        "unsignedInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.modality",
+      "type": [
+        "Coding"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.numberOfInstances",
+      "type": [
+        "unsignedInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.endpoint",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.bodySite",
+      "type": [
+        "Coding"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.laterality",
+      "type": [
+        "Coding"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.specimen",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.started",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.performer",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.performer.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.performer.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.performer.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.performer.function",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.performer.actor",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.instance",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.instance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.instance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.instance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ImagingStudy.series.instance.uid",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.instance.sopClass",
+      "type": [
+        "Coding"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.instance.number",
+      "type": [
+        "unsignedInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ImagingStudy.series.instance.title",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 Internal standard for implementing producers and consumers in this monorepo. Every behavior below maps to **`@api-hub/middleware`** and **`@api-hub/event-platform`** (plus cited app examples).
 
-There is **no** `ensureIdempotent` helper in this codebase. Idempotency is **`IdempotencyStrategy.before` / `afterSuccess`** (see §4).
+There is **no** `ensureIdempotent` helper in this codebase. **Async** idempotency is **`IdempotencyStrategy.before` / `afterSuccess`** in event-platform (see §4). **HTTP** idempotency uses **domain conditional writes** in repositories — no HTTP idempotency middleware — see [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](./IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md).
 
 ---
 
@@ -12,7 +12,7 @@ There is **no** `ensureIdempotent` helper in this codebase. Idempotency is **`Id
 
 1. **`consumeEvent`** ([`libs/event-platform/src/engine/executor/consume-event.ts`](../../libs/event-platform/src/engine/executor/consume-event.ts)) unwraps batched transports (`extractRecords`) or processes a single raw payload via **`processSingle`** → **`orchestratePreparedConsumerEvent`**.
 2. **`createEventHandler`** ([`libs/event-platform/src/lib/create-event-handler.ts`](../../libs/event-platform/src/lib/create-event-handler.ts)) wraps **`consumeEvent(mergedDeps, registry)`** as the inner handler and runs it behind **`buildEventExecutionPipeline`** + **`runMiddlewares`** from [`libs/middleware`](../../libs/middleware/src/lib/http-pipeline.ts).
-3. **HTTP APIs** use **`buildApiExecutionPipeline`** ([`libs/middleware/src/lib/create-api-handler.ts`](../../libs/middleware/src/lib/create-api-handler.ts)); reliability for payloads remains in **`@api-hub/event-platform`**, not HTTP middleware ([`http-pipeline.ts`](../../libs/middleware/src/lib/http-pipeline.ts) comment).
+3. **HTTP APIs** use **`buildApiExecutionPipeline`** + **`withApiHandler`** (no HTTP idempotency middleware). **Async** reliability (event idempotency, retry, DLQ) remains in **`@api-hub/event-platform`** ([`http-pipeline.ts`](../../libs/middleware/src/lib/http-pipeline.ts), [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](./IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md)).
 
 ### Consumer entry (`consumeEvent`)
 
@@ -416,6 +416,8 @@ export function performanceMiddleware<
 ---
 
 ## 4. Idempotency implementation
+
+**Layer table (async vs HTTP):** [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](./IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md). This section covers **async** (`event-platform`) only. For HTTP, use domain conditional writes in repositories.
 
 ### Orchestrator integration
 

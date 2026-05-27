@@ -1,0 +1,340 @@
+{
+  "resource": "PaymentReconciliation",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "PaymentReconciliation",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.period",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.created",
+      "type": [
+        "dateTime"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.paymentIssuer",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.request",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.requestor",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.outcome",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.disposition",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.paymentDate",
+      "type": [
+        "date"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.paymentAmount",
+      "type": [
+        "Money"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.paymentIdentifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.detail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.detail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.detail.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.predecessor",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.request",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.submitter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.response",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.date",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.responsible",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.payee",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.detail.amount",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.formCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.processNote",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.processNote.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.processNote.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.processNote.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PaymentReconciliation.processNote.type",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PaymentReconciliation.processNote.text",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "fields": [
+    {
+      "source": "externalPatientId",
+      "target": "id",
+      "fieldType": "string"
+    }
+  ]
+}

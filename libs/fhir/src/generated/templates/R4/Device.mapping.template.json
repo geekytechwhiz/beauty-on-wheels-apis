@@ -1,0 +1,331 @@
+{
+  "resource": "Device",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "definition",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.deviceIdentifier",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.issuer",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.jurisdiction",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.carrierAIDC",
+      "fieldType": "base64Binary"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.carrierHRF",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "udiCarrier.entryType",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "distinctIdentifier",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "manufacturer",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "manufactureDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "expirationDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "lotNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "serialNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "deviceName",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "deviceName.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "deviceName.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "deviceName.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "deviceName.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "deviceName.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "modelNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "partNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specialization",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "specialization.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "specialization.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specialization.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specialization.systemType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specialization.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "version.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "version.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "version.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "version.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "version.component",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "property",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "property.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "property.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "property.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "property.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "property.valueQuantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "property.valueCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "owner",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactPoint"
+    },
+    {
+      "source": "",
+      "target": "location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "safety",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "parent",
+      "fieldType": "Reference"
+    }
+  ]
+}

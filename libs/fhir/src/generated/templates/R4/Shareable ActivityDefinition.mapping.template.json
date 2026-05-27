@@ -1,0 +1,330 @@
+{
+  "resource": "Shareable ActivityDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "ActivityDefinition"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.subtitle",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.subject[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.usage",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.topic",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.author",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.editor",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.reviewer",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.endorser",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.relatedArtifact",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.library",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.kind",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.profile",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.intent",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.priority",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.doNotPerform",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.timing[x]",
+      "fieldType": "Timing"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.participant",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.participant.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.participant.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.participant.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.participant.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.participant.role",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.product[x]",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.dosage",
+      "fieldType": "Dosage"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.bodySite",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.specimenRequirement",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.observationRequirement",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.observationResultRequirement",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.transform",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.dynamicValue",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.dynamicValue.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.dynamicValue.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.dynamicValue.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.dynamicValue.path",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "ActivityDefinition.dynamicValue.expression",
+      "fieldType": "Expression"
+    }
+  ]
+}

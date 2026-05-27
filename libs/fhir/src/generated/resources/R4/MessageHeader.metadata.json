@@ -1,0 +1,333 @@
+{
+  "resource": "MessageHeader",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "MessageHeader",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.event[x]",
+      "type": [
+        "Coding",
+        "uri"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.destination",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.destination.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.destination.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.destination.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.destination.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.destination.target",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.destination.endpoint",
+      "type": [
+        "url"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.destination.receiver",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.sender",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.enterer",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.author",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.source",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.source.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.source.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.source.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.source.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.source.software",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.source.version",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.source.contact",
+      "type": [
+        "ContactPoint"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.source.endpoint",
+      "type": [
+        "url"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.responsible",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.reason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.response",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.response.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.response.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.response.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.response.identifier",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.response.code",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.response.details",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MessageHeader.focus",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MessageHeader.definition",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

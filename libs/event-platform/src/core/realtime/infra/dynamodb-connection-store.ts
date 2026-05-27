@@ -34,7 +34,7 @@ export class DynamoDbConnectionStore implements ConnectionStore {
       (typeof options.tableName === 'string' && options.tableName.trim()) ||
       (typeof process.env.REALTIME_CONNECTIONS_TABLE === 'string' &&
         process.env.REALTIME_CONNECTIONS_TABLE.trim()) ||
-      '';
+      'realtime-connections';
 
     if (!tableName) {
       throw new Error(

@@ -4,12 +4,28 @@
   "sourceRoot": "libs/middleware/src",
   "projectType": "library",
   "tags": ["type:lib","type:shared"],
-  "// targets": "to see all targets run: nx show project middleware --web",
   "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "cache": true,
+      "outputs": ["{projectRoot}/dist"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "libs/middleware/dist"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
     "test": {
       "executor": "@nx/jest:jest",
       "options": {
-        "jestConfig": "libs/middleware/jest.config.cts",
+        "jestConfig": "libs/middleware/jest.config.js",
         "passWithNoTests": false
       }
     }

@@ -41,12 +41,18 @@
     "update:version": "ts-node --project tools/update-version/tsconfig.json tools/update-version/update-version.ts",
     "fix:imports:light": "FIX_IMPORTS_SKIP_CLEAN=1 FIX_IMPORTS_SKIP_BUILD=1 ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
     "fix:imports:sh": "sh tools/file-import/fix-imports.sh",
+    "fhir:generate-resources": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-resources.ts",
+    "fhir:generate-mappings": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-mappings.ts",
+    "fhir:generate-scopes": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-scopes.ts",
+    "fhir:generate-config": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/scripts/generate-config.ts",
+    "fhir:test": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/src/test.ts",
     "lint": "nx run-many --target=lint --all --parallel=10",
     "lint:fix": "nx run-many --target=lint --all --parallel=25 --fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build:platform-tools": "nx build observability event-platform middleware platform-tools",
+    "publish:platform-tools": "nx build observability event-platform middleware platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
   },
   "private": true,
- 
   "dependencies": {
     "@aws-lambda-powertools/commons": "^2.33.0",
     "@aws-lambda-powertools/logger": "^2.33.0",
@@ -67,7 +73,9 @@
     "@babel/parser": "^7.29.2",
     "@babel/traverse": "^7.29.0",
     "@middy/http-cors": "^7.0.2",
+    "@types/fs-extra": "^11.0.4",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/object-path": "^0.11.4",
     "@types/pdfkit": "^0.17.4",
     "@vitejs/plugin-react": "^4.7.0",
     "ajv": "^8.17.1",
@@ -77,13 +85,20 @@
     "axios-retry": "^4.5.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
+    "fhir": "^4.12.0",
+    "fhir-package-loader": "^2.2.4",
+    "fhirpath": "^4.10.1",
+    "fs-extra": "^11.3.5",
     "get-stream": "^9.0.1",
     "glob": "^13.0.0",
+    "handlebars": "^4.7.9",
     "join": "^3.0.0",
     "js-yaml": "^4.1.1",
+    "jsonata": "^2.2.1",
     "jsonwebtoken": "^9.0.3",
     "jwk-to-pem": "^2.0.5",
     "libphonenumber-js": "^1.12.39",
+    "object-path": "^0.11.8",
     "pdfkit": "^0.17.2",
     "serverless-auto-swagger": "^3.1.0",
     "serverless-dotenv-plugin": "^6.0.0",
@@ -143,6 +158,7 @@
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
+    "verdaccio": "^6.0.5",
     "vite": "^7.0.0",
     "vite-plugin-dts": "~4.5.0",
     "vitest": "^4.0.0",
@@ -152,5 +168,11 @@
     "*.{ts,tsx,js,jsx}": [
       "node tools/lint-staged.js"
     ]
+  },
+  "nx": {
+    "includedScripts": [],
+    "targets": {
+      
+    }
   }
 }

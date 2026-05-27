@@ -1,0 +1,7 @@
+{
+  "resource": "Patient",
+  "scopes": [
+    "patient.read",
+    "patient.write"
+  ]
+}

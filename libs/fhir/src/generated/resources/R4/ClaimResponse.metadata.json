@@ -1,0 +1,1139 @@
+{
+  "resource": "ClaimResponse",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "ClaimResponse",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.subType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.use",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.created",
+      "type": [
+        "dateTime"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.insurer",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.requestor",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.request",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.outcome",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.disposition",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.preAuthRef",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.preAuthPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payeeType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.itemSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.adjudication",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.adjudication.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.adjudication.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.adjudication.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.adjudication.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.adjudication.reason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.adjudication.amount",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.adjudication.value",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.detail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.detail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.detailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.detail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.adjudication",
+      "type": [],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.subDetail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.subDetail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.detail.subDetail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.subDetail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.subDetail.subDetailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.item.detail.subDetail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.item.detail.subDetail.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.itemSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.subdetailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.provider",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.programCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.serviced[x]",
+      "type": [
+        "date",
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.location[x]",
+      "type": [
+        "CodeableConcept",
+        "Address",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.bodySite",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.subSite",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.adjudication",
+      "type": [],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.adjudication",
+      "type": [],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.quantity",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.unitPrice",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.factor",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.net",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.noteNumber",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.addItem.detail.subDetail.adjudication",
+      "type": [],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.adjudication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.total",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.total.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.total.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.total.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.total.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.total.amount",
+      "type": [
+        "Money"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.payment.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.payment.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment.adjustment",
+      "type": [
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment.adjustmentReason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment.date",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment.amount",
+      "type": [
+        "Money"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.payment.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.fundsReserve",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.formCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.form",
+      "type": [
+        "Attachment"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.processNote",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.processNote.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.processNote.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.processNote.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.processNote.number",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.processNote.type",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.processNote.text",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.processNote.language",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.communicationRequest",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.insurance",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.insurance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.insurance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.insurance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.insurance.sequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.insurance.focal",
+      "type": [
+        "boolean"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.insurance.coverage",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.insurance.businessArrangement",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.insurance.claimResponse",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.error",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.error.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.error.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.error.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "ClaimResponse.error.itemSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.error.detailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.error.subDetailSequence",
+      "type": [
+        "positiveInt"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "ClaimResponse.error.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    }
+  ]
+}

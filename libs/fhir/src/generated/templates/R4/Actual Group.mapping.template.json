@@ -1,0 +1,165 @@
+{
+  "resource": "Actual Group",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "Group"
+    },
+    {
+      "source": "",
+      "target": "Group.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Group.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "Group.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Group.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Group.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "Group.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "Group.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Group.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Group.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "Group.active",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Group.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Group.actual",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Group.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Group.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Group.quantity",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "Group.managingEntity",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic.value[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic.exclude",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Group.characteristic.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "Group.member",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Group.member.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Group.member.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Group.member.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Group.member.entity",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Group.member.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "Group.member.inactive",
+      "fieldType": "boolean"
+    }
+  ]
+}

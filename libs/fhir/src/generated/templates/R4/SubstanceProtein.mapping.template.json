@@ -1,0 +1,121 @@
+{
+  "resource": "SubstanceProtein",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "sequenceType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "numberOfSubunits",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "disulfideLinkage",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "subunit",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "subunit.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "subunit.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "subunit.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "subunit.subunit",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "subunit.sequence",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "subunit.length",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "subunit.sequenceAttachment",
+      "fieldType": "Attachment"
+    },
+    {
+      "source": "",
+      "target": "subunit.nTerminalModificationId",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "subunit.nTerminalModification",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "subunit.cTerminalModificationId",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "subunit.cTerminalModification",
+      "fieldType": "string"
+    }
+  ]
+}

@@ -541,6 +541,8 @@ functions:
 
 ## 8. Idempotency standards
 
+**HTTP vs async:** [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](./IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md) — REST APIs use **domain conditional writes** (no HTTP idempotency middleware); this section covers **async consumers** only.
+
 Assume **at-least-once** delivery on every transport.
 
 | Strategy | When to use | Implementation |
@@ -639,7 +641,7 @@ Always pass **`meta.correlationId`** on publish. `EventPublisher` requires meta 
 | HTTP request schema | `@api-hub/middleware` (`buildApiExecutionPipeline` only) |
 | Consumer metrics | `@api-hub/observability` (called from platform orchestrator) |
 
-**Anti-patterns:** HTTP `withApiHandler` stack for EventBridge/SQS; swallowing errors in handlers (breaks transport retry); raw SDK publish in domain services; separate idempotency table when conditional domain writes suffice.
+**Anti-patterns:** HTTP `withApiHandler` stack for EventBridge/SQS; swallowing errors in handlers (breaks transport retry); raw SDK publish in domain services; separate idempotency table when conditional domain writes suffice; deploying HTTP `IDEMPOTENCY_TABLE` when domain writes already dedupe REST.
 
 ---
 

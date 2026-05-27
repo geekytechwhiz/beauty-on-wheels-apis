@@ -27,6 +27,10 @@ node_modules
 # Cursor (local only)
 .cursor/settings.json
 
+# Local secrets (npm token, etc.)
+.env
+.env.local
+
 # misc
 /.sass-cache
 /connect.lock
@@ -99,3 +103,5 @@ apps/metadata-registry-service/*.zip
 apps/metadata-registry-service/.esbuild/
 apps/alert-service/.esbuild/
 apps/alert-service/swagger/
+apps/template-service/.esbuild/
+apps/template-service/swagger/

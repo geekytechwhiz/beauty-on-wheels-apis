@@ -446,7 +446,7 @@ Repeat for all 16 endpoints. Keep `health` without authorizer.
 
 ---
 
-*Last updated: Sprint 4 — org update, compatible list, create enablement per OpenAPI.*
+*Last updated: Sprint 5 — all `/org-enablements` read/update routes per OpenAPI.*
 
 ---
 
@@ -503,6 +503,10 @@ Expected: JSON with `success: true` (or similar health payload).
 | `PUT /templates/org/{templateId}/versions/{versionId}` | Done | `updateOrgTemplateVersion.ts` |
 | `GET /templates/compatible` | Done | `listCompatibleTemplates.ts` |
 | `POST /org-enablements` | Done | `createOrgEnablement.ts` |
+| `GET /org-enablements` | Done | `searchOrgEnablements.ts` |
+| `GET /org-enablements/{orgId}` | Done | `listOrgEnablementsByOrg.ts` |
+| `GET /org-enablements/id/{enablementId}` | Done | `getOrgEnablementById.ts` |
+| `PATCH /org-enablements/id/{enablementId}` | Done | `updateOrgEnablement.ts` |
 | `GET /health` | Done | `handlers/http/health.ts` |
 
 ### 11.2 Prerequisites
@@ -1214,6 +1218,47 @@ curl -s "http://localhost:3000/templates/compatible?condition=HYPERTENSION&count
   -H "Authorization: $TOKEN"
 ```
 
-### 11.22 Next APIs (not yet implemented)
+### 11.22 GET search enablements — `GET /org-enablements`
 
-`GET /org-enablements`, `GET /org-enablements/{orgId}`, `GET/PATCH /org-enablements/id/{enablementId}`, org-scoped `POST .../status`.
+Requires at least `organizationId` or `masterTemplateVersionId` (org users may omit `organizationId` — JWT org is used).
+
+```bash
+curl -s "http://localhost:3000/org-enablements?organizationId=ROOT&masterTemplateVersionId=CP-HTN-STANDARD-V01" \
+  -H "Authorization: $TOKEN"
+```
+
+### 11.23 GET enablements by org — `GET /org-enablements/{orgId}`
+
+```bash
+curl -s "http://localhost:3000/org-enablements/ROOT" \
+  -H "Authorization: $TOKEN"
+```
+
+### 11.24 GET enablement by id — `GET /org-enablements/id/{enablementId}`
+
+```bash
+curl -s "http://localhost:3000/org-enablements/id/ENB-ROOT-ABC12345" \
+  -H "Authorization: $TOKEN"
+```
+
+### 11.25 PATCH enablement — `PATCH /org-enablements/id/{enablementId}`
+
+**Update validity window:**
+
+```bash
+curl -s -X PATCH "http://localhost:3000/org-enablements/id/ENB-ROOT-ABC12345" \
+  -H "Authorization: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"action":"UPDATE","effectiveFrom":"2024-04-01T00:00:00Z","effectiveTo":"2025-12-31T23:59:59Z"}'
+```
+
+**Revoke (204, no body):**
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" -X PATCH "http://localhost:3000/org-enablements/id/ENB-ROOT-ABC12345" \
+  -H "Authorization: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"action":"REVOKE"}'
+```
+
+### 11.26 Remaining (not in OpenAPI as separate routes)
+
+Org-scoped `POST .../status` for org template lifecycle — master status API exists at `POST /templates/{templateId}/versions/{versionId}/status` (master partition today).

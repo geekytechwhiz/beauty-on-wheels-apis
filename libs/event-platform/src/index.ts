@@ -6,12 +6,6 @@ export {
   type OnEventOptions,
 } from './lib/create-event-handler';
 export {
-  onQueue,
-  createSqsEventHandler,
-  type CreateSqsEventHandlerOptions,
-  type OnQueueOptions,
-} from './lib/create-sqs-event-handler';
-export { 
   correlationHintFromEventBridge,
 } from './lib/event-bridge-per-message-context';
    

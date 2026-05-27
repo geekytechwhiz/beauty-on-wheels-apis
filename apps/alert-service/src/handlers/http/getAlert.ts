@@ -8,6 +8,9 @@ const handler = async (req: LambdaRequest) => c.handleGetAlert(req);
 
 export const main = withApiHandler({
   operation: 'alert.get',
+  fhir: {
+    resourceType: 'Patient',
+  },
 }, handler);
 
 export default main;

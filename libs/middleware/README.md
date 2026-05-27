@@ -1,11 +1,37 @@
-# middleware
+# middleware (`@api-hub/middleware`)
 
-This library was generated with [Nx](https://nx.dev).
+Lambda middleware for **HTTP APIs** and **async invocation** (logger, tracer, context, errors, performance). Composes with `@api-hub/event-platform` for event consumers.
 
-## Building
+**Execution flows:** [`docs/middleware/flow.md`](../../docs/middleware/flow.md)
 
-Run `nx build middleware` to build the library.
+---
 
-## Running unit tests
+## HTTP handlers
 
-Run `nx test middleware` to execute the unit tests via [Jest](https://jestjs.io).
+Use **`withApiHandler`** + **`buildApiExecutionPipeline`**:
+
+```typescript
+import { withApiHandler, successResponse } from '@api-hub/middleware';
+
+export const handler = withApiHandler(
+  { operation: 'createItem', bodySchema: CreateItemSchema },
+  async (req) => successResponse({ id: '...' }, req.context.correlationId),
+);
+```
+
+**HTTP idempotency** is not provided by this library. Use **domain conditional writes** in repositories (e.g. `attribute_not_exists(pk)` on a business key). See [IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](../../docs/engineering/IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md).
+
+---
+
+## Async event handlers
+
+Use **`buildEventExecutionPipeline`** via `createEventHandler` / `onQueue` / `onDynamoEvent` in event-platform. Event idempotency (`DomainIdempotencyStrategy` or optional store) lives in **`@api-hub/event-platform`**.
+
+---
+
+## Build & test
+
+```bash
+nx build middleware
+nx test middleware
+```

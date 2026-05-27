@@ -30,6 +30,7 @@ export interface ApiResponseBody<T = unknown> {
   statusCode: number;
   message: Message;
   data: T | null;
+  fhir?: unknown;
   error: ErrorBody | null;
   meta: Meta;
 }
@@ -37,6 +38,8 @@ export interface ApiResponseBody<T = unknown> {
 export interface ResponseOptions {
   correlationId: string;
   headers?: Record<string, string>;
+  /** Optional FHIR projection (collection Bundle) alongside canonical data. */
+  fhir?: unknown;
   /** Optional event passthrough for error handlers (e.g. API Gateway event). */
   event?: unknown;
 }

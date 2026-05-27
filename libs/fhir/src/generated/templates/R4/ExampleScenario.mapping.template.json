@@ -1,0 +1,427 @@
+{
+  "resource": "ExampleScenario",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "actor",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "actor.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "actor.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "actor.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "actor.actorId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "actor.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "actor.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "actor.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "instance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "instance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "instance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "instance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "instance.resourceId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "instance.resourceType",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "instance.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "instance.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "instance.version",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "instance.version.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "instance.version.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "instance.version.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "instance.version.versionId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "instance.version.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "instance.containedInstance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "instance.containedInstance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "instance.containedInstance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "instance.containedInstance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "instance.containedInstance.resourceId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "instance.containedInstance.versionId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "process.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "process.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "process.preConditions",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "process.postConditions",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "process.step",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "process.step.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "process.step.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.step.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.step.process"
+    },
+    {
+      "source": "",
+      "target": "process.step.pause",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.number",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.type",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.initiator",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.receiver",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.initiatorActive",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.receiverActive",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.request"
+    },
+    {
+      "source": "",
+      "target": "process.step.operation.response"
+    },
+    {
+      "source": "",
+      "target": "process.step.alternative",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "process.step.alternative.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "process.step.alternative.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.step.alternative.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "process.step.alternative.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "process.step.alternative.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "process.step.alternative.step"
+    },
+    {
+      "source": "",
+      "target": "workflow",
+      "fieldType": "canonical"
+    }
+  ]
+}

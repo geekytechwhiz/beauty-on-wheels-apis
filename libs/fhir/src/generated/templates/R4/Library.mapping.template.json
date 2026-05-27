@@ -1,0 +1,201 @@
+{
+  "resource": "Library",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "subtitle",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "usage",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "topic",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "author",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "editor",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "reviewer",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "endorser",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "relatedArtifact",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "parameter",
+      "fieldType": "ParameterDefinition"
+    },
+    {
+      "source": "",
+      "target": "dataRequirement",
+      "fieldType": "DataRequirement"
+    },
+    {
+      "source": "",
+      "target": "content",
+      "fieldType": "Attachment"
+    }
+  ]
+}

@@ -27,6 +27,11 @@ import {
   createChildLogger,
 } from '@api-hub/observability';
 import { ConditionalWriteConflictError } from "../errors/app.error";
+import {
+  getTransactCancellationReasons,
+  hasTransactConditionalFailure,
+  transactConditionalFailureIndexes,
+} from "./transact-write-errors";
 
 const baseLogger = createLogger({
   service: "dynamo-repository",
@@ -58,17 +63,46 @@ export abstract class BaseRepository {
   protected async transactWrite(
     params: TransactWriteCommandInput
   ): Promise<void> {
-  
+
     this.logger.debug({
       event: 'dynamodb_transact_write',
-      tables: params.TransactItems?.length,
+      itemCount: params.TransactItems?.length,
     });
-  
-    await sendDoc<TransactWriteCommandOutput>(
-      ddbDocClient,
-      new TransactWriteCommand(params)
-    );
-  
+
+    try {
+      await sendDoc<TransactWriteCommandOutput>(
+        ddbDocClient,
+        new TransactWriteCommand(params),
+      );
+
+      this.logger.info({
+        event: 'dynamodb_transact_write_success',
+        itemCount: params.TransactItems?.length,
+      });
+    } catch (err: unknown) {
+      if (hasTransactConditionalFailure(err)) {
+        const failedTransactItemIndexes = transactConditionalFailureIndexes(err);
+
+        this.logger.warn({
+          event: 'dynamodb_transact_conditional_failed',
+          itemCount: params.TransactItems?.length,
+          failedTransactItemIndexes,
+        });
+
+        throw new ConditionalWriteConflictError(err, {
+          cancellationReasons: getTransactCancellationReasons(err),
+          failedTransactItemIndexes,
+        });
+      }
+
+      this.logger.error({
+        event: 'dynamodb_transact_write_failed',
+        itemCount: params.TransactItems?.length,
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      throw err;
+    }
   }
 
   protected async put<T>(

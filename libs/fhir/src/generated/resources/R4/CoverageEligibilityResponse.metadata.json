@@ -1,0 +1,473 @@
+{
+  "resource": "CoverageEligibilityResponse",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "CoverageEligibilityResponse",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.purpose",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.serviced[x]",
+      "type": [
+        "date",
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.created",
+      "type": [
+        "dateTime"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.requestor",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.request",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.outcome",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.disposition",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurer",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.coverage",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.inforce",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.benefitPeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.productOrService",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.modifier",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.provider",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.excluded",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.network",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.unit",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.term",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.benefit",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.benefit.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.benefit.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.benefit.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.benefit.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.benefit.allowed[x]",
+      "type": [
+        "unsignedInt",
+        "string",
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.benefit.used[x]",
+      "type": [
+        "unsignedInt",
+        "string",
+        "Money"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.authorizationRequired",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.authorizationSupporting",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.insurance.item.authorizationUrl",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.preAuthRef",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.form",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.error",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.error.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "CoverageEligibilityResponse.error.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.error.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "CoverageEligibilityResponse.error.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    }
+  ]
+}

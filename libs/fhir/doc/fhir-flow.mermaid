@@ -1,0 +1,41 @@
+flowchart TD
+
+A[Lambda Handler]
+
+A --> B[withApiHandler]
+
+B --> C{FHIR Enabled?}
+
+C -->|No| D[Normal API Response]
+
+C -->|Yes| E[transformToFhirResponse]
+
+E --> F[FhirTransformationService]
+
+F --> G[ResourceDiscoveryService]
+
+G --> H[Resource Registry]
+
+H --> I[Generated Resource Config]
+
+I --> G
+
+F --> J[Mapping Resolver]
+
+J --> K[Default Mapping Registry]
+
+J --> L[Client Mapping Registry]
+
+F --> M[Generic Mapper]
+
+M --> N[Terminology Service]
+
+N --> O[FHIR Validator]
+
+O --> P[Bundle Builder]
+
+P --> Q[FHIR Bundle]
+
+Q --> R[Success Response]
+
+R --> S[data + fhir]

@@ -34,9 +34,6 @@
       "path": "./libs/capability"
     },
     {
-      "path": "./libs/canonical"
-    },
-    {
       "path": "./libs/partners"
     },
     {
@@ -79,7 +76,10 @@
       "path": "./libs/template-core"
     },
     {
-      "path": "./apps/realtime-worker"
+      "path": "./libs/fhir"
+    },
+    {
+      "path": "./packages/platform-tools"
     }
   ]
 }

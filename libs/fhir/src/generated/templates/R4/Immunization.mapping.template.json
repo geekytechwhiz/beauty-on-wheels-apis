@@ -1,0 +1,316 @@
+{
+  "resource": "Immunization",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "vaccineCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "occurrence[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "recorded",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "primarySource",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "reportOrigin",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "manufacturer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "lotNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "expirationDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "site",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "route",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "doseQuantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "performer",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "performer.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "performer.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "performer.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "performer.function",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "performer.actor",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "isSubpotent",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "subpotentReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "education",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "education.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "education.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "education.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "education.documentType",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "education.reference",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "education.publicationDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "education.presentationDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "programEligibility",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "fundingSource",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reaction",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "reaction.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "reaction.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "reaction.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "reaction.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "reaction.detail",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reaction.reported",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.series",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.authority",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.targetDisease",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.doseNumber[x]",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "protocolApplied.seriesDoses[x]",
+      "fieldType": "positiveInt"
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "resource": "AppointmentResponse",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "AppointmentResponse",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AppointmentResponse.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AppointmentResponse.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AppointmentResponse.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AppointmentResponse.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AppointmentResponse.appointment",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.start",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.end",
+      "type": [
+        "instant"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.participantType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AppointmentResponse.actor",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.participantStatus",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "AppointmentResponse.comment",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

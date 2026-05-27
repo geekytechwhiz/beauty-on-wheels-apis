@@ -1,0 +1,225 @@
+{
+  "resource": "MedicinalProductIngredient",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "role",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "allergenicIndicator",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "manufacturer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.group",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.confidentiality",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.presentation",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.presentationLowLimit",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.concentration",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.concentrationLowLimit",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.measurementPoint",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.country",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.substance",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.strength",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.strengthLowLimit",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.measurementPoint",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "specifiedSubstance.strength.referenceStrength.country",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "substance",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "substance.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "substance.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "substance.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "substance.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "substance.strength"
+    }
+  ]
+}

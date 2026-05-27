@@ -103,6 +103,8 @@ Map `ConditionalCheckFailedException` via repository / `ConditionalWriteConflict
 
 ## TransactWrite (multi-item writes)
 
+`BaseRepository.transactWrite` maps `TransactionCanceledException` with any `ConditionalCheckFailed` reason to **`ConditionalWriteConflictError`** (includes `failedTransactItemIndexes`). Use helpers from `@api-hub/utils`: `isConditionalWriteConflictAtIndex(err, itemIndex)`.
+
 See **dynamodb-transact** skill for full patterns. In repositories:
 
 ```typescript

@@ -234,7 +234,7 @@ async function handleIdempotencyContention(params: {
       return { outcome: 'needs_transport_retry', error: new Error('idempotency_contention') };
     }
 
-    await sleep(decision.delayMs ?? deps.retry.delayMs);
+    await new Promise((resolve) => setTimeout(resolve, decision.delayMs ?? deps.retry.delayMs));
     recordConsumerRetry(baseEvent.eventType, effectiveAttempt);
     deps.tracing?.onRetry?.({
       ...traceCtx,
@@ -371,7 +371,7 @@ async function runInProcessHandlerAttempts(params: {
           delayMs: decision.delayMs,
           reason: decision.reason,
         });
-        await sleep(decision.delayMs ?? deps.retry.delayMs);
+        await new Promise((resolve) => setTimeout(resolve, decision.delayMs ?? deps.retry.delayMs));
         current = {
           ...current,
           meta: {

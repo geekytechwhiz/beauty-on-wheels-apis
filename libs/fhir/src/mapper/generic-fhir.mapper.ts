@@ -1,9 +1,7 @@
 import objectPath from 'object-path';
 
-import {
-  ResourceMappingConfig,
-  MappingField,
-} from '../registry/mapping.registry';
+import { ResourceMappingConfig } from '../registry/mapping.registry';
+import type { MappingField } from '../types/resource.types';
 
 import {
   defaultTerminologyService,

@@ -48,6 +48,7 @@
     "@api-hub/middleware": "workspace:*",
     "@api-hub/observability": "workspace:*",
     "@api-hub/utils": "workspace:*",
+    "@myvitalrx/platform-tools": "workspace:*",
     "@smithy/node-http-handler": "^4.4.7"
   }
 }

@@ -14,6 +14,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./middleware": {
+      "@api-hub/source": "./src/middleware/index.ts",
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js",
+      "default": "./dist/middleware/index.js"
     }
   },
   "files": [
@@ -25,10 +31,13 @@
   },
   "dependencies": {
     "@ahryman40k/ts-fhir-types": "^4.0.39",
+    "@api-hub/observability": "workspace:*",
     "@api-hub/terminology": "workspace:*",
+    "@api-hub/utils": "workspace:*",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@api-hub/middleware": "workspace:*",
     "fs-extra": "^11.3.5",
     "glob": "^13.0.0"
   }

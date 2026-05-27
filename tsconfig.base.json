@@ -32,7 +32,20 @@
       "@api-hub/capability": ["libs/capability/src/index.ts"],
       "@api-hub/terminology": ["libs/terminology/src/index.ts"],
       "@api-hub/fhir": ["libs/fhir/src/index.ts"],
+      "@api-hub/fhir/middleware": ["libs/fhir/src/middleware/index.ts"],
       "@api-hub/middleware": ["libs/middleware/src/index.ts"],
+      "@myvitalrx/platform-tools/middleware": [
+        "packages/platform-tools/src/middleware.ts"
+      ],
+      "@myvitalrx/platform-tools/observability": [
+        "packages/platform-tools/src/observability.ts"
+      ],
+      "@myvitalrx/platform-tools/event-platform": [
+        "packages/platform-tools/src/event-platform.ts"
+      ],
+      "@myvitalrx/platform-tools/event-platform/dx": [
+        "packages/platform-tools/src/event-platform-dx.ts"
+      ],
       "@api-hub/partners": ["libs/partners/src/index.ts"],
       "@api-hub/integration-events": ["libs/integration-events/src/index.ts"],
       "@api-hub/lab-integration": ["libs/lab-integration/src/index.ts"],

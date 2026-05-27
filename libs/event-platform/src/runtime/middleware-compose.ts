@@ -46,17 +46,17 @@ export function composeEventHandlerWithMiddleware<
         isEnabled: () => config.enabled,
         getPendingEvents: () => drainRealtimePending(),
         getConfig: () => config,
-        process: ({ event, config: cfg }) =>
+        process: ({ event, config: cfg }:any) =>
           realtimeEventService.process({
             event: event as Parameters<RealtimeEventService['process']>[0]['event'],
             config: cfg as RealtimeConsumerConfig,
           }),
         logger: {
-          warn: (meta) => logger.warn(meta),
-          info: (meta) => logger.info(meta),
+          warn: (meta:any) => logger.warn(meta),
+          info: (meta:any) => logger.info(meta),
         },
-        getCorrelationId: (e) => e.__context?.correlationId,
-        getEventType: (e) => e.__context?.eventType,
+        getCorrelationId: (e:any) => e.__context?.correlationId,
+        getEventType: (e:any) => e.__context?.eventType,
       }) as Middleware<TEvent, TResult, TContext>,
     );
   }

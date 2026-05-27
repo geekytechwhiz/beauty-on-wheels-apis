@@ -27,6 +27,10 @@ node_modules
 # Cursor (local only)
 .cursor/settings.json
 
+# Local secrets (npm token, etc.)
+.env
+.env.local
+
 # misc
 /.sass-cache
 /connect.lock

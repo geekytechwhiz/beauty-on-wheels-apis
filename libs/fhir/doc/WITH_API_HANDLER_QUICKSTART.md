@@ -79,15 +79,17 @@ If no resources are generated, `fhir` is omitted.
 
 ## Before first use
 
-`@api-hub/fhir` bootstraps registries automatically on import (via `libs/fhir/src/index.ts`). Hand-authored mappings live in `libs/fhir/src/mappings/R4/`. See the [bootstrap section](../../../docs/services/fhir-gateway/DEVELOPER_GUIDE.md#5-library-bootstrap) in the full guide for adding new resources.
+Install `@myvitalrx/fhir` (or `@api-hub/fhir` in the monorepo) when using the `fhir` option on `withApiHandler`. Middleware lazy-loads `@myvitalrx/fhir/middleware` at runtime — no FHIR dependency is declared on the middleware package itself.
+
+`@api-hub/fhir` bootstraps registries automatically when the middleware subpath is loaded. Hand-authored mappings live in `libs/fhir/src/mappings/R4/`. See the [bootstrap section](../../../docs/services/fhir-gateway/DEVELOPER_GUIDE.md#5-library-bootstrap) in the full guide for adding new resources.
 
 ---
 
 ## Tests
 
 ```bash
+nx test fhir --testPathPattern=with-api-handler
 nx test fhir
-nx test middleware --testPathPattern=fhir
 ```
 
 ---

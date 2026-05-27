@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "tsup.config.ts"],
+  "references": [
+    {
+      "path": "../../libs/utils"
+    },
+    {
+      "path": "../../libs/observability"
+    },
+    {
+      "path": "../../libs/middleware"
+    },
+    {
+      "path": "../../libs/terminology"
+    },
+    {
+      "path": "../../libs/fhir"
+    },
+    {
+      "path": "../../libs/event-platform"
+    }
+  ]
+}

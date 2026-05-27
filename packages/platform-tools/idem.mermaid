@@ -1,0 +1,7 @@
+flowchart LR
+  Invoke[Lambda invoke] --> MW[middleware stack]
+  MW --> CE[consumeEvent]
+  CE --> OR[orchestrate per record]
+  OR --> IB[idempotency before]
+  IB --> H[handler]
+  H --> IA[idempotency afterSuccess]

@@ -1,8 +1,6 @@
-import {
-  BundleBuilder,
-  FhirTransformationService,
-  type FhirCollectionBundle,
-} from '@api-hub/fhir';
+import { BundleBuilder } from '../builders/BundleBuilder';
+import { FhirTransformationService } from '../services/fhir-transformation.service';
+import type { FhirCollectionBundle } from '../types/fhir-bundle';
 import type { LambdaRequest } from '@api-hub/utils';
 
 export type FhirHandlerOptions = {

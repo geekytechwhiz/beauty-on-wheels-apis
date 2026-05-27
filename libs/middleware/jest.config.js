@@ -9,7 +9,8 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   moduleNameMapper: {
-    '^@api-hub/fhir$': '<rootDir>/../../libs/fhir/src/index.ts',
+    '^@myvitalrx/platform-tools/fhir/middleware$':
+      '<rootDir>/../../libs/fhir/src/middleware/index.ts',
     '^@api-hub/observability$':
       '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',

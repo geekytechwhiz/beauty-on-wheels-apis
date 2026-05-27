@@ -1,6 +1,7 @@
 import type { LambdaRequest } from '@api-hub/utils';
 
-import { FhirTransformationService } from '@api-hub/fhir';
+import { bootstrapFhirLibrary } from '../bootstrap';
+import { FhirTransformationService } from '../services/fhir-transformation.service';
 
 import {
   isFhirEnabled,
@@ -13,6 +14,10 @@ describe('transformToFhirResponse', () => {
     params: {},
     context: {},
   } as unknown as LambdaRequest;
+
+  beforeAll(() => {
+    bootstrapFhirLibrary();
+  });
 
   afterEach(() => {
     jest.restoreAllMocks();

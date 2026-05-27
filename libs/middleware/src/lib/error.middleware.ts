@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import {
   createChildLogger,
   createLogger,
@@ -5,11 +6,10 @@ import {
 import { serializeError } from '@api-hub/observability';
 import { BaseError, handleError, toBaseError } from '@api-hub/utils';
 
-import { FhirValidationError } from '@api-hub/fhir';
-
 import {
-  fhirValidationErrorResponse,
-} from './fhir/fhir-error-response';
+  isFhirValidationErrorLike,
+  loadFhirPeer,
+} from './fhir-peer';
 import { EventSchemaError } from './event-schema/event-schema-error';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
 
@@ -54,24 +54,25 @@ export function httpApiErrorMiddleware<
         awsRequestId,
       });
 
-      if (error instanceof FhirValidationError) {
-        const fhirError = error;
+      if (isFhirValidationErrorLike(error)) {
+        const fhir = await loadFhirPeer();
+        if (fhir) {
+          logger.error({
+            event: 'http_pipeline_error',
+            operation: raw?.operation,
+            correlationId,
+            traceId: raw?.traceId,
+            'error.code': error.code,
+            'error.retryable': false,
+            err: serializeError(error),
+          });
 
-        logger.error({
-          event: 'http_pipeline_error',
-          operation: raw?.operation,
-          correlationId,
-          traceId: raw?.traceId,
-          'error.code': fhirError.code,
-          'error.retryable': false,
-          err: serializeError(fhirError),
-        });
-
-        return fhirValidationErrorResponse(fhirError, {
-          correlationId,
-          logger,
-          skipLog: true,
-        }) as TResult;
+          return fhir.fhirValidationErrorResponse(error, {
+            correlationId,
+            logger,
+            skipLog: true,
+          }) as TResult;
+        }
       }
 
       const appError = normalizePipelineError(error);

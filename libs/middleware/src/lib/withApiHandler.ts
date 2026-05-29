@@ -23,6 +23,7 @@ import {
 import { fhirSuccessResponse } from './fhir/fhir-success-response';
 import { isFhirRequest } from './fhir/is-fhir-request';
 import {
+  isMutatingHttpMethod,
   shouldTransformFhirRequest,
   transformFhirRequest,
 } from './fhir/transform-fhir-request';
@@ -56,7 +57,8 @@ export type   withApiHandlerOptions = {
   /**
    * When set, enables FHIR projection for callers that negotiate FHIR via
    * {@link isFhirRequest}. Inbound POST/PUT/PATCH FHIR bodies are converted to
-   * canonical before validation; outbound responses are raw FHIR Bundles.
+   * canonical before validation. GET responses include canonical `data` plus a
+   * sibling `fhir` Bundle; mutating requests may return raw FHIR when negotiated.
    */
   fhir?: FhirHandlerOptions;
 };
@@ -161,7 +163,14 @@ export function withApiHandler<
       );
 
       if (fhirBundle) {
-        return fhirSuccessResponse(fhirBundle) as TResult;
+        if (isMutatingHttpMethod(req)) {
+          return fhirSuccessResponse(fhirBundle) as TResult;
+        }
+
+        return successResponse(result, undefined, {
+          correlationId: correlationIdFromContext,
+          fhir: fhirBundle,
+        }) as TResult;
       }
     }
 

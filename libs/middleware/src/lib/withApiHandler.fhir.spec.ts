@@ -112,7 +112,7 @@ describe('withApiHandler FHIR integration', () => {
     expect(body.resourceType).toBeUndefined();
   });
 
-  it('returns a raw FHIR Bundle when the caller negotiates FHIR', async () => {
+  it('returns canonical data with a sibling fhir Bundle when the caller negotiates FHIR on GET', async () => {
     const canonical = {
       userID: 'user-123',
       organizationID: 'org-123',
@@ -131,21 +131,21 @@ describe('withApiHandler FHIR integration', () => {
     const response = await handler(fhirEvent, context);
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers?.['Content-Type']).toBe('application/fhir+json');
+    expect(response.headers?.['Content-Type']).toBe('application/json');
     const body = JSON.parse(response.body);
-    expect(body.resourceType).toBe('Bundle');
-    expect(body.type).toBe('collection');
-    expect(body.entry[0].resource.resourceType).toBe('Patient');
-    expect(body.entry[0].resource.id).toBe('user-123');
-    expect(body.entry[0].resource.isLoggedIn).toBeUndefined();
-    expect(body.entry[0].resource.firstName).toBeUndefined();
-    expect(body.entry[0].resource.name).toBeDefined();
-    expect(body.entry[0].resource.telecom).toBeDefined();
-    expect(body.success).toBeUndefined();
-    expect(body.data).toBeUndefined();
+    expect(body.success).toBe(true);
+    expect(body.data).toEqual(canonical);
+    expect(body.fhir.resourceType).toBe('Bundle');
+    expect(body.fhir.type).toBe('collection');
+    expect(body.fhir.entry[0].resource.resourceType).toBe('Patient');
+    expect(body.fhir.entry[0].resource.id).toBe('user-123');
+    expect(body.fhir.entry[0].resource.isLoggedIn).toBeUndefined();
+    expect(body.fhir.entry[0].resource.firstName).toBeUndefined();
+    expect(body.fhir.entry[0].resource.name).toBeDefined();
+    expect(body.fhir.entry[0].resource.telecom).toBeDefined();
   });
 
-  it('maps flat patient payload to a FHIR Bundle for FHIR callers', async () => {
+  it('maps flat patient payload to a FHIR Bundle sibling for FHIR GET callers', async () => {
     const canonical = {
       patientId: '01KQMPG288ANNZ9FAMMC1WZEH3',
       lastName: 'Jasir Hassan',
@@ -164,10 +164,11 @@ describe('withApiHandler FHIR integration', () => {
     const response = await handler(fhirEvent, context);
 
     const body = JSON.parse(response.body);
-    expect(body.entry[0].resource.id).toBe('01KQMPG288ANNZ9FAMMC1WZEH3');
-    expect(body.entry[0].resource.isLoggedIn).toBeUndefined();
-    expect(body.entry[0].resource.roleName).toBeUndefined();
-    expect(body.entry[0].resource.identifier).toEqual([
+    expect(body.data).toEqual(canonical);
+    expect(body.fhir.entry[0].resource.id).toBe('01KQMPG288ANNZ9FAMMC1WZEH3');
+    expect(body.fhir.entry[0].resource.isLoggedIn).toBeUndefined();
+    expect(body.fhir.entry[0].resource.roleName).toBeUndefined();
+    expect(body.fhir.entry[0].resource.identifier).toEqual([
       {
         type: {
           coding: [
@@ -181,7 +182,7 @@ describe('withApiHandler FHIR integration', () => {
         value: 'PI-MOOIY7IR307713',
       },
     ]);
-    expect(body.entry[0].resource.text).toEqual(
+    expect(body.fhir.entry[0].resource.text).toEqual(
       expect.objectContaining({ status: 'generated' }),
     );
   });
@@ -202,7 +203,7 @@ describe('withApiHandler FHIR integration', () => {
     const response = await handler(fhirEvent, context);
     const body = JSON.parse(response.body);
 
-    expect(body.entry.map((e: { resource: { resourceType: string } }) => e.resource.resourceType)).toEqual([
+    expect(body.fhir.entry.map((e: { resource: { resourceType: string } }) => e.resource.resourceType)).toEqual([
       'Patient',
       'Practitioner',
     ]);
@@ -244,11 +245,12 @@ describe('withApiHandler FHIR integration', () => {
     const response = await handler(fhirEvent, context);
     const body = JSON.parse(response.body);
 
-    expect(body.resourceType).toBe('Bundle');
-    expect(body.type).toBe('collection');
-    expect(body.entry).toHaveLength(2);
-    expect(body.entry[0].resource.id).toBe('p1');
-    expect(body.entry[1].resource.id).toBe('p2');
+    expect(body.data).toEqual({ items: patients });
+    expect(body.fhir.resourceType).toBe('Bundle');
+    expect(body.fhir.type).toBe('collection');
+    expect(body.fhir.entry).toHaveLength(2);
+    expect(body.fhir.entry[0].resource.id).toBe('p1');
+    expect(body.fhir.entry[1].resource.id).toBe('p2');
   });
 
   it('passes client id from request context to transformation', async () => {

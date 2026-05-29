@@ -23,3 +23,4 @@ export * from './lib/fhir/transform-to-fhir-response';
 export * from './lib/fhir/fhir-error-response';
 export * from './lib/fhir/fhir-success-response';
 export * from './lib/fhir/is-fhir-request';
+export * from './lib/fhir/transform-fhir-request';

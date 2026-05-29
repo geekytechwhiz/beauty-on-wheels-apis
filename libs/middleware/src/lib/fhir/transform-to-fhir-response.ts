@@ -11,6 +11,23 @@ export type FhirHandlerOptions = {
   resource?: string;
   resources?: string[];
   version?: 'R4';
+  /**
+   * Derive FHIR resource type per payload (e.g. Patient vs Practitioner from userType / roleName).
+   * When set, each row is mapped to a single resource instead of multi-resource discovery.
+   */
+  inferResourceType?: (payload: unknown) => string | undefined;
+  /**
+   * Use `req.context.fhirResourceType` when set by the handler before returning.
+   */
+  resourceTypeFromContext?: boolean;
+  /**
+   * Dot path to a nested array on the handler result (e.g. `data.items`). Top-level arrays need no path.
+   */
+  resourceListPath?: string;
+  /**
+   * Shapes inbound FHIR bodies into handler-specific canonical contracts.
+   */
+  inboundProfile?: 'createUser' | 'assignDoctor' | 'activateDeactivate';
 };
 
 export type FhirResponsePayload = {
@@ -45,8 +62,94 @@ export function isFhirEnabled(options?: FhirHandlerOptions): boolean {
     options.enabled === true ||
     Boolean(options.resourceType) ||
     Boolean(options.resource) ||
-    Boolean(options.resources?.length)
+    Boolean(options.resources?.length) ||
+    typeof options.inferResourceType === 'function' ||
+    options.resourceTypeFromContext === true ||
+    options.inboundProfile === 'createUser' ||
+    options.inboundProfile === 'assignDoctor' ||
+    options.inboundProfile === 'activateDeactivate'
   );
+}
+
+function getAtPath(obj: unknown, path: string): unknown {
+  if (path.trim() === '' || obj == null || typeof obj !== 'object') {
+    return undefined;
+  }
+  let cur: unknown = obj;
+  for (const part of path.split('.')) {
+    if (cur == null || typeof cur !== 'object') {
+      return undefined;
+    }
+    cur = (cur as Record<string, unknown>)[part];
+  }
+  return cur;
+}
+
+function collectHandlerRows(result: unknown, listPath?: string): unknown[] {
+  const trimmedPath = listPath?.trim() ?? '';
+  if (Array.isArray(result)) {
+    return result;
+  }
+  if (trimmedPath !== '') {
+    const nested = getAtPath(result, trimmedPath);
+    if (Array.isArray(nested)) {
+      return nested;
+    }
+  }
+  if (result != null && typeof result === 'object' && Array.isArray((result as { items?: unknown }).items)) {
+    return (result as { items: unknown[] }).items;
+  }
+  return [result];
+}
+
+function resolveFhirResourceType(
+  options: FhirHandlerOptions,
+  req: LambdaRequest,
+  payload: unknown,
+): string | undefined {
+  if (typeof options.inferResourceType === 'function') {
+    const inferred = options.inferResourceType(payload);
+    if (typeof inferred === 'string' && inferred.trim() !== '') {
+      return inferred.trim();
+    }
+  }
+  if (options.resourceTypeFromContext) {
+    const ctx = req.context as { fhirResourceType?: string } | undefined;
+    if (
+      typeof ctx?.fhirResourceType === 'string' &&
+      ctx.fhirResourceType.trim() !== ''
+    ) {
+      return ctx.fhirResourceType.trim();
+    }
+  }
+  const explicit = resolveExplicitResourceTypes(options);
+  return explicit?.[0];
+}
+
+async function transformWithInferredResourceTypes(
+  result: unknown,
+  options: FhirHandlerOptions,
+  req: LambdaRequest,
+  clientId: string,
+): Promise<Record<string, unknown>[]> {
+  const rows = collectHandlerRows(result, options.resourceListPath);
+  const resources: Record<string, unknown>[] = [];
+
+  for (const row of rows) {
+    const resourceType = resolveFhirResourceType(options, req, row);
+    if (!resourceType) {
+      continue;
+    }
+    const transformed = await fhirTransformation.transformCanonicalToFhir(
+      resourceType,
+      row,
+      clientId,
+      { validate: true, version: options.version },
+    );
+    resources.push(transformed);
+  }
+
+  return resources;
 }
 
 function resolveExplicitResourceTypes(
@@ -70,13 +173,18 @@ export async function transformToFhirResponse(
   req: LambdaRequest,
 ): Promise<FhirCollectionBundle | undefined> {
   const clientId = resolveClientId(req);
-  const resourceTypes = resolveExplicitResourceTypes(options);
 
-  const resources = await fhirTransformation.transformToProjection(result, {
-    resourceTypes,
-    clientId,
-    version: options.version,
-  });
+  const usePerRowResolution =
+    typeof options.inferResourceType === 'function' ||
+    options.resourceTypeFromContext === true;
+
+  const resources = usePerRowResolution
+    ? await transformWithInferredResourceTypes(result, options, req, clientId)
+    : await fhirTransformation.transformToProjection(result, {
+        resourceTypes: resolveExplicitResourceTypes(options),
+        clientId,
+        version: options.version,
+      });
 
   if (resources.length === 0) {
     return undefined;

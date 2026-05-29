@@ -2,6 +2,7 @@ import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationRepository } from '../../repositories/organization.repository';
 import { UserService } from '../../services/user.service';
+import { fhirUserHandlerOptions } from '../../utils/fhir-handler-options';
 import { validateUserOrganizationRequest } from '../../validation/request.validators';
 
 const userService = new UserService();
@@ -60,6 +61,7 @@ export const main =   withApiHandler(
           {
             operation: 'getUser',
             validator: (req) => validateUserOrganizationRequest(req as any),
+            fhir: fhirUserHandlerOptions,
           },
            async (req) => {
     return await (handler as any)(req);

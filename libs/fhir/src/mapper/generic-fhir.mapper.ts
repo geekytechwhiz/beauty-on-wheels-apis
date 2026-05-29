@@ -11,6 +11,7 @@ import {
 } from '../terminology/terminology.service';
 
 import { buildExtensions, mergeExtensions } from './extension.builder';
+import { enrichPatientResource } from './patient-resource.enricher';
 
 type AnyObject = Record<string, unknown>;
 
@@ -43,6 +44,11 @@ export class GenericMapper {
       this.applyFieldMapping(resource, canonical, field);
     }
 
+    if (mapping.resource === 'Patient') {
+      enrichPatientResource(resource, canonical, mapping);
+      return resource;
+    }
+
     const builtExtensions = buildExtensions(canonical, mapping.extensions);
     if (builtExtensions.length > 0) {
       resource.extension = builtExtensions;
@@ -62,14 +68,18 @@ export class GenericMapper {
       this.applyFieldMapping(hybrid, canonical, field);
     }
 
-    const builtExtensions = buildExtensions(canonical, mapping.extensions);
-    const mergedExtensions = mergeExtensions(
-      hybrid.extension as Parameters<typeof mergeExtensions>[0],
-      builtExtensions,
-    );
+    if (mapping.resource === 'Patient') {
+      enrichPatientResource(hybrid, canonical, mapping);
+    } else {
+      const builtExtensions = buildExtensions(canonical, mapping.extensions);
+      const mergedExtensions = mergeExtensions(
+        hybrid.extension as Parameters<typeof mergeExtensions>[0],
+        builtExtensions,
+      );
 
-    if (mergedExtensions.length > 0) {
-      hybrid.extension = mergedExtensions;
+      if (mergedExtensions.length > 0) {
+        hybrid.extension = mergedExtensions;
+      }
     }
 
     hybrid.resourceType = mapping.resource;

@@ -24,8 +24,14 @@ describe('FHIR projection layer', () => {
         resourceType: 'Bundle',
         type: 'collection',
         entry: [
-          { resource: { resourceType: 'Patient', id: 'p1' } },
-          { resource: { resourceType: 'Practitioner', id: 'pr1' } },
+          {
+            fullUrl: 'https://myvirtualrx.com/fhir/Patient/p1',
+            resource: { resourceType: 'Patient', id: 'p1' },
+          },
+          {
+            fullUrl: 'https://myvirtualrx.com/fhir/Practitioner/pr1',
+            resource: { resourceType: 'Practitioner', id: 'pr1' },
+          },
         ],
       });
     });
@@ -105,13 +111,22 @@ describe('FHIR projection layer', () => {
       expect(resources[0].id).toBe('01K');
       expect(resources[0].isLoggedIn).toBeUndefined();
       expect(resources[0].roleName).toBeUndefined();
-      expect(resources[0].extension).toEqual(
-        expect.arrayContaining([
-          {
-            url: 'https://myvirtualrx.com/fhir/custom/mrn',
-            valueString: 'PI-123',
+      expect(resources[0].identifier).toEqual([
+        {
+          type: {
+            coding: [
+              {
+                system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+                code: 'MR',
+              },
+            ],
           },
-        ]),
+          system: 'https://myvirtualrx.com/fhir/mrn',
+          value: 'PI-123',
+        },
+      ]);
+      expect(resources[0].text).toEqual(
+        expect.objectContaining({ status: 'generated' }),
       );
     });
 

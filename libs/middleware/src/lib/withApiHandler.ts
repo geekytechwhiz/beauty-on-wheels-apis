@@ -20,6 +20,12 @@ import {
   isFhirEnabled,
   transformToFhirResponse,
 } from './fhir/transform-to-fhir-response';
+import { fhirSuccessResponse } from './fhir/fhir-success-response';
+import { isFhirRequest } from './fhir/is-fhir-request';
+import {
+  shouldTransformFhirRequest,
+  transformFhirRequest,
+} from './fhir/transform-fhir-request';
 import { successResponse } from './response.middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
@@ -48,8 +54,9 @@ export type   withApiHandlerOptions = {
    */
   validator?:RequestValidator;
   /**
-   * When set, adds a strict FHIR projection as a sibling `fhir` field on the response
-   * while preserving the canonical handler payload in `data`.
+   * When set, enables FHIR projection for callers that negotiate FHIR via
+   * {@link isFhirRequest}. Inbound POST/PUT/PATCH FHIR bodies are converted to
+   * canonical before validation; outbound responses are raw FHIR Bundles.
    */
   fhir?: FhirHandlerOptions;
 };
@@ -107,7 +114,7 @@ export function withApiHandler<
     });
   
     const req = buildRequestContext(event as unknown as RequestBuildEvent);
-    const ctxFields = {
+    const ctxFields: Record<string, unknown> = {
       ...(req.context as unknown as Record<string, unknown>),
       logger,
       correlationId,
@@ -116,7 +123,19 @@ export function withApiHandler<
       operation: std?.operation,
     };
     (req as unknown as { context: Record<string, unknown> }).context =
-      Object.freeze(ctxFields);
+      ctxFields;
+
+    const fhirRequested = isFhirRequest(req);
+    const fhirEnabled = isFhirEnabled(options.fhir);
+
+    if (fhirEnabled && options.fhir && shouldTransformFhirRequest(req, options.fhir, fhirRequested)) {
+      await transformFhirRequest(req, options.fhir);
+    }
+
+    (req as unknown as { context: Record<string, unknown> }).context =
+      Object.freeze({
+        ...(req.context as unknown as Record<string, unknown>),
+      });
 
     if (options.bodySchema !== undefined) {
       req.body = options.bodySchema.parse(req.body) as typeof req.body;
@@ -134,17 +153,16 @@ export function withApiHandler<
     const correlationIdFromContext =
       (req.context as { correlationId?: string }).correlationId ?? 'unknown';
 
-    if (isFhirEnabled(options.fhir) && result) {
+    if (fhirRequested && fhirEnabled && options.fhir && result) {
       const fhirBundle = await transformToFhirResponse(
         result,
-        options.fhir!,
+        options.fhir,
         req,
       );
 
-      return successResponse(result, undefined, {
-        correlationId: correlationIdFromContext,
-        fhir: fhirBundle,
-      }) as TResult;
+      if (fhirBundle) {
+        return fhirSuccessResponse(fhirBundle) as TResult;
+      }
     }
 
     return successResponse(result, undefined, {

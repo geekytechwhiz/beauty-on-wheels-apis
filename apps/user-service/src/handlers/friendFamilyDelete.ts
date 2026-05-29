@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { FriendFamilyService } from '../services/friendFamily.service';
+import { fhirRelatedPersonHandlerOptions } from '../utils/fhir-handler-options';
 import { validateDeleteFriendFamily } from '../validation/request.validators';
 
 const friendFamilyService = new FriendFamilyService();
@@ -18,4 +19,7 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return { userID, memberID, organizationID: organizationID ?? null };
 };
 
-export const main = withApiHandler({ operation: 'friendFamilyDelete', validator: validateDeleteFriendFamily }, handler);
+export const main = withApiHandler(
+  { operation: 'friendFamilyDelete', validator: validateDeleteFriendFamily, fhir: fhirRelatedPersonHandlerOptions },
+  handler,
+);

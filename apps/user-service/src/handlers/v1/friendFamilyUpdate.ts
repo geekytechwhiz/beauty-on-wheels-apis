@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { FriendFamilyService } from '../../services/friendFamily.service';
+import { fhirRelatedPersonHandlerOptions } from '../../utils/fhir-handler-options';
 import { validateUpdateFriendFamily } from '../../validation/request.validators';
 
 const friendFamilyService = new FriendFamilyService();
@@ -26,12 +27,11 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return null;
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'friendFamilyUpdate',
-            validator: (req) => validateUpdateFriendFamily(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'friendFamilyUpdate',
+    validator: validateUpdateFriendFamily,
+    fhir: fhirRelatedPersonHandlerOptions,
   },
-        );
+  handler,
+);

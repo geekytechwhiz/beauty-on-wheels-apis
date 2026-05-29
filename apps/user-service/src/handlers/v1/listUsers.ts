@@ -3,6 +3,7 @@ import { type LambdaRequest } from '@api-hub/utils';
 import { packageServiceClient } from '../../clients/packageService.client';
 import { scheduleServiceClient } from '../../clients/scheduleService.client';
 import { UserService } from '../../services/user.service';
+import { fhirUserListHandlerOptions } from '../../utils/fhir-handler-options';
 import {
   mapAllPatientResponse,
   mapAssignedPatientResponse,
@@ -120,12 +121,11 @@ const handler = async (
   }
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'listUsers',
-            validator: (req) => validateListDoctorPatients(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'listUsers',
+    validator: validateListDoctorPatients,
+    fhir: fhirUserListHandlerOptions,
   },
-        );
+  handler,
+);

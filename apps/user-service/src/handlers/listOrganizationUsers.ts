@@ -1,12 +1,13 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
+import { fhirUserListHandlerOptions } from '../utils/fhir-handler-options';
 import { validateOrganizationIdParam } from '../validation/request.validators';
 
 const userService = new UserService();
 
 interface Params {
-  organizationId: string;
+  organizationId?: string;
   limit?: string;
   offset?: string;
   page?: string;
@@ -92,4 +93,11 @@ const handler = async (req: LambdaRequest<Params>) => {
   });
 };
 
-export const main = withApiHandler({ operation: 'listOrganizationUsers', validator: validateOrganizationIdParam }, handler);
+export const main = withApiHandler(
+  {
+    operation: 'listOrganizationUsers',
+    validator: validateOrganizationIdParam,
+    fhir: fhirUserListHandlerOptions,
+  },
+  handler,
+);

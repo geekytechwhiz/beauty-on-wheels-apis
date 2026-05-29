@@ -65,7 +65,10 @@ export function isFhirRequest(req: LambdaRequest): boolean {
     return true;
   }
 
-  if (getHeader(req, 'x-fhir-request')?.toLowerCase() === 'true') {
+  if (
+    getHeader(req, 'x-fhir-request')?.toLowerCase() === 'true' ||
+    getHeader(req, 'x-fhir-response')?.toLowerCase() === 'true'
+  ) {
     return true;
   }
 

@@ -58,4 +58,16 @@ describe('isFhirRequest', () => {
 
     expect(isFhirRequest(req)).toBe(true);
   });
+
+  it('returns true when x-fhir-response header is true', () => {
+    const req = {
+      ...baseReq,
+      event: {
+        ...baseReq.event,
+        headers: { 'x-fhir-response': 'true' },
+      },
+    } as unknown as LambdaRequest;
+
+    expect(isFhirRequest(req)).toBe(true);
+  });
 });

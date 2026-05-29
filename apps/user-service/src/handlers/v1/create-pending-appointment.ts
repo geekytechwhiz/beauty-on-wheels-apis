@@ -38,12 +38,10 @@ const handler = async (
   return createdAppointment;
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'create.pending.appointment',
-            validator: (req) => validateCreateAppointment(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'create.pending.appointment',
+    validator: validateCreateAppointment,
   },
-        );
+  handler,
+);

@@ -1,4 +1,5 @@
 export interface FhirBundleEntry {
+  fullUrl: string;
   resource: Record<string, unknown>;
 }
 

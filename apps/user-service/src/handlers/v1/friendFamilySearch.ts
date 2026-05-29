@@ -6,6 +6,7 @@ import { FriendFamilyService } from '../../services/friendFamily.service';
 import { assignUserRole } from '../../services/role.service';
 import { UserService } from '../../services/user.service';
 import { buildCreateUserPayloadFromFnfSearch, getUserIdAndOrganizationIdFromToken } from '../../utils/helpers';
+import { fhirRelatedPersonHandlerOptions } from '../../utils/fhir-handler-options';
 import { validateFriendFamilySearch } from '../../validation/request.validators';
 
 const friendFamilyService = new FriendFamilyService();
@@ -98,12 +99,11 @@ const handler = async (req: LambdaRequest<any>) => {
   return inviteData;
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'friendFamilySearch',
-            validator: (req) => validateFriendFamilySearch(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'friendFamilySearch',
+    validator: validateFriendFamilySearch,
+    fhir: fhirRelatedPersonHandlerOptions,
   },
-        );
+  handler,
+);

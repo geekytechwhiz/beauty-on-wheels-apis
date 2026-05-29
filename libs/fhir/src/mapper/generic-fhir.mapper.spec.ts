@@ -27,6 +27,13 @@ describe('GenericMapper', () => {
         gender: 'female',
         birthDate: '1990-01-15',
         managingOrganization: { reference: 'Organization/org-123' },
+        meta: {
+          profile: ['http://hl7.org/fhir/StructureDefinition/Patient'],
+        },
+        text: {
+          status: 'generated',
+          div: '<div xmlns="http://www.w3.org/1999/xhtml"><p>Jane Doe</p></div>',
+        },
       });
     });
 
@@ -50,6 +57,10 @@ describe('GenericMapper', () => {
       expect(result).toEqual({
         resourceType: 'Patient',
         telecom: [{ system: 'phone' }],
+        text: {
+          status: 'generated',
+          div: '<div xmlns="http://www.w3.org/1999/xhtml"><p>Patient</p></div>',
+        },
       });
     });
 
@@ -126,7 +137,13 @@ describe('GenericMapper', () => {
 
       const result = mapper.map({ missing: null }, mapping);
 
-      expect(result).toEqual({ resourceType: 'Patient' });
+      expect(result).toEqual({
+        resourceType: 'Patient',
+        text: {
+          status: 'generated',
+          div: '<div xmlns="http://www.w3.org/1999/xhtml"><p>Patient</p></div>',
+        },
+      });
       expect(result.id).toBeUndefined();
     });
 
@@ -151,8 +168,8 @@ describe('GenericMapper', () => {
     });
   });
 
-  describe('mapStrict (canonical → strict FHIR + extensions)', () => {
-    it('maps only FHIR fields and approved extensions without canonical passthrough', () => {
+  describe('mapStrict (canonical → strict FHIR)', () => {
+    it('maps only FHIR fields without canonical passthrough', () => {
       const mapper = new GenericMapper();
 
       const result = mapper.mapStrict(flatCanonicalPatient, patientR4MappingFixture);
@@ -162,14 +179,48 @@ describe('GenericMapper', () => {
       expect(result.isLoggedIn).toBeUndefined();
       expect(result.roleName).toBeUndefined();
       expect(result.fullName).toBeUndefined();
-      expect(result.extension).toEqual(
-        expect.arrayContaining([
-          {
-            url: 'https://myvirtualrx.com/fhir/custom/mrn',
-            valueString: 'PI-MOOIY7IR307713',
+      expect(result.extension).toBeUndefined();
+      expect(result.identifier).toEqual([
+        {
+          type: {
+            coding: [
+              {
+                system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+                code: 'MR',
+              },
+            ],
           },
-        ]),
+          system: 'https://myvirtualrx.com/fhir/mrn',
+          value: 'PI-MOOIY7IR307713',
+        },
+      ]);
+      expect(result.contact).toEqual([
+        {
+          relationship: [
+            {
+              coding: [
+                {
+                  system: 'http://terminology.hl7.org/CodeSystem/v2-0131',
+                  code: 'N',
+                  display: 'Next-of-Kin',
+                },
+              ],
+              text: 'father',
+            },
+          ],
+          name: { text: 'Father Jasir' },
+          telecom: [{ system: 'phone', value: '9809123456' }],
+        },
+      ]);
+      expect(result.text).toEqual(
+        expect.objectContaining({
+          status: 'generated',
+          div: expect.stringContaining('Patient Jasir Hassan'),
+        }),
       );
+      expect(result.meta).toEqual({
+        profile: ['http://hl7.org/fhir/StructureDefinition/Patient'],
+      });
     });
   });
 
@@ -208,7 +259,7 @@ describe('GenericMapper', () => {
       });
     });
 
-    it('builds healthcare extensions without removing source fields', () => {
+    it('builds standard FHIR patient details without removing source fields', () => {
       const mapper = new GenericMapper();
 
       const result = mapper.mapHybrid(
@@ -218,22 +269,40 @@ describe('GenericMapper', () => {
 
       expect(result.mrn).toBe('PI-MOOIY7IR307713');
       expect(result.medicalHistory).toEqual(flatCanonicalPatient.medicalHistory);
-      expect(result.extension).toEqual(
-        expect.arrayContaining([
-          {
-            url: 'https://myvirtualrx.com/fhir/custom/mrn',
-            valueString: 'PI-MOOIY7IR307713',
+      expect(result.identifier).toEqual([
+        {
+          type: {
+            coding: [
+              {
+                system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+                code: 'MR',
+              },
+            ],
           },
-          {
-            url: 'https://myvirtualrx.com/fhir/custom/medical-history',
-            valueString: JSON.stringify(flatCanonicalPatient.medicalHistory),
-          },
-          {
-            url: 'https://myvirtualrx.com/fhir/custom/emergency-contact',
-            valueString: JSON.stringify(flatCanonicalPatient.emergencyContact),
-          },
-        ]),
-      );
+          system: 'https://myvirtualrx.com/fhir/mrn',
+          value: 'PI-MOOIY7IR307713',
+        },
+      ]);
+      expect(result.contact).toEqual([
+        {
+          relationship: [
+            {
+              coding: [
+                {
+                  system: 'http://terminology.hl7.org/CodeSystem/v2-0131',
+                  code: 'N',
+                  display: 'Next-of-Kin',
+                },
+              ],
+              text: 'father',
+            },
+          ],
+          name: { text: 'Father Jasir' },
+          telecom: [{ system: 'phone', value: '9809123456' }],
+        },
+      ]);
+      expect(result.text?.div).toContain('Food Allergy');
+      expect(result.extension).toBeUndefined();
     });
 
     it('preserves nested canonical fields for userInfo-based payloads', () => {

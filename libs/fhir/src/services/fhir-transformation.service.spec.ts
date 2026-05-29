@@ -163,12 +163,14 @@ describe('FhirTransformationService', () => {
       expect(result.resourceType).toBe('Patient');
       expect(result.fullName).toBe('Patient Jasir Hassan');
       expect(result.name).toBeDefined();
-      expect(result.extension).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            url: 'https://myvirtualrx.com/fhir/custom/mrn',
-          }),
-        ]),
+      expect(result.identifier).toEqual([
+        expect.objectContaining({
+          system: 'https://myvirtualrx.com/fhir/mrn',
+          value: 'PI-MOOIY7IR307713',
+        }),
+      ]);
+      expect(result.text).toEqual(
+        expect.objectContaining({ status: 'generated' }),
       );
     });
 

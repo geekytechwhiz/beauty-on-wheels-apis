@@ -1,7 +1,8 @@
-import {   withApiHandler } from '@api-hub/middleware';
+import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../../services/user.service';
-import { validateAssignDoctor } from '../../validation/request.validators'; 
+import { fhirAssignDoctorHandlerOptions } from '../../utils/fhir-handler-options';
+import { validateAssignDoctor } from '../../validation/request.validators';
 
 const userService = new UserService();
 
@@ -24,10 +25,8 @@ interface Body {
   };
   isReferred?: boolean;
 }
- 
-const assignDoctorHandler = async (
-  req: LambdaRequest<Record<string, unknown>, Body>,
-) => {
+
+const assignDoctorHandler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   const body = req.body!;
   const { organizationId, sender, receiver, isReferred } = body;
   const { correlationId } = req.context;
@@ -41,16 +40,11 @@ const assignDoctorHandler = async (
   return { message: 'Patient assigned to doctor successfully!' };
 };
 
-export const handler =   withApiHandler(
+export const handler = withApiHandler(
   {
     operation: 'assignDoctor',
-    validator: (req) => validateAssignDoctor(req as any),
+    validator: validateAssignDoctor,
+    fhir: fhirAssignDoctorHandlerOptions,
   },
-  async (req) => {
-   
-
-    const result = await (assignDoctorHandler as any)(req);
-
-    return result
-  },
+  assignDoctorHandler,
 );

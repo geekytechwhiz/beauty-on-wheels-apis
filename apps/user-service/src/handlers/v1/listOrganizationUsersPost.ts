@@ -2,6 +2,7 @@ import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, type QueryCommandOutput } from '@aws-sdk/lib-dynamodb';
+import { fhirUserListHandlerOptions } from '../../utils/fhir-handler-options';
 import { sendDoc } from '../../utils/dynamodb-send';
 import { validateListOrganizationUsersPost } from '../../validation/request.validators';
 
@@ -35,12 +36,11 @@ const handler = async (req: LambdaRequest<any> & { validatedListOrganizationUser
   return { items };
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'listOrganizationUsersPost',
-            validator: (req) => validateListOrganizationUsersPost(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'listOrganizationUsersPost',
+    validator: validateListOrganizationUsersPost,
+    fhir: fhirUserListHandlerOptions,
   },
-        );
+  handler,
+);

@@ -4,6 +4,7 @@ export * from './lib/standard-event-context';
 export * from './lib/middlewareEngine';
 export * from './lib/http-pipeline';
 export * from './lib/withApiHandler';
+export * from './lib/fhir-peer';
 export * from './lib/withLambdaHandler';
 export * from './lib/request-context.middleware';
 // export * from './lib/response.middleware';

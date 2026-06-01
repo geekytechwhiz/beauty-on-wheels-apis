@@ -15,6 +15,7 @@
     }
   },
   "dependencies": {
+    "@api-hub/fhir": "workspace:*",
     "@api-hub/observability": "workspace:*",
     "@api-hub/utils": "workspace:*",
     "zod": "^4.2.1"

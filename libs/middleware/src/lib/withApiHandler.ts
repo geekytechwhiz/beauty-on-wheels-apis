@@ -31,7 +31,7 @@ type RequestValidator = (
   req: LambdaRequest
 
 ) => void | Promise<void>;
-export type   withApiHandlerOptions = {
+export type withApiHandlerOptions = {
   operation: string;
   /** Validates the full Lambda/API Gateway `event` (runs in HTTP schema middleware). */
   schema?: z.ZodType<unknown>;
@@ -43,12 +43,10 @@ export type   withApiHandlerOptions = {
   /**
    * Optional request-level validation (e.g. tenant resolution) after body parsing.
    */
-  validator?:RequestValidator;
+  validator?: RequestValidator;
   /**
-   * When set, enables FHIR projection for callers that negotiate FHIR via
-   * {@link isFhirRequest}. Inbound POST/PUT/PATCH FHIR bodies are converted to
-   * canonical before validation. GET responses include canonical `data` plus a
-   * sibling `fhir` Bundle; mutating requests may return raw FHIR when negotiated.
+   * When set, adds a strict FHIR projection as a sibling `fhir` field on the response
+   * while preserving the canonical handler payload in `data`.
    */
   fhir?: FhirHandlerOptions;
 };
@@ -104,7 +102,7 @@ export function withApiHandler<
       correlationId,
       awsRequestId,
     });
-  
+
     const req = buildRequestContext(event as unknown as RequestBuildEvent);
     const ctxFields: Record<string, unknown> = {
       ...(req.context as unknown as Record<string, unknown>),
@@ -117,11 +115,16 @@ export function withApiHandler<
     (req as unknown as { context: Record<string, unknown> }).context =
       ctxFields;
 
-    const fhirRequested = isFhirRequest(req);
-    const fhirEnabled = isFhirEnabled(options.fhir);
+    const fhirPeer = await loadFhirPeer();
+    const fhirRequested = fhirPeer?.isFhirRequest?.(req) ?? false;
 
-    if (fhirEnabled && options.fhir && shouldTransformFhirRequest(req, options.fhir, fhirRequested)) {
-      await transformFhirRequest(req, options.fhir);
+    if (
+      fhirPeer &&
+      options.fhir &&
+      fhirPeer.isFhirEnabled(options.fhir) &&
+      fhirPeer.shouldTransformFhirRequest?.(req, options.fhir, fhirRequested)
+    ) {
+      await fhirPeer.transformFhirRequest?.(req, options.fhir);
     }
 
     (req as unknown as { context: Record<string, unknown> }).context =
@@ -145,8 +148,13 @@ export function withApiHandler<
     const correlationIdFromContext =
       (req.context as { correlationId?: string }).correlationId ?? 'unknown';
 
-    const fhirPeer = await loadFhirPeer();
-    if (fhirPeer?.isFhirEnabled(options.fhir) && result) {
+    if (
+      fhirPeer &&
+      fhirRequested &&
+      options.fhir &&
+      fhirPeer.isFhirEnabled(options.fhir) &&
+      result
+    ) {
       const fhirBundle = await fhirPeer.transformToFhirResponse(
         result,
         options.fhir,
@@ -154,10 +162,6 @@ export function withApiHandler<
       );
 
       if (fhirBundle) {
-        if (isMutatingHttpMethod(req)) {
-          return fhirSuccessResponse(fhirBundle) as TResult;
-        }
-
         return successResponse(result, undefined, {
           correlationId: correlationIdFromContext,
           fhir: fhirBundle,
@@ -170,5 +174,5 @@ export function withApiHandler<
     }) as TResult;
   };
 
-  return runMiddlewares(stack, adaptedHandler) 
+  return runMiddlewares(stack, adaptedHandler);
 }

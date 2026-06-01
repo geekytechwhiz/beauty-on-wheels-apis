@@ -13,10 +13,12 @@ const templateStatusZ = z.enum([
 export const createMasterTemplateBodySchema = z
   .object({
     templateCode: z.string().trim().min(1),
-    templateName: z.string().trim().min(1).max(150),
+    // Some request shapes provide this as templateMetadata.templateName.
+    templateName: z.string().trim().min(1).max(150).optional(),
     templateType: z.string().trim().min(1).optional(),
     templateDescription: z.string().max(300).optional(),
-    status: templateStatusZ.optional(),
+    // Accept raw string here; validator normalizes values like "Saved" -> "SAVED".
+    status: z.string().trim().min(1).optional(),
     category: z.union([z.string(), z.array(z.string())]).optional(),
     condition: z.union([z.string(), z.array(z.string())]).optional(),
     conditions: z.array(z.string()).optional(),
@@ -37,7 +39,7 @@ export const listMasterTemplatesQuerySchema = z.object({
   category: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),
   country: z.string().trim().min(1).optional(),
-  status: templateStatusZ.optional(),
+  status: z.string().trim().min(1).optional(),
   templateType: z.string().trim().min(1).optional(),
   language: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
@@ -50,7 +52,7 @@ export type ListMasterTemplatesQuery = z.infer<typeof listMasterTemplatesQuerySc
 export const getMasterVersionsQuerySchema = z.object({
   version: z.string().trim().min(1).optional(),
   resolve: z.enum(['ACTIVE', 'LATEST_PUBLISHED', 'LATEST_ANY']).optional(),
-  status: templateStatusZ.optional(),
+  status: z.string().trim().min(1).optional(),
   nextToken: z.string().trim().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
@@ -60,6 +62,34 @@ export type GetMasterVersionsQuery = z.infer<typeof getMasterVersionsQuerySchema
 export const templateIdPathSchema = z.object({
   templateId: z.string().trim().min(1),
 });
+
+export const uiMetaIdPathSchema = z.object({
+  metaId: z.string().trim().min(1),
+});
+
+export const uiMetaTypePathSchema = z.object({
+  templateType: z.string().trim().min(1),
+});
+
+export const orgConfigMetaKeyPathSchema = z.object({
+  configKey: z.string().trim().min(1),
+});
+
+export const upsertOrgConfigMetaBodySchema = z
+  .object({
+    active: z.boolean().optional(),
+    version: z.number().int().positive().optional(),
+  })
+  .passthrough();
+
+export const upsertUiMetaBodySchema = z
+  .object({
+    id: z.string().trim().min(1),
+    titleKey: z.string().optional(),
+    subtitleKey: z.string().optional(),
+    fields: z.record(z.string(), z.unknown()),
+  })
+  .passthrough();
 
 export const templateVersionPathSchema = z.object({
   templateId: z.string().trim().min(1),
@@ -130,7 +160,7 @@ export const orgClonePathSchema = z.object({
 export const listOrgTemplatesQuerySchema = z.object({
   organizationId: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),
-  status: templateStatusZ.optional(),
+  status: z.string().trim().min(1).optional(),
   templateType: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
   nextToken: z.string().trim().min(1).optional(),

@@ -32,11 +32,51 @@ describe('TemplateEntityBuilder', () => {
     const meta = TemplateEntityBuilder.buildMeta(ctx);
     expect(meta.specialty).toEqual(['CARDIOLOGY', 'INTERNAL_MEDICINE']);
   });
+
+  it('persists payload blocks on VERSION row (sample-data shape)', () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'ALT-VITALS-v1',
+      templateName: 'Hypertension Vitals Alert Policy',
+      templateType: 'ALERT_POLICY',
+      status: 'SAVED',
+    });
+    const version = TemplateEntityBuilder.buildVersionRow(ctx, {
+      templateCode: 'ALT-VITALS-v1',
+      templateType: 'ALERT_POLICY',
+      templateProfile: {
+        category: 'Chronic Disease',
+        condition: 'Hypertension',
+        country: ['US'],
+        language: ['EN'],
+        specialty: ['Cardiology'],
+      },
+      templateMetadata: {
+        templateName: 'Hypertension Vitals Alert Policy',
+        status: 'Saved',
+        shareScope: 'Private',
+      },
+      alertPolicyScopeDefinition: { appliesToType: 'Metric' },
+    });
+
+    expect(version.templateMetadata).toEqual(
+      expect.objectContaining({ templateName: 'Hypertension Vitals Alert Policy', shareScope: 'Private' }),
+    );
+    expect(version.templateProfile).toEqual(
+      expect.objectContaining({ condition: 'Hypertension' }),
+    );
+    expect(version.meta.templateName).toBe('Hypertension Vitals Alert Policy');
+    expect(version.meta.countries).toEqual(['US']);
+    expect(version.alertPolicyScopeDefinition).toEqual({ appliesToType: 'Metric' });
+  });
 });
 
 describe('TemplateEntityBuilder.normalizeTemplateId', () => {
   it('normalizes template id from template code', () => {
     expect(TemplateEntityBuilder.normalizeTemplateId('CP_HTN_STANDARD')).toBe('CP-HTN-STANDARD');
+  });
+
+  it('uppercases mixed-case alert template codes', () => {
+    expect(TemplateEntityBuilder.normalizeTemplateId('ALT-VITALS-v1')).toBe('ALT-VITALS-V1');
   });
 });
 
@@ -51,6 +91,35 @@ describe('version utils', () => {
 
   it('maps templateVersionId to sort key', () => {
     expect(templateVersionIdToSk('CP-HTN-STANDARD-V01')).toBe('VERSION#001');
+  });
+});
+
+describe('toMasterFullRecord', () => {
+  const { toMasterFullRecord } = jest.requireActual<typeof import('../mappers/template-http.dto')>(
+    '../mappers/template-http.dto',
+  );
+
+  it('includes nested document sections from VERSION row', () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'ALT-VITALS-v1',
+      templateName: 'Alert',
+      templateType: 'ALERT_POLICY',
+      status: 'SAVED',
+    });
+    const row = TemplateEntityBuilder.buildVersionRow(ctx, {
+      templateCode: 'ALT-VITALS-v1',
+      templateName: 'Alert',
+      templateType: 'ALERT_POLICY',
+      templateMetadata: { templateName: 'Alert' },
+      templateProfile: { condition: 'Hypertension' },
+      alertPolicyScopeDefinition: { appliesToType: 'Metric' },
+    });
+
+    const full = toMasterFullRecord(row);
+    expect(full.templateMetadata).toEqual(expect.objectContaining({ templateName: 'Alert' }));
+    expect(full.templateProfile).toEqual(expect.objectContaining({ condition: 'Hypertension' }));
+    expect(full.meta).toEqual(expect.objectContaining({ templateId: 'ALT-VITALS-V1' }));
+    expect(full.alertPolicyScopeDefinition).toEqual({ appliesToType: 'Metric' });
   });
 });
 

@@ -1,3 +1,4 @@
+import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { TEMPLATE_STATUS } from '../constants/template.constants';
 import type {
@@ -37,10 +38,11 @@ export class EnablementService {
         templateValidationError('organizationId and masterTemplateVersionId are required');
       }
 
-      const templateId = parseTemplateIdFromVersionId(body.masterTemplateVersionId);
-      if (!templateId) {
+      const parsedTemplateId = parseTemplateIdFromVersionId(body.masterTemplateVersionId);
+      if (!parsedTemplateId) {
         templateValidationError('Invalid masterTemplateVersionId format');
       }
+      const templateId = TemplateEntityBuilder.normalizeTemplateId(parsedTemplateId);
 
       const sk = templateVersionIdToSk(body.masterTemplateVersionId);
       if (!sk) {

@@ -7,7 +7,6 @@ import {
   GSI5_MASTER_STATUS,
   TEMPLATE_META_SK,
   TEMPLATE_STATUS,
-  TEMPLATE_TYPE_CARE_PLAN,
   VERSION_SK_PREFIX,
   type TemplateStatus,
 } from '../constants/template.constants';
@@ -18,7 +17,7 @@ import { assertTemplateTable, decodeListCursor, encodeListCursor } from '../util
 
 export type MasterListFilters = Pick<
   ListMasterTemplatesParams,
-  'category' | 'condition' | 'country' | 'language' | 'specialty' | 'templateCode'
+  'category' | 'condition' | 'country' | 'language' | 'specialty' | 'templateCode' | 'templateType'
 >;
 
 function appendListFilters(
@@ -39,17 +38,26 @@ function appendListFilters(
   }
   if (filters.condition?.trim()) {
     eav[':condition'] = filters.condition.trim();
-    // Only use contains on conditions list — equality on meta.condition fails when stored as a list.
-    filterParts.push('contains(#meta.#conditions, :condition)');
+    names['#condition'] = 'condition';
+    names['#conditions'] = 'conditions';
+    filterParts.push(
+      '(#meta.#condition = :condition OR contains(#meta.#conditions, :condition))',
+    );
   }
   if (filters.country?.trim()) {
     eav[':country'] = filters.country.trim();
+    names['#countries'] = 'countries';
     filterParts.push('contains(#meta.#countries, :country)');
   }
   if (filters.language?.trim()) {
-    eav[':language'] = filters.language.trim();
+    const lang = filters.language.trim();
+    eav[':language'] = lang;
+    eav[':languageLower'] = lang.toLowerCase();
+    eav[':languageUpper'] = lang.toUpperCase();
     names['#languages'] = 'languages';
-    filterParts.push('contains(#meta.#languages, :language)');
+    filterParts.push(
+      '(contains(#meta.#languages, :language) OR contains(#meta.#languages, :languageLower) OR contains(#meta.#languages, :languageUpper))',
+    );
   }
   if (filters.specialty?.trim()) {
     eav[':specialty'] = filters.specialty.trim();
@@ -63,9 +71,50 @@ function appendListFilters(
       '(#meta.#templateCode = :templateCode OR begins_with(#meta.#templateCode, :templateCode))',
     );
   }
+  if (filters.templateType?.trim()) {
+    eav[':templateType'] = filters.templateType.trim();
+    names['#templateType'] = 'templateType';
+    filterParts.push('#meta.#templateType = :templateType');
+  }
 }
 
 export class TemplateRepository extends BaseRepository {
+  private async listMasterTemplatesAcrossStatuses(
+    filters: MasterListFilters,
+    limit: number,
+  ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const statuses = [
+      ...new Set([
+        ...Object.values(TEMPLATE_STATUS),
+        // Backward-compatible aliases for older rows that were written before
+        // status normalization/gsi5 consistency.
+        'Draft',
+        'Saved',
+        'InReview',
+        'Published',
+        'Archived',
+        'Deprecated',
+      ]),
+    ] as TemplateStatus[];
+    const pages = await Promise.all(
+      statuses.map((status) =>
+        this.queryMasterByStatusGsi5Page(status, {
+          limit,
+          ...filters,
+        }),
+      ),
+    );
+
+    const combined = keepOneListItemPerMasterTemplate(pages.flatMap((p) => p.items));
+    combined.sort((a, b) => {
+      const aTs = Date.parse(a.meta?.lastModifiedAt ?? '') || 0;
+      const bTs = Date.parse(b.meta?.lastModifiedAt ?? '') || 0;
+      return bTs - aTs;
+    });
+
+    return { items: combined.slice(0, limit) };
+  }
+
   async getMasterMeta(templateId: string): Promise<TemplateDdbRecord | null> {
     const table = assertTemplateTable();
     return this.get<TemplateDdbRecord>(table, {
@@ -96,9 +145,12 @@ export class TemplateRepository extends BaseRepository {
       ':skPrefix': VERSION_SK_PREFIX,
     };
     const filterParts: string[] = [];
+    const names: Record<string, string> = {};
     if (opts.status) {
       eav[':status'] = opts.status;
-      filterParts.push('meta.#status = :status');
+      names['#meta'] = 'meta';
+      names['#status'] = 'status';
+      filterParts.push('#meta.#status = :status');
     }
 
     return this.queryPage<TemplateDdbRecord>({
@@ -108,7 +160,7 @@ export class TemplateRepository extends BaseRepository {
       ...(filterParts.length
         ? {
             FilterExpression: filterParts.join(' AND '),
-            ExpressionAttributeNames: { '#status': 'status' },
+            ExpressionAttributeNames: names,
           }
         : {}),
       ScanIndexForward: false,
@@ -262,7 +314,7 @@ export class TemplateRepository extends BaseRepository {
   }> {
     const limit = Math.min(100, Math.max(1, params.limit ?? 25));
     const exclusiveStartKey = decodeListCursor(params.nextToken);
-    const templateType = params.templateType?.trim() || TEMPLATE_TYPE_CARE_PLAN;
+    const templateType = params.templateType?.trim();
     const filters: MasterListFilters = {
       category: params.category,
       condition: params.condition,
@@ -270,19 +322,36 @@ export class TemplateRepository extends BaseRepository {
       language: params.language,
       specialty: params.specialty,
       templateCode: params.templateCode,
+      templateType,
     };
 
     const status = params.status;
-    const useGsi2 =
-      !status || status === TEMPLATE_STATUS.PUBLISHED;
+    const hasAnyFilter =
+      !!templateType ||
+      !!status ||
+      !!params.category?.trim() ||
+      !!params.condition?.trim() ||
+      !!params.country?.trim() ||
+      !!params.language?.trim() ||
+      !!params.specialty?.trim() ||
+      !!params.templateCode?.trim();
 
-    const page = useGsi2
+    // Empty query should list all templates across statuses.
+    if (!hasAnyFilter && !exclusiveStartKey) {
+      return this.listMasterTemplatesAcrossStatuses(filters, limit);
+    }
+
+    // For cross-template catalogs (ALERT/MONITORING/CARE_PLAN/...), prefer status-index queries
+    // unless caller explicitly requests a concrete templateType partition on GSI2.
+    const shouldUseGsi2 = !status && !!templateType;
+
+    const page = shouldUseGsi2
       ? await this.queryMasterCatalogGsi2Page(templateType, {
           limit,
           exclusiveStartKey,
           ...filters,
         })
-      : await this.queryMasterByStatusGsi5Page(status, {
+      : await this.queryMasterByStatusGsi5Page(status ?? TEMPLATE_STATUS.PUBLISHED, {
           limit,
           exclusiveStartKey,
           ...filters,

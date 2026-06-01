@@ -1,0 +1,364 @@
+{
+  "id": "ALERT-MASTER-001",
+  "titleKey": "alert.title",
+  "active": true,
+  "subtitleKey": "alert.subtitle",
+  "fields": {
+    "TEMPLATE_NAME": {
+      "id": "TEMPLATE_NAME",
+      "type": "text",
+      "labelKey": "planOverview.field.templateName.label",
+      "placeholderKey": "planOverview.field.templateName.placeholder",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.templateName.validation.required"
+        }
+      }
+    },
+    "CATEGORY": {
+      "id": "CATEGORY",
+      "type": "select",
+      "labelKey": "planOverview.field.category.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.category.option.CHRONIC_CARE",
+          "value": "CHRONIC_CARE"
+        },
+        {
+          "labelKey": "planOverview.field.category.option.ACUTE_CARE",
+          "value": "ACUTE_CARE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.category.validation.required"
+        }
+      }
+    },
+    "CONDITION": {
+      "id": "CONDITION",
+      "type": "select",
+      "labelKey": "planOverview.field.condition.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.condition.option.HYPERTENSION",
+          "value": "HYPERTENSION"
+        },
+        {
+          "labelKey": "planOverview.field.condition.option.DIABETES",
+          "value": "DIABETES"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.condition.validation.required"
+        }
+      }
+    },
+    "COUNTRY": {
+      "id": "COUNTRY",
+      "type": "select",
+      "labelKey": "planOverview.field.country.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.country.option.IN",
+          "value": "IN"
+        },
+        {
+          "labelKey": "planOverview.field.country.option.US",
+          "value": "US"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.country.validation.required"
+        }
+      }
+    },
+    "LANGUAGE": {
+      "id": "LANGUAGE",
+      "type": "select",
+      "labelKey": "planOverview.field.language.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.language.option.EN",
+          "value": "EN"
+        },
+        {
+          "labelKey": "planOverview.field.language.option.HI",
+          "value": "HI"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.language.validation.required"
+        }
+      }
+    },
+    "SPECIALITY": {
+      "id": "SPECIALITY",
+      "type": "select",
+      "labelKey": "planOverview.field.speciality.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.speciality.option.CARDIOLOGY",
+          "value": "CARDIOLOGY"
+        },
+        {
+          "labelKey": "planOverview.field.speciality.option.GENERAL",
+          "value": "GENERAL"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.speciality.validation.required"
+        }
+      }
+    },
+    "SELECT_SCOPE": {
+      "id": "SELECT_SCOPE",
+      "type": "select",
+      "labelKey": "planOverview.field.selectScope.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "defaultValue": "PRIVATE",
+      "options": [
+        {
+          "labelKey": "planOverview.field.selectScope.option.PRIVATE",
+          "value": "PRIVATE"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.ORGANIZATION",
+          "value": "ORGANIZATION"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.PUBLIC",
+          "value": "PUBLIC"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.selectScope.validation.required"
+        }
+      }
+    },
+    "APPLIES_TO_TYPE": {
+      "id": "APPLIES_TO_TYPE",
+      "type": "select",
+      "labelKey": "alert.field.appliesToType.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "defaultValue": "METRIC",
+      "options": [
+        {
+          "labelKey": "alert.field.appliesToType.option.METRIC",
+          "value": "METRIC"
+        },
+        {
+          "labelKey": "alert.field.appliesToType.option.TASK",
+          "value": "TASK"
+        },
+        {
+          "labelKey": "alert.field.appliesToType.option.SYMPTOM",
+          "value": "SYMPTOM"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "alert.field.appliesToType.validation.required"
+        }
+      }
+    },
+    "LINKED_ENTITY_CODE": {
+      "id": "LINKED_ENTITY_CODE",
+      "type": "select",
+      "labelKey": "alert.field.linkedEntityCode.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "alert.field.linkedEntityCode.option.BP_SYS",
+          "value": "BP_SYS"
+        },
+        {
+          "labelKey": "alert.field.linkedEntityCode.option.BP_DIA",
+          "value": "BP_DIA"
+        },
+        {
+          "labelKey": "alert.field.linkedEntityCode.option.HEART_RATE",
+          "value": "HEART_RATE"
+        }
+      ]
+    },
+    "CATEGORY_CODE": {
+      "id": "CATEGORY_CODE",
+      "type": "select",
+      "labelKey": "alert.field.categoryCode.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "alert.field.categoryCode.option.BP_SYS",
+          "value": "BP_SYS"
+        },
+        {
+          "labelKey": "alert.field.categoryCode.option.BP_DIA",
+          "value": "BP_DIA"
+        },
+        {
+          "labelKey": "alert.field.categoryCode.option.GLUCOSE",
+          "value": "GLUCOSE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "alert.field.categoryCode.validation.required"
+        }
+      }
+    },
+    "DEFAULT_PRIORITY": {
+      "id": "DEFAULT_PRIORITY",
+      "type": "radioCards",
+      "labelKey": "alert.field.defaultPriority.label",
+      "required": true,
+      "defaultValue": "P0",
+      "options": [
+        {
+          "labelKey": "alert.field.defaultPriority.option.P0",
+          "value": "P0"
+        },
+        {
+          "labelKey": "alert.field.defaultPriority.option.P1",
+          "value": "P1"
+        },
+        {
+          "labelKey": "alert.field.defaultPriority.option.P2",
+          "value": "P2"
+        },
+        {
+          "labelKey": "alert.field.defaultPriority.option.P3",
+          "value": "P3"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "alert.field.defaultPriority.validation.required"
+        }
+      }
+    },
+    "DEDUP_KEY_STRATEGY": {
+      "id": "DEDUP_KEY_STRATEGY",
+      "type": "select",
+      "labelKey": "alert.field.dedupKeyStrategy.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "alert.field.dedupKeyStrategy.option.PATIENTS_METRICS",
+          "value": "PATIENTS_METRICS"
+        },
+        {
+          "labelKey": "alert.field.dedupKeyStrategy.option.PATIENT_ONLY",
+          "value": "PATIENT_ONLY"
+        },
+        {
+          "labelKey": "alert.field.dedupKeyStrategy.option.NONE",
+          "value": "NONE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "alert.field.dedupKeyStrategy.validation.required"
+        }
+      }
+    },
+    "DEFAULT_ASSIGNMENT_ROLE": {
+      "id": "DEFAULT_ASSIGNMENT_ROLE",
+      "type": "select",
+      "labelKey": "alert.field.defaultAssignmentRole.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "alert.field.defaultAssignmentRole.option.CARE_MANAGER",
+          "value": "CARE_MANAGER"
+        },
+        {
+          "labelKey": "alert.field.defaultAssignmentRole.option.CARE_COORDINATOR",
+          "value": "CARE_COORDINATOR"
+        },
+        {
+          "labelKey": "alert.field.defaultAssignmentRole.option.NURSE",
+          "value": "NURSE"
+        },
+        {
+          "labelKey": "alert.field.defaultAssignmentRole.option.PHYSICIAN",
+          "value": "PHYSICIAN"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "alert.field.defaultAssignmentRole.validation.required"
+        }
+      }
+    },
+    "SLA_PER_PRIORITY": {
+      "id": "SLA_PER_PRIORITY",
+      "type": "slaPriorityTable",
+      "labelKey": "alert.field.slaPerPriority.tableTitle",
+      "props": {
+        "editable": true,
+        "headingKey": "alert.field.slaPerPriority.tableTitle",
+        "rows": [
+          {
+            "priority": "P0",
+            "badgeColor": "error",
+            "assignSlaMin": 15,
+            "resolveSlaMin": 60
+          },
+          {
+            "priority": "P1",
+            "badgeColor": "warning",
+            "assignSlaMin": 60,
+            "resolveSlaMin": 240
+          },
+          {
+            "priority": "P2",
+            "badgeColor": "caution",
+            "assignSlaMin": 240,
+            "resolveSlaMin": 720
+          },
+          {
+            "priority": "P3",
+            "badgeColor": "neutral",
+            "assignSlaMin": 480,
+            "resolveSlaMin": 1440
+          }
+        ]
+      }
+    }
+  }
+}

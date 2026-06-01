@@ -4,7 +4,9 @@ This document is the step-by-step plan to implement **all HTTP APIs** for `templ
 
 | Source | Purpose |
 |--------|---------|
-| `template-service-care-plan.openapi.yaml` | API contract (paths, request/response schemas, status codes) |
+| `Requirements_Template_Service.md` | Product requirements (all template types, linking, org rules) |
+| `TEMPLATE_SERVICE_IMPLEMENTATION_GUIDE.md` | Step-by-step API flow (create → list → read → publish → org) |
+| `template-service-care-plan.openapi.yaml` | API contract (paths, request/response schemas, status codes) — v3 multi-type |
 | `template_dynamodb_json.json` | Sample DynamoDB document shape (care-plan flat template) |
 | `alert-service` | Reference implementation pattern (handlers → controllers → `*-core` lib) |
 
@@ -323,6 +325,11 @@ Query param `version`:
 | `<versionId>` | GetItem `sk=VERSION#<versionId>` |
 
 Return full document or summary per OpenAPI response schema.
+
+**Alert UI payload (new behavior):**
+For `record.meta.templateType === "ALERT"` (Alert templates), the single-read variant of this endpoint (`version=latest` or `version=<id>`) will also fetch UI schema from S3:
+`s3://templates/alert-api-response.json`
+and attach it in the response as `uiApiResponse`.
 
 **Master reads (no separate GET paths in OpenAPI):**
 

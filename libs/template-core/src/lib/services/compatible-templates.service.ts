@@ -34,13 +34,31 @@ function normalizeDurationCode(value: string): string {
 function matchesCountry(meta: TemplateDdbRecord['meta'], country: string): boolean {
   const countries = meta.countries;
   if (!countries?.length) return true;
-  return countries.includes(country) || countries.includes('ALL');
+  const want = country.trim().toUpperCase();
+  return countries.some(
+    (c) => c.toUpperCase() === want || c.toUpperCase() === 'ALL',
+  );
 }
 
 function matchesCondition(meta: TemplateDdbRecord['meta'], condition: string): boolean {
-  const c = condition.trim();
-  if (meta.condition === c) return true;
-  if (Array.isArray(meta.conditions) && meta.conditions.includes(c)) return true;
+  const want = condition.trim();
+  const wantUpper = want.toUpperCase();
+  const scalar = meta.condition;
+  if (typeof scalar === 'string') {
+    if (scalar === want || scalar.toUpperCase() === wantUpper) return true;
+    if (scalar.toUpperCase().includes(wantUpper) || wantUpper.includes(scalar.toUpperCase())) {
+      return true;
+    }
+  }
+  if (Array.isArray(meta.conditions)) {
+    for (const entry of meta.conditions) {
+      if (typeof entry !== 'string') continue;
+      if (entry === want || entry.toUpperCase() === wantUpper) return true;
+      if (entry.toUpperCase().includes(wantUpper) || wantUpper.includes(entry.toUpperCase())) {
+        return true;
+      }
+    }
+  }
   return false;
 }
 
@@ -86,6 +104,7 @@ export class CompatibleTemplatesService {
           templateId,
           templateVersionId: record.meta.templateVersionId,
           templateName: record.meta.templateName,
+          templateType: record.meta.templateType,
           condition: firstString(record.meta.condition ?? record.meta.conditions),
           countries: record.meta.countries,
           duration: recordDur,

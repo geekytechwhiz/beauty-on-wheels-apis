@@ -10,6 +10,7 @@ export interface CompatibleTemplateItem {
   templateId: string;
   templateVersionId: string;
   templateName?: string;
+  templateType?: string;
   condition?: string;
   countries?: string[];
   duration?: string;

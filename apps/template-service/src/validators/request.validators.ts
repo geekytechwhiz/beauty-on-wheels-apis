@@ -1,4 +1,5 @@
 import { LambdaRequest } from '@api-hub/utils';
+import { TEMPLATE_STATUS, TemplateEntityBuilder } from '@api-hub/template-core';
 
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
 import {
@@ -29,6 +30,9 @@ import {
   type ListOrgTemplatesQuery,
   type StatusTransitionBody,
   type UpdateMasterTemplateBody,
+  uiMetaIdPathSchema,
+  uiMetaTypePathSchema,
+  orgConfigMetaKeyPathSchema,
 } from './template.schemas';
 
 function throwVal(
@@ -44,16 +48,133 @@ function throwVal(
 
 export type ValidatedCreateMaster = {
   actorUserId: string;
-  body: CreateMasterTemplateBody;
+  body: CreateMasterTemplateBody & {
+    templateCode: string;
+    templateName: string;
+  };
 };
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function parseUiMetaBody(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+      throwVal('UI meta request body must be a JSON object', 400, 'VALIDATION_ERROR');
+    } catch {
+      throwVal('Invalid JSON body for UI meta upsert', 400, 'VALIDATION_ERROR');
+    }
+  }
+  throwVal('UI meta request body is required', 400, 'VALIDATION_ERROR');
+}
+
+function firstString(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item === 'string' && item.trim()) return item.trim();
+    }
+  }
+  return undefined;
+}
+
+function asStringArray(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    const out = value
+      .filter((v): v is string => typeof v === 'string')
+      .map((v) => v.trim())
+      .filter(Boolean);
+    return out.length ? out : undefined;
+  }
+  if (typeof value === 'string' && value.trim()) return [value.trim()];
+  return undefined;
+}
+
+function normalizeStatus(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+  const canonical = raw.trim().replace(/\s+/g, '_').toUpperCase();
+  if (canonical in TEMPLATE_STATUS) return canonical;
+  return undefined;
+}
+
+function normalizeStatusOrThrow(raw: unknown, fieldName: string): string | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const normalized = normalizeStatus(raw);
+  if (!normalized) {
+    throwVal(`Invalid ${fieldName}. Allowed values: ${Object.keys(TEMPLATE_STATUS).join(', ')}`);
+  }
+  return normalized;
+}
+
+/** Match create flow: templateCode → templateId (uppercase, underscores → hyphens). */
+function normalizePathTemplateId(templateId: string): string {
+  return TemplateEntityBuilder.normalizeTemplateId(templateId);
+}
+
+function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody & {
+  templateCode: string;
+  templateName: string;
+} {
+  const body = asRecord(rawBody);
+  const templateMetadata = asRecord(body.templateMetadata);
+  const templateProfile = asRecord(body.templateProfile);
+
+  const templateCode = firstString(body.templateCode);
+  const templateName = firstString(body.templateName) ?? firstString(templateMetadata.templateName);
+  const templateType = firstString(body.templateType);
+  const templateDescription =
+    firstString(body.templateDescription) ?? firstString(templateMetadata.templateDescription);
+  const status = normalizeStatus(body.status) ?? normalizeStatus(templateMetadata.status);
+
+  const versionRaw = body.version ?? templateMetadata.version;
+  const version =
+    typeof versionRaw === 'number' && Number.isFinite(versionRaw) && versionRaw > 0
+      ? Math.trunc(versionRaw)
+      : undefined;
+
+  const createdBy =
+    firstString(body.createdBy) ??
+    firstString(templateMetadata.createdBy) ??
+    firstString(templateMetadata.lastModifiedBy);
+
+  const normalized: CreateMasterTemplateBody & { templateCode: string; templateName: string } = {
+    ...body,
+    templateCode: templateCode ?? '',
+    templateName: templateName ?? '',
+    ...(templateType ? { templateType } : {}),
+    ...(templateDescription ? { templateDescription } : {}),
+    ...(status ? { status } : {}),
+    ...(version ? { version } : {}),
+    ...(createdBy ? { createdBy } : {}),
+    category: body.category ?? templateProfile.category,
+    condition: body.condition ?? templateProfile.condition,
+    conditions: asStringArray(body.conditions),
+    countries: asStringArray(body.countries ?? templateProfile.country),
+    languages: asStringArray(body.languages ?? templateProfile.language),
+    specialty: asStringArray(body.specialty ?? templateProfile.specialty),
+    specialties: asStringArray(body.specialties),
+  };
+
+  if (!normalized.templateCode) {
+    throwVal('templateCode is required', 400, 'VALIDATION_ERROR');
+  }
+  if (!normalized.templateName) {
+    throwVal('templateName is required (or templateMetadata.templateName)', 400, 'VALIDATION_ERROR');
+  }
+
+  return normalized;
+}
 
 export type ValidatedListMaster = {
   query: ListMasterTemplatesQuery;
-  actorUserId: string;
-};
-
-export type ValidatedGetMasterMeta = {
-  templateId: string;
   actorUserId: string;
 };
 
@@ -75,6 +196,8 @@ export type ValidatedUpdateMasterVersion = ValidatedTemplateVersionPath & {
 
 export type ValidatedStatusTransition = ValidatedTemplateVersionPath & {
   body: StatusTransitionBody;
+  /** Set when caller is org-scoped (JWT org or explicit query). Used to route org vs master transition. */
+  organizationId?: string;
 };
 
 async function validateActorAndVersionPath(
@@ -92,7 +215,7 @@ async function validateActorAndVersionPath(
   }
 
   return {
-    templateId: path.data.templateId,
+    templateId: normalizePathTemplateId(path.data.templateId),
     versionId: path.data.versionId,
     actorUserId,
   };
@@ -107,7 +230,7 @@ export async function validateCreateMasterRequest(req: LambdaRequest): Promise<v
 
   (req as LambdaRequest & { validatedCreateMaster?: ValidatedCreateMaster }).validatedCreateMaster = {
     actorUserId,
-    body: req.body as CreateMasterTemplateBody,
+    body: normalizeCreateMasterBody(req.body),
   };
 }
 
@@ -118,30 +241,16 @@ export async function validateListMasterRequest(req: LambdaRequest): Promise<voi
     throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }
 
-  const query = parseListMasterTemplatesQuery(
+  const rawQuery = parseListMasterTemplatesQuery(
     req.params as Record<string, string | string[] | undefined>,
   );
+  const query: ListMasterTemplatesQuery = {
+    ...rawQuery,
+    status: normalizeStatusOrThrow(rawQuery.status, 'status'),
+  };
 
   (req as LambdaRequest & { validatedListMaster?: ValidatedListMaster }).validatedListMaster = {
     query,
-    actorUserId,
-  };
-}
-
-export async function validateGetMasterMetaRequest(req: LambdaRequest): Promise<void> {
-  const authHeader = req.context.authHeader;
-  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
-  if (!actorUserId) {
-    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
-  }
-
-  const path = templateIdPathSchema.safeParse(req.pathParameters ?? {});
-  if (!path.success) {
-    throwVal('templateId is required', 400, 'VALIDATION_ERROR');
-  }
-
-  (req as LambdaRequest & { validatedGetMasterMeta?: ValidatedGetMasterMeta }).validatedGetMasterMeta = {
-    templateId: path.data.templateId,
     actorUserId,
   };
 }
@@ -158,13 +267,17 @@ export async function validateGetMasterVersionsRequest(req: LambdaRequest): Prom
     throwVal('templateId is required', 400, 'VALIDATION_ERROR');
   }
 
-  const query = parseGetMasterVersionsQuery(
+  const rawQuery = parseGetMasterVersionsQuery(
     req.event.queryStringParameters as Record<string, string | string[] | undefined> | null,
   );
+  const query: GetMasterVersionsQuery = {
+    ...rawQuery,
+    status: normalizeStatusOrThrow(rawQuery.status, 'status'),
+  };
 
   (req as LambdaRequest & { validatedGetMasterVersions?: ValidatedGetMasterVersions }).validatedGetMasterVersions =
     {
-      templateId: path.data.templateId,
+      templateId: normalizePathTemplateId(path.data.templateId),
       query,
       actorUserId,
     };
@@ -181,9 +294,25 @@ export async function validateUpdateMasterVersionRequest(req: LambdaRequest): Pr
 
 export async function validateStatusTransitionRequest(req: LambdaRequest): Promise<void> {
   const base = await validateActorAndVersionPath(req);
+  const authHeader = req.context.authHeader;
+  const orgFromQuery = firstString(
+    (req.event.queryStringParameters as Record<string, string | undefined> | null)?.organizationId,
+  );
+  let organizationId: string | undefined;
+  if (orgFromQuery) {
+    organizationId = resolveOrganizationId(req, orgFromQuery);
+  } else {
+    const fromToken = getOrganizationIdForRequest(req.event, authHeader);
+    const tokenOrg = fromToken?.trim();
+    if (tokenOrg && tokenOrg.toUpperCase() !== 'ROOT') {
+      organizationId = tokenOrg;
+    }
+  }
+
   (req as LambdaRequest & { validatedStatusTransition?: ValidatedStatusTransition }).validatedStatusTransition = {
     ...base,
     body: req.body as StatusTransitionBody,
+    organizationId,
   };
 }
 
@@ -248,7 +377,7 @@ export async function validateCloneOrgTemplateRequest(req: LambdaRequest): Promi
   (req as LambdaRequest & { validatedCloneOrgTemplate?: ValidatedCloneOrgTemplate }).validatedCloneOrgTemplate =
     {
       organizationId,
-      templateId: path.data.templateId,
+      templateId: normalizePathTemplateId(path.data.templateId),
       versionId: path.data.versionId,
       actorUserId,
       body,
@@ -268,14 +397,18 @@ export async function validateGetOrgVersionsRequest(req: LambdaRequest): Promise
   }
 
   const organizationId = resolveOrganizationId(req, path.data.organizationId);
-  const query = parseGetMasterVersionsQuery(
+  const rawQuery = parseGetMasterVersionsQuery(
     req.event.queryStringParameters as Record<string, string | string[] | undefined> | null,
   );
+  const query: GetMasterVersionsQuery = {
+    ...rawQuery,
+    status: normalizeStatusOrThrow(rawQuery.status, 'status'),
+  };
 
   (req as LambdaRequest & { validatedGetOrgVersions?: ValidatedGetOrgVersions }).validatedGetOrgVersions =
     {
       organizationId,
-      templateId: path.data.templateId,
+      templateId: normalizePathTemplateId(path.data.templateId),
       query,
       actorUserId,
     };
@@ -288,9 +421,13 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
     throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }
 
-  const query = parseListOrgTemplatesQuery(
+  const rawQuery = parseListOrgTemplatesQuery(
     req.params as Record<string, string | string[] | undefined>,
   );
+  const query: ListOrgTemplatesQuery = {
+    ...rawQuery,
+    status: normalizeStatusOrThrow(rawQuery.status, 'status'),
+  };
   const organizationId = resolveOrganizationId(req, query.organizationId);
 
   (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg = {
@@ -332,7 +469,7 @@ export async function validateUpdateOrgTemplateVersionRequest(req: LambdaRequest
 
   (req as LambdaRequest & { validatedUpdateOrgVersion?: ValidatedUpdateOrgVersion }).validatedUpdateOrgVersion =
     {
-      templateId: path.data.templateId,
+      templateId: normalizePathTemplateId(path.data.templateId),
       versionId: path.data.versionId,
       organizationId,
       actorUserId,
@@ -475,6 +612,109 @@ export async function validatePatchOrgEnablementRequest(req: LambdaRequest): Pro
       body,
       actorUserId,
     };
+}
+
+export type ValidatedGetUiMetaById = {
+  metaId: string;
+  actorUserId: string;
+};
+
+export type ValidatedGetUiMetaByType = {
+  templateType: string;
+  actorUserId: string;
+};
+
+export type ValidatedUpsertUiMeta = {
+  templateType: string;
+  body: Record<string, unknown>;
+  actorUserId: string;
+};
+
+async function validateActor(req: LambdaRequest): Promise<string> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+  return actorUserId;
+}
+
+export async function validateListUiMetaRequest(req: LambdaRequest): Promise<void> {
+  await validateActor(req);
+}
+
+export async function validateGetUiMetaByIdRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  const path = uiMetaIdPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('metaId is required', 400, 'VALIDATION_ERROR');
+  }
+  (req as LambdaRequest & { validatedGetUiMetaById?: ValidatedGetUiMetaById }).validatedGetUiMetaById =
+    { metaId: path.data.metaId, actorUserId };
+}
+
+export async function validateGetUiMetaByTypeRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  const path = uiMetaTypePathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateType is required', 400, 'VALIDATION_ERROR');
+  }
+  (req as LambdaRequest & { validatedGetUiMetaByType?: ValidatedGetUiMetaByType })
+    .validatedGetUiMetaByType = { templateType: path.data.templateType, actorUserId };
+}
+
+export async function validateUpsertUiMetaRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  const path = uiMetaTypePathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateType is required', 400, 'VALIDATION_ERROR');
+  }
+  (req as LambdaRequest & { validatedUpsertUiMeta?: ValidatedUpsertUiMeta }).validatedUpsertUiMeta =
+    {
+      templateType: path.data.templateType,
+      body: parseUiMetaBody(req.body),
+      actorUserId,
+    };
+}
+
+export type ValidatedGetOrgConfigMetaByKey = {
+  configKey: string;
+  actorUserId: string;
+};
+
+export type ValidatedUpsertOrgConfigMeta = {
+  configKey: string;
+  body: Record<string, unknown>;
+  actorUserId: string;
+};
+
+export async function validateListOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
+  await validateActor(req);
+}
+
+export async function validateGetOrgConfigMetaByKeyRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  const path = orgConfigMetaKeyPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('configKey is required', 400, 'VALIDATION_ERROR');
+  }
+  (
+    req as LambdaRequest & { validatedGetOrgConfigMetaByKey?: ValidatedGetOrgConfigMetaByKey }
+  ).validatedGetOrgConfigMetaByKey = { configKey: path.data.configKey, actorUserId };
+}
+
+export async function validateUpsertOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  const path = orgConfigMetaKeyPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('configKey is required', 400, 'VALIDATION_ERROR');
+  }
+  (req as LambdaRequest & { validatedUpsertOrgConfigMeta?: ValidatedUpsertOrgConfigMeta })
+    .validatedUpsertOrgConfigMeta = {
+    configKey: path.data.configKey,
+    body: parseUiMetaBody(req.body),
+    actorUserId,
+  };
 }
 
 export async function validateListCompatibleTemplatesRequest(req: LambdaRequest): Promise<void> {

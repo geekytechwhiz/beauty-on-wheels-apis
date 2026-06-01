@@ -1,5 +1,5 @@
+# REGION is set explicitly; do not set AWS_REGION — Lambda reserves it and deploy will fail.
 REGION: ${self:provider.region}
-AWS_REGION: ${self:provider.region}
 STAGE: ${self:provider.stage}
 NODE_ENV: ${self:provider.stage}
 SERVICE_NAME: ${self:service}

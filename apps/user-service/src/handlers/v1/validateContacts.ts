@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { CognitoService } from '../../services/cognito.service';
+import { fhirUserHandlerOptions } from '../../utils/fhir-handler-options';
 import { validateContacts } from '../../validation/request.validators';
 
 function normalizePhone(phone: string): string {
@@ -32,15 +33,20 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
     }
   }
 
-  return { emailAddressExists, phoneNumberExists };
+  return {
+    userType: 'USER',
+    emailAddress: body.emailAddress ?? '',
+    phoneNumber: body.phoneNumber ?? '',
+    emailAddressExists,
+    phoneNumberExists,
+  };
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'validateContacts',
-            validator: (req) => validateContacts(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'validateContacts',
+    validator: validateContacts,
+    fhir: fhirUserHandlerOptions,
   },
-        );
+  handler,
+);

@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
+import { fhirUserHandlerOptions } from '../utils/fhir-handler-options';
 import { validateAssignUserToOrganization } from '../validation/request.validators';
 
 const userService = new UserService();
@@ -16,4 +17,7 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   return null;
 };
 
-export const main = withApiHandler({ operation: 'assignUserToOrganization', validator: validateAssignUserToOrganization }, handler);
+export const main = withApiHandler(
+  { operation: 'assignUserToOrganization', validator: validateAssignUserToOrganization, fhir: fhirUserHandlerOptions },
+  handler,
+);

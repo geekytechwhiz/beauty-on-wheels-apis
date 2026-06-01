@@ -4,6 +4,16 @@
   "profile": "http://hl7.org/fhir/StructureDefinition/Practitioner",
   "fields": [
     {
+      "source": "userID",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "userId",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
       "source": "reporterId",
       "target": "id",
       "fieldType": "string"
@@ -11,6 +21,74 @@
     {
       "source": "practitionerId",
       "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "patientId",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "userID",
+      "target": "identifier.0.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "patientId",
+      "target": "identifier.0.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "identifier.0.system",
+      "fieldType": "literal",
+      "defaultValue": "urn:myvitalrx:practitioner-id"
+    },
+    {
+      "source": "isActive",
+      "target": "active",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "userInfo.namePrefix",
+      "target": "name.0.prefix.0",
+      "fieldType": "string"
+    },
+    {
+      "source": "namePrefix",
+      "target": "name.0.prefix.0",
+      "fieldType": "string"
+    },
+    {
+      "source": "userInfo.name",
+      "target": "name.0.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "fullName",
+      "target": "name.0.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "fullName",
+      "target": "name.0.given.0",
+      "fieldType": "string",
+      "transform": "firstName"
+    },
+    {
+      "source": "fullName",
+      "target": "name.0.family",
+      "fieldType": "string",
+      "transform": "lastName"
+    },
+    {
+      "source": "firstName",
+      "target": "name.0.given.0",
+      "fieldType": "string"
+    },
+    {
+      "source": "lastName",
+      "target": "name.0.family",
       "fieldType": "string"
     },
     {
@@ -31,7 +109,12 @@
       "transform": "lastName"
     },
     {
-      "source": "reporterEmail",
+      "source": "userInfo.contact.phone",
+      "target": "telecom.0.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "phoneNumber",
       "target": "telecom.0.value",
       "fieldType": "string"
     },
@@ -39,7 +122,51 @@
       "source": "",
       "target": "telecom.0.system",
       "fieldType": "literal",
+      "defaultValue": "phone"
+    },
+    {
+      "source": "userInfo.contact.email",
+      "target": "telecom.1.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "emailAddress",
+      "target": "telecom.1.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "reporterEmail",
+      "target": "telecom.1.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "telecom.1.system",
+      "fieldType": "literal",
       "defaultValue": "email"
+    },
+    {
+      "source": "userInfo.gender",
+      "target": "gender",
+      "fieldType": "code",
+      "system": "http://hl7.org/fhir/administrative-gender"
+    },
+    {
+      "source": "gender",
+      "target": "gender",
+      "fieldType": "code",
+      "system": "http://hl7.org/fhir/administrative-gender"
+    },
+    {
+      "source": "userInfo.dateOfBirth",
+      "target": "birthDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "dateOfBirth",
+      "target": "birthDate",
+      "fieldType": "date",
+      "transform": "dateOfBirth"
     }
   ],
   "extensions": []

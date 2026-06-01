@@ -116,27 +116,5 @@
       "fieldType": "reference",
       "template": "Organization/{{value}}"
     }
-  ],
-  "extensions": [
-    {
-      "source": "mrn",
-      "url": "https://myvirtualrx.com/fhir/custom/mrn",
-      "valueType": "string"
-    },
-    {
-      "source": "medicalHistory",
-      "url": "https://myvirtualrx.com/fhir/custom/medical-history",
-      "valueType": "json"
-    },
-    {
-      "source": "insuranceDetails",
-      "url": "https://myvirtualrx.com/fhir/custom/insurance-details",
-      "valueType": "json"
-    },
-    {
-      "source": "emergencyContact",
-      "url": "https://myvirtualrx.com/fhir/custom/emergency-contact",
-      "valueType": "json"
-    }
   ]
 }

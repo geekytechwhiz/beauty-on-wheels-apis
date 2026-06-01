@@ -1,13 +1,17 @@
 import type { APIGatewayProxyResult } from 'aws-lambda';
 import type { LambdaRequest } from '@api-hub/utils';
 
-/** Structural mirror of {@link FhirHandlerOptions} in @myvitalrx/platform-tools/fhir — no compile-time FHIR dep. */
+/** Structural mirror of {@link FhirHandlerOptions} in @api-hub/fhir/middleware — no compile-time FHIR dep. */
 export type FhirHandlerOptions = {
   enabled?: boolean;
   resourceType?: string;
   resource?: string;
   resources?: string[];
   version?: 'R4';
+  inferResourceType?: (payload: unknown) => string | undefined;
+  resourceTypeFromContext?: boolean;
+  resourceListPath?: string;
+  inboundProfile?: 'createUser' | 'assignDoctor' | 'activateDeactivate';
 };
 
 export interface FhirPeerModule {
@@ -27,14 +31,25 @@ export interface FhirPeerModule {
   ) => APIGatewayProxyResult;
   FhirValidationError: new (...args: unknown[]) => Error;
   isFhirValidationErrorLike: (error: unknown) => boolean;
+  isFhirRequest?: (req: LambdaRequest) => boolean;
+  shouldTransformFhirRequest?: (
+    req: LambdaRequest,
+    options: FhirHandlerOptions,
+    fhirRequested: boolean,
+  ) => boolean;
+  transformFhirRequest?: (
+    req: LambdaRequest,
+    options: FhirHandlerOptions,
+  ) => Promise<void>;
 }
 
-const FHIR_MODULE = '@myvitalrx/platform-tools/fhir/middleware';
+const PLATFORM_FHIR_MODULE = '@myvitalrx/platform-tools/fhir/middleware';
 
 let cachedPeer: FhirPeerModule | null | undefined;
 
 /**
- * Lazy-loads FHIR middleware from @myvitalrx/platform-tools/fhir/middleware.
+ * Lazy-loads FHIR middleware from @myvitalrx/platform-tools/fhir/middleware,
+ * then the local api-hub implementation in this package.
  */
 export async function loadFhirPeer(): Promise<FhirPeerModule | null> {
   if (cachedPeer !== undefined) {
@@ -44,8 +59,16 @@ export async function loadFhirPeer(): Promise<FhirPeerModule | null> {
   try {
     cachedPeer = (await import(
       /* webpackIgnore: true */
-      FHIR_MODULE
+      PLATFORM_FHIR_MODULE
     )) as FhirPeerModule;
+    return cachedPeer;
+  } catch {
+    // platform-tools not installed — use local impl
+  }
+
+  try {
+    const local = await import('./fhir-peer-impl');
+    cachedPeer = local.apiHubFhirPeer;
   } catch {
     cachedPeer = null;
   }

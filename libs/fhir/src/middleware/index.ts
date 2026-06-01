@@ -11,4 +11,10 @@ export {
   fhirValidationErrorResponse,
   FhirValidationError,
 } from '../mapper/fhir-error-response';
+export { fhirSuccessResponse } from '../mapper/fhir-success-response';
 export { isFhirValidationErrorLike } from '../mapper/is-fhir-validation-error-like';
+export { isFhirRequest } from '../mapper/is-fhir-request';
+export {
+  shouldTransformFhirRequest,
+  transformFhirRequest,
+} from '../mapper/transform-fhir-request';

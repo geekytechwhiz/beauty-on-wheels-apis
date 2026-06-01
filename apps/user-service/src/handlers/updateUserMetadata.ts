@@ -7,11 +7,11 @@ import { validateUpdateUserMetadata } from '../validation/request.validators';
 const userService = new UserService();
 
 interface Params {
-  userId: string;
+  userId?: string;
 }
 
 const handler = async (req: LambdaRequest<Params> & { validatedUpdateMetadata?: { metadata: Record<string, unknown> } }) => {
-  const userId = req.pathParameters?.userId;
+  const userId = (req.pathParameters?.userId ?? req.params?.userId) as string;
   const { metadata } = req.validatedUpdateMetadata!;
   return userService.updateUserMetadata(userId as string, metadata);
 };

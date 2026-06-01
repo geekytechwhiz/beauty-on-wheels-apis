@@ -2,6 +2,7 @@ import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../services/user.service';
 import { validateAssignDoctor } from '../validation/request.validators';
+import { fhirAssignDoctorHandlerOptions } from '../utils/fhir-handler-options';
 
 const userService = new UserService();
 
@@ -20,4 +21,11 @@ const assignDoctorHandler = async (req: LambdaRequest<Record<string, unknown>, B
   return { message: 'Patient assigned to doctor successfully!' };
 };
 
-export const handler = withApiHandler({ operation: 'assignDoctor', validator: validateAssignDoctor }, assignDoctorHandler);
+export const handler = withApiHandler(
+  {
+    operation: 'assignDoctor',
+    validator: validateAssignDoctor,
+    fhir: fhirAssignDoctorHandlerOptions,
+  },
+  assignDoctorHandler,
+);

@@ -7,6 +7,7 @@ import { ExternalIdentity } from '../models';
 import { UserRepository } from '../repositories/user.repository';
 import { UserService } from '../services/user.service';
 import { validateCreateUser } from '../validation/request.validators';
+import { fhirCreateUserHandlerOptions } from '../utils/fhir-handler-options';
 
 const userService = new UserService();
 const userRepository = new UserRepository();
@@ -223,4 +224,11 @@ const handler = async (
   return { invitedUser: result.userID };
 };
 
-export const main = withApiHandler({ operation: 'createUser', validator: validateCreateUser }, handler);
+export const main = withApiHandler(
+  {
+    operation: 'createUser',
+    validator: validateCreateUser,
+    fhir: fhirCreateUserHandlerOptions,
+  },
+  handler,
+);

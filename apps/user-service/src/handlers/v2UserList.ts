@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { V2UserListService } from '../services/v2-user-list.service';
+import { fhirV2UserListHandlerOptions } from '../utils/fhir-handler-options';
 import { validateV2UserList } from '../validation/request.validators';
 import type { V2UserListInput } from '../validation/v2-user-list.validation';
 
@@ -63,4 +64,11 @@ const handler = async (
   return result;
 };
 
-export const main = withApiHandler({ operation: 'v2UserList', validator: validateV2UserList }, handler);
+export const main = withApiHandler(
+  {
+    operation: 'v2UserList',
+    validator: validateV2UserList,
+    fhir: fhirV2UserListHandlerOptions,
+  },
+  handler,
+);

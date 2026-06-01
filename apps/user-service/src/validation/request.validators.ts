@@ -160,16 +160,55 @@ export function validateGetOrganizationUserCount(req: any) {
 
 export function validateActivateDeactivateUser(req: any) {
   const body = req?.body ?? {};
-  const organizationID = req?.context?.userContext?.organizationId ?? body.organizationID;
-  const patientUserId = body.patientUserId ?? req?.context?.user?.userId;
+  const organizationID =
+    body.organizationID ??
+    body.organizationId ??
+    req?.context?.userContext?.organizationId;
+  const patientUserId =
+    body.patientUserId ??
+    body.userId ??
+    body.userID ??
+    body.targetUserId ??
+    req?.context?.user?.userId;
   const payload = { ...body, organizationID, patientUserId };
   const result = activateDeactivateUserSchema.safeParse(payload);
   if (!result.success) {
-    throwVal(result.error.issues[0]?.message ?? 'Validation failed', 400, 'VALIDATION_ERROR');
+    const issues = result.error.issues.map((e) => ({
+      field: e.path.join('.'),
+      message: e.message,
+    }));
+    const inboundFhirResource = req?.context?.inboundFhirResource;
+
+    if (inboundFhirResource) {
+      issues.forEach((issue) => {
+        if (issue.field === 'action') {
+          issue.message =
+            'action is required (ACTIVATE or DEACTIVATE). Provide canonical action, Parameters.action, or an action extension.';
+        }
+        if (issue.field === 'patientUserId') {
+          issue.message =
+            'patientUserId is required. Provide canonical patientUserId/userId, Parameters.patientUserId, Practitioner/Patient id, or patient-user-id extension.';
+        }
+      });
+    }
+
+    throwVal(
+      issues[0]?.message ?? 'Validation failed',
+      400,
+      'VALIDATION_ERROR',
+      issues,
+    );
   }
   const data = result.data;
   if (!data?.organizationID?.trim() || !data?.patientUserId?.trim()) {
-    throwVal('organizationId and target userId are required', 400, 'BAD_REQUEST');
+    const inboundFhirResource = req?.context?.inboundFhirResource;
+    throwVal(
+      inboundFhirResource
+        ? 'organizationID and patientUserId are required. Provide them in the body, Parameters, extensions, or x-organization-id / x-user-id headers.'
+        : 'organizationId and target userId are required',
+      400,
+      'BAD_REQUEST',
+    );
   }
   req.validatedActivateDeactivate = data;
 }
@@ -377,13 +416,31 @@ export function validateUpdateUser(req: any) {
 
 export function validateAssignDoctor(req: any) {
   const body = req?.body ?? {};
-  const result = assignDoctorSchema.safeParse(body);
+  const organizationId =
+    body.organizationId ?? req?.context?.userContext?.organizationId;
+  const payload = { ...body, organizationId };
+  const result = assignDoctorSchema.safeParse(payload);
   if (!result.success) {
+    const issues = result.error.issues.map((e) => ({
+      field: e.path.join('.'),
+      message: e.message,
+    }));
+    const inboundFhirResource = req?.context?.inboundFhirResource;
+
+    if (inboundFhirResource) {
+      issues.forEach((issue) => {
+        if (issue.field === 'sender' || issue.field === 'receiver') {
+          issue.message =
+            `${issue.field} is required. Provide canonical sender/receiver objects, a FHIR Bundle with Practitioner + Patient entries, or sender-id/receiver-id extensions.`;
+        }
+      });
+    }
+
     throwVal(
-      result.error.issues[0]?.message ?? 'Validation failed',
+      issues[0]?.message ?? 'Validation failed',
       422,
       'VALIDATION_ERROR',
-      result.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      issues,
     );
   }
 }
@@ -395,11 +452,27 @@ export function validateCreateUser(req: any) {
   const payload = { ...body, organizationID, userID };
   const result = createUserSchema.safeParse(payload);
   if (!result.success) {
+    const issues = result.error.issues.map((e) => ({
+      field: e.path.join('.'),
+      message: e.message,
+    }));
+    const missingUserRole = issues.some((issue) => issue.field === 'userRole');
+    const inboundFhirResource = req?.context?.inboundFhirResource;
+
+    if (missingUserRole && inboundFhirResource) {
+      issues.forEach((issue) => {
+        if (issue.field === 'userRole') {
+          issue.message =
+            'userRole is required. Add a create-user/userRole extension, x-user-role header, top-level userRole array, or userInfo.userRole on the request body.';
+        }
+      });
+    }
+
     throwVal(
-      result.error.issues[0]?.message ?? 'Validation failed',
+      issues[0]?.message ?? 'Validation failed',
       422,
       'VALIDATION_ERROR',
-      result.error.issues.map((e) => ({ field: e.path.join('.'), message: e.message })),
+      issues,
     );
   }
   req.validatedCreateUser = { ...result.data, organizationID, userID };

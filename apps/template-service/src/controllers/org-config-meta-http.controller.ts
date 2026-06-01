@@ -5,8 +5,9 @@ import {
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
+  ValidatedCreateOrgConfigMeta,
   ValidatedGetOrgConfigMetaByKey,
-  ValidatedUpsertOrgConfigMeta,
+  ValidatedUpdateOrgConfigMeta,
 } from '../validators/request.validators';
 
 let svc: OrgConfigMetaService | undefined;
@@ -40,15 +41,19 @@ export class OrgConfigMetaHttpController {
 
     try {
       const result = await this.orgConfigSvc.getOrgConfigMetaByKey(v.configKey);
-      return result.document;
+      return {
+        configKey: result.configKey,
+        fileName: result.fileName,
+        document: result.document,
+      };
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, { logEvent: 'get_org_config_meta_by_key_error' });
     }
   }
 
-  async handleUpsertOrgConfigMeta(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedUpsertOrgConfigMeta?: ValidatedUpsertOrgConfigMeta })
-      .validatedUpsertOrgConfigMeta;
+  async handleCreateOrgConfigMeta(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedCreateOrgConfigMeta?: ValidatedCreateOrgConfigMeta })
+      .validatedCreateOrgConfigMeta;
     if (!v) {
       throw new BaseError('Request was not validated before controller', 500, 'INTERNAL_ERROR', [
         { message: 'Request was not validated before controller' },
@@ -56,10 +61,35 @@ export class OrgConfigMetaHttpController {
     }
 
     try {
-      const result = await this.orgConfigSvc.upsertOrgConfigMeta(v.configKey, v.body);
-      return result.document;
+      const result = await this.orgConfigSvc.createOrgConfigMeta(v.body);
+      return {
+        configKey: result.configKey,
+        fileName: result.fileName,
+        document: result.document,
+      };
     } catch (e: unknown) {
-      normalizeTemplateServiceError(e, { logEvent: 'upsert_org_config_meta_error' });
+      normalizeTemplateServiceError(e, { logEvent: 'create_org_config_meta_error' });
+    }
+  }
+
+  async handleUpdateOrgConfigMeta(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedUpdateOrgConfigMeta?: ValidatedUpdateOrgConfigMeta })
+      .validatedUpdateOrgConfigMeta;
+    if (!v) {
+      throw new BaseError('Request was not validated before controller', 500, 'INTERNAL_ERROR', [
+        { message: 'Request was not validated before controller' },
+      ]);
+    }
+
+    try {
+      const result = await this.orgConfigSvc.updateOrgConfigMeta(v.configKey, v.body);
+      return {
+        configKey: result.configKey,
+        fileName: result.fileName,
+        document: result.document,
+      };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, { logEvent: 'update_org_config_meta_error' });
     }
   }
 }

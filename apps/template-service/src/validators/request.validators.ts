@@ -624,7 +624,12 @@ export type ValidatedGetUiMetaByType = {
   actorUserId: string;
 };
 
-export type ValidatedUpsertUiMeta = {
+export type ValidatedCreateUiMeta = {
+  body: Record<string, unknown>;
+  actorUserId: string;
+};
+
+export type ValidatedUpdateUiMeta = {
   templateType: string;
   body: Record<string, unknown>;
   actorUserId: string;
@@ -663,13 +668,22 @@ export async function validateGetUiMetaByTypeRequest(req: LambdaRequest): Promis
     .validatedGetUiMetaByType = { templateType: path.data.templateType, actorUserId };
 }
 
-export async function validateUpsertUiMetaRequest(req: LambdaRequest): Promise<void> {
+export async function validateCreateUiMetaRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  (req as LambdaRequest & { validatedCreateUiMeta?: ValidatedCreateUiMeta }).validatedCreateUiMeta =
+    {
+      body: parseUiMetaBody(req.body),
+      actorUserId,
+    };
+}
+
+export async function validateUpdateUiMetaRequest(req: LambdaRequest): Promise<void> {
   const actorUserId = await validateActor(req);
   const path = uiMetaTypePathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
     throwVal('templateType is required', 400, 'VALIDATION_ERROR');
   }
-  (req as LambdaRequest & { validatedUpsertUiMeta?: ValidatedUpsertUiMeta }).validatedUpsertUiMeta =
+  (req as LambdaRequest & { validatedUpdateUiMeta?: ValidatedUpdateUiMeta }).validatedUpdateUiMeta =
     {
       templateType: path.data.templateType,
       body: parseUiMetaBody(req.body),
@@ -682,7 +696,12 @@ export type ValidatedGetOrgConfigMetaByKey = {
   actorUserId: string;
 };
 
-export type ValidatedUpsertOrgConfigMeta = {
+export type ValidatedCreateOrgConfigMeta = {
+  body: Record<string, unknown>;
+  actorUserId: string;
+};
+
+export type ValidatedUpdateOrgConfigMeta = {
   configKey: string;
   body: Record<string, unknown>;
   actorUserId: string;
@@ -703,14 +722,23 @@ export async function validateGetOrgConfigMetaByKeyRequest(req: LambdaRequest): 
   ).validatedGetOrgConfigMetaByKey = { configKey: path.data.configKey, actorUserId };
 }
 
-export async function validateUpsertOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
+export async function validateCreateOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  (req as LambdaRequest & { validatedCreateOrgConfigMeta?: ValidatedCreateOrgConfigMeta })
+    .validatedCreateOrgConfigMeta = {
+    body: parseUiMetaBody(req.body),
+    actorUserId,
+  };
+}
+
+export async function validateUpdateOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
   const actorUserId = await validateActor(req);
   const path = orgConfigMetaKeyPathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
     throwVal('configKey is required', 400, 'VALIDATION_ERROR');
   }
-  (req as LambdaRequest & { validatedUpsertOrgConfigMeta?: ValidatedUpsertOrgConfigMeta })
-    .validatedUpsertOrgConfigMeta = {
+  (req as LambdaRequest & { validatedUpdateOrgConfigMeta?: ValidatedUpdateOrgConfigMeta })
+    .validatedUpdateOrgConfigMeta = {
     configKey: path.data.configKey,
     body: parseUiMetaBody(req.body),
     actorUserId,

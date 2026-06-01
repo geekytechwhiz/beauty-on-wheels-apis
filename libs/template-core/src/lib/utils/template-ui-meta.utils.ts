@@ -173,6 +173,48 @@ export function assertUiMetaUpsertBody(body: unknown): TemplateUiMetaDocument {
   return doc as TemplateUiMetaDocument;
 }
 
+export type CreateUiMetaBody = {
+  templateType: string;
+  fileName?: string;
+  document: TemplateUiMetaDocument;
+};
+
+export function assertCreateUiMetaBody(body: unknown): CreateUiMetaBody {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    templateUiMetaValidationError('Request body must be a JSON object');
+  }
+  const raw = body as Record<string, unknown>;
+  const templateType =
+    typeof raw.templateType === 'string' ? raw.templateType.trim() : '';
+  if (!templateType) {
+    templateUiMetaValidationError('templateType is required');
+  }
+
+  const fileName =
+    typeof raw.fileName === 'string' && raw.fileName.trim()
+      ? raw.fileName.trim()
+      : undefined;
+
+  const { templateType: _t, fileName: _f, ...rest } = raw;
+  const document = assertUiMetaUpsertBody(rest);
+
+  return { templateType, fileName, document };
+}
+
+export function isOrgConfigMetaFileName(
+  fileName: string,
+  orgConfigFileNames?: Set<string>,
+): boolean {
+  if (orgConfigFileNames?.has(fileName)) return true;
+  const lower = fileName.toLowerCase();
+  return (
+    lower === 'org-drawer.json' ||
+    lower === 'org-manageibility.json' ||
+    lower === 'enable-scope.json' ||
+    lower.startsWith('org-config-')
+  );
+}
+
 export function inferTemplateUiMetaTypeFromFileName(
   fileName: string,
 ): TemplateUiMetaType | undefined {

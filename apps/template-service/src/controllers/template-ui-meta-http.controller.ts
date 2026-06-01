@@ -5,9 +5,10 @@ import {
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
+  ValidatedCreateUiMeta,
   ValidatedGetUiMetaById,
   ValidatedGetUiMetaByType,
-  ValidatedUpsertUiMeta,
+  ValidatedUpdateUiMeta,
 } from '../validators/request.validators';
 
 let svc: TemplateUiMetaService | undefined;
@@ -40,7 +41,12 @@ export class TemplateUiMetaHttpController {
 
     try {
       const result = await this.uiMetaSvc.getUiMetaById(v.metaId);
-      return result.document;
+      return {
+        metaId: result.metaId,
+        templateType: result.templateType,
+        fileName: result.fileName,
+        document: result.document,
+      };
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, { logEvent: 'get_template_ui_meta_by_id_error' });
     }
@@ -57,15 +63,20 @@ export class TemplateUiMetaHttpController {
 
     try {
       const result = await this.uiMetaSvc.getUiMetaByTemplateType(v.templateType);
-      return result.document;
+      return {
+        metaId: result.metaId,
+        templateType: result.templateType,
+        fileName: result.fileName,
+        document: result.document,
+      };
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, { logEvent: 'get_template_ui_meta_by_type_error' });
     }
   }
 
-  async handleUpsertUiMeta(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedUpsertUiMeta?: ValidatedUpsertUiMeta })
-      .validatedUpsertUiMeta;
+  async handleCreateUiMeta(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedCreateUiMeta?: ValidatedCreateUiMeta })
+      .validatedCreateUiMeta;
     if (!v) {
       throw new BaseError('Request was not validated before controller', 500, 'INTERNAL_ERROR', [
         { message: 'Request was not validated before controller' },
@@ -73,10 +84,37 @@ export class TemplateUiMetaHttpController {
     }
 
     try {
-      const result = await this.uiMetaSvc.upsertUiMeta(v.templateType, v.body);
-      return result.document;
+      const result = await this.uiMetaSvc.createUiMeta(v.body);
+      return {
+        metaId: result.metaId,
+        templateType: result.templateType,
+        fileName: result.fileName,
+        document: result.document,
+      };
     } catch (e: unknown) {
-      normalizeTemplateServiceError(e, { logEvent: 'upsert_template_ui_meta_error' });
+      normalizeTemplateServiceError(e, { logEvent: 'create_template_ui_meta_error' });
+    }
+  }
+
+  async handleUpdateUiMeta(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedUpdateUiMeta?: ValidatedUpdateUiMeta })
+      .validatedUpdateUiMeta;
+    if (!v) {
+      throw new BaseError('Request was not validated before controller', 500, 'INTERNAL_ERROR', [
+        { message: 'Request was not validated before controller' },
+      ]);
+    }
+
+    try {
+      const result = await this.uiMetaSvc.updateUiMeta(v.templateType, v.body);
+      return {
+        metaId: result.metaId,
+        templateType: result.templateType,
+        fileName: result.fileName,
+        document: result.document,
+      };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, { logEvent: 'update_template_ui_meta_error' });
     }
   }
 }

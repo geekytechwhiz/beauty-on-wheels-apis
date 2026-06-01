@@ -91,6 +91,32 @@ export const upsertUiMetaBodySchema = z
   })
   .passthrough();
 
+export const createUiMetaBodySchema = z
+  .object({
+    templateType: z.string().trim().min(1),
+    fileName: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9][a-z0-9._-]*\.json$/i)
+      .optional(),
+    id: z.string().trim().min(1),
+    fields: z.record(z.string(), z.unknown()),
+  })
+  .passthrough();
+
+export const createOrgConfigMetaBodySchema = z
+  .object({
+    configKey: z.string().trim().min(1),
+    fileName: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9][a-z0-9._-]*\.json$/i)
+      .optional(),
+    active: z.boolean().optional(),
+    version: z.number().int().positive().optional(),
+  })
+  .passthrough();
+
 export const templateVersionPathSchema = z.object({
   templateId: z.string().trim().min(1),
   versionId: z.string().trim().min(1),

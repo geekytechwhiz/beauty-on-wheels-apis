@@ -30,6 +30,47 @@ tags:
 
 paths:
   /templates/master/meta:
+    post:
+      tags: [TemplateUiMeta]
+      summary: Create template UI meta (any template type)
+      description: |
+        Creates a new UI meta JSON file for any `templateType` (built-in or custom, e.g. `CARE_PLAN`).
+        **Required:** `templateType`, `id`, `fields`.
+        **Optional:** `fileName` (must end with `.json`; default `{type-slug}-api-response.json`).
+        Returns **409** if the target file or `id` already exists.
+        Use **PUT** `/templates/master/meta/type/{templateType}` to update an existing type.
+      operationId: createTemplateUiMeta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUiMetaCreateRequest'
+            examples:
+              carePlan:
+                summary: New CARE_PLAN type
+                value:
+                  templateType: CARE_PLAN
+                  id: CARE-PLAN-MASTER-001
+                  titleKey: carePlan.title
+                  fields:
+                    TEMPLATE_NAME:
+                      id: TEMPLATE_NAME
+                      type: text
+                      required: true
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
     get:
       tags: [TemplateUiMeta]
       summary: List all template UI meta definitions
@@ -54,18 +95,20 @@ paths:
       tags: [TemplateUiMeta]
       summary: Get template UI meta by meta id
       description: |
-        Scans `services-json` for a JSON file whose root `id` matches `{metaId}`
-        (e.g. `MONITORING-MASTER-001`, `ALERT-MASTER-001`).
+        Returns the UI meta whose root **`id`** matches `{metaId}`.
+        Use the document id (e.g. `MONITORING-MASTER-001`, `ALERT-MASTER-001`), **not** the template type enum (`ALERT_POLICY`).
+        If `{metaId}` is a known **template type** with no dash (e.g. `MONITORING`), resolves via type lookup.
+        Org config files (`enable-scope.json`, etc.) are excluded from the scan.
       operationId: getTemplateUiMetaById
       parameters:
         - $ref: '#/components/parameters/MetaId'
       responses:
         '200':
-          description: OK - full UI meta document
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaDocument'
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -89,7 +132,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaDocument'
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -98,14 +141,12 @@ paths:
           $ref: '#/components/responses/NotFound'
     put:
       tags: [TemplateUiMeta]
-      summary: Create or update template UI meta (upsert)
+      summary: Update template UI meta
       description: |
-        Writes the request body to the canonical JSON file for `{templateType}`.
-        **Required body:** `id` (string), `fields` (object).
-        **Optional:** `titleKey`, `subtitleKey`, `active`, and any additional keys (passthrough).
-
-        `id` prefix must match type (e.g. `MONITORING-…` for `MONITORING`; `ALERT` types accept `ALERT_POLICY` or `ALERT` path).
-      operationId: upsertTemplateUiMeta
+        Updates the JSON file for `{templateType}`. **Required body:** `id`, `fields`.
+        Returns **404** if the type file does not exist (use **POST** `/templates/master/meta` to create).
+        Built-in types use canonical filenames; custom types use `ui-meta-registry.json`.
+      operationId: updateTemplateUiMeta
       parameters:
         - $ref: '#/components/parameters/TemplateUiMetaType'
       requestBody:
@@ -130,17 +171,47 @@ paths:
                       required: true
       responses:
         '200':
-          description: OK - saved document returned in data
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaDocument'
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /templates/master/meta/org:
+    post:
+      tags: [OrgConfigMeta]
+      summary: Create org config meta (any config key)
+      description: |
+        Creates org UI config JSON for any `configKey` (built-in or custom).
+        **Required:** `configKey`. **Optional:** `fileName`, `active`, `version`, `sections`, etc.
+        Returns **409** if the file already exists.
+        Use **PUT** `/templates/master/meta/org/{configKey}` to update.
+      operationId: createOrgConfigMeta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrgConfigMetaCreateRequest'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
     get:
       tags: [OrgConfigMeta]
       summary: List org config meta definitions
@@ -175,7 +246,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaDocument'
+                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -184,15 +255,11 @@ paths:
           $ref: '#/components/responses/NotFound'
     put:
       tags: [OrgConfigMeta]
-      summary: Create or update org config meta (upsert)
+      summary: Update org config meta
       description: |
-        Persists full JSON body to the file for `{configKey}`.
-
-        **Managed fields:** `active` (boolean, default `true`), `version` (integer, default `1`;
-        auto-increments on update when `version` omitted).
-
-        Send the same JSON shape as GET (e.g. `sections` for enable-scope / manageability).
-      operationId: upsertOrgConfigMeta
+        Updates JSON for `{configKey}`. **404** if missing (use **POST** `/templates/master/meta/org` to create).
+        **Managed fields:** `active` (default `true`), `version` (auto-increments when omitted on update).
+      operationId: updateOrgConfigMeta
       parameters:
         - $ref: '#/components/parameters/OrgConfigMetaKey'
       requestBody:
@@ -225,11 +292,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaDocument'
+                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   securitySchemes:
@@ -246,7 +315,9 @@ components:
       required: true
       schema:
         type: string
-      description: Root id inside the UI meta JSON file
+      description: |
+        Root `id` inside template UI meta JSON (e.g. MONITORING-MASTER-001).
+        Not the template type slug (use GET .../type/{templateType} for that).
       example: MONITORING-MASTER-001
 
     TemplateUiMetaType:
@@ -254,7 +325,9 @@ components:
       name: templateType
       required: true
       schema:
-        $ref: '#/components/schemas/TemplateUiMetaType'
+        type: string
+        pattern: '^[A-Za-z][A-Za-z0-9_-]*$'
+      description: Built-in (MONITORING, GOAL, …) or custom (CARE_PLAN, …)
       example: MONITORING
 
     OrgConfigMetaKey:
@@ -262,7 +335,9 @@ components:
       name: configKey
       required: true
       schema:
-        $ref: '#/components/schemas/OrgConfigMetaKey'
+        type: string
+        pattern: '^[A-Za-z][A-Za-z0-9_-]*$'
+      description: Built-in (ORG_DRAWER, ENABLE_SCOPE) or custom keys
       example: ENABLE_SCOPE
 
   responses:
@@ -287,26 +362,25 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
 
+    Conflict:
+      description: Create rejected because file or id already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
   schemas:
     TemplateUiMetaType:
       type: string
-      enum:
-        - ALERT_POLICY
-        - ALERT
-        - MONITORING
-        - GOAL
-        - TASK
-        - THRESHOLD
-        - SYMPTOM
-      description: ALERT is an alias for ALERT_POLICY (same alert-api-response.json file).
+      description: |
+        Well-known types include ALERT_POLICY, ALERT, MONITORING, GOAL, TASK, THRESHOLD, SYMPTOM.
+        Custom types (e.g. CARE_PLAN) are supported via POST create.
 
     OrgConfigMetaKey:
       type: string
-      enum:
-        - ORG_DRAWER
-        - ORG_MANAGEABILITY
-        - ENABLE_SCOPE
-      description: Path alias ORG_MANAGEIBILITY accepted on upsert and get.
+      description: |
+        Well-known keys ORG_DRAWER, ORG_MANAGEABILITY, ENABLE_SCOPE (alias ORG_MANAGEIBILITY on GET/PUT).
+        Custom keys supported via POST create.
 
     ApiError:
       type: object
@@ -409,6 +483,32 @@ components:
     TemplateUiMetaUpsertRequest:
       $ref: '#/components/schemas/TemplateUiMetaDocument'
 
+    TemplateUiMetaCreateRequest:
+      allOf:
+        - type: object
+          required: [templateType]
+          properties:
+            templateType:
+              type: string
+              example: CARE_PLAN
+            fileName:
+              type: string
+              example: care-plan-api-response.json
+        - $ref: '#/components/schemas/TemplateUiMetaDocument'
+
+    TemplateUiMetaRecord:
+      type: object
+      required: [metaId, templateType, fileName, document]
+      properties:
+        metaId:
+          type: string
+        templateType:
+          type: string
+        fileName:
+          type: string
+        document:
+          $ref: '#/components/schemas/TemplateUiMetaDocument'
+
     TemplateUiMetaListItem:
       type: object
       required: [templateType, metaId, fileName, document]
@@ -447,6 +547,30 @@ components:
 
     OrgConfigMetaUpsertRequest:
       $ref: '#/components/schemas/OrgConfigMetaDocument'
+
+    OrgConfigMetaCreateRequest:
+      allOf:
+        - type: object
+          required: [configKey]
+          properties:
+            configKey:
+              type: string
+              example: CUSTOM_PANEL
+            fileName:
+              type: string
+              example: org-config-custom-panel.json
+        - $ref: '#/components/schemas/OrgConfigMetaDocument'
+
+    OrgConfigMetaRecord:
+      type: object
+      required: [configKey, fileName, document]
+      properties:
+        configKey:
+          type: string
+        fileName:
+          type: string
+        document:
+          $ref: '#/components/schemas/OrgConfigMetaDocument'
 
     OrgConfigSection:
       type: object
@@ -505,6 +629,14 @@ components:
             data:
               $ref: '#/components/schemas/TemplateUiMetaDocument'
 
+    ApiSuccessTemplateUiMetaRecord:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateUiMetaRecord'
+
     ApiSuccessOrgConfigMetaList:
       allOf:
         - $ref: '#/components/schemas/ApiSuccessEnvelope'
@@ -525,3 +657,11 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/OrgConfigMetaDocument'
+
+    ApiSuccessOrgConfigMetaRecord:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/OrgConfigMetaRecord'

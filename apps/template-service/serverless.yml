@@ -199,6 +199,22 @@ functions:
             "401": Unauthorized
             "500": Server error
 
+  createTemplateUiMeta:
+    handler: src/handlers/http/createTemplateUiMeta.main
+    events:
+      - http:
+          path: templates/master/meta
+          method: post
+          summary: Create template UI meta
+          description: Creates UI meta JSON for any template type (e.g. CARE_PLAN). Returns 409 if file or id exists.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
   listTemplateUiMeta:
     handler: src/handlers/http/listTemplateUiMeta.main
     events:
@@ -253,8 +269,24 @@ functions:
       - http:
           path: templates/master/meta/type/{templateType}
           method: put
-          summary: Create or update UI meta (upsert)
-          description: Writes UI meta JSON to services-json for the template type (create and update use this endpoint).
+          summary: Update template UI meta
+          description: Updates existing UI meta JSON for the template type. Use POST /templates/master/meta to create new types.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  createOrgConfigMeta:
+    handler: src/handlers/http/createOrgConfigMeta.main
+    events:
+      - http:
+          path: templates/master/meta/org
+          method: post
+          summary: Create org config meta
+          description: Creates org UI config JSON for any config key. Returns 409 if file exists.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -301,8 +333,8 @@ functions:
       - http:
           path: templates/master/meta/org/{configKey}
           method: put
-          summary: Create or update org config meta (upsert)
-          description: Writes org-drawer, org-manageibility, or enable-scope JSON to services-json (active + version managed).
+          summary: Update org config meta
+          description: Updates existing org config JSON. Use POST /templates/master/meta/org to create new config keys.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer

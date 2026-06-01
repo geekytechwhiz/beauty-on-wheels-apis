@@ -1,5 +1,3 @@
-import type { TemplateUiMetaType } from '../../constants/template-ui-meta.constants';
-
 export type TemplateUiMetaDocument = Record<string, unknown> & {
   id: string;
   titleKey?: string;
@@ -8,7 +6,7 @@ export type TemplateUiMetaDocument = Record<string, unknown> & {
 };
 
 export type TemplateUiMetaListItem = {
-  templateType: TemplateUiMetaType;
+  templateType: string;
   metaId: string;
   fileName: string;
   document: TemplateUiMetaDocument;
@@ -16,7 +14,7 @@ export type TemplateUiMetaListItem = {
 
 export type TemplateUiMetaGetResult = {
   metaId: string;
-  templateType: TemplateUiMetaType;
+  templateType: string;
   fileName: string;
   document: TemplateUiMetaDocument;
 };

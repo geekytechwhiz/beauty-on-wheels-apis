@@ -1,4 +1,4 @@
-import * as R4 from '@ahryman40k/ts-fhir-types/lib/R4';
+import { R4 } from '@ahryman40k/ts-fhir-types';
 
 export interface CapabilityOptions {
   baseUrl?: string;

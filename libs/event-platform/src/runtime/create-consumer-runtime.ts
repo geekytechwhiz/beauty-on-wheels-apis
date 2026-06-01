@@ -29,7 +29,7 @@ export type CreateConsumerRuntimeOptions<
   TResult,
   TContext = unknown,
 > = {
-  operation: OperationName;
+  operation: string;
   profile: TransportProfile;
   events: EventHandlerEntry[];
   consumer?: Partial<EventConsumerDeps>;
@@ -37,7 +37,8 @@ export type CreateConsumerRuntimeOptions<
   consumeOptions?: (
     lambdaContext: TContext,
   ) => ConsumeEventOptions | undefined;
-  coerceResult?: (event: TEvent, result: unknown) => TResult;
+  onBatchStart?: () => void;
+  coerceResult?: (event: TEvent, result: unknown) => TResult | Promise<TResult>;
 };
 
 function mergeConsumerDeps(
@@ -79,6 +80,7 @@ export function createConsumerRuntime<
   };
 
   const handler: Handler<TEvent, TResult, TContext> = async (event, lambdaContext) => {
+    options.onBatchStart?.();
     const consumeOptions = options.consumeOptions?.(lambdaContext);
     const consumed = consumeEvent(
       mergedDeps,
@@ -96,10 +98,9 @@ export function createConsumerRuntime<
   };
 
   return composeEventHandlerWithMiddleware({
-    operation: options.operation,
+    operation: options.operation as OperationName,
     handler,
     realtime: mergedDeps.realtime,
-    realtimePublisher: mergedDeps.realtimePublisher,
     realtimeAggregationPublisher: mergedDeps.realtimeAggregationPublisher,
   });
 }

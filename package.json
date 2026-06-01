@@ -48,7 +48,9 @@
     "fhir:test": "ts-node --project libs/fhir/scripts/tsconfig.json libs/fhir/src/test.ts",
     "lint": "nx run-many --target=lint --all --parallel=10",
     "lint:fix": "nx run-many --target=lint --all --parallel=25 --fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build:platform-tools": "nx build observability event-platform middleware platform-tools",
+    "publish:platform-tools": "nx build observability event-platform middleware platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
   },
   "private": true,
   "dependencies": {

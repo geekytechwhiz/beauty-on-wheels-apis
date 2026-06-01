@@ -18,3 +18,10 @@ export * from './types/fhir-bundle';
 export * from './builders/BundleBuilder'; 
 export * from './constants/excluded-fields';
 export * from './constants/fhir-server';
+export * from './constants/excluded-fields'; 
+export * from './mapper/transform-to-fhir-response';
+export * from './mapper/fhir-error-response';
+export * from './mapper/is-fhir-validation-error-like';
+export * from './mapper/is-fhir-request';
+export * from './mapper/fhir-success-response';
+

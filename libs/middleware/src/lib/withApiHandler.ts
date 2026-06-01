@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { z } from 'zod';
 
@@ -15,18 +16,7 @@ import type {
   MiddlewarePipelineEvent,
   RequestBuildEvent,
 } from './types';
-import type { FhirHandlerOptions } from './fhir/transform-to-fhir-response';
-import {
-  isFhirEnabled,
-  transformToFhirResponse,
-} from './fhir/transform-to-fhir-response';
-import { fhirSuccessResponse } from './fhir/fhir-success-response';
-import { isFhirRequest } from './fhir/is-fhir-request';
-import {
-  isMutatingHttpMethod,
-  shouldTransformFhirRequest,
-  transformFhirRequest,
-} from './fhir/transform-fhir-request';
+import { loadFhirPeer, type FhirHandlerOptions } from './fhir-peer';
 import { successResponse } from './response.middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
@@ -155,8 +145,9 @@ export function withApiHandler<
     const correlationIdFromContext =
       (req.context as { correlationId?: string }).correlationId ?? 'unknown';
 
-    if (fhirRequested && fhirEnabled && options.fhir && result) {
-      const fhirBundle = await transformToFhirResponse(
+    const fhirPeer = await loadFhirPeer();
+    if (fhirPeer?.isFhirEnabled(options.fhir) && result) {
+      const fhirBundle = await fhirPeer.transformToFhirResponse(
         result,
         options.fhir,
         req,

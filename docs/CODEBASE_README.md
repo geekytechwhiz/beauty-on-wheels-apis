@@ -128,7 +128,7 @@ src/
 - **Errors**: Custom classes in `utils/errors.ts` (e.g. `UserNotFoundError`, `UserAlreadyExistsError`); handlers map them to HTTP status and `ApiResponse.*`.
 - **Events**: Typed envelopes in `events/event.types.ts`; publishing via `events/event.publisher.ts` (SNS/EventBridge). Optional correlation ID and request context.
 
-See **[docs/engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md](engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md)** for `@api-hub/event-platform` + `@api-hub/middleware` consumer/producer patterns (pipelines, idempotency, retries).
+See **[docs/engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md](engineering/EVENT_DRIVEN_DEVELOPMENT_GUIDE.md)** for `@api-hub/event-platform` + `@api-hub/middleware` consumer/producer patterns (pipelines, idempotency, retries). Idempotency split: **[IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md](engineering/IDEMPOTENCY_EVENT_PLATFORM_VS_MIDDLEWARE.md)**.
 
 ---
 

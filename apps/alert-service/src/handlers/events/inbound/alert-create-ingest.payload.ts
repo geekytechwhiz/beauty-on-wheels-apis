@@ -29,6 +29,10 @@ export const alertCreateIngestPayloadSchema = z.object({
   triggerSummaryParams: z.record(z.string(), z.unknown()).optional(),
   assignSlaMinutes: epochMsZ.optional(),
   resolveSlaMinutes: epochMsZ.optional(),
+  /** ORG = all connected clients on org ALERTS channel; RECIPIENTS = notifyUserIds only; BOTH = both. */
+  realtimeNotifyScope: z.enum(['ORG', 'RECIPIENTS', 'BOTH']).optional(),
+  /** Used when scope is RECIPIENTS or BOTH. */
+  notifyUserIds: z.array(z.string()).optional(),
 });
 
 export type AlertCreateIngestPayload = z.infer<typeof alertCreateIngestPayloadSchema>;

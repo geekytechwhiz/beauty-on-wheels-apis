@@ -11,9 +11,15 @@ import {
   templateIdPathSchema,
   templateVersionPathSchema,
   createOrgEnablementBodySchema,
+  enablementIdPathSchema,
+  orgEnablementOrgPathSchema,
+  parseSearchOrgEnablementsQuery,
+  updateOrgEnablementBodySchema,
   type CloneTemplateBody,
   type CreateMasterTemplateBody,
   type CreateOrgEnablementBody,
+  type SearchOrgEnablementsQuery,
+  type UpdateOrgEnablementBody,
   parseListCompatibleTemplatesQuery,
   type ListCompatibleTemplatesQuery,
   type UpdateOrgTemplateBody,
@@ -348,6 +354,126 @@ export async function validateCreateOrgEnablementRequest(req: LambdaRequest): Pr
     {
       actorUserId,
       body,
+    };
+}
+
+export type ValidatedSearchEnablements = {
+  query: SearchOrgEnablementsQuery;
+  actorUserId: string;
+};
+
+export type ValidatedListEnablementsByOrg = {
+  organizationId: string;
+  actorUserId: string;
+};
+
+export type ValidatedGetEnablement = {
+  enablementId: string;
+  actorUserId: string;
+};
+
+export type ValidatedPatchEnablement = {
+  enablementId: string;
+  body: UpdateOrgEnablementBody;
+  actorUserId: string;
+};
+
+export async function validateSearchOrgEnablementsRequest(req: LambdaRequest): Promise<void> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const query = parseSearchOrgEnablementsQuery(
+    req.params as Record<string, string | string[] | undefined>,
+  );
+
+  const fromToken = getOrganizationIdForRequest(req.event, authHeader);
+  const isRoot = fromToken?.toUpperCase() === 'ROOT';
+  let organizationId = query.organizationId;
+
+  if (!organizationId?.trim() && !query.masterTemplateVersionId?.trim()) {
+    if (!fromToken || isRoot) {
+      throwVal(
+        'organizationId or masterTemplateVersionId query parameter is required',
+        400,
+        'VALIDATION_ERROR',
+      );
+    }
+    organizationId = fromToken;
+  }
+
+  if (organizationId?.trim()) {
+    resolveOrganizationId(req, organizationId);
+  }
+
+  (req as LambdaRequest & { validatedSearchEnablements?: ValidatedSearchEnablements }).validatedSearchEnablements =
+    {
+      query: { ...query, organizationId },
+      actorUserId,
+    };
+}
+
+export async function validateListOrgEnablementsByOrgRequest(req: LambdaRequest): Promise<void> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const path = orgEnablementOrgPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('orgId is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req, path.data.orgId);
+
+  (req as LambdaRequest & { validatedListEnablementsByOrg?: ValidatedListEnablementsByOrg })
+    .validatedListEnablementsByOrg = {
+    organizationId,
+    actorUserId,
+  };
+}
+
+export async function validateGetOrgEnablementRequest(req: LambdaRequest): Promise<void> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const path = enablementIdPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('enablementId is required', 400, 'VALIDATION_ERROR');
+  }
+
+  (req as LambdaRequest & { validatedGetEnablement?: ValidatedGetEnablement }).validatedGetEnablement =
+    {
+      enablementId: path.data.enablementId,
+      actorUserId,
+    };
+}
+
+export async function validatePatchOrgEnablementRequest(req: LambdaRequest): Promise<void> {
+  const authHeader = req.context.authHeader;
+  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
+  if (!actorUserId) {
+    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const path = enablementIdPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('enablementId is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const body = updateOrgEnablementBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedPatchEnablement?: ValidatedPatchEnablement }).validatedPatchEnablement =
+    {
+      enablementId: path.data.enablementId,
+      body,
+      actorUserId,
     };
 }
 

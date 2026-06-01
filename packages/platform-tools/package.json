@@ -1,0 +1,92 @@
+{
+  "name": "@myvitalrx/platform-tools",
+  "version": "0.1.5",
+  "description": "MyVitalRx platform libraries: middleware, observability, and event-platform",
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "typesVersions": {
+    "*": {
+      "middleware": ["dist/middleware.d.ts"],
+      "observability": ["dist/observability.d.ts"],
+      "fhir": ["dist/fhir-types/index.d.ts"],
+      "fhir/middleware": ["dist/fhir/middleware.d.ts"],
+      "event-platform/dx": ["dist/event-platform-dx.d.ts"],
+      "event-platform": ["dist/event-platform/index.d.ts"]
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./middleware": {
+      "types": "./dist/middleware.d.ts",
+      "import": "./dist/middleware.js",
+      "require": "./dist/middleware.js",
+      "default": "./dist/middleware.js"
+    },
+    "./observability": {
+      "types": "./dist/observability.d.ts",
+      "import": "./dist/observability.js",
+      "require": "./dist/observability.cjs",
+      "default": "./dist/observability.js"
+    },
+    "./event-platform": {
+      "types": "./dist/event-platform/index.d.ts",
+      "import": "./dist/event-platform.js",
+      "default": "./dist/event-platform.js"
+    },
+    "./event-platform/dx": {
+      "types": "./dist/event-platform-dx.d.ts",
+      "import": "./dist/event-platform-dx.js",
+      "default": "./dist/event-platform-dx.js"
+    },
+    "./fhir": {
+      "types": "./dist/fhir-types/index.d.ts",
+      "import": "./dist/fhir.js",
+      "default": "./dist/fhir.js"
+    },
+    "./fhir/middleware": {
+      "types": "./dist/fhir/middleware.d.ts",
+      "import": "./dist/fhir/middleware.js",
+      "default": "./dist/fhir/middleware.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup && sh scripts/copy-lib-dts.sh",
+    "build:bundle": "tsup",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@ahryman40k/ts-fhir-types": "^4.0.39",
+    "@aws-lambda-powertools/logger": "^2.33.0",
+    "@aws-lambda-powertools/metrics": "^2.33.0",
+    "@aws-lambda-powertools/tracer": "^2.33.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.958.0",
+    "@aws-sdk/client-dynamodb": "^3.958.0",
+    "@aws-sdk/client-eventbridge": "^3.958.0",
+    "@aws-sdk/client-sns": "^3.958.0",
+    "@aws-sdk/client-sqs": "^3.1001.0",
+    "@aws-sdk/util-dynamodb": "^3.958.0",
+    "aws-lambda": "^1.0.7",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@api-hub/event-platform": "workspace:*",
+    "@api-hub/fhir": "workspace:*",
+    "@api-hub/middleware": "workspace:*",
+    "@api-hub/observability": "workspace:*",
+    "@api-hub/terminology": "workspace:*",
+    "@api-hub/utils": "workspace:*",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

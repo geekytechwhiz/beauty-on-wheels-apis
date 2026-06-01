@@ -41,6 +41,7 @@ export type SqsSubscribeOptions = {
 };
 
 export class SqsAdapter {
+  readonly transport = 'sqs' as const;
   private readonly client: SQSClient;
 
   constructor(

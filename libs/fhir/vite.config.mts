@@ -25,6 +25,11 @@ function consumerPackageJson() {
             import: './index.js',
             default: './index.js',
           },
+          './middleware': {
+            types: './middleware/index.d.ts',
+            import: './middleware/index.js',
+            default: './middleware/index.js',
+          },
         },
       };
       fs.writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
@@ -63,7 +68,10 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
     lib: {
-      entry: 'src/index.ts',
+      entry: {
+        index: 'src/index.ts',
+        'middleware/index': 'src/middleware/index.ts',
+      },
       name: '@api-hub/fhir',
       fileName: (_format, entryName) => `${entryName}.js`,
       formats: ['es' as const],

@@ -40,10 +40,11 @@ export function createSnsTopicAdapter(options: SnsTopicAdapterOptions): EventPub
   const sns = new SNSClient(clientConfig);
   const { topicArn } = options;
   if (!topicArn) {
-    return { publish: async () => undefined };
+    return { transport: 'sns' as const, publish: async () => undefined };
   }
 
   return {
+    transport: 'sns' as const,
     async publish(event: BaseEvent): Promise<void> {
       const message = JSON.stringify(event);
       await sns.send(

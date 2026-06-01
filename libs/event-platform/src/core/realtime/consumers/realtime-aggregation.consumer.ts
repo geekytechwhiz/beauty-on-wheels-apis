@@ -11,7 +11,7 @@ import { createDefaultSqsDlqStrategy } from '../../../infra/dlq-integration';
 import type { EventConsumerDeps } from '../../../typings/consumer.types';
 import type { MiddlewarePipelineEvent } from '@api-hub/middleware';
 import type { RealtimePublisher } from '../interfaces/realtime-publisher.interface';
-import { resolveInfrastructureRealtimePublisher } from '../services/resolve-infrastructure-realtime-publisher';
+import { resolveSocketRealtimePublisher } from '../services/resolve-socket-realtime-publisher';
 import { RealtimeAggregateEventSchema } from '../schemas/realtime-aggregate.event';
 import { RealtimeAggregationService } from '../services/realtime-aggregation.service';
 import {
@@ -43,7 +43,6 @@ export function createDefaultRealtimeAggregationConsumer<
   TContext extends LambdaInvocationContext = LambdaInvocationContext,
 >() {
   return createRealtimeAggregationConsumer<TContext>({
-    realtimePublisher: resolveInfrastructureRealtimePublisher(),
     consumer: createDefaultRealtimeAggregationConsumerOptions(),
   });
 }
@@ -55,24 +54,33 @@ export function createRealtimeAggregationConsumer<
   context: TContext,
 ) => Promise<SQSBatchResponse> {
   const batchCollector = new RealtimeAggregationBatchCollector();
-  const realtimePublisher =
-    deps.realtimePublisher ?? resolveInfrastructureRealtimePublisher();
-  const aggregationService =
-    deps.aggregationService ?? new RealtimeAggregationService(realtimePublisher);
+  let aggregationService: RealtimeAggregationService | undefined;
+
+  const getAggregationService = (): RealtimeAggregationService => {
+    if (!aggregationService) {
+      const realtimePublisher =
+        deps.realtimePublisher ?? resolveSocketRealtimePublisher();
+      aggregationService =
+        deps.aggregationService ??
+        new RealtimeAggregationService(realtimePublisher);
+    }
+    return aggregationService;
+  };
 
   const defaultConsumer = createDefaultRealtimeAggregationConsumerOptions();
 
-  const sqsHandler = createConsumerRuntime<MiddlewarePipelineEvent, SQSBatchResponse, TContext>({
+  return createConsumerRuntime<MiddlewarePipelineEvent, SQSBatchResponse, TContext>({
     operation: 'realtime.processed',
     profile: sqsTransportProfile,
     consumer: {
       ...defaultConsumer,
       ...deps.consumer,
     },
+    onBatchStart: () => batchCollector.reset(),
     events: [
       {
         schema: RealtimeAggregateEventSchema,
-        handler: async (payload:any) => {
+        handler: async (payload: any) => {
           const messageId = getAggregationMessageId();
           if (!messageId) {
             throw new Error('Missing messageId in aggregation consumer context');
@@ -97,20 +105,17 @@ export function createRealtimeAggregationConsumer<
         return base.wrapProcessSingle({ raw, run: wrappedRun });
       },
     }),
-    coerceResult: (event, result) =>
-      buildSqsBatchResponseFromConsumeResult(event as unknown as SQSEvent, result),
-  });
-
-  return async (event: SQSEvent, context: TContext): Promise<SQSBatchResponse> => {
-    batchCollector.reset();
-    const response = await sqsHandler(event as unknown as MiddlewarePipelineEvent, context);
-
-    try {
-      await aggregationService.groupAndPublish(batchCollector.drain());
-    } catch {
-      return mergeBatchFailures(response, batchCollector.messageIds());
-    }
-
-    return response;
-  };
+    coerceResult: async (event, result) => {
+      const response = buildSqsBatchResponseFromConsumeResult(
+        event as unknown as SQSEvent,
+        result,
+      );
+      try {
+        await getAggregationService().groupAndPublish(batchCollector.drain());
+      } catch {
+        return mergeBatchFailures(response, batchCollector.messageIds());
+      }
+      return response;
+    },
+  }) as unknown as (event: SQSEvent, context: TContext) => Promise<SQSBatchResponse>;
 }

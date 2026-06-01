@@ -12,12 +12,6 @@ export {
 export { 
   createDynamoStreamHandler, 
 } from './lib/create-dynamo-stream-handler';
-export {
-  createSqsEventHandler,
-  onQueue,
-  type CreateSqsEventHandlerOptions,
-  type OnQueueOptions,
-} from './lib/create-sqs-event-handler';
 export { onDynamoEvent } from './lib/on-dynamo-event';
 export { 
   unwrapSnsNotificationPayload,
@@ -91,8 +85,7 @@ export {
   RealtimeAggregatePayloadSchema,
   REALTIME_AGGREGATE_EVENT_TYPE,
 } from './core/realtime/schemas/realtime-aggregate.event';
-export { RealtimeEventService } from './core/realtime/services/realtime-event.service';
- 
+export { RealtimeEventService } from './core/realtime/services/realtime-event.service'; 
 export type { SocketService, SocketPublishContext } from './core/realtime/interfaces/socket-service.interface';
 export type { ConnectionResolver } from './core/realtime/interfaces/connection-resolver.interface';
 export { buildSocketDestinationKey, type SocketDestinationInput } from './core/realtime/utils/build-socket-destination-key';
@@ -158,5 +151,9 @@ export {
   handler as realtimeAggregationSqsHandler,
   main as realtimeAggregationSqsMain,
 } from './handlers/realtime-aggregation-sqs.handler';
-export { resolveInfrastructureRealtimePublisher } from './core/realtime/services/resolve-infrastructure-realtime-publisher';
-export { ALERT_REALTIME_EVENTS } from './core/contracts/alert.events';
+export {
+  ALERT_EVENT_OPERATIONS,
+  ALERT_REALTIME_EVENTS,
+  ALERT_REALTIME_EVENT_VERSION,
+} from './core/contracts/alert.events';
+export type { RealtimeSocketEnvelope } from './core/realtime/types/realtime-socket-envelope.type';

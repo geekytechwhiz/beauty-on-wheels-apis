@@ -42,6 +42,7 @@ provider:
 package:
   individually: true
   patterns:
+    - 'services-json/**'
     - '!**/*.test.ts'
     - '!**/*.spec.ts'
 

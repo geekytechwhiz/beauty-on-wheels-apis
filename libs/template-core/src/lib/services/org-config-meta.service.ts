@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -8,7 +8,7 @@ import {
   ORG_CONFIG_META_KEYS,
   type OrgConfigMetaKey,
 } from '../constants/org-config-meta.constants';
-import { resolveServicesJsonDir } from '../utils/template-ui-meta.utils';
+import { prepareServicesJsonDir, resolveServicesJsonDir } from '../utils/template-ui-meta.utils';
 
 export type OrgConfigMetaDocument = Record<string, unknown> & {
   active: boolean;
@@ -81,12 +81,12 @@ export class OrgConfigMetaService {
   constructor(private readonly baseDir = resolveServicesJsonDir()) {}
 
   async listOrgConfigMeta(): Promise<OrgConfigMetaListItem[]> {
-    await mkdir(this.baseDir, { recursive: true });
+    const baseDir = await prepareServicesJsonDir(this.baseDir);
     const items: OrgConfigMetaListItem[] = [];
 
     for (const configKey of ORG_CONFIG_META_KEYS) {
       const fileName = ORG_CONFIG_META_FILE[configKey];
-      const fullPath = path.join(this.baseDir, fileName);
+      const fullPath = path.join(baseDir, fileName);
       if (!existsSync(fullPath)) continue;
       const raw = await readFile(fullPath, 'utf-8');
       const document = parseOrgConfigDocument(raw, fileName);
@@ -104,8 +104,9 @@ export class OrgConfigMetaService {
       );
     }
 
+    const baseDir = await prepareServicesJsonDir(this.baseDir);
     const fileName = ORG_CONFIG_META_FILE[configKey];
-    const fullPath = path.join(this.baseDir, fileName);
+    const fullPath = path.join(baseDir, fileName);
     if (!existsSync(fullPath)) {
       notFoundError(`Org config not found for key ${configKey}`);
     }
@@ -131,8 +132,9 @@ export class OrgConfigMetaService {
     }
 
     const payload = assertUpsertBody(body);
+    const baseDir = await prepareServicesJsonDir(this.baseDir);
     const fileName = ORG_CONFIG_META_FILE[configKey];
-    const targetPath = path.join(this.baseDir, fileName);
+    const targetPath = path.join(baseDir, fileName);
 
     let existingVersion: number | undefined;
     if (existsSync(targetPath)) {
@@ -146,7 +148,6 @@ export class OrgConfigMetaService {
     }
 
     const document = normalizeOrgConfigFields(payload, existingVersion);
-    await mkdir(this.baseDir, { recursive: true });
     await writeFile(targetPath, `${JSON.stringify(document, null, 2)}\n`, 'utf-8');
 
     return { configKey, fileName, document };

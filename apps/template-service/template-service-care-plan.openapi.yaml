@@ -19,7 +19,9 @@ info:
     - Without `status` but with `templateType` only → **GSI2** published catalog (`TYPE#<templateType>#SCOPE#MASTER`).
     - Default list (no status) → **GSI5** with `PUBLISHED`.
 
-    **UI authoring schema (read):** `GET .../versions?version=latest` (or point version) may include `uiApiResponse` for `ALERT_POLICY` / `MONITORING` (S3: `alert-api-response.json`, `monitoring-api-response.json`).
+    **UI authoring schema:** Managed under **`/templates/master/meta`** and **`/templates/master/meta/org`** (local `services-json` in dev).
+    Full OpenAPI for those routes: **`template-service-ui-structure.openapi.yaml`**.
+    Version reads may still attach `uiApiResponse` from the same JSON files for `ALERT_POLICY` / `MONITORING` when integrated with S3.
 
     **Legacy references:** Confluence/PDF DB design docs, `template_master_corrected.json`, `template_data_9april_2.json`.
 
@@ -62,6 +64,13 @@ info:
     | GET | `/org-enablements/{orgId}` | List by org (**GSI-1 PK = orgId**) |
     | GET/PATCH | `/org-enablements/id/{enablementId}` | Get by id; **PATCH** with `action=UPDATE` (dates) or `action=REVOKE` replaces legacy DELETE |
     | GET | `/templates/compatible` | **GSI-2** published templates for linking |
+    | GET | `/templates/master/meta` | List template UI meta JSON (full documents) — **UI structure** spec |
+    | GET | `/templates/master/meta/id/{metaId}` | Get UI meta by root `id` |
+    | GET/PUT | `/templates/master/meta/type/{templateType}` | Get/upsert per-type form JSON (`MONITORING`, `ALERT_POLICY`, …) |
+    | GET | `/templates/master/meta/org` | List org UI configs (drawer, manageability, enable-scope) |
+    | GET/PUT | `/templates/master/meta/org/{configKey}` | Get/upsert `ORG_DRAWER`, `ORG_MANAGEABILITY`, `ENABLE_SCOPE` |
+
+    **UI structure spec:** **`template-service-ui-structure.openapi.yaml`** — dedicated Swagger for meta/org-config routes (same operations inlined under `paths` below).
 
     **Swagger preview:** Import this YAML into Swagger UI or Redoc — it is the **machine-readable** contract for clients.
 
@@ -83,6 +92,12 @@ tags:
     description: Org–master enablements (create, search, list by org, get by id, PATCH update window or revoke)
   - name: ValidationLinking
     description: Compatible published templates for package linking
+  - name: UiStructure
+    description: UI authoring JSON under /templates/master/meta and /templates/master/meta/org
+  - name: TemplateUiMeta
+    description: Per-type master form definitions (MONITORING, ALERT_POLICY, GOAL, etc.)
+  - name: OrgConfigMeta
+    description: Org drawer, manageability, and enable-scope UI configs
 
 paths:
 
@@ -1371,6 +1386,157 @@ paths:
           $ref: '#/components/responses/Conflict'
 
   # ─────────────────────────────────────────────────────────────────
+  # UI STRUCTURE (template + org config meta — services-json)
+  # Also documented in template-service-ui-structure.openapi.yaml
+  # ─────────────────────────────────────────────────────────────────
+
+  /templates/master/meta:
+    get:
+      tags: [UiStructure, TemplateUiMeta]
+      summary: List all template UI meta definitions
+      description: Returns every template UI meta file under services-json with full document JSON.
+      operationId: listTemplateUiMeta
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/master/meta/id/{metaId}:
+    get:
+      tags: [UiStructure, TemplateUiMeta]
+      summary: Get template UI meta by meta id
+      description: Finds JSON whose root id matches metaId (e.g. MONITORING-MASTER-001).
+      operationId: getTemplateUiMetaById
+      parameters:
+        - $ref: '#/components/parameters/UiMetaId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /templates/master/meta/type/{templateType}:
+    get:
+      tags: [UiStructure, TemplateUiMeta]
+      summary: Get template UI meta by template type
+      description: Reads canonical file for type (e.g. MONITORING to monitoring-api-response.json).
+      operationId: getTemplateUiMetaByType
+      parameters:
+        - $ref: '#/components/parameters/TemplateUiMetaTypeParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [UiStructure, TemplateUiMeta]
+      summary: Create or update template UI meta (upsert)
+      description: Writes body to canonical JSON for templateType. Required id and fields object.
+      operationId: upsertTemplateUiMeta
+      parameters:
+        - $ref: '#/components/parameters/TemplateUiMetaTypeParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUiMetaUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/master/meta/org:
+    get:
+      tags: [UiStructure, OrgConfigMeta]
+      summary: List org config meta definitions
+      description: Returns ORG_DRAWER, ORG_MANAGEABILITY, ENABLE_SCOPE when present.
+      operationId: listOrgConfigMeta
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/master/meta/org/{configKey}:
+    get:
+      tags: [UiStructure, OrgConfigMeta]
+      summary: Get org config meta by key
+      description: configKey ORG_DRAWER, ORG_MANAGEABILITY, or ENABLE_SCOPE.
+      operationId: getOrgConfigMetaByKey
+      parameters:
+        - $ref: '#/components/parameters/OrgConfigMetaKeyParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [UiStructure, OrgConfigMeta]
+      summary: Create or update org config meta (upsert)
+      description: Persists JSON to org-drawer, org-manageibility, or enable-scope file. Supports active and version.
+      operationId: upsertOrgConfigMeta
+      parameters:
+        - $ref: '#/components/parameters/OrgConfigMetaKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrgConfigMetaUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────
   # VALIDATION & LINKING
   # ─────────────────────────────────────────────────────────────────
 
@@ -1500,6 +1666,31 @@ components:
         type: string
       description: Stable id of an org–master enablement row
       example: ENB-APOLLO-HTN-001
+
+    UiMetaId:
+      in: path
+      name: metaId
+      required: true
+      schema:
+        type: string
+      description: Root id inside UI meta JSON
+      example: MONITORING-MASTER-001
+
+    TemplateUiMetaTypeParam:
+      in: path
+      name: templateType
+      required: true
+      schema:
+        $ref: '#/components/schemas/TemplateUiMetaType'
+      example: MONITORING
+
+    OrgConfigMetaKeyParam:
+      in: path
+      name: configKey
+      required: true
+      schema:
+        $ref: '#/components/schemas/OrgConfigMetaKey'
+      example: ENABLE_SCOPE
 
   responses:
     BadRequest:
@@ -3245,3 +3436,161 @@ components:
                   type: array
                   items:
                     $ref: '#/components/schemas/CompatibleTemplateItem'
+
+    TemplateUiMetaType:
+      type: string
+      enum: [ALERT_POLICY, ALERT, MONITORING, GOAL, TASK, THRESHOLD, SYMPTOM]
+      description: ALERT is alias for ALERT_POLICY.
+
+    OrgConfigMetaKey:
+      type: string
+      enum: [ORG_DRAWER, ORG_MANAGEABILITY, ENABLE_SCOPE]
+
+    TemplateUiMetaField:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        labelKey:
+          type: string
+        placeholderKey:
+          type: string
+        required:
+          type: boolean
+        options:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        validation:
+          type: object
+          additionalProperties: true
+        props:
+          type: object
+          additionalProperties: true
+
+    TemplateUiMetaDocument:
+      type: object
+      required: [id, fields]
+      properties:
+        id:
+          type: string
+        titleKey:
+          type: string
+        subtitleKey:
+          type: string
+        active:
+          type: boolean
+        fields:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TemplateUiMetaField'
+      additionalProperties: true
+
+    TemplateUiMetaUpsertRequest:
+      $ref: '#/components/schemas/TemplateUiMetaDocument'
+
+    TemplateUiMetaListItem:
+      type: object
+      required: [templateType, metaId, fileName, document]
+      properties:
+        templateType:
+          $ref: '#/components/schemas/TemplateUiMetaType'
+        metaId:
+          type: string
+        fileName:
+          type: string
+        document:
+          $ref: '#/components/schemas/TemplateUiMetaDocument'
+
+    OrgConfigMetaDocument:
+      type: object
+      required: [active, version]
+      properties:
+        active:
+          type: boolean
+        version:
+          type: integer
+          minimum: 1
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrgConfigSection'
+      additionalProperties: true
+
+    OrgConfigMetaUpsertRequest:
+      $ref: '#/components/schemas/OrgConfigMetaDocument'
+
+    OrgConfigSection:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        enabled:
+          type: boolean
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    OrgConfigMetaListItem:
+      type: object
+      required: [configKey, fileName, document]
+      properties:
+        configKey:
+          $ref: '#/components/schemas/OrgConfigMetaKey'
+        fileName:
+          type: string
+        document:
+          $ref: '#/components/schemas/OrgConfigMetaDocument'
+
+    ApiSuccessTemplateUiMetaList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TemplateUiMetaListItem'
+
+    ApiSuccessTemplateUiMetaDocument:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateUiMetaDocument'
+
+    ApiSuccessOrgConfigMetaList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OrgConfigMetaListItem'
+
+    ApiSuccessOrgConfigMetaDocument:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/OrgConfigMetaDocument'

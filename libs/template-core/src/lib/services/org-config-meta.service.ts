@@ -8,7 +8,7 @@ import {
   ORG_CONFIG_META_KEYS,
   type OrgConfigMetaKey,
 } from '../constants/org-config-meta.constants';
-import { resolveServicesJsonDir } from './template-ui-meta.service';
+import { resolveServicesJsonDir } from '../utils/template-ui-meta.utils';
 
 export type OrgConfigMetaDocument = Record<string, unknown> & {
   active: boolean;

@@ -125,7 +125,7 @@ describe('createMasterTemplate handler', () => {
     expect(mockCreateMaster).not.toHaveBeenCalled();
   });
 
-  it('returns 422 when body invalid', async () => {
+  it('returns 400 when body invalid', async () => {
     const result = await main(
       {
         httpMethod: 'POST',
@@ -141,7 +141,7 @@ describe('createMasterTemplate handler', () => {
       testLambdaContext(),
     );
 
-    expect(result.statusCode).toBe(422);
+    expect(result.statusCode).toBe(400);
     expect(mockCreateMaster).not.toHaveBeenCalled();
   });
 

@@ -8,127 +8,24 @@ import {
   TEMPLATE_UI_META_TYPES,
   UI_META_CANONICAL_FILE,
   UI_META_LEGACY_FILES,
-  type TemplateUiMetaType,
 } from '../constants/template-ui-meta.constants';
+import type { TemplateUiMetaGetResult, TemplateUiMetaListItem } from '../models/api/template-ui-meta.types';
+import {
+  assertUiMetaUpsertBody,
+  candidateUiMetaFileNames,
+  parseUiMetaDocument,
+  resolveServicesJsonDir,
+  resolveTemplateTypeForUiMetaDocument,
+  templateUiMetaNotFoundError,
+  templateUiMetaValidationError,
+} from '../utils/template-ui-meta.utils';
 
-export type TemplateUiMetaDocument = Record<string, unknown> & {
-  id: string;
-  titleKey?: string;
-  subtitleKey?: string;
-  fields?: Record<string, unknown>;
-};
-
-export type TemplateUiMetaListItem = {
-  templateType: TemplateUiMetaType;
-  metaId: string;
-  fileName: string;
-  document: TemplateUiMetaDocument;
-};
-
-export type TemplateUiMetaGetResult = {
-  metaId: string;
-  templateType: TemplateUiMetaType;
-  fileName: string;
-  document: TemplateUiMetaDocument;
-};
-
-function templateValidationError(message: string): never {
-  const err = new Error(message) as Error & { statusCode: number; code: string };
-  err.statusCode = 400;
-  err.code = 'VALIDATION_ERROR';
-  throw err;
-}
-
-function templateNotFoundError(message = 'UI meta not found'): never {
-  const err = new Error(message) as Error & { statusCode: number; code: string };
-  err.statusCode = 404;
-  err.code = 'NOT_FOUND';
-  throw err;
-}
-
-export function resolveServicesJsonDir(): string {
-  const envDir = process.env.TEMPLATE_UI_META_DIR?.trim();
-  if (envDir) {
-    const normalizedEnvDir = envDir.replace(/\\/g, '/');
-    const cwd = process.cwd().replace(/\\/g, '/');
-    const envLooksRepoRelative = normalizedEnvDir.startsWith('apps/template-service/');
-    const cwdIsTemplateService = cwd.endsWith('/apps/template-service');
-    const safeEnvDir =
-      envLooksRepoRelative && cwdIsTemplateService
-        ? normalizedEnvDir.replace(/^apps\/template-service\//, '')
-        : envDir;
-
-    const resolvedEnvDir = path.resolve(safeEnvDir);
-    if (existsSync(resolvedEnvDir)) {
-      return resolvedEnvDir;
-    }
-  }
-
-  const cwd = process.cwd().replace(/\\/g, '/').toLowerCase();
-  const isTemplateServiceCwd = cwd.endsWith('/apps/template-service');
-
-  const candidates = [
-    path.resolve(process.cwd(), 'services-json'),
-    path.resolve(process.cwd(), 'apps/template-service/services-json'),
-    ...(isTemplateServiceCwd
-      ? []
-      : [path.resolve(process.cwd(), 'apps/template-service/libs/template-core/src/services-json')]),
-    ...(isTemplateServiceCwd ? [path.resolve(process.cwd(), 'libs/template-core/src/services-json')] : []),
-    path.resolve(process.cwd(), 'libs/template-core/src/services-json'),
-    path.resolve(process.cwd(), '../libs/template-core/src/services-json'),
-    path.resolve(__dirname, '../../../../../../apps/template-service/libs/template-core/src/services-json'),
-    path.resolve(__dirname, '../../../services-json'),
-    path.resolve(__dirname, '../../../../template-core/src/services-json'),
-  ];
-
-  for (const dir of candidates) {
-    if (existsSync(dir)) return dir;
-  }
-
-  return candidates[0];
-}
-
-function candidateFileNames(templateType: TemplateUiMetaType): string[] {
-  const names = [UI_META_CANONICAL_FILE[templateType]];
-  const legacy = UI_META_LEGACY_FILES[templateType] ?? [];
-  for (const legacyName of legacy) {
-    if (!names.includes(legacyName)) names.push(legacyName);
-  }
-  return names;
-}
-
-function parseUiMetaDocument(raw: string, fileName: string): TemplateUiMetaDocument {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    templateValidationError(`Invalid JSON in ${fileName}`);
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    templateValidationError(`UI meta root must be an object (${fileName})`);
-  }
-  const doc = parsed as Record<string, unknown>;
-  const id = typeof doc.id === 'string' ? doc.id.trim() : '';
-  if (!id) {
-    templateValidationError(`UI meta must include string "id" (${fileName})`);
-  }
-  return { ...doc, id } as TemplateUiMetaDocument;
-}
-
-function assertUpsertBody(body: unknown): TemplateUiMetaDocument {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    templateValidationError('Request body must be a JSON object');
-  }
-  const doc = body as Record<string, unknown>;
-  const id = typeof doc.id === 'string' ? doc.id.trim() : '';
-  if (!id) {
-    templateValidationError('UI meta body must include string "id"');
-  }
-  if (!doc.fields || typeof doc.fields !== 'object' || Array.isArray(doc.fields)) {
-    templateValidationError('UI meta body must include object "fields"');
-  }
-  return doc as TemplateUiMetaDocument;
-}
+export type {
+  TemplateUiMetaDocument,
+  TemplateUiMetaGetResult,
+  TemplateUiMetaListItem,
+} from '../models/api/template-ui-meta.types';
+export { resolveServicesJsonDir } from '../utils/template-ui-meta.utils';
 
 export class TemplateUiMetaService {
   constructor(private readonly baseDir = resolveServicesJsonDir()) {}
@@ -140,7 +37,7 @@ export class TemplateUiMetaService {
     const seenIds = new Set<string>();
 
     for (const templateType of TEMPLATE_UI_META_TYPES) {
-      for (const fileName of candidateFileNames(templateType)) {
+      for (const fileName of candidateUiMetaFileNames(templateType)) {
         const fullPath = path.join(this.baseDir, fileName);
         if (!existsSync(fullPath)) continue;
         try {
@@ -177,7 +74,7 @@ export class TemplateUiMetaService {
   async getUiMetaById(metaId: string): Promise<TemplateUiMetaGetResult> {
     const normalizedId = metaId.trim();
     if (!normalizedId) {
-      templateValidationError('metaId is required');
+      templateUiMetaValidationError('metaId is required');
     }
 
     await mkdir(this.baseDir, { recursive: true });
@@ -191,25 +88,24 @@ export class TemplateUiMetaService {
       const doc = parseUiMetaDocument(raw, fileName);
       if (doc.id !== normalizedId) continue;
 
-      const templateType =
-        resolveTemplateTypeForMetaId(doc.id) ?? this.inferTypeFromFileName(fileName);
+      const templateType = resolveTemplateTypeForUiMetaDocument(doc, fileName);
       if (!templateType) continue;
 
       return { metaId: doc.id, templateType, fileName, document: doc };
     }
 
-    templateNotFoundError(`UI meta not found for id ${normalizedId}`);
+    templateUiMetaNotFoundError(`UI meta not found for id ${normalizedId}`);
   }
 
   async getUiMetaByTemplateType(templateTypeRaw: string): Promise<TemplateUiMetaGetResult> {
     const templateType = normalizeTemplateUiMetaType(templateTypeRaw);
     if (!templateType) {
-      templateValidationError(
+      templateUiMetaValidationError(
         `Invalid templateType. Allowed: ${TEMPLATE_UI_META_TYPES.join(', ')}`,
       );
     }
 
-    for (const fileName of candidateFileNames(templateType)) {
+    for (const fileName of candidateUiMetaFileNames(templateType)) {
       const fullPath = path.join(this.baseDir, fileName);
       if (!existsSync(fullPath)) continue;
       const raw = await readFile(fullPath, 'utf-8');
@@ -217,7 +113,7 @@ export class TemplateUiMetaService {
       return { metaId: doc.id, templateType, fileName, document: doc };
     }
 
-    templateNotFoundError(`UI meta file not found for template type ${templateType}`);
+    templateUiMetaNotFoundError(`UI meta file not found for template type ${templateType}`);
   }
 
   /**
@@ -230,19 +126,19 @@ export class TemplateUiMetaService {
   ): Promise<TemplateUiMetaGetResult> {
     const templateType = normalizeTemplateUiMetaType(templateTypeRaw);
     if (!templateType) {
-      templateValidationError(
+      templateUiMetaValidationError(
         `Invalid templateType. Allowed: ${TEMPLATE_UI_META_TYPES.join(', ')}`,
       );
     }
 
-    const document = assertUpsertBody(body);
+    const document = assertUiMetaUpsertBody(body);
     const expectedType = resolveTemplateTypeForMetaId(document.id);
     const typeMatches =
       !expectedType ||
       expectedType === templateType ||
       (expectedType === 'ALERT_POLICY' && templateType === 'ALERT');
     if (!typeMatches) {
-      templateValidationError(
+      templateUiMetaValidationError(
         `meta id "${document.id}" does not match template type ${templateType}`,
       );
     }
@@ -265,16 +161,5 @@ export class TemplateUiMetaService {
       fileName: canonicalName,
       document,
     };
-  }
-
-  private inferTypeFromFileName(fileName: string): TemplateUiMetaType | undefined {
-    const lower = fileName.toLowerCase();
-    if (lower.includes('alert')) return 'ALERT_POLICY';
-    if (lower.includes('monitoring')) return 'MONITORING';
-    if (lower.includes('goal')) return 'GOAL';
-    if (lower.includes('task')) return 'TASK';
-    if (lower.includes('threshold')) return 'THRESHOLD';
-    if (lower.includes('symptom')) return 'SYMPTOM';
-    return undefined;
   }
 }

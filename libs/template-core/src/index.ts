@@ -21,5 +21,6 @@ export * from './lib/mappers/template-http.dto';
 export * from './lib/errors/template-errors';
 export * from './lib/constants/template-ui-meta.constants';
 export * from './lib/constants/org-config-meta.constants';
+export * from './lib/models/api/template-ui-meta.types';
 export * from './lib/services/template-ui-meta.service';
 export * from './lib/services/org-config-meta.service';

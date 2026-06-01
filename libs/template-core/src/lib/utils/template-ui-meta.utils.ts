@@ -1,5 +1,12 @@
 import { existsSync } from 'node:fs';
+import { cp, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
+
+const LAMBDA_WRITABLE_SERVICES_JSON = path.posix.join(
+  '/tmp',
+  'template-service',
+  'services-json',
+);
 
 import {
   resolveTemplateTypeForMetaId,
@@ -23,23 +30,50 @@ export function templateUiMetaNotFoundError(message = 'UI meta not found'): neve
   throw err;
 }
 
-/** Resolves `services-json` directory for local UI meta file storage. */
+export function isLambdaRuntime(): boolean {
+  return Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME ?? process.env.LAMBDA_TASK_ROOT);
+}
+
+/** Packaged seed JSON under the Lambda task root (read-only). */
+export function resolveBundledServicesJsonDir(): string | undefined {
+  const root = process.env.LAMBDA_TASK_ROOT ?? '/var/task';
+  const bundled = path.posix.join(root.replace(/\\/g, '/'), 'services-json');
+  return existsSync(bundled) ? bundled : undefined;
+}
+
+function resolveEnvServicesJsonDir(envDir: string): string {
+  const normalizedEnvDir = envDir.replace(/\\/g, '/');
+
+  if (isLambdaRuntime()) {
+    if (path.posix.isAbsolute(normalizedEnvDir)) {
+      return normalizedEnvDir;
+    }
+    return path.posix.join('/tmp', 'template-service', normalizedEnvDir);
+  }
+
+  const cwd = process.cwd().replace(/\\/g, '/');
+  const envLooksRepoRelative = normalizedEnvDir.startsWith('apps/template-service/');
+  const cwdIsTemplateService = cwd.endsWith('/apps/template-service');
+  const safeEnvDir =
+    envLooksRepoRelative && cwdIsTemplateService
+      ? normalizedEnvDir.replace(/^apps\/template-service\//, '')
+      : envDir;
+
+  return path.resolve(safeEnvDir);
+}
+
+/** Resolves `services-json` directory for UI meta file storage (local or Lambda /tmp). */
 export function resolveServicesJsonDir(): string {
   const envDir = process.env.TEMPLATE_UI_META_DIR?.trim();
   if (envDir) {
-    const normalizedEnvDir = envDir.replace(/\\/g, '/');
-    const cwd = process.cwd().replace(/\\/g, '/');
-    const envLooksRepoRelative = normalizedEnvDir.startsWith('apps/template-service/');
-    const cwdIsTemplateService = cwd.endsWith('/apps/template-service');
-    const safeEnvDir =
-      envLooksRepoRelative && cwdIsTemplateService
-        ? normalizedEnvDir.replace(/^apps\/template-service\//, '')
-        : envDir;
-
-    const resolvedEnvDir = path.resolve(safeEnvDir);
-    if (existsSync(resolvedEnvDir)) {
+    const resolvedEnvDir = resolveEnvServicesJsonDir(envDir);
+    if (existsSync(resolvedEnvDir) || isLambdaRuntime()) {
       return resolvedEnvDir;
     }
+  }
+
+  if (isLambdaRuntime()) {
+    return LAMBDA_WRITABLE_SERVICES_JSON;
   }
 
   const cwd = process.cwd().replace(/\\/g, '/').toLowerCase();
@@ -64,6 +98,37 @@ export function resolveServicesJsonDir(): string {
   }
 
   return candidates[0];
+}
+
+/**
+ * Ensures the writable services-json directory exists.
+ * On Lambda, uses /tmp (not /var/task) and optionally seeds from packaged services-json.
+ */
+export async function prepareServicesJsonDir(baseDir?: string): Promise<string> {
+  const dir = baseDir ?? resolveServicesJsonDir();
+  await mkdir(dir, { recursive: true });
+
+  const bundled = resolveBundledServicesJsonDir();
+  if (!bundled || !isLambdaRuntime()) {
+    return dir;
+  }
+
+  let names: string[];
+  try {
+    names = await readdir(bundled);
+  } catch {
+    return dir;
+  }
+
+  for (const name of names) {
+    const from = path.join(bundled, name);
+    const to = path.join(dir, name);
+    if (!existsSync(to)) {
+      await cp(from, to, { recursive: true });
+    }
+  }
+
+  return dir;
 }
 
 export function candidateUiMetaFileNames(templateType: TemplateUiMetaType): string[] {

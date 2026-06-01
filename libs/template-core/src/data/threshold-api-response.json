@@ -1,0 +1,467 @@
+{
+  "id": "THRESHOLD-MASTER-001",
+  "titleKey": "threshold.title",
+  "subtitleKey": "threshold.subtitle",
+  "fields": {
+    "TEMPLATE_NAME": {
+      "id": "TEMPLATE_NAME",
+      "type": "text",
+      "labelKey": "planOverview.field.templateName.label",
+      "placeholderKey": "planOverview.field.templateName.placeholder",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.templateName.validation.required"
+        }
+      }
+    },
+    "CATEGORY": {
+      "id": "CATEGORY",
+      "type": "select",
+      "labelKey": "planOverview.field.category.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.category.option.CHRONIC_CARE",
+          "value": "CHRONIC_CARE"
+        },
+        {
+          "labelKey": "planOverview.field.category.option.ACUTE_CARE",
+          "value": "ACUTE_CARE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.category.validation.required"
+        }
+      }
+    },
+    "CONDITION": {
+      "id": "CONDITION",
+      "type": "select",
+      "labelKey": "planOverview.field.condition.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.condition.option.HYPERTENSION",
+          "value": "HYPERTENSION"
+        },
+        {
+          "labelKey": "planOverview.field.condition.option.DIABETES",
+          "value": "DIABETES"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.condition.validation.required"
+        }
+      }
+    },
+    "COUNTRY": {
+      "id": "COUNTRY",
+      "type": "select",
+      "labelKey": "planOverview.field.country.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.country.option.IN",
+          "value": "IN"
+        },
+        {
+          "labelKey": "planOverview.field.country.option.US",
+          "value": "US"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.country.validation.required"
+        }
+      }
+    },
+    "LANGUAGE": {
+      "id": "LANGUAGE",
+      "type": "select",
+      "labelKey": "planOverview.field.language.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.language.option.EN",
+          "value": "EN"
+        },
+        {
+          "labelKey": "planOverview.field.language.option.HI",
+          "value": "HI"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.language.validation.required"
+        }
+      }
+    },
+    "SPECIALITY": {
+      "id": "SPECIALITY",
+      "type": "select",
+      "labelKey": "planOverview.field.speciality.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.speciality.option.CARDIOLOGY",
+          "value": "CARDIOLOGY"
+        },
+        {
+          "labelKey": "planOverview.field.speciality.option.GENERAL",
+          "value": "GENERAL"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.speciality.validation.required"
+        }
+      }
+    },
+    "SELECT_SCOPE": {
+      "id": "SELECT_SCOPE",
+      "type": "select",
+      "labelKey": "planOverview.field.selectScope.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "defaultValue": "PRIVATE",
+      "options": [
+        {
+          "labelKey": "planOverview.field.selectScope.option.PRIVATE",
+          "value": "PRIVATE"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.ORGANIZATION",
+          "value": "ORGANIZATION"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.PUBLIC",
+          "value": "PUBLIC"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.selectScope.validation.required"
+        }
+      }
+    },
+    "APPLIES_TO_TYPE": {
+      "id": "APPLIES_TO_TYPE",
+      "type": "select",
+      "labelKey": "threshold.field.appliesToType.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "defaultValue": "METRIC",
+      "options": [
+        {
+          "labelKey": "threshold.field.appliesToType.option.METRIC",
+          "value": "METRIC"
+        },
+        {
+          "labelKey": "threshold.field.appliesToType.option.TASK",
+          "value": "TASK"
+        },
+        {
+          "labelKey": "threshold.field.appliesToType.option.SYMPTOM",
+          "value": "SYMPTOM"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "threshold.field.appliesToType.validation.required"
+        }
+      }
+    },
+    "LINKED_ENTITY_CODE": {
+      "id": "LINKED_ENTITY_CODE",
+      "type": "text",
+      "labelKey": "threshold.field.linkedEntityCode.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "threshold.field.linkedEntityCode.validation.required"
+        }
+      }
+    },
+    "THRESHOLD_BANDS": {
+      "id": "THRESHOLD_BANDS",
+      "type": "bandList",
+      "labelKey": "threshold.field.thresholdBands.label",
+      "required": true,
+      "defaultValue": [
+        {
+          "alertRequired": true,
+          "evaluationType": "ROLLING_AVERAGE",
+          "comparisonOperator": "LESS_THAN",
+          "thresholdValue": "120",
+          "severityLevel": "CRITICAL",
+          "consecutiveBreaches": 1,
+          "evaluationWindowDays": "15_DAYS",
+          "linkedAlertTemplate": null
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "threshold.field.thresholdBands.validation.required"
+        }
+      },
+      "props": {
+        "addButtonLabel": "+ Add Band",
+        "alertRequiredField": "alertRequired",
+        "fields": [
+          {
+            "name": "evaluationType",
+            "type": "select",
+            "label": "Evaluation type",
+            "placeholder": "e.g Rolling Average",
+            "required": true,
+            "layout": "third",
+            "options": [
+              {
+                "label": "Rolling Average",
+                "value": "ROLLING_AVERAGE"
+              },
+              {
+                "label": "Latest Value",
+                "value": "LATEST_VALUE"
+              },
+              {
+                "label": "Trend",
+                "value": "TREND"
+              }
+            ],
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Evaluation type is required"
+              }
+            }
+          },
+          {
+            "name": "comparisonOperator",
+            "type": "select",
+            "label": "Comparison Operator",
+            "placeholder": "Select",
+            "required": true,
+            "layout": "third",
+            "options": [
+              {
+                "label": "< Less than",
+                "value": "LESS_THAN"
+              },
+              {
+                "label": "> Greater than",
+                "value": "GREATER_THAN"
+              },
+              {
+                "label": "= Between",
+                "value": "BETWEEN"
+              },
+              {
+                "label": "= Equal to",
+                "value": "EQUAL_TO"
+              }
+            ],
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Comparison operator is required"
+              }
+            }
+          },
+          {
+            "name": "thresholdValue",
+            "type": "number",
+            "label": "Value",
+            "placeholder": "120",
+            "required": true,
+            "layout": "third",
+            "visibleWhen": {
+              "field": "comparisonOperator",
+              "equals": "LESS_THAN"
+            },
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Value is required"
+              }
+            }
+          },
+          {
+            "name": "thresholdValue",
+            "type": "number",
+            "label": "Value",
+            "placeholder": "120",
+            "required": true,
+            "layout": "third",
+            "visibleWhen": {
+              "field": "comparisonOperator",
+              "equals": "GREATER_THAN"
+            },
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Value is required"
+              }
+            }
+          },
+          {
+            "name": "thresholdValue",
+            "type": "number",
+            "label": "Value",
+            "placeholder": "120",
+            "required": true,
+            "layout": "third",
+            "visibleWhen": {
+              "field": "comparisonOperator",
+              "equals": "EQUAL_TO"
+            },
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Value is required"
+              }
+            }
+          },
+          {
+            "name": "minValue",
+            "type": "number",
+            "label": "Min Value",
+            "placeholder": "120",
+            "required": true,
+            "layout": "third",
+            "visibleWhen": {
+              "field": "comparisonOperator",
+              "equals": "BETWEEN"
+            },
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Min value is required"
+              }
+            }
+          },
+          {
+            "name": "maxValue",
+            "type": "number",
+            "label": "Max Value",
+            "placeholder": "180",
+            "required": true,
+            "layout": "third",
+            "visibleWhen": {
+              "field": "comparisonOperator",
+              "equals": "BETWEEN"
+            },
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Max value is required"
+              }
+            }
+          },
+          {
+            "name": "severityLevel",
+            "type": "select",
+            "label": "Severity level",
+            "placeholder": "Select",
+            "required": true,
+            "layout": "third",
+            "options": [
+              {
+                "label": "Critical",
+                "value": "CRITICAL"
+              },
+              {
+                "label": "Warning",
+                "value": "WARNING"
+              },
+              {
+                "label": "Info",
+                "value": "INFO"
+              }
+            ],
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Severity level is required"
+              }
+            }
+          },
+          {
+            "name": "consecutiveBreaches",
+            "type": "number",
+            "label": "Consecutive Breaches",
+            "required": false,
+            "layout": "third"
+          },
+          {
+            "name": "evaluationWindowDays",
+            "type": "select",
+            "label": "Evaluation Window Days",
+            "placeholder": "Select",
+            "required": true,
+            "layout": "third",
+            "options": [
+              {
+                "label": "7 days",
+                "value": "7_DAYS"
+              },
+              {
+                "label": "15 days",
+                "value": "15_DAYS"
+              },
+              {
+                "label": "30 days",
+                "value": "30_DAYS"
+              }
+            ],
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Evaluation window is required"
+              }
+            }
+          }
+        ],
+        "templateLinking": {
+          "fieldName": "linkedAlertTemplate",
+          "emptyLabel": "Linked Alert templates",
+          "linkedLabel": "Linked Alert templates",
+          "emptyStateText": "No Alert Linked Yet",
+          "addButtonLabel": "+ Link Alert",
+          "drawerTitle": "Select Alert Template",
+          "drawerSubtitle": "Choose an alert template to link to this band",
+          "cancelLabel": "Cancel",
+          "confirmLabel": "Confirm",
+          "drawerEmptyText": "There are no linkable templates to choose from right now.",
+          "drawerNoResultsText": "No alert templates match your filters",
+          "linkableTemplateType": "ALERT",
+          "filterKeys": [
+            "category",
+            "condition",
+            "country",
+            "language"
+          ]
+        }
+      }
+    }
+  }
+}

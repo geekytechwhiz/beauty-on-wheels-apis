@@ -1,13 +1,15 @@
 import {
   normalizeTemplateServiceError,
+  OrgTemplateRepository,
+  OrgTemplateService,
   TemplateService,
+  toMasterFullRecord,
   type TemplateStatus,
 } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
   ValidatedCreateMaster,
-  ValidatedGetMasterMeta,
   ValidatedGetMasterVersions,
   ValidatedListMaster,
   ValidatedListCompatible,
@@ -17,10 +19,16 @@ import type {
 } from '../validators/request.validators';
 
 let templateService: TemplateService | undefined;
+let orgTemplateService: OrgTemplateService | undefined;
 
 function getTemplateService(): TemplateService {
   if (!templateService) templateService = new TemplateService();
   return templateService;
+}
+
+function getOrgTemplateService(): OrgTemplateService {
+  if (!orgTemplateService) orgTemplateService = new OrgTemplateService();
+  return orgTemplateService;
 }
 
 let ctrl: TemplateHttpController | undefined;
@@ -97,29 +105,6 @@ export class TemplateHttpController {
     }
   }
 
-  async handleGetMasterMeta(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedGetMasterMeta?: ValidatedGetMasterMeta })
-      .validatedGetMasterMeta;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
-
-    try {
-      return await this.svc.getMasterTemplateMeta(v.templateId);
-    } catch (e: unknown) {
-      normalizeTemplateServiceError(e, {
-        logEvent: 'get_master_template_meta_error',
-        correlationId: req.context.correlationId as string,
-      });
-    }
-  }
-
   async handleGetMasterVersions(req: LambdaRequest) {
     const v = (req as LambdaRequest & { validatedGetMasterVersions?: ValidatedGetMasterVersions })
       .validatedGetMasterVersions;
@@ -152,7 +137,7 @@ export class TemplateHttpController {
         };
       }
 
-      return result.record;
+      return toMasterFullRecord(result.record);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'get_master_template_versions_error',
@@ -232,6 +217,22 @@ export class TemplateHttpController {
     }
 
     try {
+      if (v.organizationId) {
+        const orgRepo = new OrgTemplateRepository();
+        const orgMeta = await orgRepo.getOrgMeta(v.organizationId, v.templateId);
+        if (orgMeta) {
+          const orgSvc = getOrgTemplateService();
+          const record = await orgSvc.transitionOrgTemplateStatus({
+            organizationId: v.organizationId,
+            templateId: v.templateId,
+            versionId: v.versionId,
+            body: v.body,
+            actorUserId: v.actorUserId,
+          });
+          return orgSvc.toSummary(record);
+        }
+      }
+
       const record = await this.svc.transitionMasterTemplateStatus({
         templateId: v.templateId,
         versionId: v.versionId,
@@ -241,7 +242,7 @@ export class TemplateHttpController {
       return this.svc.toSummary(record);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
-        logEvent: 'transition_master_template_status_error',
+        logEvent: 'transition_template_status_error',
         correlationId: req.context.correlationId as string,
       });
     }

@@ -1,0 +1,90 @@
+{
+    "description": "Manage Values drawer — opened from Enable Scope when user clicks Manage Value on a metadata row (Duration, Goal Type, Condition, Category, etc.)",
+    "endpoint_GET": "GET /organizations/{orgId}/templates/{templateId}/enable-scope/items/{itemId}/values",
+    "endpoint_PUT": "PUT /organizations/{orgId}/templates/{templateId}/enable-scope/items/{itemId}/values",
+    "examples": {
+      "defaultDuration": {
+        "itemId": "md-durations",
+        "title": "Default Duration",
+        "subtitle": "Manage Values",
+        "modeInfo": "Mode: Fixed - Min sel: 1 - Max sel: 4",
+        "showDefault": true,
+        "masterValues": [
+          { "id": "15d", "label": "15 Days" },
+          { "id": "30d", "label": "30 Days" },
+          { "id": "60d", "label": "60 Days" },
+          { "id": "90d", "label": "90 Days" },
+          { "id": "6m", "label": "6 Months" },
+          { "id": "9m", "label": "9 Months" }
+        ],
+        "selectedValueIds": ["15d", "30d", "60d", "90d"],
+        "defaultValueId": "30d"
+      },
+      "goalType": {
+        "itemId": "md-goal-type",
+        "title": "Goal Type",
+        "subtitle": "Manage Values",
+        "modeInfo": "Mode: Fixed - Min sel: 1 - Max sel: 4",
+        "showDefault": true,
+        "masterValues": [
+          { "id": "primary", "label": "Primary" },
+          { "id": "opt-1", "label": "Secondary" },
+          { "id": "opt-2", "label": "Long-term" },
+          { "id": "opt-3", "label": "Short-term" },
+          { "id": "opt-4", "label": "Lifestyle" }
+        ],
+        "selectedValueIds": ["primary", "opt-1", "opt-2", "opt-3", "opt-4"],
+        "defaultValueId": "primary"
+      },
+      "category": {
+        "itemId": "md-category",
+        "title": "Category",
+        "subtitle": "Manage Values",
+        "modeInfo": "Mode: Fixed - Min sel: 1 - Max sel: 2",
+        "showDefault": true,
+        "masterValues": [
+          { "id": "chronic-disease", "label": "Chronic Disease" },
+          { "id": "wellness", "label": "Wellness" },
+          { "id": "acute-care", "label": "Acute Care" }
+        ],
+        "selectedValueIds": ["chronic-disease", "wellness"],
+        "defaultValueId": "chronic-disease"
+      },
+      "condition": {
+        "itemId": "md-condition",
+        "title": "Condition",
+        "subtitle": "Manage Values",
+        "modeInfo": "Mode: Fixed - Min sel: 1 - Max sel: 3",
+        "showDefault": true,
+        "masterValues": [
+          { "id": "hypertension", "label": "Hypertension" },
+          { "id": "diabetes", "label": "Diabetes" },
+          { "id": "asthma", "label": "Asthma" },
+          { "id": "obesity", "label": "Obesity" }
+        ],
+        "selectedValueIds": ["hypertension", "diabetes"],
+        "defaultValueId": "hypertension"
+      }
+    },
+    "response_GET": {
+      "itemId": "md-durations",
+      "title": "Default Duration",
+      "subtitle": "Manage Values",
+      "modeInfo": "Mode: Fixed - Min sel: 1 - Max sel: 4",
+      "showDefault": true,
+      "masterValues": [
+        { "id": "15d", "label": "15 Days" },
+        { "id": "30d", "label": "30 Days" },
+        { "id": "60d", "label": "60 Days" },
+        { "id": "90d", "label": "90 Days" },
+        { "id": "6m", "label": "6 Months" },
+        { "id": "9m", "label": "9 Months" }
+      ],
+      "selectedValueIds": ["15d", "30d", "60d", "90d"],
+      "defaultValueId": "30d"
+    },
+    "request_PUT_save": {
+      "selectedValueIds": ["15d", "30d", "60d", "90d"],
+      "defaultValueId": "30d"
+    }
+  }

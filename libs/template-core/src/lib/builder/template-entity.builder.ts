@@ -9,7 +9,43 @@ import {
   type TemplateStatus,
 } from '../constants/template.constants';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
+import { firstString } from '../utils/template.utils';
 import { TemplateKeyBuilder } from './template-key.builder';
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function asStringArray(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return [value.trim()];
+  }
+  return undefined;
+}
+
+/** Top-level create keys duplicated on `meta` — omit from VERSION document root spread. */
+const META_BODY_KEYS = [
+  'templateCode',
+  'templateName',
+  'templateType',
+  'status',
+  'version',
+  'templateId',
+] as const;
+
+function stripMetaBodyFields(body: Record<string, unknown>): Record<string, unknown> {
+  const documentFields = { ...body };
+  for (const key of META_BODY_KEYS) {
+    delete documentFields[key];
+  }
+  return documentFields;
+}
 
 export type CreateMasterTemplateInput = Record<string, unknown> & {
   templateCode: string;
@@ -43,22 +79,6 @@ export interface MasterVersionWriteContext {
   versionNum: number;
   versionSk: string;
   nowIso: string;
-}
-
-const META_BODY_KEYS = [
-  'templateCode',
-  'templateName',
-  'templateType',
-  'status',
-  'version',
-] as const;
-
-function stripMetaBodyFields(body: Record<string, unknown>): Record<string, unknown> {
-  const documentFields = { ...body };
-  for (const key of META_BODY_KEYS) {
-    delete documentFields[key];
-  }
-  return documentFields;
 }
 
 export class TemplateEntityBuilder {
@@ -122,37 +142,68 @@ export class TemplateEntityBuilder {
     };
   }
 
-  static buildMeta(ctx: CreateMasterTemplateContext): TemplateMeta {
+  /**
+   * DynamoDB `meta` — service keys for indexes and lifecycle.
+   * `templateMetadata` / `templateProfile` / type sections stay on the VERSION row as sent in the payload.
+   */
+  static buildMeta(
+    ctx: CreateMasterTemplateContext,
+    body?: Record<string, unknown>,
+  ): TemplateMeta {
     const { input, templateId, templateVersionId, versionNum, nowIso } = ctx;
+    const rawBody = body ?? (input as Record<string, unknown>);
+    const templateMetadata = asRecord(rawBody.templateMetadata);
+    const templateProfile = asRecord(rawBody.templateProfile);
+
     const status = (input.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
-    const category = input.category ?? input.conditions?.[0];
+    const category =
+      input.category ?? templateProfile.category ?? input.conditions?.[0];
     const condition =
       input.condition ??
+      templateProfile.condition ??
       (Array.isArray(input.conditions) ? input.conditions[0] : undefined);
-    const specialty = input.specialty ?? input.specialties;
+    const specialty =
+      input.specialty ?? input.specialties ?? asStringArray(templateProfile.specialty);
+    const countries = input.countries ?? asStringArray(templateProfile.country);
+    const languages = input.languages ?? asStringArray(templateProfile.language);
+    const createdBy =
+      input.createdBy ??
+      firstString(templateMetadata.createdBy) ??
+      firstString(templateMetadata.lastModifiedBy);
+    const createdAt =
+      firstString(templateMetadata.createdDate) ?? nowIso;
+    const lastModifiedAt =
+      firstString(templateMetadata.lastModifiedDate) ?? nowIso;
 
     return {
       templateId,
       templateVersionId,
       templateCode: input.templateCode,
-      templateName: input.templateName,
+      templateName: input.templateName ?? firstString(templateMetadata.templateName) ?? '',
       templateType: input.templateType ?? TEMPLATE_TYPE_CARE_PLAN,
       templateDescription: input.templateDescription as string | undefined,
       category,
       condition,
       conditions: input.conditions,
-      countries: input.countries,
-      languages: input.languages,
+      countries,
+      languages,
       specialty,
       version: versionNum,
       status,
       isActive: status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
       isLatestVersion: true,
+      isMaster: true,
+      shareScope: firstString(templateMetadata.shareScope),
+      ownerOrgId: firstString(templateMetadata.ownerOrgId) ?? null,
+      masterTemplateVersionId:
+        typeof templateMetadata.masterTemplateVersionId === 'string'
+          ? templateMetadata.masterTemplateVersionId
+          : null,
       publishedAt: status === TEMPLATE_STATUS.PUBLISHED ? nowIso : null,
-      createdAt: nowIso,
-      lastModifiedAt: nowIso,
-      createdBy: input.createdBy,
-      lastModifiedBy: input.createdBy,
+      createdAt,
+      lastModifiedAt,
+      createdBy,
+      lastModifiedBy: createdBy,
     };
   }
 
@@ -183,7 +234,7 @@ export class TemplateEntityBuilder {
   }
 
   static buildMetaRow(ctx: CreateMasterTemplateContext): TemplateDdbRecord {
-    const meta = TemplateEntityBuilder.buildMeta(ctx);
+    const meta = TemplateEntityBuilder.buildMeta(ctx, ctx.input as Record<string, unknown>);
     const record: TemplateDdbRecord = {
       pk: TemplateKeyBuilder.toMasterPk(ctx.templateId),
       sk: TEMPLATE_META_SK,
@@ -198,7 +249,7 @@ export class TemplateEntityBuilder {
     ctx: CreateMasterTemplateContext,
     body: Record<string, unknown>,
   ): TemplateDdbRecord {
-    const meta = TemplateEntityBuilder.buildMeta(ctx);
+    const meta = TemplateEntityBuilder.buildMeta(ctx, body);
     const documentFields = stripMetaBodyFields(body);
 
     const record: TemplateDdbRecord = {

@@ -2,7 +2,11 @@ import {
   TemplateEntityBuilder,
   type CreateMasterTemplateInput,
 } from '../builder/template-entity.builder';
-import { toMasterListItem, toTemplateSummary, toVersionSummary } from '../mappers/template-http.dto';
+import {
+  toMasterFullRecord,
+  toTemplateSummary,
+  toVersionSummary,
+} from '../mappers/template-http.dto';
 import type {
   GetMasterVersionsParams,
   GetMasterVersionsResult,
@@ -68,21 +72,9 @@ export class TemplateService {
     try {
       const { items, lastEvaluatedKey } = await this.repo.listMasterTemplates(params);
       return {
-        items: items.map(toMasterListItem),
+        items: items.map(toMasterFullRecord),
         nextToken: listMasterNextToken(lastEvaluatedKey),
       };
-    } catch (e: unknown) {
-      normalizeTemplateServiceError(e);
-    }
-  }
-
-  async getMasterTemplateMeta(templateId: string): Promise<TemplateDdbRecord> {
-    try {
-      const record = await this.repo.getMasterMeta(templateId);
-      if (!record) {
-        templateNotFoundError();
-      }
-      return record;
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }

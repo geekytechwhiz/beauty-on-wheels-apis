@@ -1,0 +1,220 @@
+{
+    "sections": [
+      {
+        "id": "sec-goal-fields",
+        "name": "Goals",
+        "description": "Goal core fields and metadata",
+        "type": "section",
+        "enabled": true,
+        "mandatory": "optional",
+        "orgEditable": true,
+        "items": [
+          {
+            "id": "fld-goal-name",
+            "name": "Goal Name",
+            "type": "field",
+            "enabled": true,
+            "orgEditable": true
+          },
+          {
+            "id": "md-goal-type",
+            "name": "Goal Type",
+            "type": "metadata",
+            "enabled": true,
+            "orgEditable": true,
+            "valueSummary": {
+              "allocated": 5,
+              "total": 5,
+              "defaultLabel": "Primary"
+            },
+            "manageValues": {
+              "masterValues": [
+                { "id": "primary", "label": "Primary" },
+                { "id": "opt-1", "label": "Secondary" },
+                { "id": "opt-2", "label": "Long-term" },
+                { "id": "opt-3", "label": "Short-term" },
+                { "id": "opt-4", "label": "Lifestyle" }
+              ],
+              "selectedValueIds": ["primary", "opt-1", "opt-2", "opt-3", "opt-4"],
+              "defaultValueId": "primary"
+            }
+          },
+          {
+            "id": "fld-goal-description",
+            "name": "Goal Description",
+            "type": "field",
+            "enabled": true,
+            "orgEditable": true
+          },
+          {
+            "id": "md-measurement-type",
+            "name": "Measurement Type",
+            "type": "metadata",
+            "enabled": true,
+            "orgEditable": true,
+            "valueSummary": {
+              "allocated": 5,
+              "total": 5,
+              "defaultLabel": "Primary"
+            },
+            "manageValues": {
+              "masterValues": [
+                { "id": "primary", "label": "Primary" },
+                { "id": "opt-1", "label": "Numeric" },
+                { "id": "opt-2", "label": "Range" },
+                { "id": "opt-3", "label": "Boolean" },
+                { "id": "opt-4", "label": "Categorical" }
+              ],
+              "selectedValueIds": ["primary", "opt-1", "opt-2", "opt-3", "opt-4"],
+              "defaultValueId": "primary"
+            }
+          },
+          {
+            "id": "md-goal-duration",
+            "name": "Goal Duration",
+            "type": "metadata",
+            "enabled": true,
+            "orgEditable": true,
+            "valueSummary": {
+              "allocated": 5,
+              "total": 5,
+              "defaultLabel": "Primary"
+            },
+            "manageValues": {
+              "masterValues": [
+                { "id": "primary", "label": "Primary" },
+                { "id": "opt-1", "label": "30 Days" },
+                { "id": "opt-2", "label": "60 Days" },
+                { "id": "opt-3", "label": "90 Days" },
+                { "id": "opt-4", "label": "6 Months" }
+              ],
+              "selectedValueIds": ["primary", "opt-1", "opt-2", "opt-3", "opt-4"],
+              "defaultValueId": "primary"
+            }
+          },
+          {
+            "id": "fld-sort-order",
+            "name": "Sort Order",
+            "type": "field",
+            "enabled": true,
+            "orgEditable": true
+          },
+          {
+            "id": "bool-baseline-required",
+            "name": "Baseline Required",
+            "type": "boolean",
+            "enabled": true,
+            "orgEditable": true
+          },
+          {
+            "id": "bool-assign-to-patient",
+            "name": "Assign to Patient",
+            "type": "boolean",
+            "enabled": true,
+            "orgEditable": true
+          }
+        ]
+      },
+      {
+        "id": "sec-measurement",
+        "name": "Measurement",
+        "description": "Key result metadata and measurement settings",
+        "type": "section",
+        "enabled": true,
+        "mandatory": "optional",
+        "orgEditable": true,
+        "items": [
+          {
+            "id": "md-applies-to-type",
+            "name": "Applies to type",
+            "type": "metadata",
+            "enabled": true,
+            "orgEditable": true,
+            "valueSummary": {
+              "allocated": 5,
+              "total": 5,
+              "defaultLabel": "Primary"
+            },
+            "manageValues": {
+              "masterValues": [
+                { "id": "primary", "label": "Primary" },
+                { "id": "opt-1", "label": "Patient" },
+                { "id": "opt-2", "label": "Group" },
+                { "id": "opt-3", "label": "Family" },
+                { "id": "opt-4", "label": "Population" }
+              ],
+              "selectedValueIds": ["primary", "opt-1", "opt-2", "opt-3", "opt-4"],
+              "defaultValueId": "primary"
+            }
+          },
+          {
+            "id": "md-linked-entity-code",
+            "name": "Linked Entity Code",
+            "type": "metadata",
+            "enabled": true,
+            "orgEditable": true,
+            "valueSummary": {
+              "allocated": 5,
+              "total": 5,
+              "defaultLabel": "Primary"
+            },
+            "manageValues": {
+              "masterValues": [
+                { "id": "primary", "label": "Primary" },
+                { "id": "opt-1", "label": "LOINC" },
+                { "id": "opt-2", "label": "SNOMED" },
+                { "id": "opt-3", "label": "ICD-10" },
+                { "id": "opt-4", "label": "Custom" }
+              ],
+              "selectedValueIds": ["primary", "opt-1", "opt-2", "opt-3", "opt-4"],
+              "defaultValueId": "primary"
+            }
+          },
+          {
+            "id": "md-target-type",
+            "name": "Target Type",
+            "type": "metadata",
+            "enabled": true,
+            "orgEditable": true,
+            "valueSummary": {
+              "allocated": 5,
+              "total": 5,
+              "defaultLabel": "Primary"
+            },
+            "manageValues": {
+              "masterValues": [
+                { "id": "primary", "label": "Primary" },
+                { "id": "opt-1", "label": "Numeric" },
+                { "id": "opt-2", "label": "Range" },
+                { "id": "opt-3", "label": "Percentage" },
+                { "id": "opt-4", "label": "Boolean" }
+              ],
+              "selectedValueIds": ["primary", "opt-1", "opt-2", "opt-3", "opt-4"],
+              "defaultValueId": "primary"
+            }
+          },
+          {
+            "id": "fld-target-value",
+            "name": "Target Value",
+            "type": "field",
+            "enabled": true,
+            "orgEditable": true
+          },
+          {
+            "id": "fld-target-unit",
+            "name": "Target Unit",
+            "type": "field",
+            "enabled": true,
+            "orgEditable": true
+          },
+          {
+            "id": "fld-sort-number",
+            "name": "Sort Number",
+            "type": "field",
+            "enabled": true,
+            "orgEditable": true
+          }
+        ]
+      }
+    ]
+  }

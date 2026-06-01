@@ -1,12 +1,27 @@
 openapi: 3.0.3
 info:
-  title: Template Service — Care Plan (Master / Org / Lifecycle)
+  title: Template Service — Multi-Type (Master / Org / Lifecycle)
   description: |
-    OpenAPI spec for **Template Service (Care Plan)** derived from:
-    - `Template_service_Endpoints-2.pdf` (Confluence export — inferred URIs)
-    - `Template+Service+DB+design+and++Access+Patterns.pdf` / `Template_Service_DB_design_and_Access_Patterns.doc` (DynamoDB single-table keys, GSIs, flat template document)
-    - `template_master_corrected.json` (corrected master template document shape)
-    - `template_data_9april_2.json` (original senior dev JSON — reference only)
+    OpenAPI spec for **Template Service** aligned with `Requirements_Template_Service.md` (platform master templates,
+    org derivation, enablements, lifecycle, and multi-type extensibility).
+
+    **Template types (requirements §2):** `CARE_PLAN`, `GOAL`, `MONITORING`, `OKR`, `TASK`, `SYMPTOM`, `THRESHOLD`, `ALERT_POLICY` (and legacy `ALERT` alias).
+
+    **Authoring shapes:**
+    - **Care Plan** — flat document (`CarePlanTemplateDocument`) at top level.
+    - **Alert Policy / Monitoring / future types** — nested payload (`templateProfile`, `templateMetadata`, type-specific sections). See `NestedMasterTemplateCreateRequest`.
+
+    **Persistence (create):** atomic write of `SK=META` + `SK=VERSION#001` under `PK=MASTER_TMPL#<templateId>`.
+    **`templateId`** is derived from `templateCode` (uppercase, `_` → `-`), e.g. `ALT-VITALS-v1` → `ALT-VITALS-V1`. Path `templateId` on GET/PUT is normalized the same way.
+
+    **List access patterns:**
+    - With `status` (e.g. `SAVED`, `DRAFT`) → **GSI5** (`gsi5pk = SCOPE#MASTER#STATUS#<status>`).
+    - Without `status` but with `templateType` only → **GSI2** published catalog (`TYPE#<templateType>#SCOPE#MASTER`).
+    - Default list (no status) → **GSI5** with `PUBLISHED`.
+
+    **UI authoring schema (read):** `GET .../versions?version=latest` (or point version) may include `uiApiResponse` for `ALERT_POLICY` / `MONITORING` (S3: `alert-api-response.json`, `monitoring-api-response.json`).
+
+    **Legacy references:** Confluence/PDF DB design docs, `template_master_corrected.json`, `template_data_9april_2.json`.
 
     **DB Design:** DynamoDB single-table. Every template record carries `PK`, `SK`, and `entityType`.
     Master templates: `PK = MASTER_TMPL#<templateId>`, `SK = VERSION#<versionId>`.
@@ -51,7 +66,7 @@ info:
     **Swagger preview:** Import this YAML into Swagger UI or Redoc — it is the **machine-readable** contract for clients.
 
     **PDF vs YAML:** The PDF cannot be auto-ingested here; if it lists extra routes, GSIs, or query keys, export it to text/Markdown and extend `paths` plus this catalog so Swagger stays aligned.
-  version: 2.0.5
+  version: 3.1.0
 
 servers:
   - url: https://api.example.com/v1
@@ -80,9 +95,15 @@ paths:
       tags: [MasterTemplateManagement]
       summary: Create master template
       description: |
-        Create a new platform-owned master care plan template using the flat **Care Plan template document**
-        (`#/components/schemas/CarePlanTemplateDocument` — same keys as the JSON contract).
-        The service persists header and version rows (`SK=META` and `SK=VERSION#001`); if the document exceeds 50 KB, `schemaRef` is returned on success.
+        Create a new platform-owned **master** template.
+
+        **Body:** `MasterTemplateCreateRequest` — either flat Care Plan (`CarePlanTemplateDocument`) or nested Alert/Monitoring shape (`NestedMasterTemplateCreateRequest`).
+
+        **Normalization:** `templateCode` is required; `templateName` may come from `templateMetadata.templateName`. Status values like `Saved` are normalized to `SAVED`.
+
+        **Persistence:** Transact write `SK=META` + `SK=VERSION#001` under `PK=MASTER_TMPL#<templateId>`.
+
+        If the document exceeds 50 KB, `schemaRef` may be returned on success (future S3 offload).
       operationId: createMasterTemplate
       requestBody:
         required: true
@@ -272,6 +293,26 @@ paths:
                     changeReason: Initial master template creation.
                     requestId: req-123456
                     correlationId: corr-123456
+              alert_policy_nested_create:
+                summary: Alert Policy — nested authoring (requirements)
+                value:
+                  templateCode: ALT-VITALS-v1
+                  templateType: ALERT_POLICY
+                  templateProfile:
+                    category: Chronic Disease
+                    condition: Hypertension
+                    country: US
+                    language: EN
+                    specialty: Cardiology
+                  templateMetadata:
+                    templateName: Hypertension Vitals Alert Policy
+                    status: Saved
+                    version: 1
+                    createdBy: platform-admin
+                  alertPolicyScopeDefinition: {}
+                  alertClassificationSettings: {}
+                  assignmentConfiguration: {}
+                  lifecycleRules: {}
       responses:
         '201':
           description: Created
@@ -300,9 +341,19 @@ paths:
       tags: [MasterTemplateManagement]
       summary: List master templates
       description: |
-        Retrieve master templates with optional filters.
-        Uses **GSI-2** (`PK = type, SK = publishedAt`) for type-based queries.
-        Uses **GSI-1** (`PK = orgId`) when filtering by org.
+        Retrieve master templates with optional filters (one row per `templateId`).
+
+        Each list item is the **full VERSION document** (not a summary): includes `templateMetadata` with UI `fields`, plus all nested sections from your create payload.
+
+        **Index selection (implemented):**
+        - `status` provided (e.g. `SAVED`, `DRAFT`, or client alias `Saved`) → **GSI5** `SCOPE#MASTER#STATUS#<status>`.
+        - `status` omitted and `templateType` provided → **GSI2** published catalog partition `TYPE#<templateType>#SCOPE#MASTER`.
+        - Neither → **GSI5** with default `PUBLISHED`.
+
+        **Filters** (applied after index query): `category`, `condition` (matches `meta.condition` or `meta.conditions[]`),
+        `country`, `language` (case-insensitive), `specialty`, `templateCode` (exact or prefix), `templateType`.
+
+        Use `status=SAVED` (or `Saved`) to list drafts/saved Alert and Monitoring templates not yet published.
       operationId: listMasterTemplates
       parameters:
         - in: query
@@ -331,7 +382,10 @@ paths:
           name: status
           schema:
             $ref: '#/components/schemas/TemplateStatus'
-          example: PUBLISHED
+          description: |
+            Filter by lifecycle status. Client may send `Saved` (normalized to `SAVED`).
+            Omit to default to published catalog unless `templateType` alone triggers GSI2.
+          example: SAVED
         - in: query
           name: templateType
           schema:
@@ -388,11 +442,13 @@ paths:
   /templates/master/{templateId}/meta:
     get:
       tags: [MasterTemplateManagement]
-      summary: Get master template META row
+      summary: Get master template (active version document)
       description: |
-        Returns the logical **header** item for a master template (`SK=META`).
-        DynamoDB: `PK = MASTER_TMPL#<templateId>`, `SK = META`.
-        Prefer this for lightweight reads (current flags, pointers) without loading a full `VERSION#` snapshot body.
+        Returns the **full active VERSION document** for the template (same nested body as create:
+        `templateMetadata`, `templateProfile`, `alertPolicyScopeDefinition`, …).
+
+        Resolves the active version from the META pointer (`meta.templateVersionId`), then loads `SK=VERSION#…`.
+        For Alert/Monitoring, may also include `uiApiResponse` (S3 authoring schema) when configured.
       operationId: getMasterTemplateMeta
       parameters:
         - $ref: '#/components/parameters/TemplateId'
@@ -446,6 +502,8 @@ paths:
         - **Omitted or empty** — list all `SK` beginning with `VERSION#` (paginated). Use `nextToken`, `limit`, `status`.
         - **`latest`** — return one full **version snapshot** (same shape as point read). Use optional `resolve` (`ACTIVE`, `LATEST_PUBLISHED`, `LATEST_ANY`) to choose which snapshot.
         - **Any other value** — treat as `versionId` (e.g. `V01`, `001`) for a single `GetItem` on `SK = VERSION#<version>`.
+
+        **Single-version reads** for `ALERT_POLICY` / `MONITORING` may include **`uiApiResponse`** (UI form schema from S3).
 
         Pagination filters apply only to the **list** mode.
       operationId: getMasterTemplateVersionsQuery
@@ -611,12 +669,16 @@ paths:
   /templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone:
     post:
       tags: [MasterTemplateManagement]
-      summary: Clone template version for an org
+      summary: Clone published master template to organization
       description: |
-        Clone a **published** master template into a new org-level template in `SAVED` state.
-        Published versions are immutable — this is the only way to create a new editable version.
-        Writes new DynamoDB rows: `PK = ORG_TMPL#<orgId>#<newTemplateId>`, `SK = VERSION#001`.
-        Copies S3 schema file to new path.
+        **Org derivation (requirements § Org Template Derivation):** copy a **PUBLISHED** master `VERSION#` into a new org partition.
+
+        - Source: `PK = MASTER_TMPL#<templateId>` (path `templateId` normalized like create).
+        - Target: `PK = ORG_TMPL#<organizationId>#<newTemplateId>`, `SK = META` + `SK = VERSION#001`, status `SAVED`.
+        - Sets `masterTemplateVersionId` and `derivedFromTemplateVersionId` for lineage.
+        - `newTemplateId` is generated (`<masterTemplateId>-ORG-<orgSlug>`).
+
+        Master must be **PUBLISHED** before clone.
       operationId: cloneTemplateVersion
       parameters:
         - $ref: '#/components/parameters/OrganizationId'
@@ -628,9 +690,17 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CloneTemplateRequest'
-            example:
-              newTemplateName: Apollo Hospital – Hypertension Plan
-              inheritLinks: true
+            examples:
+              care_plan:
+                summary: Clone care plan master
+                value:
+                  newTemplateName: Apollo Hospital – Hypertension Plan
+                  inheritLinks: true
+              alert_policy:
+                summary: Clone alert policy master
+                value:
+                  newTemplateName: Apollo — Vitals Alert Policy
+                  inheritLinks: true
       responses:
         '201':
           description: Cloned successfully
@@ -638,17 +708,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccessTemplateCreated'
-              example:
-                success: true
-                message: Template cloned successfully
-                data:
-                  templateId: CP-HTN-ORG-APOLLO-001
-                  templateVersionId: CP-HTN-ORG-APOLLO-001-V01
-                  version: 1
-                  status: SAVED
-                  derivedFromTemplateVersionId: CP-HTN-001-V01
-                  schemaRef: s3://templates/org-apollo/CP-HTN-ORG-APOLLO-001/v1.json
-                  createdAt: "2024-03-15T00:00:00Z"
+              examples:
+                alert_policy:
+                  summary: Org alert policy created
+                  value:
+                    success: true
+                    message: Template cloned successfully
+                    data:
+                      templateId: ALT-VITALS-V1-ORG-ROOT
+                      templateVersionId: ALT-VITALS-V1-ORG-ROOT-V01
+                      version: 1
+                      status: SAVED
+                      derivedFromTemplateVersionId: ALT-VITALS-V1-V01
+                      createdAt: "2026-05-27T00:00:00Z"
+                care_plan:
+                  summary: Org care plan created
+                  value:
+                    success: true
+                    message: Template cloned successfully
+                    data:
+                      templateId: CP-HTN-ORG-APOLLO-001
+                      templateVersionId: CP-HTN-ORG-APOLLO-001-V01
+                      version: 1
+                      status: SAVED
+                      derivedFromTemplateVersionId: CP-HTN-001-V01
+                      createdAt: "2024-03-15T00:00:00Z"
         '409':
           $ref: '#/components/responses/Conflict'
         '404':
@@ -667,7 +751,9 @@ paths:
         - **`meta`** — `GetItem` **`SK=META`** (`ApiSuccessOrgTemplateMeta`). **Reserved** — not a `VERSION#` id.
         - **Any other value** — treat as `versionId` (e.g. `V01`, `001`) for `SK = VERSION#<version>`.
 
-        Pagination filters apply only when listing (no `version` set).
+        **Single-version reads** may include **`uiApiResponse`** for `ALERT_POLICY` / `MONITORING` (same as master).
+
+        Path `templateId` is normalized. Pagination filters apply only when listing (no `version` set).
       operationId: getOrgTemplateVersionsQuery
       parameters:
         - $ref: '#/components/parameters/OrganizationId'
@@ -812,9 +898,13 @@ paths:
       tags: [OrgTemplateManagement]
       summary: List organization templates
       description: |
-        Retrieve org-specific templates.
-        DynamoDB query uses **GSI-1** (`PK = orgId`).
-        If `organizationId` is not passed as query param, it is inferred from the auth token.
+        Retrieve org-specific templates (one row per `templateId`).
+
+        **GSI-1:** `gsi1pk = ORG#<organizationId>`, `gsi1sk` begins with `TMPL#` or `TMPL#<templateType>#`.
+
+        - Omit `templateType` to list **all** template types for the org.
+        - Use `status=Saved` (normalized to `SAVED`) for drafts after clone.
+        - `organizationId` from query or JWT (`custom:organizationID`). Platform `ROOT` must pass `organizationId` explicitly.
       operationId: listOrgTemplates
       parameters:
         - in: query
@@ -831,6 +921,7 @@ paths:
           name: status
           schema:
             $ref: '#/components/schemas/TemplateStatus'
+          description: Filter by status; `Saved` is normalized to `SAVED`.
         - in: query
           name: nextToken
           schema:
@@ -967,9 +1058,12 @@ paths:
       description: |
         **Lifecycle API** for **DRAFT / SAVED / IN_REVIEW / PUBLISHED** (and **ARCHIVED** / **DEPRECATED**).
 
-        **Partition resolution:** The same path serves **master** and **org** templates. The implementation selects
-        `PK = MASTER_TMPL#<templateId>` vs `PK = ORG_TMPL#<organizationId>#<templateId>` from **caller scope**
-        (e.g. platform admin / service role → master; org-authenticated user → that user's `organizationId`) plus route `templateId` and `versionId`. If your deployment splits these into two URLs instead, keep request/response bodies aligned with **`TemplateStatusTransitionRequest`** / **`ApiSuccessTemplateSummary`**.
+        **Partition resolution (implemented):**
+        - If JWT `custom:organizationID` is set (not `ROOT`) and `ORG_TMPL#<org>#<templateId>` **META** exists → org lifecycle.
+        - Else → master lifecycle (`MASTER_TMPL#<templateId>`).
+        - Platform admins may pass query **`organizationId`** to target a specific org partition.
+
+        Path `templateId` is normalized (same rules as create). `versionId` must match current META pointer (e.g. `V01`).
 
         Valid flows:
         - `DRAFT` or `SAVED` → `IN_REVIEW` (action: `SUBMIT_REVIEW`)
@@ -984,6 +1078,14 @@ paths:
       parameters:
         - $ref: '#/components/parameters/TemplateId'
         - $ref: '#/components/parameters/VersionId'
+        - in: query
+          name: organizationId
+          required: false
+          schema:
+            type: string
+          description: |
+            Target org for lifecycle when platform `ROOT` admin operates on an org template.
+            Omit for org users — taken from JWT `custom:organizationID`.
       requestBody:
         required: true
         content:
@@ -1047,9 +1149,12 @@ paths:
       tags: [OrgEnablement]
       summary: Create org enablement
       description: |
-        Link a valid `organizationId` to a **published** `masterTemplateVersionId`.
-        Only published master templates can be enabled for orgs.
-        This controls which master templates are visible and usable by each org.
+        Links an organization to a **PUBLISHED** master template version (requirements: org may use enabled masters for clone/catalog).
+
+        - Validates master row exists (`MASTER_TMPL#<templateId>`, `VERSION#…`).
+        - `templateId` is derived from `masterTemplateVersionId` and **normalized** (same rules as create).
+        - Duplicate `(organizationId, masterTemplateVersionId)` → `409`.
+        - Persists `ENABLE#<enablementId>` with **GSI1** (by org) and **GSI3** (by master version).
       operationId: createOrgEnablement
       requestBody:
         required: true
@@ -1057,11 +1162,21 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrgEnablementCreateRequest'
-            example:
-              organizationId: org-apollo-001
-              masterTemplateVersionId: CP-HTN-001-V01
-              effectiveFrom: "2024-04-01T00:00:00Z"
-              effectiveTo: null
+            examples:
+              care_plan:
+                summary: Enable care plan master for org
+                value:
+                  organizationId: org-apollo-001
+                  masterTemplateVersionId: CP-HTN-001-V01
+                  effectiveFrom: "2024-04-01T00:00:00Z"
+                  effectiveTo: null
+              alert_policy:
+                summary: Enable published alert policy for ROOT org
+                value:
+                  organizationId: ROOT
+                  masterTemplateVersionId: ALT-VITALS-V1-V01
+                  effectiveFrom: "2026-05-27T00:00:00Z"
+                  effectiveTo: null
       responses:
         '201':
           description: Org linked to master template
@@ -1086,10 +1201,13 @@ paths:
 
     get:
       tags: [OrgEnablement]
-      summary: Search or list org enablements (query)
+      summary: Search org enablements (query)
       description: |
-        Returns enablement rows filtered by optional query parameters. Uses **GSI-1** (`PK = organizationId`) when `organizationId` is present; may use an alternate index on `masterTemplateVersionId` when that filter is present (per implementation / PDF access pattern).
-        When no filters are supplied, behavior is **implementation-defined** (e.g. caller-scoped list for org admins, or `400` for ambiguous global queries).
+        Search enablement rows. **At least one** of `organizationId` or `masterTemplateVersionId` is required (`400` otherwise).
+
+        - `organizationId` only → **GSI1** `gsi1pk = ORG#<orgId>`, `gsi1sk` begins with `ENABLE#`.
+        - `masterTemplateVersionId` only → **GSI3** `gsi3pk = MSTR_VER#<versionId>`.
+        - Both → GSI1 query, filtered in application layer by `masterTemplateVersionId`.
       operationId: searchOrgEnablements
       parameters:
         - in: query
@@ -1259,12 +1377,15 @@ paths:
   /templates/compatible:
     get:
       tags: [ValidationLinking]
-      summary: List compatible published templates
+      summary: List compatible published templates (linking)
       description: |
-        Fetch **Published** templates valid for linking to a package.
-        Enforces exact `condition` and `country` match as per requirements.
-        Also validates that template `duration` matches package `duration` — only matching templates returned.
-        Uses **GSI-2** (`PK = type, SK = publishedAt`) sorted newest first.
+        Returns **PUBLISHED** master templates suitable for linking (Care Plan → Goal/Alert/Monitoring, etc.).
+
+        **Required:** `condition`, `country`.  
+        **Recommended:** `templateType` (`CARE_PLAN`, `ALERT_POLICY`, `MONITORING`, `GOAL`, …). Defaults to `CARE_PLAN` when omitted.  
+        **Optional:** `duration` — applied only when the template record has duration metadata (typically Care Plan).
+
+        Uses **GSI2** catalog (`TYPE#<templateType>#SCOPE#MASTER`). Filters condition/country in application layer (supports string or list `meta.condition` / `meta.conditions`, case-insensitive country).
       operationId: listCompatibleTemplates
       parameters:
         - in: query
@@ -1288,9 +1409,11 @@ paths:
           example: MONTHS_6
         - in: query
           name: templateType
+          required: false
           schema:
             $ref: '#/components/schemas/TemplateType'
-          example: CARE_PLAN
+          description: Target template type to link. Omit only for Care Plan catalog (defaults to `CARE_PLAN`).
+          example: ALERT_POLICY
       responses:
         '200':
           description: OK
@@ -1298,19 +1421,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccessCompatibleTemplateList'
-              example:
-                success: true
-                message: Compatible templates retrieved successfully
-                data:
-                  items:
-                    - templateId: CP-HTN-001
-                      templateVersionId: CP-HTN-001-V01
-                      templateName: Hypertension Management Plan
-                      condition: HYPERTENSION
-                      countries: [IN]
-                      duration: MONTHS_6
-                      status: PUBLISHED
-                      publishedAt: "2024-04-01T00:00:00Z"
+              examples:
+                alert_policy:
+                  summary: Published alert policies for Hypertension / US
+                  value:
+                    success: true
+                    message: Compatible templates retrieved successfully
+                    data:
+                      items:
+                        - templateId: ALT-VITALS-V1
+                          templateVersionId: ALT-VITALS-V1-V01
+                          templateName: Hypertension Vitals Alert Policy
+                          templateType: ALERT_POLICY
+                          condition: Hypertension
+                          countries: [US]
+                          status: PUBLISHED
+                          publishedAt: "2026-05-27T00:00:00Z"
+                care_plan:
+                  summary: Published care plans
+                  value:
+                    success: true
+                    message: Compatible templates retrieved successfully
+                    data:
+                      items:
+                        - templateId: CP-HTN-001
+                          templateVersionId: CP-HTN-001-V01
+                          templateName: Hypertension Management Plan
+                          templateType: CARE_PLAN
+                          condition: HYPERTENSION
+                          countries: [IN]
+                          duration: MONTHS_6
+                          status: PUBLISHED
+                          publishedAt: "2024-04-01T00:00:00Z"
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -1327,7 +1469,10 @@ components:
       required: true
       schema:
         type: string
-      example: CP-HTN-001
+      description: |
+        Business template id. Server normalizes path value like create (`templateCode` rules):
+        uppercase and `_` → `-`, e.g. `ALT-VITALS-v1` and `ALT-VITALS-V1` resolve to the same key.
+      example: ALT-VITALS-V1
 
     VersionId:
       in: path
@@ -1420,7 +1565,20 @@ components:
 
     TemplateType:
       type: string
-      enum: [CARE_PLAN, OKR, TASK, SYMPTOM, PACKAGE]
+      enum:
+        - CARE_PLAN
+        - GOAL
+        - MONITORING
+        - OKR
+        - TASK
+        - SYMPTOM
+        - THRESHOLD
+        - ALERT_POLICY
+        - ALERT
+        - PACKAGE
+      description: |
+        Requirements template types. `ALERT` is a legacy alias for `ALERT_POLICY`.
+        `PACKAGE` retained for backward-compatible linking APIs.
 
     TemplateStatus:
       type: string
@@ -1732,6 +1890,13 @@ components:
           nullable: true
           description: Size in bytes. Threshold is 50000 bytes.
           example: 142000
+        uiApiResponse:
+          type: object
+          nullable: true
+          description: |
+            Optional UI authoring schema injected on single-version reads for `ALERT_POLICY` / `MONITORING`
+            (from S3 `alert-api-response.json` / `monitoring-api-response.json`). Omitted when not applicable or S3 unavailable.
+          additionalProperties: true
         meta:
           $ref: '#/components/schemas/TemplateMeta'
         carePlanAttributes:
@@ -2518,10 +2683,79 @@ components:
             correlationId:
               type: string
 
+    NestedMasterTemplateCreateRequest:
+      type: object
+      description: |
+        Nested authoring payload for Alert Policy, Monitoring, and future non–Care Plan types.
+        Top-level keys are persisted on the VERSION row (plus normalized `meta`).
+      required: [templateCode, templateType]
+      properties:
+        templateCode:
+          type: string
+          example: ALT-VITALS-v1
+        templateType:
+          $ref: '#/components/schemas/TemplateType'
+        templateProfile:
+          type: object
+          description: Profile dimensions (category, condition, country, language, specialty, …)
+          additionalProperties: true
+        templateMetadata:
+          type: object
+          properties:
+            templateName:
+              type: string
+            templateDescription:
+              type: string
+            status:
+              type: string
+              description: Accepts `Saved` → normalized to `SAVED`
+            version:
+              type: integer
+            createdBy:
+              type: string
+          additionalProperties: true
+        controlAttributes:
+          type: object
+          additionalProperties: true
+        alertPolicyScopeDefinition:
+          type: object
+          additionalProperties: true
+        alertClassificationSettings:
+          type: object
+          additionalProperties: true
+        assignmentConfiguration:
+          type: object
+          additionalProperties: true
+        lifecycleRules:
+          type: object
+          additionalProperties: true
+        slaConfigurationBinding:
+          type: object
+          additionalProperties: true
+        notificationConfiguration:
+          type: object
+          additionalProperties: true
+        monitoringDefinitions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entityTargetingModel:
+          type: object
+          additionalProperties: true
+        validationRules:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+
     MasterTemplateCreateRequest:
       title: MasterTemplateCreateRequest
-      allOf:
+      description: |
+        **Care Plan:** flat `CarePlanTemplateDocument`.  
+        **Alert / Monitoring / others:** `NestedMasterTemplateCreateRequest`.
+      oneOf:
         - $ref: '#/components/schemas/CarePlanTemplateDocument'
+        - $ref: '#/components/schemas/NestedMasterTemplateCreateRequest'
 
     MasterTemplateUpdateRequest:
       type: object
@@ -2853,8 +3087,11 @@ components:
           type: string
         templateName:
           type: string
+        templateType:
+          $ref: '#/components/schemas/TemplateType'
         condition:
-          $ref: '#/components/schemas/Condition'
+          type: string
+          description: Condition from template meta (string or first of conditions list)
         countries:
           type: array
           items:
@@ -2897,7 +3134,7 @@ components:
                 items:
                   type: array
                   items:
-                    $ref: '#/components/schemas/MasterTemplateListItem'
+                    $ref: '#/components/schemas/MasterTemplateRecord'
                 nextToken:
                   type: string
                   nullable: true
@@ -2917,7 +3154,14 @@ components:
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/TemplateMetaRow'
+              allOf:
+                - $ref: '#/components/schemas/MasterTemplateRecord'
+                - type: object
+                  properties:
+                    uiApiResponse:
+                      type: object
+                      nullable: true
+                      additionalProperties: true
 
     ApiSuccessOrgTemplateMeta:
       allOf:

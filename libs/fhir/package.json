@@ -34,6 +34,7 @@
     "@api-hub/observability": "workspace:*",
     "@api-hub/terminology": "workspace:*",
     "@api-hub/utils": "workspace:*",
+    "object-path": "^0.11.8",
     "tslib": "^2.3.0"
   },
   "devDependencies": {

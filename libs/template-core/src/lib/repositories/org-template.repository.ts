@@ -5,7 +5,6 @@ import {
   GSI1_ORG_INDEX,
   GSI1_ORG_TMPL_SK_PREFIX,
   TEMPLATE_META_SK,
-  TEMPLATE_TYPE_CARE_PLAN,
   VERSION_SK_PREFIX,
   type TemplateStatus,
 } from '../constants/template.constants';
@@ -51,9 +50,12 @@ export class OrgTemplateRepository extends BaseRepository {
       ':skPrefix': VERSION_SK_PREFIX,
     };
     const filterParts: string[] = [];
+    const names: Record<string, string> = {};
     if (opts.status) {
       eav[':status'] = opts.status;
-      filterParts.push('meta.#status = :status');
+      names['#meta'] = 'meta';
+      names['#status'] = 'status';
+      filterParts.push('#meta.#status = :status');
     }
 
     return this.queryPage<TemplateDdbRecord>({
@@ -63,7 +65,7 @@ export class OrgTemplateRepository extends BaseRepository {
       ...(filterParts.length
         ? {
             FilterExpression: filterParts.join(' AND '),
-            ExpressionAttributeNames: { '#status': 'status' },
+            ExpressionAttributeNames: names,
           }
         : {}),
       ScanIndexForward: false,
@@ -144,26 +146,33 @@ export class OrgTemplateRepository extends BaseRepository {
     },
   ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const table = assertTemplateTable();
-    const templateType = params.templateType?.trim() || TEMPLATE_TYPE_CARE_PLAN;
+    const templateType = params.templateType?.trim();
     const eav: Record<string, unknown> = {
       ':pk': TemplateKeyBuilder.buildGsi1OrgPk(params.organizationId),
-      ':skPrefix': `${GSI1_ORG_TMPL_SK_PREFIX}${templateType}#`,
+      ':skPrefix': templateType
+        ? `${GSI1_ORG_TMPL_SK_PREFIX}${templateType}#`
+        : GSI1_ORG_TMPL_SK_PREFIX,
     };
     const filterParts: string[] = [];
+    const names: Record<string, string> = { '#meta': 'meta' };
 
     if (params.status) {
       eav[':status'] = params.status;
-      filterParts.push('meta.#status = :status');
+      names['#status'] = 'status';
+      filterParts.push('#meta.#status = :status');
     }
     if (params.condition?.trim()) {
       eav[':condition'] = params.condition.trim();
+      names['#condition'] = 'condition';
+      names['#conditions'] = 'conditions';
       filterParts.push(
-        '(meta.condition = :condition OR contains(meta.conditions, :condition))',
+        '(#meta.#condition = :condition OR contains(#meta.#conditions, :condition))',
       );
     }
     if (params.specialty?.trim()) {
       eav[':specialty'] = params.specialty.trim();
-      filterParts.push('contains(meta.specialty, :specialty)');
+      names['#specialty'] = 'specialty';
+      filterParts.push('contains(#meta.#specialty, :specialty)');
     }
 
     return this.queryPage<TemplateDdbRecord>({
@@ -174,7 +183,7 @@ export class OrgTemplateRepository extends BaseRepository {
       ...(filterParts.length
         ? {
             FilterExpression: filterParts.join(' AND '),
-            ExpressionAttributeNames: { '#status': 'status' },
+            ExpressionAttributeNames: names,
           }
         : {}),
       ScanIndexForward: false,

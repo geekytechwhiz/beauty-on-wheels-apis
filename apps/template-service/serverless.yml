@@ -198,14 +198,14 @@ functions:
             "401": Unauthorized
             "500": Server error
 
-  getMasterTemplateMeta:
-    handler: src/handlers/http/getMasterTemplateMeta.main
+  listTemplateUiMeta:
+    handler: src/handlers/http/listTemplateUiMeta.main
     events:
       - http:
-          path: templates/master/{templateId}/meta
+          path: templates/master/meta
           method: get
-          summary: Get master template META row
-          description: Returns the META header item for a master template (lightweight read).
+          summary: List UI meta definitions
+          description: Lists available UI meta JSON files (id + template type) from services-json.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -213,11 +213,102 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          responses:
-            "200": OK — master template META
-            "401": Unauthorized
-            "404": Not found
-            "500": Server error
+
+  getTemplateUiMetaById:
+    handler: src/handlers/http/getTemplateUiMetaById.main
+    events:
+      - http:
+          path: templates/master/meta/id/{metaId}
+          method: get
+          summary: Get UI meta by id
+          description: Returns UI meta JSON (e.g. ALERT-MASTER-001) from services-json.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  getTemplateUiMetaByType:
+    handler: src/handlers/http/getTemplateUiMetaByType.main
+    events:
+      - http:
+          path: templates/master/meta/type/{templateType}
+          method: get
+          summary: Get UI meta by template type
+          description: Returns UI meta JSON for template type (ALERT_POLICY, MONITORING, …).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  upsertTemplateUiMeta:
+    handler: src/handlers/http/upsertTemplateUiMeta.main
+    events:
+      - http:
+          path: templates/master/meta/type/{templateType}
+          method: put
+          summary: Create or update UI meta (upsert)
+          description: Writes UI meta JSON to services-json for the template type (create and update use this endpoint).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  listOrgConfigMeta:
+    handler: src/handlers/http/listOrgConfigMeta.main
+    events:
+      - http:
+          path: templates/master/meta/org
+          method: get
+          summary: List org config meta definitions
+          description: Lists org-drawer, org-manageibility, and enable-scope JSON from services-json (full documents).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  getOrgConfigMetaByKey:
+    handler: src/handlers/http/getOrgConfigMetaByKey.main
+    events:
+      - http:
+          path: templates/master/meta/org/{configKey}
+          method: get
+          summary: Get org config meta by key
+          description: Returns org config JSON for ORG_DRAWER, ORG_MANAGEABILITY, or ENABLE_SCOPE.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  upsertOrgConfigMeta:
+    handler: src/handlers/http/upsertOrgConfigMeta.main
+    events:
+      - http:
+          path: templates/master/meta/org/{configKey}
+          method: put
+          summary: Create or update org config meta (upsert)
+          description: Writes org-drawer, org-manageibility, or enable-scope JSON to services-json (active + version managed).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
 
   getMasterTemplateVersions:
     handler: src/handlers/http/getMasterTemplateVersions.main
@@ -568,7 +659,11 @@ functions:
           path: templates/{templateId}/versions/{versionId}/status
           method: post
           summary: Transition template status
-          description: Lifecycle actions SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE (master templates).
+          description: Lifecycle actions SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE (master or org — org when ORG_TMPL exists for JWT org).
+          queryStringParameters:
+            organizationId:
+              required: false
+              type: string
           cors: *httpApiCors
           authorizer:
             name: common_authorizer

@@ -1,0 +1,476 @@
+{
+  "id": "SYMPTOM-MASTER-001",
+  "titleKey": "symptom.title",
+  "subtitleKey": "symptom.subtitle",
+  "fields": {
+    "TEMPLATE_NAME": {
+      "id": "TEMPLATE_NAME",
+      "type": "text",
+      "labelKey": "planOverview.field.templateName.label",
+      "placeholderKey": "planOverview.field.templateName.placeholder",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.templateName.validation.required"
+        }
+      }
+    },
+    "CATEGORY": {
+      "id": "CATEGORY",
+      "type": "select",
+      "labelKey": "planOverview.field.category.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.category.option.CHRONIC_CARE",
+          "value": "CHRONIC_CARE"
+        },
+        {
+          "labelKey": "planOverview.field.category.option.ACUTE_CARE",
+          "value": "ACUTE_CARE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.category.validation.required"
+        }
+      }
+    },
+    "CONDITION": {
+      "id": "CONDITION",
+      "type": "select",
+      "labelKey": "planOverview.field.condition.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.condition.option.HYPERTENSION",
+          "value": "HYPERTENSION"
+        },
+        {
+          "labelKey": "planOverview.field.condition.option.DIABETES",
+          "value": "DIABETES"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.condition.validation.required"
+        }
+      }
+    },
+    "COUNTRY": {
+      "id": "COUNTRY",
+      "type": "select",
+      "labelKey": "planOverview.field.country.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.country.option.IN",
+          "value": "IN"
+        },
+        {
+          "labelKey": "planOverview.field.country.option.US",
+          "value": "US"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.country.validation.required"
+        }
+      }
+    },
+    "LANGUAGE": {
+      "id": "LANGUAGE",
+      "type": "select",
+      "labelKey": "planOverview.field.language.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.language.option.EN",
+          "value": "EN"
+        },
+        {
+          "labelKey": "planOverview.field.language.option.HI",
+          "value": "HI"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.language.validation.required"
+        }
+      }
+    },
+    "SPECIALITY": {
+      "id": "SPECIALITY",
+      "type": "select",
+      "labelKey": "planOverview.field.speciality.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.speciality.option.CARDIOLOGY",
+          "value": "CARDIOLOGY"
+        },
+        {
+          "labelKey": "planOverview.field.speciality.option.GENERAL",
+          "value": "GENERAL"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.speciality.validation.required"
+        }
+      }
+    },
+    "SELECT_SCOPE": {
+      "id": "SELECT_SCOPE",
+      "type": "select",
+      "labelKey": "planOverview.field.selectScope.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "defaultValue": "PRIVATE",
+      "options": [
+        {
+          "labelKey": "planOverview.field.selectScope.option.PRIVATE",
+          "value": "PRIVATE"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.ORGANIZATION",
+          "value": "ORGANIZATION"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.PUBLIC",
+          "value": "PUBLIC"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.selectScope.validation.required"
+        }
+      }
+    },
+    "COLLECTION_FREQUENCY": {
+      "id": "COLLECTION_FREQUENCY",
+      "type": "select",
+      "labelKey": "symptom.field.collectionFrequency.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "symptom.field.collectionFrequency.option.DAILY",
+          "value": "DAILY"
+        },
+        {
+          "labelKey": "symptom.field.collectionFrequency.option.WEEKLY",
+          "value": "WEEKLY"
+        },
+        {
+          "labelKey": "symptom.field.collectionFrequency.option.MONTHLY",
+          "value": "MONTHLY"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "symptom.field.collectionFrequency.validation.required"
+        }
+      }
+    },
+    "MAX_ADDITIONAL_QUESTION": {
+      "id": "MAX_ADDITIONAL_QUESTION",
+      "type": "number",
+      "labelKey": "symptom.field.maxAdditionalQuestion.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "symptom.field.maxAdditionalQuestion.validation.required"
+        },
+        "min": {
+          "value": 0,
+          "messageKey": "symptom.field.maxAdditionalQuestion.validation.min"
+        },
+        "max": {
+          "value": 99,
+          "messageKey": "symptom.field.maxAdditionalQuestion.validation.max"
+        }
+      }
+    },
+    "QUESTIONS": {
+      "id": "QUESTIONS",
+      "type": "questionList",
+      "labelKey": "symptom.field.questions.label",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "symptom.field.questions.validation.required"
+        }
+      },
+      "props": {
+        "addButtonLabel": "Add Question",
+        "commonFields": [
+          {
+            "name": "questionText",
+            "type": "text",
+            "label": "Question Text",
+            "required": true,
+            "placeholder": "Enter your question...",
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Question text is required"
+              }
+            }
+          },
+          {
+            "name": "questionCode",
+            "type": "text",
+            "label": "Question Code",
+            "placeholder": "e.g. HTN_HEADACHE_YN",
+            "required": true,
+            "helperText": "Convention: <DOMAIN>_<QUESTION>[_<TYPE>]",
+            "validation": {
+              "required": {
+                "value": true,
+                "message": "Question code is required"
+              },
+              "pattern": {
+                "value": "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$",
+                "message": "Use uppercase letters, numbers, and underscores (e.g. HTN_HEADACHE_YN)"
+              }
+            }
+          }
+        ],
+        "panels": {
+          "ALERT_THRESHOLD": {
+            "id": "ALERT_THRESHOLD",
+            "label": "Alert Threshold",
+            "icon": "warning",
+            "labelColor": "#DC6803",
+            "iconColor": "#DC6803",
+            "enabledField": "alertThresholdEnabled",
+            "templateLinking": {
+              "fieldName": "linkedThresholdTemplate",
+              "emptyLabel": "Link Alert Threshold Template (optional)",
+              "linkedLabel": "Linked Threshold Template (optional)",
+              "emptyStateText": "No Alert Added Yet",
+              "addButtonLabel": "+ Add Alert",
+              "drawerTitle": "Select Alert Template",
+              "drawerSubtitle": "Choose a threshold template to link to this question",
+              "cancelLabel": "Cancel",
+              "confirmLabel": "Confirm",
+              "drawerEmptyText": "No alert templates available",
+              "drawerNoResultsText": "No alert templates match your filters",
+              "linkableTemplateType": "THRESHOLD",
+              "filterKeys": [
+                "category",
+                "condition",
+                "country",
+                "language"
+              ]
+            }
+          },
+          "REMINDER": {
+            "id": "REMINDER",
+            "label": "Reminder",
+            "icon": "bell",
+            "labelColor": "#039855",
+            "iconColor": "#039855",
+            "enabledField": "reminderEnabled",
+            "fields": [
+              {
+                "name": "reminderFrequency",
+                "type": "select",
+                "label": "Reminder Frequency",
+                "placeholder": "Select",
+                "layout": "half",
+                "options": [
+                  {
+                    "label": "Daily",
+                    "value": "DAILY"
+                  },
+                  {
+                    "label": "Weekly",
+                    "value": "WEEKLY"
+                  }
+                ]
+              },
+              {
+                "name": "reminderChannels",
+                "type": "checkboxGroup",
+                "label": "Reminder Channels",
+                "layout": "half",
+                "options": [
+                  {
+                    "label": "In-App",
+                    "value": "IN_APP"
+                  },
+                  {
+                    "label": "Email",
+                    "value": "EMAIL"
+                  },
+                  {
+                    "label": "Sms",
+                    "value": "SMS"
+                  },
+                  {
+                    "label": "IVR",
+                    "value": "IVR"
+                  },
+                  {
+                    "label": "Push",
+                    "value": "PUSH"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "questionTypes": [
+          {
+            "value": "NUMERIC",
+            "label": "Numeric",
+            "badgeBg": "#EFF4FF",
+            "badgeColor": "#175CD3",
+            "bodyLayout": "numeric",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ],
+            "fields": [
+              {
+                "name": "minValue",
+                "type": "text",
+                "label": "Min Value",
+                "placeholder": "e.g. 0",
+                "layout": "third"
+              },
+              {
+                "name": "maxValue",
+                "type": "text",
+                "label": "Max Value",
+                "placeholder": "e.g. 100",
+                "layout": "third"
+              },
+              {
+                "name": "defaultValue",
+                "type": "text",
+                "label": "Default Value",
+                "placeholder": "Optional",
+                "layout": "third"
+              }
+            ]
+          },
+          {
+            "value": "YES_NO",
+            "label": "Yes/No",
+            "badgeBg": "#EFF4FF",
+            "badgeColor": "#175CD3",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ]
+          },
+          {
+            "value": "MULTI_SELECT",
+            "label": "Multi-Select",
+            "badgeBg": "#F4F3FF",
+            "badgeColor": "#5925DC",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ],
+            "fields": [
+              {
+                "name": "answerOptions",
+                "type": "optionList",
+                "label": "Answer Options",
+                "addOptionLabel": "+ Add option",
+                "defaultOptions": [
+                  "Option 1",
+                  "Option 2",
+                  "Option 3",
+                  "Option 4"
+                ]
+              }
+            ]
+          },
+          {
+            "value": "SINGLE_SELECT",
+            "label": "Single Select",
+            "badgeBg": "#F4F3FF",
+            "badgeColor": "#5925DC",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ],
+            "fields": [
+              {
+                "name": "answerOptions",
+                "type": "optionList",
+                "label": "Answer Options",
+                "addOptionLabel": "+ Add option",
+                "defaultOptions": [
+                  "Option 1",
+                  "Option 2"
+                ]
+              }
+            ]
+          },
+          {
+            "value": "SCALE_1_10",
+            "label": "Scale 1-10",
+            "badgeBg": "#EFF4FF",
+            "badgeColor": "#175CD3",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ]
+          },
+          {
+            "value": "SCALE_1_5",
+            "label": "Scale 1-5",
+            "badgeBg": "#EFF4FF",
+            "badgeColor": "#175CD3",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ]
+          },
+          {
+            "value": "LOW_MID_HIGH",
+            "label": "Low/Mid/High",
+            "badgeBg": "#EFF4FF",
+            "badgeColor": "#175CD3",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ]
+          },
+          {
+            "value": "FREE_TEXT",
+            "label": "Free Text",
+            "badgeBg": "#ECFDF3",
+            "badgeColor": "#027A48",
+            "panelIds": [
+              "ALERT_THRESHOLD",
+              "REMINDER"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

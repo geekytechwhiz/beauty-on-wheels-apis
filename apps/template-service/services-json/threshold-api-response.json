@@ -3,6 +3,8 @@
   "titleKey": "threshold.title",
   "active": true,
   "subtitleKey": "threshold.subtitle",
+  "configType": "TEMPLATE",
+  "templateType": "THRESHOLD",
   "fields": {
     "TEMPLATE_NAME": {
       "id": "TEMPLATE_NAME",

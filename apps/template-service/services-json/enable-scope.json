@@ -1,5 +1,6 @@
 {
   "active": true,
+  "version": 3,
   "sections": [
     {
       "id": "sec-goal-fields",
@@ -343,6 +344,5 @@
         }
       ]
     }
-  ],
-  "version": 3
+  ]
 }

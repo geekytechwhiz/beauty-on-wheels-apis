@@ -199,14 +199,16 @@ functions:
             "401": Unauthorized
             "500": Server error
 
-  listTemplateUiMeta:
-    handler: src/handlers/http/listTemplateUiMeta.main
+  listTemplateConfigs:
+    handler: src/handlers/http/listTemplateConfigs.main
     events:
       - http:
-          path: templates/master/meta
+          path: template-configs
           method: get
-          summary: List UI meta definitions
-          description: Lists available UI meta JSON files (id + template type) from services-json.
+          summary: List or find UI template configs
+          description: |
+            List configs. Query configType=TEMPLATE|ORG and/or templateType=MONITORING.
+            templateType returns the form JSON for that type (replaces legacy GET by type).
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -215,14 +217,14 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  getTemplateUiMetaById:
-    handler: src/handlers/http/getTemplateUiMetaById.main
+  createTemplateConfig:
+    handler: src/handlers/http/createTemplateConfig.main
     events:
       - http:
-          path: templates/master/meta/id/{metaId}
-          method: get
-          summary: Get UI meta by id
-          description: Returns UI meta JSON (e.g. ALERT-MASTER-001) from services-json.
+          path: template-configs
+          method: post
+          summary: Create UI template config
+          description: Creates TEMPLATE (form) or ORG (drawer/enablement) config. Body requires configType.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -231,14 +233,14 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  getTemplateUiMetaByType:
-    handler: src/handlers/http/getTemplateUiMetaByType.main
+  getTemplateConfig:
+    handler: src/handlers/http/getTemplateConfig.main
     events:
       - http:
-          path: templates/master/meta/type/{templateType}
+          path: template-configs/{configId}
           method: get
-          summary: Get UI meta by template type
-          description: Returns UI meta JSON for template type (ALERT_POLICY, MONITORING, …).
+          summary: Get UI template config by id
+          description: configId is document id (MONITORING-MASTER-001) or org key (ENABLE_SCOPE).
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -247,62 +249,14 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
-  upsertTemplateUiMeta:
-    handler: src/handlers/http/upsertTemplateUiMeta.main
+  updateTemplateConfig:
+    handler: src/handlers/http/updateTemplateConfig.main
     events:
       - http:
-          path: templates/master/meta/type/{templateType}
+          path: template-configs/{configId}
           method: put
-          summary: Create or update UI meta (upsert)
-          description: Writes UI meta JSON to services-json for the template type (create and update use this endpoint).
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-
-  listOrgConfigMeta:
-    handler: src/handlers/http/listOrgConfigMeta.main
-    events:
-      - http:
-          path: templates/master/meta/org
-          method: get
-          summary: List org config meta definitions
-          description: Lists org-drawer, org-manageibility, and enable-scope JSON from services-json (full documents).
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-
-  getOrgConfigMetaByKey:
-    handler: src/handlers/http/getOrgConfigMetaByKey.main
-    events:
-      - http:
-          path: templates/master/meta/org/{configKey}
-          method: get
-          summary: Get org config meta by key
-          description: Returns org config JSON for ORG_DRAWER, ORG_MANAGEABILITY, or ENABLE_SCOPE.
-          cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-
-  upsertOrgConfigMeta:
-    handler: src/handlers/http/upsertOrgConfigMeta.main
-    events:
-      - http:
-          path: templates/master/meta/org/{configKey}
-          method: put
-          summary: Create or update org config meta (upsert)
-          description: Writes org-drawer, org-manageibility, or enable-scope JSON to services-json (active + version managed).
+          summary: Update UI template config
+          description: Updates existing config by configId. 404 if not found.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer

@@ -1,0 +1,14 @@
+{
+  "name": "myvirtualrx.fhir.custom",
+  "version": "1.0.0",
+  "fhir-version-list": ["4.0.1"],
+  "type": "ig",
+  "license": "CC0-1.0",
+  "title": "MyVirtualRx Custom FHIR Extensions",
+  "description": "StructureDefinitions for MyVirtualRx custom Patient extensions (MRN, medical history, insurance, emergency contact).",
+  "author": "MyVirtualRx",
+  "url": "https://myvirtualrx.com/fhir",
+  "tools-version": 3,
+  "canonical": "https://myvirtualrx.com/fhir",
+  "homepage": "https://myvirtualrx.com/fhir"
+}

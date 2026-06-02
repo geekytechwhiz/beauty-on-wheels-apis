@@ -1,4 +1,5 @@
 import { withApiHandler } from '@api-hub/middleware';
+import { fhirCreateUserHandlerOptions } from '../../utils/fhir-handler-options';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 import { type LambdaRequest } from '@api-hub/utils';
 import { publishUserCreatedEvent } from '../../events/UserCreated';
@@ -222,12 +223,11 @@ const handler = async (
   return { invitedUser: result.userID };
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'createUser',
-            validator: (req) => validateCreateUser(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'createUser',
+    validator: validateCreateUser,
+    fhir: fhirCreateUserHandlerOptions,
   },
-        );
+  handler,
+);

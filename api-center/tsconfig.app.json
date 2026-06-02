@@ -18,5 +18,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "src/**/*.d.ts"]
+  "include": ["src", "src/**/*.d.ts", "../docs/s3-service.ts"]
 }

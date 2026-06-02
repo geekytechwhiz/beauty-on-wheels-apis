@@ -6,11 +6,11 @@ import { validateUserIdParam } from '../validation/request.validators';
 const userService = new UserService();
 
 interface Params {
-  userId: string;
+  userId?: string;
 }
 
 const handler = async (req: LambdaRequest<Params>) => {
-  const userId = req.pathParameters?.userId;
+  const userId = (req.pathParameters?.userId ?? req.params?.userId) as string;
   return userService.listUserFiles(userId as string);
 };
 

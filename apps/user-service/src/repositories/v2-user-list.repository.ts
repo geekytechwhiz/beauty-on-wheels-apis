@@ -12,11 +12,11 @@ import {
   serializeError,
   createChildLogger,
 } from '@api-hub/observability';
-import type {
+import {
   UserListContext,
-  V2UserListFilters,
-  V2UserListPagination,
-  V2UserListSort,
+  type V2UserListFilters,
+  type V2UserListPagination,
+  type V2UserListSort,
 } from '../types/user-list-context.enum';
 
 const baseLogger = createLogger({ service: 'user-service', redactPII: true });
@@ -50,10 +50,77 @@ function decodeCursor(cursor: string): Record<string, unknown> | undefined {
   }
 }
 
+const ADMIN_DASHBOARD_PROJECTION_ATTRIBUTES = [
+  'userID',
+  'fullName',
+  'firstName',
+  'lastName',
+  'emailAddress',
+  'phoneNumber',
+  'phoneCode',
+  'profilePic',
+  'roleName',
+  'roleID',
+  'roleType',
+  'definedRoleCode',
+  'userType',
+  'isActive',
+  'status',
+  'createdAt',
+  'createdDate',
+  'modifiedDate',
+  'organizationID',
+  'reporterName',
+  'reporterProfilePic',
+  'doctorName',
+  'mrn',
+  'accountType',
+  'specialty',
+  'department',
+  'isRpmUser',
+] as const;
+
+function projectionAliasForAttr(
+  attr: string,
+  exprNames: Record<string, string>,
+): string {
+  const existing = Object.entries(exprNames).find(([, value]) => value === attr);
+  if (existing) {
+    return existing[0];
+  }
+  const alias = `#proj_${attr}`;
+  exprNames[alias] = attr;
+  return alias;
+}
+
+function buildAdminDashboardProjection(
+  exprNames: Record<string, string>,
+): string {
+  return ADMIN_DASHBOARD_PROJECTION_ATTRIBUTES.map((attr) =>
+    projectionAliasForAttr(attr, exprNames),
+  ).join(', ');
+}
+
+function appendFriendFamilyExclusion(
+  filterParts: string[],
+  exprNames: Record<string, string>,
+  exprValues: Record<string, unknown>,
+): void {
+  if (!exprNames['#definedRoleCode']) {
+    exprNames['#definedRoleCode'] = 'definedRoleCode';
+  }
+  exprValues[':fnfFriend'] = 'FRIEND';
+  exprValues[':fnfFamily'] = 'FAMILY';
+  filterParts.push(
+    '(attribute_not_exists(#definedRoleCode) OR (#definedRoleCode <> :fnfFriend AND #definedRoleCode <> :fnfFamily))',
+  );
+}
+
 function buildFilterExpression(
   filters: V2UserListFilters,
   exprNames: Record<string, string>,
   exprValues: Record<string, unknown>,
+  options?: { excludeFriendFamily?: boolean },
 ): string[] {
   const filterParts: string[] = [];
 
@@ -99,13 +166,40 @@ function buildFilterExpression(
     filterParts.push('#status = :status');
   }
 
-  filterParts.push(
-    '(attribute_not_exists(#isDeleted) OR #isDeleted <> :deletedTrue)',
-  );
+  filterParts.push('(attribute_not_exists(#isDeleted) OR #isDeleted <> :deletedTrue)');
   exprNames['#isDeleted'] = 'isDeleted';
   exprValues[':deletedTrue'] = true;
 
+  if (options?.excludeFriendFamily) {
+    appendFriendFamilyExclusion(filterParts, exprNames, exprValues);
+  }
+
   return filterParts;
+}
+
+function buildDefaultFilterExpression(
+  exprNames: Record<string, string>,
+  exprValues: Record<string, unknown>,
+  options?: { excludeFriendFamily?: boolean },
+): string[] {
+  const filterParts = [
+    '(attribute_not_exists(#isDeleted) OR #isDeleted <> :deletedTrue)',
+  ];
+  exprNames['#isDeleted'] = 'isDeleted';
+  exprValues[':deletedTrue'] = true;
+
+  if (options?.excludeFriendFamily) {
+    appendFriendFamilyExclusion(filterParts, exprNames, exprValues);
+  }
+
+  return filterParts;
+}
+
+function applyAdminDashboardQueryOptions(
+  queryParams: QueryCommandInput,
+  exprNames: Record<string, string>,
+): void {
+  queryParams.ProjectionExpression = buildAdminDashboardProjection(exprNames);
 }
 
 function applySearchFilter(
@@ -128,6 +222,29 @@ function applySearchFilter(
       lastName.includes(searchLower)
     );
   });
+}
+
+function buildOrgUserKeyCondition(useUppercaseKeys: boolean): string {
+  return useUppercaseKeys
+    ? 'PK = :pk AND begins_with(SK, :skPrefix)'
+    : 'pk = :pk AND begins_with(sk, :skPrefix)';
+}
+
+function buildPaginationCursorKey(
+  item: Record<string, unknown>,
+  organizationId: string,
+): Record<string, unknown> {
+  const userId = String(item.userID ?? item.userId ?? '');
+  if (item.pk != null && item.sk != null) {
+    return { pk: item.pk, sk: item.sk };
+  }
+  if (item.PK != null && item.SK != null) {
+    return { pk: item.PK, sk: item.SK };
+  }
+  return {
+    pk: `ORG#${organizationId}`,
+    sk: `USER#${userId}`,
+  };
 }
 
 function sortItems(
@@ -158,19 +275,78 @@ function sortItems(
   });
 }
 
+let orgUserTableUsesUppercaseKeys: boolean | null = null;
+
 export class V2UserListRepository {
+  private async fetchOrganizationUserPages(
+    queryParams: QueryCommandInput,
+    useUppercaseKeys: boolean,
+  ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const allItems: Record<string, unknown>[] = [];
+    let exclusiveStartKey = queryParams.ExclusiveStartKey as
+      | Record<string, unknown>
+      | undefined;
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
+
+    do {
+      const pageParams: QueryCommandInput = {
+        ...queryParams,
+        KeyConditionExpression: buildOrgUserKeyCondition(useUppercaseKeys),
+        ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
+      };
+
+      const result = await sendDoc<QueryCommandOutput>(
+        docClient,
+        new QueryCommand(pageParams),
+      );
+      allItems.push(...((result.Items ?? []) as Record<string, unknown>[]));
+      lastEvaluatedKey = result.LastEvaluatedKey;
+      exclusiveStartKey = lastEvaluatedKey;
+    } while (exclusiveStartKey);
+
+    return { items: allItems, lastEvaluatedKey };
+  }
+
+  private async runOrganizationUserQuery(
+    queryParams: QueryCommandInput,
+    logger: ReturnType<typeof createChildLogger>,
+  ): Promise<{ items: Record<string, unknown>[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    if (orgUserTableUsesUppercaseKeys === null) {
+      try {
+        const result = await this.fetchOrganizationUserPages(queryParams, false);
+        orgUserTableUsesUppercaseKeys = false;
+        return result;
+      } catch (err) {
+        const name = (err as { name?: string }).name;
+        const message = (err as { message?: string }).message || '';
+        if (name === 'ValidationException' && message.includes('PK')) {
+          logger.info({ event: 'v2_user_list_use_uppercase_keys' });
+          orgUserTableUsesUppercaseKeys = true;
+          return this.fetchOrganizationUserPages(queryParams, true);
+        }
+        throw err;
+      }
+    }
+
+    return this.fetchOrganizationUserPages(
+      queryParams,
+      orgUserTableUsesUppercaseKeys,
+    );
+  }
+
   async queryOrganizationUsers(
     params: V2UserListQueryParams,
   ): Promise<V2UserListQueryResult> {
-    const { organizationId, filters, pagination, sort, correlationId } = params;
-    const logger = createChildLogger(baseLogger, {
-      correlationId,
-      organizationId,
-    });
+    const { organizationId, context, filters, pagination, sort, correlationId } = params;
+    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+    const isAdminDashboard = context === UserListContext.ADMIN_DASHBOARD;
+    const filterOptions = { excludeFriendFamily: isAdminDashboard };
 
-    logger.info({ event: 'v2_user_list_query_start', organizationId });
+    logger.info({ event: 'v2_user_list_query_start', organizationId, context });
 
-    const limit = pagination?.limit || 20;
+    const limit = isAdminDashboard
+      ? pagination?.limit
+      : (pagination?.limit ?? 20);
     const exclusiveStartKey = pagination?.cursor
       ? decodeCursor(pagination.cursor)
       : undefined;
@@ -182,59 +358,55 @@ export class V2UserListRepository {
     };
 
     const filterParts = filters
-      ? buildFilterExpression(filters, exprNames, exprValues)
-      : ['(attribute_not_exists(#isDeleted) OR #isDeleted <> :deletedTrue)'];
-
-    if (!filters) {
-      exprNames['#isDeleted'] = 'isDeleted';
-      exprValues[':deletedTrue'] = true;
-    }
+      ? buildFilterExpression(filters, exprNames, exprValues, filterOptions)
+      : buildDefaultFilterExpression(exprNames, exprValues, filterOptions);
 
     const queryParams: QueryCommandInput = {
       TableName: USER_TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+      KeyConditionExpression: buildOrgUserKeyCondition(false),
       ExpressionAttributeValues: exprValues,
-      ...(Object.keys(exprNames).length > 0 && {
-        ExpressionAttributeNames: exprNames,
-      }),
-      ...(filterParts.length > 0 && {
-        FilterExpression: filterParts.join(' AND '),
-      }),
+      ...(Object.keys(exprNames).length > 0 && { ExpressionAttributeNames: exprNames }),
+      ...(filterParts.length > 0 && { FilterExpression: filterParts.join(' AND ') }),
       ...(exclusiveStartKey && { ExclusiveStartKey: exclusiveStartKey }),
     };
 
-    try {
-      let allItems: Record<string, unknown>[] = []; 
+    if (isAdminDashboard) {
+      applyAdminDashboardQueryOptions(queryParams, exprNames);
+      queryParams.ExpressionAttributeNames = exprNames;
+    }
 
-      const result = await sendDoc<QueryCommandOutput>(
-        docClient,
-        new QueryCommand(queryParams),
-      );
-      allItems = (result.Items ?? []) as Record<string, unknown>[];
-      const lastKey = result.LastEvaluatedKey;
+    try {
+      const { items: fetchedItems, lastEvaluatedKey: ddbLastKey } =
+        await this.runOrganizationUserQuery(queryParams, logger);
+
+      let allItems = fetchedItems;
 
       if (filters?.search) {
         allItems = applySearchFilter(allItems, filters.search);
       }
 
-      allItems = sortItems(allItems, sort);
+      if (allItems.length > 1) {
+        allItems = sortItems(allItems, sort);
+      }
 
-      const paginatedItems = allItems.slice(0, limit);
-      const hasMore = allItems.length > limit || !!lastKey;
+      const paginatedItems =
+        limit != null ? allItems.slice(0, limit) : allItems;
+      const hasMore =
+        limit != null ? allItems.length > limit || !!ddbLastKey : false;
 
       let nextKey: Record<string, unknown> | undefined;
       if (hasMore && paginatedItems.length > 0) {
-        const lastItem = paginatedItems[paginatedItems.length - 1];
-        nextKey = {
-          pk: lastItem.pk,
-          sk: lastItem.sk,
-        };
+        nextKey = buildPaginationCursorKey(
+          paginatedItems[paginatedItems.length - 1],
+          organizationId,
+        );
       }
 
       logger.info({
         event: 'v2_user_list_query_success',
         count: paginatedItems.length,
         hasMore,
+        fetchedCount: fetchedItems.length,
       });
 
       return {
@@ -242,59 +414,6 @@ export class V2UserListRepository {
         lastEvaluatedKey: nextKey,
       };
     } catch (err) {
-      const name = (err as { name?: string }).name;
-      const message = (err as { message?: string }).message || '';
-
-      if (name === 'ValidationException' && message.includes('PK')) {
-        logger.info({ event: 'v2_user_list_retry_uppercase_keys' });
-
-        const uppercaseParams: QueryCommandInput = {
-          ...queryParams,
-          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
-        };
-
-        try {
-          const fallbackResult = await sendDoc<QueryCommandOutput>(
-            docClient,
-            new QueryCommand(uppercaseParams),
-          );
-          let allItems = (fallbackResult.Items ?? []) as Record<
-            string,
-            unknown
-          >[];
-
-          if (filters?.search) {
-            allItems = applySearchFilter(allItems, filters.search);
-          }
-
-          allItems = sortItems(allItems, sort);
-
-          const paginatedItems = allItems.slice(0, limit);
-          const hasMore =
-            allItems.length > limit || !!fallbackResult.LastEvaluatedKey;
-
-          let nextKey: Record<string, unknown> | undefined;
-          if (hasMore && paginatedItems.length > 0) {
-            const lastItem = paginatedItems[paginatedItems.length - 1];
-            nextKey = {
-              pk: lastItem.pk || lastItem.PK,
-              sk: lastItem.sk || lastItem.SK,
-            };
-          }
-
-          return {
-            items: paginatedItems,
-            lastEvaluatedKey: nextKey,
-          };
-        } catch (fallbackErr) {
-          logger.error({
-            event: 'v2_user_list_query_fallback_error',
-            err: serializeError(fallbackErr),
-          });
-          throw fallbackErr;
-        }
-      }
-
       logger.error({
         event: 'v2_user_list_query_error',
         err: serializeError(err),

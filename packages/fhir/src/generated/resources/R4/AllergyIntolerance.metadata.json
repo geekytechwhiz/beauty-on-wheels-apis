@@ -1,0 +1,288 @@
+{
+  "resource": "AllergyIntolerance",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "AllergyIntolerance",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.clinicalStatus",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.verificationStatus",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.type",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.category",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.criticality",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.encounter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.onset[x]",
+      "type": [
+        "dateTime",
+        "Age",
+        "Period",
+        "Range",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.recordedDate",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.recorder",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.asserter",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.lastOccurrence",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.reaction",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.reaction.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.reaction.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.reaction.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.reaction.substance",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.reaction.manifestation",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "AllergyIntolerance.reaction.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.reaction.onset",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.reaction.severity",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.reaction.exposureRoute",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "AllergyIntolerance.reaction.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

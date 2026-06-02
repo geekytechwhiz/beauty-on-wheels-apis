@@ -1,0 +1,52 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "custom-emergency-contact",
+  "url": "https://myvirtualrx.com/fhir/custom/emergency-contact",
+  "version": "1.0.0",
+  "name": "CustomEmergencyContact",
+  "title": "Emergency Contact",
+  "status": "active",
+  "date": "2026-05-26",
+  "publisher": "MyVirtualRx",
+  "description": "Patient emergency contact details captured in the MyVirtualRx platform, serialized as JSON in valueString.",
+  "fhirVersion": "4.0.1",
+  "kind": "complex-type",
+  "abstract": false,
+  "context": [
+    {
+      "type": "element",
+      "expression": "Patient"
+    }
+  ],
+  "type": "Extension",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Extension",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Extension",
+        "path": "Extension",
+        "short": "Emergency Contact",
+        "definition": "Patient emergency contact details captured in the MyVirtualRx platform, serialized as JSON in valueString.",
+        "min": 0,
+        "max": "1"
+      },
+      {
+        "id": "Extension.extension",
+        "path": "Extension.extension",
+        "max": "0"
+      },
+      {
+        "id": "Extension.url",
+        "path": "Extension.url",
+        "fixedUri": "https://myvirtualrx.com/fhir/custom/emergency-contact"
+      },
+      {
+        "id": "Extension.value[x]",
+        "path": "Extension.value[x]",
+        "min": 1,
+        "type": [{ "code": "string" }]
+      }
+    ]
+  }
+}

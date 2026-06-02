@@ -46,6 +46,12 @@
       "@myvitalrx/platform-tools/event-platform/dx": [
         "packages/platform-tools/src/event-platform-dx.ts"
       ],
+      "@myvitalrx/fhir-wrapper": [
+        "packages/fhir-wrapper/src/index.ts"
+      ],
+      "@myvitalrx/fhir-wrapper/middleware": [
+        "packages/fhir-wrapper/src/middleware.ts"
+      ],
       "@api-hub/partners": ["libs/partners/src/index.ts"],
       "@api-hub/integration-events": ["libs/integration-events/src/index.ts"],
       "@api-hub/lab-integration": ["libs/lab-integration/src/index.ts"],

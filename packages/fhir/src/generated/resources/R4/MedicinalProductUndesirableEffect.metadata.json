@@ -1,0 +1,116 @@
+{
+  "resource": "MedicinalProductUndesirableEffect",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "MedicinalProductUndesirableEffect",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.subject",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.symptomConditionEffect",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.classification",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.frequencyOfOccurrence",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductUndesirableEffect.population",
+      "type": [
+        "Population"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

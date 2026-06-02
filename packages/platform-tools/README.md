@@ -1,17 +1,15 @@
 # @myvitalrx/platform-tools
 
-One npm package with subpaths — **middleware**, **observability**, **event-platform**, and **fhir** — for building serverless APIs and event-driven Lambdas on AWS.
+One npm package with subpaths — **middleware**, **observability**, and **event-platform** — for building serverless APIs and event-driven Lambdas on AWS.
 
 | Subpath | Role |
 |---------|------|
 | `@myvitalrx/platform-tools/observability` | Structured logging, correlation IDs, metrics, PII redaction |
 | `@myvitalrx/platform-tools/middleware` | Lambda middleware pipelines (HTTP + async) |
-| `@myvitalrx/platform-tools/fhir` | FHIR transformation, mapping, validation |
-| `@myvitalrx/platform-tools/fhir/middleware` | `withApiHandler` FHIR projection (lazy-loaded by middleware) |
 | `@myvitalrx/platform-tools/event-platform` | Canonical events, consumers, publish, idempotency, realtime |
 | `@myvitalrx/platform-tools/event-platform/dx` | `configureEventPlatform`, `publishEvent` helpers |
 
-Utils and FHIR are **bundled** (no separate `@api-hub/utils` or `@myvitalrx/fhir` install). Middleware lazy-loads `@myvitalrx/platform-tools/fhir/middleware` at runtime when handlers use the `fhir` option.
+FHIR lives in a separate package: **`@myvitalrx/fhir-wrapper`**. Middleware lazy-loads `@myvitalrx/fhir-wrapper/middleware` at runtime when handlers use the `fhir` option — install both packages for FHIR-enabled HTTP handlers.
 
 **Deep dives (monorepo docs):**
 
@@ -28,6 +26,8 @@ Utils and FHIR are **bundled** (no separate `@api-hub/utils` or `@myvitalrx/fhir
 pnpm add @myvitalrx/platform-tools
 ```
 
+For FHIR projection on `withApiHandler`, also install `@myvitalrx/fhir-wrapper` (see [fhir-wrapper README](../fhir-wrapper/README.md)).
+
 Do **not** install `@myvitalrx/observability` alongside `@myvitalrx/platform-tools/observability` in the same app (duplicate surface).
 
 ---
@@ -39,7 +39,7 @@ import { createLogger, getLogger } from '@myvitalrx/platform-tools/observability
 import { withApiHandler, withLambdaHandler } from '@myvitalrx/platform-tools/middleware';
 import { onEvent, onQueue, defineEvent, createDynamoStreamHandler } from '@myvitalrx/platform-tools/event-platform';
 import { configureEventPlatform, publishEvent } from '@myvitalrx/platform-tools/event-platform/dx';
-import { transformToFhirResponse } from '@myvitalrx/platform-tools/fhir';
+import { transformToFhirResponse } from '@myvitalrx/fhir-wrapper';
 ```
 
 ---
@@ -102,7 +102,7 @@ export const handler = withApiHandler(
   {
     operation: 'order.create',
     bodySchema: BodySchema,
-    // fhir: { resourceType: 'Patient' },  // bundled — no extra install
+    // fhir: { resourceType: 'Patient' },  // requires @myvitalrx/fhir-wrapper
   },
   async (req) => {
     return { orderId: req.body.orderId };
@@ -304,5 +304,5 @@ pnpm run publish:platform-tools   # from repo root
 
 @myvitalrx/platform-tools/middleware
   → @myvitalrx/platform-tools/observability
-  → @myvitalrx/platform-tools/fhir/middleware (lazy-loaded)
+  → @myvitalrx/fhir-wrapper/middleware (lazy-loaded; separate install)
 ```

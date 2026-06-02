@@ -1,0 +1,146 @@
+{
+  "resource": "CompartmentDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "search",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "resource",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "resource.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "resource.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "resource.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "resource.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "resource.param",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "resource.documentation",
+      "fieldType": "string"
+    }
+  ]
+}

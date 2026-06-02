@@ -1,0 +1,37 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "emitDeclarationOnly": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/generated/**/*.json",
+    "src/mappings/**/*.json"
+  ],
+  "exclude": ["src/**/*.spec.ts", "src/tests/**"],
+  "references": [
+    {
+      "path": "../../libs/fhir/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/terminology/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    }
+  ]
+}

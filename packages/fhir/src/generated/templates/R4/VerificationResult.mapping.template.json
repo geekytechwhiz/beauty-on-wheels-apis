@@ -1,0 +1,251 @@
+{
+  "resource": "VerificationResult",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "target",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "targetLocation",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "need",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "validationType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "validationProcess",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "frequency",
+      "fieldType": "Timing"
+    },
+    {
+      "source": "",
+      "target": "lastPerformed",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "nextScheduled",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "failureAction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "primarySource",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "primarySource.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "primarySource.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "primarySource.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "primarySource.who",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "primarySource.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "primarySource.communicationMethod",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "primarySource.validationStatus",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "primarySource.validationDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "primarySource.canPushUpdates",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "primarySource.pushTypeAvailable",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "attestation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "attestation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "attestation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "attestation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "attestation.who",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "attestation.onBehalfOf",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "attestation.communicationMethod",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "attestation.date",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "attestation.sourceIdentityCertificate",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "attestation.proxyIdentityCertificate",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "attestation.proxySignature",
+      "fieldType": "Signature"
+    },
+    {
+      "source": "",
+      "target": "attestation.sourceSignature",
+      "fieldType": "Signature"
+    },
+    {
+      "source": "",
+      "target": "validator",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "validator.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "validator.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "validator.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "validator.organization",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "validator.identityCertificate",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "validator.attestationSignature",
+      "fieldType": "Signature"
+    }
+  ]
+}

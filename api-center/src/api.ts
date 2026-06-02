@@ -13,13 +13,6 @@ export interface ServiceRegistryEntry {
   rules?: string[];
 }
 
-export interface HealthResponse {
-  status: string;
-  service: string;
-  servicesRegistered: number;
-  timestamp: string;
-}
-
 export interface RegisterServicePayload {
   name: string;
   url: string;
@@ -28,6 +21,13 @@ export interface RegisterServicePayload {
   rules?: string[];
 }
 
+
+export interface HealthResponse {
+  status: string;
+  service: string;
+  servicesRegistered: number;
+  timestamp: string;
+}
 /** Row shape in `src/utils/services.json` (kept in sync with service-registry config). */
 export interface ServicesJsonEntry {
   name: string;

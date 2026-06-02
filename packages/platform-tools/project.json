@@ -9,7 +9,7 @@
       "executor": "nx:run-commands",
       "dependsOn": [
         {
-          "projects": ["observability", "event-platform", "middleware", "fhir"],
+          "projects": ["observability", "event-platform", "middleware"],
           "target": "build"
         }
       ],

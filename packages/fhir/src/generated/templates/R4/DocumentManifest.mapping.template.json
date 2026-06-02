@@ -1,0 +1,131 @@
+{
+  "resource": "DocumentManifest",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "masterIdentifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "created",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "author",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "recipient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "source",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "content",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "related",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "related.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "related.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "related.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "related.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "related.ref",
+      "fieldType": "Reference"
+    }
+  ]
+}

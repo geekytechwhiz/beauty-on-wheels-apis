@@ -1,0 +1,226 @@
+{
+  "resource": "MessageDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "replaces",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "base",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "parent",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "event[x]",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "focus",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "focus.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "focus.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "focus.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "focus.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "focus.profile",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "focus.min",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "focus.max",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "responseRequired",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "allowedResponse",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "allowedResponse.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "allowedResponse.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "allowedResponse.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "allowedResponse.message",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "allowedResponse.situation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "graph",
+      "fieldType": "canonical"
+    }
+  ]
+}

@@ -1,0 +1,244 @@
+{
+  "resource": "NamingSystem",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "NamingSystem",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.name",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.kind",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.publisher",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.contact",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.responsible",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.description",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.useContext",
+      "type": [
+        "UsageContext"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.jurisdiction",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.usage",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.uniqueId",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.uniqueId.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.uniqueId.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.uniqueId.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "NamingSystem.uniqueId.type",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.uniqueId.value",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.uniqueId.preferred",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.uniqueId.comment",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "NamingSystem.uniqueId.period",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

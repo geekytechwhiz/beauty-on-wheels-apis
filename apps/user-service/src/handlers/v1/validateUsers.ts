@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserValidationService } from '../../services/userValidation.service';
+import { fhirUserHandlerOptions } from '../../utils/fhir-handler-options';
 import { validateValidateUsers } from '../../validation/request.validators';
 
 const userValidationService = new UserValidationService();
@@ -19,18 +20,24 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
     { provider: provider!, externalId: externalId!, tenantId: tenantId || '' },
     correlationId,
   );
+  if (exists && cognitoUser && typeof cognitoUser === 'object') {
+    return {
+      exists: true,
+      cognitoUser,
+      ...(cognitoUser as Record<string, unknown>),
+    };
+  }
   if (exists) {
     return { exists: true, cognitoUser };
   }
   return { exists: false };
 };
 
-export const main =   withApiHandler(
-          {
-            operation: 'validateUsers',
-            validator: (req) => validateValidateUsers(req as any),
-          },
-           async (req) => {
-    return await (handler as any)(req);
+export const main = withApiHandler(
+  {
+    operation: 'validateUsers',
+    validator: validateValidateUsers,
+    fhir: fhirUserHandlerOptions,
   },
-        );
+  handler,
+);

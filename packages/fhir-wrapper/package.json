@@ -1,0 +1,60 @@
+{
+  "name": "@myvitalrx/fhir-wrapper",
+  "version": "0.1.1",
+  "description": "MyVitalRx FHIR R4 transformation, mapping, validation, and withApiHandler middleware",
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "middleware": ["dist/middleware.d.ts"]
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware.d.ts",
+      "import": "./dist/middleware.js",
+      "default": "./dist/middleware.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup && sh scripts/copy-lib-dts.sh",
+    "build:bundle": "tsup",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@ahryman40k/ts-fhir-types": "^4.0.39",
+    "object-path": "^0.11.8",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@myvitalrx/platform-tools": ">=0.2.0"
+  },
+  "devDependencies": {
+    "@api-hub/fhir": "workspace:*",
+    "@api-hub/observability": "workspace:*",
+    "@api-hub/terminology": "workspace:*",
+    "@api-hub/utils": "workspace:*",
+    "@myvitalrx/platform-tools": "workspace:*",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

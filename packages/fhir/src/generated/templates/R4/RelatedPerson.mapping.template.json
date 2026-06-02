@@ -1,0 +1,131 @@
+{
+  "resource": "RelatedPerson",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "active",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "relationship",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "HumanName"
+    },
+    {
+      "source": "",
+      "target": "telecom",
+      "fieldType": "ContactPoint"
+    },
+    {
+      "source": "",
+      "target": "gender",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "birthDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "address",
+      "fieldType": "Address"
+    },
+    {
+      "source": "",
+      "target": "photo",
+      "fieldType": "Attachment"
+    },
+    {
+      "source": "",
+      "target": "period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "communication",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "communication.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "communication.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "communication.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "communication.language",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "communication.preferred",
+      "fieldType": "boolean"
+    }
+  ]
+}

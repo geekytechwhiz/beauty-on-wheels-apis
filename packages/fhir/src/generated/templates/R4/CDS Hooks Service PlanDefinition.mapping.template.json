@@ -1,0 +1,544 @@
+{
+  "resource": "CDS Hooks Service PlanDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "PlanDefinition"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.subtitle",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.subject[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.usage",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.topic",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.author",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.editor",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.reviewer",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.endorser",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.relatedArtifact",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.library",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.description",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.priority",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.start",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.addresses",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.documentation",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.target",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.target.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.target.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.target.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.target.measure",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.target.detail[x]",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.goal.target.due",
+      "fieldType": "Duration"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.prefix",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.textEquivalent",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.priority",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.reason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.documentation",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.goalId",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.subject[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.trigger",
+      "fieldType": "TriggerDefinition"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.condition",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.condition.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.condition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.condition.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.condition.kind",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.condition.expression",
+      "fieldType": "Expression"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.input",
+      "fieldType": "DataRequirement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.output",
+      "fieldType": "DataRequirement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.relatedAction",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.relatedAction.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.relatedAction.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.relatedAction.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.relatedAction.actionId",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.relatedAction.relationship",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.relatedAction.offset[x]",
+      "fieldType": "Duration"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.timing[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.participant",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.participant.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.participant.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.participant.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.participant.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.participant.role",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.groupingBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.selectionBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.requiredBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.precheckBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.cardinalityBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.definition[x]",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.transform",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.dynamicValue",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.dynamicValue.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.dynamicValue.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.dynamicValue.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.dynamicValue.path",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.dynamicValue.expression",
+      "fieldType": "Expression"
+    },
+    {
+      "source": "",
+      "target": "PlanDefinition.action.action"
+    }
+  ]
+}

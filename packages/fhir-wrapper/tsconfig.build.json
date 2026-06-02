@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "declarationMap": false,
+    "composite": false,
+    "noEmit": true
+  },
+  "references": [
+    {
+      "path": "../../libs/fhir/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/terminology/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../fhir/tsconfig.lib.json"
+    }
+  ]
+}

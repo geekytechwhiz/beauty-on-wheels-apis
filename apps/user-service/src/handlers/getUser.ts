@@ -2,7 +2,7 @@ import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationRepository } from '../repositories/organization.repository';
 import { UserService } from '../services/user.service';
-import { validateUserOrganizationRequest } from '../validation/request.validators';
+import { fhirUserHandlerOptions } from '../utils/fhir-handler-options';
 
 const userService = new UserService();
 const organizationRepository = new OrganizationRepository();
@@ -18,20 +18,20 @@ const handler = async (req: LambdaRequest<Params>) => {
   // Supports API Gateway (pathParameters), direct Lambda invocations (params),
   // and nested-data Lambda invocations: { data: { userID, organizationID } }
   const directData = (req.event as any)?.data;
-  // const userId = (
-  //   req.pathParameters?.userId ??
-  //   req.params.userId ??
-  //   directData?.userID ??
-  //   directData?.userId ??
-  //   req.context.userContext?.userId
-  // ) as string;
-  // const organizationId = (
-  //   req.params.organizationId ??
-  //   directData?.organizationID ??
-  //   directData?.organizationId ??
-  //   req.context.userContext?.organizationId
-  // ) as string;
-  // const userType = req.params.userType;
+  const userId = (
+    req.pathParameters?.userId ??
+    req.params.userId ??
+    directData?.userID ??
+    directData?.userId ??
+    req.context.userContext?.userId
+  ) as string;
+  const organizationId = (
+    req.params.organizationId ??
+    directData?.organizationID ??
+    directData?.organizationId ??
+    req.context.userContext?.organizationId
+  ) as string;
+  const userType = req.params.userType;
 
   const user = await userService.getUser(userId, organizationId);
   if (!user || typeof user !== 'object') {
@@ -56,4 +56,7 @@ const handler = async (req: LambdaRequest<Params>) => {
   return transformedUser;
 };
 
-  export const main = withApiHandler({ operation: 'getUser',fhir: { resourceType: 'Patient' }, }, handler);
+export const main = withApiHandler(
+  { operation: 'getUser', fhir: fhirUserHandlerOptions },
+  handler,
+);

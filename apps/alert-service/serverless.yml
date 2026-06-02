@@ -16,9 +16,9 @@ provider:
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
-  # deploymentBucket:
-  #   name: ${self:provider.stage}-mvx-alert-service-bucket
-  #   serverSideEncryption: AES256
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-alert-service-bucket
+    serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
 
@@ -47,6 +47,7 @@ provider:
     ALERT_EVENTS_TOPIC_ARN: ${env:ALERT_EVENTS_TOPIC_ARN, ''}
     DLQ_QUEUE_URL: !Ref AlertCreateConsumerDLQ
     EVENT_DLQ_QUEUE_URL: !Ref AlertCreateConsumerDLQ
+    FILE_BUCKET: dev-mvx-developer-hub
 
   tags:
     Service: ${self:service}
@@ -128,6 +129,17 @@ provider:
         - xray:PutTraceSegments
         - xray:PutTelemetryRecords
       Resource: '*'
+
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:GetObject
+        - s3:ListBucket
+        - s3:ListObjectsV2
+        - s3:DeleteObject
+      Resource:
+        - arn:aws:s3:::dev-mvx-developer-hub/*
+        - arn:aws:s3:::dev-mvx-developer-hub
 
 package:
   individually: true
@@ -253,6 +265,48 @@ functions:
           path: /health
           method: get
           cors: true
+  getUploadUrl:
+    handler: src/handlers/http/getUploadUrl.handler
+    events:
+      - http:
+          path: upload-url
+          method: post
+          cors: true
+          bodyType: UploadUrlRequest
+          summary: Get upload URL for a file
+          description: Get an upload URL for a file
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+  getDownloadUrl:
+    handler: src/handlers/http/getDownloadUrl.handler
+    events:
+      - http:
+          path: download-url
+          method: post
+          cors: true
+          summary: Get download URL for a file
+          description: Get a presigned download URL for a single file in a folder
+          responses:
+            "200": OK
+            "400": Bad request
+            "500": Server error
+  listFiles:
+    handler: src/handlers/http/listFiles.handler
+    events:
+      - http:
+          path: list-files
+          method: get
+          cors: true
+          summary: List files in a folder
+          description: List S3 objects under a folder prefix
+          responses:
+            "200": OK
+            "400": Bad request
+            "500": Server error
 
   # Postman → publish CreateAlert.v1 to alert bus (dev manual test; no authorizer).
   testPublishCreateAlertIngest:

@@ -1,5 +1,6 @@
 import { createChildLogger, createLogger } from "@api-hub/observability";
 import { withApiHandler } from '@api-hub/middleware';
+import { fhirCreateUserHandlerOptions } from '../utils/fhir-handler-options';
 import { LambdaRequest } from "@api-hub/utils";
 import { publishUserCreatedEvent } from "../events/UserCreated";
 import { UserRepository } from "../repositories/user.repository";
@@ -190,4 +191,7 @@ const handler = async (
   return { invitedUser: result.userID };
 };
 
-export const main = withApiHandler({ operation: 'createUser' }, handler);
+export const main = withApiHandler(
+  { operation: 'createUser', fhir: fhirCreateUserHandlerOptions },
+  handler,
+);

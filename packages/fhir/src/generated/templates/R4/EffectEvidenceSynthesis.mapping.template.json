@@ -1,0 +1,416 @@
+{
+  "resource": "EffectEvidenceSynthesis",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "topic",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "author",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "editor",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "reviewer",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "endorser",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "relatedArtifact",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "synthesisType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "studyType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "population",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "exposure",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "exposureAlternative",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "outcome",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "sampleSize",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "sampleSize.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "sampleSize.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "sampleSize.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "sampleSize.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "sampleSize.numberOfStudies",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "sampleSize.numberOfParticipants",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure.exposureState",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure.variantState",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "resultsByExposure.riskEvidenceSynthesis",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.variantState",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.value",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.unitOfMeasure",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate.level",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate.from",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "effectEstimate.precisionEstimate.to",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "certainty",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "certainty.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "certainty.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "certainty.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "certainty.rating",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "certainty.note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "certainty.certaintySubcomponent",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "certainty.certaintySubcomponent.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "certainty.certaintySubcomponent.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "certainty.certaintySubcomponent.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "certainty.certaintySubcomponent.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "certainty.certaintySubcomponent.rating",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "certainty.certaintySubcomponent.note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

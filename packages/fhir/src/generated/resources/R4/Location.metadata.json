@@ -1,0 +1,316 @@
+{
+  "resource": "Location",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "Location",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.status",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.operationalStatus",
+      "type": [
+        "Coding"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.alias",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.mode",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.telecom",
+      "type": [
+        "ContactPoint"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.address",
+      "type": [
+        "Address"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.physicalType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.position",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.position.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.position.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.position.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.position.longitude",
+      "type": [
+        "decimal"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Location.position.latitude",
+      "type": [
+        "decimal"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "Location.position.altitude",
+      "type": [
+        "decimal"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.managingOrganization",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.partOf",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.hoursOfOperation",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.hoursOfOperation.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.hoursOfOperation.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.hoursOfOperation.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.hoursOfOperation.daysOfWeek",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Location.hoursOfOperation.allDay",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.hoursOfOperation.openingTime",
+      "type": [
+        "time"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.hoursOfOperation.closingTime",
+      "type": [
+        "time"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.availabilityExceptions",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Location.endpoint",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { Appointment } from '../models';
 import { UserRepository } from '../repositories/user.repository';
+import { fhirPendingAppointmentHandlerOptions } from '../utils/fhir-handler-options';
 import { validateCreateAppointment } from '../validation/request.validators';
 
 const userRepository = new UserRepository();
@@ -38,4 +39,11 @@ const handler = async (
   return createdAppointment;
 };
 
-export const main = withApiHandler({ operation: 'create.pending.appointment', validator: validateCreateAppointment }, handler);
+export const main = withApiHandler(
+  {
+    operation: 'create.pending.appointment',
+    validator: validateCreateAppointment,
+    fhir: fhirPendingAppointmentHandlerOptions,
+  },
+  handler,
+);

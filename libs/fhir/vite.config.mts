@@ -41,7 +41,9 @@ function isExternal(id: string): boolean {
   return (
     id.startsWith('@api-hub/') ||
     id.startsWith('@ahryman40k/') ||
-    id === 'tslib'
+    id === 'tslib' ||
+    id === 'node:crypto' ||
+    id === 'crypto'
   );
 }
 
@@ -57,6 +59,12 @@ export default defineConfig(() => ({
     dts({
       entryRoot: 'src',
       tsconfigPath: path.join(import.meta.dirname, 'tsconfig.lib.json'),
+      outDir: path.join(import.meta.dirname, '../../dist/libs/fhir'),
+      compilerOptions: {
+        composite: false,
+        declaration: true,
+        emitDeclarationOnly: true,
+      },
     }),
     consumerPackageJson(),
   ],

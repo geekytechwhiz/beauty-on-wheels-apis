@@ -1,0 +1,160 @@
+{
+  "resource": "Provenance",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "target",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "occurred[x]",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "recorded",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "policy",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "activity",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "agent",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "agent.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "agent.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "agent.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "agent.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "agent.role",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "agent.who",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "agent.onBehalfOf",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "entity",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "entity.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "entity.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "entity.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "entity.role",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "entity.what",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "entity.agent"
+    },
+    {
+      "source": "",
+      "target": "signature",
+      "fieldType": "Signature"
+    }
+  ]
+}

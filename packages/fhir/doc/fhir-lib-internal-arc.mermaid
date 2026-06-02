@@ -1,0 +1,25 @@
+flowchart TD
+
+A[New FHIR Resource]
+
+A --> B[Run generate-resources]
+
+A --> C[Run generate-mappings]
+
+A --> D[Run generate-scopes]
+
+A --> E[Run generate-config]
+
+E --> F[Generated Config]
+
+C --> G[Generated Mapping]
+
+F --> H[Developer Override]
+
+G --> I[Hand Edit Mapping if Needed]
+
+H --> J[Resource Registry]
+
+I --> J
+
+J --> K[Resource Available]

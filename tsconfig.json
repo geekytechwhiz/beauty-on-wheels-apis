@@ -80,6 +80,12 @@
     },
     {
       "path": "./packages/platform-tools"
+    },
+    {
+      "path": "./packages/fhir-wrapper"
+    },
+    {
+      "path": "./packages/fhir"
     }
   ]
 }

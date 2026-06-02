@@ -1,0 +1,226 @@
+{
+  "resource": "DocumentReference",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "masterIdentifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "docStatus",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "author",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "authenticator",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "custodian",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "relatesTo",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "relatesTo.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "relatesTo.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "relatesTo.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "relatesTo.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "relatesTo.target",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "securityLabel",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "content",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "content.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "content.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "content.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "content.attachment",
+      "fieldType": "Attachment"
+    },
+    {
+      "source": "",
+      "target": "content.format",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "context",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "context.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "context.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "context.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "context.encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "context.event",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "context.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "context.facilityType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "context.practiceSetting",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "context.sourcePatientInfo",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "context.related",
+      "fieldType": "Reference"
+    }
+  ]
+}

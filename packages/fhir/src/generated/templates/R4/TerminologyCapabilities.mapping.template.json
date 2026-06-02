@@ -1,0 +1,441 @@
+{
+  "resource": "TerminologyCapabilities",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "kind",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "software",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "software.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "software.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "software.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "software.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "software.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "implementation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "implementation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "implementation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "implementation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "implementation.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "implementation.url",
+      "fieldType": "url"
+    },
+    {
+      "source": "",
+      "target": "lockedDate",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "codeSystem",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.uri",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.code",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.isDefault",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.compositional",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.filter",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.filter.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.filter.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.filter.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.filter.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.filter.op",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.version.property",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "codeSystem.subsumption",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "expansion",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "expansion.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "expansion.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "expansion.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "expansion.hierarchical",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "expansion.paging",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "expansion.incomplete",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "expansion.parameter",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "expansion.parameter.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "expansion.parameter.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "expansion.parameter.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "expansion.parameter.name",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "expansion.parameter.documentation",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "expansion.textFilter",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "codeSearch",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "validateCode",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "validateCode.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "validateCode.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "validateCode.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "validateCode.translations",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "translation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "translation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "translation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "translation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "translation.needsMap",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "closure",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "closure.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "closure.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "closure.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "closure.translation",
+      "fieldType": "boolean"
+    }
+  ]
+}

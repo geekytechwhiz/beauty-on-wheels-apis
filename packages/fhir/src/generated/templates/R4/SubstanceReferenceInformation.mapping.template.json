@@ -1,0 +1,221 @@
+{
+  "resource": "SubstanceReferenceInformation",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "comment",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "gene",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "gene.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "gene.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "gene.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "gene.geneSequenceOrigin",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "gene.gene",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "gene.source",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "geneElement",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "geneElement.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "geneElement.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "geneElement.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "geneElement.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "geneElement.element",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "geneElement.source",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "classification",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "classification.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "classification.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "classification.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "classification.domain",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "classification.classification",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "classification.subtype",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "classification.source",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "target",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "target.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "target.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "target.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "target.target",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "target.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "target.interaction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "target.organism",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "target.organismType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "target.amount[x]",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "target.amountType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "target.source",
+      "fieldType": "Reference"
+    }
+  ]
+}

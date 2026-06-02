@@ -1,0 +1,156 @@
+{
+  "resource": "OperationOutcome",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "OperationOutcome",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.issue",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.issue.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.issue.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.issue.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.issue.severity",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.issue.code",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.issue.details",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.issue.diagnostics",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "OperationOutcome.issue.location",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "OperationOutcome.issue.expression",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

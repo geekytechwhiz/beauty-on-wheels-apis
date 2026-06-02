@@ -1,0 +1,185 @@
+{
+  "resource": "DiagnosticReport-Genetics",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "DiagnosticReport"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.effective[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.issued",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.performer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.resultsInterpreter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.specimen",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.result",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.imagingStudy",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.media",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.media.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.media.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.media.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.media.comment",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.media.link",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.conclusion",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.conclusionCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "DiagnosticReport.presentedForm",
+      "fieldType": "Attachment"
+    }
+  ]
+}

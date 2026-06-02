@@ -6,7 +6,10 @@ API Center can store OpenAPI specs in S3 when enabled. With the flag off, specs 
 
 | Variable | Scope | Description |
 |----------|-------|-------------|
-| `VITE_ENABLE_S3_SPEC_STORE` | Frontend (build) | When `true`, upload/download spec bytes via S3 presigned URLs |
+| `VITE_ENABLE_S3_SPEC_STORE` | Frontend (build) | When `true`, catalog/list/upload/download use the Yes3 file API (`yes3Service`) |
+| `VITE_YES3_API_BASE_URL` | Frontend (build) | Yes3 API Gateway base (default: alert-service dev `/upload-url` host) |
+| `VITE_S3_APP_PREFIX` | Frontend (build) | S3 parent prefix (default: `uploads`) |
+| `VITE_YES3_SPECS_PREFIX` | Frontend (build) | OpenAPI folder under app prefix (default: `api-specs`) |
 | `API_CENTER_USE_S3` | Vite dev server | When `true`, local spec API reads/writes S3 instead of `public/specs-store` |
 | `S3_BUCKET` | Server / Lambda | Target bucket (default: `dev-mvx-developer-hub`) |
 | `S3_APP_PREFIX` | Server / Lambda | Parent prefix inside bucket (default: `uploads`) |

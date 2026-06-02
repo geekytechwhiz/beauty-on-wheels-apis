@@ -1,0 +1,321 @@
+{
+  "resource": "DeviceDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "udiDeviceIdentifier",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "udiDeviceIdentifier.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "udiDeviceIdentifier.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "udiDeviceIdentifier.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "udiDeviceIdentifier.deviceIdentifier",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "udiDeviceIdentifier.issuer",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "udiDeviceIdentifier.jurisdiction",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "manufacturer[x]",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "deviceName",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "deviceName.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "deviceName.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "deviceName.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "deviceName.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "deviceName.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "modelNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specialization",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "specialization.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "specialization.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specialization.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "specialization.systemType",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "specialization.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "safety",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "shelfLifeStorage",
+      "fieldType": "ProductShelfLife"
+    },
+    {
+      "source": "",
+      "target": "physicalCharacteristics",
+      "fieldType": "ProdCharacteristic"
+    },
+    {
+      "source": "",
+      "target": "languageCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "capability",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "capability.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "capability.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "capability.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "capability.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "capability.description",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "property",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "property.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "property.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "property.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "property.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "property.valueQuantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "property.valueCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "owner",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactPoint"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "onlineInformation",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "parentDevice",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "material",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "material.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "material.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "material.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "material.substance",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "material.alternate",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "material.allergenicIndicator",
+      "fieldType": "boolean"
+    }
+  ]
+}

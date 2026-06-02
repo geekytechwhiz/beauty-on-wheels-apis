@@ -350,6 +350,7 @@ functions:
             "409": Conflict
             "500": Server error
 
+ 
   getOrgTemplateVersions:
     handler: src/handlers/http/getOrgTemplateVersions.main
     events:

@@ -49,8 +49,10 @@
     "lint": "nx run-many --target=lint --all --parallel=10",
     "lint:fix": "nx run-many --target=lint --all --parallel=25 --fix",
     "prepare": "husky",
-    "build:platform-tools": "nx build observability event-platform middleware platform-tools",
-    "publish:platform-tools": "nx build observability event-platform middleware platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
+    "build:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools",
+    "publish:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
+    "build:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper",
+    "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
   },
   "private": true,
   "dependencies": {
@@ -64,12 +66,14 @@
     "@aws-sdk/client-dynamodb": "^3.958.0",
     "@aws-sdk/client-eventbridge": "^3.958.0",
     "@aws-sdk/client-lambda": "^3.971.0",
-    "@aws-sdk/client-s3": "^3.971.0",
+    "@aws-sdk/client-s3": "3.1054.0",
     "@aws-sdk/client-secrets-manager": "^3.966.0",
     "@aws-sdk/client-sns": "^3.958.0",
     "@aws-sdk/client-sqs": "^3.1001.0",
     "@aws-sdk/lib-dynamodb": "^3.958.0",
+    "@aws-sdk/s3-request-presigner": "3.1054.0",
     "@aws-sdk/util-dynamodb": "^3.958.0",
+    "@ahryman40k/ts-fhir-types": "^4.0.39",
     "@babel/parser": "^7.29.2",
     "@babel/traverse": "^7.29.0",
     "@middy/http-cors": "^7.0.2",
@@ -164,6 +168,11 @@
     "vitest": "^4.0.0",
     "webpack-cli": "^5.1.4"
   },
+  "pnpm": {
+    "overrides": {
+      "@smithy/types": "4.14.2"
+    }
+  },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
       "node tools/lint-staged.js"
@@ -171,8 +180,6 @@
   },
   "nx": {
     "includedScripts": [],
-    "targets": {
-      
-    }
+    "targets": {}
   }
 }

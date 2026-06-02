@@ -1,0 +1,106 @@
+{
+  "resource": "MedicinalProductContraindication",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "disease",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "diseaseStatus",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "comorbidity",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "therapeuticIndication",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "otherTherapy",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "otherTherapy.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "otherTherapy.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "otherTherapy.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "otherTherapy.therapyRelationshipType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "otherTherapy.medication[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "population",
+      "fieldType": "Population"
+    }
+  ]
+}

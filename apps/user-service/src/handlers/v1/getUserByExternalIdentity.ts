@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { UserService } from '../../services/user.service';
+import { fhirUserHandlerOptions } from '../../utils/fhir-handler-options';
 
 interface ExternalQuery {
   tenant?: string;
@@ -50,7 +51,7 @@ const handler = async (req: LambdaRequest<any, ExternalQuery>) => {
 export const main =   withApiHandler(
           {
             operation: 'getUserByExternalIdentity',
-            
+            fhir: fhirUserHandlerOptions,
           },
            async (req) => {
     return await (handler as any)(req);

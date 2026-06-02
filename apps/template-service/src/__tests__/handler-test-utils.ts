@@ -216,7 +216,7 @@ export function createWithApiHandlerMock() {
 export function setupHandlerTestEnv(): { restore: () => void } {
   process.env.ERROR_MESSAGES_CDN_URL =
     process.env.ERROR_MESSAGES_CDN_URL ?? 'https://d2p9v61861q1ox.cloudfront.net';
-  process.env.AWS_REGION = process.env.AWS_REGION ?? 'us-east-1';
+  process.env.AWS_REGION_TEMPLATE_SERVICE = process.env.AWS_REGION_TEMPLATE_SERVICE ?? 'us-east-1';
   process.env.TEMPLATE_TABLE = process.env.TEMPLATE_TABLE ?? 'template-service-dev';
   process.env.TEMPLATE_EVENT_BUS_NAME =
     process.env.TEMPLATE_EVENT_BUS_NAME ?? 'template-service-bus-dev';

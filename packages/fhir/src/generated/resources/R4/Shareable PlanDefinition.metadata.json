@@ -1,0 +1,869 @@
+{
+  "resource": "Shareable PlanDefinition",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "PlanDefinition",
+      "type": [],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.url",
+      "type": [
+        "uri"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.version",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.name",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.title",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.subtitle",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.experimental",
+      "type": [
+        "boolean"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.subject[x]",
+      "type": [
+        "CodeableConcept",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.publisher",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.contact",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.description",
+      "type": [
+        "markdown"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.useContext",
+      "type": [
+        "UsageContext"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.jurisdiction",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.purpose",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.usage",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.copyright",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.approvalDate",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.lastReviewDate",
+      "type": [
+        "date"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.effectivePeriod",
+      "type": [
+        "Period"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.topic",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.author",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.editor",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.reviewer",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.endorser",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.relatedArtifact",
+      "type": [
+        "RelatedArtifact"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.library",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.category",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.description",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.priority",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.start",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.addresses",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.documentation",
+      "type": [
+        "RelatedArtifact"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.target",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.target.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.target.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.target.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.goal.target.measure",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.target.detail[x]",
+      "type": [
+        "Quantity",
+        "Range",
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.goal.target.due",
+      "type": [
+        "Duration"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.prefix",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.title",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.description",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.textEquivalent",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.priority",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.reason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.documentation",
+      "type": [
+        "RelatedArtifact"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.goalId",
+      "type": [
+        "id"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.subject[x]",
+      "type": [
+        "CodeableConcept",
+        "Reference"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.trigger",
+      "type": [
+        "TriggerDefinition"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.condition",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.condition.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.condition.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.condition.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.condition.kind",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.condition.expression",
+      "type": [
+        "Expression"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.input",
+      "type": [
+        "DataRequirement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.output",
+      "type": [
+        "DataRequirement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.relatedAction",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.relatedAction.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.relatedAction.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.relatedAction.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.relatedAction.actionId",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.relatedAction.relationship",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.relatedAction.offset[x]",
+      "type": [
+        "Duration",
+        "Range"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.timing[x]",
+      "type": [
+        "dateTime",
+        "Age",
+        "Period",
+        "Duration",
+        "Range",
+        "Timing"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.participant",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.participant.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.participant.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.participant.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.participant.type",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.participant.role",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.type",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.groupingBehavior",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.selectionBehavior",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.requiredBehavior",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.precheckBehavior",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.cardinalityBehavior",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.definition[x]",
+      "type": [
+        "canonical",
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.transform",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.dynamicValue",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.dynamicValue.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.dynamicValue.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.dynamicValue.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "PlanDefinition.action.dynamicValue.path",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.dynamicValue.expression",
+      "type": [
+        "Expression"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "PlanDefinition.action.action",
+      "type": [],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

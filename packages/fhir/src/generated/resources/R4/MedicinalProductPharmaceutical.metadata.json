@@ -1,0 +1,340 @@
+{
+  "resource": "MedicinalProductPharmaceutical",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "MedicinalProductPharmaceutical",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.administrableDoseForm",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.unitOfPresentation",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.ingredient",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.device",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.characteristics",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.characteristics.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.characteristics.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.characteristics.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.characteristics.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.characteristics.status",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.firstDose",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.maxSingleDose",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.maxDosePerDay",
+      "type": [
+        "Quantity"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.maxDosePerTreatmentPeriod",
+      "type": [
+        "Ratio"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.maxTreatmentPeriod",
+      "type": [
+        "Duration"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.withdrawalPeriod",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.withdrawalPeriod.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.withdrawalPeriod.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.withdrawalPeriod.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.withdrawalPeriod.tissue",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.withdrawalPeriod.value",
+      "type": [
+        "Quantity"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductPharmaceutical.routeOfAdministration.targetSpecies.withdrawalPeriod.supportingInformation",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

@@ -1,0 +1,334 @@
+{
+  "resource": "CQF-Questionnaire",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "Questionnaire"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.derivedFrom",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.subjectType",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.code",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.linkId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.definition",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.code",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.prefix",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableWhen",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableWhen.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableWhen.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableWhen.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableWhen.question",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableWhen.operator",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableWhen.answer[x]",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.enableBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.required",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.repeats",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.readOnly",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.maxLength",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.answerValueSet",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.answerOption",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.answerOption.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.answerOption.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.answerOption.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.answerOption.value[x]",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.answerOption.initialSelected",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.initial",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.initial.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.initial.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.initial.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.initial.value[x]",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Questionnaire.item.item"
+    }
+  ]
+}

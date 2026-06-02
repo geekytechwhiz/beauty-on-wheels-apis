@@ -1,0 +1,48 @@
+{
+  "index-version": 1,
+  "files": [
+    {
+      "filename": "StructureDefinition-custom-mrn.json",
+      "resourceType": "StructureDefinition",
+      "id": "custom-mrn",
+      "url": "https://myvirtualrx.com/fhir/custom/mrn",
+      "version": "1.0.0",
+      "kind": "complex-type",
+      "type": "Extension"
+    },
+    {
+      "filename": "StructureDefinition-custom-medical-history.json",
+      "resourceType": "StructureDefinition",
+      "id": "custom-medical-history",
+      "url": "https://myvirtualrx.com/fhir/custom/medical-history",
+      "version": "1.0.0",
+      "kind": "complex-type",
+      "type": "Extension"
+    },
+    {
+      "filename": "StructureDefinition-custom-insurance-details.json",
+      "resourceType": "StructureDefinition",
+      "id": "custom-insurance-details",
+      "url": "https://myvirtualrx.com/fhir/custom/insurance-details",
+      "version": "1.0.0",
+      "kind": "complex-type",
+      "type": "Extension"
+    },
+    {
+      "filename": "StructureDefinition-custom-emergency-contact.json",
+      "resourceType": "StructureDefinition",
+      "id": "custom-emergency-contact",
+      "url": "https://myvirtualrx.com/fhir/custom/emergency-contact",
+      "version": "1.0.0",
+      "kind": "complex-type",
+      "type": "Extension"
+    },
+    {
+      "filename": "ImplementationGuide-myvirtualrx-custom.json",
+      "resourceType": "ImplementationGuide",
+      "id": "myvirtualrx-custom",
+      "url": "https://myvirtualrx.com/fhir/ImplementationGuide/myvirtualrx-custom",
+      "version": "1.0.0"
+    }
+  ]
+}

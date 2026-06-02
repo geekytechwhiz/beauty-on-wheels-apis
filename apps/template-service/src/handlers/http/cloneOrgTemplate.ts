@@ -1,6 +1,5 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
-
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
 import { validateCloneOrgTemplateRequest } from '../../validators/request.validators';
 

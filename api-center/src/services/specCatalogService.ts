@@ -1,4 +1,10 @@
 import yaml from 'js-yaml';
+import {
+  getDownloadUrl,
+  getUploadUrl,
+  getYes3ApiBase,
+  listFolderFiles,
+} from './yes3Service';
 
 export type SpecFileExtension = 'json' | 'yaml' | 'yml';
 export type VersionBumpType = 'major' | 'minor' | 'patch';
@@ -111,6 +117,67 @@ function getSpecsPrefix(): string {
   return rawPrefix.replace(/^\/+|\/+$/g, '');
 }
 
+function getS3AppPrefix(): string {
+  const raw = import.meta.env.VITE_S3_APP_PREFIX?.trim();
+  return (raw || 'uploads').replace(/^\/+|\/+$/g, '');
+}
+
+function getYes3CatalogPrefix(): string {
+  const raw = import.meta.env.VITE_YES3_SPECS_PREFIX?.trim();
+  return (raw || 'api-specs').replace(/^\/+|\/+$/g, '');
+}
+
+/** Catalog key prefix: Yes3 S3 layout uses `api-specs`, static dev uses `specs-store`. */
+function getCatalogSpecsPrefix(): string {
+  return isS3SpecStoreEnabled() ? getYes3CatalogPrefix() : getSpecsPrefix();
+}
+
+function getYes3SpecsRoot(): string {
+  const app = getS3AppPrefix();
+  const specs = getYes3CatalogPrefix();
+  return app ? `${app}/${specs}` : specs;
+}
+
+function toYes3Location(catalogKey: string): { folder: string; fileName: string } {
+  const prefix = `${getCatalogSpecsPrefix()}/`;
+  const relative = catalogKey.startsWith(prefix) ? catalogKey.slice(prefix.length) : catalogKey;
+  const slash = relative.lastIndexOf('/');
+  const fileName = relative.slice(slash + 1);
+  const folderPath = relative.slice(0, slash);
+  return {
+    folder: folderPath ? `${getYes3SpecsRoot()}/${folderPath}` : getYes3SpecsRoot(),
+    fileName,
+  };
+}
+
+function toCatalogKeyFromS3Key(s3Key: string): string {
+  const root = getYes3SpecsRoot();
+  if (s3Key.startsWith(`${root}/`)) {
+    return `${getCatalogSpecsPrefix()}/${s3Key.slice(root.length + 1)}`;
+  }
+  return s3Key;
+}
+
+async function putBytesToYes3(
+  folder: string,
+  fileName: string,
+  contentType: string,
+  body: Blob | string,
+): Promise<{ key: string; catalogKey: string }> {
+  const { uploadUrl, key } = await getUploadUrl({ folder, fileName, contentType });
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    body,
+    headers: { 'Content-Type': contentType },
+  });
+  if (!uploadResponse.ok) {
+    throw new Error(
+      `S3 upload failed. Received ${uploadResponse.status} ${uploadResponse.statusText}.`,
+    );
+  }
+  return { key, catalogKey: toCatalogKeyFromS3Key(key) };
+}
+
 /** Base URL for static assets (figma JSON) served with the SPA. */
 function publicAssetUrl(relativePath: string): string {
   const base = import.meta.env.BASE_URL.endsWith('/')
@@ -126,10 +193,12 @@ export function getCatalogSummary(): {
   localWriteEnabled: boolean;
   s3Enabled: boolean;
 } {
-  const specsPrefix = getSpecsPrefix();
+  const specsPrefix = getCatalogSpecsPrefix();
   return {
     specsPrefix,
-    indexKey: `${getSpecApiBase()}/catalog`,
+    indexKey: isS3SpecStoreEnabled()
+      ? `${getYes3ApiBase()}/list-files?folder=${encodeURIComponent(getYes3SpecsRoot())}`
+      : `${getSpecApiBase()}/catalog`,
     localWriteEnabled: canWriteSpecsLocally(),
     s3Enabled: isS3SpecStoreEnabled(),
   };
@@ -137,7 +206,11 @@ export function getCatalogSummary(): {
 
 /** True when the frontend should upload/download spec bytes directly via S3 presigned URLs. */
 export function isS3SpecStoreEnabled(): boolean {
-  return import.meta.env.VITE_ENABLE_S3_SPEC_STORE === 'true';
+  const raw = import.meta.env.VITE_ENABLE_S3_SPEC_STORE?.trim().toLowerCase();
+  if (raw === 'false') {
+    return false;
+  }
+  return true;
 }
 
 /** True when the spec store API (local Vite middleware or deployed Lambda) is reachable. */
@@ -148,13 +221,19 @@ export function canUseSpecStoreApi(): boolean {
   return getRemoteSpecApiBase() !== null;
 }
 
-/** True when spec writes can reach a backend (Vite dev middleware or deployed spec API). */
+/** True when spec writes can reach a backend (Yes3 S3 API, Vite middleware, or spec Lambda). */
 export function canWriteSpecsLocally(): boolean {
+  if (isS3SpecStoreEnabled()) {
+    return true;
+  }
   return canUseSpecStoreApi();
 }
 
-/** True when spec reads can use the store API (S3-backed in production). */
+/** True when spec reads can use a remote store (Yes3 S3 API or spec Lambda). */
 export function canFetchSpecsFromStore(): boolean {
+  if (isS3SpecStoreEnabled()) {
+    return true;
+  }
   return canUseSpecStoreApi();
 }
 
@@ -209,7 +288,7 @@ function getContentType(extension: SpecFileExtension): string {
 }
 
 function getObjectKeyWithoutPrefix(key: string): string | null {
-  const prefix = `${getSpecsPrefix()}/`;
+  const prefix = `${getCatalogSpecsPrefix()}/`;
   if (!key.startsWith(prefix)) {
     return null;
   }
@@ -539,8 +618,41 @@ export async function fetchSpecDocumentText({
   );
 }
 
+async function loadCatalogFromYes3(): Promise<PublicCatalogIndex> {
+  const files = await listFolderFiles({ folder: getYes3SpecsRoot() });
+  const serviceMap = new Map<string, OpenApiSpecFile[]>();
+
+  for (const file of files) {
+    const catalogKey = toCatalogKeyFromS3Key(file.key);
+    const parsed = parseSpecFileKey(catalogKey, {
+      lastModified: file.lastModified,
+      size: file.size,
+    });
+    if (!parsed) {
+      continue;
+    }
+    const existing = serviceMap.get(parsed.serviceName) ?? [];
+    serviceMap.set(parsed.serviceName, [...existing, parsed]);
+  }
+
+  const services = Array.from(serviceMap.entries()).map(([name, versions]) => ({
+    name,
+    latestVersion: '',
+    versions,
+  }));
+
+  return {
+    generatedAt: new Date().toISOString(),
+    services: normalizeCatalog(services),
+  };
+}
+
 async function loadCatalogIndex(options?: { allowMissing?: boolean }): Promise<PublicCatalogIndex> {
-  if (canFetchSpecsFromStore()) {
+  if (isS3SpecStoreEnabled()) {
+    return loadCatalogFromYes3();
+  }
+
+  if (canUseSpecStoreApi()) {
     try {
       return await fetchSpecCatalog();
     } catch {
@@ -662,41 +774,23 @@ export async function uploadSpec({
   const validatedFile = await validateOpenApiFile(file);
 
   if (isS3SpecStoreEnabled()) {
-    const presigned = await localApiJson<{
-      uploadUrl: string;
-      key: string;
-      contentType: string;
-    }>('/presigned-upload', {
-      method: 'POST',
-      body: JSON.stringify({
-        serviceName: normalizedServiceName,
-        version: normalizedVersion,
-        fileName: file.name,
-      }),
+    const extension = validatedFile.extension;
+    const yes3FileName = `openapi.${extension}`;
+    const yes3Folder = `${getYes3SpecsRoot()}/${normalizedServiceName}/${normalizedVersion}`;
+    const { catalogKey } = await putBytesToYes3(
+      yes3Folder,
+      yes3FileName,
+      validatedFile.contentType,
+      validatedFile.normalizedText,
+    );
+    const parsed = parseSpecFileKey(catalogKey, {
+      status: DEFAULT_SPEC_REVIEW_STATUS,
+      lastModified: new Date().toISOString(),
     });
-
-    const uploadResponse = await fetch(presigned.uploadUrl, {
-      method: 'PUT',
-      body: validatedFile.normalizedText,
-      headers: {
-        'Content-Type': presigned.contentType,
-      },
-    });
-    if (!uploadResponse.ok) {
-      throw new Error(
-        `S3 upload failed. Received ${uploadResponse.status} ${uploadResponse.statusText}.`,
-      );
+    if (!parsed) {
+      throw new Error('Uploaded spec path is not a valid OpenAPI catalog entry.');
     }
-
-    return localApiJson<OpenApiSpecFile>('/upload-complete', {
-      method: 'POST',
-      body: JSON.stringify({
-        serviceName: normalizedServiceName,
-        version: normalizedVersion,
-        fileName: file.name,
-        key: presigned.key,
-      }),
-    });
+    return parsed;
   }
 
   const contentBase64 = utf8FileToBase64(validatedFile.normalizedText);
@@ -747,32 +841,19 @@ export async function loadSpecText({
 }): Promise<SpecDocumentText> {
   const resolved = await resolveSpecVersion({ serviceName, version });
 
-  if (isS3SpecStoreEnabled() && canFetchSpecsFromStore()) {
-    try {
-      const presigned = await localApiJson<{
-        downloadUrl: string;
-        extension: SpecFileExtension;
-      }>(
-        `/presigned-download?serviceName=${encodeURIComponent(resolved.serviceName)}&version=${encodeURIComponent(
-          resolved.version,
-        )}`,
-        {
-          method: 'GET',
-        },
+  if (isS3SpecStoreEnabled()) {
+    const { folder, fileName } = toYes3Location(resolved.key);
+    const { downloadUrl } = await getDownloadUrl({ folder, fileName });
+    const response = await fetch(downloadUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(
+        `S3 download failed. Received ${response.status} ${response.statusText}.`,
       );
-      const response = await fetch(presigned.downloadUrl, { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error(
-          `S3 download failed. Received ${response.status} ${response.statusText}.`,
-        );
-      }
-      return {
-        extension: presigned.extension,
-        text: await response.text(),
-      };
-    } catch {
-      // fall through to API/static paths
     }
+    return {
+      extension: resolved.extension,
+      text: await response.text(),
+    };
   }
 
   if (canFetchSpecsFromStore()) {
@@ -831,6 +912,24 @@ export async function saveEditedSpecVersion({
 
   parseOpenApiText(yamlText, 'yaml');
 
+  if (isS3SpecStoreEnabled()) {
+    const yes3Folder = `${getYes3SpecsRoot()}/${normalizedServiceName}/${normalizedVersion}`;
+    const { catalogKey } = await putBytesToYes3(
+      yes3Folder,
+      'openapi.yaml',
+      getContentType('yaml'),
+      yamlText,
+    );
+    const parsed = parseSpecFileKey(catalogKey, {
+      status: DEFAULT_SPEC_REVIEW_STATUS,
+      lastModified: new Date().toISOString(),
+    });
+    if (!parsed) {
+      throw new Error('Saved spec path is not a valid OpenAPI catalog entry.');
+    }
+    return parsed;
+  }
+
   return localApiJson<OpenApiSpecFile>('/save-edited', {
     method: 'POST',
     body: JSON.stringify({
@@ -855,6 +954,34 @@ export async function updateSpecReviewStatus({
   }
   const normalizedServiceName = normalizeSegment(serviceName, 'Service name');
   const normalizedVersion = normalizeSegment(version, 'Version');
+
+  if (isS3SpecStoreEnabled()) {
+    const resolved = await resolveSpecVersion({
+      serviceName: normalizedServiceName,
+      version: normalizedVersion,
+    });
+    const { extension, text } = await loadSpecText({
+      serviceName: normalizedServiceName,
+      version: normalizedVersion,
+    });
+    const parsedSpec = parseOpenApiText(text, extension);
+    const serialized = serializeSpecWithStatus(parsedSpec, extension, status);
+    const { folder, fileName } = toYes3Location(resolved.key);
+    const { catalogKey } = await putBytesToYes3(
+      folder,
+      fileName,
+      getContentType(extension),
+      serialized,
+    );
+    const updated = parseSpecFileKey(catalogKey, {
+      status,
+      lastModified: new Date().toISOString(),
+    });
+    if (!updated) {
+      throw new Error('Updated spec path is not a valid OpenAPI catalog entry.');
+    }
+    return updated;
+  }
 
   return localApiJson<OpenApiSpecFile>('/status', {
     method: 'PATCH',

@@ -1,0 +1,121 @@
+{
+  "resource": "Person",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "HumanName"
+    },
+    {
+      "source": "",
+      "target": "telecom",
+      "fieldType": "ContactPoint"
+    },
+    {
+      "source": "",
+      "target": "gender",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "birthDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "address",
+      "fieldType": "Address"
+    },
+    {
+      "source": "",
+      "target": "photo",
+      "fieldType": "Attachment"
+    },
+    {
+      "source": "",
+      "target": "managingOrganization",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "active",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "link",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "link.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "link.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "link.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "link.target",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "link.assurance",
+      "fieldType": "code"
+    }
+  ]
+}

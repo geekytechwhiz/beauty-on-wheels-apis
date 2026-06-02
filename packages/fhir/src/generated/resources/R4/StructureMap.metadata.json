@@ -1,0 +1,799 @@
+{
+  "resource": "StructureMap",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "StructureMap",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.url",
+      "type": [
+        "uri"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.version",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.name",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.title",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.experimental",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.publisher",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.contact",
+      "type": [
+        "ContactDetail"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.description",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.useContext",
+      "type": [
+        "UsageContext"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.jurisdiction",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.purpose",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.copyright",
+      "type": [
+        "markdown"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.structure",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.structure.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.structure.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.structure.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.structure.url",
+      "type": [
+        "canonical"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.structure.mode",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.structure.alias",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.structure.documentation",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.import",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.name",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.extends",
+      "type": [
+        "id"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.typeMode",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.documentation",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.input",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.input.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.input.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.input.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.input.name",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.input.type",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.input.mode",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.input.documentation",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.name",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.source.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.source.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.source.context",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.min",
+      "type": [
+        "integer"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.max",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.type",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.defaultValue[x]",
+      "type": [
+        "base64Binary",
+        "boolean",
+        "canonical",
+        "code",
+        "date",
+        "dateTime",
+        "decimal",
+        "id",
+        "instant",
+        "integer",
+        "markdown",
+        "oid",
+        "positiveInt",
+        "string",
+        "time",
+        "unsignedInt",
+        "uri",
+        "url",
+        "uuid",
+        "Address",
+        "Age",
+        "Annotation",
+        "Attachment",
+        "CodeableConcept",
+        "Coding",
+        "ContactPoint",
+        "Count",
+        "Distance",
+        "Duration",
+        "HumanName",
+        "Identifier",
+        "Money",
+        "Period",
+        "Quantity",
+        "Range",
+        "Ratio",
+        "Reference",
+        "SampledData",
+        "Signature",
+        "Timing",
+        "ContactDetail",
+        "Contributor",
+        "DataRequirement",
+        "Expression",
+        "ParameterDefinition",
+        "RelatedArtifact",
+        "TriggerDefinition",
+        "UsageContext",
+        "Dosage",
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.element",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.listMode",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.variable",
+      "type": [
+        "id"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.condition",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.check",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.source.logMessage",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.target.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.target.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.target.context",
+      "type": [
+        "id"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.contextType",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.element",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.variable",
+      "type": [
+        "id"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.listMode",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.target.listRuleId",
+      "type": [
+        "id"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.transform",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.parameter",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.target.parameter.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.target.parameter.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.target.parameter.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.target.parameter.value[x]",
+      "type": [
+        "id",
+        "string",
+        "boolean",
+        "integer",
+        "decimal"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.rule",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.dependent",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.dependent.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.dependent.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.dependent.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.dependent.name",
+      "type": [
+        "id"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "StructureMap.group.rule.dependent.variable",
+      "type": [
+        "string"
+      ],
+      "required": true,
+      "multiple": true
+    },
+    {
+      "path": "StructureMap.group.rule.documentation",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

@@ -1,0 +1,366 @@
+{
+  "resource": "Encounter",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusHistory",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "statusHistory.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "statusHistory.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "statusHistory.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "statusHistory.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "statusHistory.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "class",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "classHistory",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "classHistory.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "classHistory.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "classHistory.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "classHistory.class",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "classHistory.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "serviceType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "episodeOfCare",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "participant",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "participant.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "participant.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "participant.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "participant.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "participant.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "participant.individual",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "appointment",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "length",
+      "fieldType": "Duration"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "diagnosis",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.condition",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.use",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "diagnosis.rank",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "account",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "hospitalization",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.preAdmissionIdentifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.origin",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.admitSource",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.reAdmission",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.dietPreference",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.specialCourtesy",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.specialArrangement",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.destination",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "hospitalization.dischargeDisposition",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "location",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "location.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "location.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "location.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "location.location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "location.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "location.physicalType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "location.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "serviceProvider",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "partOf",
+      "fieldType": "Reference"
+    }
+  ]
+}

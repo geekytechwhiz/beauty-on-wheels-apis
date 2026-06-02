@@ -1,0 +1,226 @@
+{
+  "resource": "BiologicallyDerivedProduct",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "productCategory",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "productCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "request",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "quantity",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "parent",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "collection",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "collection.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "collection.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "collection.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "collection.collector",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "collection.source",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "collection.collected[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "processing",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "processing.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "processing.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "processing.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "processing.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "processing.procedure",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "processing.additive",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "processing.time[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "manipulation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "manipulation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "manipulation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "manipulation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "manipulation.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "manipulation.time[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "storage",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "storage.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "storage.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "storage.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "storage.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "storage.temperature",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "storage.scale",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "storage.duration",
+      "fieldType": "Period"
+    }
+  ]
+}

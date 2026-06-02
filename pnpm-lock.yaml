@@ -11,6 +11,9 @@ importers:
 
   .:
     dependencies:
+      '@ahryman40k/ts-fhir-types':
+        specifier: ^4.0.39
+        version: 4.0.39
       '@aws-lambda-powertools/commons':
         specifier: ^2.33.0
         version: 2.33.0
@@ -636,7 +639,7 @@ importers:
     dependencies:
       '@api-hub/fhir':
         specifier: workspace:*
-        version: link:../fhir
+        version: link:../../packages/fhir
       '@api-hub/observability':
         specifier: workspace:*
         version: link:../observability
@@ -741,11 +744,76 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
 
-  packages/platform-tools:
+  packages/fhir:
     dependencies:
       '@ahryman40k/ts-fhir-types':
         specifier: ^4.0.39
         version: 4.0.39
+      '@api-hub/observability':
+        specifier: workspace:*
+        version: link:../../libs/observability
+      '@api-hub/terminology':
+        specifier: workspace:*
+        version: link:../../libs/terminology
+      '@api-hub/utils':
+        specifier: workspace:*
+        version: link:../../libs/utils
+      object-path:
+        specifier: ^0.11.8
+        version: 0.11.8
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+    devDependencies:
+      '@api-hub/middleware':
+        specifier: workspace:*
+        version: link:../../libs/middleware
+      '@types/object-path':
+        specifier: ^0.11.4
+        version: 0.11.4
+      fs-extra:
+        specifier: ^11.3.5
+        version: 11.3.5
+      glob:
+        specifier: ^13.0.0
+        version: 13.0.0
+
+  packages/fhir-wrapper:
+    dependencies:
+      '@ahryman40k/ts-fhir-types':
+        specifier: ^4.0.39
+        version: 4.0.39
+      object-path:
+        specifier: ^0.11.8
+        version: 0.11.8
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+    devDependencies:
+      '@api-hub/fhir':
+        specifier: workspace:*
+        version: link:../fhir
+      '@api-hub/observability':
+        specifier: workspace:*
+        version: link:../../libs/observability
+      '@api-hub/terminology':
+        specifier: workspace:*
+        version: link:../../libs/terminology
+      '@api-hub/utils':
+        specifier: workspace:*
+        version: link:../../libs/utils
+      '@myvitalrx/platform-tools':
+        specifier: workspace:*
+        version: link:../platform-tools
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(@microsoft/api-extractor@7.55.2(@types/node@20.19.9))(@swc/core@1.5.29(@swc/helpers@0.5.18))(jiti@2.4.2)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
+  packages/platform-tools:
+    dependencies:
       '@aws-lambda-powertools/logger':
         specifier: ^2.33.0
         version: 2.33.0
@@ -783,18 +851,12 @@ importers:
       '@api-hub/event-platform':
         specifier: workspace:*
         version: link:../../libs/event-platform
-      '@api-hub/fhir':
-        specifier: workspace:*
-        version: link:../../libs/fhir
       '@api-hub/middleware':
         specifier: workspace:*
         version: link:../../libs/middleware
       '@api-hub/observability':
         specifier: workspace:*
         version: link:../../libs/observability
-      '@api-hub/terminology':
-        specifier: workspace:*
-        version: link:../../libs/terminology
       '@api-hub/utils':
         specifier: workspace:*
         version: link:../../libs/utils

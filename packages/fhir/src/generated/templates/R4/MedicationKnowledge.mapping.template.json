@@ -1,0 +1,581 @@
+{
+  "resource": "MedicationKnowledge",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "manufacturer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "doseForm",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "amount",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "synonym",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "relatedMedicationKnowledge",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "relatedMedicationKnowledge.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "relatedMedicationKnowledge.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "relatedMedicationKnowledge.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "relatedMedicationKnowledge.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "relatedMedicationKnowledge.reference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "associatedMedication",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "productType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "monograph",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "monograph.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "monograph.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "monograph.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "monograph.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "monograph.source",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "ingredient",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "ingredient.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "ingredient.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ingredient.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ingredient.item[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ingredient.isActive",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "ingredient.strength",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "preparationInstruction",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "intendedRoute",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "cost",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "cost.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "cost.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "cost.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "cost.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "cost.source",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "cost.cost",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "monitoringProgram",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "monitoringProgram.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "monitoringProgram.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "monitoringProgram.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "monitoringProgram.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "monitoringProgram.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.dosage",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.dosage.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.dosage.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.dosage.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.dosage.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.dosage.dosage",
+      "fieldType": "Dosage"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.indication[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.patientCharacteristics",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.patientCharacteristics.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.patientCharacteristics.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.patientCharacteristics.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.patientCharacteristics.characteristic[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "administrationGuidelines.patientCharacteristics.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "medicineClassification",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "medicineClassification.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "medicineClassification.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "medicineClassification.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "medicineClassification.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "medicineClassification.classification",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "packaging",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "packaging.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "packaging.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "packaging.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "packaging.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "packaging.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "drugCharacteristic",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "drugCharacteristic.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "drugCharacteristic.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "drugCharacteristic.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "drugCharacteristic.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "drugCharacteristic.value[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "contraindication",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "regulatory",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "regulatory.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "regulatory.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.regulatoryAuthority",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "regulatory.substitution",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "regulatory.substitution.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "regulatory.substitution.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.substitution.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.substitution.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "regulatory.substitution.allowed",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "regulatory.schedule",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "regulatory.schedule.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "regulatory.schedule.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.schedule.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.schedule.schedule",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "regulatory.maxDispense",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "regulatory.maxDispense.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "regulatory.maxDispense.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.maxDispense.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "regulatory.maxDispense.quantity",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "regulatory.maxDispense.period",
+      "fieldType": "Duration"
+    },
+    {
+      "source": "",
+      "target": "kinetics",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "kinetics.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "kinetics.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "kinetics.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "kinetics.areaUnderCurve",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "kinetics.lethalDose50",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "kinetics.halfLifePeriod",
+      "fieldType": "Duration"
+    }
+  ]
+}

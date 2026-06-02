@@ -1,0 +1,414 @@
+{
+  "resource": "observation-bodytemp",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "Observation"
+    },
+    {
+      "source": "",
+      "target": "Observation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "Observation.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Observation.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Observation.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "Observation.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "Observation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "Observation.basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.partOf",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Observation.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.category",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding.system",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding.display",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.coding.userSelected",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Observation.category.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding.system",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding.display",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.coding.userSelected",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "Observation.code.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.focus",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.effective[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "Observation.issued",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "Observation.performer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x]",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x]",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x].id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x].extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x].value",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x].comparator",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x].unit",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x].system",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "Observation.value[x].code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "Observation.dataAbsentReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.interpretation",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "Observation.bodySite",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.method",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.specimen",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.device",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.low",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.high",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.appliesTo",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.age",
+      "fieldType": "Range"
+    },
+    {
+      "source": "",
+      "target": "Observation.referenceRange.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "Observation.hasMember",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.derivedFrom",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "Observation.component",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.value[x]",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.dataAbsentReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.interpretation",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "Observation.component.referenceRange"
+    }
+  ]
+}

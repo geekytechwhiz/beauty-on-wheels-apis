@@ -1,0 +1,465 @@
+{
+  "resource": "StructureMap",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "structure",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "structure.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "structure.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "structure.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "structure.url",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "structure.mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "structure.alias",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "structure.documentation",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "import",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "group",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "group.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "group.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.name",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.extends",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.typeMode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "group.documentation",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.input",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "group.input.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "group.input.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.input.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.input.name",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.input.type",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.input.mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "group.input.documentation",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "group.rule.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "group.rule.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.name",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.context",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.min",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.max",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.type",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.defaultValue[x]",
+      "fieldType": "base64Binary"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.element",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.listMode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.variable",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.condition",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.check",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.source.logMessage",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.context",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.contextType",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.element",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.variable",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.listMode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.listRuleId",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.transform",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.parameter",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.parameter.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.parameter.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.parameter.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.target.parameter.value[x]",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.rule"
+    },
+    {
+      "source": "",
+      "target": "group.rule.dependent",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "group.rule.dependent.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "group.rule.dependent.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.dependent.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "group.rule.dependent.name",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "group.rule.dependent.variable",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "group.rule.documentation",
+      "fieldType": "string"
+    }
+  ]
+}

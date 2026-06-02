@@ -49,8 +49,10 @@
     "lint": "nx run-many --target=lint --all --parallel=10",
     "lint:fix": "nx run-many --target=lint --all --parallel=25 --fix",
     "prepare": "husky",
-    "build:platform-tools": "nx build observability event-platform middleware platform-tools",
-    "publish:platform-tools": "nx build observability event-platform middleware platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
+    "build:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools",
+    "publish:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
+    "build:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper",
+    "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
   },
   "private": true,
   "dependencies": {

@@ -1,0 +1,141 @@
+{
+  "resource": "Medication",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "manufacturer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "form",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "amount",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "ingredient",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "ingredient.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "ingredient.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ingredient.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "ingredient.item[x]",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "ingredient.isActive",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "ingredient.strength",
+      "fieldType": "Ratio"
+    },
+    {
+      "source": "",
+      "target": "batch",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "batch.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "batch.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "batch.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "batch.lotNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "batch.expirationDate",
+      "fieldType": "dateTime"
+    }
+  ]
+}

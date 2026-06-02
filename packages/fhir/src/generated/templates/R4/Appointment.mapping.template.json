@@ -1,0 +1,196 @@
+{
+  "resource": "Appointment",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "cancelationReason",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "serviceCategory",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "serviceType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "specialty",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "appointmentType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "supportingInformation",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "start",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "end",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "minutesDuration",
+      "fieldType": "positiveInt"
+    },
+    {
+      "source": "",
+      "target": "slot",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "created",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "comment",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "patientInstruction",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "participant",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "participant.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "participant.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "participant.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "participant.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "participant.actor",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "participant.required",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "participant.status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "participant.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "requestedPeriod",
+      "fieldType": "Period"
+    }
+  ]
+}

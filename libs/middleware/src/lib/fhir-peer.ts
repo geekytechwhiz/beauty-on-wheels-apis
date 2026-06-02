@@ -43,12 +43,12 @@ export interface FhirPeerModule {
   ) => Promise<void>;
 }
 
-const PLATFORM_FHIR_MODULE = '@myvitalrx/platform-tools/fhir/middleware';
+const FHIR_WRAPPER_MODULE = '@myvitalrx/fhir-wrapper/middleware';
 
 let cachedPeer: FhirPeerModule | null | undefined;
 
 /**
- * Lazy-loads FHIR middleware from @myvitalrx/platform-tools/fhir/middleware,
+ * Lazy-loads FHIR middleware from @myvitalrx/fhir-wrapper/middleware,
  * then the local api-hub implementation in this package.
  */
 export async function loadFhirPeer(): Promise<FhirPeerModule | null> {
@@ -59,11 +59,11 @@ export async function loadFhirPeer(): Promise<FhirPeerModule | null> {
   try {
     cachedPeer = (await import(
       /* webpackIgnore: true */
-      PLATFORM_FHIR_MODULE
+      FHIR_WRAPPER_MODULE
     )) as FhirPeerModule;
     return cachedPeer;
   } catch {
-    // platform-tools not installed — use local impl
+    // fhir-wrapper not installed — use local impl
   }
 
   try {

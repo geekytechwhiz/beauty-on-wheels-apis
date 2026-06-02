@@ -1,0 +1,211 @@
+{
+  "resource": "PaymentReconciliation",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "created",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "paymentIssuer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "request",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "requestor",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "outcome",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "disposition",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "paymentDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "paymentAmount",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "paymentIdentifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "detail",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "detail.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "detail.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "detail.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "detail.identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "detail.predecessor",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "detail.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "detail.request",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "detail.submitter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "detail.response",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "detail.date",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "detail.responsible",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "detail.payee",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "detail.amount",
+      "fieldType": "Money"
+    },
+    {
+      "source": "",
+      "target": "formCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "processNote",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "processNote.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "processNote.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "processNote.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "processNote.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "processNote.text",
+      "fieldType": "string"
+    }
+  ]
+}

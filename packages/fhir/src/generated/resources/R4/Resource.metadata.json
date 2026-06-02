@@ -1,0 +1,44 @@
+{
+  "resource": "Resource",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "Resource",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "Resource.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Resource.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Resource.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "Resource.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

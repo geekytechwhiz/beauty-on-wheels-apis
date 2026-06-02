@@ -1,0 +1,649 @@
+{
+  "resource": "CapabilityStatement",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "kind",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "instantiates",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "imports",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "software",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "software.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "software.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "software.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "software.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "software.version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "software.releaseDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "implementation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "implementation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "implementation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "implementation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "implementation.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "implementation.url",
+      "fieldType": "url"
+    },
+    {
+      "source": "",
+      "target": "implementation.custodian",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "fhirVersion",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "format",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "patchFormat",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "implementationGuide",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "rest",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "rest.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "rest.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "rest.security",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "rest.security.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "rest.security.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.security.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.security.cors",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "rest.security.service",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "rest.security.description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "rest.resource",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.profile",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.supportedProfile",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.interaction",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.interaction.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.interaction.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.interaction.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.interaction.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.interaction.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.versioning",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.readHistory",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.updateCreate",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.conditionalCreate",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.conditionalRead",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.conditionalUpdate",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.conditionalDelete",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.referencePolicy",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchInclude",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchRevInclude",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam.definition",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.searchParam.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.operation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.operation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.operation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.operation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.operation.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.operation.definition",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "rest.resource.operation.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "rest.interaction",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "rest.interaction.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "rest.interaction.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.interaction.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "rest.interaction.code",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "rest.interaction.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "rest.searchParam"
+    },
+    {
+      "source": "",
+      "target": "rest.operation"
+    },
+    {
+      "source": "",
+      "target": "rest.compartment",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "messaging",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "messaging.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "messaging.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "messaging.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "messaging.endpoint",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "messaging.endpoint.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "messaging.endpoint.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "messaging.endpoint.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "messaging.endpoint.protocol",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "messaging.endpoint.address",
+      "fieldType": "url"
+    },
+    {
+      "source": "",
+      "target": "messaging.reliableCache",
+      "fieldType": "unsignedInt"
+    },
+    {
+      "source": "",
+      "target": "messaging.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "messaging.supportedMessage",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "messaging.supportedMessage.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "messaging.supportedMessage.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "messaging.supportedMessage.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "messaging.supportedMessage.mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "messaging.supportedMessage.definition",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "document",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "document.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "document.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "document.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "document.mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "document.documentation",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "document.profile",
+      "fieldType": "canonical"
+    }
+  ]
+}

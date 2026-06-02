@@ -1,0 +1,315 @@
+{
+  "resource": "EHRS FM Record Lifecycle Event - Audit Event",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "AuditEvent"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.type",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.subtype",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.action",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.period",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.recorded",
+      "fieldType": "instant"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.outcome",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.outcomeDesc",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.purposeOfEvent",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.role",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.who",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.altId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.requestor",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.location",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.policy",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.media",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.network",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.network.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.network.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.network.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.network.address",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.network.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.agent.purposeOfUse",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.source",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.source.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.source.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.source.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.source.site",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.source.observer",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.source.type",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.what",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.type",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.role",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.lifecycle",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.securityLabel",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.query",
+      "fieldType": "base64Binary"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.detail",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.detail.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.detail.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.detail.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.detail.type",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "AuditEvent.entity.detail.value[x]",
+      "fieldType": "string"
+    }
+  ]
+}

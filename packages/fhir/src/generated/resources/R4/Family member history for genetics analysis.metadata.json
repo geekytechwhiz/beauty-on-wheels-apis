@@ -1,0 +1,319 @@
+{
+  "resource": "Family member history for genetics analysis",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "FamilyMemberHistory",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.identifier",
+      "type": [
+        "Identifier"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.instantiatesCanonical",
+      "type": [
+        "canonical"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.instantiatesUri",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.status",
+      "type": [
+        "code"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.dataAbsentReason",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.patient",
+      "type": [
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.date",
+      "type": [
+        "dateTime"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.name",
+      "type": [
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.relationship",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.sex",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.born[x]",
+      "type": [
+        "Period",
+        "date",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.age[x]",
+      "type": [
+        "Age",
+        "Range",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.estimatedAge",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.deceased[x]",
+      "type": [
+        "boolean",
+        "Age",
+        "Range",
+        "date",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.reasonCode",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.reasonReference",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.condition",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.condition.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.condition.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.condition.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "FamilyMemberHistory.condition.code",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.condition.outcome",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.condition.contributedToDeath",
+      "type": [
+        "boolean"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.condition.onset[x]",
+      "type": [
+        "Age",
+        "Range",
+        "Period",
+        "string"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "FamilyMemberHistory.condition.note",
+      "type": [
+        "Annotation"
+      ],
+      "required": false,
+      "multiple": false
+    }
+  ]
+}

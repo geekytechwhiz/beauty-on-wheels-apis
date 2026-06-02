@@ -1,0 +1,300 @@
+{
+  "resource": "RequestGroup",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "instantiatesCanonical",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "instantiatesUri",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "basedOn",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "replaces",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "groupIdentifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "intent",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "priority",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "subject",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "authoredOn",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "author",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "reasonCode",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reasonReference",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "action",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "action.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "action.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "action.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "action.prefix",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "action.title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "action.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "action.textEquivalent",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "action.priority",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "action.documentation",
+      "fieldType": "RelatedArtifact"
+    },
+    {
+      "source": "",
+      "target": "action.condition",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "action.condition.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "action.condition.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "action.condition.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "action.condition.kind",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.condition.expression",
+      "fieldType": "Expression"
+    },
+    {
+      "source": "",
+      "target": "action.relatedAction",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "action.relatedAction.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "action.relatedAction.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "action.relatedAction.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "action.relatedAction.actionId",
+      "fieldType": "id"
+    },
+    {
+      "source": "",
+      "target": "action.relatedAction.relationship",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.relatedAction.offset[x]",
+      "fieldType": "Duration"
+    },
+    {
+      "source": "",
+      "target": "action.timing[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "action.participant",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "action.type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "action.groupingBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.selectionBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.requiredBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.precheckBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.cardinalityBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "action.resource",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "action.action"
+    }
+  ]
+}

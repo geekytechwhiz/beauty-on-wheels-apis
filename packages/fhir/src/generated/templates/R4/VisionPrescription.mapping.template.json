@@ -1,0 +1,196 @@
+{
+  "resource": "VisionPrescription",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "created",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "dateWritten",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "prescriber",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.product",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.eye",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.sphere",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.cylinder",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.axis",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.prism",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.prism.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.prism.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.prism.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.prism.amount",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.prism.base",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.add",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.power",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.backCurve",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.diameter",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.duration",
+      "fieldType": "Quantity"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.color",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.brand",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "lensSpecification.note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

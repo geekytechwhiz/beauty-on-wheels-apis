@@ -1,0 +1,173 @@
+{
+  "resource": "MedicinalProductContraindication",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "path": "MedicinalProductContraindication",
+      "type": [],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.meta",
+      "type": [
+        "Meta"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.implicitRules",
+      "type": [
+        "uri"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.language",
+      "type": [
+        "code"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.text",
+      "type": [
+        "Narrative"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.contained",
+      "type": [
+        "Resource"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.subject",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.disease",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.diseaseStatus",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.comorbidity",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.therapeuticIndication",
+      "type": [
+        "Reference"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.otherTherapy",
+      "type": [
+        "BackboneElement"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.otherTherapy.id",
+      "type": [
+        "http://hl7.org/fhirpath/System.String"
+      ],
+      "required": false,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.otherTherapy.extension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.otherTherapy.modifierExtension",
+      "type": [
+        "Extension"
+      ],
+      "required": false,
+      "multiple": true
+    },
+    {
+      "path": "MedicinalProductContraindication.otherTherapy.therapyRelationshipType",
+      "type": [
+        "CodeableConcept"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.otherTherapy.medication[x]",
+      "type": [
+        "CodeableConcept",
+        "Reference"
+      ],
+      "required": true,
+      "multiple": false
+    },
+    {
+      "path": "MedicinalProductContraindication.population",
+      "type": [
+        "Population"
+      ],
+      "required": false,
+      "multiple": true
+    }
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "resource": "AllergyIntolerance",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "clinicalStatus",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "verificationStatus",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "category",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "criticality",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "patient",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "encounter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "onset[x]",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "recordedDate",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "recorder",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "asserter",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "lastOccurrence",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "note",
+      "fieldType": "Annotation"
+    },
+    {
+      "source": "",
+      "target": "reaction",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "reaction.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "reaction.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "reaction.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "reaction.substance",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reaction.manifestation",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reaction.description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "reaction.onset",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "reaction.severity",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "reaction.exposureRoute",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "reaction.note",
+      "fieldType": "Annotation"
+    }
+  ]
+}

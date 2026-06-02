@@ -1,6 +1,6 @@
 {
   "name": "@myvitalrx/platform-tools",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "MyVitalRx platform libraries: middleware, observability, and event-platform",
   "license": "UNLICENSED",
   "type": "module",
@@ -9,8 +9,6 @@
     "*": {
       "middleware": ["dist/middleware.d.ts"],
       "observability": ["dist/observability.d.ts"],
-      "fhir": ["dist/fhir-types/index.d.ts"],
-      "fhir/middleware": ["dist/fhir/middleware.d.ts"],
       "event-platform/dx": ["dist/event-platform-dx.d.ts"],
       "event-platform": ["dist/event-platform/index.d.ts"]
     }
@@ -42,16 +40,6 @@
       "types": "./dist/event-platform-dx.d.ts",
       "import": "./dist/event-platform-dx.js",
       "default": "./dist/event-platform-dx.js"
-    },
-    "./fhir": {
-      "types": "./dist/fhir-types/index.d.ts",
-      "import": "./dist/fhir.js",
-      "default": "./dist/fhir.js"
-    },
-    "./fhir/middleware": {
-      "types": "./dist/fhir/middleware.d.ts",
-      "import": "./dist/fhir/middleware.js",
-      "default": "./dist/fhir/middleware.js"
     }
   },
   "scripts": {
@@ -60,7 +48,6 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@ahryman40k/ts-fhir-types": "^4.0.39",
     "@aws-lambda-powertools/logger": "^2.33.0",
     "@aws-lambda-powertools/metrics": "^2.33.0",
     "@aws-lambda-powertools/tracer": "^2.33.0",
@@ -75,10 +62,8 @@
   },
   "devDependencies": {
     "@api-hub/event-platform": "workspace:*",
-    "@api-hub/fhir": "workspace:*",
     "@api-hub/middleware": "workspace:*",
     "@api-hub/observability": "workspace:*",
-    "@api-hub/terminology": "workspace:*",
     "@api-hub/utils": "workspace:*",
     "tsup": "^8.5.0",
     "typescript": "^5.9.0"

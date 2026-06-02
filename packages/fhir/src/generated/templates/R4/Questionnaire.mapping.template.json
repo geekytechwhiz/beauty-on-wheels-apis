@@ -1,0 +1,325 @@
+{
+  "resource": "Questionnaire",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "url",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "version",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "title",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "derivedFrom",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "experimental",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "subjectType",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "date",
+      "fieldType": "dateTime"
+    },
+    {
+      "source": "",
+      "target": "publisher",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "contact",
+      "fieldType": "ContactDetail"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "useContext",
+      "fieldType": "UsageContext"
+    },
+    {
+      "source": "",
+      "target": "jurisdiction",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "purpose",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "copyright",
+      "fieldType": "markdown"
+    },
+    {
+      "source": "",
+      "target": "approvalDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "lastReviewDate",
+      "fieldType": "date"
+    },
+    {
+      "source": "",
+      "target": "effectivePeriod",
+      "fieldType": "Period"
+    },
+    {
+      "source": "",
+      "target": "code",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "item",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.linkId",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "item.definition",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "item.code",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "item.prefix",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "item.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "item.type",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "item.enableWhen",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.enableWhen.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.enableWhen.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.enableWhen.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.enableWhen.question",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "item.enableWhen.operator",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "item.enableWhen.answer[x]",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "item.enableBehavior",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "item.required",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "item.repeats",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "item.readOnly",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "item.maxLength",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "item.answerValueSet",
+      "fieldType": "canonical"
+    },
+    {
+      "source": "",
+      "target": "item.answerOption",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.answerOption.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.answerOption.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.answerOption.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.answerOption.value[x]",
+      "fieldType": "integer"
+    },
+    {
+      "source": "",
+      "target": "item.answerOption.initialSelected",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "item.initial",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "item.initial.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "item.initial.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.initial.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "item.initial.value[x]",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "item.item"
+    }
+  ]
+}

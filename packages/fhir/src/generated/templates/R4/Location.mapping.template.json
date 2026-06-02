@@ -1,0 +1,196 @@
+{
+  "resource": "Location",
+  "version": "4.0.1",
+  "fields": [
+    {
+      "source": "",
+      "target": "id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "meta",
+      "fieldType": "Meta"
+    },
+    {
+      "source": "",
+      "target": "implicitRules",
+      "fieldType": "uri"
+    },
+    {
+      "source": "",
+      "target": "language",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "text",
+      "fieldType": "Narrative"
+    },
+    {
+      "source": "",
+      "target": "contained",
+      "fieldType": "Resource"
+    },
+    {
+      "source": "",
+      "target": "extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "identifier",
+      "fieldType": "Identifier"
+    },
+    {
+      "source": "",
+      "target": "status",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "operationalStatus",
+      "fieldType": "Coding"
+    },
+    {
+      "source": "",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "alias",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "description",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "mode",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "type",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "telecom",
+      "fieldType": "ContactPoint"
+    },
+    {
+      "source": "",
+      "target": "address",
+      "fieldType": "Address"
+    },
+    {
+      "source": "",
+      "target": "physicalType",
+      "fieldType": "CodeableConcept"
+    },
+    {
+      "source": "",
+      "target": "position",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "position.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "position.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "position.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "position.longitude",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "position.latitude",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "position.altitude",
+      "fieldType": "decimal"
+    },
+    {
+      "source": "",
+      "target": "managingOrganization",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "partOf",
+      "fieldType": "Reference"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation",
+      "fieldType": "BackboneElement"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation.id",
+      "fieldType": "http://hl7.org/fhirpath/System.String"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation.extension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation.modifierExtension",
+      "fieldType": "Extension"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation.daysOfWeek",
+      "fieldType": "code"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation.allDay",
+      "fieldType": "boolean"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation.openingTime",
+      "fieldType": "time"
+    },
+    {
+      "source": "",
+      "target": "hoursOfOperation.closingTime",
+      "fieldType": "time"
+    },
+    {
+      "source": "",
+      "target": "availabilityExceptions",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "endpoint",
+      "fieldType": "Reference"
+    }
+  ]
+}

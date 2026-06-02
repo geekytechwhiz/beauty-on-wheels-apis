@@ -17,9 +17,6 @@
       "path": "../../libs/middleware/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/fhir/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/event-platform/tsconfig.lib.json"
     }
   ]

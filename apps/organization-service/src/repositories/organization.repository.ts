@@ -30,6 +30,56 @@ const baseLogger = createLogger({ service: 'organization-service', redactPII: tr
 
 const ORGANIZATION_TABLE_NAME = process.env.ORGANIZATION_TABLE || '';
 
+const DEFAULT_ORG_LIST_LIMIT = 40;
+
+const ORG_LIST_PROJECTION_ATTRIBUTES = [
+  'organizationId',
+  'name',
+  'organizationType',
+  'status',
+  'country',
+  'state',
+  'city',
+  'address',
+  'postalCode',
+  'countryCode',
+  'phoneCode',
+  'phoneNumber',
+  'email',
+  'hospitalBio',
+  'hospitalImage',
+  'adminDetails',
+  'createdAt',
+  'createdDate',
+  'organizationInfo',
+  'formAlert',
+  'parentOrgId',
+] as const;
+
+function appendNonDeletedFilter(
+  filtersExpr: string[],
+  exprNames: Record<string, string>,
+  exprValues: Record<string, unknown>,
+): void {
+  exprNames['#deleted'] = 'deleted';
+  exprValues[':deletedTrue'] = true;
+  filtersExpr.push('(attribute_not_exists(#deleted) OR #deleted <> :deletedTrue)');
+}
+
+function projectionAliasForAttr(attr: string, exprNames: Record<string, string>): string {
+  const existing = Object.entries(exprNames).find(([, value]) => value === attr);
+  if (existing) {
+    return existing[0];
+  }
+  const alias = `#proj_${attr}`;
+  exprNames[alias] = attr;
+  return alias;
+}
+
+function buildOrgListProjectionExpression(exprNames: Record<string, string>): string {
+  return ORG_LIST_PROJECTION_ATTRIBUTES.map((attr) => projectionAliasForAttr(attr, exprNames)).join(', ');
+}
+
 export type GetLatestOrganizationConfigOptions = {
   /**
    * When set, DynamoDB returns only these attributes plus `entityType` and `status` (always included
@@ -1157,20 +1207,26 @@ export class OrganizationRepository {
         filtersExpr.push('(#parentOrgId = :orgId OR #organizationId = :orgId)');
       }
 
+      appendNonDeletedFilter(filtersExpr, exprNames, params.ExpressionAttributeValues);
+
       if (filtersExpr.length) {
         params.FilterExpression = filtersExpr.join(' AND ');
       }
+
+      params.ProjectionExpression = buildOrgListProjectionExpression(exprNames);
 
       if (Object.keys(exprNames).length) {
         params.ExpressionAttributeNames = exprNames;
       }
 
-      let lastEvaluatedKey = filters?.nextPaginationKey
-        ? (JSON.parse(Buffer.from(filters.nextPaginationKey, 'base64').toString()) as Record<string, unknown>)
+      const paginationKey = filters?.nextPaginationKey?.trim();
+      let lastEvaluatedKey = paginationKey
+        ? (JSON.parse(Buffer.from(paginationKey, 'base64').toString()) as Record<string, unknown>)
         : undefined;
 
       const items: Organization[] = [];
-      const limit = filters?.limit && filters.limit > 0 ? filters.limit : undefined;
+      const limit =
+        filters?.limit && filters.limit > 0 ? filters.limit : DEFAULT_ORG_LIST_LIMIT;
 
       do {
         if (lastEvaluatedKey) {
@@ -1192,9 +1248,7 @@ export class OrganizationRepository {
         }
       } while (lastEvaluatedKey);
 
-      const sanitized = items
-        .filter((item) => item.deleted !== true)
-        .map((item) => this.sanitizeOrganization(item));
+      const sanitized = items.map((item) => this.sanitizeOrganization(item));
 
       return {
         items: sanitized,

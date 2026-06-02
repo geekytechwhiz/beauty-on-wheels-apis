@@ -719,7 +719,7 @@ functions:
   v2UserList:
     handler: src/handlers/v2UserList.main
     timeout: 30
-    memorySize: 512
+    memorySize: 1024
     events:
       - http:
           path: v2/user/list
@@ -732,7 +732,7 @@ functions:
             type: token
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+            resultTtlInSeconds: 300
        
   friendFamilySearch:
     handler: src/handlers/friendFamilySearch.main

@@ -393,7 +393,7 @@ functions:
             type: token
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+            resultTtlInSeconds: 300
           documentation:
             summary: List organizations
             description: Retrieves all organizations

@@ -13,6 +13,7 @@ import {
 } from '../types/user-list-context.enum';
 import {
   mapToActiveConsultationUser,
+  mapToAdminDashboardItem,
   mapToPatientListItem,
   mapToPastConsultationUser,
   mapToPatientUser,
@@ -199,27 +200,23 @@ export class V2UserListService {
     const { organizationId, filters, pagination, sort, requestId } = params;
     const logger = createChildLogger(baseLogger, { correlationId: requestId });
 
-    // Pass undefined if no limit provided to fetch all records
     const requestedLimit = pagination?.limit;
 
-    const result = await this.fetchWithInternalPagination(
-      async (paginationParams) => {
-        return this.repository.queryOrganizationUsers({
-          organizationId,
-          context: UserListContext.ADMIN_DASHBOARD,
-          filters,
-          pagination: paginationParams,
-          sort,
-          correlationId: requestId,
-        });
+    const result = await this.repository.queryOrganizationUsers({
+      organizationId,
+      context: UserListContext.ADMIN_DASHBOARD,
+      filters,
+      pagination: {
+        limit: requestedLimit,
+        cursor: pagination?.cursor ?? null,
       },
-      requestedLimit,
-      pagination?.cursor,
-    );
+      sort,
+      correlationId: requestId,
+    });
 
-    logger.info({ 
-      event: 'v2_admin_dashboard_filtered_fnf', 
-      requestedLimit: requestedLimit || 'ALL',
+    logger.info({
+      event: 'v2_admin_dashboard_filtered_fnf',
+      requestedLimit,
       returnedCount: result.items.length,
     });
 
@@ -795,6 +792,11 @@ export class V2UserListService {
 
     switch (context) {
       case UserListContext.ADMIN_DASHBOARD:
+        return {
+          ...envelope,
+          data: { items: items.map(mapToAdminDashboardItem) },
+        };
+
       case UserListContext.CHAT_STAFF_LIST:
       case UserListContext.DOCTOR_SELECTION:
         return {

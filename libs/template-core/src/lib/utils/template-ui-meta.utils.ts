@@ -34,6 +34,16 @@ export function isLambdaRuntime(): boolean {
   return Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME ?? process.env.LAMBDA_TASK_ROOT);
 }
 
+/**
+ * Read-only packaged services-json directory bundled with Lambda code.
+ * Useful as fallback for GET/list when writable /tmp has no files yet.
+ */
+export function resolveBundledServicesJsonDir(): string | undefined {
+  const root = process.env.LAMBDA_TASK_ROOT ?? '/var/task';
+  const bundled = path.posix.join(root.replace(/\\/g, '/'), 'services-json');
+  return existsSync(bundled) ? bundled : undefined;
+}
+
 function resolveEnvServicesJsonDir(envDir: string): string {
   const normalizedEnvDir = envDir.replace(/\\/g, '/');
   const isWindowsAbsolute = /^[a-zA-Z]:\//.test(normalizedEnvDir) || normalizedEnvDir.startsWith('//');

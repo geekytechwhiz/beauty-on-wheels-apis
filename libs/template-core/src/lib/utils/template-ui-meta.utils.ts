@@ -38,11 +38,11 @@ export function isLambdaRuntime(): boolean {
  * Read-only packaged services-json directory bundled with Lambda code.
  * Useful as fallback for GET/list when writable /tmp has no files yet.
  */
-export function resolveBundledServicesJsonDir(): string | undefined {
-  const root = process.env.LAMBDA_TASK_ROOT ?? '/var/task';
-  const bundled = path.posix.join(root.replace(/\\/g, '/'), 'services-json');
-  return existsSync(bundled) ? bundled : undefined;
-}
+// export function resolveBundledServicesJsonDir(): string | undefined {
+//   const root = process.env.LAMBDA_TASK_ROOT ?? '/var/task';
+//   const bundled = path.posix.join(root.replace(/\\/g, '/'), 'services-json');
+//   return existsSync(bundled) ? bundled : undefined;
+// }
 
 function resolveEnvServicesJsonDir(envDir: string): string {
   const normalizedEnvDir = envDir.replace(/\\/g, '/');

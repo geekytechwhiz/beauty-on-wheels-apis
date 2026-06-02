@@ -62,9 +62,10 @@ custom:
       - Sec-Ch-Ua-Mobile
       - Sec-Ch-Ua-Platform
 
-  # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
+  # Disable sourcemaps everywhere in CI to reduce memory (avoids esbuild "The service was stopped: write EPIPE").
+  # dev is the stage CodeBuild packages with, so it must stay false to keep the pipeline within container memory.
   sourcemapsByStage:
-    dev: true
+    dev: false
     stg: false
     prd: false
 
@@ -79,9 +80,10 @@ custom:
     external:
       - aws-sdk
     keepNames: true
-    # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
-    concurrency: 4
-    zipConcurrency: 4
+    # Serialize bundling/zipping. With package.individually + 22 functions, parallel esbuild
+    # service instances exhaust the CodeBuild container and crash with "The service was stopped".
+    concurrency: 1
+    zipConcurrency: 1
     # Resolve NX workspace dependencies (@api-hub/* packages)
     plugins: esbuild-plugins.js
     # Ensure proper module resolution

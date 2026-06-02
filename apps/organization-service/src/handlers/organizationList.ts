@@ -36,10 +36,10 @@ const handler = async (req: LambdaRequest<ListBody>) => {
   if (organizationId === 'ROOT') organizationId = undefined;
 
   const limitRaw = body.limit;
-  const parsedLimit = typeof limitRaw === 'string' ? Number(limitRaw) : typeof limitRaw === 'number' ? limitRaw : undefined;
+  const parsedLimit = typeof limitRaw === 'number' ? limitRaw : undefined;
   const limit =
-    Number.isFinite(parsedLimit) && parsedLimit! > 0
-      ? Math.min(parsedLimit!, MAX_ORG_LIST_LIMIT)
+    parsedLimit !== undefined && Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, MAX_ORG_LIST_LIMIT)
       : DEFAULT_ORG_LIST_LIMIT;
 
   const nextPaginationKey = resolveOrgListPaginationKey({

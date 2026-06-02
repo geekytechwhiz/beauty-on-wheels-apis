@@ -137,10 +137,11 @@ export function validateOrganizationListPost(req: any) {
     throw err;
   }
 
-  const body = req?.body ?? {};
-  const result = organizationListSchema.safeParse(body);
+  const merged = { ...(req?.params ?? {}), ...(req?.body ?? {}) };
+  const result = organizationListSchema.safeParse(merged);
   if (!result.success) {
     const first = result.error.issues[0];
     throwValidationError(first?.message ?? 'Validation failed', 400, 'VALIDATION_ERROR');
   }
+  req.body = result.data;
 }

@@ -12,7 +12,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -72,7 +72,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node22
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
@@ -80,8 +80,8 @@ custom:
       - aws-sdk
     keepNames: true
     # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
-    concurrency: 8
-    zipConcurrency: 8
+    concurrency: 4
+    zipConcurrency: 4
     # Resolve NX workspace dependencies (@api-hub/* packages)
     plugins: esbuild-plugins.js
     # Ensure proper module resolution
@@ -95,8 +95,6 @@ custom:
 
   autoswagger:
     title: Template Service API
-    description: Care plan template HTTP API. Swagger 2 merge file for serverless-auto-swagger.
-    version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
     schemes:

@@ -10,6 +10,7 @@ import {
   getExternalTenantSchema,
   setOrgStatusSchema,
   updateOrganizationMetadataSchema,
+  organizationListSchema,
 } from './organization.validation';
 import { normalizeOrganizationPayload } from '../utils/organizationPayload';
 
@@ -134,5 +135,12 @@ export function validateOrganizationListPost(req: any) {
     err.statusCode = 405;
     err.code = 'METHOD_NOT_ALLOWED';
     throw err;
+  }
+
+  const body = req?.body ?? {};
+  const result = organizationListSchema.safeParse(body);
+  if (!result.success) {
+    const first = result.error.issues[0];
+    throwValidationError(first?.message ?? 'Validation failed', 400, 'VALIDATION_ERROR');
   }
 }

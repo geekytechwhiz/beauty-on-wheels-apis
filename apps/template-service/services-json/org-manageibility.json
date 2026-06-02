@@ -1,0 +1,343 @@
+{
+  "active": true,
+  "version": 1,
+  "sections": [
+    {
+      "id": "omm-common",
+      "name": "Common Information",
+      "description": "Patient demographics, care team assignment, template",
+      "type": "section",
+      "cells": {
+        "enabled": true,
+        "canAdd": true,
+        "canRemove": true,
+        "canUpdate": true,
+        "defaultEditable": true
+      },
+      "items": [
+        {
+          "id": "omm-template-name",
+          "name": "Template Name",
+          "description": "Can org rename this template?",
+          "type": "field",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "defaultEditable": true
+          }
+        },
+        {
+          "id": "omm-category",
+          "name": "Category",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-condition",
+          "name": "Condition",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-language",
+          "name": "Language",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-specialty",
+          "name": "Specialty",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-select-scope",
+          "name": "Select Scope",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "omm-duration",
+      "name": "Duration Types",
+      "description": "Duration Types",
+      "type": "section",
+      "cells": {
+        "enabled": true,
+        "canAdd": true,
+        "canRemove": true,
+        "canUpdate": true,
+        "defaultEditable": true
+      },
+      "items": [
+        {
+          "id": "omm-durations",
+          "name": "Durations",
+          "type": "metadata",
+          "cells": {
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "omm-rpm",
+      "name": "RPM & Device",
+      "description": "Remote monitoring and connected device configuration",
+      "type": "section",
+      "cells": {
+        "enabled": true,
+        "canAdd": true,
+        "canRemove": true,
+        "canUpdate": true,
+        "defaultEditable": true
+      },
+      "items": [
+        {
+          "id": "omm-primary-devices",
+          "name": "Allowed Primary Devices",
+          "description": "RPM devices available to this org",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "id": "omm-secondary-devices",
+          "name": "Allowed Secondary Devices",
+          "description": "RPM devices available to this org",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed",
+            "min": 0,
+            "max": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "omm-okr",
+      "name": "Goals & Monitoring",
+      "description": "Objectives, key results, and linked task templates",
+      "type": "section",
+      "cells": {
+        "enabled": true,
+        "canAdd": true,
+        "canRemove": true,
+        "canUpdate": true,
+        "defaultEditable": true,
+        "min": 0,
+        "max": 0
+      },
+      "items": [
+        {
+          "id": "omm-objective",
+          "name": "Objective",
+          "description": "Goal-level object within the care plan",
+          "type": "entry",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "id": "omm-key-result",
+          "name": "Key Result (KR)",
+          "description": "Measurable result tied to an objective",
+          "type": "entry",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "id": "omm-okr-task",
+          "name": "Task",
+          "type": "entry",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "id": "omm-linked-symptom",
+          "name": "Linked Symptom Template",
+          "description": "Symptom template associated with this care plan",
+          "type": "entry",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "min": 0,
+            "max": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "omm-base-assessment",
+      "name": "Base Assessment",
+      "description": "Baseline clinical parameters recorded at patient enrollment",
+      "type": "section",
+      "cells": {
+        "enabled": true,
+        "canAdd": true,
+        "canRemove": true,
+        "canUpdate": true,
+        "defaultEditable": true,
+        "min": 0,
+        "max": 0
+      },
+      "items": [
+        {
+          "id": "omm-chronic-baseline",
+          "name": "Chronic Baseline Vitals",
+          "description": "A clinical parameter to baseline at enrollment",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-diagnostic",
+          "name": "Diagnostic Test & Reports",
+          "description": "A clinical parameter to baseline at enrollment",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-psychosocial",
+          "name": "Psychosocial Status",
+          "description": "A clinical parameter to baseline at enrollment",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-functional",
+          "name": "Functional Status",
+          "description": "A clinical parameter to baseline at enrollment",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-environment",
+          "name": "Environment",
+          "description": "A clinical parameter to baseline at enrollment",
+          "type": "metadata",
+          "cells": {
+            "canUpdate": true,
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-risk-flags",
+          "name": "Risk Flags",
+          "description": "A clinical parameter to baseline at enrollment",
+          "type": "entry",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "min": 0,
+            "max": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "omm-followup",
+      "name": "Follow-up",
+      "description": "Review cadence, outcome tracking, follow-up sessions",
+      "type": "section",
+      "cells": {
+        "enabled": true,
+        "canAdd": true,
+        "canRemove": true,
+        "canUpdate": true,
+        "defaultEditable": true
+      },
+      "items": [
+        {
+          "id": "omm-review-cadence",
+          "name": "Review Cadence",
+          "description": "How often org reviews patient progress",
+          "type": "metadata",
+          "cells": {
+            "defaultEditable": true,
+            "metadataMode": "Fixed"
+          }
+        },
+        {
+          "id": "omm-custom-duration",
+          "name": "Custom Duration Allowed",
+          "description": "Whether custom care plan durations are permitted",
+          "type": "field",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "defaultEditable": true
+          }
+        },
+        {
+          "id": "omm-followup-question",
+          "name": "Follow-up Question",
+          "description": "Follow-up question template entries",
+          "type": "entry",
+          "cells": {
+            "canAdd": true,
+            "canRemove": true,
+            "min": 0,
+            "max": 0
+          }
+        }
+      ]
+    }
+  ]
+}

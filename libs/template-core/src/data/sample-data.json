@@ -1,0 +1,268 @@
+{
+  "templateId": "uuid",
+  "templateCode": "ALT-VITALS-v1",
+
+  "templateType": "ALERT_POLICY",
+
+  "templateProfile": {
+    "category": "Chronic Disease",
+    "condition": "Hypertension",
+    "country": ["US"],
+    "language": ["EN"],
+    "specialty": ["Cardiology"]
+  },
+
+  "templateMetadata": {
+    "templateName": "Hypertension Vitals Alert Policy",
+
+    "version": 1,
+
+    "status": "Saved",
+
+    "shareScope": "Private",
+
+    "ownerOrgId": "uuid",
+
+    "createdBy": "userId",
+
+    "createdDate": "2026-05-27T10:00:00Z",
+
+    "lastModifiedBy": "userId",
+
+    "lastModifiedDate": "2026-05-27T10:00:00Z",
+
+    "masterTemplateVersionId": null
+  },
+
+  "controlAttributes": {
+    "mandatory": true,
+    "add": "Admin",
+    "remove": "Admin",
+    "update": "Admin",
+    "min": 1,
+    "max": 50,
+    "metadataMode": "Fixed",
+    "display": "Main"
+  },
+
+  "alertPolicyScopeDefinition": {
+    "appliesToType": "Metric",
+
+    "linkedEntityCode": "BP_SYSTOLIC",
+
+    "supportedAlertSources": [
+      "ThresholdBreach",
+      "MonitoringGap",
+      "SymptomRisk",
+      "DeviceIssue",
+      "BillingRisk"
+    ],
+
+    "alertApplicableCountries": [
+      "US"
+    ],
+
+    "alertApplicablePrograms": [
+      "RPM",
+      "CCM"
+    ],
+
+    "active": true
+  },
+
+  "alertClassificationSettings": {
+    "alertCategory": "Clinical",
+
+    "alertSeverity": "Critical",
+
+    "priorityLevel": "High",
+
+    "riskLevel": "High",
+
+    "alertType": "Threshold",
+
+    "deduplicationModel": "TimeWindow",
+
+    "deduplicationWindowMinutes": 30,
+
+    "repeatAlertAllowed": true,
+
+    "maxRepeatCount": 5,
+
+    "suppressionEnabled": true,
+
+    "suppressionWindowMinutes": 60
+  },
+
+  "assignmentConfiguration": {
+    "assignmentType": "CareTeam",
+
+    "assignmentRole": [
+      "Nurse",
+      "CareCoordinator"
+    ],
+
+    "fallbackAssignmentRole": [
+      "Provider"
+    ],
+
+    "autoAssignmentEnabled": true,
+
+    "manualOverrideAllowed": true,
+
+    "escalationEnabled": true,
+
+    "escalationAfterMinutes": 30,
+
+    "escalationTargetRole": [
+      "Supervisor",
+      "Provider"
+    ]
+  },
+
+  "lifecycleRules": {
+    "allowedStatuses": [
+      "Open",
+      "Acknowledged",
+      "InProgress",
+      "Resolved",
+      "Closed"
+    ],
+
+    "defaultStatus": "Open",
+
+    "autoCloseEnabled": false,
+
+    "autoCloseAfterHours": null,
+
+    "reopenAllowed": true,
+
+    "maxReopenCount": 3,
+
+    "requiresAcknowledgement": true,
+
+    "requiresResolutionNote": true,
+
+    "resolutionMandatory": true
+  },
+
+  "slaConfigurationBinding": {
+    "slaEnabled": true,
+
+    "linkedSLAProfileId": "sla-profile-uuid",
+
+    "responseTimeMinutes": 15,
+
+    "resolutionTimeMinutes": 120,
+
+    "breachEscalationEnabled": true,
+
+    "breachEscalationRole": [
+      "Supervisor"
+    ]
+  },
+
+  "slaPriorityProfiles": [
+    {
+      "priority": "Critical",
+
+      "initialResponseMinutes": 5,
+
+      "resolutionMinutes": 60,
+
+      "escalationAfterMinutes": 15
+    },
+    {
+      "priority": "High",
+
+      "initialResponseMinutes": 15,
+
+      "resolutionMinutes": 120,
+
+      "escalationAfterMinutes": 30
+    }
+  ],
+
+  "notificationConfiguration": {
+    "notificationChannels": [
+      "SMS",
+      "Push",
+      "Email",
+      "InApp"
+    ],
+
+    "patientNotificationAllowed": false,
+
+    "careTeamNotificationAllowed": true,
+
+    "providerNotificationAllowed": true,
+
+    "sendRepeatNotifications": true,
+
+    "notificationFrequencyMinutes": 15
+  },
+
+  "thresholdLinkage": {
+    "linkedThresholdTemplateVersionIds": [
+      "threshold-template-version-uuid"
+    ],
+
+    "thresholdCompatibilityRequired": true
+  },
+
+  "monitoringGapHandling": {
+    "monitoringGapAlertEnabled": true,
+
+    "gapSeverity": "Medium",
+
+    "gapEscalationAfterHours": 24
+  },
+
+  "auditConfiguration": {
+    "auditTrailEnabled": true,
+
+    "trackStatusHistory": true,
+
+    "trackAssignmentHistory": true,
+
+    "trackEscalationHistory": true,
+
+    "trackNotificationHistory": true
+  },
+
+  "downstreamControls": {
+    "assignmentEditable": true,
+
+    "severityEditable": false,
+
+    "slaEditable": false,
+
+    "notificationEditable": true
+  },
+
+  "versioningRules": {
+    "publishedTemplateImmutable": true,
+
+    "onlyOnePublishedVersionAllowed": true,
+
+    "newVersionCreatesInactiveOldVersion": true
+  },
+
+  "statusTransitions": {
+    "allowedTransitions": [
+      "Saved->InReview",
+      "InReview->Published",
+      "Published->Inactive",
+      "Saved->Deleted",
+      "InReview->Deleted"
+    ]
+  },
+
+  "linkingRules": {
+    "linkedThresholdMustBePublished": true,
+
+    "linkedMonitoringMustBeCompatible": true,
+
+    "linkedEntitiesMustMatchProfile": true
+  }
+}

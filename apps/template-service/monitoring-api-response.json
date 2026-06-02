@@ -1,0 +1,623 @@
+{
+  "id": "MONITORING-MASTER-001",
+  "titleKey": "monitoring.title",
+  "subtitleKey": "monitoring.subtitle",
+  "fields": {
+    "TEMPLATE_NAME": {
+      "id": "TEMPLATE_NAME",
+      "type": "text",
+      "labelKey": "planOverview.field.templateName.label",
+      "placeholderKey": "planOverview.field.templateName.placeholder",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.templateName.validation.required"
+        }
+      }
+    },
+    "CATEGORY": {
+      "id": "CATEGORY",
+      "type": "select",
+      "labelKey": "planOverview.field.category.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.category.option.CHRONIC_CARE",
+          "value": "CHRONIC_CARE"
+        },
+        {
+          "labelKey": "planOverview.field.category.option.ACUTE_CARE",
+          "value": "ACUTE_CARE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.category.validation.required"
+        }
+      }
+    },
+    "CONDITION": {
+      "id": "CONDITION",
+      "type": "select",
+      "labelKey": "planOverview.field.condition.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.condition.option.HYPERTENSION",
+          "value": "HYPERTENSION"
+        },
+        {
+          "labelKey": "planOverview.field.condition.option.DIABETES",
+          "value": "DIABETES"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.condition.validation.required"
+        }
+      }
+    },
+    "COUNTRY": {
+      "id": "COUNTRY",
+      "type": "select",
+      "labelKey": "planOverview.field.country.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.country.option.IN",
+          "value": "IN"
+        },
+        {
+          "labelKey": "planOverview.field.country.option.US",
+          "value": "US"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.country.validation.required"
+        }
+      }
+    },
+    "LANGUAGE": {
+      "id": "LANGUAGE",
+      "type": "select",
+      "labelKey": "planOverview.field.language.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.language.option.EN",
+          "value": "EN"
+        },
+        {
+          "labelKey": "planOverview.field.language.option.HI",
+          "value": "HI"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.language.validation.required"
+        }
+      }
+    },
+    "SPECIALITY": {
+      "id": "SPECIALITY",
+      "type": "select",
+      "labelKey": "planOverview.field.speciality.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.speciality.option.CARDIOLOGY",
+          "value": "CARDIOLOGY"
+        },
+        {
+          "labelKey": "planOverview.field.speciality.option.GENERAL",
+          "value": "GENERAL"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.speciality.validation.required"
+        }
+      }
+    },
+    "SELECT_SCOPE": {
+      "id": "SELECT_SCOPE",
+      "type": "select",
+      "labelKey": "planOverview.field.selectScope.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "defaultValue": "PRIVATE",
+      "options": [
+        {
+          "labelKey": "planOverview.field.selectScope.option.PRIVATE",
+          "value": "PRIVATE"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.ORGANIZATION",
+          "value": "ORGANIZATION"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.PUBLIC",
+          "value": "PUBLIC"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.selectScope.validation.required"
+        }
+      }
+    },
+    "MONITORING_ID": {
+      "id": "MONITORING_ID",
+      "type": "text",
+      "labelKey": "monitoring.field.monitoringId.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.monitoringId.validation.required"
+        }
+      }
+    },
+    "MONITORING_NAME": {
+      "id": "MONITORING_NAME",
+      "type": "text",
+      "labelKey": "monitoring.field.monitoringName.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.monitoringName.validation.required"
+        }
+      }
+    },
+    "APPLIES_TO_TYPE": {
+      "id": "APPLIES_TO_TYPE",
+      "type": "select",
+      "labelKey": "monitoring.field.appliesToType.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "monitoring.field.appliesToType.option.METRIC",
+          "value": "METRIC"
+        },
+        {
+          "labelKey": "monitoring.field.appliesToType.option.TASK",
+          "value": "TASK"
+        },
+        {
+          "labelKey": "monitoring.field.appliesToType.option.SYMPTOM",
+          "value": "SYMPTOM"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.appliesToType.validation.required"
+        }
+      }
+    },
+    "LINKED_ENTITY_CODE": {
+      "id": "LINKED_ENTITY_CODE",
+      "type": "select",
+      "labelKey": "monitoring.field.linkedEntityCode.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "monitoring.field.linkedEntityCode.option.BP_SYS",
+          "value": "BP_SYS"
+        },
+        {
+          "labelKey": "monitoring.field.linkedEntityCode.option.BP_DIA",
+          "value": "BP_DIA"
+        },
+        {
+          "labelKey": "monitoring.field.linkedEntityCode.option.HEART_RATE",
+          "value": "HEART_RATE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.linkedEntityCode.validation.required"
+        }
+      }
+    },
+    "LINKED_SYMPTOM_TEMPLATE_VERSION_ID": {
+      "id": "LINKED_SYMPTOM_TEMPLATE_VERSION_ID",
+      "type": "select",
+      "labelKey": "monitoring.field.linkedSymptomTemplateVersionId.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "monitoring.field.linkedSymptomTemplateVersionId.option.HTN_SYMPTOM_V1",
+          "value": "HTN_SYMPTOM_V1"
+        },
+        {
+          "labelKey": "monitoring.field.linkedSymptomTemplateVersionId.option.HTN_SYMPTOM_V2",
+          "value": "HTN_SYMPTOM_V2"
+        },
+        {
+          "labelKey": "monitoring.field.linkedSymptomTemplateVersionId.option.DM_SYMPTOM_V1",
+          "value": "DM_SYMPTOM_V1"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.linkedSymptomTemplateVersionId.validation.required"
+        }
+      }
+    },
+    "MONITORING_FREQUENCY": {
+      "id": "MONITORING_FREQUENCY",
+      "type": "select",
+      "labelKey": "monitoring.field.monitoringFrequency.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "monitoring.field.monitoringFrequency.option.DAILY",
+          "value": "DAILY"
+        },
+        {
+          "labelKey": "monitoring.field.monitoringFrequency.option.WEEKLY",
+          "value": "WEEKLY"
+        },
+        {
+          "labelKey": "monitoring.field.monitoringFrequency.option.BI_WEEKLY",
+          "value": "BI_WEEKLY"
+        },
+        {
+          "labelKey": "monitoring.field.monitoringFrequency.option.MONTHLY",
+          "value": "MONTHLY"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.monitoringFrequency.validation.required"
+        }
+      }
+    },
+    "ALLOWED_DEVICE": {
+      "id": "ALLOWED_DEVICE",
+      "type": "select",
+      "labelKey": "monitoring.field.allowedDevice.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "monitoring.field.allowedDevice.option.BP_MONITOR",
+          "value": "BP_MONITOR"
+        },
+        {
+          "labelKey": "monitoring.field.allowedDevice.option.GLUCOSE_METER",
+          "value": "GLUCOSE_METER"
+        },
+        {
+          "labelKey": "monitoring.field.allowedDevice.option.PULSE_OXIMETER",
+          "value": "PULSE_OXIMETER"
+        },
+        {
+          "labelKey": "monitoring.field.allowedDevice.option.ANY",
+          "value": "ANY"
+        }
+      ]
+    },
+    "MINIMUM_SOURCES_REQUIRED": {
+      "id": "MINIMUM_SOURCES_REQUIRED",
+      "type": "number",
+      "labelKey": "monitoring.field.minimumSourcesRequired.label",
+      "required": false,
+      "defaultValue": 1,
+      "validation": {
+        "min": {
+          "value": 1,
+          "messageKey": "monitoring.field.minimumSourcesRequired.validation.min"
+        }
+      }
+    },
+    "ADHERENCE_WINDOW": {
+      "id": "ADHERENCE_WINDOW",
+      "type": "select",
+      "labelKey": "monitoring.field.adherenceWindow.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "monitoring.field.adherenceWindow.option.24_HOURS",
+          "value": "24_HOURS"
+        },
+        {
+          "labelKey": "monitoring.field.adherenceWindow.option.48_HOURS",
+          "value": "48_HOURS"
+        },
+        {
+          "labelKey": "monitoring.field.adherenceWindow.option.7_DAYS",
+          "value": "7_DAYS"
+        },
+        {
+          "labelKey": "monitoring.field.adherenceWindow.option.30_DAYS",
+          "value": "30_DAYS"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.adherenceWindow.validation.required"
+        }
+      }
+    },
+    "ALLOWED_SOURCES_FOR_VALIDITY": {
+      "id": "ALLOWED_SOURCES_FOR_VALIDITY",
+      "type": "select",
+      "labelKey": "monitoring.field.allowedSourcesForValidity.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "monitoring.field.allowedSourcesForValidity.option.DEVICE_ONLY",
+          "value": "DEVICE_ONLY"
+        },
+        {
+          "labelKey": "monitoring.field.allowedSourcesForValidity.option.MANUAL_ONLY",
+          "value": "MANUAL_ONLY"
+        },
+        {
+          "labelKey": "monitoring.field.allowedSourcesForValidity.option.DEVICE_AND_MANUAL",
+          "value": "DEVICE_AND_MANUAL"
+        },
+        {
+          "labelKey": "monitoring.field.allowedSourcesForValidity.option.ALL_SOURCES",
+          "value": "ALL_SOURCES"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.allowedSourcesForValidity.validation.required"
+        }
+      }
+    },
+    "ADHERENCE_TRACKING_ENABLED": {
+      "id": "ADHERENCE_TRACKING_ENABLED",
+      "type": "switch",
+      "labelKey": "monitoring.field.adherenceTrackingEnabled.label",
+      "required": true,
+      "defaultValue": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.adherenceTrackingEnabled.validation.required"
+        }
+      },
+      "props": {
+        "inlineFieldSwitch": true,
+        "showValueLabel": true
+      }
+    },
+    "VALID_READING_CRITERIA_ENABLED": {
+      "id": "VALID_READING_CRITERIA_ENABLED",
+      "type": "switch",
+      "labelKey": "monitoring.field.validReadingCriteriaEnabled.label",
+      "required": false,
+      "defaultValue": false,
+      "props": {
+        "inlineFieldSwitch": true,
+        "showValueLabel": true
+      }
+    },
+    "DATA_SOURCE": {
+      "id": "DATA_SOURCE",
+      "type": "checkboxGroup",
+      "labelKey": "monitoring.field.dataSource.label",
+      "required": true,
+      "defaultValue": [
+        "DEVICE_RPM"
+      ],
+      "options": [
+        {
+          "labelKey": "monitoring.field.dataSource.option.DEVICE_RPM",
+          "value": "DEVICE_RPM"
+        },
+        {
+          "labelKey": "monitoring.field.dataSource.option.MANUAL_ENTRY",
+          "value": "MANUAL_ENTRY"
+        },
+        {
+          "labelKey": "monitoring.field.dataSource.option.INTEGRATION",
+          "value": "INTEGRATION"
+        },
+        {
+          "labelKey": "monitoring.field.dataSource.option.PATIENT_MOBILE_APP",
+          "value": "PATIENT_MOBILE_APP"
+        },
+        {
+          "labelKey": "monitoring.field.dataSource.option.CARE_TEAM_ENTRY",
+          "value": "CARE_TEAM_ENTRY"
+        },
+        {
+          "labelKey": "monitoring.field.dataSource.option.PROVIDER_ENTRY",
+          "value": "PROVIDER_ENTRY"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.dataSource.validation.required"
+        }
+      },
+      "props": {
+        "infoNote": "Minimum 1 Source required, higher when readings must come from multiple sources"
+      }
+    },
+    "VALUE_RANGE_MIN": {
+      "id": "VALUE_RANGE_MIN",
+      "type": "text",
+      "labelKey": "monitoring.field.valueRangeMin.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": false
+    },
+    "VALUE_RANGE_MAX": {
+      "id": "VALUE_RANGE_MAX",
+      "type": "text",
+      "labelKey": "monitoring.field.valueRangeMax.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": false
+    },
+    "REQUIRE_TIMESTAMP": {
+      "id": "REQUIRE_TIMESTAMP",
+      "type": "switch",
+      "labelKey": "monitoring.field.requireTimestamp.label",
+      "required": false,
+      "defaultValue": true,
+      "props": {
+        "inlineFieldSwitch": true,
+        "showValueLabel": true
+      }
+    },
+    "GAP_DETECTION_ENABLED": {
+      "id": "GAP_DETECTION_ENABLED",
+      "type": "switch",
+      "labelKey": "monitoring.field.gapDetectionEnabled.label",
+      "required": false,
+      "defaultValue": false,
+      "props": {
+        "inlineFieldSwitch": true,
+        "showValueLabel": true
+      }
+    },
+    "GAP_RULE_TYPE": {
+      "id": "GAP_RULE_TYPE",
+      "type": "select",
+      "labelKey": "monitoring.field.gapRuleType.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "monitoring.field.gapRuleType.option.MISSED_READING",
+          "value": "MISSED_READING"
+        },
+        {
+          "labelKey": "monitoring.field.gapRuleType.option.CONSECUTIVE_GAP",
+          "value": "CONSECUTIVE_GAP"
+        },
+        {
+          "labelKey": "monitoring.field.gapRuleType.option.WINDOW_BASED",
+          "value": "WINDOW_BASED"
+        }
+      ]
+    },
+    "MISSED_WINDOW_COUNT_FOR_GAP": {
+      "id": "MISSED_WINDOW_COUNT_FOR_GAP",
+      "type": "number",
+      "labelKey": "monitoring.field.missedWindowCountForGap.label",
+      "required": false,
+      "defaultValue": 2,
+      "validation": {
+        "min": {
+          "value": 1,
+          "messageKey": "monitoring.field.missedWindowCountForGap.validation.min"
+        }
+      }
+    },
+    "GAP_EVALUATION_PERIOD": {
+      "id": "GAP_EVALUATION_PERIOD",
+      "type": "select",
+      "labelKey": "monitoring.field.gapEvaluationPeriod.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "monitoring.field.gapEvaluationPeriod.option.24_HOURS",
+          "value": "24_HOURS"
+        },
+        {
+          "labelKey": "monitoring.field.gapEvaluationPeriod.option.7_DAYS",
+          "value": "7_DAYS"
+        },
+        {
+          "labelKey": "monitoring.field.gapEvaluationPeriod.option.30_DAYS",
+          "value": "30_DAYS"
+        }
+      ]
+    },
+    "GAP_ALERT_REQUIRED": {
+      "id": "GAP_ALERT_REQUIRED",
+      "type": "switch",
+      "labelKey": "monitoring.field.gapAlertRequired.label",
+      "required": false,
+      "defaultValue": false,
+      "props": {
+        "inlineFieldSwitch": true,
+        "showValueLabel": true
+      }
+    },
+    "LINKED_GAP_ALERT_POLICY_TEMPLATE_VERSION_ID": {
+      "id": "LINKED_GAP_ALERT_POLICY_TEMPLATE_VERSION_ID",
+      "type": "select",
+      "labelKey": "monitoring.field.linkedGapAlertPolicyTemplateVersionId.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "monitoring.field.linkedGapAlertPolicyTemplateVersionId.option.HTN_GAP_ALERT_V1",
+          "value": "HTN_GAP_ALERT_V1"
+        },
+        {
+          "labelKey": "monitoring.field.linkedGapAlertPolicyTemplateVersionId.option.HTN_GAP_ALERT_V2",
+          "value": "HTN_GAP_ALERT_V2"
+        },
+        {
+          "labelKey": "monitoring.field.linkedGapAlertPolicyTemplateVersionId.option.STANDARD_GAP_ALERT_V1",
+          "value": "STANDARD_GAP_ALERT_V1"
+        }
+      ]
+    },
+    "DEDUPLICATION_RULE": {
+      "id": "DEDUPLICATION_RULE",
+      "type": "select",
+      "labelKey": "monitoring.field.deduplicationRule.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "monitoring.field.deduplicationRule.option.SAME_DAY",
+          "value": "SAME_DAY"
+        },
+        {
+          "labelKey": "monitoring.field.deduplicationRule.option.SAME_WINDOW",
+          "value": "SAME_WINDOW"
+        },
+        {
+          "labelKey": "monitoring.field.deduplicationRule.option.NONE",
+          "value": "NONE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "monitoring.field.deduplicationRule.validation.required"
+        }
+      }
+    }
+  }
+}

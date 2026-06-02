@@ -1,0 +1,372 @@
+openapi: 3.0.3
+info:
+  title: Template Service - UI Configuration APIs
+  description: |
+    UI authoring configuration (form definitions and org enablement UI).
+    Separated from DynamoDB template CRUD under `/templates/...`.
+
+    **Template APIs:** `/templates/...` — master/org template versions, lifecycle, enablements.
+
+    **UI configuration APIs:** `/template-configs/...` — JSON under `services-json` (local/Lambda /tmp).
+
+    Auth: Cognito access token via `Authorization: Bearer`.
+  version: 2.0.0
+
+servers:
+  - url: https://api.example.com/v1
+    description: API Gateway base URL and stage
+  - url: http://localhost:3000
+    description: serverless-offline
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: TemplateConfig
+    description: UI form and org UI configuration (not template entities)
+
+paths:
+  /template-configs:
+    get:
+      tags: [TemplateConfig]
+      summary: List or find template configs
+      description: |
+        - `?templateType=MONITORING` — returns the form config for that type (0–1 item).
+        - `?configType=TEMPLATE` — all template form configs.
+        - `?configType=ORG` — org drawer, manageability, enable-scope, and custom org configs.
+        - No query — all configs (TEMPLATE + ORG).
+      operationId: listTemplateConfigs
+      parameters:
+        - $ref: '#/components/parameters/ConfigTypeQuery'
+        - $ref: '#/components/parameters/TemplateTypeQuery'
+      x-notes: |
+        `templateType` filters TEMPLATE configs only.
+        `configType=ORG` and `templateType` together are invalid.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [TemplateConfig]
+      summary: Create template config
+      description: |
+        **TEMPLATE:** requires `templateType`, `id`, `fields`. Optional `fileName`.
+        **ORG:** requires `configKey`. Optional `fileName`, `sections`, `active`.
+        Returns **409** if file already exists.
+      operationId: createTemplateConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateConfigCreateRequest'
+            examples:
+              templateCarePlan:
+                summary: New CARE_PLAN form config
+                value:
+                  configType: TEMPLATE
+                  templateType: CARE_PLAN
+                  id: CARE-PLAN-MASTER-001
+                  titleKey: carePlan.title
+                  fields:
+                    TEMPLATE_NAME:
+                      id: TEMPLATE_NAME
+                      type: text
+                      required: true
+              orgEnableScope:
+                summary: Org enable-scope config
+                value:
+                  configType: ORG
+                  configKey: ENABLE_SCOPE
+                  active: true
+                  sections: []
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /template-configs/{configId}:
+    get:
+      tags: [TemplateConfig]
+      summary: Get template config by configId
+      description: |
+        **TEMPLATE:** `configId` = document `id` (e.g. `MONITORING-MASTER-001`).
+        **ORG:** `configId` = config key (e.g. `ENABLE_SCOPE`, `ORG_DRAWER`).
+      operationId: getTemplateConfig
+      parameters:
+        - $ref: '#/components/parameters/ConfigId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [TemplateConfig]
+      summary: Update template config
+      description: |
+        Updates by `configId`.
+        **TEMPLATE** updates are full-document writes and require `id` and `fields`.
+        **ORG** body supports `active`, `version`, `sections` (version auto-increments when omitted).
+        **404** if config does not exist.
+      operationId: updateTemplateConfig
+      parameters:
+        - $ref: '#/components/parameters/ConfigId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateConfigUpdateRequest'
+            examples:
+              templateFullUpdate:
+                summary: TEMPLATE update (requires full payload)
+                value:
+                  id: THRESHOLD-MASTER-001
+                  titleKey: threshold.title
+                  active: true
+                  fields:
+                    THRESHOLD_NAME:
+                      id: THRESHOLD_NAME
+                      type: text
+                      required: true
+              orgPartialUpdate:
+                summary: ORG partial update
+                value:
+                  active: false
+                  sections: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ConfigId:
+      in: path
+      name: configId
+      required: true
+      schema:
+        type: string
+      examples:
+        templateDocId:
+          value: MONITORING-MASTER-001
+        orgKey:
+          value: ENABLE_SCOPE
+
+    ConfigTypeQuery:
+      in: query
+      name: configType
+      schema:
+        type: string
+        enum: [TEMPLATE, ORG]
+      description: Filters records by config group.
+
+    TemplateTypeQuery:
+      in: query
+      name: templateType
+      schema:
+        type: string
+      example: MONITORING
+      description: TEMPLATE-only filter (ignored for ORG records).
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Config not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: Create rejected — file or id already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        statusCode:
+          type: integer
+        message:
+          type: object
+        error:
+          type: object
+          nullable: true
+
+    ApiSuccessEnvelope:
+      type: object
+      required: [success, statusCode, message, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: object
+        data:
+          type: object
+          nullable: true
+
+    TemplateConfigType:
+      type: string
+      enum: [TEMPLATE, ORG]
+
+    TemplateConfigRecord:
+      type: object
+      required: [configId, configType, fileName, document]
+      properties:
+        configId:
+          type: string
+          description: Document id (TEMPLATE) or config key (ORG)
+        configType:
+          $ref: '#/components/schemas/TemplateConfigType'
+        templateType:
+          type: string
+          description: Present when configType=TEMPLATE
+        configKey:
+          type: string
+          description: Present when configType=ORG
+        fileName:
+          type: string
+        document:
+          type: object
+          additionalProperties: true
+
+    TemplateConfigCreateRequest:
+      type: object
+      required: [configType]
+      properties:
+        configType:
+          $ref: '#/components/schemas/TemplateConfigType'
+        templateType:
+          type: string
+        configKey:
+          type: string
+        fileName:
+          type: string
+        id:
+          type: string
+        fields:
+          type: object
+          additionalProperties: true
+        active:
+          type: boolean
+        version:
+          type: integer
+        sections:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      additionalProperties: true
+
+    TemplateConfigUpdateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/TemplateConfigUpdateRequestTemplate'
+        - $ref: '#/components/schemas/TemplateConfigUpdateRequestOrg'
+
+    TemplateConfigUpdateRequestTemplate:
+      type: object
+      required: [id, fields]
+      properties:
+        id:
+          type: string
+        fields:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+
+    TemplateConfigUpdateRequestOrg:
+      type: object
+      properties:
+        active:
+          type: boolean
+        version:
+          type: integer
+          minimum: 1
+        sections:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      additionalProperties: true
+
+    ApiSuccessTemplateConfigList:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TemplateConfigRecord'
+
+    ApiSuccessTemplateConfigRecord:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateConfigRecord'

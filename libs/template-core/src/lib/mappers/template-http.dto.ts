@@ -136,3 +136,46 @@ export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListI
     publishedAt: meta.publishedAt ?? null,
   };
 }
+
+const MASTER_RECORD_SYSTEM_KEYS = new Set([
+  'pk',
+  'sk',
+  'entityType',
+  'meta',
+  'gsi1pk',
+  'gsi1sk',
+  'gsi2pk',
+  'gsi2sk',
+  'gsi3pk',
+  'gsi3sk',
+  'gsi4pk',
+  'gsi4sk',
+  'gsi5pk',
+  'gsi5sk',
+]);
+
+/**
+ * Full master template document for list/detail reads — returns stored VERSION shape
+ * (`meta`, `templateMetadata`, `templateProfile`, type sections) as persisted.
+ */
+export function toMasterFullRecord(record: TemplateDdbRecord): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    pk: record.pk,
+    sk: record.sk,
+    entityType: record.entityType,
+    meta: record.meta,
+  };
+
+  if (record.schemaRef !== undefined) out.schemaRef = record.schemaRef;
+  if (record.schemaHash !== undefined) out.schemaHash = record.schemaHash;
+  if (record.schemaSize !== undefined) out.schemaSize = record.schemaSize;
+
+  for (const [key, value] of Object.entries(record)) {
+    if (MASTER_RECORD_SYSTEM_KEYS.has(key)) continue;
+    if (value !== undefined) {
+      out[key] = value;
+    }
+  }
+
+  return out;
+}

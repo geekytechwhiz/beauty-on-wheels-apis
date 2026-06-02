@@ -1,5 +1,4 @@
 import type { TemplateStatus } from '../../constants/template.constants';
-import type { MasterTemplateListItem } from '../../mappers/template-http.dto';
 
 export interface ListMasterTemplatesParams {
   category?: string;
@@ -15,6 +14,7 @@ export interface ListMasterTemplatesParams {
 }
 
 export interface ListMasterTemplatesResult {
-  items: MasterTemplateListItem[];
+  /** Full VERSION document per template (payload shape as stored). */
+  items: Record<string, unknown>[];
   nextToken?: string;
 }

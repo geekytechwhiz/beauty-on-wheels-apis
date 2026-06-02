@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "entries": {
+    "ALERT": "alert-api-response.json",
+    "ALERT_POLICY": "alert-api-response.json",
+    "GOAL": "goal-api-response.json",
+    "MONITORING": "monitoring-api-response.json",
+    "SYMPTOM": "symptom-api-response.json",
+    "TASK": "task-api-response.json",
+    "THRESHOLD": "threshold-api-response.json"
+  }
+}

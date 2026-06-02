@@ -1,5 +1,7 @@
+# REGION is set explicitly; do not set AWS_REGION — Lambda reserves it and deploy will fail.
 REGION: ${self:provider.region}
-AWS_REGION_TEMPLATE_SERVICE: ${self:provider.region}
+ 
+AWS_REGION_TEMPLATE_SERVICE: ${self:provider.region} 
 STAGE: ${self:provider.stage}
 NODE_ENV: ${self:provider.stage}
 SERVICE_NAME: ${self:service}
@@ -13,4 +15,7 @@ ORGANIZATION_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.st
 USER_SERVICE_TIMEOUT_MS: '8000'
 ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
 TEMPLATE_EVENT_BUS_NAME: ${self:custom.bundle.eventBusName}
+# UI meta JSON store. Local: services-json under app root.
+# Lambda: code uses /tmp/template-service/services-json (writable); do not use /var/task.
+TEMPLATE_UI_META_DIR: ${env:TEMPLATE_UI_META_DIR, 'services-json'}
 # Optional per-stage overrides: extend this file with keys gated by ${self:provider.stage}, or add a second map merged in serverless.yml once handlers need it.

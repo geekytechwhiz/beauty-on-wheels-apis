@@ -69,4 +69,32 @@ describe('CompatibleTemplatesService.listCompatibleTemplates', () => {
       svc.listCompatibleTemplates({ condition: '', country: 'IN' }),
     ).rejects.toMatchObject({ statusCode: 400 });
   });
+
+  it('queries GSI2 with explicit ALERT_POLICY template type', async () => {
+    const alertRow = publishedRow({
+      templateId: 'ALT-VITALS-V1',
+      templateVersionId: 'ALT-VITALS-V1-V01',
+      templateType: 'ALERT_POLICY',
+      condition: 'Hypertension',
+      countries: ['US'],
+    });
+
+    const repo = {
+      queryMasterCatalogGsi2Page: jest.fn().mockResolvedValue({ items: [alertRow] }),
+    };
+
+    const svc = new CompatibleTemplatesService(repo as never);
+    const result = await svc.listCompatibleTemplates({
+      condition: 'Hypertension',
+      country: 'US',
+      templateType: 'ALERT_POLICY',
+    });
+
+    expect(repo.queryMasterCatalogGsi2Page).toHaveBeenCalledWith(
+      'ALERT_POLICY',
+      expect.any(Object),
+    );
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].templateType).toBe('ALERT_POLICY');
+  });
 });

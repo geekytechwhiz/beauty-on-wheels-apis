@@ -13,6 +13,8 @@ module.exports = [
         '@api-hub/event-platform': resolve(workspaceRoot, 'libs/event-platform/src/index.ts'),
         '@api-hub/middleware': resolve(workspaceRoot, 'libs/middleware/src/index.ts'),
         '@api-hub/template-core': resolve(workspaceRoot, 'libs/template-core/src/index.ts'),
+        '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
+        '@api-hub/terminology': resolve(workspaceRoot, 'libs/terminology/src/index.ts'),
       };
 
       build.onResolve({ filter: /^@api-hub\/.*/ }, (args) => {

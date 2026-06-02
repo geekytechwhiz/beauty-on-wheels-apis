@@ -1,4 +1,5 @@
 import { OrgTemplateEntityBuilder } from '../builder/org-template-entity.builder';
+import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import {
   toOrgListItem,
   toOrgVersionSummary,
@@ -18,7 +19,10 @@ import { TEMPLATE_STATUS } from '../constants/template.constants';
 import { OrgTemplateRepository, listOrgNextToken } from '../repositories/org-template.repository';
 import { TemplateRepository } from '../repositories/template.repository';
 import { OrgTemplateOpsService } from './org-template-ops.service';
-import type { UpdateOrgTemplateVersionParams } from '../models/api/org-update.types';
+import type {
+  TransitionOrgStatusParams,
+  UpdateOrgTemplateVersionParams,
+} from '../models/api/org-update.types';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import {
   normalizeVersionToSk,
@@ -38,9 +42,10 @@ export class OrgTemplateService {
 
   async cloneTemplateVersion(params: CloneOrgTemplateParams): Promise<TemplateDdbRecord> {
     try {
+      const masterTemplateId = TemplateEntityBuilder.normalizeTemplateId(params.masterTemplateId);
       const versionSk = normalizeVersionToSk(params.masterVersionId);
       const masterVersion = await this.masterRepo.getMasterVersion(
-        params.masterTemplateId,
+        masterTemplateId,
         versionSk,
       );
       if (!masterVersion) {
@@ -61,7 +66,7 @@ export class OrgTemplateService {
 
       const ctx = OrgTemplateEntityBuilder.buildCloneContext(
         params.organizationId,
-        params.masterTemplateId,
+        masterTemplateId,
         masterVersion.meta.templateVersionId,
         newTemplateName,
         inheritLinks,
@@ -194,6 +199,10 @@ export class OrgTemplateService {
 
   async updateOrgTemplateVersion(params: UpdateOrgTemplateVersionParams) {
     return this.orgOps.updateOrgTemplateVersion(params);
+  }
+
+  async transitionOrgTemplateStatus(params: TransitionOrgStatusParams) {
+    return this.orgOps.transitionOrgTemplateStatus(params);
   }
 
   toCreateResponse(record: TemplateDdbRecord) {

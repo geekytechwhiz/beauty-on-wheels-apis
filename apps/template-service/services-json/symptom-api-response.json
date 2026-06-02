@@ -1,8 +1,5 @@
 {
   "id": "SYMPTOM-MASTER-001",
-  "titleKey": "symptom.title",
-  "active": true,
-  "subtitleKey": "symptom.subtitle",
   "fields": {
     "TEMPLATE_NAME": {
       "id": "TEMPLATE_NAME",
@@ -473,5 +470,8 @@
         ]
       }
     }
-  }
+  },
+  "active": true,
+  "titleKey": "symptom.title",
+  "subtitleKey": "symptom.subtitle"
 }

@@ -1,8 +1,5 @@
 {
   "id": "MONITORING-MASTER-001",
-  "titleKey": "monitoring.title",
-  "subtitleKey": "monitoring.subtitle",
-  "active": true,
   "fields": {
     "TEMPLATE_NAME": {
       "id": "TEMPLATE_NAME",
@@ -614,5 +611,8 @@
         }
       }
     }
-  }
+  },
+  "active": true,
+  "titleKey": "monitoring.title",
+  "subtitleKey": "monitoring.subtitle"
 }

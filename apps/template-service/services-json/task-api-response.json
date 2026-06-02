@@ -1,8 +1,5 @@
 {
   "id": "TASK-MASTER-001",
-  "titleKey": "task.title",
-  "active": true,
-  "subtitleKey": "task.subtitle",
   "fields": {
     "TEMPLATE_NAME": {
       "id": "TEMPLATE_NAME",
@@ -483,5 +480,8 @@
         "inlineFieldSwitch": true
       }
     }
-  }
+  },
+  "active": true,
+  "titleKey": "task.title",
+  "subtitleKey": "task.subtitle"
 }

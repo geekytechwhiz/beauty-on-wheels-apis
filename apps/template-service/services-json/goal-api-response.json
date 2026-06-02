@@ -1,8 +1,5 @@
 {
   "id": "GOAL-MASTER-001",
-  "titleKey": "goal.title",
-  "subtitleKey": "goal.subtitle",
-  "active": true,
   "fields": {
     "TEMPLATE_NAME": {
       "id": "TEMPLATE_NAME",
@@ -594,5 +591,8 @@
         }
       }
     }
-  }
+  },
+  "active": true,
+  "titleKey": "goal.title",
+  "subtitleKey": "goal.subtitle"
 }

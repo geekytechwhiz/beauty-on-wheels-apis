@@ -24,3 +24,5 @@ export * from './lib/constants/org-config-meta.constants';
 export * from './lib/models/api/template-ui-meta.types';
 export * from './lib/services/template-ui-meta.service';
 export * from './lib/services/org-config-meta.service';
+export * from './lib/models/api/template-config.types';
+export * from './lib/services/template-config.service';

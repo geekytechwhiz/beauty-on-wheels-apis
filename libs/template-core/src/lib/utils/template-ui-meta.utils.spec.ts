@@ -37,4 +37,14 @@ describe('template-ui-meta.utils', () => {
     const ready = await prepareServicesJsonDir(dir);
     expect(ready).toBe(dir);
   });
+
+  it('keeps absolute windows TEMPLATE_UI_META_DIR under offline lambda env', () => {
+    process.env.AWS_LAMBDA_FUNCTION_NAME = 'template-service-dev-test';
+    process.env.TEMPLATE_UI_META_DIR =
+      'C:\\Users\\MehulManubhaiChhotal\\Documents\\api-hub\\apps\\template-service\\services-json';
+    expect(resolveServicesJsonDir().replace(/\\/g, '/')).toContain(
+      '/Users/MehulManubhaiChhotal/Documents/api-hub/apps/template-service/services-json',
+    );
+    expect(resolveServicesJsonDir().replace(/\\/g, '/').startsWith('/tmp/')).toBe(false);
+  });
 });

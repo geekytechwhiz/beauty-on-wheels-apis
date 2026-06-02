@@ -1,17 +1,16 @@
 openapi: 3.0.3
 info:
-  title: Template Service - UI Structure APIs
+  title: Template Service - UI Configuration APIs
   description: |
-    UI authoring structure endpoints for template form definitions (per template type)
-    and org enablement UI configs (drawer, manageability matrix, enable scope).
+    UI authoring configuration (form definitions and org enablement UI).
+    Separated from DynamoDB template CRUD under `/templates/...`.
 
-    Storage (local/dev): JSON under apps/template-service/services-json/.
-    Environment variable TEMPLATE_UI_META_DIR defaults to services-json.
+    **Template APIs:** `/templates/...` — master/org template versions, lifecycle, enablements.
 
-    Related spec: template-service-care-plan.openapi.yaml (DynamoDB template CRUD, lifecycle, enablements).
+    **UI configuration APIs:** `/template-configs/...` — JSON under `services-json` (local/Lambda /tmp).
 
-    Auth: Cognito JWT via Authorization Bearer token.
-  version: 1.0.0
+    Auth: Cognito access token via `Authorization: Bearer`.
+  version: 2.0.0
 
 servers:
   - url: https://api.example.com/v1
@@ -23,33 +22,56 @@ security:
   - bearerAuth: []
 
 tags:
-  - name: TemplateUiMeta
-    description: Master template authoring forms (ALERT_POLICY, MONITORING, GOAL, etc.)
-  - name: OrgConfigMeta
-    description: Org enablement UI (drawer, manageability, enable-scope)
+  - name: TemplateConfig
+    description: UI form and org UI configuration (not template entities)
 
 paths:
-  /templates/master/meta:
-    post:
-      tags: [TemplateUiMeta]
-      summary: Create template UI meta (any template type)
+  /template-configs:
+    get:
+      tags: [TemplateConfig]
+      summary: List or find template configs
       description: |
-        Creates a new UI meta JSON file for any `templateType` (built-in or custom, e.g. `CARE_PLAN`).
-        **Required:** `templateType`, `id`, `fields`.
-        **Optional:** `fileName` (must end with `.json`; default `{type-slug}-api-response.json`).
-        Returns **409** if the target file or `id` already exists.
-        Use **PUT** `/templates/master/meta/type/{templateType}` to update an existing type.
-      operationId: createTemplateUiMeta
+        - `?templateType=MONITORING` — returns the form config for that type (0–1 item).
+        - `?configType=TEMPLATE` — all template form configs.
+        - `?configType=ORG` — org drawer, manageability, enable-scope, and custom org configs.
+        - No query — all configs (TEMPLATE + ORG).
+      operationId: listTemplateConfigs
+      parameters:
+        - $ref: '#/components/parameters/ConfigTypeQuery'
+        - $ref: '#/components/parameters/TemplateTypeQuery'
+      x-notes: |
+        `templateType` filters TEMPLATE configs only.
+        `configType=ORG` and `templateType` together are invalid.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [TemplateConfig]
+      summary: Create template config
+      description: |
+        **TEMPLATE:** requires `templateType`, `id`, `fields`. Optional `fileName`.
+        **ORG:** requires `configKey`. Optional `fileName`, `sections`, `active`.
+        Returns **409** if file already exists.
+      operationId: createTemplateConfig
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TemplateUiMetaCreateRequest'
+              $ref: '#/components/schemas/TemplateConfigCreateRequest'
             examples:
-              carePlan:
-                summary: New CARE_PLAN type
+              templateCarePlan:
+                summary: New CARE_PLAN form config
                 value:
+                  configType: TEMPLATE
                   templateType: CARE_PLAN
                   id: CARE-PLAN-MASTER-001
                   titleKey: carePlan.title
@@ -58,81 +80,44 @@ paths:
                       id: TEMPLATE_NAME
                       type: text
                       required: true
+              orgEnableScope:
+                summary: Org enable-scope config
+                value:
+                  configType: ORG
+                  configKey: ENABLE_SCOPE
+                  active: true
+                  sections: []
       responses:
         '200':
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
           $ref: '#/components/responses/Conflict'
-    get:
-      tags: [TemplateUiMeta]
-      summary: List all template UI meta definitions
-      description: |
-        Returns every registered template UI meta file under `services-json`, each with full `document` JSON
-        (not only id/type/fileName).
-      operationId: listTemplateUiMeta
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          description: Server error
 
-  /templates/master/meta/id/{metaId}:
+  /template-configs/{configId}:
     get:
-      tags: [TemplateUiMeta]
-      summary: Get template UI meta by meta id
+      tags: [TemplateConfig]
+      summary: Get template config by configId
       description: |
-        Returns the UI meta whose root **`id`** matches `{metaId}`.
-        Use the document id (e.g. `MONITORING-MASTER-001`, `ALERT-MASTER-001`), **not** the template type enum (`ALERT_POLICY`).
-        If `{metaId}` is a known **template type** with no dash (e.g. `MONITORING`), resolves via type lookup.
-        Org config files (`enable-scope.json`, etc.) are excluded from the scan.
-      operationId: getTemplateUiMetaById
+        **TEMPLATE:** `configId` = document `id` (e.g. `MONITORING-MASTER-001`).
+        **ORG:** `configId` = config key (e.g. `ENABLE_SCOPE`, `ORG_DRAWER`).
+      operationId: getTemplateConfig
       parameters:
-        - $ref: '#/components/parameters/MetaId'
+        - $ref: '#/components/parameters/ConfigId'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /templates/master/meta/type/{templateType}:
-    get:
-      tags: [TemplateUiMeta]
-      summary: Get template UI meta by template type
-      description: |
-        Reads canonical file for the type, e.g. `MONITORING` → `monitoring-api-response.json`.
-        Legacy `alert-api-response (1).json` is read if canonical is missing.
-      operationId: getTemplateUiMetaByType
-      parameters:
-        - $ref: '#/components/parameters/TemplateUiMetaType'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -140,151 +125,38 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     put:
-      tags: [TemplateUiMeta]
-      summary: Update template UI meta
+      tags: [TemplateConfig]
+      summary: Update template config
       description: |
-        Updates the JSON file for `{templateType}`. **Required body:** `id`, `fields`.
-        Returns **404** if the type file does not exist (use **POST** `/templates/master/meta` to create).
-        Built-in types use canonical filenames; custom types use `ui-meta-registry.json`.
-      operationId: updateTemplateUiMeta
+        Updates by `configId`.
+        **TEMPLATE** updates are full-document writes and require `id` and `fields`.
+        **ORG** body supports `active`, `version`, `sections` (version auto-increments when omitted).
+        **404** if config does not exist.
+      operationId: updateTemplateConfig
       parameters:
-        - $ref: '#/components/parameters/TemplateUiMetaType'
+        - $ref: '#/components/parameters/ConfigId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TemplateUiMetaUpsertRequest'
+              $ref: '#/components/schemas/TemplateConfigUpdateRequest'
             examples:
-              monitoring:
-                summary: Monitoring form (excerpt)
+              templateFullUpdate:
+                summary: TEMPLATE update (requires full payload)
                 value:
-                  id: MONITORING-MASTER-001
-                  titleKey: monitoring.title
-                  subtitleKey: monitoring.subtitle
+                  id: THRESHOLD-MASTER-001
+                  titleKey: threshold.title
                   active: true
                   fields:
-                    TEMPLATE_NAME:
-                      id: TEMPLATE_NAME
+                    THRESHOLD_NAME:
+                      id: THRESHOLD_NAME
                       type: text
-                      labelKey: planOverview.field.templateName.label
                       required: true
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccessTemplateUiMetaRecord'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /templates/master/meta/org:
-    post:
-      tags: [OrgConfigMeta]
-      summary: Create org config meta (any config key)
-      description: |
-        Creates org UI config JSON for any `configKey` (built-in or custom).
-        **Required:** `configKey`. **Optional:** `fileName`, `active`, `version`, `sections`, etc.
-        Returns **409** if the file already exists.
-        Use **PUT** `/templates/master/meta/org/{configKey}` to update.
-      operationId: createOrgConfigMeta
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OrgConfigMetaCreateRequest'
-      responses:
-        '200':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaRecord'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          $ref: '#/components/responses/Conflict'
-    get:
-      tags: [OrgConfigMeta]
-      summary: List org config meta definitions
-      description: |
-        Returns `ORG_DRAWER`, `ORG_MANAGEABILITY`, and `ENABLE_SCOPE` documents when present
-        under `services-json`.
-      operationId: listOrgConfigMeta
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /templates/master/meta/org/{configKey}:
-    get:
-      tags: [OrgConfigMeta]
-      summary: Get org config meta by key
-      description: |
-        **configKey:** `ORG_DRAWER` | `ORG_MANAGEABILITY` | `ENABLE_SCOPE` (alias `ORG_MANAGEIBILITY`).
-
-        **Files:** `org-drawer.json`, `org-manageibility.json`, `enable-scope.json`.
-      operationId: getOrgConfigMetaByKey
-      parameters:
-        - $ref: '#/components/parameters/OrgConfigMetaKey'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaRecord'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    put:
-      tags: [OrgConfigMeta]
-      summary: Update org config meta
-      description: |
-        Updates JSON for `{configKey}`. **404** if missing (use **POST** `/templates/master/meta/org` to create).
-        **Managed fields:** `active` (default `true`), `version` (auto-increments when omitted on update).
-      operationId: updateOrgConfigMeta
-      parameters:
-        - $ref: '#/components/parameters/OrgConfigMetaKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OrgConfigMetaUpsertRequest'
-            examples:
-              enableScope:
-                summary: Enable scope (excerpt)
-                value:
-                  active: true
-                  version: 1
-                  sections:
-                    - id: sec-goal-fields
-                      name: Goals
-                      type: section
-                      enabled: true
-                      items: []
-              deactivate:
-                summary: Mark config inactive
+              orgPartialUpdate:
+                summary: ORG partial update
                 value:
                   active: false
-                  version: 2
                   sections: []
       responses:
         '200':
@@ -292,7 +164,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessOrgConfigMetaRecord'
+                $ref: '#/components/schemas/ApiSuccessTemplateConfigRecord'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -306,39 +178,35 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Cognito access token
 
   parameters:
-    MetaId:
+    ConfigId:
       in: path
-      name: metaId
+      name: configId
       required: true
       schema:
         type: string
-      description: |
-        Root `id` inside template UI meta JSON (e.g. MONITORING-MASTER-001).
-        Not the template type slug (use GET .../type/{templateType} for that).
-      example: MONITORING-MASTER-001
+      examples:
+        templateDocId:
+          value: MONITORING-MASTER-001
+        orgKey:
+          value: ENABLE_SCOPE
 
-    TemplateUiMetaType:
-      in: path
+    ConfigTypeQuery:
+      in: query
+      name: configType
+      schema:
+        type: string
+        enum: [TEMPLATE, ORG]
+      description: Filters records by config group.
+
+    TemplateTypeQuery:
+      in: query
       name: templateType
-      required: true
       schema:
         type: string
-        pattern: '^[A-Za-z][A-Za-z0-9_-]*$'
-      description: Built-in (MONITORING, GOAL, …) or custom (CARE_PLAN, …)
       example: MONITORING
-
-    OrgConfigMetaKey:
-      in: path
-      name: configKey
-      required: true
-      schema:
-        type: string
-        pattern: '^[A-Za-z][A-Za-z0-9_-]*$'
-      description: Built-in (ORG_DRAWER, ENABLE_SCOPE) or custom keys
-      example: ENABLE_SCOPE
+      description: TEMPLATE-only filter (ignored for ORG records).
 
   responses:
     BadRequest:
@@ -347,41 +215,26 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
-
     Unauthorized:
       description: Missing or invalid bearer token
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
-
     NotFound:
-      description: UI meta or org config file not found
+      description: Config not found
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
-
     Conflict:
-      description: Create rejected because file or id already exists
+      description: Create rejected — file or id already exists
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
 
   schemas:
-    TemplateUiMetaType:
-      type: string
-      description: |
-        Well-known types include ALERT_POLICY, ALERT, MONITORING, GOAL, TASK, THRESHOLD, SYMPTOM.
-        Custom types (e.g. CARE_PLAN) are supported via POST create.
-
-    OrgConfigMetaKey:
-      type: string
-      description: |
-        Well-known keys ORG_DRAWER, ORG_MANAGEABILITY, ENABLE_SCOPE (alias ORG_MANAGEIBILITY on GET/PUT).
-        Custom keys supported via POST create.
-
     ApiError:
       type: object
       properties:
@@ -408,260 +261,112 @@ components:
           example: 200
         message:
           type: object
-          properties:
-            title:
-              type: string
-            description:
-              type: string
-            severity:
-              type: string
         data:
           type: object
           nullable: true
-        error:
-          type: object
-          nullable: true
-        meta:
-          type: object
-          properties:
-            correlationId:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
-            version:
-              type: string
 
-    TemplateUiMetaField:
+    TemplateConfigType:
+      type: string
+      enum: [TEMPLATE, ORG]
+
+    TemplateConfigRecord:
       type: object
-      description: Single form field definition (label keys, validation, options, props).
-      additionalProperties: true
+      required: [configId, configType, fileName, document]
       properties:
+        configId:
+          type: string
+          description: Document id (TEMPLATE) or config key (ORG)
+        configType:
+          $ref: '#/components/schemas/TemplateConfigType'
+        templateType:
+          type: string
+          description: Present when configType=TEMPLATE
+        configKey:
+          type: string
+          description: Present when configType=ORG
+        fileName:
+          type: string
+        document:
+          type: object
+          additionalProperties: true
+
+    TemplateConfigCreateRequest:
+      type: object
+      required: [configType]
+      properties:
+        configType:
+          $ref: '#/components/schemas/TemplateConfigType'
+        templateType:
+          type: string
+        configKey:
+          type: string
+        fileName:
+          type: string
         id:
           type: string
-        type:
-          type: string
-          description: text, select, switch, checkboxGroup, number, etc.
-        labelKey:
-          type: string
-        placeholderKey:
-          type: string
-        required:
+        fields:
+          type: object
+          additionalProperties: true
+        active:
           type: boolean
-        options:
+        version:
+          type: integer
+        sections:
           type: array
           items:
             type: object
             additionalProperties: true
-        validation:
-          type: object
-          additionalProperties: true
-        props:
-          type: object
-          additionalProperties: true
+      additionalProperties: true
 
-    TemplateUiMetaDocument:
+    TemplateConfigUpdateRequest:
+      oneOf:
+        - $ref: '#/components/schemas/TemplateConfigUpdateRequestTemplate'
+        - $ref: '#/components/schemas/TemplateConfigUpdateRequestOrg'
+
+    TemplateConfigUpdateRequestTemplate:
       type: object
       required: [id, fields]
       properties:
         id:
           type: string
-          example: MONITORING-MASTER-001
-        titleKey:
-          type: string
-        subtitleKey:
-          type: string
-        active:
-          type: boolean
-          description: Optional client flag; not required by server validation
         fields:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/TemplateUiMetaField'
-      additionalProperties: true
-
-    TemplateUiMetaUpsertRequest:
-      $ref: '#/components/schemas/TemplateUiMetaDocument'
-
-    TemplateUiMetaCreateRequest:
-      allOf:
-        - type: object
-          required: [templateType]
-          properties:
-            templateType:
-              type: string
-              example: CARE_PLAN
-            fileName:
-              type: string
-              example: care-plan-api-response.json
-        - $ref: '#/components/schemas/TemplateUiMetaDocument'
-
-    TemplateUiMetaRecord:
-      type: object
-      required: [metaId, templateType, fileName, document]
-      properties:
-        metaId:
-          type: string
-        templateType:
-          type: string
-        fileName:
-          type: string
-        document:
-          $ref: '#/components/schemas/TemplateUiMetaDocument'
-
-    TemplateUiMetaListItem:
-      type: object
-      required: [templateType, metaId, fileName, document]
-      properties:
-        templateType:
-          $ref: '#/components/schemas/TemplateUiMetaType'
-        metaId:
-          type: string
-        fileName:
-          type: string
-          example: monitoring-api-response.json
-        document:
-          $ref: '#/components/schemas/TemplateUiMetaDocument'
-
-    OrgConfigMetaDocument:
-      type: object
-      required: [active, version]
-      properties:
-        active:
-          type: boolean
-          default: true
-        version:
-          type: integer
-          minimum: 1
-          default: 1
-        sections:
-          type: array
-          items:
-            $ref: '#/components/schemas/OrgConfigSection'
-        description:
-          type: string
-        examples:
           type: object
           additionalProperties: true
       additionalProperties: true
 
-    OrgConfigMetaUpsertRequest:
-      $ref: '#/components/schemas/OrgConfigMetaDocument'
-
-    OrgConfigMetaCreateRequest:
-      allOf:
-        - type: object
-          required: [configKey]
-          properties:
-            configKey:
-              type: string
-              example: CUSTOM_PANEL
-            fileName:
-              type: string
-              example: org-config-custom-panel.json
-        - $ref: '#/components/schemas/OrgConfigMetaDocument'
-
-    OrgConfigMetaRecord:
+    TemplateConfigUpdateRequestOrg:
       type: object
-      required: [configKey, fileName, document]
       properties:
-        configKey:
-          type: string
-        fileName:
-          type: string
-        document:
-          $ref: '#/components/schemas/OrgConfigMetaDocument'
-
-    OrgConfigSection:
-      type: object
-      additionalProperties: true
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        type:
-          type: string
-          example: section
-        enabled:
+        active:
           type: boolean
-        mandatory:
-          type: string
-        orgEditable:
-          type: boolean
-        items:
+        version:
+          type: integer
+          minimum: 1
+        sections:
           type: array
           items:
             type: object
             additionalProperties: true
+      additionalProperties: true
 
-    OrgConfigMetaListItem:
-      type: object
-      required: [configKey, fileName, document]
-      properties:
-        configKey:
-          $ref: '#/components/schemas/OrgConfigMetaKey'
-        fileName:
-          type: string
-        document:
-          $ref: '#/components/schemas/OrgConfigMetaDocument'
-
-    ApiSuccessTemplateUiMetaList:
+    ApiSuccessTemplateConfigList:
       allOf:
         - $ref: '#/components/schemas/ApiSuccessEnvelope'
         - type: object
           properties:
             data:
               type: object
+              required: [items]
               properties:
                 items:
                   type: array
                   items:
-                    $ref: '#/components/schemas/TemplateUiMetaListItem'
+                    $ref: '#/components/schemas/TemplateConfigRecord'
 
-    ApiSuccessTemplateUiMetaDocument:
+    ApiSuccessTemplateConfigRecord:
       allOf:
         - $ref: '#/components/schemas/ApiSuccessEnvelope'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/TemplateUiMetaDocument'
-
-    ApiSuccessTemplateUiMetaRecord:
-      allOf:
-        - $ref: '#/components/schemas/ApiSuccessEnvelope'
-        - type: object
-          properties:
-            data:
-              $ref: '#/components/schemas/TemplateUiMetaRecord'
-
-    ApiSuccessOrgConfigMetaList:
-      allOf:
-        - $ref: '#/components/schemas/ApiSuccessEnvelope'
-        - type: object
-          properties:
-            data:
-              type: object
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/OrgConfigMetaListItem'
-
-    ApiSuccessOrgConfigMetaDocument:
-      allOf:
-        - $ref: '#/components/schemas/ApiSuccessEnvelope'
-        - type: object
-          properties:
-            data:
-              $ref: '#/components/schemas/OrgConfigMetaDocument'
-
-    ApiSuccessOrgConfigMetaRecord:
-      allOf:
-        - $ref: '#/components/schemas/ApiSuccessEnvelope'
-        - type: object
-          properties:
-            data:
-              $ref: '#/components/schemas/OrgConfigMetaRecord'
+              $ref: '#/components/schemas/TemplateConfigRecord'

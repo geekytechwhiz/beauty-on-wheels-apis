@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { cp, mkdir, readdir } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const LAMBDA_WRITABLE_SERVICES_JSON = path.posix.join(
@@ -34,19 +34,14 @@ export function isLambdaRuntime(): boolean {
   return Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME ?? process.env.LAMBDA_TASK_ROOT);
 }
 
-/** Packaged seed JSON under the Lambda task root (read-only). */
-export function resolveBundledServicesJsonDir(): string | undefined {
-  const root = process.env.LAMBDA_TASK_ROOT ?? '/var/task';
-  const bundled = path.posix.join(root.replace(/\\/g, '/'), 'services-json');
-  return existsSync(bundled) ? bundled : undefined;
-}
-
 function resolveEnvServicesJsonDir(envDir: string): string {
   const normalizedEnvDir = envDir.replace(/\\/g, '/');
+  const isWindowsAbsolute = /^[a-zA-Z]:\//.test(normalizedEnvDir) || normalizedEnvDir.startsWith('//');
 
   if (isLambdaRuntime()) {
-    if (path.posix.isAbsolute(normalizedEnvDir)) {
-      return normalizedEnvDir;
+    // serverless-offline on Windows can set Lambda env vars; keep absolute OS paths as-is.
+    if (path.posix.isAbsolute(normalizedEnvDir) || isWindowsAbsolute) {
+      return path.resolve(envDir);
     }
     return path.posix.join('/tmp', 'template-service', normalizedEnvDir);
   }
@@ -82,15 +77,6 @@ export function resolveServicesJsonDir(): string {
   const candidates = [
     path.resolve(process.cwd(), 'services-json'),
     path.resolve(process.cwd(), 'apps/template-service/services-json'),
-    ...(isTemplateServiceCwd
-      ? []
-      : [path.resolve(process.cwd(), 'apps/template-service/libs/template-core/src/services-json')]),
-    ...(isTemplateServiceCwd ? [path.resolve(process.cwd(), 'libs/template-core/src/services-json')] : []),
-    path.resolve(process.cwd(), 'libs/template-core/src/services-json'),
-    path.resolve(process.cwd(), '../libs/template-core/src/services-json'),
-    path.resolve(__dirname, '../../../../../../apps/template-service/libs/template-core/src/services-json'),
-    path.resolve(__dirname, '../../../services-json'),
-    path.resolve(__dirname, '../../../../template-core/src/services-json'),
   ];
 
   for (const dir of candidates) {
@@ -102,32 +88,11 @@ export function resolveServicesJsonDir(): string {
 
 /**
  * Ensures the writable services-json directory exists.
- * On Lambda, uses /tmp (not /var/task) and optionally seeds from packaged services-json.
+ * Flow contract: create/update writes here, and get/list reads only from here.
  */
 export async function prepareServicesJsonDir(baseDir?: string): Promise<string> {
   const dir = baseDir ?? resolveServicesJsonDir();
   await mkdir(dir, { recursive: true });
-
-  const bundled = resolveBundledServicesJsonDir();
-  if (!bundled || !isLambdaRuntime()) {
-    return dir;
-  }
-
-  let names: string[];
-  try {
-    names = await readdir(bundled);
-  } catch {
-    return dir;
-  }
-
-  for (const name of names) {
-    const from = path.join(bundled, name);
-    const to = path.join(dir, name);
-    if (!existsSync(to)) {
-      await cp(from, to, { recursive: true });
-    }
-  }
-
   return dir;
 }
 

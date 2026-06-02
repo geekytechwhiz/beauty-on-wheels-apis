@@ -1,7 +1,9 @@
 {
   "id": "ALERT-MASTER-001",
   "titleKey": "alert.title",
-  "active": true,
+  "active": false,
+  "configType": "TEMPLATE",
+  "templateType": "ALERT",
   "subtitleKey": "alert.subtitle",
   "fields": {
     "TEMPLATE_NAME": {

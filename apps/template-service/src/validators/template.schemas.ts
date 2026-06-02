@@ -63,59 +63,33 @@ export const templateIdPathSchema = z.object({
   templateId: z.string().trim().min(1),
 });
 
-export const uiMetaIdPathSchema = z.object({
-  metaId: z.string().trim().min(1),
+export const templateConfigIdPathSchema = z.object({
+  configId: z.string().trim().min(1),
 });
 
-export const uiMetaTypePathSchema = z.object({
-  templateType: z.string().trim().min(1),
+export const listTemplateConfigQuerySchema = z.object({
+  configType: z.enum(['TEMPLATE', 'ORG']).optional(),
+  templateType: z.string().trim().min(1).optional(),
 });
 
-export const orgConfigMetaKeyPathSchema = z.object({
-  configKey: z.string().trim().min(1),
-});
-
-export const upsertOrgConfigMetaBodySchema = z
+export const createTemplateConfigBodySchema = z
   .object({
-    active: z.boolean().optional(),
-    version: z.number().int().positive().optional(),
-  })
-  .passthrough();
-
-export const upsertUiMetaBodySchema = z
-  .object({
-    id: z.string().trim().min(1),
-    titleKey: z.string().optional(),
-    subtitleKey: z.string().optional(),
-    fields: z.record(z.string(), z.unknown()),
-  })
-  .passthrough();
-
-export const createUiMetaBodySchema = z
-  .object({
-    templateType: z.string().trim().min(1),
+    configType: z.enum(['TEMPLATE', 'ORG']),
+    templateType: z.string().trim().min(1).optional(),
+    configKey: z.string().trim().min(1).optional(),
     fileName: z
       .string()
       .trim()
       .regex(/^[a-z0-9][a-z0-9._-]*\.json$/i)
       .optional(),
-    id: z.string().trim().min(1),
-    fields: z.record(z.string(), z.unknown()),
-  })
-  .passthrough();
-
-export const createOrgConfigMetaBodySchema = z
-  .object({
-    configKey: z.string().trim().min(1),
-    fileName: z
-      .string()
-      .trim()
-      .regex(/^[a-z0-9][a-z0-9._-]*\.json$/i)
-      .optional(),
+    id: z.string().trim().min(1).optional(),
+    fields: z.record(z.string(), z.unknown()).optional(),
     active: z.boolean().optional(),
     version: z.number().int().positive().optional(),
   })
   .passthrough();
+
+export const updateTemplateConfigBodySchema = z.object({}).passthrough();
 
 export const templateVersionPathSchema = z.object({
   templateId: z.string().trim().min(1),

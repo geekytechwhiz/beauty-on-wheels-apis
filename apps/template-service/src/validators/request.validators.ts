@@ -30,9 +30,8 @@ import {
   type ListOrgTemplatesQuery,
   type StatusTransitionBody,
   type UpdateMasterTemplateBody,
-  uiMetaIdPathSchema,
-  uiMetaTypePathSchema,
-  orgConfigMetaKeyPathSchema,
+  listTemplateConfigQuerySchema,
+  templateConfigIdPathSchema,
 } from './template.schemas';
 
 function throwVal(
@@ -614,23 +613,24 @@ export async function validatePatchOrgEnablementRequest(req: LambdaRequest): Pro
     };
 }
 
-export type ValidatedGetUiMetaById = {
-  metaId: string;
+export type ValidatedListTemplateConfigs = {
+  configType?: string;
+  templateType?: string;
   actorUserId: string;
 };
 
-export type ValidatedGetUiMetaByType = {
-  templateType: string;
+export type ValidatedGetTemplateConfig = {
+  configId: string;
   actorUserId: string;
 };
 
-export type ValidatedCreateUiMeta = {
+export type ValidatedCreateTemplateConfig = {
   body: Record<string, unknown>;
   actorUserId: string;
 };
 
-export type ValidatedUpdateUiMeta = {
-  templateType: string;
+export type ValidatedUpdateTemplateConfig = {
+  configId: string;
   body: Record<string, unknown>;
   actorUserId: string;
 };
@@ -644,102 +644,66 @@ async function validateActor(req: LambdaRequest): Promise<string> {
   return actorUserId;
 }
 
-export async function validateListUiMetaRequest(req: LambdaRequest): Promise<void> {
-  await validateActor(req);
-}
-
-export async function validateGetUiMetaByIdRequest(req: LambdaRequest): Promise<void> {
-  const actorUserId = await validateActor(req);
-  const path = uiMetaIdPathSchema.safeParse(req.pathParameters ?? {});
-  if (!path.success) {
-    throwVal('metaId is required', 400, 'VALIDATION_ERROR');
+function parseQueryParams(
+  params: Record<string, string | string[] | undefined> | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!params) return out;
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    out[key] = Array.isArray(value) ? (value[0] ?? '') : value;
   }
-  (req as LambdaRequest & { validatedGetUiMetaById?: ValidatedGetUiMetaById }).validatedGetUiMetaById =
-    { metaId: path.data.metaId, actorUserId };
+  return out;
 }
 
-export async function validateGetUiMetaByTypeRequest(req: LambdaRequest): Promise<void> {
+export async function validateListTemplateConfigsRequest(req: LambdaRequest): Promise<void> {
   const actorUserId = await validateActor(req);
-  const path = uiMetaTypePathSchema.safeParse(req.pathParameters ?? {});
-  if (!path.success) {
-    throwVal('templateType is required', 400, 'VALIDATION_ERROR');
-  }
-  (req as LambdaRequest & { validatedGetUiMetaByType?: ValidatedGetUiMetaByType })
-    .validatedGetUiMetaByType = { templateType: path.data.templateType, actorUserId };
-}
-
-export async function validateCreateUiMetaRequest(req: LambdaRequest): Promise<void> {
-  const actorUserId = await validateActor(req);
-  (req as LambdaRequest & { validatedCreateUiMeta?: ValidatedCreateUiMeta }).validatedCreateUiMeta =
-    {
-      body: parseUiMetaBody(req.body),
-      actorUserId,
-    };
-}
-
-export async function validateUpdateUiMetaRequest(req: LambdaRequest): Promise<void> {
-  const actorUserId = await validateActor(req);
-  const path = uiMetaTypePathSchema.safeParse(req.pathParameters ?? {});
-  if (!path.success) {
-    throwVal('templateType is required', 400, 'VALIDATION_ERROR');
-  }
-  (req as LambdaRequest & { validatedUpdateUiMeta?: ValidatedUpdateUiMeta }).validatedUpdateUiMeta =
-    {
-      templateType: path.data.templateType,
-      body: parseUiMetaBody(req.body),
-      actorUserId,
-    };
-}
-
-export type ValidatedGetOrgConfigMetaByKey = {
-  configKey: string;
-  actorUserId: string;
-};
-
-export type ValidatedCreateOrgConfigMeta = {
-  body: Record<string, unknown>;
-  actorUserId: string;
-};
-
-export type ValidatedUpdateOrgConfigMeta = {
-  configKey: string;
-  body: Record<string, unknown>;
-  actorUserId: string;
-};
-
-export async function validateListOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
-  await validateActor(req);
-}
-
-export async function validateGetOrgConfigMetaByKeyRequest(req: LambdaRequest): Promise<void> {
-  const actorUserId = await validateActor(req);
-  const path = orgConfigMetaKeyPathSchema.safeParse(req.pathParameters ?? {});
-  if (!path.success) {
-    throwVal('configKey is required', 400, 'VALIDATION_ERROR');
+  const query = listTemplateConfigQuerySchema.safeParse(
+    parseQueryParams(req.params as Record<string, string | string[] | undefined>),
+  );
+  if (!query.success) {
+    throwVal('Invalid list query parameters', 400, 'VALIDATION_ERROR');
   }
   (
-    req as LambdaRequest & { validatedGetOrgConfigMetaByKey?: ValidatedGetOrgConfigMetaByKey }
-  ).validatedGetOrgConfigMetaByKey = { configKey: path.data.configKey, actorUserId };
+    req as LambdaRequest & { validatedListTemplateConfigs?: ValidatedListTemplateConfigs }
+  ).validatedListTemplateConfigs = {
+    configType: query.data.configType,
+    templateType: query.data.templateType,
+    actorUserId,
+  };
 }
 
-export async function validateCreateOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
+export async function validateGetTemplateConfigRequest(req: LambdaRequest): Promise<void> {
   const actorUserId = await validateActor(req);
-  (req as LambdaRequest & { validatedCreateOrgConfigMeta?: ValidatedCreateOrgConfigMeta })
-    .validatedCreateOrgConfigMeta = {
+  const path = templateConfigIdPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('configId is required', 400, 'VALIDATION_ERROR');
+  }
+  (
+    req as LambdaRequest & { validatedGetTemplateConfig?: ValidatedGetTemplateConfig }
+  ).validatedGetTemplateConfig = { configId: path.data.configId, actorUserId };
+}
+
+export async function validateCreateTemplateConfigRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  (
+    req as LambdaRequest & { validatedCreateTemplateConfig?: ValidatedCreateTemplateConfig }
+  ).validatedCreateTemplateConfig = {
     body: parseUiMetaBody(req.body),
     actorUserId,
   };
 }
 
-export async function validateUpdateOrgConfigMetaRequest(req: LambdaRequest): Promise<void> {
+export async function validateUpdateTemplateConfigRequest(req: LambdaRequest): Promise<void> {
   const actorUserId = await validateActor(req);
-  const path = orgConfigMetaKeyPathSchema.safeParse(req.pathParameters ?? {});
+  const path = templateConfigIdPathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
-    throwVal('configKey is required', 400, 'VALIDATION_ERROR');
+    throwVal('configId is required', 400, 'VALIDATION_ERROR');
   }
-  (req as LambdaRequest & { validatedUpdateOrgConfigMeta?: ValidatedUpdateOrgConfigMeta })
-    .validatedUpdateOrgConfigMeta = {
-    configKey: path.data.configKey,
+  (
+    req as LambdaRequest & { validatedUpdateTemplateConfig?: ValidatedUpdateTemplateConfig }
+  ).validatedUpdateTemplateConfig = {
+    configId: path.data.configId,
     body: parseUiMetaBody(req.body),
     actorUserId,
   };

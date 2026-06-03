@@ -128,6 +128,10 @@ export class TemplateEntityBuilder {
     actorUserId?: string,
   ): TemplateMeta {
     const status = (overrides.status ?? existing.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
+    const isActive =
+      overrides.isActive !== undefined
+        ? overrides.isActive
+        : status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED;
     return {
       ...existing,
       ...overrides,
@@ -135,7 +139,7 @@ export class TemplateEntityBuilder {
       templateVersionId: ctx.templateVersionId,
       version: ctx.versionNum,
       status,
-      isActive: status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
+      isActive,
       isLatestVersion: true,
       lastModifiedAt: ctx.nowIso,
       lastModifiedBy: overrides.lastModifiedBy ?? actorUserId ?? existing.lastModifiedBy,
@@ -176,6 +180,8 @@ export class TemplateEntityBuilder {
     const templateProfile = asRecord(rawBody.templateProfile);
 
     const status = (input.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
+    const activeExplicit =
+      typeof rawBody.active === 'boolean' ? rawBody.active : undefined;
     const category =
       input.category ?? templateProfile.category ?? input.conditions?.[0];
     const condition =
@@ -212,7 +218,10 @@ export class TemplateEntityBuilder {
       specialty,
       version: versionNum,
       status,
-      isActive: status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
+      isActive:
+        activeExplicit !== undefined
+          ? activeExplicit
+          : status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
       isLatestVersion: true,
       isMaster: true,
       shareScope:

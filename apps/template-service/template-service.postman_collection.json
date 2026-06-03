@@ -73,6 +73,31 @@
           }
         },
         {
+          "name": "POST Update Master — set inactive (active: false)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": false\n}"
+            },
+            "url": "{{baseUrl}}/templates/{{templateId}}",
+            "description": "Same POST /templates/{templateId} API. Sets meta.isActive=false. Dashboard Active Count uses isActive."
+          }
+        },
+        {
+          "name": "POST Update Master — set active (active: true)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/templates/{{templateId}}"
+          }
+        },
+        {
           "name": "POST Update Master — edit content (by templateId)",
           "request": {
             "method": "POST",

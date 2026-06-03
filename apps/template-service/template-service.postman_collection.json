@@ -1,0 +1,461 @@
+{
+  "info": {
+    "_postman_id": "template-service-api-hub",
+    "name": "Template Service API",
+    "description": "Template Service — unified /templates API + enablements + UI configs.\n\nVariables: baseUrl (e.g. http://localhost:3000), authToken (Bearer JWT), organizationId, templateId, versionId, enablementId.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "authToken", "value": "" },
+    { "key": "organizationId", "value": "org-apollo-001" },
+    { "key": "templateId", "value": "TASK-BP-MONITORING" },
+    { "key": "masterTemplateId", "value": "TASK-BP-MONITORING" },
+    { "key": "versionId", "value": "V01" },
+    { "key": "masterVersionId", "value": "V01" },
+    { "key": "enablementId", "value": "" },
+    { "key": "configId", "value": "TASK-MASTER-001" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Templates — Create & List",
+      "item": [
+        {
+          "name": "POST Create Master — Task (fieldValues)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.data && j.data.templateId) { pm.collectionVariables.set('templateId', j.data.templateId); pm.collectionVariables.set('masterTemplateId', j.data.templateId); }",
+                  "if (j.data && j.data.templateVersionId) { pm.collectionVariables.set('versionId', j.data.templateVersionId); pm.collectionVariables.set('masterVersionId', j.data.templateVersionId); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateCode\": \"TASK_BP_MONITORING\",\n  \"templateType\": \"TASK\",\n  \"templateMetadata\": {},\n  \"templateProfile\": {},\n  \"fieldValues\": {\n    \"TASK_NAME\": \"Record Blood Pressure\",\n    \"TASK_DESCRIPTION\": \"Measure BP daily\",\n    \"ASSIGNED_TO_ROLE\": \"PATIENT\",\n    \"TASK_CATEGORY\": \"MONITORING\",\n    \"TASK_TYPE\": \"MEASUREMENT\",\n    \"TASK_SUBTYPE\": \"BLOOD_PRESSURE\",\n    \"ACTION_SUBMISSION_TYPE\": \"DEVICE_SYNC\",\n    \"COMPARISON_METHOD\": \"RANGE\",\n    \"SCHEDULE_TYPE\": \"RECURRING\",\n    \"RECURRENCE_PATTERN\": \"DAILY\",\n    \"REMINDERS_ENABLED\": true,\n    \"REMINDER_CHANNELS\": [\"IN_APP\", \"PUSH\"],\n    \"DISPLAY_TO_PATIENT\": true\n  }\n}"
+            },
+            "url": "{{baseUrl}}/templates"
+          }
+        },
+        {
+          "name": "POST Create Master — Care Plan (flat)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateCode\": \"CP_HTN_STANDARD\",\n  \"templateName\": \"Hypertension Standard Care Plan\",\n  \"templateType\": \"CARE_PLAN\",\n  \"status\": \"DRAFT\",\n  \"category\": [\"CHRONIC_DISEASE\"],\n  \"conditions\": [\"HYPERTENSION\"],\n  \"countries\": [\"US\"],\n  \"languages\": [\"EN\"]\n}"
+            },
+            "url": "{{baseUrl}}/templates"
+          }
+        },
+        {
+          "name": "GET List Masters",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&status=SAVED",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates"],
+              "query": [
+                { "key": "templateLevel", "value": "MASTER" },
+                { "key": "templateType", "value": "TASK" },
+                { "key": "status", "value": "SAVED" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET List Org Templates",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates?templateLevel=ORG&organizationId={{organizationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates"],
+              "query": [
+                { "key": "templateLevel", "value": "ORG" },
+                { "key": "organizationId", "value": "{{organizationId}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Templates — Versions & Update",
+      "item": [
+        {
+          "name": "GET Versions — list",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}/versions?templateLevel=MASTER",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "{{templateId}}", "versions"],
+              "query": [{ "key": "templateLevel", "value": "MASTER" }]
+            }
+          }
+        },
+        {
+          "name": "GET Versions — latest (replaces /meta)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}/versions?templateLevel=MASTER&version=latest",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "{{templateId}}", "versions"],
+              "query": [
+                { "key": "templateLevel", "value": "MASTER" },
+                { "key": "version", "value": "latest" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Versions — point read",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}/versions?templateLevel=MASTER&version={{versionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "{{templateId}}", "versions"],
+              "query": [
+                { "key": "templateLevel", "value": "MASTER" },
+                { "key": "version", "value": "{{versionId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Org Versions — meta",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}/versions?templateLevel=ORG&organizationId={{organizationId}}&version=meta",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "{{templateId}}", "versions"],
+              "query": [
+                { "key": "templateLevel", "value": "ORG" },
+                { "key": "organizationId", "value": "{{organizationId}}" },
+                { "key": "version", "value": "meta" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT Update Master Version",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meta\": {\n    \"templateName\": \"Updated template name\",\n    \"lastModifiedBy\": \"platform-admin\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}/versions/{{versionId}}?templateLevel=MASTER",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "{{templateId}}", "versions", "{{versionId}}"],
+              "query": [{ "key": "templateLevel", "value": "MASTER" }]
+            }
+          }
+        },
+        {
+          "name": "PUT Update Org Version",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meta\": {\n    \"templateName\": \"Org customized name\",\n    \"lastModifiedBy\": \"org-admin\"\n  },\n  \"fieldValues\": {\n    \"TASK_NAME\": \"Record Blood Pressure (Org)\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}/versions/{{versionId}}?templateLevel=ORG&organizationId={{organizationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "{{templateId}}", "versions", "{{versionId}}"],
+              "query": [
+                { "key": "templateLevel", "value": "ORG" },
+                { "key": "organizationId", "value": "{{organizationId}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Templates — Derive & Lifecycle",
+      "item": [
+        {
+          "name": "POST Derive Org from Master",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.data && j.data.templateId) pm.collectionVariables.set('templateId', j.data.templateId);",
+                  "if (j.data && j.data.templateVersionId) pm.collectionVariables.set('versionId', j.data.templateVersionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{organizationId}}\",\n  \"newTemplateName\": \"Apollo – Org copy\",\n  \"inheritLinks\": true\n}"
+            },
+            "url": "{{baseUrl}}/templates/{{masterTemplateId}}/derive"
+          }
+        },
+        {
+          "name": "POST Status — SUBMIT_REVIEW",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"SUBMIT_REVIEW\",\n  \"comment\": \"Ready for review\"\n}"
+            },
+            "url": "{{baseUrl}}/templates/{{templateId}}/versions/{{versionId}}/status"
+          }
+        },
+        {
+          "name": "POST Status — PUBLISH",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"PUBLISH\",\n  \"comment\": \"Approved\"\n}"
+            },
+            "url": "{{baseUrl}}/templates/{{templateId}}/versions/{{versionId}}/status"
+          }
+        },
+        {
+          "name": "POST Status — REJECT",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"REJECT\",\n  \"reason\": \"Needs clinical review\"\n}"
+            },
+            "url": "{{baseUrl}}/templates/{{templateId}}/versions/{{versionId}}/status"
+          }
+        },
+        {
+          "name": "GET Compatible Published Templates",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates/compatible?condition=HYPERTENSION&country=US&templateType=CARE_PLAN",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "compatible"],
+              "query": [
+                { "key": "condition", "value": "HYPERTENSION" },
+                { "key": "country", "value": "US" },
+                { "key": "templateType", "value": "CARE_PLAN" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Org Enablements",
+      "item": [
+        {
+          "name": "POST Create Enablement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const id = j.data?.enablementId || j.data?.id;",
+                  "if (id) pm.collectionVariables.set('enablementId', id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{organizationId}}\",\n  \"masterTemplateVersionId\": \"{{versionId}}\",\n  \"effectiveFrom\": \"2026-01-01T00:00:00Z\"\n}"
+            },
+            "url": "{{baseUrl}}/org-enablements"
+          }
+        },
+        {
+          "name": "GET Search Enablements",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/org-enablements?organizationId={{organizationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["org-enablements"],
+              "query": [{ "key": "organizationId", "value": "{{organizationId}}" }]
+            }
+          }
+        },
+        {
+          "name": "GET List Enablements by Org",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/org-enablements/{{organizationId}}"
+          }
+        },
+        {
+          "name": "GET Enablement by Id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/org-enablements/id/{{enablementId}}"
+          }
+        },
+        {
+          "name": "PATCH Enablement — UPDATE dates",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"UPDATE\",\n  \"effectiveTo\": \"2027-12-31T23:59:59Z\"\n}"
+            },
+            "url": "{{baseUrl}}/org-enablements/id/{{enablementId}}"
+          }
+        },
+        {
+          "name": "PATCH Enablement — REVOKE",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"REVOKE\"\n}"
+            },
+            "url": "{{baseUrl}}/org-enablements/id/{{enablementId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Template UI Configs",
+      "item": [
+        {
+          "name": "GET List Configs by templateType",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/template-configs?configType=TEMPLATE&templateType=TASK",
+              "host": ["{{baseUrl}}"],
+              "path": ["template-configs"],
+              "query": [
+                { "key": "configType", "value": "TEMPLATE" },
+                { "key": "templateType", "value": "TASK" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Config by Id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/template-configs/{{configId}}"
+          }
+        },
+        {
+          "name": "POST Create Config",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"configType\": \"TEMPLATE\",\n  \"templateType\": \"TASK\",\n  \"fileName\": \"task-api-response.json\"\n}"
+            },
+            "url": "{{baseUrl}}/template-configs"
+          }
+        },
+        {
+          "name": "PUT Update Config",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/template-configs/{{configId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Legacy (deprecated paths)",
+      "item": [
+        {
+          "name": "POST /templates/master",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateCode\": \"TASK_LEGACY_TEST\",\n  \"templateType\": \"TASK\",\n  \"fieldValues\": { \"TASK_NAME\": \"Legacy path test\" }\n}"
+            },
+            "url": "{{baseUrl}}/templates/master"
+          }
+        },
+        {
+          "name": "GET /templates/master/{id}/meta",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/templates/master/{{templateId}}/meta"
+          }
+        },
+        {
+          "name": "POST Clone (legacy path)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newTemplateName\": \"Legacy clone\",\n  \"inheritLinks\": true\n}"
+            },
+            "url": "{{baseUrl}}/templates/organizations/{{organizationId}}/{{templateId}}/versions/{{versionId}}/clone"
+          }
+        }
+      ]
+    }
+  ]
+}

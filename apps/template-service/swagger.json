@@ -3,11 +3,299 @@
   "info": {
     "title": "Template Service API",
     "version": "1.0.0",
-    "description": "Care plan template HTTP API. Expand paths and definitions with serverless-auto-swagger."
+    "description": "Care plan / task / alert template HTTP API. **OpenAPI 3 source:** `template-service.swagger.yaml` and `template-service-care-plan.openapi.yaml`. **Postman:** `template-service.postman_collection.json`. Master create/update uses **POST /templates** and **POST /templates/{templateId}** (same body shape). Toggle **active** with `\"active\": true|false` on create or update."
   },
   "schemes": ["https", "http"],
   "consumes": ["application/json"],
   "produces": ["application/json"],
-  "paths": {},
-  "definitions": {}
+  "securityDefinitions": {
+    "bearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Bearer JWT (Cognito)."
+    }
+  },
+  "definitions": {
+    "ShareScope": {
+      "type": "string",
+      "enum": ["PRIVATE", "ORGANIZATION", "PUBLIC"],
+      "description": "Request accepts Private, Organization, Public (case-insensitive)."
+    },
+    "TemplateStatus": {
+      "type": "string",
+      "enum": ["DRAFT", "SAVED", "IN_REVIEW", "PUBLISHED", "ARCHIVED", "DEPRECATED"]
+    },
+    "CreateMasterTemplateRequest": {
+      "type": "object",
+      "required": ["templateCode", "templateType"],
+      "properties": {
+        "templateLevel": { "type": "string", "default": "MASTER" },
+        "templateType": { "type": "string", "example": "TASK" },
+        "templateCode": { "type": "string", "example": "task-code" },
+        "templateName": { "type": "string" },
+        "categoryCode": { "type": "string" },
+        "conditionCode": { "type": "string" },
+        "shareScope": { "$ref": "#/definitions/ShareScope" },
+        "active": {
+          "type": "boolean",
+          "description": "Dashboard active flag → meta.isActive"
+        },
+        "status": { "$ref": "#/definitions/TemplateStatus" },
+        "fieldValues": { "type": "object", "additionalProperties": true }
+      },
+      "example": {
+        "templateType": "TASK",
+        "templateCode": "task-code",
+        "templateName": "Task Monitoring Master",
+        "categoryCode": "CHRONIC_CARE",
+        "shareScope": "private",
+        "active": true,
+        "conditionCode": "DIABETES",
+        "status": "DRAFT",
+        "fieldValues": {
+          "TASK_NAME": "Record Blood Pressure",
+          "TASK_DESCRIPTION": "Measure BP daily"
+        }
+      }
+    },
+    "UpdateMasterTemplateRequest": {
+      "type": "object",
+      "description": "Content update, lifecycleAction, and/or active toggle.",
+      "properties": {
+        "lifecycleAction": {
+          "type": "string",
+          "enum": ["SUBMIT_REVIEW", "PUBLISH", "REJECT", "ARCHIVE", "DEPRECATE"]
+        },
+        "comment": { "type": "string" },
+        "reason": { "type": "string" },
+        "shareScope": { "$ref": "#/definitions/ShareScope" },
+        "active": { "type": "boolean" },
+        "fieldValues": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "TemplateHistoryEntry": {
+      "type": "object",
+      "properties": {
+        "version": { "type": "integer" },
+        "templateVersionId": { "type": "string" },
+        "status": { "type": "string" },
+        "action": { "type": "string" },
+        "title": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" },
+        "changes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "MasterListItem": {
+      "type": "object",
+      "properties": {
+        "templateId": { "type": "string" },
+        "templateVersionId": { "type": "string" },
+        "templateName": { "type": "string" },
+        "templateType": { "type": "string" },
+        "condition": { "type": "string" },
+        "shareScope": { "type": "string" },
+        "version": { "type": "integer" },
+        "status": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TemplateHistoryEntry" }
+        }
+      }
+    },
+    "SuccessEnvelopeMasterList": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "statusCode": { "type": "integer" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/MasterListItem" }
+            },
+            "pagination": {
+              "type": "object",
+              "properties": {
+                "limit": { "type": "integer" },
+                "count": { "type": "integer" },
+                "total": { "type": "integer" },
+                "hasMore": { "type": "boolean" },
+                "nextToken": { "type": "string" }
+              }
+            },
+            "counts": {
+              "type": "object",
+              "properties": {
+                "total": { "type": "integer" },
+                "active": { "type": "integer" },
+                "draft": { "type": "integer" },
+                "published": { "type": "integer" }
+              }
+            },
+            "filterOptions": {
+              "type": "object",
+              "properties": {
+                "status": { "type": "array", "items": { "type": "object" } },
+                "scope": { "type": "array", "items": { "type": "object" } },
+                "condition": { "type": "array", "items": { "type": "object" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "SuccessEnvelopeTemplateSummary": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "templateId": { "type": "string" },
+            "templateVersionId": { "type": "string" },
+            "version": { "type": "integer" },
+            "status": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/templates": {
+      "post": {
+        "summary": "Create master template",
+        "description": "No templateId in path. templateId derived from templateCode (e.g. task-code → TASK-CODE).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateMasterTemplateRequest" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeTemplateSummary" }
+          }
+        }
+      },
+      "get": {
+        "summary": "List templates (dashboard)",
+        "description": "Returns items, pagination, counts, filterOptions. Each item includes version history.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "templateLevel", "in": "query", "type": "string", "default": "MASTER" },
+          { "name": "templateType", "in": "query", "type": "string" },
+          { "name": "status", "in": "query", "type": "string" },
+          { "name": "shareScope", "in": "query", "type": "string" },
+          { "name": "conditionCode", "in": "query", "type": "string" },
+          { "name": "limit", "in": "query", "type": "integer", "default": 25 },
+          { "name": "nextToken", "in": "query", "type": "string" },
+          { "name": "organizationId", "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeMasterList" }
+          }
+        }
+      }
+    },
+    "/templates/{templateId}": {
+      "post": {
+        "summary": "Update master — content, lifecycle, or active",
+        "description": "Same API for fieldValues, lifecycleAction (PUBLISH, …), and active true/false.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "templateId", "in": "path", "required": true, "type": "string" },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/UpdateMasterTemplateRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeTemplateSummary" }
+          }
+        }
+      }
+    },
+    "/templates/{templateId}/versions": {
+      "get": {
+        "summary": "List versions + history timeline",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "templateId", "in": "path", "required": true, "type": "string" },
+          { "name": "templateLevel", "in": "query", "type": "string", "default": "MASTER" },
+          { "name": "version", "in": "query", "type": "string" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/templates/{templateId}/derive": {
+      "post": {
+        "summary": "Derive org template from master",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "templateId", "in": "path", "required": true, "type": "string" },
+          { "in": "body", "name": "body", "schema": { "type": "object" } }
+        ],
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/templates/compatible": {
+      "get": {
+        "summary": "Compatible published templates",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "condition", "in": "query", "required": true, "type": "string" },
+          { "name": "country", "in": "query", "required": true, "type": "string" },
+          { "name": "templateType", "in": "query", "type": "string" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/org-enablements": {
+      "post": {
+        "summary": "Create enablement",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "in": "body", "name": "body", "schema": { "type": "object" } }],
+        "responses": { "201": { "description": "Created" } }
+      },
+      "get": {
+        "summary": "Search enablements",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "organizationId", "in": "query", "type": "string" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/template-configs": {
+      "get": {
+        "summary": "List template UI configs",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "configType", "in": "query", "type": "string" },
+          { "name": "templateType", "in": "query", "type": "string" }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
 }

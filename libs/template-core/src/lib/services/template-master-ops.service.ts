@@ -87,6 +87,9 @@ function parseUpdateBody(body: MasterTemplateUpdateBody): {
   } else if (rest.condition !== undefined) {
     metaOverrides.condition = rest.condition as TemplateMeta['condition'];
   }
+  if (typeof rest.active === 'boolean') {
+    metaOverrides.isActive = rest.active;
+  }
 
   return { metaOverrides, documentFields: rest };
 }

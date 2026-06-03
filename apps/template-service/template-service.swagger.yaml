@@ -1,0 +1,673 @@
+openapi: 3.0.3
+info:
+  title: Template Service API
+  version: 1.0.0
+  description: |
+    **Deployed Swagger UI** merges this file (via `swagger.json` Swagger 2) with routes from `serverless.yml`.
+
+    **Canonical full spec:** `template-service-care-plan.openapi.yaml`  
+    **Postman collection:** `template-service.postman_collection.json`
+
+    ### Master template — one POST API
+    | Action | Method | Path |
+    |--------|--------|------|
+    | Create | `POST` | `/templates` |
+    | Update content / lifecycle / **active** | `POST` | `/templates/{templateId}` |
+
+    ### Active / inactive (same update API)
+    Send `"active": true` or `"active": false` on **create** or **update** (no separate endpoint).
+    Maps to `meta.isActive` on the template version. Dashboard **Active Count** uses `isActive === true`.
+
+servers:
+  - url: http://localhost:3000
+    description: serverless-offline (no stage prefix)
+  - url: https://{apiHost}/{stage}
+    variables:
+      apiHost:
+        default: api.dev.myvitalrx.com
+      stage:
+        default: dev
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Health
+  - name: MasterTemplates
+    description: Platform master templates (POST create/update, GET list)
+  - name: OrgTemplates
+  - name: Enablements
+  - name: TemplateConfigs
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: OK
+
+  /templates:
+    post:
+      tags: [MasterTemplates]
+      summary: Create master template
+      operationId: createMasterTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterTemplateCreateRequest'
+            example:
+              templateLevel: MASTER
+              templateType: TASK
+              templateCode: task-code
+              templateName: Task Monitoring Master
+              categoryCode: CHRONIC_CARE
+              shareScope: private
+              active: true
+              conditionCode: DIABETES
+              countryCodes: [US]
+              languageCodes: [EN]
+              version: 1
+              status: DRAFT
+              measurementType: NUMERIC
+              fieldValues:
+                TASK_NAME: Record Blood Pressure
+                TASK_DESCRIPTION: Measure BP daily
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateSummary'
+    get:
+      tags: [MasterTemplates, OrgTemplates]
+      summary: List templates (dashboard)
+      operationId: listTemplates
+      parameters:
+        - $ref: '#/components/parameters/templateLevel'
+        - $ref: '#/components/parameters/templateType'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/shareScope'
+        - $ref: '#/components/parameters/conditionCode'
+        - $ref: '#/components/parameters/organizationId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: nextToken
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List with pagination, counts, filterOptions, and per-item history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessMasterListDashboard'
+
+  /templates/{templateId}:
+    post:
+      tags: [MasterTemplates]
+      summary: Update master (content, lifecycle, or active flag)
+      operationId: updateMasterTemplate
+      parameters:
+        - $ref: '#/components/parameters/templateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterTemplateUpdateRequest'
+            examples:
+              editContent:
+                summary: Edit fieldValues
+                value:
+                  shareScope: Organization
+                  fieldValues:
+                    TASK_NAME: Record Blood Pressure (updated)
+                    TASK_DESCRIPTION: Measure BP twice daily
+              setInactive:
+                summary: Deactivate template (dashboard toggle off)
+                value:
+                  active: false
+              setActive:
+                summary: Reactivate template
+                value:
+                  active: true
+              submitReview:
+                summary: Submit for review
+                value:
+                  lifecycleAction: SUBMIT_REVIEW
+                  comment: Ready for review
+              publish:
+                summary: Publish
+                value:
+                  lifecycleAction: PUBLISH
+                  comment: Approved
+              archive:
+                summary: Archive (also sets inactive via status)
+                value:
+                  lifecycleAction: ARCHIVE
+                  comment: Retired
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateSummary'
+
+  /templates/{templateId}/versions:
+    get:
+      tags: [MasterTemplates, OrgTemplates]
+      summary: List versions and version history timeline
+      parameters:
+        - $ref: '#/components/parameters/templateId'
+        - $ref: '#/components/parameters/templateLevel'
+        - $ref: '#/components/parameters/organizationId'
+        - name: version
+          in: query
+          schema:
+            type: string
+          description: Omit for list+history; use `latest` for active snapshot
+      responses:
+        '200':
+          description: Version list with history array
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessVersionListWithHistory'
+
+  /templates/{templateId}/versions/{versionId}:
+    put:
+      tags: [OrgTemplates]
+      summary: Update org template version
+      parameters:
+        - $ref: '#/components/parameters/templateId'
+        - $ref: '#/components/parameters/versionId'
+        - $ref: '#/components/parameters/templateLevel'
+        - $ref: '#/components/parameters/organizationId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fieldValues:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Updated
+
+  /templates/{templateId}/versions/{versionId}/status:
+    post:
+      tags: [OrgTemplates]
+      summary: Org template status transition
+      parameters:
+        - $ref: '#/components/parameters/templateId'
+        - $ref: '#/components/parameters/versionId'
+        - $ref: '#/components/parameters/organizationId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE]
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: OK
+
+  /templates/{templateId}/derive:
+    post:
+      tags: [OrgTemplates]
+      summary: Derive org template from published master
+      parameters:
+        - $ref: '#/components/parameters/templateId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organizationId:
+                  type: string
+                newTemplateName:
+                  type: string
+                inheritLinks:
+                  type: boolean
+      responses:
+        '201':
+          description: Created org copy
+
+  /templates/compatible:
+    get:
+      tags: [MasterTemplates]
+      summary: List compatible published templates
+      parameters:
+        - name: condition
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: templateType
+          in: query
+          schema:
+            type: string
+        - name: duration
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  /org-enablements:
+    post:
+      tags: [Enablements]
+      summary: Create org enablement
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationId, masterTemplateVersionId]
+              properties:
+                organizationId:
+                  type: string
+                masterTemplateVersionId:
+                  type: string
+                effectiveFrom:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Created
+    get:
+      tags: [Enablements]
+      summary: Search enablements
+      parameters:
+        - name: organizationId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  /template-configs:
+    get:
+      tags: [TemplateConfigs]
+      summary: List UI configs
+      parameters:
+        - name: configType
+          in: query
+          schema:
+            type: string
+            enum: [TEMPLATE, ORG]
+        - name: templateType
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  /template-configs/{configId}:
+    get:
+      tags: [TemplateConfigs]
+      summary: Get UI config by id
+      parameters:
+        - name: configId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    templateId:
+      name: templateId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Template id (TASK-CODE) or version id (TASK-CODE-V01) on update path only
+    versionId:
+      name: versionId
+      in: path
+      required: true
+      schema:
+        type: string
+    templateLevel:
+      name: templateLevel
+      in: query
+      schema:
+        type: string
+        enum: [MASTER, ORG]
+        default: MASTER
+    templateType:
+      name: templateType
+      in: query
+      schema:
+        type: string
+        example: TASK
+    status:
+      name: status
+      in: query
+      schema:
+        $ref: '#/components/schemas/TemplateStatus'
+    shareScope:
+      name: shareScope
+      in: query
+      schema:
+        $ref: '#/components/schemas/ShareScope'
+    conditionCode:
+      name: conditionCode
+      in: query
+      schema:
+        type: string
+      description: Filter by condition (e.g. DIABETES, HYPERTENSION)
+    organizationId:
+      name: organizationId
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    TemplateStatus:
+      type: string
+      enum: [DRAFT, SAVED, IN_REVIEW, PUBLISHED, ARCHIVED, DEPRECATED]
+    ShareScope:
+      type: string
+      enum: [PRIVATE, ORGANIZATION, PUBLIC]
+      description: API accepts Private, Organization, Public (case-insensitive)
+
+    MasterTemplateCreateRequest:
+      type: object
+      required: [templateCode, templateType]
+      properties:
+        templateLevel:
+          type: string
+          default: MASTER
+        templateType:
+          type: string
+        templateCode:
+          type: string
+        templateName:
+          type: string
+        categoryCode:
+          type: string
+        conditionCode:
+          type: string
+        shareScope:
+          $ref: '#/components/schemas/ShareScope'
+        active:
+          type: boolean
+          description: Dashboard active flag; stored as meta.isActive
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        countryCodes:
+          type: array
+          items:
+            type: string
+        languageCodes:
+          type: array
+          items:
+            type: string
+        fieldValues:
+          type: object
+          additionalProperties: true
+
+    MasterTemplateUpdateRequest:
+      type: object
+      description: |
+        **Content update** — send fieldValues, shareScope, categoryCode, etc.  
+        **Lifecycle** — send lifecycleAction (SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE).  
+        **Active toggle** — send `active: true` or `active: false` only.
+      properties:
+        lifecycleAction:
+          type: string
+          enum: [SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE]
+        comment:
+          type: string
+        reason:
+          type: string
+        shareScope:
+          $ref: '#/components/schemas/ShareScope'
+        active:
+          type: boolean
+        fieldValues:
+          type: object
+          additionalProperties: true
+        categoryCode:
+          type: string
+        conditionCode:
+          type: string
+
+    MasterTemplateListItem:
+      type: object
+      properties:
+        templateId:
+          type: string
+        templateVersionId:
+          type: string
+        templateName:
+          type: string
+        templateType:
+          type: string
+        condition:
+          type: string
+        shareScope:
+          type: string
+        version:
+          type: integer
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        isActive:
+          type: boolean
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          nullable: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateHistoryEntry'
+
+    TemplateHistoryEntry:
+      type: object
+      properties:
+        version:
+          type: integer
+        templateVersionId:
+          type: string
+        status:
+          type: string
+        action:
+          type: string
+          description: CREATED, UPDATED, PUBLISHED, SUBMITTED_FOR_REVIEW, etc.
+        title:
+          type: string
+          example: Template Published
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        changes:
+          type: array
+          items:
+            type: string
+
+    ListPagination:
+      type: object
+      properties:
+        limit:
+          type: integer
+        count:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+        nextToken:
+          type: string
+          nullable: true
+
+    ListStatusCounts:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        draft:
+          type: integer
+        saved:
+          type: integer
+        inReview:
+          type: integer
+        published:
+          type: integer
+        archived:
+          type: integer
+        deprecated:
+          type: integer
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+
+    FilterOption:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+
+    ListFilterOptions:
+      type: object
+      properties:
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterOption'
+        scope:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterOption'
+        condition:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterOption'
+
+    ApiSuccessEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+        statusCode:
+          type: integer
+        data:
+          type: object
+        meta:
+          type: object
+
+    ApiSuccessMasterListDashboard:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/MasterTemplateListItem'
+                pagination:
+                  $ref: '#/components/schemas/ListPagination'
+                counts:
+                  $ref: '#/components/schemas/ListStatusCounts'
+                filterOptions:
+                  $ref: '#/components/schemas/ListFilterOptions'
+
+    ApiSuccessVersionListWithHistory:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                history:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TemplateHistoryEntry'
+                nextToken:
+                  type: string
+                  nullable: true
+
+    TemplateSummaryData:
+      type: object
+      properties:
+        templateId:
+          type: string
+        templateVersionId:
+          type: string
+        version:
+          type: integer
+        status:
+          type: string
+
+    ApiSuccessTemplateSummary:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TemplateSummaryData'

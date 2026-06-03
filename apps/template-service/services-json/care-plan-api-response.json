@@ -1,0 +1,1018 @@
+{
+  "id": "CARE-PLAN-MASTER-001",
+  "fields": {
+    "TEMPLATE_NAME": {
+      "id": "TEMPLATE_NAME",
+      "type": "text",
+      "labelKey": "planOverview.field.templateName.label",
+      "placeholderKey": "planOverview.field.templateName.placeholder",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.templateName.validation.required"
+        }
+      }
+    },
+    "CATEGORY": {
+      "id": "CATEGORY",
+      "type": "select",
+      "labelKey": "planOverview.field.category.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.category.option.CHRONIC_CARE",
+          "value": "CHRONIC_CARE"
+        },
+        {
+          "labelKey": "planOverview.field.category.option.ACUTE_CARE",
+          "value": "ACUTE_CARE"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.category.validation.required"
+        }
+      }
+    },
+    "CONDITION": {
+      "id": "CONDITION",
+      "type": "select",
+      "labelKey": "planOverview.field.condition.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.condition.option.HYPERTENSION",
+          "value": "HYPERTENSION"
+        },
+        {
+          "labelKey": "planOverview.field.condition.option.DIABETES",
+          "value": "DIABETES"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.condition.validation.required"
+        }
+      }
+    },
+    "COUNTRY": {
+      "id": "COUNTRY",
+      "type": "select",
+      "labelKey": "planOverview.field.country.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.country.option.IN",
+          "value": "IN"
+        },
+        {
+          "labelKey": "planOverview.field.country.option.US",
+          "value": "US"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.country.validation.required"
+        }
+      }
+    },
+    "LANGUAGE": {
+      "id": "LANGUAGE",
+      "type": "select",
+      "labelKey": "planOverview.field.language.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.language.option.EN",
+          "value": "EN"
+        },
+        {
+          "labelKey": "planOverview.field.language.option.HI",
+          "value": "HI"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.language.validation.required"
+        }
+      }
+    },
+    "SPECIALITY": {
+      "id": "SPECIALITY",
+      "type": "select",
+      "labelKey": "planOverview.field.speciality.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "options": [
+        {
+          "labelKey": "planOverview.field.speciality.option.CARDIOLOGY",
+          "value": "CARDIOLOGY"
+        },
+        {
+          "labelKey": "planOverview.field.speciality.option.GENERAL",
+          "value": "GENERAL"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.speciality.validation.required"
+        }
+      }
+    },
+    "SELECT_SCOPE": {
+      "id": "SELECT_SCOPE",
+      "type": "select",
+      "labelKey": "planOverview.field.selectScope.label",
+      "placeholderKey": "planOverview.placeholder.select",
+      "required": true,
+      "defaultValue": "PRIVATE",
+      "options": [
+        {
+          "labelKey": "planOverview.field.selectScope.option.PRIVATE",
+          "value": "PRIVATE"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.ORGANIZATION",
+          "value": "ORGANIZATION"
+        },
+        {
+          "labelKey": "planOverview.field.selectScope.option.PUBLIC",
+          "value": "PUBLIC"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.selectScope.validation.required"
+        }
+      }
+    },
+    "DURATION_TYPES": {
+      "id": "DURATION_TYPES",
+      "type": "checkboxGroup",
+      "labelKey": "carePlan.field.durationTypes.label",
+      "required": true,
+      "defaultValue": [
+        "15_DAYS",
+        "60_DAYS"
+      ],
+      "options": [
+        {
+          "labelKey": "carePlan.field.durationTypes.option.15_DAYS",
+          "value": "15_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.30_DAYS",
+          "value": "30_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.60_DAYS",
+          "value": "60_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.90_DAYS",
+          "value": "90_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.6_MONTHS",
+          "value": "6_MONTHS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.12_MONTHS",
+          "value": "12_MONTHS"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "carePlan.field.durationTypes.validation.required"
+        }
+      }
+    },
+    "DEFAULT_DURATION_TYPE": {
+      "id": "DEFAULT_DURATION_TYPE",
+      "type": "radioCards",
+      "labelKey": "carePlan.field.defaultDurationType.label",
+      "required": true,
+      "defaultValue": "15_DAYS",
+      "options": [
+        {
+          "labelKey": "carePlan.field.durationTypes.option.15_DAYS",
+          "value": "15_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.30_DAYS",
+          "value": "30_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.60_DAYS",
+          "value": "60_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.90_DAYS",
+          "value": "90_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.6_MONTHS",
+          "value": "6_MONTHS"
+        },
+        {
+          "labelKey": "carePlan.field.durationTypes.option.12_MONTHS",
+          "value": "12_MONTHS"
+        }
+      ],
+      "props": {
+        "optionsSourceField": "DURATION_TYPES"
+      },
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "carePlan.field.defaultDurationType.validation.required"
+        }
+      }
+    },
+    "BILLING_PROGRAM_TYPES": {
+      "id": "BILLING_PROGRAM_TYPES",
+      "type": "checkboxGroup",
+      "labelKey": "carePlan.field.billingProgramTypes.label",
+      "required": true,
+      "defaultValue": [
+        "NONE"
+      ],
+      "options": [
+        {
+          "labelKey": "carePlan.field.billingProgramTypes.option.NONE",
+          "value": "NONE"
+        },
+        {
+          "labelKey": "carePlan.field.billingProgramTypes.option.RPM",
+          "value": "RPM"
+        },
+        {
+          "labelKey": "carePlan.field.billingProgramTypes.option.CCM",
+          "value": "CCM"
+        },
+        {
+          "labelKey": "carePlan.field.billingProgramTypes.option.RTM",
+          "value": "RTM"
+        }
+      ],
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "carePlan.field.billingProgramTypes.validation.required"
+        }
+      }
+    },
+    "CUSTOM_DURATION_ALLOWED": {
+      "id": "CUSTOM_DURATION_ALLOWED",
+      "type": "switch",
+      "labelKey": "carePlan.field.customDurationAllowed.label",
+      "required": false,
+      "defaultValue": true,
+      "props": {
+        "switchVariant": "header",
+        "showValueLabel": true,
+        "inlineFieldSwitch": true
+      }
+    },
+    "RPM_DEVICES": {
+      "id": "RPM_DEVICES",
+      "type": "rpmDevicePicker",
+      "labelKey": "carePlan.field.rpmDevices.hiddenLabel",
+      "required": true,
+      "defaultValue": {
+        "primary": {
+          "devices": [],
+          "defaultDeviceId": null
+        },
+        "secondary": {
+          "devices": [],
+          "defaultDeviceId": null
+        }
+      },
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "carePlan.field.rpmDevices.validation.primaryRequired"
+        }
+      },
+      "props": {
+        "primaryTitleKey": "carePlan.rpm.primaryColumn",
+        "secondaryTitleKey": "carePlan.rpm.secondaryColumn",
+        "primarySelectDefaultKey": "carePlan.rpm.primarySelectDefault",
+        "secondarySelectDefaultKey": "carePlan.rpm.secondarySelectDefault",
+        "primarySelectedDefaultKey": "carePlan.rpm.primarySelectedDefault",
+        "secondarySelectedDefaultKey": "carePlan.rpm.secondarySelectedDefault",
+        "primaryDefaultRequiredMessageKey": "carePlan.field.rpmDevices.validation.primaryDefaultRequired",
+        "reviewPrimaryDevicesLabelKey": "carePlan.rpm.review.primaryDevices",
+        "reviewPrimaryDefaultLabelKey": "carePlan.rpm.review.primaryDefaultDevices",
+        "reviewSecondaryDevicesLabelKey": "carePlan.rpm.review.secondaryDevices",
+        "reviewSecondaryDefaultLabelKey": "carePlan.rpm.review.secondaryDefaultDevices"
+      }
+    },
+    "TASK_TEMPLATE_INTRO": {
+      "id": "TASK_TEMPLATE_INTRO",
+      "type": "readonly",
+      "labelKey": "carePlan.field.taskTemplateIntro.hiddenLabel",
+      "props": {
+        "messageKey": "carePlan.section.tasksTemplate.subtitle",
+        "bareText": true
+      }
+    },
+    "LINKED_TASK_TEMPLATE": {
+      "id": "LINKED_TASK_TEMPLATE",
+      "type": "templateLinking",
+      "labelKey": "carePlan.field.linkedTaskTemplate.hiddenLabel",
+      "required": false,
+      "defaultValue": [],
+      "props": {
+        "templateLinking": {
+          "fieldName": "LINKED_TASK_TEMPLATE",
+          "variant": "extended",
+          "prominentEmptyState": true,
+          "linkableTemplateType": "TASK",
+          "filterKeys": [
+            "category",
+            "condition",
+            "country",
+            "language"
+          ],
+          "emptyLabelKey": "carePlan.taskLinking.emptyLabel",
+          "linkedLabelKey": "carePlan.taskLinking.linkedLabel",
+          "emptyStateTextKey": "carePlan.taskLinking.emptyState",
+          "addButtonLabelKey": "carePlan.taskLinking.addMoreButton",
+          "drawerTitleKey": "carePlan.taskLinking.drawerTitle",
+          "drawerSubtitleKey": "carePlan.section.tasksTemplate.subtitle",
+          "cancelLabelKey": "carePlan.taskLinking.cancel",
+          "confirmLabelKey": "carePlan.taskLinking.confirm",
+          "drawerEmptyTextKey": "carePlan.taskLinking.drawerEmpty",
+          "drawerNoResultsTextKey": "carePlan.taskLinking.drawerNoResults",
+          "tableColumns": {
+            "taskTemplate": "carePlan.taskLinking.table.taskTemplate",
+            "workflowStage": "carePlan.taskLinking.table.workflowStage",
+            "generationTrigger": "carePlan.taskLinking.table.generationTrigger",
+            "required": "carePlan.taskLinking.table.required",
+            "checklist": "carePlan.taskLinking.table.checklist"
+          },
+          "perTemplateFields": {
+            "workflowStage": {
+              "type": "select",
+              "labelKey": "carePlan.taskLinking.field.workflowStage.label",
+              "defaultValue": "ONBOARDING",
+              "options": [
+                {
+                  "labelKey": "carePlan.taskLinking.field.workflowStage.option.ONBOARDING",
+                  "value": "ONBOARDING"
+                },
+                {
+                  "labelKey": "carePlan.taskLinking.field.workflowStage.option.ACTIVE_MONITORING",
+                  "value": "ACTIVE_MONITORING"
+                },
+                {
+                  "labelKey": "carePlan.taskLinking.field.workflowStage.option.REVIEW",
+                  "value": "REVIEW"
+                },
+                {
+                  "labelKey": "carePlan.taskLinking.field.workflowStage.option.DISCHARGE",
+                  "value": "DISCHARGE"
+                }
+              ]
+            },
+            "generationTrigger": {
+              "type": "select",
+              "labelKey": "carePlan.taskLinking.field.generationTrigger.label",
+              "defaultValue": "AT_REVIEW_DUE",
+              "options": [
+                {
+                  "labelKey": "carePlan.taskLinking.field.generationTrigger.option.AT_REVIEW_DUE",
+                  "value": "AT_REVIEW_DUE"
+                },
+                {
+                  "labelKey": "carePlan.taskLinking.field.generationTrigger.option.ON_ENROLLMENT",
+                  "value": "ON_ENROLLMENT"
+                },
+                {
+                  "labelKey": "carePlan.taskLinking.field.generationTrigger.option.ON_STAGE_ENTRY",
+                  "value": "ON_STAGE_ENTRY"
+                },
+                {
+                  "labelKey": "carePlan.taskLinking.field.generationTrigger.option.MANUAL",
+                  "value": "MANUAL"
+                }
+              ]
+            },
+            "requiredForStageCompletion": {
+              "type": "switch",
+              "labelKey": "carePlan.taskLinking.field.requiredForStageCompletion.label",
+              "helperTextKey": "carePlan.taskLinking.field.requiredForStageCompletion.helper",
+              "defaultValue": true,
+              "props": {
+                "switchVariant": "header",
+                "showValueLabel": true,
+                "inlineFieldSwitch": true
+              }
+            },
+            "displayAsChecklistItem": {
+              "type": "switch",
+              "labelKey": "carePlan.taskLinking.field.displayAsChecklistItem.label",
+              "helperTextKey": "carePlan.taskLinking.field.displayAsChecklistItem.helper",
+              "defaultValue": false,
+              "props": {
+                "switchVariant": "header",
+                "showValueLabel": true,
+                "inlineFieldSwitch": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "HBA1C": {
+      "id": "HBA1C",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.hba1c.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "BLOOD_PRESSURE": {
+      "id": "BLOOD_PRESSURE",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.bloodPressure.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "FASTING_GLUCOSE": {
+      "id": "FASTING_GLUCOSE",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.fastingGlucose.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "BMI": {
+      "id": "BMI",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.bmi.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "WEIGHT_KG": {
+      "id": "WEIGHT_KG",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.weightKg.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "RESTING_HEART_RATE": {
+      "id": "RESTING_HEART_RATE",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.restingHeartRate.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "CBC": {
+      "id": "CBC",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.cbc.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "BLOOD_TEST": {
+      "id": "BLOOD_TEST",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.bloodTest.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "KIDNEY_PROFILE_VALUE": {
+      "id": "KIDNEY_PROFILE_VALUE",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.kidneyProfile.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "FAMILY_MEMBER_NAME": {
+      "id": "FAMILY_MEMBER_NAME",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.familyMemberName.label",
+      "placeholderKey": "carePlan.placeholder.enterName",
+      "required": false
+    },
+    "RELATIONSHIP_TO_PATIENT": {
+      "id": "RELATIONSHIP_TO_PATIENT",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.relationshipToPatient.label",
+      "placeholderKey": "carePlan.placeholder.selectRelationship",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.field.baseline.relationship.option.SPOUSE",
+          "value": "SPOUSE"
+        },
+        {
+          "labelKey": "carePlan.field.baseline.relationship.option.PARENT",
+          "value": "PARENT"
+        },
+        {
+          "labelKey": "carePlan.field.baseline.relationship.option.CHILD",
+          "value": "CHILD"
+        },
+        {
+          "labelKey": "carePlan.field.baseline.relationship.option.SIBLING",
+          "value": "SIBLING"
+        },
+        {
+          "labelKey": "carePlan.field.baseline.relationship.option.OTHER",
+          "value": "OTHER"
+        }
+      ]
+    },
+    "CARE_GIVER_AVAILABLE": {
+      "id": "CARE_GIVER_AVAILABLE",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.careGiverAvailable.label",
+      "placeholderKey": "carePlan.placeholder.selectAvailability",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.yesNo.YES",
+          "value": "YES"
+        },
+        {
+          "labelKey": "carePlan.option.yesNo.NO",
+          "value": "NO"
+        }
+      ]
+    },
+    "CARE_GIVER_NAME": {
+      "id": "CARE_GIVER_NAME",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.careGiverName.label",
+      "placeholderKey": "carePlan.placeholder.enterName",
+      "required": false
+    },
+    "MEDICATION_ADHERENCE": {
+      "id": "MEDICATION_ADHERENCE",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.medicationAdherence.label",
+      "placeholderKey": "carePlan.placeholder.enterDetails",
+      "required": false
+    },
+    "TRANSLATOR_AVAILABLE": {
+      "id": "TRANSLATOR_AVAILABLE",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.translatorAvailable.label",
+      "placeholderKey": "carePlan.placeholder.enterDetails",
+      "required": false
+    },
+    "FINANCIAL_LIMITATIONS_FUNCTIONAL": {
+      "id": "FINANCIAL_LIMITATIONS_FUNCTIONAL",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.financialLimitationsFunctional.label",
+      "placeholderKey": "carePlan.placeholder.enterDetails",
+      "required": false
+    },
+    "MENTAL_NEEDS": {
+      "id": "MENTAL_NEEDS",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.mentalNeeds.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.mentalNeeds.NONE",
+          "value": "NONE"
+        },
+        {
+          "labelKey": "carePlan.option.mentalNeeds.COUNSELING",
+          "value": "COUNSELING"
+        },
+        {
+          "labelKey": "carePlan.option.mentalNeeds.SUPPORT_GROUP",
+          "value": "SUPPORT_GROUP"
+        },
+        {
+          "labelKey": "carePlan.option.mentalNeeds.OTHER",
+          "value": "OTHER"
+        }
+      ]
+    },
+    "PSYCHOSOCIAL_FINANCIAL_LIMITATIONS": {
+      "id": "PSYCHOSOCIAL_FINANCIAL_LIMITATIONS",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.psychosocialFinancialLimitations.label",
+      "placeholderKey": "carePlan.placeholder.enterLimitations",
+      "required": false
+    },
+    "MEDICATION_ACCESS": {
+      "id": "MEDICATION_ACCESS",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.medicationAccess.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.medicationAccess.FULL",
+          "value": "FULL"
+        },
+        {
+          "labelKey": "carePlan.option.medicationAccess.LIMITED",
+          "value": "LIMITED"
+        },
+        {
+          "labelKey": "carePlan.option.medicationAccess.NONE",
+          "value": "NONE"
+        }
+      ]
+    },
+    "DIETARY_LIMITATIONS": {
+      "id": "DIETARY_LIMITATIONS",
+      "type": "text",
+      "labelKey": "carePlan.field.baseline.dietaryLimitations.label",
+      "placeholderKey": "carePlan.placeholder.enterValue",
+      "required": false
+    },
+    "FAMILY_HISTORY": {
+      "id": "FAMILY_HISTORY",
+      "type": "textarea",
+      "labelKey": "carePlan.field.baseline.familyHistory.label",
+      "placeholderKey": "carePlan.placeholder.enterHistory",
+      "required": false
+    },
+    "STAIRS": {
+      "id": "STAIRS",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.stairs.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.stairs.NONE",
+          "value": "NONE"
+        },
+        {
+          "labelKey": "carePlan.option.stairs.FEW",
+          "value": "FEW"
+        },
+        {
+          "labelKey": "carePlan.option.stairs.MANY",
+          "value": "MANY"
+        }
+      ]
+    },
+    "HOME_SAFETY": {
+      "id": "HOME_SAFETY",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.homeSafety.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.safety.SAFE",
+          "value": "SAFE"
+        },
+        {
+          "labelKey": "carePlan.option.safety.MODERATE_RISK",
+          "value": "MODERATE_RISK"
+        },
+        {
+          "labelKey": "carePlan.option.safety.HIGH_RISK",
+          "value": "HIGH_RISK"
+        }
+      ]
+    },
+    "BATHROOM_SAFETY": {
+      "id": "BATHROOM_SAFETY",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.bathroomSafety.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.safety.SAFE",
+          "value": "SAFE"
+        },
+        {
+          "labelKey": "carePlan.option.safety.MODERATE_RISK",
+          "value": "MODERATE_RISK"
+        },
+        {
+          "labelKey": "carePlan.option.safety.HIGH_RISK",
+          "value": "HIGH_RISK"
+        }
+      ]
+    },
+    "OVERALL_RISK_LEVEL": {
+      "id": "OVERALL_RISK_LEVEL",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.overallRiskLevel.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.risk.LOW",
+          "value": "LOW"
+        },
+        {
+          "labelKey": "carePlan.option.risk.MEDIUM",
+          "value": "MEDIUM"
+        },
+        {
+          "labelKey": "carePlan.option.risk.HIGH",
+          "value": "HIGH"
+        }
+      ]
+    },
+    "ADHERENCE_RISK": {
+      "id": "ADHERENCE_RISK",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.adherenceRisk.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.risk.LOW",
+          "value": "LOW"
+        },
+        {
+          "labelKey": "carePlan.option.risk.MEDIUM",
+          "value": "MEDIUM"
+        },
+        {
+          "labelKey": "carePlan.option.risk.HIGH",
+          "value": "HIGH"
+        }
+      ]
+    },
+    "COMPLICATION_RISK": {
+      "id": "COMPLICATION_RISK",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.complicationRisk.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.risk.LOW",
+          "value": "LOW"
+        },
+        {
+          "labelKey": "carePlan.option.risk.MEDIUM",
+          "value": "MEDIUM"
+        },
+        {
+          "labelKey": "carePlan.option.risk.HIGH",
+          "value": "HIGH"
+        }
+      ]
+    },
+    "PAIN_SCORE": {
+      "id": "PAIN_SCORE",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.painScore.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "options": [
+        {
+          "labelKey": "carePlan.option.painScore.0",
+          "value": "0"
+        },
+        {
+          "labelKey": "carePlan.option.painScore.1",
+          "value": "1"
+        },
+        {
+          "labelKey": "carePlan.option.painScore.2",
+          "value": "2"
+        },
+        {
+          "labelKey": "carePlan.option.painScore.3",
+          "value": "3"
+        },
+        {
+          "labelKey": "carePlan.option.painScore.4",
+          "value": "4"
+        },
+        {
+          "labelKey": "carePlan.option.painScore.5",
+          "value": "5"
+        }
+      ]
+    },
+    "MOBILITY_LEVEL": {
+      "id": "MOBILITY_LEVEL",
+      "type": "select",
+      "labelKey": "carePlan.field.baseline.mobilityLevel.label",
+      "placeholderKey": "carePlan.placeholder.selectValue",
+      "required": false,
+      "defaultValue": "MOBILITY_1",
+      "options": [
+        {
+          "labelKey": "carePlan.option.mobility.MOBILITY_1",
+          "value": "MOBILITY_1"
+        },
+        {
+          "labelKey": "carePlan.option.mobility.MOBILITY_2",
+          "value": "MOBILITY_2"
+        },
+        {
+          "labelKey": "carePlan.option.mobility.MOBILITY_3",
+          "value": "MOBILITY_3"
+        }
+      ]
+    },
+    "WORK_STRESS_LEVEL": {
+      "id": "WORK_STRESS_LEVEL",
+      "type": "workStressLevel",
+      "labelKey": "carePlan.field.hiddenLabel",
+      "required": false,
+      "defaultValue": {
+        "item1": null,
+        "item2": null
+      },
+      "props": {
+        "titleKey": "carePlan.baseline.workStress.title",
+        "statusKey": "carePlan.baseline.workStress.status",
+        "scaleHintKey": "carePlan.baseline.workStress.scaleHint",
+        "items": [
+          {
+            "name": "item1",
+            "labelKey": "carePlan.field.baseline.workStress.item1.label",
+            "placeholderKey": "carePlan.placeholder.selectLevel",
+            "options": [
+              {
+                "labelKey": "carePlan.option.likert.1",
+                "value": "1"
+              },
+              {
+                "labelKey": "carePlan.option.likert.2",
+                "value": "2"
+              },
+              {
+                "labelKey": "carePlan.option.likert.3",
+                "value": "3"
+              },
+              {
+                "labelKey": "carePlan.option.likert.4",
+                "value": "4"
+              },
+              {
+                "labelKey": "carePlan.option.likert.5",
+                "value": "5"
+              }
+            ]
+          },
+          {
+            "name": "item2",
+            "labelKey": "carePlan.field.baseline.workStress.item2.label",
+            "placeholderKey": "carePlan.placeholder.selectLevel",
+            "options": [
+              {
+                "labelKey": "carePlan.option.likert.1",
+                "value": "1"
+              },
+              {
+                "labelKey": "carePlan.option.likert.2",
+                "value": "2"
+              },
+              {
+                "labelKey": "carePlan.option.likert.3",
+                "value": "3"
+              },
+              {
+                "labelKey": "carePlan.option.likert.4",
+                "value": "4"
+              },
+              {
+                "labelKey": "carePlan.option.likert.5",
+                "value": "5"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "GOAL_TEMPLATE_INTRO": {
+      "id": "GOAL_TEMPLATE_INTRO",
+      "type": "readonly",
+      "labelKey": "carePlan.field.hiddenLabel",
+      "props": {
+        "messageKey": "carePlan.section.goalTemplate.subtitle",
+        "bareText": true
+      }
+    },
+    "LINKED_GOAL_TEMPLATE": {
+      "id": "LINKED_GOAL_TEMPLATE",
+      "type": "templateLinking",
+      "labelKey": "carePlan.field.hiddenLabel",
+      "required": false,
+      "defaultValue": null,
+      "props": {
+        "templateLinking": {
+          "fieldName": "LINKED_GOAL_TEMPLATE",
+          "prominentEmptyState": true,
+          "linkableTemplateType": "GOAL",
+          "filterKeys": [
+            "category",
+            "condition",
+            "country",
+            "language"
+          ],
+          "emptyLabelKey": "carePlan.goalLinking.emptyLabel",
+          "linkedLabelKey": "carePlan.goalLinking.linkedLabel",
+          "emptyStateTextKey": "carePlan.goalLinking.emptyState",
+          "addButtonLabelKey": "carePlan.goalLinking.addButton",
+          "drawerTitleKey": "carePlan.goalLinking.drawerTitle",
+          "drawerSubtitleKey": "carePlan.goalLinking.drawerSubtitle",
+          "cancelLabelKey": "carePlan.goalLinking.cancel",
+          "confirmLabelKey": "carePlan.goalLinking.confirm",
+          "drawerEmptyTextKey": "carePlan.goalLinking.drawerEmpty",
+          "drawerNoResultsTextKey": "carePlan.goalLinking.drawerNoResults",
+          "linkedTemplateDetails": {
+            "showDetails": true,
+            "layout": "goalList",
+            "showDetailsInPicker": true
+          }
+        }
+      }
+    },
+    "MONITORING_TEMPLATE_INTRO": {
+      "id": "MONITORING_TEMPLATE_INTRO",
+      "type": "readonly",
+      "labelKey": "carePlan.field.hiddenLabel",
+      "props": {
+        "messageKey": "carePlan.section.monitoringTemplate.subtitle",
+        "bareText": true
+      }
+    },
+    "LINKED_MONITORING_TEMPLATE": {
+      "id": "LINKED_MONITORING_TEMPLATE",
+      "type": "templateLinking",
+      "labelKey": "carePlan.field.hiddenLabel",
+      "required": false,
+      "defaultValue": null,
+      "props": {
+        "templateLinking": {
+          "fieldName": "LINKED_MONITORING_TEMPLATE",
+          "prominentEmptyState": true,
+          "linkableTemplateType": "MONITORING",
+          "filterKeys": [
+            "category",
+            "condition",
+            "country",
+            "language"
+          ],
+          "emptyLabelKey": "carePlan.monitoringLinking.emptyLabel",
+          "linkedLabelKey": "carePlan.monitoringLinking.linkedLabel",
+          "emptyStateTextKey": "carePlan.monitoringLinking.emptyState",
+          "addButtonLabelKey": "carePlan.monitoringLinking.addButton",
+          "drawerTitleKey": "carePlan.monitoringLinking.drawerTitle",
+          "drawerSubtitleKey": "carePlan.monitoringLinking.drawerSubtitle",
+          "cancelLabelKey": "carePlan.monitoringLinking.cancel",
+          "confirmLabelKey": "carePlan.monitoringLinking.confirm",
+          "drawerEmptyTextKey": "carePlan.monitoringLinking.drawerEmpty",
+          "drawerNoResultsTextKey": "carePlan.monitoringLinking.drawerNoResults"
+        }
+      }
+    },
+    "REVIEW_CADENCE": {
+      "id": "REVIEW_CADENCE",
+      "type": "checkboxGroup",
+      "labelKey": "carePlan.field.reviewCadence.label",
+      "required": false,
+      "defaultValue": [
+        "15_DAYS"
+      ],
+      "options": [
+        {
+          "labelKey": "carePlan.field.reviewCadence.option.15_DAYS",
+          "value": "15_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.reviewCadence.option.30_DAYS",
+          "value": "30_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.reviewCadence.option.60_DAYS",
+          "value": "60_DAYS"
+        },
+        {
+          "labelKey": "carePlan.field.reviewCadence.option.90_DAYS",
+          "value": "90_DAYS"
+        }
+      ]
+    }
+  },
+  "active": true,
+  "titleKey": "carePlan.title",
+  "subtitleKey": "carePlan.subtitle"
+}

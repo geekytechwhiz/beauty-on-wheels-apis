@@ -16,6 +16,7 @@ import type {
   ValidatedStatusTransition,
   ValidatedTemplateVersionPath,
   ValidatedUpdateMasterVersion,
+  ValidatedSaveMaster,
 } from '../validators/request.validators';
 
 let templateService: TemplateService | undefined;
@@ -146,6 +147,34 @@ export class TemplateHttpController {
     }
   }
 
+  async handleSaveMaster(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedSaveMaster?: ValidatedSaveMaster }).validatedSaveMaster;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const record = await this.svc.saveMasterTemplate({
+        templateId: v.templateId,
+        templateVersionId: v.templateVersionId,
+        body: v.body,
+        actorUserId: v.actorUserId,
+      });
+      return this.svc.toSummary(record);
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'save_master_template_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
   async handleUpdateMasterVersion(req: LambdaRequest) {
     const v = (req as LambdaRequest & { validatedUpdateMasterVersion?: ValidatedUpdateMasterVersion })
       .validatedUpdateMasterVersion;
@@ -217,29 +246,23 @@ export class TemplateHttpController {
     }
 
     try {
-      if (v.organizationId) {
-        const orgRepo = new OrgTemplateRepository();
-        const orgMeta = await orgRepo.getOrgMeta(v.organizationId, v.templateId);
-        if (orgMeta) {
-          const orgSvc = getOrgTemplateService();
-          const record = await orgSvc.transitionOrgTemplateStatus({
-            organizationId: v.organizationId,
-            templateId: v.templateId,
-            versionId: v.versionId,
-            body: v.body,
-            actorUserId: v.actorUserId,
-          });
-          return orgSvc.toSummary(record);
-        }
+      const orgRepo = new OrgTemplateRepository();
+      const orgMeta = await orgRepo.getOrgMeta(v.organizationId!, v.templateId);
+      if (!orgMeta) {
+        throw new BaseError('Org template not found', 404, 'NOT_FOUND', [
+          { message: 'Org template not found' },
+        ]);
       }
 
-      const record = await this.svc.transitionMasterTemplateStatus({
+      const orgSvc = getOrgTemplateService();
+      const record = await orgSvc.transitionOrgTemplateStatus({
+        organizationId: v.organizationId!,
         templateId: v.templateId,
         versionId: v.versionId,
         body: v.body,
         actorUserId: v.actorUserId,
       });
-      return this.svc.toSummary(record);
+      return orgSvc.toSummary(record);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'transition_template_status_error',

@@ -72,7 +72,8 @@ function appendListFilters(
     );
   }
   if (filters.templateType?.trim()) {
-    eav[':templateType'] = filters.templateType.trim();
+    const normalized = filters.templateType.trim().replace(/\s+/g, '_').toUpperCase();
+    eav[':templateType'] = normalized;
     names['#templateType'] = 'templateType';
     filterParts.push('#meta.#templateType = :templateType');
   }
@@ -117,10 +118,18 @@ export class TemplateRepository extends BaseRepository {
 
   async getMasterMeta(templateId: string): Promise<TemplateDdbRecord | null> {
     const table = assertTemplateTable();
-    return this.get<TemplateDdbRecord>(table, {
-      pk: TemplateKeyBuilder.toMasterPk(templateId),
+    const pk = TemplateKeyBuilder.toMasterPk(templateId);
+    const meta = await this.get<TemplateDdbRecord>(table, {
+      pk,
       sk: TEMPLATE_META_SK,
     });
+    if (meta) return meta;
+
+    // Version-only masters (no META row): return the latest VERSION#* row.
+    const { items } = await this.queryMasterVersionsPage(templateId, { limit: 1 });
+    if (items[0]) return items[0];
+
+    return this.getMasterVersion(templateId, `${VERSION_SK_PREFIX}001`);
   }
 
   async getMasterVersion(templateId: string, versionSk: string): Promise<TemplateDdbRecord | null> {
@@ -184,18 +193,10 @@ export class TemplateRepository extends BaseRepository {
   async createMasterTemplate(input: CreateMasterTemplateInput): Promise<TemplateDdbRecord> {
     const table = assertTemplateTable();
     const ctx = TemplateEntityBuilder.buildCreateContext(input);
-    const metaRow = TemplateEntityBuilder.buildMetaRow(ctx);
     const versionRow = TemplateEntityBuilder.buildVersionRow(ctx, input);
 
     await this.transactWrite({
       TransactItems: [
-        {
-          Put: {
-            TableName: table,
-            Item: metaRow as unknown as Record<string, unknown>,
-            ConditionExpression: 'attribute_not_exists(pk)',
-          },
-        },
         {
           Put: {
             TableName: table,
@@ -341,12 +342,17 @@ export class TemplateRepository extends BaseRepository {
       return this.listMasterTemplatesAcrossStatuses(filters, limit);
     }
 
-    // For cross-template catalogs (ALERT/MONITORING/CARE_PLAN/...), prefer status-index queries
-    // unless caller explicitly requests a concrete templateType partition on GSI2.
-    const shouldUseGsi2 = !status && !!templateType;
+    // templateType without status must include DRAFT/SAVED rows (GSI2 is published-only).
+    if (templateType && !status) {
+      return this.listMasterTemplatesAcrossStatuses(filters, limit);
+    }
+
+    // Published catalog by type only (all published TASK templates, etc.).
+    const shouldUseGsi2 =
+      status === TEMPLATE_STATUS.PUBLISHED && !!templateType && !params.category?.trim();
 
     const page = shouldUseGsi2
-      ? await this.queryMasterCatalogGsi2Page(templateType, {
+      ? await this.queryMasterCatalogGsi2Page(templateType!, {
           limit,
           exclusiveStartKey,
           ...filters,
@@ -367,16 +373,25 @@ export class TemplateRepository extends BaseRepository {
  * for the same master templateId. The list API exposes one row per template — keep the
  * first item encountered per templateId (query order is newest-first via ScanIndexForward).
  */
+function isMasterVersionSk(sk: string | undefined): boolean {
+  return typeof sk === 'string' && sk.startsWith(VERSION_SK_PREFIX);
+}
+
 function keepOneListItemPerMasterTemplate(items: TemplateDdbRecord[]): TemplateDdbRecord[] {
   const seen = new Map<string, TemplateDdbRecord>();
   for (const item of items) {
     const id = item.meta?.templateId;
     if (!id) continue;
-    if (!seen.has(id)) {
+    const existing = seen.get(id);
+    if (!existing) {
+      seen.set(id, item);
+      continue;
+    }
+    if (isMasterVersionSk(item.sk) && !isMasterVersionSk(existing.sk)) {
       seen.set(id, item);
     }
   }
-  return [...seen.values()];
+  return [...seen.values()].filter((row) => isMasterVersionSk(row.sk));
 }
 
 export function listMasterNextToken(

@@ -1,4 +1,5 @@
 export * from './lib/constants/template.constants';
+export * from './lib/utils/share-scope.utils';
 export * from './lib/builder/template-key.builder';
 export * from './lib/builder/template-entity.builder';
 export * from './lib/models/persistence/template-ddb.model';

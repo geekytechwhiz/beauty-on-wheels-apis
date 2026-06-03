@@ -81,9 +81,6 @@ export function resolveServicesJsonDir(): string {
     return LAMBDA_WRITABLE_SERVICES_JSON;
   }
 
-  const cwd = process.cwd().replace(/\\/g, '/').toLowerCase();
-  const isTemplateServiceCwd = cwd.endsWith('/apps/template-service');
-
   const candidates = [
     path.resolve(process.cwd(), 'services-json'),
     path.resolve(process.cwd(), 'apps/template-service/services-json'),

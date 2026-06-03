@@ -71,3 +71,54 @@ describe('TemplateMasterOpsService.transitionMasterTemplateStatus', () => {
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 });
+
+describe('TemplateMasterOpsService.updateMasterTemplateVersion', () => {
+  it('updates version-only master in place with shareScope and fieldValues', async () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'task-code',
+      templateName: 'Task Monitoring Master',
+      templateType: 'TASK',
+      status: 'DRAFT',
+    });
+    const version = TemplateEntityBuilder.buildVersionRow(ctx, {
+      templateCode: 'task-code',
+      templateName: 'Task Monitoring Master',
+      shareScope: 'PRIVATE',
+      fieldValues: { TASK_NAME: 'Record Blood Pressure' },
+    });
+
+    let saved: TemplateDdbRecord | undefined;
+    const repo = {
+      getMasterMeta: jest.fn().mockResolvedValue(version),
+      getMasterVersion: jest.fn().mockResolvedValue(version),
+      putMasterRecord: jest.fn().mockImplementation(async (row: TemplateDdbRecord) => {
+        saved = row;
+      }),
+      saveMasterMetaAndVersion: jest.fn(),
+    };
+
+    const svc = new TemplateMasterOpsService(repo as never);
+    const result = await svc.updateMasterTemplateVersion({
+      templateId: 'TASK-CODE',
+      versionId: 'TASK-CODE-V01',
+      body: {
+        shareScope: 'Organization',
+        fieldValues: {
+          TASK_NAME: 'Record Blood Pressure (updated)',
+          TASK_DESCRIPTION: 'Measure BP twice daily',
+        },
+      },
+      actorUserId: 'admin-1',
+    });
+
+    expect(result.meta.templateVersionId).toBe('TASK-CODE-V01');
+    expect(result.meta.version).toBe(1);
+    expect(result.meta.shareScope).toBe('ORGANIZATION');
+    expect(result.meta.templateName).toBe('Record Blood Pressure (updated)');
+    expect((result.fieldValues as Record<string, unknown>).TASK_DESCRIPTION).toBe(
+      'Measure BP twice daily',
+    );
+    expect(result.meta.lastModifiedAt).not.toBe(version.meta.createdAt);
+    expect(saved?.meta.shareScope).toBe('ORGANIZATION');
+  });
+});

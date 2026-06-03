@@ -49,15 +49,14 @@ info:
 
     | Method | Path | Primary access pattern |
     | ------ | ---- | ------------------------ |
-    | POST | `/templates/master` | Create `META` + first `VERSION#` |
-    | GET | `/templates/master` | **GSI-2** (type / publishedAt) + optional **GSI-1** / filters (`organizationId`, `templateType`, `language`, `specialty`, `templateCode`, …) |
-    | GET | `/templates/master/{templateId}/meta` | `PK=MASTER_TMPL#id`, `SK=META` |
-    | GET | `/templates/master/{templateId}/versions` | **Unified:** omit `version` → list `VERSION#*`; `version=latest` → latest snapshot; `version={id}` → point read; **PUT** same path+`versionId` updates |
-    | GET/PUT | `/templates/master/{templateId}/versions/{versionId}` | **PUT only** — update `VERSION#` (+ META rules); GET uses query on parent `/versions` |
-    | POST | `/templates/organizations/.../clone` | Write `ORG_TMPL#...` new partition |
-    | GET | `/templates/organizations/{organizationId}/{templateId}/versions` | **Unified (same pattern as master):** omit `version` → list; `version=latest` → latest; **`version=meta`** → META row; `version={id}` → point read |
-    | GET | `/templates/org` | **GSI-1** org index; optional `templateType`, `specialty`, … |
-    | PUT | `/templates/org/{templateId}/versions/{versionId}` | **(required contract)** **Org update** — `UpdateItem` on `ORG_TMPL#<org>#<templateId>` + `VERSION#…` / `META` per rules; `organizationId` from token |
+    | POST | `/templates` | Create master template (no id in path) |
+    | POST | `/templates/{templateId}` | Update master content and/or lifecycle (`lifecycleAction`) |
+    | GET | `/templates` | List by `templateLevel=MASTER\|ORG` + filters (`templateType`, `organizationId`, …) |
+    | GET | `/templates/{templateId}/versions` | List / `version=latest` / `version=meta` (org) / point read — `templateLevel` + `organizationId` when org |
+    | PUT | `/templates/{templateId}/versions/{versionId}` | Update **org** version only (`templateLevel=ORG`) |
+    | POST | `/templates/{templateId}/derive` | Derive org template from published master (`sourceVersionId`, `organizationId`) |
+    | POST | `/templates/{templateId}/versions/{versionId}/status` | Lifecycle transitions (master or org) |
+    | *deprecated* | `/templates/master`, `/templates/org`, `/templates/master/{id}/meta`, `/templates/organizations/.../clone` | Legacy aliases; prefer rows above |
     | POST | `/templates/{templateId}/versions/{versionId}/status` | **(required contract)** **Lifecycle** — `SUBMIT_REVIEW` / `PUBLISH` / `REJECT` / `ARCHIVE` / `DEPRECATE`; master or org resolved from **caller scope** + ids |
     | POST | `/org-enablements` | Create enablement row (+ projections per design) |
     | GET | `/org-enablements` | Filter enablements (query; GSI-backed) |
@@ -75,10 +74,21 @@ info:
 
     **PDF vs YAML:** The PDF cannot be auto-ingested here; if it lists extra routes, GSIs, or query keys, export it to text/Markdown and extend `paths` plus this catalog so Swagger stays aligned.
   version: 3.1.0
+  license:
+    name: Proprietary
+    url: https://myvitalrx.com
 
 servers:
-  - url: https://api.example.com/v1
-    description: Replace with API Gateway base URL + stage
+  - url: https://{apiHost}/{stage}
+    description: API Gateway base URL (set apiHost and stage per environment)
+    variables:
+      apiHost:
+        default: api.dev.myvitalrx.com
+      stage:
+        default: dev
+
+security:
+  - bearerAuth: []
 
 tags:
   - name: MasterTemplateManagement
@@ -97,13 +107,334 @@ tags:
 paths:
 
   # ─────────────────────────────────────────────────────────────────
-  # MASTER TEMPLATE MANAGEMENT
+  # UNIFIED TEMPLATE API (canonical)
+  # ─────────────────────────────────────────────────────────────────
+
+  /templates:
+    post:
+      tags: [MasterTemplateManagement]
+      summary: Create template (platform master)
+      description: |
+        Create a platform-owned master template. **`templateLevel`** in body defaults to `MASTER` (org templates are created via **derive**).
+
+        **Authoring:** `templateCode`, `templateType`, optional `templateMetadata`, `templateProfile`, and **`fieldValues`** (keys match UI config / `services-json/*-api-response.json`).
+
+        **`templateName`** may be omitted when `fieldValues.TASK_NAME` or `fieldValues.TEMPLATE_NAME` is set.
+      operationId: createTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateCreateRequest'
+            examples:
+              task_bp_monitoring:
+                summary: Task template — fieldValues authoring
+                value:
+                  templateCode: TASK_BP_MONITORING
+                  templateType: TASK
+                  templateMetadata: {}
+                  templateProfile: {}
+                  fieldValues:
+                    TASK_NAME: Record Blood Pressure
+                    TASK_DESCRIPTION: Measure BP daily
+                    ASSIGNED_TO_ROLE: PATIENT
+                    TASK_CATEGORY: MONITORING
+                    TASK_TYPE: MEASUREMENT
+                    TASK_SUBTYPE: BLOOD_PRESSURE
+                    ACTION_SUBMISSION_TYPE: DEVICE_SYNC
+                    COMPARISON_METHOD: RANGE
+                    SCHEDULE_TYPE: RECURRING
+                    RECURRENCE_PATTERN: DAILY
+                    REMINDERS_ENABLED: true
+                    REMINDER_CHANNELS: [IN_APP, PUSH]
+                    DISPLAY_TO_PATIENT: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    get:
+      tags: [MasterTemplateManagement, OrgTemplateManagement]
+      summary: List templates
+      description: |
+        List templates filtered by **`templateLevel`**:
+        - **`MASTER`** (default) — platform catalog (**GSI-2** / **GSI-5**).
+        - **`ORG`** — org partition (**GSI-1**); pass **`organizationId`** or use JWT org context.
+      operationId: listTemplates
+      parameters:
+        - in: query
+          name: templateLevel
+          schema:
+            $ref: '#/components/schemas/TemplateLevel'
+          description: "MASTER (default) or ORG"
+        - in: query
+          name: organizationId
+          schema:
+            type: string
+          description: Required for ORG when caller is platform ROOT
+        - in: query
+          name: templateType
+          schema:
+            $ref: '#/components/schemas/TemplateType'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TemplateStatus'
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: condition
+          schema:
+            $ref: '#/components/schemas/Condition'
+        - in: query
+          name: country
+          schema:
+            type: string
+        - in: query
+          name: language
+          schema:
+            type: string
+        - in: query
+          name: specialty
+          schema:
+            type: string
+        - in: query
+          name: templateCode
+          schema:
+            type: string
+        - in: query
+          name: nextToken
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ApiSuccessMasterTemplateList'
+                  - $ref: '#/components/schemas/ApiSuccessOrgTemplateList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/{templateId}:
+    post:
+      tags: [MasterTemplateManagement]
+      summary: Update master template (edit content and/or lifecycle)
+      description: |
+        **Master update** — pair with `POST /templates` (create). Same body shape as create.
+
+        - **Edit content:** `fieldValues`, `shareScope`, `categoryCode`, …
+        - **Lifecycle:** `lifecycleAction` `SUBMIT_REVIEW`, `PUBLISH`, `REJECT`, `ARCHIVE`, or `DEPRECATE` (optional `comment`, `reason`).
+
+        Server resolves the current version; **do not** pass `versionId` in the URL.
+      operationId: upsertMasterTemplateUpdate
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterTemplateSaveRequest'
+            examples:
+              edit_field_values:
+                summary: Update fieldValues on draft
+                value:
+                  shareScope: Private
+                  fieldValues:
+                    TASK_NAME: Record Blood Pressure (updated)
+              publish:
+                summary: Publish master
+                value:
+                  lifecycleAction: PUBLISH
+                  comment: Approved for org enablement
+      responses:
+        '200':
+          description: Saved or status transitioned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /templates/{templateId}/versions:
+    get:
+      tags: [MasterTemplateManagement, OrgTemplateManagement]
+      summary: Template versions — list, latest, meta, or point read
+      description: |
+        Canonical read for template data. Replaces **`GET /templates/master/{templateId}/meta`** — use **`version=latest`** or **`version=meta`** (org only).
+
+        Set **`templateLevel=ORG`** and **`organizationId`** (or JWT org) for org partitions.
+      operationId: getTemplateVersions
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+        - in: query
+          name: templateLevel
+          schema:
+            $ref: '#/components/schemas/TemplateLevel'
+        - in: query
+          name: organizationId
+          schema:
+            type: string
+        - in: query
+          name: version
+          schema:
+            type: string
+          description: "Omit=list; latest; meta (org); or version id"
+        - in: query
+          name: resolve
+          schema:
+            type: string
+            enum: [ACTIVE, LATEST_PUBLISHED, LATEST_ANY]
+        - in: query
+          name: nextToken
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TemplateStatus'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ApiSuccessTemplateVersionSummaryList'
+                  - $ref: '#/components/schemas/ApiSuccessMasterTemplateVersion'
+                  - $ref: '#/components/schemas/ApiSuccessOrgTemplateVersion'
+                  - $ref: '#/components/schemas/ApiSuccessOrgTemplateMeta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/{templateId}/versions/{versionId}:
+    put:
+      tags: [MasterTemplateManagement, OrgTemplateManagement]
+      summary: Update template version
+      description: |
+        Update master or org template version. Scope from **`templateLevel`** query, **`organizationId`**, or JWT org (same rules as lifecycle).
+      operationId: updateTemplateVersion
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+        - $ref: '#/components/parameters/VersionId'
+        - in: query
+          name: templateLevel
+          schema:
+            $ref: '#/components/schemas/TemplateLevel'
+        - in: query
+          name: organizationId
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/MasterTemplateUpdateRequest'
+                - $ref: '#/components/schemas/OrgTemplateUpdateRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /templates/{templateId}/derive:
+    post:
+      tags: [OrgTemplateManagement]
+      summary: Derive org template from published master
+      description: |
+        Copy a **PUBLISHED** platform master into an org-owned template.
+
+        **Path `{templateId}`** = **master template id** (from create/list response `data.templateId`, e.g. `GOAL-CODE` for `templateCode` `GOAL_CODE`). The client does **not** send the new org template id.
+
+        **Backend generates:** `templateId` → `{masterTemplateId}-ORG-{orgSlug}`, `templateVersionId` → `{orgTemplateId}-V01` (returned in `201` body).
+
+        **Body:** `organizationId` (or JWT org), optional `sourceVersionId` (defaults to latest **PUBLISHED** master version), optional `newTemplateName`, `inheritLinks`.
+      operationId: deriveTemplate
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema:
+            type: string
+          description: |
+            **Master** template id to copy from (not the org template id). Example: `GOAL-CODE`, `TASK-BP-MONITORING`.
+          example: GOAL-CODE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateDeriveRequest'
+            examples:
+              minimal:
+                summary: Minimal — org from JWT, latest published master version
+                value:
+                  newTemplateName: Apollo – Goal Program
+                  inheritLinks: true
+              explicit_version:
+                summary: Explicit published master version
+                value:
+                  organizationId: org-apollo-001
+                  sourceVersionId: GOAL-CODE-V01
+                  newTemplateName: Apollo – Goal Program
+                  inheritLinks: true
+      responses:
+        '201':
+          description: Derived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessTemplateCreated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ─────────────────────────────────────────────────────────────────
+  # LEGACY PATHS (deprecated — use /templates above)
   # ─────────────────────────────────────────────────────────────────
 
   /templates/master:
     post:
+      deprecated: true
       tags: [MasterTemplateManagement]
-      summary: Create master template
+      summary: Create master template (deprecated — use POST /templates)
       description: |
         Create a new platform-owned **master** template.
 
@@ -111,7 +442,7 @@ paths:
 
         **Normalization:** `templateCode` is required; `templateName` may come from `templateMetadata.templateName`. Status values like `Saved` are normalized to `SAVED`.
 
-        **Persistence:** Transact write `SK=META` + `SK=VERSION#001` under `PK=MASTER_TMPL#<templateId>`.
+        **Persistence:** Writes `SK=VERSION#001` under `PK=MASTER_TMPL#<templateId>` (full payload on one row).
 
         If the document exceeds 50 KB, `schemaRef` may be returned on success (future S3 offload).
       operationId: createMasterTemplate
@@ -434,25 +765,31 @@ paths:
                 message: Master templates retrieved successfully
                 data:
                   items:
-                    - templateId: CP-HTN-001
-                      templateVersionId: CP-HTN-001-V01
-                      templateName: Hypertension Management Plan
-                      templateType: CARE_PLAN
-                      category: CHRONIC_DISEASE
-                      condition: HYPERTENSION
-                      countries: [IN]
-                      version: 1
-                      status: PUBLISHED
-                      isActive: true
-                      publishedAt: "2024-02-01T00:00:00Z"
+                    - entityType: MASTER_TEMPLATE
+                      meta:
+                        templateId: CP-HTN-001
+                        templateVersionId: CP-HTN-001-V01
+                        templateName: Hypertension Management Plan
+                        templateType: CARE_PLAN
+                        category: CHRONIC_DISEASE
+                        condition: HYPERTENSION
+                        countries: [IN]
+                        version: 1
+                        status: PUBLISHED
+                        isMaster: true
+                        isActive: true
+                        createdBy: platform-admin
+                        createdAt: "2024-02-01T00:00:00Z"
+                        publishedAt: "2024-02-01T00:00:00Z"
                   nextToken: null
         '401':
           $ref: '#/components/responses/Unauthorized'
 
   /templates/master/{templateId}/meta:
     get:
+      deprecated: true
       tags: [MasterTemplateManagement]
-      summary: Get master template (active version document)
+      summary: Get master template (deprecated — use GET /templates/{templateId}/versions?version=latest)
       description: |
         Returns the **full active VERSION document** for the template (same nested body as create:
         `templateMetadata`, `templateProfile`, `alertPolicyScopeDefinition`, …).
@@ -678,8 +1015,9 @@ paths:
 
   /templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone:
     post:
+      deprecated: true
       tags: [MasterTemplateManagement]
-      summary: Clone published master template to organization
+      summary: Clone published master template to organization (deprecated — use POST /templates/{templateId}/derive)
       description: |
         **Org derivation (requirements § Org Template Derivation):** copy a **PUBLISHED** master `VERSION#` into a new org partition.
 
@@ -1551,6 +1889,13 @@ paths:
 
 components:
 
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Authorization header passed to the API Gateway custom authorizer.
+
   parameters:
     TemplateId:
       in: path
@@ -1711,6 +2056,18 @@ components:
       enum: [HYPERTENSION, DIABETES, ANNUAL_WELLNESS, CUSTOM]
       description: Phase 1 supports 4 conditions. Extensible in future.
 
+    JsonValue:
+      description: Any JSON primitive, array, or object (field defaults, overrides, dynamic values).
+      oneOf:
+        - type: string
+        - type: number
+        - type: integer
+        - type: boolean
+        - type: array
+          items: {}
+        - type: object
+          additionalProperties: true
+
     DurationType:
       type: string
       enum: [DAYS_30, DAYS_90, MONTHS_6, YEAR_1, CUSTOM, "90D", "6M"]
@@ -1722,10 +2079,10 @@ components:
 
     ShareScope:
       type: string
-      enum: [PLATFORM, ORG, PRIVATE, SHAREABLE]
+      enum: [PRIVATE, ORGANIZATION, PUBLIC]
       description: |
-        PLATFORM / ORG / PRIVATE = visibility scope on stored records.
-        SHAREABLE = flat-document flag indicating the template may be shared per product rules.
+        Visibility for master templates. API accepts **Private**, **Organization**, or **Public** (case-insensitive).
+        Stored as `PRIVATE`, `ORGANIZATION`, or `PUBLIC`.
 
     TemplateSource:
       type: string
@@ -1793,7 +2150,10 @@ components:
         message:
           type: string
         data:
+          description: Operation-specific payload (object or null for empty success bodies).
+          type: object
           nullable: true
+          additionalProperties: true
         meta:
           type: object
           properties:
@@ -1972,11 +2332,11 @@ components:
       description: |
         Full DynamoDB document. PK/SK are stored in DB but may be stripped from API responses
         depending on implementation preference.
-      required: [PK, SK, entityType, meta]
+      required: [meta]
       properties:
         PK:
           type: string
-          description: DynamoDB partition key
+          description: DynamoDB partition key (optional in API responses)
           example: MASTER_TMPL#CP-HTN-001
         SK:
           type: string
@@ -2177,7 +2537,7 @@ components:
             remove:
               $ref: '#/components/schemas/DownstreamControl'
         defaultValue:
-          nullable: true
+          $ref: '#/components/schemas/JsonValue'
         dependsOn:
           type: object
           nullable: true
@@ -2794,10 +3154,125 @@ components:
             correlationId:
               type: string
 
+    TemplateLevel:
+      type: string
+      enum: [MASTER, ORG]
+      description: Scope filter for unified `/templates` routes. Org templates are listed/updated with ORG + organizationId.
+
+    FieldValuesMap:
+      type: object
+      description: |
+        UI-driven field payload. Keys match `services-json/*-api-response.json` field ids
+        (e.g. `TASK_NAME`, `TEMPLATE_NAME`, monitoring/alert section keys). Values are JSON primitives or arrays.
+      additionalProperties: true
+      example:
+        TASK_NAME: Record Blood Pressure
+        TASK_DESCRIPTION: Measure BP daily
+        ASSIGNED_TO_ROLE: PATIENT
+
+    TemplateCreateRequest:
+      type: object
+      description: Canonical create body for POST /templates (master templates).
+      required: [templateCode, templateType]
+      properties:
+        templateCode:
+          type: string
+          example: TASK_BP_MONITORING
+        templateType:
+          $ref: '#/components/schemas/TemplateType'
+        templateLevel:
+          $ref: '#/components/schemas/TemplateLevel'
+          default: MASTER
+        templateMetadata:
+          type: object
+          additionalProperties: true
+        templateProfile:
+          type: object
+          additionalProperties: true
+        fieldValues:
+          $ref: '#/components/schemas/FieldValuesMap'
+        templateName:
+          type: string
+          description: Optional if fieldValues.TASK_NAME or TEMPLATE_NAME is set
+      additionalProperties: true
+
+    MasterTemplateSaveRequest:
+      type: object
+      description: |
+        Master PUT body — content update and/or lifecycle. `shareScope` must be Private, Organization, or Public when sent.
+      properties:
+        lifecycleAction:
+          type: string
+          enum: [SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE]
+        action:
+          type: string
+          deprecated: true
+          description: Alias for lifecycleAction
+          enum: [SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE]
+        comment:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        shareScope:
+          $ref: '#/components/schemas/ShareScope'
+        templateType:
+          $ref: '#/components/schemas/TemplateType'
+        categoryCode:
+          type: string
+        conditionCode:
+          type: string
+        countryCodes:
+          type: array
+          items:
+            type: string
+        languageCodes:
+          type: array
+          items:
+            type: string
+        fieldValues:
+          $ref: '#/components/schemas/FieldValuesMap'
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
+        active:
+          type: boolean
+        measurementType:
+          type: string
+      additionalProperties: true
+
+    TemplateDeriveRequest:
+      type: object
+      description: |
+        Client supplies **which master** via path `{templateId}` only.
+        New org `templateId` / `templateVersionId` are **generated by the server** (see derive response).
+      properties:
+        organizationId:
+          type: string
+          description: Target org (optional if JWT carries org context)
+          example: org-apollo-001
+        sourceVersionId:
+          type: string
+          description: |
+            Optional. Published master `templateVersionId` (e.g. `GOAL-CODE-V01`).
+            Omit to use the latest PUBLISHED version for the master in the path.
+          example: GOAL-CODE-V01
+        derivationType:
+          type: string
+          enum: [ENABLE, CLONE]
+          default: ENABLE
+          description: ENABLE = org enablement from master; CLONE = duplicate within org
+        newTemplateName:
+          type: string
+          maxLength: 150
+        inheritLinks:
+          type: boolean
+          default: true
+
     NestedMasterTemplateCreateRequest:
       type: object
       description: |
-        Nested authoring payload for Alert Policy, Monitoring, and future non–Care Plan types.
+        Nested authoring payload for Alert Policy, Monitoring, Task, and other UI-driven types.
         Top-level keys are persisted on the VERSION row (plus normalized `meta`).
       required: [templateCode, templateType]
       properties:
@@ -2806,6 +3281,8 @@ components:
           example: ALT-VITALS-v1
         templateType:
           $ref: '#/components/schemas/TemplateType'
+        fieldValues:
+          $ref: '#/components/schemas/FieldValuesMap'
         templateProfile:
           type: object
           description: Profile dimensions (category, condition, country, language, specialty, …)
@@ -3107,36 +3584,10 @@ components:
           type: string
           format: date-time
           nullable: true
-
-    MasterTemplateListItem:
-      type: object
-      properties:
-        templateId:
+        publishedBy:
           type: string
-        templateVersionId:
-          type: string
-        templateName:
-          type: string
-        templateType:
-          $ref: '#/components/schemas/TemplateType'
-        category:
-          $ref: '#/components/schemas/TemplateCategory'
-        condition:
-          $ref: '#/components/schemas/Condition'
-        countries:
-          type: array
-          items:
-            type: string
-        version:
-          type: integer
-        status:
-          $ref: '#/components/schemas/TemplateStatus'
-        isActive:
-          type: boolean
-        publishedAt:
-          type: string
-          format: date-time
           nullable: true
+          description: User id that published the version (present after PUBLISH).
 
     OrgTemplateListItem:
       type: object
@@ -3175,9 +3626,10 @@ components:
           type: string
           nullable: true
         condition:
-          allOf:
-            - $ref: '#/components/schemas/Condition'
+          type: string
           nullable: true
+          enum: [HYPERTENSION, DIABETES, ANNUAL_WELLNESS, CUSTOM]
+          description: Clinical condition when stored on the enablement row.
         effectiveFrom:
           type: string
           format: date-time

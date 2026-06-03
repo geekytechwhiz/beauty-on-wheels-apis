@@ -7,6 +7,7 @@
     "MONITORING": "monitoring-api-response.json",
     "SYMPTOM": "symptom-api-response.json",
     "TASK": "task-api-response.json",
-    "THRESHOLD": "threshold-api-response.json"
+    "THRESHOLD": "threshold-api-response.json",
+    "CARE_PLAN": "care-plan-api-response.json"
   }
 }

@@ -732,7 +732,7 @@ functions:
             type: token
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 300
+            resultTtlInSeconds: 0
        
   friendFamilySearch:
     handler: src/handlers/friendFamilySearch.main

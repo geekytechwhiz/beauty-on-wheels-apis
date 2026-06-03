@@ -172,6 +172,87 @@ const orgSK = (): string => {
   return `ORG#`;
 };
 
+type OrgUserCountFilters = {
+  roleId?: string;
+  roleName?: string;
+  roleType?: string;
+  status?: string;
+};
+
+function orgUserCountPk(organizationId: string): string {
+  return `ORG_USER_COUNT#${organizationId}`;
+}
+
+function applyOrgUserCountFilters(
+  items: Array<Record<string, unknown>>,
+  filters?: OrgUserCountFilters,
+): Array<Record<string, unknown>> {
+  if (!filters) {
+    return items;
+  }
+
+  return items.filter((item) => {
+    if (filters.roleId && item.roleId !== filters.roleId) {
+      return false;
+    }
+    if (
+      filters.roleName &&
+      String(item.roleName ?? '')
+        .toUpperCase()
+        .replace(/ /g, '_') !== filters.roleName
+    ) {
+      return false;
+    }
+    if (
+      filters.roleType &&
+      String(item.roleType ?? '').toUpperCase() !== filters.roleType.toUpperCase()
+    ) {
+      return false;
+    }
+    if (
+      filters.status &&
+      String(item.sk3 ?? item.status ?? '').toUpperCase() !== filters.status.toUpperCase()
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+async function fetchPreAggregatedOrgUserCounts(
+  organizationId: string,
+  logger: ReturnType<typeof createChildLogger>,
+): Promise<Array<Record<string, unknown>> | null> {
+  const pk = orgUserCountPk(organizationId);
+  const items: Array<Record<string, unknown>> = [];
+  let lastKey: Record<string, unknown> | undefined;
+
+  do {
+    const response = await sendDoc<QueryCommandOutput>(
+      docClient,
+      new QueryCommand({
+        TableName: USER_TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk',
+        ExpressionAttributeValues: { ':pk': pk },
+        ...(lastKey && { ExclusiveStartKey: lastKey }),
+      }),
+    );
+    items.push(...((response.Items ?? []) as Array<Record<string, unknown>>));
+    lastKey = response.LastEvaluatedKey;
+  } while (lastKey);
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  logger.info({
+    event: 'user_counts_preaggregated_hit',
+    organizationId,
+    recordCount: items.length,
+  });
+  return items;
+}
+
 export interface ListOrganizationUsersOptions {
   limit?: number;
   offset?: number;
@@ -659,16 +740,18 @@ export class UserRepository {
 
   async getOrganizationUserCounts(
     organizationId: string,
-    filters?: {
-      roleId?: string;
-      roleName?: string;
-      roleType?: string;
-      status?: string;
-    },
+    filters?: OrgUserCountFilters,
   ): Promise<Array<Record<string, unknown>>> {
     const logger = createChildLogger(baseLogger, { organizationId });
 
-    // Same key pattern as listOrganizationUsers: pk = ORG#orgId, sk begins_with USER#
+    const preAggregated = await fetchPreAggregatedOrgUserCounts(organizationId, logger);
+    if (preAggregated) {
+      return applyOrgUserCountFilters(preAggregated, filters);
+    }
+
+    logger.info({ event: 'user_counts_preaggregated_miss_fallback_scan' });
+
+    // Fallback: scan org users when ORG_USER_COUNT records are not maintained yet.
     const pk = userOrgPk(organizationId);
     const allUsers: Array<Record<string, unknown>> = [];
     const keyCondition = 'pk = :pk AND begins_with(sk, :skPrefix)';
@@ -682,26 +765,20 @@ export class UserRepository {
     let lastKey: Record<string, unknown> | undefined;
     let useUppercaseKeys = false;
 
-    // Fetch all users for the organization (pk=ORG#orgId, sk=USER#userId)
     do {
-      const params: {
-        TableName: string;
-        KeyConditionExpression: string;
-        ExpressionAttributeValues: Record<string, unknown>;
-        ExclusiveStartKey?: Record<string, unknown>;
-      } = {
+      const params: QueryCommandInput = {
         TableName: USER_TABLE_NAME,
         KeyConditionExpression: useUppercaseKeys
           ? 'PK = :pk AND begins_with(SK, :skPrefix)'
           : keyCondition,
         ExpressionAttributeValues: expressionValues,
+        ProjectionExpression:
+          'roleID, roleId, roleName, definedRoleCode, roleType, userType, #status, isActive, userID, userRole',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ...(lastKey && { ExclusiveStartKey: lastKey }),
       };
-      if (lastKey) params.ExclusiveStartKey = lastKey;
 
-      let response: {
-        Items?: unknown[];
-        LastEvaluatedKey?: Record<string, unknown>;
-      };
+      let response: QueryCommandOutput;
       try {
         response = await sendDoc<QueryCommandOutput>(docClient, new QueryCommand(params));
       } catch (innerErr: unknown) {
@@ -709,7 +786,6 @@ export class UserRepository {
         const message = String(
           (innerErr as { message?: string }).message ?? '',
         );
-        // Table may use PK/SK (uppercase) – retry with uppercase and re-paginate from start
         if (
           !useUppercaseKeys &&
           name === 'ValidationException' &&
@@ -809,7 +885,7 @@ export class UserRepository {
       counts: countRecords.map((r) => ({ role: r.roleName, count: r.count })),
     });
 
-    return countRecords;
+    return applyOrgUserCountFilters(countRecords, filters);
   }
 
   async updateUserMetadata(

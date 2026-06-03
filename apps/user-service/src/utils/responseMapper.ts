@@ -71,9 +71,12 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
           ? Boolean(item.isActive)
           : true;
 
+    const userID = String(item.userID ?? item.userId ?? '');
+
     return {
+      userID,
       accountType: String(item.accountType ?? ''),
-      patientId: String(item.userID ?? item.userId ?? ''),
+      patientId: userID,
       fullName: String(item.fullName ?? ''),
       firstName: String(item.firstName ?? ''),
       lastName: String(item.lastName ?? ''),

@@ -7,12 +7,8 @@ const ORG_SIZE_PREFIX = 'ORG_SIZE';
 const ORG_SCHEDULE_KEY = 'SCHEDULE';
 const DEFAULT_SETTINGS_KEY = 'DEFAULT_SETTINGS';
 const ORG_STATUS = ['HOLD', 'ACTIVE', 'DISABLED', 'PENDING'];
-
-interface Params {
-  type?: string;
-}
-
-const handler = async (req: LambdaRequest<Params>) => {
+ 
+const handler = async (req: LambdaRequest) => {
   const typeParam = req.params.type?.toUpperCase();
   const type = typeParam || 'ORGANIZATION';
 

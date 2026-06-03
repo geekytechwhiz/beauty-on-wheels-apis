@@ -29,7 +29,7 @@ export function toArray<T>(value?: T | T[] | null): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
-const handler = async (req: LambdaRequest<ListBody>) => {
+const handler = async (req: LambdaRequest) => {
   const body = req.body ?? {};
   const event = req.event as unknown as Record<string, unknown>;
   let organizationId = body.organizationId ?? body.organizationID ?? (event?.organizationID as string | undefined);

@@ -13,7 +13,7 @@ import {
   type FhirHandlerOptions,
 } from '@api-hub/fhir/middleware';
 
-import type { FhirPeerModule } from './fhir-peer';
+import type { FhirPeerModule } from './fhir-peer'; 
 
 export type ApiHubFhirPeerModule = FhirPeerModule & {
   isFhirRequest: (req: LambdaRequest) => boolean;
@@ -42,16 +42,14 @@ export const apiHubFhirPeer: ApiHubFhirPeerModule = {
     if (error instanceof FhirValidationError) {
       return mapFhirValidationErrorResponse(error, {
         correlationId: options?.correlationId,
-        logger: options?.logger as Parameters<
-          typeof mapFhirValidationErrorResponse
-        >[1]['logger'],
+        logger: options?.logger  ,
         skipLog: options?.skipLog,
       });
     }
 
     throw error;
   },
-  FhirValidationError,
+  FhirValidationError: FhirValidationError as unknown as new (...args: any[]) => Error,
   isFhirValidationErrorLike,
   isFhirRequest,
   shouldTransformFhirRequest,

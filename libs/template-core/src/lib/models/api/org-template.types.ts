@@ -10,8 +10,10 @@ export type CloneTemplateBody = {
 
 export type CloneOrgTemplateParams = {
   organizationId: string;
+  /** Master template id from path (normalized templateCode). */
   masterTemplateId: string;
-  masterVersionId: string;
+  /** Master templateVersionId or version id (V01). Omit to use latest PUBLISHED. */
+  masterVersionId?: string;
   body?: CloneTemplateBody;
   actorUserId?: string;
 };

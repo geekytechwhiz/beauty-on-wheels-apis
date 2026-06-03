@@ -22,6 +22,15 @@ export const ENV_TEMPLATE_TABLE = 'TEMPLATE_TABLE';
 
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN' as const;
 
+/** Visibility for master templates (API accepts Private | Organization | Public). */
+export const SHARE_SCOPE = {
+  PRIVATE: 'PRIVATE',
+  ORGANIZATION: 'ORGANIZATION',
+  PUBLIC: 'PUBLIC',
+} as const;
+
+export type ShareScope = (typeof SHARE_SCOPE)[keyof typeof SHARE_SCOPE];
+
 export const TEMPLATE_STATUS = {
   DRAFT: 'DRAFT',
   SAVED: 'SAVED',

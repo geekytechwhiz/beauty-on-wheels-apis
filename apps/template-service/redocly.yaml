@@ -1,0 +1,9 @@
+extends:
+  - recommended
+
+rules:
+  no-ambiguous-paths: warn
+  no-invalid-media-type-examples: warn
+  operation-operationId-unique: error
+  nullable-type-sibling: error
+  security-defined: error

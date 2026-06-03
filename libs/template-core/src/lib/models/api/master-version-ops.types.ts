@@ -27,3 +27,12 @@ export type TransitionMasterStatusParams = {
   actorUserId?: string;
 };
 
+/** Unified master save — content update and/or lifecycle (POST /templates/{templateId}). */
+export type SaveMasterTemplateParams = {
+  templateId: string;
+  /** When path uses templateVersionId (e.g. TASK-CODE-V01), targets that version. */
+  templateVersionId?: string;
+  body: Record<string, unknown>;
+  actorUserId?: string;
+};
+

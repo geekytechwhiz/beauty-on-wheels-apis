@@ -23,8 +23,10 @@ import {
   assertUiMetaUpsertBody,
   candidateUiMetaFileNames,
   isOrgConfigMetaFileName,
+  isLambdaRuntime,
   parseUiMetaDocument,
   prepareServicesJsonDir,
+  resolveBundledServicesJsonDir,
   resolveServicesJsonDir,
   resolveTemplateTypeForUiMetaDocument,
   templateUiMetaNotFoundError,
@@ -40,6 +42,17 @@ export { resolveServicesJsonDir } from '../utils/template-ui-meta.utils';
 
 export class TemplateUiMetaService {
   constructor(private readonly baseDir = resolveServicesJsonDir()) {}
+
+  private getReadDirs(primaryDir: string): string[] {
+    const dirs = [primaryDir];
+    if (isLambdaRuntime()) {
+      const bundled = resolveBundledServicesJsonDir();
+      if (bundled && bundled !== primaryDir) {
+        dirs.push(bundled);
+      }
+    }
+    return dirs;
+  }
 
   async listUiMeta(): Promise<TemplateUiMetaListItem[]> {
     const baseDir = await prepareServicesJsonDir(this.baseDir);
@@ -100,40 +113,41 @@ export class TemplateUiMetaService {
     }
 
     const orgConfigFiles = await this.loadOrgConfigFileNames(baseDir);
-    const entries = await readdir(baseDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-      const fileName = entry.name;
-      if (isMetaRegistryFileName(fileName) || isOrgConfigMetaFileName(fileName, orgConfigFiles)) {
-        continue;
-      }
-
-      const fullPath = path.join(baseDir, fileName);
-      try {
-        const raw = await readFile(fullPath, 'utf-8');
-        const doc = parseUiMetaDocument(raw, fileName);
-        if (doc.id !== normalizedId) continue;
-
-        const templateType =
-          resolveTemplateTypeForUiMetaDocument(doc, fileName) ??
-          templateTypeFromRegistry(fileName, registry) ??
-          resolveTemplateTypeForMetaId(doc.id);
-        if (!templateType) {
-          templateUiMetaValidationError(`Could not resolve template type for id ${normalizedId}`);
-        }
-
-        return { metaId: doc.id, templateType, fileName, document: doc };
-      } catch (e: unknown) {
-        if (
-          e &&
-          typeof e === 'object' &&
-          'statusCode' in e &&
-          (e as { statusCode: number }).statusCode === 400
-        ) {
+    for (const readDir of this.getReadDirs(baseDir)) {
+      const entries = await readdir(readDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+        const fileName = entry.name;
+        if (isMetaRegistryFileName(fileName) || isOrgConfigMetaFileName(fileName, orgConfigFiles)) {
           continue;
         }
-        throw e;
+
+        const fullPath = path.join(readDir, fileName);
+        try {
+          const raw = await readFile(fullPath, 'utf-8');
+          const doc = parseUiMetaDocument(raw, fileName);
+          if (doc.id !== normalizedId) continue;
+
+          const templateType =
+            resolveTemplateTypeForUiMetaDocument(doc, fileName) ??
+            templateTypeFromRegistry(fileName, registry) ??
+            resolveTemplateTypeForMetaId(doc.id);
+          if (!templateType) {
+            templateUiMetaValidationError(`Could not resolve template type for id ${normalizedId}`);
+          }
+
+          return { metaId: doc.id, templateType, fileName, document: doc };
+        } catch (e: unknown) {
+          if (
+            e &&
+            typeof e === 'object' &&
+            'statusCode' in e &&
+            (e as { statusCode: number }).statusCode === 400
+          ) {
+            continue;
+          }
+          throw e;
+        }
       }
     }
 
@@ -152,12 +166,14 @@ export class TemplateUiMetaService {
         candidates.add(legacyName);
       }
     }
-    for (const candidate of candidates) {
-      const fullPath = path.join(baseDir, candidate);
-      if (!existsSync(fullPath)) continue;
-      const raw = await readFile(fullPath, 'utf-8');
-      const doc = parseUiMetaDocument(raw, candidate);
-      return { metaId: doc.id, templateType, fileName: candidate, document: doc };
+    for (const readDir of this.getReadDirs(baseDir)) {
+      for (const candidate of candidates) {
+        const fullPath = path.join(readDir, candidate);
+        if (!existsSync(fullPath)) continue;
+        const raw = await readFile(fullPath, 'utf-8');
+        const doc = parseUiMetaDocument(raw, candidate);
+        return { metaId: doc.id, templateType, fileName: candidate, document: doc };
+      }
     }
 
     templateUiMetaNotFoundError(`UI meta file not found for template type ${templateType}`);

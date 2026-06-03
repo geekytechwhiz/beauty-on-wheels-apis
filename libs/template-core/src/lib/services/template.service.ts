@@ -31,15 +31,15 @@ import { TemplateMasterOpsService } from './template-master-ops.service';
 import { CompatibleTemplatesService } from './compatible-templates.service';
 import type { ListCompatibleTemplatesParams } from '../models/api/compatible-templates.types';
 import type {
+  SaveMasterTemplateParams,
   TransitionMasterStatusParams,
   UpdateMasterVersionParams,
 } from '../models/api/master-version-ops.types';
 
 export class TemplateService {
+  private readonly repo = new TemplateRepository();
   private readonly masterOps = new TemplateMasterOpsService(this.repo);
   private readonly compatibleSvc = new CompatibleTemplatesService(this.repo);
-
-  constructor(private readonly repo = new TemplateRepository()) {}
 
   async createMasterTemplate(
     input: CreateMasterTemplateInput,
@@ -150,6 +150,56 @@ export class TemplateService {
 
   async transitionMasterTemplateStatus(params: TransitionMasterStatusParams) {
     return this.masterOps.transitionMasterTemplateStatus(params);
+  }
+
+  /**
+   * Single master write API: optional `lifecycleAction` (PUBLISH, SUBMIT_REVIEW, …) or content update.
+   * Resolves the current head `templateVersionId` — clients do not pass version in the URL.
+   */
+  async saveMasterTemplate(params: SaveMasterTemplateParams): Promise<TemplateDdbRecord> {
+    try {
+      const metaRow = await this.repo.getMasterMeta(params.templateId);
+      if (!metaRow) {
+        templateNotFoundError();
+      }
+
+      const versionId =
+        params.templateVersionId?.trim() || metaRow.meta.templateVersionId;
+      if (!versionId?.trim()) {
+        templateNotFoundError('Master template version not found');
+      }
+
+      const lifecycleAction =
+        typeof params.body.lifecycleAction === 'string'
+          ? params.body.lifecycleAction.trim()
+          : typeof params.body.action === 'string'
+            ? params.body.action.trim()
+            : '';
+
+      if (lifecycleAction) {
+        return await this.transitionMasterTemplateStatus({
+          templateId: params.templateId,
+          versionId,
+          body: {
+            action: lifecycleAction,
+            comment:
+              typeof params.body.comment === 'string' ? params.body.comment : null,
+            reason:
+              typeof params.body.reason === 'string' ? params.body.reason : null,
+          },
+          actorUserId: params.actorUserId,
+        });
+      }
+
+      return await this.updateMasterTemplateVersion({
+        templateId: params.templateId,
+        versionId,
+        body: params.body,
+        actorUserId: params.actorUserId,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
   }
 
   async listCompatibleTemplates(params: ListCompatibleTemplatesParams) {
